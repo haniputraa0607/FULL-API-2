@@ -21,4 +21,14 @@ class Department extends Model
     {
         return $this->belongsTo(Department::class, 'id_parent');
     }
+
+    public function department_parent()
+    {
+        return $this->belongsTo(Department::class, 'id_parent', 'id_department');
+    }
+
+    public function department_child()
+    {
+        return $this->hasMany(Department::class, 'id_parent', 'id_department');
+    }
 }

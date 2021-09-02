@@ -65,6 +65,7 @@ class User extends Authenticatable
 		'email_verified',
         'email_verified_valid_time',
 		'level',
+        'id_jobs_level',
 		'points',
 		'balance',
 		'count_complete_profile',

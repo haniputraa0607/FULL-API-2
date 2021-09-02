@@ -3324,7 +3324,7 @@ class FeaturesTableSeeder extends Seeder
             332 =>
                 array(
                     'id_feature' => 333,
-                    'feature_type' => 'Create',
+                    'feature_type' => 'List',
                     'feature_module' => 'Role',
                     'show_hide' => 1,
                     'order' => 123,
@@ -3334,7 +3334,7 @@ class FeaturesTableSeeder extends Seeder
             333 =>
                 array(
                     'id_feature' => 334,
-                    'feature_type' => 'Detail',
+                    'feature_type' => 'Create',
                     'feature_module' => 'Role',
                     'show_hide' => 1,
                     'order' => 123,
@@ -3344,7 +3344,7 @@ class FeaturesTableSeeder extends Seeder
             334 =>
                 array(
                     'id_feature' => 335,
-                    'feature_type' => 'Update',
+                    'feature_type' => 'Detail',
                     'feature_module' => 'Role',
                     'show_hide' => 1,
                     'order' => 123,
@@ -3354,6 +3354,16 @@ class FeaturesTableSeeder extends Seeder
             335 =>
                 array(
                     'id_feature' => 336,
+                    'feature_type' => 'Update',
+                    'feature_module' => 'Role',
+                    'show_hide' => 1,
+                    'order' => 123,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00'),
+                ),
+            336 =>
+                array(
+                    'id_feature' => 337,
                     'feature_type' => 'Delete',
                     'feature_module' => 'Role',
                     'show_hide' => 1,

@@ -1,0 +1,14 @@
+{
+    "name": "BusinessDevelopment",
+    "alias": "businessdevelopment",
+    "description": "",
+    "keywords": [],
+    "active": 1,
+    "order": 0,
+    "providers": [
+        "Modules\\BusinessDevelopment\\Providers\\BusinessDevelopmentServiceProvider"
+    ],
+    "aliases": {},
+    "files": [],
+    "requires": []
+}

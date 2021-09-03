@@ -13,6 +13,7 @@ use App\Http\Models\Level;
 use App\Http\Models\Configs;
 use App\Http\Models\Courier;
 use App\Http\Models\Setting;
+use Modules\Users\Entities\Role;
 
 use Illuminate\Foundation\Bus\DispatchesJobs;
 use Illuminate\Routing\Controller as BaseController;
@@ -34,9 +35,13 @@ class Controller extends BaseController
 		if($user['level'] == 'Super Admin'){
 			$checkFeature = Feature::select('id_feature')->where('show_hide', 1)->get()->toArray();
 		}else{
-			$checkFeature = UserFeature::join('features', 'features.id_feature', '=', 'user_features.id_feature')
-                            ->where('features.show_hide', 1)
-							->where('user_features.id_user', '=', $user['id'])
+			$checkFeature = Role::join('roles_features', 'roles_features.id_role', 'roles.id_role')
+							->join('features', 'features.id_feature', 'roles_features.id_feature')
+							->where([
+								['roles.id_department', $user['id_department']],
+								['roles.id_job_level', $user['id_job_level']],
+								['features.show_hide', 1]
+							])
 							->select('features.id_feature')->get()->toArray();
 		}
 		$result = [

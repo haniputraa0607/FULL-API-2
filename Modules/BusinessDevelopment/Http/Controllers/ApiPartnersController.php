@@ -42,8 +42,7 @@ class ApiPartnersController extends Controller
      */
     public function store(Request $request)
     {
-        $post = $request->all();
-        return $post['data'];
+        
     }
 
     /**

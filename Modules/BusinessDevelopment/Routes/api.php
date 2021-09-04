@@ -16,8 +16,10 @@ use Illuminate\Http\Request;
 Route::middleware('auth:api')->get('/businessdevelopment', function (Request $request) {
     return $request->user();
 });
-Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scopes:apps'], 'prefix' => 'api/bd', 'namespace' => 'Modules\BusinessDevelopment\Http\Controllers'], function()
-{
-    Route::any('/', 'ApiTutorial@introHomeFrontend');
 
+Route::group(['prefix' => 'partners'], function() {
+    Route::any('/', ['uses' => 'ApiPartnersController@index']);
+    Route::post('/delete', ['uses' => 'ApiPartnersController@destroy']);
+    Route::post('/edit', ['uses' => 'ApiPartnersController@edit']);
+    Route::post('/update', ['uses' => 'ApiPartnersController@update']);
 });

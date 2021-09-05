@@ -18,10 +18,23 @@ class ApiLocationsController extends Controller
     public function index(Request $request)
     {
         $post = $request->all();
+        $locations = Location::with(['location_partner','location_city']);
+        if ($keyword = ($request->search['value']??false)) {
+            $locations->where('name', 'like', '%'.$keyword.'%')
+                        ->orWhereHas('location_partner', function($q) use ($keyword) {
+                                $q->where('name', 'like', '%'.$keyword.'%');
+                            })
+                        ->orWhereHas('location_city', function($q) use ($keyword) {
+                            $q->where('city_name', 'like', '%'.$keyword.'%');
+                        });
+        }
+        if(isset($post['get_child']) && $post['get_child'] == 1){
+            $partner = $location->whereNotNull('id_partner');
+        }
         if(isset($post['page'])){
-            $locations = Location::orderBy('updated_at', 'desc')->paginate($request->length ?: 10);
+            $locations = $locations->orderBy('updated_at', 'desc')->paginate($request->length ?: 10);
         }else{
-            $locations = Location::orderBy('updated_at', 'desc')->get()->toArray();
+            $locations = $locations->orderBy('updated_at', 'desc')->get()->toArray();
         }
         return MyHelper::checkGet($locations);
     }
@@ -64,7 +77,7 @@ class ApiLocationsController extends Controller
     {
         $post = $request->all();
         if(isset($post['id_location']) && !empty($post['id_location'])){
-            $location = Location::where('id_location', $post['id_location'])->first();
+            $location = Location::where('id_location', $post['id_location'])->with(['location_partner','location_city'])->first();
 
             return response()->json(['status' => 'success', 'result' => [
                 'location' => $location,
@@ -85,16 +98,30 @@ class ApiLocationsController extends Controller
         $post = $request->all();
         if (isset($post['id_location']) && !empty($post['id_location'])) {
             DB::beginTransaction();
-            $data_update = [
-                "name" => $post['name'],
-                "address" => $post['address'],
-                "id_city" => $post['id_city'],
-                "latitude" => $post['latitude'],
-                "longitude" => $post['longitude'],
-                "pic_name" => $post['pic_name'],
-                "pic_contact" => $post['pic_contact'],
-                "id_user_franchise" => $post['id_user_franchise'],
-            ];
+            if (isset($post['name'])) {
+                $data_update['name'] = $post['name'];
+            }
+            if (isset($post['address'])) {
+                $data_update['address'] = $post['address'];
+            }
+            if (isset($post['id_city'])) {
+                $data_update['id_city'] = $post['id_city'];
+            }
+            if (isset($post['latitude'])) {
+                $data_update['latitude'] = $post['latitude'];
+            }
+            if (isset($post['longitude'])) {
+                $data_update['longitude'] = $post['longitude'];
+            }
+            if (isset($post['pic_name'])) {
+                $data_update['pic_name'] = $post['pic_name'];
+            }
+            if (isset($post['pic_contact'])) {
+                $data_update['pic_contact'] = $post['pic_contact'];
+            }
+            if (isset($post['id_partner'])) {
+                $data_update['id_partner'] = $post['id_partner'];
+            }
             $update = Location::where('id_location', $post['id_location'])->update($data_update);
             if(!$update){
                 DB::rollback();

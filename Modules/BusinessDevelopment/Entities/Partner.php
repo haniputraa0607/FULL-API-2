@@ -3,10 +3,11 @@
 namespace Modules\BusinessDevelopment\Entities;
 
 use Illuminate\Database\Eloquent\Model;
+use Modules\Disburse\Entities\BankAccount;
 
 class Partner extends Model
 {
-    protected $primaryKey = 'id_department';
+    protected $primaryKey = 'id_partner';
     protected $fillable = [ 
         'name', 
         'phone', 
@@ -21,4 +22,10 @@ class Partner extends Model
         'password',
         'first_update_password'
     ];
+    public function partner_locations(){
+        return $this->hasMany(Location::class, 'id_partner');
+    }
+    public function partner_bank_account(){
+        return $this->belongsTo(BankAccount::class, 'id_bank_account');
+    }
 }

@@ -14,14 +14,14 @@ class CreatePartnersTable extends Migration
     public function up()
     {
         Schema::create('partners', function (Blueprint $table) {
-            $table->increments('id_user_franchise');
+            $table->increments('id_partner');
             $table->string('name');
             $table->string('phone')->nullable();
             $table->string('email');
             $table->string('address')->nullable();
             $table->enum('ownership_status', ['Central','Partner'])->default('Central');
             $table->enum('cooperation_scheme', ['Profit Sharing','Management Fee'])->default('Profit Sharing');
-            $table->bigInteger('id_bank_account')->unsigned()->index('fk_partner_bank_account');
+            $table->bigInteger('id_bank_account')->unsigned();
             $table->enum('status', ['Active','Inactive','Candidate'])->default('Candidate');
             $table->dateTime('start_date')->nullable();
             $table->dateTime('end_date')->nullable();

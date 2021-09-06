@@ -56,7 +56,47 @@ class ApiPartnersController extends Controller
      */
     public function store(Request $request)
     {
-        
+        $post = $request->all();
+        $data_request_partner = $post['partner'];
+        $data_request_locations = $post['location'];
+        if (!empty($data_request_partner)) {
+            DB::beginTransaction();
+            $store = Partner::create([
+                "name"   => $data_request_partner['name'],
+                "phone"   => $data_request_partner['phone'],
+                "email"   => $data_request_partner['email'],
+                "address"   => $data_request_partner['address'],
+                "id_bank_account"   => $data_request_partner['id_bank_account'],
+            ]);
+            if ($store) {
+                if (isset($data_request_locations)) {
+                    $id = $store->id_partner;
+                    foreach ($data_request_locations as $key => $location) {
+                        $store_loc = Location::create([
+                            "name"   => $location['name'],
+                            "address"   => $location['address'],
+                            "id_city"   => $location['id_city'],
+                            "latitude"   => $location['latitude'],
+                            "longitude"   => $location['longitude'],
+                            "pic_name"   => $location['pic_name'],
+                            "pic_name"   => $location['pic_name'],
+                            "id_partner"   => $id,
+                        ]);
+                        if(!$store_loc){
+                            DB::rollback();
+                            return response()->json(['status' => 'fail', 'messages' => ['Failed add partner']]);
+                        }
+                    }
+                }
+            } else {
+                DB::rollback();
+                return response()->json(['status' => 'fail', 'messages' => ['Failed add partner']]);
+            }
+            DB::commit();
+            return response()->json(MyHelper::checkCreate($store));
+        } else {
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }    
     }
 
     /**

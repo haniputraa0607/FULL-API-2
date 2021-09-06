@@ -8,6 +8,7 @@ use Illuminate\Routing\Controller;
 use Modules\BusinessDevelopment\Entities\Location;
 use App\Lib\MyHelper;
 use DB;
+use Modules\BusinessDevelopment\Entities\Partner;
 
 class ApiLocationsController extends Controller
 {
@@ -55,7 +56,34 @@ class ApiLocationsController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $post= $request->all();
+        $data_request= $post['location'];
+        if (!empty($data_request)) {
+            $cek_partner = Partner::where(['id_partner'=>$data_request['id_partner']])->first();
+            if($cek_partner){
+                DB::beginTransaction();
+                $store = Location::create([
+                    "name"   => $data_request['name'],
+                    "address"   => $data_request['address'],
+                    "id_city"   => $data_request['id_city'],
+                    "latitude"   => $data_request['latitude'],
+                    "longitude"   => $data_request['longitude'],
+                    "pic_name"   => $data_request['pic_name'],
+                    "pic_name"   => $data_request['pic_name'],
+                    "id_partner"   => $data_request['id_partner'],
+                ]);
+                if(!$store) {
+                    DB::rollback();
+                    return response()->json(['status' => 'fail', 'messages' => ['Failed add location']]);
+                }
+            } else{
+                return response()->json(['status' => 'fail', 'messages' => ['Id Partner not found']]);
+            }
+            DB::commit();
+            return response()->json(MyHelper::checkCreate($store));
+        } else {
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }           
     }
 
     /**

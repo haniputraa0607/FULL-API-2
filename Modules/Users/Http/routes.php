@@ -60,15 +60,6 @@ Route::group(['prefix' => 'api/cron', 'namespace' => 'Modules\Users\Http\Control
 	Route::any('/reset-trx-day', 'ApiUser@resetCountTransaction');
 });
 
-Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scopes:be'], 'prefix' => 'api/job-level', 'namespace' => 'Modules\Users\Http\Controllers'],  function () {
-    Route::any('/', ['middleware' => 'feature_control:323', 'uses' => 'ApiJobLevelController@index']);
-    Route::post('store', ['middleware' => 'feature_control:324', 'uses' => 'ApiJobLevelController@store']);
-    Route::post('edit', ['middleware' => 'feature_control:325,326', 'uses' => 'ApiJobLevelController@edit']);
-    Route::post('update', ['middleware' => 'feature_control:326', 'uses' => 'ApiJobLevelController@update']);
-    Route::post('delete', ['middleware' => 'feature_control:327', 'uses' => 'ApiJobLevelController@destroy']);
-    Route::post('position', ['middleware' => 'feature_control:323,326', 'uses' => 'ApiJobLevelController@position']);
-});
-
 Route::group(['middleware' => ['auth:api','log_activities', 'user_agent', 'scopes:be'], 'prefix' => 'api/users', 'namespace' => 'Modules\Users\Http\Controllers'], function(){
     Route::post('pin/check/be', 'ApiUser@checkPinBackend');
     Route::post('list/address', 'ApiUser@listAddress');
@@ -135,5 +126,24 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent', 'scope
 	    Route::post('edit', ['middleware' => 'feature_control:330', 'uses' => 'ApiDepartment@edit']);
 	    Route::post('update', ['middleware' => 'feature_control:331', 'uses' => 'ApiDepartment@update']);
 	    Route::post('delete', ['middleware' => 'feature_control:332', 'uses' => 'ApiDepartment@destroy']);
+    });
+
+    Route::group(['prefix' => 'job-level'], function()
+    {
+        Route::any('/', ['middleware' => 'feature_control:323', 'uses' => 'ApiJobLevelController@index']);
+        Route::post('store', ['middleware' => 'feature_control:324', 'uses' => 'ApiJobLevelController@store']);
+        Route::post('edit', ['middleware' => 'feature_control:325,326', 'uses' => 'ApiJobLevelController@edit']);
+        Route::post('update', ['middleware' => 'feature_control:326', 'uses' => 'ApiJobLevelController@update']);
+        Route::post('delete', ['middleware' => 'feature_control:327', 'uses' => 'ApiJobLevelController@destroy']);
+        Route::post('position', ['middleware' => 'feature_control:323,326', 'uses' => 'ApiJobLevelController@position']);
+    });
+
+    Route::group(['prefix' => 'role'], function()
+    {
+        Route::any('/', ['middleware' => 'feature_control:333', 'uses' => 'ApiRoleController@index']);
+        Route::post('store', ['middleware' => 'feature_control:334', 'uses' => 'ApiRoleController@store']);
+        Route::post('edit', ['middleware' => 'feature_control:335,336', 'uses' => 'ApiRoleController@edit']);
+        Route::post('update', ['middleware' => 'feature_control:336', 'uses' => 'ApiRoleController@update']);
+        Route::post('delete', ['middleware' => 'feature_control:337', 'uses' => 'ApiRoleController@destroy']);
     });
 });

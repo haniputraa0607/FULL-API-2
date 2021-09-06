@@ -3253,7 +3253,19 @@ class ApiUser extends Controller
                         }
                     }
                 }
-                $update = User::where('phone', $post['phone'])->update(['level' => $post['level']]);
+                $updateData = [
+                	'level' => $post['level']
+                ];
+
+                if ($post['level'] == 'Customer') {
+                	$updateData = [
+                		'level' => $post['level'],
+                		'id_department' => null,
+                		'id_job_level' => null
+                	];
+                }
+                
+                $update = User::where('phone', $post['phone'])->update($updateData);
 
                 return MyHelper::checkUpdate($update);
             } else {

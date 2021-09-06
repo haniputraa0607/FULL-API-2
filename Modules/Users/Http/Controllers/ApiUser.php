@@ -41,6 +41,7 @@ use Modules\Users\Http\Requests\users_profile_admin;
 use Modules\Users\Http\Requests\users_notification;
 use Modules\Users\Entities\UserFraud;
 use Modules\Users\Entities\UserExtraToken;
+use Modules\Users\Entities\Role;
 
 use Modules\Balance\Http\Controllers\BalanceController;
 
@@ -1141,9 +1142,13 @@ class ApiUser extends Controller
             if ($user['level'] == 'Super Admin') {
                 $checkFeature = Feature::select('id_feature')->get()->toArray();
             } else {
-                $checkFeature = UserFeature::join('features', 'features.id_feature', '=', 'user_features.id_feature')
-                    ->where('user_features.id_user', '=', $user['id'])
-                    ->select('features.id_feature')->get()->toArray();
+            	$checkFeature = Role::join('roles_features', 'roles_features.id_role', 'roles.id_role')
+								->join('features', 'features.id_feature', 'roles_features.id_feature')
+								->where([
+									['roles.id_department', $user['id_department']],
+									['roles.id_job_level', $user['id_job_level']]
+								])
+								->select('features.id_feature')->get()->toArray();
             }
             $result = [
                 'status'  => 'success',

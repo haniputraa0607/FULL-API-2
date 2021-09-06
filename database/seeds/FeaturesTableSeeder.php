@@ -3371,6 +3371,86 @@ class FeaturesTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00'),
                 ),
+            337 =>
+                array(
+                    'id_feature' => 338,
+                    'feature_type' => 'List',
+                    'feature_module' => 'Partner',
+                    'show_hide' => 1,
+                    'order' => 124,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00'),
+                ),
+            338 =>
+                array(
+                    'id_feature' => 339,
+                    'feature_type' => 'Detail',
+                    'feature_module' => 'Partner',
+                    'show_hide' => 1,
+                    'order' => 124,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00'),
+                ),
+            339 =>
+                array(
+                    'id_feature' => 340,
+                    'feature_type' => 'Update',
+                    'feature_module' => 'Partner',
+                    'show_hide' => 1,
+                    'order' => 124,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00'),
+                ),
+            340 =>
+                array(
+                    'id_feature' => 341,
+                    'feature_type' => 'Delete',
+                    'feature_module' => 'Partner',
+                    'show_hide' => 1,
+                    'order' => 124,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00'),
+                ),
+            341 =>
+                array(
+                    'id_feature' => 342,
+                    'feature_type' => 'List',
+                    'feature_module' => 'Location',
+                    'show_hide' => 1,
+                    'order' => 125,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00'),
+                ),
+            342 =>
+                array(
+                    'id_feature' => 343,
+                    'feature_type' => 'Detail',
+                    'feature_module' => 'Location',
+                    'show_hide' => 1,
+                    'order' => 125,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00'),
+                ),
+            343 =>
+                array(
+                    'id_feature' => 344,
+                    'feature_type' => 'Update',
+                    'feature_module' => 'Location',
+                    'show_hide' => 1,
+                    'order' => 125,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00'),
+                ),
+            344 =>
+                array(
+                    'id_feature' => 345,
+                    'feature_type' => 'Delete',
+                    'feature_module' => 'Location',
+                    'show_hide' => 1,
+                    'order' => 125,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00'),
+                ),
         ));
     }
 }

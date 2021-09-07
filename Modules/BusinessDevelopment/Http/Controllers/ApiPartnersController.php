@@ -19,7 +19,11 @@ class ApiPartnersController extends Controller
     public function index(Request $request)
     {
         $post = $request->all();
-        $partner = Partner::with(['partner_bank_account','partner_locations']);
+        if (isset($post['status']) && !empty($post['status'])) {
+            $partner = Partner::with(['partner_bank_account','partner_locations'])->where('status',$post['status']);
+        } else {
+            $partner = Partner::with(['partner_bank_account','partner_locations'])->where('status','Active')->orWhere('status','Inactive');
+        }
         if ($keyword = ($request->search['value']??false)) {
             $partner->where('name', 'like', '%'.$keyword.'%')
                         ->orWhereHas('partner_bank_account', function($q) use ($keyword) {

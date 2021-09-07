@@ -69,7 +69,6 @@ class ApiPartnersController extends Controller
                 "phone"   => $data_request_partner['phone'],
                 "email"   => $data_request_partner['email'],
                 "address"   => $data_request_partner['address'],
-                "id_bank_account"   => $data_request_partner['id_bank_account'],
             ]);
             if ($store) {
                 if (isset($post['location'])) {
@@ -81,8 +80,6 @@ class ApiPartnersController extends Controller
                             "id_city"   => $location['id_city'],
                             "latitude"   => $location['latitude'],
                             "longitude"   => $location['longitude'],
-                            "pic_name"   => $location['pic_name'],
-                            "pic_name"   => $location['pic_name'],
                             "id_partner"   => $id,
                         ]);
                         if(!$store_loc){
@@ -173,7 +170,13 @@ class ApiPartnersController extends Controller
                 $data_update['status'] = $post['status'];
             }
             if (isset($post['password'])) {
-                $data_update['password'] = $post['email'];
+                $data_update['password'] = $post['password'];
+            }
+            if (isset($post['start_date'])) {
+                $data_update['start_date'] = $post['start_date'];
+            }
+            if (isset($post['end_date'])) {
+                $data_update['end_date'] = $post['end_date'];
             }
             $update = Partner::where('id_partner', $post['id_partner'])->update($data_update);
             if(!$update){

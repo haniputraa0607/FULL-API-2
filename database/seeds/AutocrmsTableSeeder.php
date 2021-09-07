@@ -2440,7 +2440,7 @@ Message :
                     'autocrm_cron_reference' => NULL,
                     'autocrm_title' => 'Pin Sent WhatsApp',
                     'autocrm_email_toogle' => '0',
-                    'autocrm_sms_toogle' => '1',
+                    'autocrm_sms_toogle' => '0',
                     'autocrm_push_toogle' => '0',
                     'autocrm_inbox_toogle' => '0',
                     'autocrm_forward_toogle' => '0',

@@ -62,7 +62,6 @@ class ApiPartnersController extends Controller
     {
         $post = $request->all();
         $data_request_partner = $post['partner'];
-        $data_request_locations = $post['location'];
         if (!empty($data_request_partner)) {
             DB::beginTransaction();
             $store = Partner::create([
@@ -73,9 +72,9 @@ class ApiPartnersController extends Controller
                 "id_bank_account"   => $data_request_partner['id_bank_account'],
             ]);
             if ($store) {
-                if (isset($data_request_locations)) {
+                if (isset($post['location'])) {
                     $id = $store->id_partner;
-                    foreach ($data_request_locations as $key => $location) {
+                    foreach ($post['location'] as $key => $location) {
                         $store_loc = Location::create([
                             "name"   => $location['name'],
                             "address"   => $location['address'],

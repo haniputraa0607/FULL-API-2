@@ -31,7 +31,8 @@
         "spatie/laravel-backup": "^6.7",
         "stephenlake/php-google-holidays": "^1.0",
         "reliese/laravel": "^0.0.13",
-        "superbalist/laravel-google-cloud-storage": "^2.2"
+        "superbalist/laravel-google-cloud-storage": "^2.2",
+        "lcobucci/jwt": "3.3.0"
     },
     "require-dev": {
         "beyondcode/laravel-dump-server": "^1.0",

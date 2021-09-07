@@ -76,20 +76,20 @@ class ApiEnquiries extends Controller
 			$data['enquiry_email'] = null;
 		}
 
-        if (isset($post['enquiry_subject'])) {
-            $data['enquiry_subject'] = $post['enquiry_subject'];
-          if ($post['enquiry_subject'] == "Customer Feedback") {
-            if (isset($post['visiting_time'])) {
-              $data['visiting_time'] = $post['visiting_time'];
-            }
-          }
+		if (isset($post['enquiry_subject'])) {
+			$data['enquiry_subject'] = $post['enquiry_subject'];
+			if ($post['enquiry_subject'] == "Customer Feedback" || $post['enquiry_subject'] == 'Kritik, Saran & Keluhan') {
+				if (isset($post['visiting_time'])) {
+					$data['visiting_time'] = $post['visiting_time'];
+				}
+			}
 
-          if ($post['enquiry_subject'] == "Career") {
-            if (isset($post['position'])) {
-              $data['position'] = $post['position'];
-            }
-          }
-        }
+			if ($post['enquiry_subject'] == "Career") {
+				if (isset($post['position'])) {
+					$data['position'] = $post['position'];
+				}
+			}
+		}
 
         if (isset($post['enquiry_content'])) {
             $data['enquiry_content'] = $post['enquiry_content'];

@@ -54,6 +54,7 @@ class Enquiry extends Model
 		'reply_push_clickto',
 		'reply_push_link',
 		'reply_push_id_reference',
+		'visiting_time'
 	];
 
 	public function outlet()

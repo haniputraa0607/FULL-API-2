@@ -13,13 +13,6 @@ class UpdatePartnersTable extends Migration
      */
     public function up()
     {
-        // Schema::table('partners', function (Blueprint $table) {
-        //     $table->date('start_date')->change();
-        //     $table->date('end_date')->change();
-        //     $table->enum('ownership_status', ['Central','Partner'])->nullable()->change();
-        //     $table->enum('cooperation_scheme', ['Profit Sharing','Management Fee'])->nullable()->change();
-        //     $table->bigInteger('id_bank_account')->unsigned()->nullable()->change();
-        // });
         DB::statement('ALTER TABLE `partners` CHANGE `start_date` `start_date` date NULL;');
         DB::statement('ALTER TABLE `partners` CHANGE `end_date` `end_date` date NULL;');
         DB::statement('ALTER TABLE `partners` CHANGE `ownership_status` `ownership_status` ENUM("Central","Partner") NULL;');
@@ -34,8 +27,10 @@ class UpdatePartnersTable extends Migration
      */
     public function down()
     {
-        Schema::table('', function (Blueprint $table) {
-
-        });
+        DB::statement('ALTER TABLE `partners` CHANGE `start_date` `start_date` date NULL;');
+        DB::statement('ALTER TABLE `partners` CHANGE `end_date` `end_date` date NULL;');
+        DB::statement('ALTER TABLE `partners` CHANGE `ownership_status` `ownership_status` ENUM("Central","Partner") NULL;');
+        DB::statement('ALTER TABLE `partners` CHANGE `cooperation_scheme` `cooperation_scheme` ENUM("Profit Sharing","Management Fee") NULL;');
+        DB::statement('ALTER TABLE `partners` CHANGE `id_bank_account` `id_bank_account` bigint unsigned NULL;');
     }
 }

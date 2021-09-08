@@ -68,8 +68,6 @@ class ApiLocationsController extends Controller
                     "id_city"   => $data_request['id_city'],
                     "latitude"   => $data_request['latitude'],
                     "longitude"   => $data_request['longitude'],
-                    "pic_name"   => $data_request['pic_name'],
-                    "pic_name"   => $data_request['pic_name'],
                     "id_partner"   => $data_request['id_partner'],
                 ]);
                 if(!$store) {
@@ -131,6 +129,9 @@ class ApiLocationsController extends Controller
             }
             if (isset($post['address'])) {
                 $data_update['address'] = $post['address'];
+            }
+            if (isset($post['status'])) {
+                $data_update['status'] = $post['status'];
             }
             if (isset($post['id_city'])) {
                 $data_update['id_city'] = $post['id_city'];

@@ -344,7 +344,7 @@ class CitiesTableSeeder extends Seeder
             ),
             41 => 
             array (
-                'id_city' => 41,
+                'id_city' => 42,
                 'id_province' => 12,
                 'city_name' => 'Serdang Bedagai',
                 'city_type' => 'Kabupaten',

@@ -96,7 +96,7 @@ class OutletAppServiceProvider extends ServiceProvider
      */
     public function registerFactories()
     {
-        if (! app()->environment('production')) {
+        if (! app()->environment('production') && ! app()->environment('staging')) {
             app(Factory::class)->load(__DIR__ . '/../Database/factories');
         }
     }

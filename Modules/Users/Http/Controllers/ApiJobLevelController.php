@@ -59,13 +59,9 @@ class ApiJobLevelController extends Controller
             DB::beginTransaction();
             $data_request = $post['data'];
 
-            $visible = 'Hidden';
-            if(isset($data_request[0]['job_level_visibility'])){
-                $visible = 'Visible';
-            }
             $store = JobLevel::create([
                             'job_level_name' => $data_request[0]['job_level_name'],
-                            'job_level_visibility' => $visible]);
+                            'job_level_visibility' => 'Visible']);
 
             if($store){
                 if(isset($data_request['child'])){
@@ -79,14 +75,9 @@ class ApiJobLevelController extends Controller
                             $id_parent = $data_request['child'][(int)$child['parent']]['id'];
                         }
 
-                        $visible = 'Hidden';
-                        if(isset($child['job_level_visibility'])){
-                            $visible = 'Visible';
-                        }
-
                         $store = JobLevel::create([
                             'job_level_name' => $child['job_level_name'],
-                            'job_level_visibility' => $visible,
+                            'job_level_visibility' => 'Visible',
                             'id_parent' => $id_parent]);
 
                         if($store){
@@ -154,10 +145,6 @@ class ApiJobLevelController extends Controller
                 $data_update['id_parent'] = $post['id_parent'];
             }
 
-            if(isset($post['job_level_visibility'])){
-                $data_update['job_level_visibility'] = $post['job_level_visibility'];
-            }
-
             $update = JobLevel::where('id_job_level', $post['id_job_level'])->update($data_update);
 
             if($update){
@@ -168,11 +155,7 @@ class ApiJobLevelController extends Controller
                             $data_update_child['job_level_name'] = $child['job_level_name'];
                         }
 
-                        if(isset($child['job_level_visibility'])){
-                            $data_update_child['job_level_visibility'] = 'Visible';
-                        }else{
-                            $data_update_child['job_level_visibility'] = 'Hidden';
-                        }
+                        $data_update_child['job_level_visibility'] = 'Visible';
 
                         $update = JobLevel::updateOrCreate(['id_job_level' => $child['id_job_level']], $data_update_child);
 

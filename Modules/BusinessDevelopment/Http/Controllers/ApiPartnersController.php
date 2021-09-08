@@ -19,7 +19,11 @@ class ApiPartnersController extends Controller
     public function index(Request $request)
     {
         $post = $request->all();
-        $partner = Partner::with(['partner_bank_account','partner_locations']);
+        if (isset($post['status']) && !empty($post['status'])) {
+            $partner = Partner::with(['partner_bank_account','partner_locations'])->where('status',$post['status']);
+        } else {
+            $partner = Partner::with(['partner_bank_account','partner_locations'])->where('status','Active')->orWhere('status','Inactive');
+        }
         if ($keyword = ($request->search['value']??false)) {
             $partner->where('name', 'like', '%'.$keyword.'%')
                         ->orWhereHas('partner_bank_account', function($q) use ($keyword) {
@@ -58,7 +62,6 @@ class ApiPartnersController extends Controller
     {
         $post = $request->all();
         $data_request_partner = $post['partner'];
-        $data_request_locations = $post['location'];
         if (!empty($data_request_partner)) {
             DB::beginTransaction();
             $store = Partner::create([
@@ -66,20 +69,17 @@ class ApiPartnersController extends Controller
                 "phone"   => $data_request_partner['phone'],
                 "email"   => $data_request_partner['email'],
                 "address"   => $data_request_partner['address'],
-                "id_bank_account"   => $data_request_partner['id_bank_account'],
             ]);
             if ($store) {
-                if (isset($data_request_locations)) {
+                if (isset($post['location'])) {
                     $id = $store->id_partner;
-                    foreach ($data_request_locations as $key => $location) {
+                    foreach ($post['location'] as $key => $location) {
                         $store_loc = Location::create([
                             "name"   => $location['name'],
                             "address"   => $location['address'],
                             "id_city"   => $location['id_city'],
                             "latitude"   => $location['latitude'],
                             "longitude"   => $location['longitude'],
-                            "pic_name"   => $location['pic_name'],
-                            "pic_name"   => $location['pic_name'],
                             "id_partner"   => $id,
                         ]);
                         if(!$store_loc){
@@ -170,7 +170,13 @@ class ApiPartnersController extends Controller
                 $data_update['status'] = $post['status'];
             }
             if (isset($post['password'])) {
-                $data_update['password'] = $post['email'];
+                $data_update['password'] = $post['password'];
+            }
+            if (isset($post['start_date'])) {
+                $data_update['start_date'] = $post['start_date'];
+            }
+            if (isset($post['end_date'])) {
+                $data_update['end_date'] = $post['end_date'];
             }
             $update = Partner::where('id_partner', $post['id_partner'])->update($data_update);
             if(!$update){

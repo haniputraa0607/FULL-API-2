@@ -132,7 +132,8 @@ class ApiVersion extends Controller
         $display = Setting::where('key', 'LIKE', 'version%')->get();
         $android = Version::select('app_type', 'app_version', 'rules')->orderBy('app_version', 'desc')->where('app_type', 'Android')->get()->toArray();
         $ios = Version::select('app_type', 'app_version', 'rules')->orderBy('app_version', 'desc')->where('app_type', 'IOS')->get()->toArray();
-        $outlet = Version::select('app_type', 'app_version', 'rules')->orderBy('app_version', 'desc')->where('app_type', 'OutletApp')->get()->toArray();
+        // $outlet = Version::select('app_type', 'app_version', 'rules')->orderBy('app_version', 'desc')->where('app_type', 'OutletApp')->get()->toArray();
+        $mitra = Version::select('app_type', 'app_version', 'rules')->orderBy('app_version', 'desc')->where('app_type', 'MitraApp')->get()->toArray();
 
         $result = [];
         foreach ($display as $data) {
@@ -141,7 +142,8 @@ class ApiVersion extends Controller
 
         $result['Android'] = $android;
         $result['IOS'] = $ios;
-        $result['OutletApp'] = $outlet;
+        $result['OutletApp'] = $outlet ?? [];
+        $result['MitraApp'] = $mitra;
 
         return response()->json(MyHelper::checkGet($result));
     }
@@ -153,7 +155,10 @@ class ApiVersion extends Controller
         foreach ($post as $key => $data) {
             if ($key == 'Display') {
                 foreach ($data as $keyData => $value) {
-                    if ($keyData == 'version_image_mobile' || $keyData == 'version_image_outlet') {
+                    if ($keyData == 'version_image_mobile' 
+                    	|| $keyData == 'version_image_outlet' 
+                    	|| $keyData == 'version_image_mitra'
+                    ) {
                         if (!file_exists('img/setting/version/')) {
                             mkdir('img/setting/version/', 0777, true);
                         }

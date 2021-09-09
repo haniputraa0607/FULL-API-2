@@ -984,6 +984,24 @@ class SettingsTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s'),
                 ),
+            109 =>
+                array(
+                    'id_setting' => 110,
+                    'key' => 'default_splash_screen_mitra_apps',
+                    'value' => NULL,
+                    'value_text' => NULL,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ),
+            110 =>
+                array(
+                    'id_setting' => 111,
+                    'key' => 'default_splash_screen_mitra_apps_duration',
+                    'value' => NULL,
+                    'value_text' => NULL,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ),
         ));
     }
 }

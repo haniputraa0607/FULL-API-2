@@ -11,26 +11,35 @@ class UpdatePartnersTable extends Migration
      *
      * @return void
      */
-    public function up()
-    {
-        DB::statement('ALTER TABLE `partners` CHANGE `start_date` `start_date` date NULL;');
-        DB::statement('ALTER TABLE `partners` CHANGE `end_date` `end_date` date NULL;');
-        DB::statement('ALTER TABLE `partners` CHANGE `ownership_status` `ownership_status` ENUM("Central","Partner") NULL;');
-        DB::statement('ALTER TABLE `partners` CHANGE `cooperation_scheme` `cooperation_scheme` ENUM("Profit Sharing","Management Fee") NULL;');
-        DB::statement('ALTER TABLE `partners` CHANGE `id_bank_account` `id_bank_account` bigint unsigned NULL;');
-    }
 
-    /**
-     * Reverse the migrations.
-     *
-     * @return void
-     */
-    public function down()
-    {
-        DB::statement('ALTER TABLE `partners` CHANGE `start_date` `start_date` date NULL;');
-        DB::statement('ALTER TABLE `partners` CHANGE `end_date` `end_date` date NULL;');
-        DB::statement('ALTER TABLE `partners` CHANGE `ownership_status` `ownership_status` ENUM("Central","Partner") NULL;');
-        DB::statement('ALTER TABLE `partners` CHANGE `cooperation_scheme` `cooperation_scheme` ENUM("Profit Sharing","Management Fee") NULL;');
-        DB::statement('ALTER TABLE `partners` CHANGE `id_bank_account` `id_bank_account` bigint unsigned NULL;');
+    public function __construct() {
+        DB::getDoctrineSchemaManager()->getDatabasePlatform()->registerDoctrineTypeMapping('enum', 'string');
     }
+    public function up()
+     {
+         Schema::table('partners', function (Blueprint $table) {
+            $table->date('start_date')->change();
+            $table->date('end_date')->change();
+            $table->bigInteger('id_bank_account')->unsigned()->nullable()->change();
+         });
+         DB::statement('ALTER TABLE `partners` CHANGE `ownership_status` `ownership_status` ENUM("Central","Partner") NULL;');
+         DB::statement('ALTER TABLE `partners` CHANGE `cooperation_scheme` `cooperation_scheme` ENUM("Profit Sharing","Management Fee") NULL;');
+         
+     }
+
+     /**
+      * Reverse the migrations.
+      *
+      * @return void
+      */
+     public function down()
+     {
+         Schema::table('partners', function (Blueprint $table) {
+            $table->dateTime('start_date')->change();
+            $table->dateTime('end_date')->change();
+            $table->bigInteger('id_bank_account')->unsigned()->change();
+         });
+         DB::statement('ALTER TABLE `partners` CHANGE `ownership_status` `ownership_status` ENUM("Central","Partner") default "Central";');
+         DB::statement('ALTER TABLE `partners` CHANGE `cooperation_scheme` `cooperation_scheme` ENUM("Profit Sharing","Management Fee") default "Profit Sharing";');
+     }
 }

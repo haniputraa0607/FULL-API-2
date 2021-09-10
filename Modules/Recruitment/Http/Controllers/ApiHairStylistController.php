@@ -42,6 +42,7 @@ class ApiHairStylistController extends Controller
         }
 
         $dataCreate = [
+            'level' => (empty($post['level']) ? null : $post['level']),
             'email' => $post['email'],
             'phone_number' => $phone,
             'fullname' => $post['fullname'],
@@ -68,7 +69,7 @@ class ApiHairStylistController extends Controller
     public function canditateList(Request $request){
         $post = $request->json()->all();
 
-        $data = UserHairStylist::where('level', 'Candidate')->orderBy('created_at', 'desc');
+        $data = UserHairStylist::where('user_hair_stylist_status', 'Candidate')->orderBy('created_at', 'desc');
 
         if(isset($post['date_start']) && !empty($post['date_start']) &&
             isset($post['date_end']) && !empty($post['date_end'])){
@@ -113,7 +114,7 @@ class ApiHairStylistController extends Controller
                         }
 
                         if($row['subject'] == 'gender'){
-                            $data->orWhere('gender', $row['operator']);
+                            $data->where('gender', $row['operator']);
                         }
                     }
                 }
@@ -155,5 +156,160 @@ class ApiHairStylistController extends Controller
         }
         $data = $data->paginate(25);
         return response()->json(MyHelper::checkGet($data));
+    }
+
+    public function hsList(Request $request){
+        $post = $request->json()->all();
+
+        $data = UserHairStylist::leftJoin('users as approver', 'approver.id', 'user_hair_stylist.approve_by')
+                ->whereIn('user_hair_stylist_status', ['Active', 'Inactive'])->orderBy('join_date', 'desc');
+
+        if(isset($post['date_start']) && !empty($post['date_start']) &&
+            isset($post['date_end']) && !empty($post['date_end'])){
+            $start_date = date('Y-m-d', strtotime($post['date_start']));
+            $end_date = date('Y-m-d', strtotime($post['date_end']));
+
+            $data->whereDate('join_date', '>=', $start_date)
+                ->whereDate('join_date', '<=', $end_date);
+        }
+
+        if(isset($post['conditions']) && !empty($post['conditions'])){
+            $rule = 'and';
+            if(isset($post['rule'])){
+                $rule = $post['rule'];
+            }
+
+            if($rule == 'and'){
+                foreach ($post['conditions'] as $row){
+                    if(isset($row['subject'])){
+                        if($row['subject'] == 'nickname'){
+                            if($row['operator'] == '='){
+                                $data->where('nickname', $row['parameter']);
+                            }else{
+                                $data->where('nickname', 'like', '%'.$row['parameter'].'%');
+                            }
+                        }
+
+                        if($row['subject'] == 'email'){
+                            if($row['operator'] == '='){
+                                $data->where('email', $row['parameter']);
+                            }else{
+                                $data->where('email', 'like', '%'.$row['parameter'].'%');
+                            }
+                        }
+
+                        if($row['subject'] == 'phone_number'){
+                            if($row['operator'] == '='){
+                                $data->where('phone_number', $row['parameter']);
+                            }else{
+                                $data->where('phone_number', 'like', '%'.$row['parameter'].'%');
+                            }
+                        }
+
+                        if($row['subject'] == 'fullname'){
+                            if($row['operator'] == '='){
+                                $data->where('fullname', $row['parameter']);
+                            }else{
+                                $data->where('fullname', 'like', '%'.$row['parameter'].'%');
+                            }
+                        }
+
+                        if($row['subject'] == 'gender'){
+                            $data->where('gender', $row['operator']);
+                        }
+                    }
+                }
+            }else{
+                $data->where(function ($subquery) use ($post){
+                    foreach ($post['conditions'] as $row){
+                        if(isset($row['subject'])){
+                            if($row['subject'] == 'nickname'){
+                                if($row['operator'] == '='){
+                                    $subquery->orWhere('nickname', $row['parameter']);
+                                }else{
+                                    $subquery->orWhere('nickname', 'like', '%'.$row['parameter'].'%');
+                                }
+                            }
+
+                            if($row['subject'] == 'email'){
+                                if($row['operator'] == '='){
+                                    $subquery->orWhere('email', $row['parameter']);
+                                }else{
+                                    $subquery->orWhere('email', 'like', '%'.$row['parameter'].'%');
+                                }
+                            }
+
+                            if($row['subject'] == 'phone_number'){
+                                if($row['operator'] == '='){
+                                    $subquery->orWhere('phone_number', $row['parameter']);
+                                }else{
+                                    $subquery->orWhere('phone_number', 'like', '%'.$row['parameter'].'%');
+                                }
+                            }
+
+                            if($row['subject'] == 'fullname'){
+                                if($row['operator'] == '='){
+                                    $subquery->orWhere('fullname', $row['parameter']);
+                                }else{
+                                    $subquery->orWhere('fullname', 'like', '%'.$row['parameter'].'%');
+                                }
+                            }
+
+                            if($row['subject'] == 'gender'){
+                                $subquery->orWhere('gender', $row['operator']);
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        $data = $data->select('user_hair_stylist.*', 'approver.name as approve_by_name')->paginate(25);
+        return response()->json(MyHelper::checkGet($data));
+    }
+
+    public function detail(Request $request){
+        $post = $request->json()->all();
+        if(isset($post['id_user_hair_stylist']) && !empty($post['id_user_hair_stylist'])){
+            $detail = UserHairStylist::leftJoin('outlets', 'outlets.id_outlet', 'user_hair_stylist.id_outlet')
+                        ->leftJoin('bank_accounts', 'bank_accounts.id_bank_account', 'user_hair_stylist.id_bank_account')
+                        ->leftJoin('users as approver', 'approver.id', 'user_hair_stylist.approve_by')
+                        ->where('id_user_hair_stylist', $post['id_user_hair_stylist'])
+                        ->select('user_hair_stylist.*', 'outlets.outlet_name', 'outlets.outlet_code', 'bank_accounts.*',
+                            'approver.name as approve_by_name')
+                        ->first();
+            return response()->json(MyHelper::checkGet($detail));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    }
+
+    public function update(Request $request){
+        $post = $request->json()->all();
+        if(isset($post['id_user_hair_stylist']) && !empty($post['id_user_hair_stylist'])){
+            if(isset($post['update_type']) && $post['update_type'] == 'approve'){
+                $check = UserHairStylist::where('nickname', $post['nickname'])->first();
+
+                if(!empty($check)){
+                    return response()->json(['status' => 'fail', 'messages' => ['Nickname already use with hairstylist : '.$check['fullname']]]);
+                }
+                unset($post['update_type']);
+                $data = $post;
+                $data['birthdate'] = date('Y-m-d', strtotime($data['birthdate']));
+                $data['join_date'] = date('Y-m-d H:i:s');
+                $data['approve_by'] = $request->user()->id;
+                $data['user_hair_stylist_status'] = 'Active';
+                $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update($data);
+                return response()->json(MyHelper::checkUpdate($update));
+            }else{
+                if(!empty($post['birthdate'])){
+                    $post['birthdate'] = date('Y-m-d', strtotime($post['birthdate']));
+                }
+
+                $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update($post);
+                return response()->json(MyHelper::checkUpdate($update));
+            }
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
     }
 }

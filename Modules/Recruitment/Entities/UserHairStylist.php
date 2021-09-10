@@ -34,6 +34,7 @@ class UserHairStylist extends Model
         'marital_status',
         'email_verified',
         'first_update_password',
-        'join_date'
+        'join_date',
+        'approve_by'
 	];
 }

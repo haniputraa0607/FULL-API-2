@@ -31,7 +31,7 @@ class user_hair_stylist_create extends FormRequest
 			'gender'		=> 'in:Male,Female|nullable',
             'nationality'   => 'required|string',
             'birthplace'    => 'required|string',
-			'birthdate'		=> 'required|date_format:"m/d/Y"',
+			'birthdate'		=> 'required|date_format:"Y-m-d"',
             'marital_status' => 'in:Single,Married,Widowed,Divorced|nullable'
         ];
     }

@@ -19,8 +19,10 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
         Route::post('create', 'ApiHairStylistController@create');
     });
 
-    Route::group(['middleware' => ['auth_client', 'scopes:be'], 'prefix' => 'hairstylist/be'], function () {
+    Route::group(['middleware' => ['auth:api', 'scopes:be'], 'prefix' => 'hairstylist/be'], function () {
         Route::any('candidate/list', 'ApiHairStylistController@canditateList');
-        Route::any('hs/list', 'ApiHairStylistController@hsList');
+        Route::any('list', 'ApiHairStylistController@hsList');
+        Route::post('detail', 'ApiHairStylistController@detail');
+        Route::post('update', 'ApiHairStylistController@update');
     });
 });

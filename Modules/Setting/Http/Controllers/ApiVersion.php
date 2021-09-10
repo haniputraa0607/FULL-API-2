@@ -122,6 +122,28 @@ class ApiVersion extends Controller
                     'button_url' => $setting['version_outletstore']
                 ]);
             }
+            if ($device == 'mitra') {
+                foreach ($setting['Device'] as $value) {
+                    if (in_array('MitraApp', $value)) {
+                        $value['app_type'] = strtolower($value['app_type']);
+                        $compare_version[] = $value;
+                    }
+                }
+                for ($i = 0; $i < count($compare_version); $i++) {
+                    if ($post['version'] == $compare_version[$i]['app_version']) {
+                        return response()->json(['status' => 'success']);
+                    }
+                }
+                $versionRec = array_shift($compare_version);
+                $setting['version_text_alert_mitra'] = str_replace('%version_app%', $versionRec['app_version'], $setting['version_text_alert_mitra']);
+                return response()->json([
+                    'status' => 'fail',
+                    'image' => config('url.storage_url_api') . $setting['version_image_mitra'],
+                    'text' => $setting['version_text_alert_mitra'],
+                    'button_text' => $setting['version_text_button_mitra'],
+                    'button_url' => $setting['version_mitrastore']
+                ]);
+            }
         } else {
             return response()->json(['status' => 'fail', 'message' => 'Device tidak teridentifikasi']);
         }
@@ -132,7 +154,8 @@ class ApiVersion extends Controller
         $display = Setting::where('key', 'LIKE', 'version%')->get();
         $android = Version::select('app_type', 'app_version', 'rules')->orderBy('app_version', 'desc')->where('app_type', 'Android')->get()->toArray();
         $ios = Version::select('app_type', 'app_version', 'rules')->orderBy('app_version', 'desc')->where('app_type', 'IOS')->get()->toArray();
-        $outlet = Version::select('app_type', 'app_version', 'rules')->orderBy('app_version', 'desc')->where('app_type', 'OutletApp')->get()->toArray();
+        // $outlet = Version::select('app_type', 'app_version', 'rules')->orderBy('app_version', 'desc')->where('app_type', 'OutletApp')->get()->toArray();
+        $mitra = Version::select('app_type', 'app_version', 'rules')->orderBy('app_version', 'desc')->where('app_type', 'MitraApp')->get()->toArray();
 
         $result = [];
         foreach ($display as $data) {
@@ -141,7 +164,8 @@ class ApiVersion extends Controller
 
         $result['Android'] = $android;
         $result['IOS'] = $ios;
-        $result['OutletApp'] = $outlet;
+        $result['OutletApp'] = $outlet ?? [];
+        $result['MitraApp'] = $mitra;
 
         return response()->json(MyHelper::checkGet($result));
     }
@@ -153,7 +177,10 @@ class ApiVersion extends Controller
         foreach ($post as $key => $data) {
             if ($key == 'Display') {
                 foreach ($data as $keyData => $value) {
-                    if ($keyData == 'version_image_mobile' || $keyData == 'version_image_outlet') {
+                    if ($keyData == 'version_image_mobile' 
+                    	|| $keyData == 'version_image_outlet' 
+                    	|| $keyData == 'version_image_mitra'
+                    ) {
                         if (!file_exists('img/setting/version/')) {
                             mkdir('img/setting/version/', 0777, true);
                         }

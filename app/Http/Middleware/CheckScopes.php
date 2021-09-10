@@ -55,14 +55,15 @@ class CheckScopes extends AddCustomProvider
             $clientId = $getOauth['client_id'];
         }
 
-        if(($scope == 'pos' && $scopeUser == 'pos' && $clientId == 1) ||
-            ($scope == 'be' && $scopeUser == 'be') ||
-            ($scope == 'apps' && $scopeUser == 'apps') ||
-            ($scope == 'landing-page' && $scopeUser == 'landing-page') ||
-            ($scope == 'franchise-client' && $scopeUser == 'franchise-client') ||
-            ($scope == 'franchise-super-admin' && $scopeUser == 'franchise-super-admin') ||
-            ($scope == 'franchise-user' && $scopeUser == 'franchise-user')){
-
+        if(($scope == 'pos' && $scopeUser == 'pos' && $clientId == 1) 
+        	|| ($scope == 'be' && $scopeUser == 'be') 
+        	|| ($scope == 'apps' && $scopeUser == 'apps') 
+        	|| ($scope == 'landing-page' && $scopeUser == 'landing-page') 
+        	|| ($scope == 'franchise-client' && $scopeUser == 'franchise-client') 
+        	|| ($scope == 'franchise-super-admin' && $scopeUser == 'franchise-super-admin') 
+        	|| ($scope == 'franchise-user' && $scopeUser == 'franchise-user')
+        	|| ($scope == 'mitra-apps' && $scopeUser == 'mitra-apps')
+        ){
             return $next($request);
         }
 

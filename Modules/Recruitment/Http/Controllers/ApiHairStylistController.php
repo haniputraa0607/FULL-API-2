@@ -272,9 +272,11 @@ class ApiHairStylistController extends Controller
         if(isset($post['id_user_hair_stylist']) && !empty($post['id_user_hair_stylist'])){
             $detail = UserHairStylist::leftJoin('outlets', 'outlets.id_outlet', 'user_hair_stylist.id_outlet')
                         ->leftJoin('bank_accounts', 'bank_accounts.id_bank_account', 'user_hair_stylist.id_bank_account')
+                        ->leftJoin('bank_name', 'bank_name.id_bank_name', 'bank_accounts.id_bank_name')
                         ->leftJoin('users as approver', 'approver.id', 'user_hair_stylist.approve_by')
                         ->where('id_user_hair_stylist', $post['id_user_hair_stylist'])
                         ->select('user_hair_stylist.*', 'outlets.outlet_name', 'outlets.outlet_code', 'bank_accounts.*',
+                            'bank_name.bank_name',
                             'approver.name as approve_by_name')
                         ->first();
             return response()->json(MyHelper::checkGet($detail));

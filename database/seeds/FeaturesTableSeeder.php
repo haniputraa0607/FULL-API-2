@@ -3474,7 +3474,7 @@ class FeaturesTableSeeder extends Seeder
             347 =>
                 array(
                     'id_feature' => 348,
-                    'feature_type' => 'Create',
+                    'feature_type' => 'Detail',
                     'feature_module' => 'Hair Stylist',
                     'show_hide' => 1,
                     'order' => 127,
@@ -3484,7 +3484,7 @@ class FeaturesTableSeeder extends Seeder
             348 =>
                 array(
                     'id_feature' => 349,
-                    'feature_type' => 'Detail',
+                    'feature_type' => 'Update',
                     'feature_module' => 'Hair Stylist',
                     'show_hide' => 1,
                     'order' => 127,
@@ -3494,16 +3494,6 @@ class FeaturesTableSeeder extends Seeder
             349 =>
                 array(
                     'id_feature' => 350,
-                    'feature_type' => 'Update',
-                    'feature_module' => 'Hair Stylist',
-                    'show_hide' => 1,
-                    'order' => 127,
-                    'created_at' => date('Y-m-d H:00:00'),
-                    'updated_at' => date('Y-m-d H:00:00'),
-                ),
-            350 =>
-                array(
-                    'id_feature' => 351,
                     'feature_type' => 'Delete',
                     'feature_module' => 'Hair Stylist',
                     'show_hide' => 1,

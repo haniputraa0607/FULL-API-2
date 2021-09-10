@@ -896,7 +896,7 @@ class ConfigsTableSeeder extends Seeder
                 'id_config' => 99,
                 'config_name' => 'achievement',
                 'description' => '',
-                'is_active' => 1,
+                'is_active' => 0,
                 'created_at' => date('Y-m-d H:i:s'),
                 'updated_at' => date('Y-m-d H:i:s'),
             ),

@@ -122,6 +122,28 @@ class ApiVersion extends Controller
                     'button_url' => $setting['version_outletstore']
                 ]);
             }
+            if ($device == 'mitra') {
+                foreach ($setting['Device'] as $value) {
+                    if (in_array('MitraApp', $value)) {
+                        $value['app_type'] = strtolower($value['app_type']);
+                        $compare_version[] = $value;
+                    }
+                }
+                for ($i = 0; $i < count($compare_version); $i++) {
+                    if ($post['version'] == $compare_version[$i]['app_version']) {
+                        return response()->json(['status' => 'success']);
+                    }
+                }
+                $versionRec = array_shift($compare_version);
+                $setting['version_text_alert_mitra'] = str_replace('%version_app%', $versionRec['app_version'], $setting['version_text_alert_mitra']);
+                return response()->json([
+                    'status' => 'fail',
+                    'image' => config('url.storage_url_api') . $setting['version_image_mitra'],
+                    'text' => $setting['version_text_alert_mitra'],
+                    'button_text' => $setting['version_text_button_mitra'],
+                    'button_url' => $setting['version_mitrastore']
+                ]);
+            }
         } else {
             return response()->json(['status' => 'fail', 'message' => 'Device tidak teridentifikasi']);
         }

@@ -28,5 +28,6 @@ class DatabaseSeeder extends Seeder
         $this->call(SettingJobsCelebrateSeeder::class);
         $this->call(PromoCampaignsTableSeeder::class);
         $this->call(PromoCampaignReferralsTableSeeder::class);
+        $this->call(BankNameTableSeeder::class);
     }
 }

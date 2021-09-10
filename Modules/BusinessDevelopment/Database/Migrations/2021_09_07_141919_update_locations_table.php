@@ -25,8 +25,8 @@ class UpdateLocationsTable extends Migration
      */
     public function down()
     {
-        Schema::table('', function (Blueprint $table) {
-
+        Schema::table('locations', function (Blueprint $table) {
+            $table->dropColumn('status');
         });
     }
 }

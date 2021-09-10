@@ -129,7 +129,7 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent', 'scope
 
     Route::group(['prefix' => 'department'], function()
     {
-        Route::any('/', ['middleware' => 'feature_control:338', 'uses' => 'ApiDepartment@index']);
+        Route::any('/', ['middleware' => 'feature_control:328', 'uses' => 'ApiDepartment@index']);
 	    Route::post('store', ['middleware' => 'feature_control:329', 'uses' => 'ApiDepartment@store']);
 	    Route::post('edit', ['middleware' => 'feature_control:330', 'uses' => 'ApiDepartment@edit']);
 	    Route::post('update', ['middleware' => 'feature_control:331', 'uses' => 'ApiDepartment@update']);
@@ -154,4 +154,9 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent', 'scope
         Route::post('update', ['middleware' => 'feature_control:336', 'uses' => 'ApiRoleController@update']);
         Route::post('delete', ['middleware' => 'feature_control:337', 'uses' => 'ApiRoleController@destroy']);
     });
+});
+
+Route::group(['prefix' => 'api/mitra', 'middleware' => ['user_agent'], 'namespace' => 'Modules\Users\Http\Controllers'], function()
+{
+    Route::get('splash','ApiMitra@splash');
 });

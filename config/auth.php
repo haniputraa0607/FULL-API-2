@@ -61,6 +61,10 @@ return [
             'driver' => 'passport',
             'provider' => 'franchise'
         ],
+        'mitra' => [
+            'driver' => 'passport',
+            'provider' => 'mitra'
+        ],
     ],
 
     /*
@@ -113,6 +117,10 @@ return [
         'franchise' => [
             'driver' => 'eloquent',
             'model' => \Modules\Franchise\Entities\UserFranchise::class
+        ],
+        'mitra' => [
+            'driver' => 'eloquent',
+            'model' => \Modules\Recruitment\Entities\UserHairStylist::class
         ],
     ],
 

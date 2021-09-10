@@ -19,10 +19,12 @@ class ApiLocationsController extends Controller
     public function index(Request $request)
     {
         $post = $request->all();
-        if (isset($post['status']) && !empty($post['status'])) {
+        if (isset($post['status']) && $post['status'] == 'Candidate') {
             $locations = Location::with(['location_partner','location_city'])->where('status',$post['status']);
-        } else {
+        }elseif(isset($post['status']) && $post['status'] == 'Active'){
             $locations = Location::with(['location_partner','location_city'])->where('status','Active')->orWhere('status','Inactive');
+        }else {
+            $locations = Location::with(['location_partner','location_city']);
         }
             
         if ($keyword = ($request->search['value']??false)) {

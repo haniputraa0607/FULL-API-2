@@ -30,4 +30,8 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefi
         Route::post('/edit', ['middleware'=>['feature_control:343','scopes:be'],'uses' => 'ApiLocationsController@edit']);
         Route::post('/update', ['middleware'=>['feature_control:344','scopes:be'],'uses' => 'ApiLocationsController@update']);
     });
+    Route::group(['prefix' => '/bankaccount'], function() {
+       Route::post('/update', ['middleware'=>['feature_control:352','scopes:be'],'uses' => 'ApiBankAccountsController@update']);
+       Route::post('/create', ['middleware'=>['feature_control:352','scopes:be'],'uses' => 'ApiBankAccountsController@store']);
+    });
 });

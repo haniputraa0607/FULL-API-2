@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use SMartins\PassportMultiauth\Http\Middleware\AddCustomProvider;
 use App\Lib\MyHelper;
 use App\Http\Models\Outlet;
+use Modules\Recruitment\Entities\UserHairStylist;
 
 use Illuminate\Http\Request;
 
@@ -50,6 +51,12 @@ class CustomAuth extends AddCustomProvider
         }elseif($request->get('quinos')){
             $request->merge(['provider' => 'quinos']);
         }elseif($request->get('mitra-apps')){
+
+    		$mitra = UserHairStylist::where('phone_number', $request->get('username'))->first();
+
+        	if ($mitra && $mitra->user_hair_stylist_status != 'Active') {
+                return response()->json(['error' => 'Unauthenticated: this account is not active.'], 401);
+            }
             $request->merge(['provider' => 'mitra']);
         }else{
             $request->merge(['provider' => 'users']);

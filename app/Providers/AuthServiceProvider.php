@@ -33,10 +33,12 @@ class AuthServiceProvider extends ServiceProvider
             Passport::tokensCan([
                 'be' => 'Manage admin panel scope',
                 'apps' => 'Manage mobile scope',
+                'web-apps' => 'Manage web apps scope',
                 'franchise-client' => 'General scope franchise',
                 'franchise-super-admin' => 'Manage super admin franchise scope',
                 'franchise-user' => 'Manage admin franchise scope',
                 'landing-page' => 'Manage new partner franchise scope',
+                'partners'=>'Manage partner',
                 'mitra-apps' => 'Manage mitra mobile app scope'
             ]);
             Passport::routes(function ($router) {

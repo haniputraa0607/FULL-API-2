@@ -40,15 +40,10 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
-
         'api' => [
             'driver' => 'passport',
             'provider' => 'users',
         ],
-        // 'outlet-app' => [
-        //     'driver' => 'passport',
-        //     'provider' => 'outlet-app'
-        // ],
         'outlet-app' => [
             'driver' => 'passport',
             'provider' => 'outlet-app'
@@ -60,6 +55,10 @@ return [
         'franchise' => [
             'driver' => 'passport',
             'provider' => 'franchise'
+        ],
+        'partners' => [
+            'driver' => 'passport',
+            'provider' => 'partners'
         ],
         'mitra' => [
             'driver' => 'passport',
@@ -94,16 +93,6 @@ return [
             'model' => App\Http\Models\UserBE::class,
         ],
 
-        // 'users' => [
-        //     'driver' => 'database',
-        //     'table' => 'users',
-        // ],
-
-        // 'outlet-app' => [
-        //     'driver' => 'eloquent',
-        //     'model' => App\Http\Models\Outlet::class
-        // ],
-
         'outlet-app' => [
             'driver' => 'eloquent',
             'model' => App\Http\Models\Outlet::class
@@ -112,6 +101,10 @@ return [
         'quinos' => [
             'driver' => 'eloquent',
             'model' => App\Http\Models\QuinosUser::class
+        ],
+        'partners' => [
+            'driver' => 'eloquent',
+            'model' => \Modules\BusinessDevelopment\Entities\Partner::class
         ],
 
         'franchise' => [

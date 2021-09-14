@@ -3501,6 +3501,26 @@ class FeaturesTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00'),
                 ),
+            350 =>
+                array(
+                    'id_feature' => 351,
+                    'feature_type' => 'Detail',
+                    'feature_module' => 'Bank Account',
+                    'show_hide' => 1,
+                    'order' => 128,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00'),
+                ),
+            351 =>
+                array(
+                    'id_feature' => 352,
+                    'feature_type' => 'Update',
+                    'feature_module' => 'Bank Account',
+                    'show_hide' => 1,
+                    'order' => 128,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00'),
+                ),
         ));
     }
 }

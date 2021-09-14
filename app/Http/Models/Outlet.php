@@ -221,4 +221,9 @@ class Outlet extends Authenticatable
     public function delivery_outlet(){
         return $this->hasMany(\Modules\Outlet\Entities\DeliveryOutlet::class, 'id_outlet');
     }
+
+    public function outlet_box()
+    {
+        return $this->hasMany(\Modules\Outlet\Entities\OutletBox::class, 'id_outlet');
+    }
 }

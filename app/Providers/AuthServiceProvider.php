@@ -38,6 +38,7 @@ class AuthServiceProvider extends ServiceProvider
                 'franchise-user' => 'Manage admin franchise scope',
                 'landing-page' => 'Manage new partner franchise scope',
                 'partners'=>'Manage partner',
+                'mitra-apps' => 'Manage mitra mobile app scope'
             ]);
             Passport::routes(function ($router) {
                 return $router->forAccessTokens();

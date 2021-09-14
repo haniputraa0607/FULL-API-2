@@ -2,12 +2,30 @@
 
 namespace Modules\Recruitment\Entities;
 
+use Illuminate\Notifications\Notifiable;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Model;
+use SMartins\PassportMultiauth\HasMultiAuthApiTokens;
+use Hash;
 
-class UserHairStylist extends Model
+class UserHairStylist extends Authenticatable
 {
+	use Notifiable, HasMultiAuthApiTokens;
+
+	public function findForPassport($username) {
+        return $this->where('phone_number', $username)->first();
+	}
+
+	public function getAuthPassword() {
+		return $this->password;
+	}
+
     protected $table = 'user_hair_stylist';
 	protected $primaryKey = 'id_user_hair_stylist';
+
+	protected $hidden = [
+		'password'
+	];
 
 	protected $fillable = [
 	    'id_outlet',

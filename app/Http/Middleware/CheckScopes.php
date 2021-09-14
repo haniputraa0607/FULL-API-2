@@ -55,7 +55,7 @@ class CheckScopes extends AddCustomProvider
             $clientId = $getOauth['client_id'];
         }
 
-        $arrScope = ['pos', 'be', 'apps', 'web-apps', 'landing-page', 'franchise-client', 'franchise-super-admin',
+        $arrScope = ['pos', 'be', 'partners', 'apps', 'web-apps', 'landing-page', 'franchise-client', 'franchise-super-admin',
             'franchise-user', 'mitra-apps'];
         if(in_array($scope, $arrScope) && $scope == $scopeUser){
             return $next($request);

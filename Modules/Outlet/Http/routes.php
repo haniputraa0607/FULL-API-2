@@ -88,6 +88,7 @@ Route::group(['prefix' => 'api/outlet', 'middleware' => ['log_activities', 'auth
     Route::any('schedule/save', 'ApiOutletController@scheduleSave');
     Route::get('export-pin', ['middleware' => 'feature_control:261', 'uses' =>'ApiOutletController@exportPin']);
     Route::get('send-pin', ['middleware' => 'feature_control:261', 'uses' =>'ApiOutletController@sendPin']);
+    Route::post('box/save', 'ApiOutletController@boxSave');
 
     /*user franchise*/
     Route::any('list/user-franchise', 'ApiOutletController@listUserFranchise');

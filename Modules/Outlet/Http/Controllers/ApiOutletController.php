@@ -25,6 +25,7 @@ use App\Http\Models\OauthAccessToken;
 use App\Http\Models\Product;
 use App\Http\Models\ProductPrice;
 use Modules\Outlet\Entities\DeliveryOutlet;
+use Modules\Outlet\Entities\OutletBox;
 use Modules\Product\Entities\ProductDetail;
 use Modules\Product\Entities\ProductGlobalPrice;
 use Modules\Product\Entities\ProductSpecialPrice;
@@ -594,7 +595,7 @@ class ApiOutletController extends Controller
         }elseif(isset($post['admin']) && isset($post['type']) && $post['type'] == 'export'){
             $outlet = Outlet::with(['user_outlets','city','today','product_prices','product_prices.product'])->select('*');
         }elseif(isset($post['admin'])){
-            $outlet = Outlet::with(['user_outlets','city.province','today', 'outlet_schedules'])->select('*');
+            $outlet = Outlet::with(['user_outlets','city.province','today', 'outlet_schedules', 'outlet_box'])->select('*');
             if(isset($post['id_product'])){
                 $outlet = $outlet->with(['product_detail'=> function($q) use ($post){
                     $q->where('id_product', $post['id_product']);
@@ -3661,5 +3662,48 @@ class ApiOutletController extends Controller
         });
 
         return response()->json(MyHelper::checkGet($delivery));
+    }
+
+    function boxSave(Request $request){
+        $post = $request->json()->all();
+        if(empty($post['id_outlet'])){
+            return response()->json(['status' => 'fail', 'messages' => ['ID outlet can not be empty']]);
+        }
+        DB::beginTransaction();
+
+        foreach ($post['outlet_box_data'] as $value) {
+            $status = 'Inactive';
+            if(isset($value['outlet_box_status'])){
+                $status = 'Active';
+            }
+
+            if(!empty($value['id_outlet_box'])){
+                $update = OutletBox::where('id_outlet_box', $value['id_outlet_box'])->update([
+                    'outlet_box_code' => $value['outlet_box_code'],
+                    'outlet_box_name' => $value['outlet_box_name'],
+                    'outlet_box_status' => $status
+                ]);
+
+                if(!$update){
+                    DB::rollBack();
+                    return response()->json(['status' => 'fail', 'messages' => ['Failed save outlet box']]);
+                }
+            }else{
+                $create = OutletBox::create([
+                            'id_outlet' => (int)$post['id_outlet'],
+                            'outlet_box_code' => $value['outlet_box_code'],
+                            'outlet_box_name' => $value['outlet_box_name'],
+                            'outlet_box_status' => $status
+                        ]);
+
+                if(!$create){
+                    DB::rollBack();
+                    return response()->json(['status' => 'fail', 'messages' => ['Failed save outlet box']]);
+                }
+            }
+        }
+
+        DB::commit();
+        return response()->json(['status' => 'success']);
     }
 }

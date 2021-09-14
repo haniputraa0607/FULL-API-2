@@ -49,6 +49,8 @@ class CustomAuth extends AddCustomProvider
             $request->merge(['provider' => 'franchise']);
         }elseif($request->get('quinos')){
             $request->merge(['provider' => 'quinos']);
+        }elseif($request->get('partners')){
+            $request->merge(['provider' => 'partners']);
         }elseif($request->get('mitra-apps')){
             $request->merge(['provider' => 'mitra']);
         }else{

@@ -58,6 +58,7 @@ class CheckScopes extends AddCustomProvider
         if(($scope == 'pos' && $scopeUser == 'pos' && $clientId == 1) 
         	|| ($scope == 'be' && $scopeUser == 'be') 
         	|| ($scope == 'apps' && $scopeUser == 'apps') 
+          || ($scope == 'partners' && $scopeUser == 'partners')
         	|| ($scope == 'landing-page' && $scopeUser == 'landing-page') 
         	|| ($scope == 'franchise-client' && $scopeUser == 'franchise-client') 
         	|| ($scope == 'franchise-super-admin' && $scopeUser == 'franchise-super-admin') 

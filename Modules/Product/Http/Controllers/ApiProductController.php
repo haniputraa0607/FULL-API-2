@@ -26,9 +26,12 @@ use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 
 use App\Lib\MyHelper;
+use Modules\Product\Http\Requests\product\AvailableHs;
 use Modules\ProductBundling\Entities\BundlingProduct;
 use Modules\ProductVariant\Entities\ProductVariantGroup;
 use Modules\ProductVariant\Entities\ProductVariantPivot;
+use Modules\Recruitment\Entities\UserHairStylist;
+use Modules\Transaction\Entities\HairstylistNotAvailable;
 use Validator;
 use Hash;
 use DB;
@@ -2056,5 +2059,327 @@ class ApiProductController extends Controller
         $data = $data->get()->toArray();
 
         return response()->json(MyHelper::checkGet($data));
+    }
+
+    public function outletServiceListProduct(Request $request){
+        $post = $request->json()->all();
+        if(empty($post['id_outlet'])){
+            return response()->json(['status' => 'fail', 'messages' => ['ID outlet can not be empty']]);
+        }
+
+        if(empty($post['latitude']) && empty($post['longitude'])){
+            return response()->json(['status' => 'fail', 'messages' => ['Latitude and Longitude can not be empty']]);
+        }
+
+        $outlet = Outlet::where('id_outlet', $post['id_outlet'])->first();
+        if (!$outlet) {
+            return [
+                'status' => 'fail',
+                'messages' => ['Outlet not found']
+            ];
+        }
+
+        $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
+                ->where('id_outlet', $post['id_outlet'])->first();
+
+        if(empty($brand)){
+            return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
+        }
+
+        //get data service
+        $productServie = Product::select([
+            'products.id_product', 'products.product_name', 'products.product_code', 'products.product_description', 'product_variant_status',
+            DB::raw('(CASE
+                        WHEN (select outlets.outlet_different_price from outlets  where outlets.id_outlet = ' . $post['id_outlet'] . ' ) = 1 
+                        THEN (select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $post['id_outlet'] . ' )
+                        ELSE product_global_price.product_global_price
+                    END) as product_price'),
+            DB::raw('(CASE
+                        WHEN (select product_detail.product_detail_stock_status from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . ' order by id_product_detail desc limit 1) 
+                        is NULL THEN "Available"
+                        ELSE (select product_detail.product_detail_stock_status from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . ' order by id_product_detail desc limit 1)
+                    END) as product_stock_status'),
+        ])
+            ->join('brand_product', 'brand_product.id_product', '=', 'products.id_product')
+            ->leftJoin('product_global_price', 'product_global_price.id_product', '=', 'products.id_product')
+            ->join('brand_outlet', 'brand_outlet.id_brand', '=', 'brand_product.id_brand')
+            ->where('brand_outlet.id_outlet', '=', $post['id_outlet'])
+            ->where('brand_product.id_brand', '=', $brand['id_brand'])
+            ->where('product_type', 'service')
+            ->whereRaw('products.id_product in (CASE
+                        WHEN (select product_detail.id_product from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . '  order by id_product_detail desc limit 1)
+                        is NULL AND products.product_visibility = "Visible" THEN products.id_product
+                        WHEN (select product_detail.id_product from product_detail  where (product_detail.product_detail_visibility = "" OR product_detail.product_detail_visibility is NULL) AND product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . '  order by id_product_detail desc limit 1)
+                        is NOT NULL AND products.product_visibility = "Visible" THEN products.id_product
+                        ELSE (select product_detail.id_product from product_detail  where product_detail.product_detail_visibility = "Visible" AND product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . '  order by id_product_detail desc limit 1)
+                    END)')
+            ->whereRaw('products.id_product in (CASE
+                        WHEN (select product_detail.id_product from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . ' order by id_product_detail desc limit 1)
+                        is NULL THEN products.id_product
+                        ELSE (select product_detail.id_product from product_detail  where product_detail.product_detail_status = "Active" AND product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . ' order by id_product_detail desc limit 1)
+                    END)')
+            ->where(function ($query) use ($post) {
+                $query->WhereRaw('(select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $post['id_outlet'] . '  order by id_product_special_price desc limit 1) is NOT NULL');
+                $query->orWhereRaw('(select product_global_price.product_global_price from product_global_price  where product_global_price.id_product = products.id_product order by id_product_global_price desc limit 1) is NOT NULL');
+            })
+            ->with(['photos'])
+            ->having('product_price', '>', 0)
+            ->groupBy('products.id_product')
+            ->orderByRaw('CASE WHEN products.position = 0 THEN 1 ELSE 0 END')
+            ->orderBy('products.position')
+            ->orderBy('products.id_product')
+            ->get()->toArray();
+
+        $resProdService = [];
+        foreach ($productServie as $val){
+            $resProdService[] = [
+                'id_product' => $val['id_product'],
+                'product_type' => 'service',
+                'product_code' => $val['product_code'],
+                'product_name' => $val['product_name'],
+                'product_description' => $val['product_description'],
+                'product_price' => (int)$val['product_price'],
+                'string_product_price' => 'Rp '.number_format((int)$val['product_price'],0,",","."),
+                'product_stock_status' => $val['product_stock_status'],
+                'photo' => (empty($val['photos'][0]['product_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$val['photos'][0]['product_photo'])
+            ];
+        }
+
+        //get data product
+        $products = Product::select([
+            'products.id_product', 'products.product_name', 'products.product_code', 'products.product_description', 'product_variant_status',
+            DB::raw('(CASE
+                        WHEN (select outlets.outlet_different_price from outlets  where outlets.id_outlet = ' . $post['id_outlet'] . ' ) = 1 
+                        THEN (select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $post['id_outlet'] . ' )
+                        ELSE product_global_price.product_global_price
+                    END) as product_price'),
+            DB::raw('(CASE
+                        WHEN (select product_detail.product_detail_stock_status from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . ' order by id_product_detail desc limit 1) 
+                        is NULL THEN "Available"
+                        ELSE (select product_detail.product_detail_stock_status from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . ' order by id_product_detail desc limit 1)
+                    END) as product_stock_status'),
+        ])
+            ->join('brand_product', 'brand_product.id_product', '=', 'products.id_product')
+            ->leftJoin('product_global_price', 'product_global_price.id_product', '=', 'products.id_product')
+            ->join('brand_outlet', 'brand_outlet.id_brand', '=', 'brand_product.id_brand')
+            ->where('brand_outlet.id_outlet', '=', $post['id_outlet'])
+            ->where('brand_product.id_brand', '=', $brand['id_brand'])
+            ->where('product_type', 'product')
+            ->whereRaw('products.id_product in (CASE
+                        WHEN (select product_detail.id_product from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . '  order by id_product_detail desc limit 1)
+                        is NULL AND products.product_visibility = "Visible" THEN products.id_product
+                        WHEN (select product_detail.id_product from product_detail  where (product_detail.product_detail_visibility = "" OR product_detail.product_detail_visibility is NULL) AND product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . '  order by id_product_detail desc limit 1)
+                        is NOT NULL AND products.product_visibility = "Visible" THEN products.id_product
+                        ELSE (select product_detail.id_product from product_detail  where product_detail.product_detail_visibility = "Visible" AND product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . '  order by id_product_detail desc limit 1)
+                    END)')
+            ->whereRaw('products.id_product in (CASE
+                        WHEN (select product_detail.id_product from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . ' order by id_product_detail desc limit 1)
+                        is NULL THEN products.id_product
+                        ELSE (select product_detail.id_product from product_detail  where product_detail.product_detail_status = "Active" AND product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . ' order by id_product_detail desc limit 1)
+                    END)')
+            ->where(function ($query) use ($post) {
+                $query->WhereRaw('(select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $post['id_outlet'] . '  order by id_product_special_price desc limit 1) is NOT NULL');
+                $query->orWhereRaw('(select product_global_price.product_global_price from product_global_price  where product_global_price.id_product = products.id_product order by id_product_global_price desc limit 1) is NOT NULL');
+            })
+            ->with(['photos'])
+            ->having('product_price', '>', 0)
+            ->groupBy('products.id_product')
+            ->orderByRaw('CASE WHEN products.position = 0 THEN 1 ELSE 0 END')
+            ->orderBy('products.position')
+            ->orderBy('products.id_product')
+            ->get()->toArray();
+
+        $resProducts = [];
+        foreach ($products as $val){
+            if ($val['product_variant_status'] && $val['product_stock_status'] == 'Available') {
+                $variantTree = Product::getVariantTree($val['id_product'], ['id_outlet' => $outlet['id_outlet'], 'outlet_different_price' => $outlet['outlet_different_price']]);
+                $val['product_price'] = ($variantTree['base_price']??false)?:$val['product_price'];
+            }
+
+            $resProducts[] = [
+                'id_product' => $val['id_product'],
+                'product_type' => 'product',
+                'product_code' => $val['product_code'],
+                'product_name' => $val['product_name'],
+                'product_description' => $val['product_description'],
+                'product_price' => (int)$val['product_price'],
+                'string_product_price' => 'Rp '.number_format((int)$val['product_price'],0,",","."),
+                'product_stock_status' => $val['product_stock_status'],
+                'photo' => (empty($val['photos'][0]['product_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$val['photos'][0]['product_photo'])
+            ];
+        }
+        $distance = (float)app('Modules\Outlet\Http\Controllers\ApiOutletController')->distance($post['latitude'], $post['longitude'], $outlet['outlet_latitude'], $outlet['outlet_longitude'], "K");
+        if($distance < 1){
+            $distance = number_format($distance*1000, 0, '.', '').' m';
+        }else{
+            $distance = number_format($distance, 2, '.', '').' km';
+        }
+
+        $resOutlet = [
+            'id_outlet' => $outlet['id_outlet'],
+            'outlet_code' => $outlet['outlet_code'],
+            'outlet_name' => $outlet['outlet_name'],
+            'outlet_image' => $outlet['outlet_image'],
+            'outlet_address' => $outlet['outlet_address'],
+            'distance' => $distance
+        ];
+
+        $resBrand = [
+            'id_brand' => $brand['id_brand'],
+            'brand_code' => $brand['code_brand'],
+            'brand_name' => $brand['name_brand'],
+            'brand_logo' => $brand['logo_brand']
+        ];
+
+        $result = [
+            'color' => $brand['color_brand'],
+            'outlet' => $resOutlet,
+            'brand' => $resBrand,
+            'list_product' => [
+                'service' => $resProdService,
+                'products' => $resProducts
+            ]
+        ];
+
+        return response()->json(MyHelper::checkGet($result));
+    }
+
+    public function outletServiceDetailProductService(Request $request){
+        $post = $request->json()->all();
+        if(empty($post['id_outlet'])){
+            return response()->json(['status' => 'fail', 'messages' => ['ID outlet can not be empty']]);
+        }
+
+        $outlet = Outlet::where('id_outlet', $post['id_outlet'])->with(['outlet_schedules'])->first();
+        if (!$outlet) {
+            return [
+                'status' => 'fail',
+                'messages' => ['Outlet not found']
+            ];
+        }
+
+        if(empty($post['id_product'])){
+            return response()->json(['status' => 'fail', 'messages' => ['Product not found']]);
+        }
+
+        $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
+            ->where('id_outlet', $post['id_outlet'])->first();
+
+        if(empty($brand)){
+            return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
+        }
+
+        $product = Product::where('products.id_product', $post['id_product'])
+                    ->where('product_type', 'service')
+                    ->select([
+                    'products.id_product', 'products.product_name', 'products.product_code', 'products.product_description', 'product_variant_status', 'processing_time_service',
+                    DB::raw('(CASE
+                                WHEN (select outlets.outlet_different_price from outlets  where outlets.id_outlet = ' . $post['id_outlet'] . ' ) = 1 
+                                THEN (select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $post['id_outlet'] . ' )
+                                ELSE product_global_price.product_global_price
+                            END) as product_price'),
+                    ])
+                    ->leftJoin('product_global_price', 'product_global_price.id_product', '=', 'products.id_product')
+                    ->with(['photos'])
+                    ->first();
+
+        if (!$product) {
+            return [
+                'status' => 'fail',
+                'messages' => ['Product not found']
+            ];
+        }
+
+        if ($product['product_variant_status']) {
+            $variantTree = Product::getVariantTree($product['id_product'], ['id_outlet' => $outlet['id_outlet'], 'outlet_different_price' => $outlet['outlet_different_price']]);
+            $product['product_price'] = ($variantTree['base_price']??false)?:$product['product_price'];
+        }
+
+        $day = [
+            'Mon' => 'Senin',
+            'Tue' => 'Selasa',
+            'Wed' => 'Rabu',
+            'Thu' => 'Kamis',
+            'Fri' => 'Jumat',
+            'Sat' => 'Sabtu',
+            'Sun' => 'Minggu'
+        ];
+
+        $outletSchedules= $outlet['outlet_schedules']->toArray();
+        $allDay = array_column($outletSchedules, 'day');
+
+        //total date
+        $totalDateShow = Setting::where('key', 'total_show_date_booking_service')->first()->value??1;
+        $today = date('Y-m-d');
+        $listDate = [];
+        $x = 0;
+        $count = 1;
+        $processingTime = (int)$product['processing_time_service'];
+        while($count <= (int)$totalDateShow) {
+            $date = date('Y-m-d', strtotime('+'.$x.' day', strtotime($today)));
+            $dayConvert = $day[date('D', strtotime($date))];
+            if(array_search($dayConvert, $allDay) !== false){
+                $getTime = array_search($dayConvert, array_column($outletSchedules, 'day'));
+                $open = date('H:i', strtotime($outletSchedules[$getTime]['open']));
+                $close = date('H:i', strtotime($outletSchedules[$getTime]['close']));
+                $times = [];
+                $tmpTime = $open;
+                $times[] = $open;
+                while(strtotime($tmpTime) < strtotime($close)) {
+                    $timeConvert = date('H:i', strtotime("+".$processingTime." minutes", strtotime($tmpTime)));
+                    $times[] = $timeConvert;
+                    $tmpTime = $timeConvert;
+                }
+                $listDate[] = [
+                    'date' => $date,
+                    'times' => $times
+                ];
+                $count++;
+            }
+            $x++;
+        }
+
+        $result = [
+            'color' => $brand['color_brand'],
+            'id_product' => $product['id_product'],
+            'product_code' => $product['product_code'],
+            'product_name' => $product['product_name'],
+            'product_description' => $product['product_description'],
+            'product_price' => (int)$product['product_price'],
+            'string_product_price' => 'Rp '.number_format((int)$product['product_price'],0,",","."),
+            'photo' => (empty($product['photos'][0]['product_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$product['photos'][0]['product_photo']),
+            'list_date' => $listDate
+        ];
+
+        return response()->json(MyHelper::checkGet($result));
+    }
+
+    public function outletServiceAvailableHs(AvailableHs $request){
+        $post = $request->json()->all();
+        $hsNotAvailable = HairstylistNotAvailable::where('id_outlet', $post['id_outlet'])
+                            ->where('booking_date', date('Y-m-d', strtotime($post['booking_date'])))
+                            ->where('booking_time', date('H:i:s', strtotime($post['booking_time'])))
+                            ->pluck('id_user_hair_stylist')->toArray();
+
+        $listHs = UserHairStylist::where('id_outlet', $post['id_outlet'])
+                    ->where('user_hair_stylist_status', 'Active')->get()->toArray();
+
+        $res = [];
+        foreach ($listHs as $val){
+            $checkAvailable = array_search($val['id_user_hair_stylist'], $hsNotAvailable);
+            $availableStatus = false;
+            if($checkAvailable === false){
+                $availableStatus = true;
+            }
+
+            $res[] = [
+                'id_user_hair_stylist' => $val['id_user_hair_stylist'],
+                'name' => $val['fullname'],
+                'photo' => (empty($val['user_hair_stylist_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$val['user_hair_stylist_photo']),
+                'available_status' => $availableStatus
+            ];
+        }
+
+        return response()->json(MyHelper::checkGet($res));
     }
 }

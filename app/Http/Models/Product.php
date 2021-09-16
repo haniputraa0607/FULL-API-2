@@ -67,7 +67,8 @@ class Product extends Model
         'is_inactive',
         'product_length',
         'product_width',
-        'product_height'
+        'product_height',
+        'processing_time_service'
     ];
     
 

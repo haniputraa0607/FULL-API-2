@@ -72,6 +72,8 @@ class Outlet extends Authenticatable
 		'outlet_code',
 		'outlet_pin',
 		'outlet_name',
+        'outlet_description',
+        'outlet_image',
 		'outlet_address',
 		'id_city',
 		'outlet_postal_code',
@@ -104,7 +106,16 @@ class Outlet extends Authenticatable
 		return config('url.api_url').'/api/outlet/webview/'.$this->id_outlet;
 	}
 
-	public function brands(){
+    public function getOutletImageAttribute($value)
+    {
+        if(empty($value)){
+            return '';
+        }
+        return config('url.storage_url_api') . $value;
+    }
+
+
+    public function brands(){
 		return $this->belongsToMany(\Modules\Brand\Entities\Brand::class, 'brand_outlet', 'id_outlet', 'id_brand')->orderBy('brands.order_brand');
 	}
 

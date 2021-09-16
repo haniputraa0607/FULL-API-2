@@ -173,26 +173,28 @@ class ApiLocationsController extends Controller
             DB::commit();
             $new_id_partner = Location::where('id_location', $post['id_location'])->get('id_partner')[0]['id_partner'];
             $partner = Partner::where('id_partner',$new_id_partner)->get()[0];
-            if($old_status=='Candidate' && $data_update['status'] == 'Active'){
-                if (\Module::collections()->has('Autocrm')) {
-                    $autocrm = app($this->autocrm)->SendAutoCRM(
-                        'Updated Candidate Location to Location',
-                        $partner['phone'],
-                        [
-                            'name' => $partner['name'],
-                        ]
-                    );
-                    // return $autocrm;
-                    if ($autocrm) {
-                        return response()->json([
-                            'status'    => 'success',
-                            'messages'  => ['Approved sent to email partner']
-                        ]);
-                    } else {
-                        return response()->json([
-                            'status'    => 'fail',
-                            'messages'  => ['Failed to send']
-                        ]);
+            if(isset($data_update['status'])){
+                if($old_status=='Candidate' && $data_update['status'] == 'Active'){
+                    if (\Module::collections()->has('Autocrm')) {
+                        $autocrm = app($this->autocrm)->SendAutoCRM(
+                            'Updated Candidate Location to Location',
+                            $partner['phone'],
+                            [
+                                'name' => $partner['name'],
+                            ]
+                        );
+                        // return $autocrm;
+                        if ($autocrm) {
+                            return response()->json([
+                                'status'    => 'success',
+                                'messages'  => ['Approved sent to email partner']
+                            ]);
+                        } else {
+                            return response()->json([
+                                'status'    => 'fail',
+                                'messages'  => ['Failed to send']
+                            ]);
+                        }
                     }
                 }
             }

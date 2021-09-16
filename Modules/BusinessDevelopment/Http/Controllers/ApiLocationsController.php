@@ -12,6 +12,13 @@ use Modules\BusinessDevelopment\Entities\Partner;
 
 class ApiLocationsController extends Controller
 {
+    public function __construct()
+    {
+        date_default_timezone_set('Asia/Jakarta');
+        if (\Module::collections()->has('Autocrm')) {
+            $this->autocrm  = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
+        }
+    }
     /**
      * Display a listing of the resource.
      * @return Response
@@ -26,15 +33,14 @@ class ApiLocationsController extends Controller
         }else {
             $locations = Location::with(['location_partner','location_city']);
         }
-            
         if ($keyword = ($request->search['value']??false)) {
             $locations->where('name', 'like', '%'.$keyword.'%')
-                        ->orWhereHas('location_partner', function($q) use ($keyword) {
-                                $q->where('name', 'like', '%'.$keyword.'%');
-                            })
-                        ->orWhereHas('location_city', function($q) use ($keyword) {
-                            $q->where('city_name', 'like', '%'.$keyword.'%');
-                        });
+            ->orWhereHas('location_partner', function($q) use ($keyword) {
+                $q->where('name', 'like', '%'.$keyword.'%');
+            })
+            ->orWhereHas('location_city', function($q) use ($keyword) {
+                $q->where('city_name', 'like', '%'.$keyword.'%');
+            });
         }
         if(isset($post['get_child']) && $post['get_child'] == 1){
             $partner = $location->whereNotNull('id_partner');
@@ -43,7 +49,7 @@ class ApiLocationsController extends Controller
             $locations = $locations->orderBy('updated_at', 'desc')->paginate($request->length ?: 10);
         }else{
             $locations = $locations->orderBy('updated_at', 'desc')->get()->toArray();
-        }
+        }   
         return MyHelper::checkGet($locations);
     }
 
@@ -158,12 +164,38 @@ class ApiLocationsController extends Controller
             if (isset($post['id_partner'])) {
                 $data_update['id_partner'] = $post['id_partner'];
             }
+            $old_status = Location::where('id_location', $post['id_location'])->get('status')[0]['status'];
             $update = Location::where('id_location', $post['id_location'])->update($data_update);
             if(!$update){
                 DB::rollback();
                 return response()->json(['status' => 'fail', 'messages' => ['Failed update product variant']]);
             }
             DB::commit();
+            $new_id_partner = Location::where('id_location', $post['id_location'])->get('id_partner')[0]['id_partner'];
+            $partner = Partner::where('id_partner',$new_id_partner)->get()[0];
+            if($old_status=='Candidate' && $data_update['status'] == 'Active'){
+                if (\Module::collections()->has('Autocrm')) {
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Updated Candidate Location to Location',
+                        $partner['phone'],
+                        [
+                            'name' => $partner['name'],
+                        ]
+                    );
+                    // return $autocrm;
+                    if ($autocrm) {
+                        return response()->json([
+                            'status'    => 'success',
+                            'messages'  => ['Approved sent to email partner']
+                        ]);
+                    } else {
+                        return response()->json([
+                            'status'    => 'fail',
+                            'messages'  => ['Failed to send']
+                        ]);
+                    }
+                }
+            }
             return response()->json(['status' => 'success']);
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);

@@ -201,14 +201,14 @@ class ApiPartnersController extends Controller
                         $data_update['phone'],
                         [
                             'name' => $data_update['name'],
-                            'pin' => $data_update['password'],
+                            'pin' => $post['pin'],
                         ]
                     );
                     // return $autocrm;
                     if ($autocrm) {
                         return response()->json([
                             'status'    => 'success',
-                            'messages'  => ['Verification sent to your email']
+                            'messages'  => ['Approved sent to email partner']
                         ]);
                     } else {
                         return response()->json([

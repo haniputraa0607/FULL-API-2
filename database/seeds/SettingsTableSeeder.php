@@ -1028,6 +1028,24 @@ class SettingsTableSeeder extends Seeder
                     'value_text' => NULL,
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s'),
+                ),
+            114 =>
+                array (
+                    'id_setting' => 115,
+                    'key' => 'facebook_url',
+                    'value' => NULL,
+                    'value_text' => NULL,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ),
+            115 =>
+                array (
+                    'id_setting' => 116,
+                    'key' => 'instagram_url',
+                    'value' => NULL,
+                    'value_text' => NULL,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
                 )
         ));
     }

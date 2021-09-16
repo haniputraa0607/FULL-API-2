@@ -794,7 +794,7 @@ class ApiHome extends Controller
             ->whereHas('deals',function($query){
                 $query->where('deals_publish_end','>=',DB::raw('CURRENT_TIMESTAMP()'));
                 $query->where('deals_publish_start','<=',DB::raw('CURRENT_TIMESTAMP()'));
-                $query->whereHas('brand',function($query){
+                $query->whereHas('brands',function($query){
                     $query->where('brand_active',1);
                 });
             })
@@ -909,5 +909,15 @@ class ApiHome extends Controller
                 'messages' => ['Something went wrong']
             ];
         }
+    }
+
+    public function socialMedia(Request $request)
+    {
+    	$getSetting = Setting::whereIn('key', ['facebook_url', 'instagram_url'])->get()->keyBy('key');
+    	$result = [
+    		'facebook' => $getSetting['facebook_url']['value_text'],
+    		'instagram' => $getSetting['instagram_url']['value_text']
+    	];
+    	return MyHelper::checkGet($result);
     }
 }

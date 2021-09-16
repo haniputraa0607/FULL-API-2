@@ -56,8 +56,8 @@ class UserHairStylist extends Authenticatable
         'approve_by'
 	];
 
-	public function hairstylist_schedule()
+	public function hairstylist_schedules()
 	{
-		return $this->hasOne(\Modules\Recruitment\Entities\HairstylistSchedule::class, 'id_user_hair_stylist');
+		return $this->hasMany(\Modules\Recruitment\Entities\HairstylistSchedule::class, 'id_user_hair_stylist');
 	}	
 }

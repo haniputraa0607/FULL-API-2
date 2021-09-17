@@ -22,7 +22,7 @@ use Modules\SettingFraud\Entities\FraudSetting;
 use App\Http\Models\OauthAccessToken;
 use App\Http\Models\FeaturedDeal;
 use Modules\Subscription\Entities\FeaturedSubscription;
-use Modules\PromoCampaign\Entities\featuredPromoCampaign;
+use Modules\PromoCampaign\Entities\FeaturedPromoCampaign;
 use Modules\PromoCampaign\Entities\PromoCampaignReport;
 
 use DB;

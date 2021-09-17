@@ -33,23 +33,84 @@ class ApiLocationsController extends Controller
         }else {
             $locations = Location::with(['location_partner','location_city']);
         }
-        if ($keyword = ($request->search['value']??false)) {
-            $locations->where('name', 'like', '%'.$keyword.'%')
-            ->orWhereHas('location_partner', function($q) use ($keyword) {
-                $q->where('name', 'like', '%'.$keyword.'%');
-            })
-            ->orWhereHas('location_city', function($q) use ($keyword) {
-                $q->where('city_name', 'like', '%'.$keyword.'%');
-            });
+        if(isset($post['conditions']) && !empty($post['conditions'])){
+            $rule = 'and';
+            if(isset($post['rule'])){
+                $rule = $post['rule'];
+            }
+            if($rule == 'and'){
+                foreach ($post['conditions'] as $condition){
+                    if(isset($condition['subject'])){
+                        if($condition['subject']=='name_partner'){
+                            if ($condition['operator'] == '=') {
+                                $id_partner = Partner::where('name', $condition['parameter'])->get('id_partner');
+                                if(count($id_partner)>0){
+                                    $locations = $locations->where('id_partner', $id_partner[0]['id_partner']);
+                                }else{
+                                    $locations = $locations->where('id_partner', '0');
+                                }
+                            } else{
+                                $id_partner = Partner::where('name','like','%'.$condition['parameter'].'%')->get('id_partner');
+                                if(count($id_partner)>0){
+                                    $locations = $locations->where('id_partner', $id_partner[0]['id_partner']);
+                                }else{
+                                    $locations = $locations->where('id_partner', '0');
+                                }
+                            }   
+                        }else{
+                            if($condition['operator'] == '='){
+                                $locations = $locations->where($condition['subject'], $condition['parameter']);
+                            }else{
+                                $locations = $locations->where($condition['subject'], 'like', '%'.$condition['parameter'].'%');
+                            }
+                        }                
+                    }
+                }
+            }else{
+                $locations = $locations->where(function ($q) use ($post){
+                    foreach ($post['conditions'] as $condition){
+                        if(isset($condition['subject'])){
+                            if($condition['subject']=='name_partner'){
+                                if ($condition['operator'] == '=') {
+                                    $id_partner = Partner::where('name', $condition['parameter'])->get('id_partner');
+                                    if(count($id_partner)>0){
+                                        $q->orWhere('id_partner', $id_partner[0]['id_partner']);
+                                    }else{
+                                        $q->orWhere('id_partner', '0');
+                                    }
+                                } else{
+                                    $id_partner = Partner::where('name','like','%'.$condition['parameter'].'%')->get('id_partner');
+                                    if(count($id_partner)>0){
+                                        $q->orWhere('id_partner', $id_partner[0]['id_partner']);
+                                    }else{
+                                        $q->orWhere('id_partner', '0');
+                                    }
+                                }     
+                            }else{
+                                if($condition['operator'] == '='){
+                                    $q->orWhere($condition['subject'], $condition['parameter']);
+                                }else{
+                                    $q->orWhere($condition['subject'], 'like', '%'.$condition['parameter'].'%');
+                                }
+                            }
+                        }
+                    }
+                });
+            }
         }
-        if(isset($post['get_child']) && $post['get_child'] == 1){
-            $partner = $location->whereNotNull('id_partner');
-        }
-        if(isset($post['page'])){
-            $locations = $locations->orderBy('updated_at', 'desc')->paginate($request->length ?: 10);
+        if(isset($post['order']) && isset($post['order_type'])){
+            if(isset($post['page'])){
+                $locations = $locations->orderBy($post['order'], $post['order_type'])->paginate($request->length ?: 10);
+            }else{
+                $locations = $locations->orderBy($post['order'], $post['order_type'])->get()->toArray();
+            }
         }else{
-            $locations = $locations->orderBy('updated_at', 'desc')->get()->toArray();
-        }   
+            if(isset($post['page'])){
+                $locations = $locations->orderBy('created_at', 'desc')->paginate($request->length ?: 10);
+            }else{
+                $locations = $locations->orderBy('created_at', 'desc')->get()->toArray();
+            }
+        } 
         return MyHelper::checkGet($locations);
     }
 

@@ -71,4 +71,15 @@ class ApiUserPartnerController extends Controller
         }
 
     }
-}
+    function detail(Request $request){
+        $post = $request->json()->all();
+        $data = [];
+        if(isset($post['username']) && !empty($post['username'])){
+            $data = Partner::where('phone', $post['username'])->first();
+        }elseif (isset($post['id_partner']) && !empty($post['id_partner'])){
+            $data = Partner::where('id_partner', $post['id_partner'])->first();
+        }
+        return response()->json(MyHelper::checkGet($data));
+    }
+} 
+ 

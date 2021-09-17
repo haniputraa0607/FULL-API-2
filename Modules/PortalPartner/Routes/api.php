@@ -20,6 +20,7 @@ Route::group(['prefix' => 'partner'], function () {
     Route::group(['middleware' => ['auth:partners', 'scopes:partners']], function () {
         Route::group(['prefix' => 'user'], function() {
             Route::post('update-first-pin', 'ApiUserPartnerController@updateFirstPin');
+            Route::post('detail/for-login', 'ApiUserPartnerController@detail');
         });
     });
 });

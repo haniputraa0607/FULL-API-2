@@ -155,8 +155,3 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent', 'scope
         Route::post('delete', ['middleware' => 'feature_control:337', 'uses' => 'ApiRoleController@destroy']);
     });
 });
-
-Route::group(['prefix' => 'api/mitra', 'middleware' => ['user_agent'], 'namespace' => 'Modules\Users\Http\Controllers'], function()
-{
-    Route::get('splash','ApiMitra@splash');
-});

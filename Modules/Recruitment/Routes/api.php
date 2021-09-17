@@ -33,3 +33,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
     	});
     });
 });
+
+Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mitra'], function () {
+    Route::get('splash','ApiMitra@splash');
+});

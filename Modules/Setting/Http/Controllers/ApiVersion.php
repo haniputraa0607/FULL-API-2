@@ -144,6 +144,33 @@ class ApiVersion extends Controller
                     'button_url' => $setting['version_mitrastore']
                 ]);
             }
+            if ($device == 'web') {
+                foreach ($setting['Device'] as $value) {
+                    if (in_array('WebApp', $value)) {
+                        $value['app_type'] = strtolower($value['app_type']);
+                        $compare_version[] = $value;
+                    }
+                }
+
+                if (empty($compare_version)) {
+                	return response()->json(['status' => 'fail', 'message' => 'Versi tidak ditemukan']);
+                }
+
+                for ($i = 0; $i < count($compare_version); $i++) {
+                    if ($post['version'] == $compare_version[$i]['app_version']) {
+                        return response()->json(['status' => 'success']);
+                    }
+                }
+                $versionRec = array_shift($compare_version);
+                $setting['version_text_alert_web'] = str_replace('%version_app%', $versionRec['app_version'], $setting['version_text_alert_web']);
+                return response()->json([
+                    'status' => 'fail',
+                    'image' => config('url.storage_url_api') . $setting['version_image_web'],
+                    'text' => $setting['version_text_alert_web'],
+                    'button_text' => $setting['version_text_button_web'],
+                    'button_url' => $setting['version_webstore']
+                ]);
+            }
         } else {
             return response()->json(['status' => 'fail', 'message' => 'Device tidak teridentifikasi']);
         }

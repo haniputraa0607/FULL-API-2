@@ -33,22 +33,47 @@ class ApiPartnersController extends Controller
         } else {
             $partner = Partner::with(['partner_bank_account','partner_locations']);
         }
-        if ($keyword = ($request->search['value']??false)) {
-            $partner->where('name', 'like', '%'.$keyword.'%')
-                        ->orWhereHas('partner_bank_account', function($q) use ($keyword) {
-                                $q->where('beneficiary_name', 'like', '%'.$keyword.'%');
-                            })
-                        ->orWhereHas('partner_locations', function($q) use ($keyword) {
-                            $q->where('name', 'like', '%'.$keyword.'%');
-                        });
+        if(isset($post['conditions']) && !empty($post['conditions'])){
+            $rule = 'and';
+            if(isset($post['rule'])){
+                $rule = $post['rule'];
+            }
+            if($rule == 'and'){
+                foreach ($post['conditions'] as $condition){
+                    if(isset($condition['subject'])){                
+                        if($condition['operator'] == '='){
+                            $partner = $partner->where($condition['subject'], $condition['parameter']);
+                        }else{
+                            $partner = $partner->where($condition['subject'], 'like', '%'.$condition['parameter'].'%');
+                        }
+                    }
+                }
+            }else{
+                $partner = $partner->where(function ($q) use ($post){
+                    foreach ($post['conditions'] as $condition){
+                        if(isset($condition['subject'])){
+                            if($condition['operator'] == '='){
+                                $q->orWhere($condition['subject'], $condition['parameter']);
+                            }else{
+                                $q->orWhere($condition['subject'], 'like', '%'.$condition['parameter'].'%');
+                            }
+                        }
+                    }
+                });
+            }
         }
-        if(isset($post['get_child']) && $post['get_child'] == 1){
-            $partner = $partner->whereNotNull('id_bank_account');
-        }
-        if(isset($post['page'])){
-            $partner = $partner->orderBy('updated_at', 'desc')->paginate($request->length ?: 10);
+        if(isset($post['order']) && isset($post['order_type'])){
+            if(isset($post['page'])){
+                $partner = $partner->orderBy($post['order'], $post['order_type'])->paginate($request->length ?: 10);
+            }else{
+                $partner = $partner->orderBy($post['order'], $post['order_type'])->get()->toArray();
+            }
         }else{
-            $partner = $partner->orderBy('updated_at', 'desc')->get()->toArray();
+            if(isset($post['page'])){
+                $partner = $partner->orderBy('created_at', 'desc')->paginate($request->length ?: 10);
+            }else{
+                $partner = $partner->orderBy('created_at', 'desc')->get()->toArray();
+            }
         }
         return MyHelper::checkGet($partner);
     }

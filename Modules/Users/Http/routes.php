@@ -18,7 +18,7 @@ Route::group(['prefix' => 'api', 'middleware' => ['log_activities', 'user_agent'
         Route::post('validation-phone', 'ApiUser@validationPhone');
     });
 
-	Route::group(['middleware' => ['auth_client','log_activities', 'user_agent', 'scopes:apps'], 'prefix' => 'users', 'namespace' => 'Modules\Users\Http\Controllers'], function()
+	Route::group(['middleware' => ['auth_client','log_activities', 'user_agent', 'scopes:apps,web-apps'], 'prefix' => 'users', 'namespace' => 'Modules\Users\Http\Controllers'], function()
 	{
         Route::post('pin/verify', 'ApiUser@verifyPin')->middleware('decrypt_pin');
         Route::post('pin/create', 'ApiUser@createPin');

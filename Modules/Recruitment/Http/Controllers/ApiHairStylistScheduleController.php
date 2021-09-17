@@ -237,7 +237,7 @@ class ApiHairStylistScheduleController extends Controller
 
         $oldData = [];
         foreach ($schedule as $val) {
-        	$date = date('Y-m-d', strtotime($val['date']));
+        	$date = date('Y-m-j', strtotime($val['date']));
         	if (isset($oldData[$date]) && $oldData[$date] != $val['shift']) {
         		$oldData[$date] = [
         			'request_by' => $val['request_by'],

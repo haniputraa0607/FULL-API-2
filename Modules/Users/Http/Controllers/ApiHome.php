@@ -915,8 +915,8 @@ class ApiHome extends Controller
     {
     	$getSetting = Setting::whereIn('key', ['facebook_url', 'instagram_url'])->get()->keyBy('key');
     	$result = [
-    		'facebook' => $getSetting['facebook_url']['value_text'],
-    		'instagram' => $getSetting['instagram_url']['value_text']
+    		'facebook' => $getSetting['facebook_url']['value_text'] ?? null,
+    		'instagram' => $getSetting['instagram_url']['value_text'] ?? null
     	];
     	return MyHelper::checkGet($result);
     }

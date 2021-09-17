@@ -22,7 +22,8 @@ class CheckScopes extends AddCustomProvider
     public function handle($request, Closure $next, $scope = null, $scope2 = null)
     {
         /*check status maintenance mode for apps*/
-        if($scope == 'apps'){
+        $mtScope = ['apps', 'web-apps'];
+        if (in_array($scope,$mtScope) || in_array($scope2,$mtScope)) {
             $getMaintenance = Setting::where('key', 'maintenance_mode')->first();
             if($getMaintenance && $getMaintenance['value'] == 1){
                 $dt = (array)json_decode($getMaintenance['value_text']);

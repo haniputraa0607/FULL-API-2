@@ -19,7 +19,7 @@ class CheckScopes extends AddCustomProvider
      * @param  \Closure  $next
      * @return mixed
      */
-    public function handle($request, Closure $next, $scope = null)
+    public function handle($request, Closure $next, $scope = null, $scope2 = null)
     {
         /*check status maintenance mode for apps*/
         if($scope == 'apps'){
@@ -57,7 +57,8 @@ class CheckScopes extends AddCustomProvider
 
         $arrScope = ['pos', 'be', 'partners', 'apps', 'web-apps', 'landing-page', 'franchise-client', 'franchise-super-admin',
             'franchise-user', 'mitra-apps'];
-        if(in_array($scope, $arrScope) && $scope == $scopeUser){
+        if((in_array($scope, $arrScope) && $scope == $scopeUser) ||
+            (in_array($scope2,$arrScope) && $scope2 == $scopeUser)){
             return $next($request);
         }
 

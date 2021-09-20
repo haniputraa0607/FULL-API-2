@@ -179,20 +179,22 @@ class ApiVersion extends Controller
     function getVersion()
     {
         $display = Setting::where('key', 'LIKE', 'version%')->get();
-        $android = Version::select('app_type', 'app_version', 'rules')->orderBy('app_version', 'desc')->where('app_type', 'Android')->get()->toArray();
-        $ios = Version::select('app_type', 'app_version', 'rules')->orderBy('app_version', 'desc')->where('app_type', 'IOS')->get()->toArray();
-        // $outlet = Version::select('app_type', 'app_version', 'rules')->orderBy('app_version', 'desc')->where('app_type', 'OutletApp')->get()->toArray();
-        $mitra = Version::select('app_type', 'app_version', 'rules')->orderBy('app_version', 'desc')->where('app_type', 'MitraApp')->get()->toArray();
+        $version = Version::select('app_type', 'app_version', 'rules')
+        			->whereNotIn('app_type', ['OutletApp'])
+        			->orderBy('app_version', 'desc')
+        			->get()
+        			->GroupBy('app_type');
 
         $result = [];
         foreach ($display as $data) {
             $result[$data['key']] = $data['value'];
         }
 
-        $result['Android'] = $android;
-        $result['IOS'] = $ios;
-        $result['OutletApp'] = $outlet ?? [];
-        $result['MitraApp'] = $mitra;
+        $result['Android'] = $version['Android'] ?? [];
+        $result['IOS'] = $version['IOS'] ?? [];
+        $result['OutletApp'] = $version['OutletApp'] ?? [];
+        $result['MitraApp'] = $version['MitraApp'] ?? [];
+        $result['WebApp'] = $version['WebApp'] ?? [];
 
         return response()->json(MyHelper::checkGet($result));
     }
@@ -207,6 +209,7 @@ class ApiVersion extends Controller
                     if ($keyData == 'version_image_mobile' 
                     	|| $keyData == 'version_image_outlet' 
                     	|| $keyData == 'version_image_mitra'
+                    	|| $keyData == 'version_image_web'
                     ) {
                         if (!file_exists('img/setting/version/')) {
                             mkdir('img/setting/version/', 0777, true);

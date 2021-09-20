@@ -8,6 +8,10 @@ use Illuminate\Routing\Controller;
 
 use App\Http\Models\Setting;
 
+use Modules\Recruitment\Entities\UserHairStylist;
+use Modules\Recruitment\Entities\HairstylistSchedule;
+use Modules\Recruitment\Entities\HairstylistScheduleDate;
+
 use App\Lib\MyHelper;
 use DB;
 
@@ -42,5 +46,46 @@ class ApiMitra extends Controller
             ]
         ];
         return $result;
+    }
+
+    public function scheduleDate(Request $request)
+    {
+		$thisMonth = $request->month ?? date('m');
+		$thisYear  = $request->year ?? date('Y');
+		$firstDate = date('Y-m-d', strtotime(date($thisYear . '-' . $thisMonth . '-01')));
+		$lastDate  = date('Y-m-t', strtotime(date($thisYear . '-' . $thisMonth . '-01')));
+		$user = $request->user();
+
+		$schedule = HairstylistSchedule::where('id_user_hair_stylist', $user->id_user_hair_stylist)
+					->whereHas('hairstylist_schedule_dates', function($q) use ($firstDate, $lastDate){
+						$q->where([
+							['date', '>=', $firstDate],
+							['date', '<=', $lastDate]
+						]);
+					})
+					->first();
+
+		if ($schedule) {
+			$schedule_dates = HairstylistScheduleDate::where([
+								['id_hairstylist_schedule', $schedule->id_hairstylist_schedule],
+								['hairstylist_schedule_dates.date', '>=', $firstDate],
+								['hairstylist_schedule_dates.date', '<=', $lastDate]
+							])
+							->select(
+								'hairstylist_schedule_dates.date',
+								'hairstylist_schedule_dates.shift'
+							)
+							->orderBy('date','asc')
+							->get()
+							->groupBy('shift');
+		}
+
+		$res = [
+			'detail' => $schedule,
+			'morning' => $schedule_dates['Evening'] ?? [],
+			'evening' => $schedule_dates['Morning'] ?? []
+		];
+
+		return MyHelper::checkGet($res);
     }
 }

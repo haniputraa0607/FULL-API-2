@@ -1784,4 +1784,40 @@ class ApiSetting extends Controller
             return response()->json(MyHelper::checkUpdate($save));
         }
     }
+
+    function socialMedia(Request $request){
+        $post = $request->json()->all();
+
+        if(empty($post)){
+        	$getSetting = Setting::whereIn('key', ['facebook_url', 'instagram_url'])->get()->keyBy('key');
+	    	$res = [
+	    		'facebook' => $getSetting['facebook_url']['value_text'] ?? null,
+	    		'instagram' => $getSetting['instagram_url']['value_text'] ?? null
+	    	];
+
+            return response()->json(MyHelper::checkGet($res));
+        }else{
+
+        	DB::beginTransaction();
+        	try {
+	        	$facebook = Setting::updateOrCreate(
+				    ['key' => 'facebook_url'],
+				    ['value_text' => $post['facebook_url'] ?? null]
+				);
+
+				$instagram = Setting::updateOrCreate(
+				    ['key' => 'instagram_url'],
+				    ['value_text' => $post['instagram_url'] ?? null]
+				);
+
+				$update = true;
+				DB::commit();
+        	} catch (\Exception $e) {
+        		$update = false;
+        		DB::rollback();
+        	}
+
+            return response()->json(MyHelper::checkUpdate($update));
+        }
+    }
 }

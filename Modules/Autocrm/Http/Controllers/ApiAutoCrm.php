@@ -35,6 +35,7 @@ use Validator;
 use Hash;
 use DB;
 use App\Lib\SendMail as Mail;
+use Modules\BusinessDevelopment\Entities\Partner;
 
 class ApiAutoCrm extends Controller
 {
@@ -58,7 +59,9 @@ class ApiAutoCrm extends Controller
                 $users = UserFranchise::select('id_user_franchise as id', 'user_franchises.*')->where('username','=',$receipient)->get()->toArray();
             }elseif($outlet){
                 $users = UserOutlet::select('id_user_outlet as id', 'user_outlets.*')->where('phone','=',$receipient)->get()->toArray();
-			}else{
+            }elseif($query[0]['id_autocrm']==78 || $query[0]['id_autocrm']==79){
+                $users = Partner::where('phone','=',$receipient)->get()->toArray();
+            }else{
                 $users = User::where('phone','=',$receipient)->get()->toArray();
 			}
 		}
@@ -106,7 +109,6 @@ class ApiAutoCrm extends Controller
                             $setting[$value['key']] = $value['value'];
                         }
 					}
-
 					$data = array(
 						'customer' => $name,
 						'html_message' => $content,
@@ -203,7 +205,11 @@ class ApiAutoCrm extends Controller
 					if ($save_log) {
 						if ($recipient_type != 'outlet' && $recipient_type != 'outlet_franchise') {
 							$logData = [];
-							$logData['id_user'] = $user['id'];
+                            if($query[0]['id_autocrm']==78 || $query[0]['id_autocrm']==79){
+                                $logData['id_user'] = $user['id_partner'];
+                            }else{
+                                $logData['id_user'] = $user['id'];
+                            }
 							$logData['email_log_to'] = $user['email'];
 							$logData['email_log_subject'] = $subject;
 							$logData['email_log_message'] = $content;
@@ -304,7 +310,11 @@ class ApiAutoCrm extends Controller
 								$logs = FranchiseEmailLog::create($logData);
 							}else{
 								$logData = [];
-								$logData['id_user'] = $user['id'];
+								if($query[0]['id_autocrm']==78 || $query[0]['id_autocrm']==79){
+                                    $logData['id_user'] = $user['id_partner'];
+                                }else{
+                                    $logData['id_user'] = $user['id'];
+                                }
 								$logData['email_log_to'] = $email;
 								$logData['email_log_subject'] = $subject;
 								$logData['email_log_message'] = $content;
@@ -355,7 +365,6 @@ class ApiAutoCrm extends Controller
 								$senddata['message'] 	= $this->TextReplace($crm['autocrm_sms_content'], $user['phone'], $variables);
 								$senddata['channel']	= env('SMS_CHANNEL');
 							}
-
 							$this->jatissms->setData($senddata);
 							$send = $this->jatissms->send();
 
@@ -397,7 +406,6 @@ class ApiAutoCrm extends Controller
 								'to' => trim($user['phone']),
 								'text' => $content
 							];
-
 							ValueFirst::create()->send($sendData);
 							break;
                         case 'SMS114':
@@ -448,7 +456,11 @@ class ApiAutoCrm extends Controller
 					}
                     $content 	= $this->TextReplace($crm['autocrm_sms_content'], $user['phone'], $variables);
 					$logData = [];
-					$logData['id_user'] = $user['id'];
+                    if($query[0]['id_autocrm']==78 || $query[0]['id_autocrm']==79){
+                        $logData['id_user'] = $user['id_partner'];
+                    }else{
+                        $logData['id_user'] = $user['id'];
+                    }
 					$logData['sms_log_to'] = $user['phone'];
 					$logData['sms_log_content'] = $content;
 

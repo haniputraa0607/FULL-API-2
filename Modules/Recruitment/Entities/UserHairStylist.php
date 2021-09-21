@@ -53,6 +53,12 @@ class UserHairStylist extends Authenticatable
         'email_verified',
         'first_update_password',
         'join_date',
-        'approve_by'
+        'approve_by',
+        'user_hair_stylist_photo'
 	];
+
+	public function hairstylist_schedules()
+	{
+		return $this->hasMany(\Modules\Recruitment\Entities\HairstylistSchedule::class, 'id_user_hair_stylist');
+	}	
 }

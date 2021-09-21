@@ -17,6 +17,7 @@ class Brand extends Model
         'code_brand',
         'logo_brand',
         'image_brand',
+        'color_brand',
         'order_brand'
     ];
 

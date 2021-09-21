@@ -278,6 +278,12 @@ class ApiHairStylistController extends Controller
                         ->select('user_hair_stylist.*', 'outlets.outlet_name', 'outlets.outlet_code', 'bank_accounts.*',
                             'bank_name.bank_name',
                             'approver.name as approve_by_name')
+                        ->with([
+                        	'hairstylist_schedules' => function($q) {
+                        		$q->limit(2)->orderBy('created_at', 'desc');
+	                        },
+	                        'hairstylist_schedules.hairstylist_schedule_dates'
+	                    ])
                         ->first();
             return response()->json(MyHelper::checkGet($detail));
         }else{

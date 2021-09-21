@@ -1,0 +1,14 @@
+{
+    "name": "PortalPartner",
+    "alias": "portalpartner",
+    "description": "",
+    "keywords": [],
+    "active": 1,
+    "order": 0,
+    "providers": [
+        "Modules\\PortalPartner\\Providers\\PortalPartnerServiceProvider"
+    ],
+    "aliases": {},
+    "files": [],
+    "requires": []
+}

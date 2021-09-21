@@ -48,4 +48,9 @@ class HairstylistSchedule extends Model
 		'approve_at',
 		'reject_at'
 	];
+
+	public function hairstylist_schedule_dates()
+	{
+		return $this->hasMany(\Modules\Recruitment\Entities\HairstylistScheduleDate::class, 'id_hairstylist_schedule');
+	}
 }

@@ -65,6 +65,9 @@ class ApiMitra extends Controller
 		$morning = [];
 		$evening = [];
 		if ($schedule) {
+
+			$schedule['status'] = $schedule['approve_at'] ? 'approved' : ($schedule['reject_at'] ? 'rejected' : 'pending');
+
 			$schedule_dates = HairstylistScheduleDate::where('id_hairstylist_schedule', $schedule->id_hairstylist_schedule)
 							->orderBy('date','asc')
 							->get();
@@ -100,6 +103,7 @@ class ApiMitra extends Controller
     	DB::beginTransaction();
     	if ($schedule) {
     		HairstylistScheduleDate::where('id_hairstylist_schedule', $schedule->id_hairstylist_schedule)->delete();
+    		$schedule->update(['reject_at' => null]);
     	} else {
     		$schedule = HairstylistSchedule::create([
     			'id_user_hair_stylist' => $user->id_user_hair_stylist,

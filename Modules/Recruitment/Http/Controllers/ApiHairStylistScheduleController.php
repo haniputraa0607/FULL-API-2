@@ -200,9 +200,10 @@ class ApiHairStylistScheduleController extends Controller
             ]);
         }
 
-        $detail = HairstylistSchedule::leftJoin('users as approver', 'approver.id', 'hairstylist_schedules.approve_by')
+        $detail = HairstylistSchedule::join('outlets', 'outlets.id_outlet', 'hairstylist_schedules.id_outlet')
         		->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'hairstylist_schedules.id_user_hair_stylist')
-        		->join('outlets', 'outlets.id_outlet', 'hairstylist_schedules.id_outlet')
+        		->leftJoin('users as approver', 'approver.id', 'hairstylist_schedules.approve_by')
+        		->leftJoin('users as last_update_user', 'last_update_user.id', 'hairstylist_schedules.last_updated_by')
                 ->with('hairstylist_schedule_dates')
                 ->where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])
                 ->select(
@@ -210,7 +211,8 @@ class ApiHairStylistScheduleController extends Controller
 		        	'user_hair_stylist.*', 
 		        	'outlets.outlet_name', 
 		        	'outlets.outlet_code', 
-		        	'approver.name as approve_by_name'
+		        	'approver.name as approve_by_name',
+		        	'last_update_user.name as last_updated_by_name'
 		        )
 		        ->first();
 
@@ -226,10 +228,20 @@ class ApiHairStylistScheduleController extends Controller
             ]);
         }
 
-        if (isset($post['update_type']) && $post['update_type'] == 'reject') {
-        	$update = HairstylistSchedule::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])
-        				->update(['reject_at' => date('Y-m-d H:i:s')]);
+        if (isset($post['update_type'])) {
+        	if (($post['update_type'] == 'reject')) {
+        		$data = [
+					'reject_at' => date('Y-m-d H:i:s')
+				];
+        	} elseif (($post['update_type'] == 'approve')) {
+	            $data = [
+	            	'approve_by' => $request->user()->id,
+	            	'approve_at' => date('Y-m-d H:i:s'),
+					'reject_at' => null
+	            ];
+        	}
 
+        	$update = HairstylistSchedule::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->update($data);
         	return response()->json(MyHelper::checkUpdate($update));
         }
 
@@ -297,21 +309,14 @@ class ApiHairStylistScheduleController extends Controller
 
         DB::beginTransaction();
 
-        if (isset($post['update_type']) && $post['update_type'] == 'approve') {
-            unset($post['update_type']);
-            $data = [
-            	'approve_by' => $request->user()->id,
-            	'approve_at' => date('Y-m-d H:i:s')
-            ];
-            $update = HairstylistSchedule::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->update($data);
-        }
-
-
+        $update = HairstylistSchedule::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->update(['last_updated_by' => $request->user()->id]);
         $delete = HairstylistScheduleDate::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->delete();
         $save 	= HairstylistScheduleDate::insert($newData);
 
         if ($save) {
         	DB::commit();
+        } else {
+        	DB::rollback();
         }
 
         return response()->json(MyHelper::checkUpdate($save));

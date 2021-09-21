@@ -56,4 +56,14 @@ class HairstylistSchedule extends Model
 	{
 		return $this->hasMany(\Modules\Recruitment\Entities\HairstylistScheduleDate::class, 'id_hairstylist_schedule');
 	}
+
+	public function outlet()
+	{
+		return $this->belongsTo(\App\Http\Models\Outlet::class, 'id_outlet');
+	}
+
+	public function user_hair_stylist()
+	{
+		return $this->belongsTo(\Modules\Recruitment\Entities\UserHairStylist::class, 'id_user_hair_stylist');
+	}
 }

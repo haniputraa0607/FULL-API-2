@@ -13,6 +13,11 @@ use DB;
 
 class ApiHairStylistScheduleController extends Controller
 {
+	function __construct() {
+        date_default_timezone_set('Asia/Jakarta');
+        $this->autocrm = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
+    }
+
 	public function outlet(Request $request)
 	{
 		$thisMonth = date('m');
@@ -229,19 +234,34 @@ class ApiHairStylistScheduleController extends Controller
         }
 
         if (isset($post['update_type'])) {
+        	$autocrmTitle = null;
         	if (($post['update_type'] == 'reject')) {
         		$data = [
 					'reject_at' => date('Y-m-d H:i:s')
 				];
+				$autocrmTitle = 'Reject Hairstylist Schedule';
         	} elseif (($post['update_type'] == 'approve')) {
 	            $data = [
 	            	'approve_by' => $request->user()->id,
 	            	'approve_at' => date('Y-m-d H:i:s'),
 					'reject_at' => null
 	            ];
+				$autocrmTitle = 'Approve Hairstylist Schedule';
         	}
 
         	$update = HairstylistSchedule::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->update($data);
+
+        	if ($update && $autocrmTitle) {
+				$schedule = HairstylistSchedule::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])
+							->with('outlet', 'user_hair_stylist')->first();
+	        	app($this->autocrm)->SendAutoCRM($autocrmTitle, $schedule['user_hair_stylist']['phone_number'] ?? null,
+	                [
+	                    "month" 	=> !empty($schedule['schedule_month']) ? date('F', mktime(0, 0, 0, $schedule['schedule_month'], 10)) : null,
+	                    "year"  	=> $schedule['schedule_year'] ?? null,
+	                    'outlet'    => $schedule['outlet']['outlet_name'] ?? null
+	                ], null, false, false, $recipient_type = 'hairstylist', null, true
+	            );
+        	}
         	return response()->json(MyHelper::checkUpdate($update));
         }
 

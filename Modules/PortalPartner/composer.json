@@ -1,0 +1,25 @@
+{
+    "name": "nwidart/portalpartner",
+    "description": "",
+    "authors": [
+        {
+            "name": "Nicolas Widart",
+            "email": "n.widart@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Modules\\PortalPartner\\Providers\\PortalPartnerServiceProvider"
+            ],
+            "aliases": {
+                
+            }
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\PortalPartner\\": ""
+        }
+    }
+}

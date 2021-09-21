@@ -31,7 +31,12 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefi
         Route::post('/update', ['middleware'=>['feature_control:344','scopes:be'],'uses' => 'ApiLocationsController@update']);
     });
     Route::group(['prefix' => '/bankaccount'], function() {
+       Route::post('/detail', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiBankAccountsController@detail']);
        Route::post('/update', ['middleware'=>['feature_control:352','scopes:be'],'uses' => 'ApiBankAccountsController@update']);
-       Route::post('/create', ['middleware'=>['feature_control:352','scopes:be'],'uses' => 'ApiBankAccountsController@store']);
     });
+});
+
+Route::group(['middleware' => ['auth:partners','log_activities','user_agent','scopes:partners'],'prefix' => 'partners'], function() {
+    Route::get('/detailBank', ['uses' => 'ApiBankAccountsController@detailBanKPartner']);
+    Route::post('/updateBank', ['uses' => 'ApiBankAccountsController@updateBanKPartner']);
 });

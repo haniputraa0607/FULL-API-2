@@ -22,6 +22,8 @@ use Modules\SettingFraud\Entities\FraudSetting;
 use App\Http\Models\OauthAccessToken;
 use App\Http\Models\FeaturedDeal;
 use Modules\Subscription\Entities\FeaturedSubscription;
+use Modules\PromoCampaign\Entities\FeaturedPromoCampaign;
+use Modules\PromoCampaign\Entities\PromoCampaignReport;
 
 use DB;
 use App\Lib\MyHelper;
@@ -794,7 +796,7 @@ class ApiHome extends Controller
             ->whereHas('deals',function($query){
                 $query->where('deals_publish_end','>=',DB::raw('CURRENT_TIMESTAMP()'));
                 $query->where('deals_publish_start','<=',DB::raw('CURRENT_TIMESTAMP()'));
-                $query->whereHas('brand',function($query){
+                $query->whereHas('brands',function($query){
                     $query->where('brand_active',1);
                 });
             })
@@ -909,5 +911,72 @@ class ApiHome extends Controller
                 'messages' => ['Something went wrong']
             ];
         }
+    }
+
+    public function socialMedia(Request $request)
+    {
+    	$getSetting = Setting::whereIn('key', ['facebook_url', 'instagram_url'])->get()->keyBy('key');
+    	$result = [
+    		'facebook' => $getSetting['facebook_url']['value_text'] ?? null,
+    		'instagram' => $getSetting['instagram_url']['value_text'] ?? null
+    	];
+    	return MyHelper::checkGet($result);
+    }
+
+    public function featuredPromoCampaign(Request $request){
+        $now = date('Y-m-d H-i-s');
+        $home_text = Setting::whereIn('key',['home_promo_campaign_sub_title','home_promo_campaign_title'])->get()->keyBy('key');
+        $text['title'] = $home_text['home_promo_campaign_title']['value'] ?? 'Penawaran Spesial.';
+        $text['sub_title'] = $home_text['home_promo_campaign_sub_title']['value'] ?? 'Potongan menarik untuk setiap pembelian.';
+
+        $featuredPromo = FeaturedPromoCampaign::select('id_featured_promo_campaign','id_promo_campaign')
+        		->with(['promo_campaign' => function($query) {
+            		$query->select('id_promo_campaign', 'promo_title', 'promo_image', 'total_coupon', 'date_start', 'date_end', 'is_all_outlet', 'used_code', 'limitation_usage', 'min_basket_size', 'is_all_shipment', 'is_all_payment', 'promo_description', 'user_limit', 'code_limit', 'device_limit');
+        		}])
+	            ->whereHas('promo_campaign',function($query){
+	                $query->where('date_end','>=',DB::raw('CURRENT_TIMESTAMP()'));
+	                $query->where('date_start','<=',DB::raw('CURRENT_TIMESTAMP()'));
+	                $query->whereHas('brands',function($query){
+	                    $query->where('brand_active',1);
+	                });
+	            })
+	            ->orderBy('order')
+	            ->where('date_start','<=',$now)
+	            ->where('date_end','>=',$now)
+	            ->get();
+
+        if (!$featuredPromo) {
+        	return MyHelper::checkGet($featuredPromo);
+        }
+
+        $featuredPromo = array_map(function($value) {
+        	$used_code = PromoCampaignReport::where('id_promo_campaign',$value['id_promo_campaign'])->count();
+            if ($value['promo_campaign']['total_coupon'] == "0") {
+                $calc = '*';
+            } else {
+                $calc = $value['promo_campaign']['total_coupon'] - $used_code;
+            }
+            $value['promo_campaign']['available_promo_code'] = (string) $calc;
+            if ($calc && is_numeric($calc)) {
+                $value['promo_campaign']['percent_promo_code'] = $calc*100/$value['promo_campaign']['total_coupon'];
+            } else {
+                $value['promo_campaign']['percent_promo_code'] = 100;
+            }
+            $value['promo_campaign']['show'] = 1;
+            $value['promo_campaign']['time_to_end'] = strtotime($value['promo_campaign']['date_end'])-time();
+            return $value;
+        },$featuredPromo->toArray());
+        foreach ($featuredPromo as $key => $value) {
+            if ($value['promo_campaign']['available_promo_code'] == "0") {
+                unset($featuredPromo[$key]);
+            }
+        }
+
+        $data_home['text'] = $text;
+        $data_home['featured_list'] = $featuredPromo;
+        return [
+            'status' => 'success',
+            'result' => $data_home
+        ];
     }
 }

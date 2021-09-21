@@ -44,6 +44,9 @@ class HairstylistSchedule extends Model
 		'id_user_hair_stylist',
 		'id_outlet',
 		'approve_by',
+		'last_updated_by',
+		'schedule_month',
+		'schedule_year',
 		'request_at',
 		'approve_at',
 		'reject_at'

@@ -12,6 +12,8 @@ use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Recruitment\Entities\HairstylistSchedule;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
 
+use Modules\Recruitment\Http\Requests\ScheduleCreateRequest;
+
 use App\Lib\MyHelper;
 use DB;
 
@@ -48,37 +50,25 @@ class ApiMitra extends Controller
         return $result;
     }
 
-    public function scheduleDate(Request $request)
+    public function schedule(Request $request)
     {
-		$thisMonth = $request->month ?? date('m');
-		$thisYear  = $request->year ?? date('Y');
-		$firstDate = date('Y-m-d', strtotime(date($thisYear . '-' . $thisMonth . '-01')));
-		$lastDate  = date('Y-m-t', strtotime(date($thisYear . '-' . $thisMonth . '-01')));
+		$thisMonth = $request->month ?? date('n');
+		$thisYear  = $request->year  ?? date('Y');
 		$user = $request->user();
 
-		$schedule = HairstylistSchedule::where('id_user_hair_stylist', $user->id_user_hair_stylist)
-					->whereHas('hairstylist_schedule_dates', function($q) use ($firstDate, $lastDate){
-						$q->where([
-							['date', '>=', $firstDate],
-							['date', '<=', $lastDate]
-						]);
-					})
-					->first();
+		$schedule = HairstylistSchedule::where([
+			['schedule_month', $thisMonth],
+			['schedule_year', $thisYear],
+			['id_user_hair_stylist', $user->id_user_hair_stylist],
+		])->first();
 
 		$morning = [];
 		$evening = [];
 		if ($schedule) {
-			$schedule_dates = HairstylistScheduleDate::where([
-								['id_hairstylist_schedule', $schedule->id_hairstylist_schedule],
-								['hairstylist_schedule_dates.date', '>=', $firstDate],
-								['hairstylist_schedule_dates.date', '<=', $lastDate]
-							])
-							->select(
-								'hairstylist_schedule_dates.date',
-								'hairstylist_schedule_dates.shift'
-							)
+			$schedule_dates = HairstylistScheduleDate::where('id_hairstylist_schedule', $schedule->id_hairstylist_schedule)
 							->orderBy('date','asc')
 							->get();
+
 			foreach ($schedule_dates as $val) {
 				$tempDate = date('Y-m-d', strtotime($val['date']));
 				if ($val['shift'] == 'Morning') {
@@ -96,5 +86,75 @@ class ApiMitra extends Controller
 		];
 
 		return MyHelper::checkGet($res);
+    }
+
+    public function createSchedule(ScheduleCreateRequest $request)
+    {
+    	$user = $request->user();
+		$schedule = HairstylistSchedule::where([
+			['schedule_month', $request->month],
+			['schedule_year', $request->year],
+			['id_user_hair_stylist', $user->id_user_hair_stylist],
+		])->first();
+
+    	DB::beginTransaction();
+    	if ($schedule) {
+    		HairstylistScheduleDate::where('id_hairstylist_schedule', $schedule->id_hairstylist_schedule)->delete();
+    	} else {
+    		$schedule = HairstylistSchedule::create([
+    			'id_user_hair_stylist' => $user->id_user_hair_stylist,
+				'id_outlet' 		=> $user->id_outlet,
+				'schedule_month' 	=> $request->month,
+				'schedule_year' 	=> $request->year,
+				'request_at' 		=> date('Y-m-d H:i:s')
+    		]);
+    	}
+
+		if (!$schedule) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Failed to create schedule']
+			];
+		}
+
+    	$insertData = [];
+    	$request_by = 'Hairstylist';
+    	$created_at = date('Y-m-d H:i:s');
+    	$updated_at = date('Y-m-d H:i:s');
+
+    	foreach ($request->morning as $val) {
+    		$insertData[] = [
+    			'id_hairstylist_schedule' => $schedule->id_hairstylist_schedule,
+        		'date' => $val,
+        		'shift' => 'Morning',
+        		'request_by' => $request_by,
+        		'created_at' => $created_at,
+        		'updated_at' => $updated_at
+    		];
+    	}
+
+    	foreach ($request->evening as $val) {
+    		$insertData[] = [
+    			'id_hairstylist_schedule' => $schedule->id_hairstylist_schedule,
+        		'date' => $val,
+        		'shift' => 'Evening',
+        		'request_by' => $request_by,
+        		'created_at' => $created_at,
+        		'updated_at' => $updated_at
+    		];
+    	}
+
+    	$insert = HairstylistScheduleDate::insert($insertData);
+
+    	if (!$insert) {
+    		DB::rollback();
+    		return [
+				'status' => 'fail',
+				'messages' => ['Failed to create schedule']
+			];
+    	}
+
+		DB::commit();
+    	return ['status' => 'success'];
     }
 }

@@ -111,6 +111,8 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::post('faq/sort/update', 'ApiSetting@faqSortUpdate');
     Route::post('reset/{type}/update', 'ApiSetting@pointResetUpdate');// point reset
 
+    Route::any('social-media','ApiSetting@socialMedia');
+
     /* Menu Setting */
     Route::any('/text_menu/update', ['middleware' => 'feature_control:161', 'uses' => 'ApiSetting@updateTextMenu']);
     Route::get('/text_menu/configs', ['middleware' => 'feature_control:160', 'uses' => 'ApiSetting@configsMenu']);
@@ -167,6 +169,16 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
         Route::post('update', 'ApiFeaturedSubscription@update');
         Route::post('reorder', 'ApiFeaturedSubscription@reorder');
         Route::post('delete', 'ApiFeaturedSubscription@destroy');
+    });
+
+    // featured promo campaign
+    Route::group(['middleware' => ['auth:api', 'scopes:be'], 'prefix' => 'featured_promo_campaign'], function()
+    {
+        Route::get('list', 'ApiFeaturedPromoCampaign@index');
+        Route::post('create', 'ApiFeaturedPromoCampaign@create');
+        Route::post('update', 'ApiFeaturedPromoCampaign@update');
+        Route::post('reorder', 'ApiFeaturedPromoCampaign@reorder');
+        Route::post('delete', 'ApiFeaturedPromoCampaign@destroy');
     });
 });
 

@@ -368,7 +368,7 @@ class ApiInbox extends Controller
 
 		}elseif($post['type'] == 'multiple'){
 			if($post['inboxes']['global']??false){
-				$delete = InboxGlobalRead::where('id_user',$user['id'])->whereIn('id_inbox_global',$post['inboxes']['global']);
+				$delete = InboxGlobalRead::where('id_user',$user['id'])->whereIn('id_inbox_global',$post['inboxes']['global'])->delete();
 			}
 			if($post['inboxes']['private']){
 				$update = UserInbox::whereIn('id_user_inboxes', $post['inboxes']['private'])->where('id_user', $user['id'])->update(['read' => '0']);

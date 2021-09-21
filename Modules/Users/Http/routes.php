@@ -42,7 +42,9 @@ Route::group(['prefix' => 'api', 'middleware' => ['log_activities', 'user_agent'
         Route::any('/banner','ApiHome@banner');
         Route::any('/featured-deals','ApiHome@featuredDeals');
         Route::any('/featured-subscription','ApiHome@featuredSubscription');
+        Route::any('/featured-promo-campaign','ApiHome@featuredPromoCampaign');
         Route::post('refresh-point-balance', 'ApiHome@refreshPointBalance');
+        Route::get('social-media','ApiHome@socialMedia');
     });
 
     Route::group(['middleware' => ['auth:api', 'scopes:apps'], 'prefix' => 'users', 'namespace' => 'Modules\Users\Http\Controllers'], function()

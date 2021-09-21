@@ -37,6 +37,10 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefi
 });
 
 Route::group(['middleware' => ['auth:partners','log_activities','user_agent','scopes:partners'],'prefix' => 'partners'], function() {
-    Route::get('/detailBank', ['uses' => 'ApiBankAccountsController@detailBanKPartner']);
-    Route::post('/updateBank', ['uses' => 'ApiBankAccountsController@updateBanKPartner']);
+    Route::get('/detailBank', ['uses' => 'ApiBankAccountsController@detailBankPartner']);
+    Route::post('/updateBank', ['uses' => 'ApiBankAccountsController@updateBankPartner']);
+});
+
+Route::group(['middleware' => ['auth:partners','log_activities','user_agent','scopes:partners'],'prefix' => 'partner'], function() {
+    Route::get('/detailpartner', ['uses' => 'ApiPartnersController@detailByPartner']);
 });

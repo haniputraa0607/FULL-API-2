@@ -152,7 +152,7 @@ class ApiBankAccountsController extends Controller
         //
     }
     
-    public function updateBanKPartner(Request $request){
+    public function updateBankPartner(Request $request){
         $user = Auth::user();
         $id_partner = $user['id_partner'];
         $post= $request->all();
@@ -223,7 +223,7 @@ class ApiBankAccountsController extends Controller
         }
     }
 
-    public function detailBanKPartner()
+    public function detailBankPartner()
     {
         $user = Auth::user();
         $id_partner = $user['id_partner'];

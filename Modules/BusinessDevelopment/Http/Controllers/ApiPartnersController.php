@@ -9,6 +9,7 @@ use Modules\BusinessDevelopment\Entities\Partner;
 use Modules\BusinessDevelopment\Entities\Location;
 use App\Lib\MyHelper;
 use DB;
+use Illuminate\Support\Facades\Auth;
 
 class ApiPartnersController extends Controller
 {
@@ -275,6 +276,24 @@ class ApiPartnersController extends Controller
             return $delete;
         }else{
             return true;
+        }
+    }
+
+    public function detailByPartner(){
+        $user = Auth::user();
+        $id_partner = $user['id_partner'];
+        if(isset($id_partner) && !empty($id_partner)){
+            if($user==null){
+                return response()->json(['status' => 'success', 'result' => [
+                    'partner' => 'Empty',
+                ]]);
+            } else {
+                return response()->json(['status' => 'success', 'result' => [
+                    'partner' => $user,
+                ]]);
+            }
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }
     }
 }

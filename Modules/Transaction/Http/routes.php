@@ -71,7 +71,7 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::post('failed-void-payment/confirm', 'ApiManualRefundController@confirmManualRefund');
 });
 
-Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scopes:apps'], 'prefix' => 'api/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
+Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scopes:apps,web-apps'], 'prefix' => 'api/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
 
     Route::post('sync-subtotal', 'ApiOnlineTransaction@syncDataSubtotal');
     Route::get('/', 'ApiTransaction@transactionList');

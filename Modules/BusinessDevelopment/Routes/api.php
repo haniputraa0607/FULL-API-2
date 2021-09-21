@@ -43,4 +43,6 @@ Route::group(['middleware' => ['auth:partners','log_activities','user_agent','sc
 
 Route::group(['middleware' => ['auth:partners','log_activities','user_agent','scopes:partners'],'prefix' => 'partner'], function() {
     Route::get('/detailpartner', ['uses' => 'ApiPartnersController@detailByPartner']);
+    Route::post('/updatepartner', ['uses' => 'ApiPartnersController@updateByPartner']);
+
 });

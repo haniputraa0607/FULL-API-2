@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Modules\BusinessDevelopment\Entities\Partner;
+use Modules\BusinessDevelopment\Entities\PartnersLog;
 use Modules\BusinessDevelopment\Entities\Location;
 use App\Lib\MyHelper;
 use DB;
@@ -295,5 +296,32 @@ class ApiPartnersController extends Controller
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }
+    }
+
+    public function updateByPartner(Request $request){
+        $post = $request->all();
+        if (!empty($post)) {
+            $cek_partner = Partner::where(['id_partner'=>$post['id_partner']])->first();
+            if($cek_partner){
+                DB::beginTransaction();
+                $store = PartnersLog::create([
+                    "id_partner" => $post['id_partner'],
+                    "update_name"   => $post['update_name'],
+                    "update_phone"   => $post['update_phone'],
+                    "update_email"   => $post['update_email'],
+                    "update_address"   => $post['update_address'],
+                ]);
+                if(!$store) {
+                    DB::rollback();
+                    return response()->json(['status' => 'fail', 'messages' => ['Failed add partners log']]);
+                }
+            } else{
+                return response()->json(['status' => 'fail', 'messages' => ['Id Partner not found']]);
+            }
+            DB::commit();
+            return response()->json(MyHelper::checkCreate($store));
+        } else {
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }  
     }
 }

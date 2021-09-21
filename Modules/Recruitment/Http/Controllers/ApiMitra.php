@@ -65,6 +65,8 @@ class ApiMitra extends Controller
 					})
 					->first();
 
+		$morning = [];
+		$evening = [];
 		if ($schedule) {
 			$schedule_dates = HairstylistScheduleDate::where([
 								['id_hairstylist_schedule', $schedule->id_hairstylist_schedule],
@@ -76,14 +78,21 @@ class ApiMitra extends Controller
 								'hairstylist_schedule_dates.shift'
 							)
 							->orderBy('date','asc')
-							->get()
-							->groupBy('shift');
+							->get();
+			foreach ($schedule_dates as $val) {
+				$tempDate = date('Y-m-d', strtotime($val['date']));
+				if ($val['shift'] == 'Morning') {
+					$morning[] = $tempDate;
+				} else {
+					$evening[] = $tempDate;
+				}
+			}
 		}
 
 		$res = [
-			'detail' => $schedule,
-			'morning' => $schedule_dates['Evening'] ?? [],
-			'evening' => $schedule_dates['Morning'] ?? []
+			'detail'  => $schedule,
+			'morning' => $morning,
+			'evening' => $evening
 		];
 
 		return MyHelper::checkGet($res);

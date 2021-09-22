@@ -306,10 +306,10 @@ class ApiPartnersController extends Controller
                 DB::beginTransaction();
                 $store = PartnersLog::create([
                     "id_partner" => $post['id_partner'],
-                    "update_name"   => $post['update_name'],
-                    "update_phone"   => $post['update_phone'],
-                    "update_email"   => $post['update_email'],
-                    "update_address"   => $post['update_address'],
+                    "update_name"   => $post['name'],
+                    "update_phone"   => $post['phone'],
+                    "update_email"   => $post['email'],
+                    "update_address"   => $post['address'],
                 ]);
                 if(!$store) {
                     DB::rollback();
@@ -323,5 +323,21 @@ class ApiPartnersController extends Controller
         } else {
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }  
+    }
+    public function passwordByPartner(Request $request){
+        $post = $request->all();
+        if (isset($post['id_partner']) && !empty($post['id_partner'])) {
+            DB::beginTransaction();
+            $data_update['password'] = $post['password'];
+            $update = Partner::where('id_partner', $post['id_partner'])->update($data_update);
+            if(!$update){
+                DB::rollback();
+                return response()->json(['status' => 'fail', 'messages' => ['Failed update password partner']]);
+            }
+            DB::commit();
+            return response()->json(['status' => 'success']);
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
     }
 }

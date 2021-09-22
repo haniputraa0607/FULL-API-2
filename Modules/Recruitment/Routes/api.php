@@ -42,5 +42,9 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
         	Route::post('/', 'ApiMitra@schedule');
         	Route::post('create', 'ApiMitra@createSchedule');
     	});
+
+		Route::group(['prefix' => 'outlet-service'], function () {
+        	Route::post('queue', 'ApiMitraOutletService@customerQueue');
+    	});    	
 	});
 });

@@ -60,5 +60,10 @@ class UserHairStylist extends Authenticatable
 	public function hairstylist_schedules()
 	{
 		return $this->hasMany(\Modules\Recruitment\Entities\HairstylistSchedule::class, 'id_user_hair_stylist');
-	}	
+	}
+
+	public function outlet()
+	{
+		return $this->belongsTo(\App\Http\Models\Outlet::class, 'id_outlet');
+	}
 }

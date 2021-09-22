@@ -44,6 +44,9 @@ class HairstylistSchedule extends Model
 		'id_user_hair_stylist',
 		'id_outlet',
 		'approve_by',
+		'last_updated_by',
+		'schedule_month',
+		'schedule_year',
 		'request_at',
 		'approve_at',
 		'reject_at'
@@ -52,5 +55,15 @@ class HairstylistSchedule extends Model
 	public function hairstylist_schedule_dates()
 	{
 		return $this->hasMany(\Modules\Recruitment\Entities\HairstylistScheduleDate::class, 'id_hairstylist_schedule');
+	}
+
+	public function outlet()
+	{
+		return $this->belongsTo(\App\Http\Models\Outlet::class, 'id_outlet');
+	}
+
+	public function user_hair_stylist()
+	{
+		return $this->belongsTo(\Modules\Recruitment\Entities\UserHairStylist::class, 'id_user_hair_stylist');
 	}
 }

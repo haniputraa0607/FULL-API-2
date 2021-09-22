@@ -9,6 +9,7 @@ use App\Lib\MyHelper;
 use DB;
 use Modules\Disburse\Entities\BankAccount;
 use Illuminate\Support\Facades\Auth;
+use Modules\Disburse\Entities\BankName;
 use Modules\BusinessDevelopment\Entities\Partner;
 
 class ApiBankAccountsController extends Controller
@@ -243,4 +244,11 @@ class ApiBankAccountsController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }
     }
+    
+    public function listBank(Request $request){
+		$post = $request->json()->all();
+        $bank = BankName::select('id_bank_name', 'bank_code', 'bank_name')->get()->toArray();
+        return response()->json(MyHelper::checkGet($bank));
+	}
+    
 }

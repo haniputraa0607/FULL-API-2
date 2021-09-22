@@ -12,6 +12,7 @@ use App\Lib\MyHelper;
 use DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use App\Http\Models\City;
 
 class ApiPartnersController extends Controller
 {
@@ -361,4 +362,16 @@ class ApiPartnersController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }
     }
+
+    public function listCity(Request $request){
+		$post = $request->json()->all();
+
+		$query = City::select('*');
+		if (isset($post['id_province'])) {
+			$query->where('id_province', $post['id_province']);
+		}
+
+		$query = $query->get()->toArray();
+		return MyHelper::checkGet($query); 
+	}
 }

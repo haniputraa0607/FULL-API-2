@@ -36,15 +36,13 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefi
     });
 });
 
-Route::group(['middleware' => ['auth:partners','log_activities','user_agent','scopes:partners'],'prefix' => 'partners'], function() {
-    Route::get('/detailBank', ['uses' => 'ApiBankAccountsController@detailBankPartner']);
-    Route::post('/updateBank', ['uses' => 'ApiBankAccountsController@updateBankPartner']);
-});
-
 Route::group(['middleware' => ['auth:partners','log_activities','user_agent','scopes:partners'],'prefix' => 'partner'], function() {
     Route::get('/detailpartner', ['uses' => 'ApiPartnersController@detailByPartner']);
     Route::post('/updatepartner', ['uses' => 'ApiPartnersController@updateByPartner']);
     Route::post('/updatepassword', ['uses' => 'ApiPartnersController@passwordByPartner']);
     Route::post('/checkpassword', ['uses' => 'ApiPartnersController@checkPassword']);
-
+    Route::any('/city/list', ['uses' => 'ApiPartnersController@listCity']);
+    Route::get('/detailBank', ['uses' => 'ApiBankAccountsController@detailBankPartner']);
+    Route::post('/updateBank', ['uses' => 'ApiBankAccountsController@updateBankPartner']);
+    Route::any('/list-bank', ['uses' => 'ApiBankAccountsController@listBank']);
 });

@@ -326,7 +326,7 @@ class ApiPartnersController extends Controller
             if (\Module::collections()->has('Autocrm')) {
                         $autocrm = app($this->autocrm)->SendAutoCRM(
                             'Request update data partner',
-                            $cek_partner['phone'],
+                            $user['phone'],
                             [
                                 'name' => $cek_partner['name']
                             ]

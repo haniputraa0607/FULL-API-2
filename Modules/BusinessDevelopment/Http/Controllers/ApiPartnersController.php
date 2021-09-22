@@ -384,15 +384,24 @@ class ApiPartnersController extends Controller
         }
     }
 
-    public function listCity(Request $request){
-		$post = $request->json()->all();
-
-		$query = City::select('*');
-		if (isset($post['id_province'])) {
-			$query->where('id_province', $post['id_province']);
-		}
-
-		$query = $query->get()->toArray();
-		return MyHelper::checkGet($query); 
+    public function listPartnersLogs(Request $request){
+		$post = $request->all();
+        $partners_log = PartnersLog::with(['original_data']);
+        
+        
+        if(isset($post['order']) && isset($post['order_type'])){
+            if(isset($post['page'])){
+                $partners_log = $partners_log->orderBy($post['order'], $post['order_type'])->paginate($request->length ?: 10);
+            }else{
+                $partners_log = $partners_log->orderBy($post['order'], $post['order_type'])->get()->toArray();
+            }
+        }else{
+            if(isset($post['page'])){
+                $partners_log = $partners_log->orderBy('created_at', 'desc')->paginate($request->length ?: 10);
+            }else{
+                $partners_log = $partners_log->orderBy('created_at', 'desc')->get()->toArray();
+            }
+        }
+        return MyHelper::checkGet($partners_log);
 	}
 }

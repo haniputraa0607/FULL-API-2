@@ -16,4 +16,7 @@ class PartnersLog extends Model
 		'update_email',
 		'update_address'
 	];
+    public function original_data(){
+        return $this->belongsTo(Partner::class, 'id_partner');
+    }
 }

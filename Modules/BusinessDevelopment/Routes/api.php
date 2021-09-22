@@ -19,6 +19,7 @@ Route::middleware('auth:api')->get('/businessdevelopment', function (Request $re
 
 Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefix' => 'partners'], function() {
     Route::any('/', ['middleware'=>['feature_control:338','scopes:be'],'uses' => 'ApiPartnersController@index']);
+    Route::any('/request-update', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@listPartnersLogs']);
     Route::post('/create', ['middleware'=>'scopes:landing-page', 'uses' => 'ApiPartnersController@store']);
     Route::post('/delete', ['middleware'=>['feature_control:341','scopes:be'],'uses' => 'ApiPartnersController@destroy']);
     Route::post('/edit', ['middleware'=>['feature_control:339','scopes:be'],'uses' => 'ApiPartnersController@edit']);
@@ -41,7 +42,6 @@ Route::group(['middleware' => ['auth:partners','log_activities','user_agent','sc
     Route::post('/updatepartner', ['uses' => 'ApiPartnersController@updateByPartner']);
     Route::post('/updatepassword', ['uses' => 'ApiPartnersController@passwordByPartner']);
     Route::post('/checkpassword', ['uses' => 'ApiPartnersController@checkPassword']);
-    Route::any('/city/list', ['uses' => 'ApiPartnersController@listCity']);
     Route::get('/detailBank', ['uses' => 'ApiBankAccountsController@detailBankPartner']);
     Route::post('/updateBank', ['uses' => 'ApiBankAccountsController@updateBankPartner']);
     Route::any('/list-bank', ['uses' => 'ApiBankAccountsController@listBank']);

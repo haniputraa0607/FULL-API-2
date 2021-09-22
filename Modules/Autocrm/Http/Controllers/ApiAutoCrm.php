@@ -31,6 +31,7 @@ use App\Lib\apiwha;
 use App\Lib\ValueFirst;
 use Modules\Franchise\Entities\UserFranchise;
 use Modules\Franchise\Entities\FranchiseEmailLog;
+use Modules\Recruitment\Entities\UserHairStylist;
 use Validator;
 use Hash;
 use DB;
@@ -79,6 +80,13 @@ class ApiAutoCrm extends Controller
 				$query[0]['autocrm_forward_email_content'] = MyHelper::simpleReplace($query[0]['autocrm_forward_email_content'] ,$variables);
 			}elseif($recipient_type == 'franchise'){
                 $users = UserFranchise::select('id_user_franchise as id', 'user_franchises.*')->where('username','=',$receipient)->get()->toArray();
+            }elseif($recipient_type == 'hairstylist'){
+                $users = UserHairStylist::select(
+		                	'id_user_hair_stylist as id', 
+		                	'phone_number as phone', 
+		                	'nickname as name', 
+		                	'user_hair_stylist.*'
+		                )->where('phone_number','=',$receipient)->get()->toArray();
             }
 		}
 		if(empty($users)){

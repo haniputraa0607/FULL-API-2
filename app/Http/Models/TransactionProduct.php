@@ -66,7 +66,8 @@ class TransactionProduct extends Model
         'transaction_product_bundling_price',
         'transaction_product_bundling_discount',
         'transaction_product_bundling_charged_outlet',
-        'transaction_product_bundling_charged_central'
+        'transaction_product_bundling_charged_central',
+        'transaction_product_completed_at'
 	];
 	
 	public function modifiers()

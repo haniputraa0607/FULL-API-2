@@ -11,6 +11,7 @@ use Modules\BusinessDevelopment\Entities\Location;
 use App\Lib\MyHelper;
 use DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 
 class ApiPartnersController extends Controller
 {
@@ -299,13 +300,15 @@ class ApiPartnersController extends Controller
     }
 
     public function updateByPartner(Request $request){
+        $user = Auth::user();
+        $id_partner = $user['id_partner'];
         $post = $request->all();
         if (!empty($post)) {
-            $cek_partner = Partner::where(['id_partner'=>$post['id_partner']])->first();
+            $cek_partner = Partner::where(['id_partner'=>$id_partner])->first();
             if($cek_partner){
                 DB::beginTransaction();
                 $store = PartnersLog::create([
-                    "id_partner" => $post['id_partner'],
+                    "id_partner" => $id_partner,
                     "update_name"   => $post['name'],
                     "update_phone"   => $post['phone'],
                     "update_email"   => $post['email'],
@@ -324,12 +327,30 @@ class ApiPartnersController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }  
     }
-    public function passwordByPartner(Request $request){
+    public function checkPassword(Request $request){
+        $user = Auth::user();
+        $id_partner = $user['id_partner'];
         $post = $request->all();
-        if (isset($post['id_partner']) && !empty($post['id_partner'])) {
+        if (isset($post['current_pin']) && !empty($post['current_pin'])) {
+            $partner = Partner::where('id_partner',$id_partner)->get();
+            $partner->makeVisible(['password']);
+            if(Hash::check($post['current_pin'], $partner[0]['password'])){
+                return response()->json(['status' => 'success', 'messages' => ['The password matched']]);
+            }else{
+                return response()->json(['status' => 'fail', 'messages' => ['The password does not match']]);
+            }
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
+    }
+    public function passwordByPartner(Request $request){
+        $user = Auth::user();
+        $id_partner = $user['id_partner'];
+        $post = $request->all();
+        if (isset($id_partner && !empty($id_partner)) {
             DB::beginTransaction();
             $data_update['password'] = $post['password'];
-            $update = Partner::where('id_partner', $post['id_partner'])->update($data_update);
+            $update = Partner::where('id_partner', $id_partner)->update($data_update);
             if(!$update){
                 DB::rollback();
                 return response()->json(['status' => 'fail', 'messages' => ['Failed update password partner']]);

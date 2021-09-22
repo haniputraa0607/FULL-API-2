@@ -102,6 +102,12 @@ class ApiMitra extends Controller
 
     	DB::beginTransaction();
     	if ($schedule) {
+    		if ($schedule->approve_at) {
+    			return [
+					'status' => 'fail',
+					'messages' => ['Schedule has been approved']
+				];
+    		}
     		HairstylistScheduleDate::where('id_hairstylist_schedule', $schedule->id_hairstylist_schedule)->delete();
     		$schedule->update(['reject_at' => null]);
     	} else {

@@ -256,9 +256,9 @@ class ApiHairStylistScheduleController extends Controller
 							->with('outlet', 'user_hair_stylist')->first();
 	        	app($this->autocrm)->SendAutoCRM($autocrmTitle, $schedule['user_hair_stylist']['phone_number'] ?? null,
 	                [
-	                    "month" 	=> !empty($schedule['schedule_month']) ? date('F', mktime(0, 0, 0, $schedule['schedule_month'], 10)) : null,
-	                    "year"  	=> $schedule['schedule_year'] ?? null,
-	                    'outlet'    => $schedule['outlet']['outlet_name'] ?? null
+	                    "month" 		=> !empty($schedule['schedule_month']) ? date('F', mktime(0, 0, 0, $schedule['schedule_month'], 10)) : null,
+	                    "year"  		=> (string) $schedule['schedule_year'] ?? null,
+	                    'outlet_name'   => $schedule['outlet']['outlet_name'] ?? null
 	                ], null, false, false, $recipient_type = 'hairstylist', null, true
 	            );
         	}

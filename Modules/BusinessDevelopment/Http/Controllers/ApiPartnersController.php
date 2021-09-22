@@ -323,6 +323,27 @@ class ApiPartnersController extends Controller
                 return response()->json(['status' => 'fail', 'messages' => ['Id Partner not found']]);
             }
             DB::commit();
+            if (\Module::collections()->has('Autocrm')) {
+                        $autocrm = app($this->autocrm)->SendAutoCRM(
+                            'Request update data partner',
+                            $cek_partner['phone'],
+                            [
+                                'name' => $cek_partner['name']
+                            ]
+                        );
+                        // return $autocrm;
+                        if ($autocrm) {
+                            return response()->json([
+                                'status'    => 'success',
+                                'messages'  => ['Permintaan ubah data telah dikirim']
+                            ]);
+                        } else {
+                            return response()->json([
+                                'status'    => 'fail',
+                                'messages'  => ['Gagal mengirim permintaan']
+                            ]);
+                        }
+                    }
             return response()->json(MyHelper::checkCreate($store));
         } else {
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);

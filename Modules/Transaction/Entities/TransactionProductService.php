@@ -14,6 +14,7 @@ class TransactionProductService extends Model
         'id_transaction',
         'id_transaction_product',
         'id_user_hair_stylist',
+        'order_id',
         'schedule_date',
         'schedule_time',
         'service_status',

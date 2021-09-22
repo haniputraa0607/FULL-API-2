@@ -347,7 +347,7 @@ class ApiPartnersController extends Controller
         $user = Auth::user();
         $id_partner = $user['id_partner'];
         $post = $request->all();
-        if (isset($id_partner && !empty($id_partner)) {
+        if (isset($id_partner) && !empty($id_partner)) {
             DB::beginTransaction();
             $data_update['password'] = $post['password'];
             $update = Partner::where('id_partner', $id_partner)->update($data_update);

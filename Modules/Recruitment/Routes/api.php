@@ -44,7 +44,11 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
     	});
 
 		Route::group(['prefix' => 'outlet-service'], function () {
-        	Route::post('queue', 'ApiMitraOutletService@customerQueue');
+        	Route::post('customer/queue', 'ApiMitraOutletService@customerQueue');
+        	Route::post('customer/detail', 'ApiMitraOutletService@customerQueueDetail');
+        	Route::post('start', 'ApiMitraOutletService@startService');
+        	Route::post('stop', 'ApiMitraOutletService@stopService');
+        	Route::get('box', 'ApiMitraOutletService@availableBox');
     	});    	
 	});
 });

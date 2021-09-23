@@ -4713,7 +4713,9 @@ class ApiOnlineTransaction extends Controller
             }
 
             //insert to transaction product service
+            $order_id = 'IXBX-'.MyHelper::createrandom(5, 'Angka');
             $product_service = TransactionProductService::create([
+                'order_id' => $order_id,
                 'id_transaction' => $trx['id_transaction'],
                 'id_transaction_product' => $trx_product['id_transaction_product'],
                 'id_user_hair_stylist' => $itemProduct['id_user_hair_stylist'],

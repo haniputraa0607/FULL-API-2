@@ -220,7 +220,7 @@ class ApiPartnersController extends Controller
             $update = Partner::where('id_partner', $post['id_partner'])->update($data_update);
             if(!$update){
                 DB::rollback();
-                return response()->json(['status' => 'fail', 'messages' => ['Failed update product variant']]);
+                return response()->json(['status' => 'fail', 'messages' => ['Failed update partner']]);
             }
             DB::commit();
             if (isset($data_update['status'])) {
@@ -246,6 +246,29 @@ class ApiPartnersController extends Controller
                                 'messages'  => ['Failed to send']
                             ]);
                         }
+                    }
+                }
+            }
+            if(isset($post['request']) && $post['request'] == 'approve'){
+                if (\Module::collections()->has('Autocrm')) {
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Approved request update data partner',
+                        $data_update['phone'],
+                        [
+                            'name' => $data_update['name']
+                        ]
+                    );
+                    // return $autocrm;
+                    if ($autocrm) {
+                        return response()->json([
+                            'status'    => 'success',
+                            'messages'  => ['Approved request has been sent to email partner']
+                        ]);
+                    } else {
+                        return response()->json([
+                            'status'    => 'fail',
+                            'messages'  => ['Failed to send']
+                        ]);
                     }
                 }
             }
@@ -386,28 +409,15 @@ class ApiPartnersController extends Controller
 
     public function listPartnersLogs(Request $request){
 		$post = $request->all();
-        $partners_log = PartnersLog::with(['original_data']);
-        // $order = 'original_data.'.'name';
-        // $partners_log = $partners_log->with(['original_data'=>function($q){
-        //     $q->orderBy('name','asc');
-        // }])->get()->toArray();
-        // return $partners_log;
+        $partners_log = PartnersLog::with(['original_data'])->join('partners', 'partners_logs.id_partner', '=', 'partners.id_partner')->select(['partners_logs.*', 'partners.name', 'partners.email']);
         
         if(isset($post['order']) && isset($post['order_type'])){
             if(isset($post['page'])){
-                if($post['order']=='created_at'){
-                    $partners_log = $partners_log->orderBy($post['order'], $post['order_type'])->paginate($request->length ?: 10);
-                }else{
-                    $order = 'original_data.'.$post['order'];
-                    $partners_log = $partners_log->orderBy($order, $post['order_type'])->paginate($request->length ?: 10);
-                }
+                $partners_log = $partners_log->orderBy($post['order'], $post['order_type'])->paginate($request->length ?: 10);
+                
             }else{
-                if($post['order']=='created_at'){
-                    $partners_log = $partners_log->orderBy($post['order'], $post['order_type'])->get()->toArray();
-                }else{
-                    $order = 'original_data.'.$post['order'];
-                    $partners_log = $partners_log->orderBy($order, $post['order_type'])->get()->toArray();
-                }
+                $partners_log = $partners_log->orderBy($post['order'], $post['order_type'])->get()->toArray();
+                
             }
         }else{
             if(isset($post['page'])){
@@ -418,4 +428,29 @@ class ApiPartnersController extends Controller
         }
         return MyHelper::checkGet($partners_log);
 	}
+    public function deletePartnersLogs(Request $request)
+    {
+        $id_partners_log  = $request->json('id_partners_log');
+        $delete = PartnersLog::where('id_partners_log', $id_partners_log)->delete();
+        return MyHelper::checkDelete($delete);
+    }
+
+    public function detailPartnersLogs(Request $request){
+        $post = $request->all();
+        if(isset($post['id_partners_log']) && !empty($post['id_partners_log'])){
+            $partners_log = PartnersLog::where('id_partners_log', $post['id_partners_log'])->with(['original_data'])->first();
+            if($partners_log==null){
+                return response()->json(['status' => 'success', 'result' => [
+                    'partners_log' => 'Empty',
+                ]]);
+            } else {
+                return response()->json(['status' => 'success', 'result' => [
+                    'partners_log' => $partners_log,
+                ]]);
+            }
+            
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
+    }
 }

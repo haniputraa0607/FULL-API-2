@@ -19,7 +19,6 @@ Route::middleware('auth:api')->get('/businessdevelopment', function (Request $re
 
 Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefix' => 'partners'], function() {
     Route::any('/', ['middleware'=>['feature_control:338','scopes:be'],'uses' => 'ApiPartnersController@index']);
-    Route::any('/request-update', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@listPartnersLogs']);
     Route::post('/create', ['middleware'=>'scopes:landing-page', 'uses' => 'ApiPartnersController@store']);
     Route::post('/delete', ['middleware'=>['feature_control:341','scopes:be'],'uses' => 'ApiPartnersController@destroy']);
     Route::post('/edit', ['middleware'=>['feature_control:339','scopes:be'],'uses' => 'ApiPartnersController@edit']);
@@ -32,8 +31,13 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefi
         Route::post('/update', ['middleware'=>['feature_control:344','scopes:be'],'uses' => 'ApiLocationsController@update']);
     });
     Route::group(['prefix' => '/bankaccount'], function() {
-       Route::post('/detail', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiBankAccountsController@detail']);
-       Route::post('/update', ['middleware'=>['feature_control:352','scopes:be'],'uses' => 'ApiBankAccountsController@update']);
+        Route::post('/detail', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiBankAccountsController@detail']);
+        Route::post('/update', ['middleware'=>['feature_control:352','scopes:be'],'uses' => 'ApiBankAccountsController@update']);
+    });
+    Route::group(['prefix' => '/request-update'], function() {
+        Route::any('/', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@listPartnersLogs']);
+        Route::post('/delete', ['middleware'=>['feature_control:341','scopes:be'],'uses' => 'ApiPartnersController@deletePartnersLogs']);
+        Route::post('/detail', ['middleware'=>['feature_control:339','scopes:be'],'uses' => 'ApiPartnersController@detailPartnersLogs']);
     });
 });
 

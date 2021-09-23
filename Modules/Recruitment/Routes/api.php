@@ -24,5 +24,23 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
         Route::any('list', 'ApiHairStylistController@hsList');
         Route::post('detail', 'ApiHairStylistController@detail');
         Route::post('update', 'ApiHairStylistController@update');
+
+    	Route::group(['prefix' => 'schedule'], function () {
+        	Route::post('list', 'ApiHairStylistScheduleController@list');
+        	Route::post('detail', 'ApiHairStylistScheduleController@detail');
+        	Route::post('update', 'ApiHairStylistScheduleController@update');
+        	Route::get('outlet', 'ApiHairStylistScheduleController@outlet');
+    	});
     });
+});
+
+Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mitra'], function () {
+    Route::get('splash','ApiMitra@splash');
+
+    Route::group(['middleware' => ['auth:mitra', 'scopes:mitra-apps']], function () {
+    	Route::group(['prefix' => 'schedule'], function () {
+        	Route::post('/', 'ApiMitra@schedule');
+        	Route::post('create', 'ApiMitra@createSchedule');
+    	});
+	});
 });

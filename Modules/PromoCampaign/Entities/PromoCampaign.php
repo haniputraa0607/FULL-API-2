@@ -46,6 +46,8 @@ class PromoCampaign extends Eloquent
 {
 	protected $primaryKey = 'id_promo_campaign';
 
+	protected $appends  = ['url_promo_image'];
+
 	protected $casts = [
 		'created_by' => 'int',
 		'last_updated_by' => 'int',
@@ -66,6 +68,7 @@ class PromoCampaign extends Eloquent
 		'last_updated_by',
 		'campaign_name',
 		'promo_title',
+		'promo_image',
 		'code_type',
 		'prefix_code',
 		'number_last_code',
@@ -250,5 +253,19 @@ class PromoCampaign extends Eloquent
     public function outlet_groups()
 	{
 		return $this->belongsToMany(\Modules\Outlet\Entities\OutletGroup::class, 'promo_campaign_outlet_groups', 'id_promo_campaign', 'id_outlet_group');
+	}
+
+	public function featured_promo_campaign()
+	{
+		return $this->hasOne(\Modules\PromoCampaign\Entities\FeaturedPromoCampaign::class, 'id_promo_campaign','id_promo_campaign');
+	}
+
+	public function getUrlPromoImageAttribute() {
+		if (empty($this->promo_image)) {
+            return config('url.storage_url_api').'img/default.jpg';
+        }
+        else {
+            return config('url.storage_url_api').$this->promo_image;
+        }
 	}
 }

@@ -12,6 +12,13 @@ use DB;
 
 class ApiPartnersController extends Controller
 {
+    public function __construct()
+    {
+        date_default_timezone_set('Asia/Jakarta');
+        if (\Module::collections()->has('Autocrm')) {
+            $this->autocrm  = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
+        }
+    }
     /**
      * Display a listing of the resource.
      * @return Response
@@ -26,22 +33,47 @@ class ApiPartnersController extends Controller
         } else {
             $partner = Partner::with(['partner_bank_account','partner_locations']);
         }
-        if ($keyword = ($request->search['value']??false)) {
-            $partner->where('name', 'like', '%'.$keyword.'%')
-                        ->orWhereHas('partner_bank_account', function($q) use ($keyword) {
-                                $q->where('beneficiary_name', 'like', '%'.$keyword.'%');
-                            })
-                        ->orWhereHas('partner_locations', function($q) use ($keyword) {
-                            $q->where('name', 'like', '%'.$keyword.'%');
-                        });
+        if(isset($post['conditions']) && !empty($post['conditions'])){
+            $rule = 'and';
+            if(isset($post['rule'])){
+                $rule = $post['rule'];
+            }
+            if($rule == 'and'){
+                foreach ($post['conditions'] as $condition){
+                    if(isset($condition['subject'])){                
+                        if($condition['operator'] == '='){
+                            $partner = $partner->where($condition['subject'], $condition['parameter']);
+                        }else{
+                            $partner = $partner->where($condition['subject'], 'like', '%'.$condition['parameter'].'%');
+                        }
+                    }
+                }
+            }else{
+                $partner = $partner->where(function ($q) use ($post){
+                    foreach ($post['conditions'] as $condition){
+                        if(isset($condition['subject'])){
+                            if($condition['operator'] == '='){
+                                $q->orWhere($condition['subject'], $condition['parameter']);
+                            }else{
+                                $q->orWhere($condition['subject'], 'like', '%'.$condition['parameter'].'%');
+                            }
+                        }
+                    }
+                });
+            }
         }
-        if(isset($post['get_child']) && $post['get_child'] == 1){
-            $partner = $partner->whereNotNull('id_bank_account');
-        }
-        if(isset($post['page'])){
-            $partner = $partner->orderBy('updated_at', 'desc')->paginate($request->length ?: 10);
+        if(isset($post['order']) && isset($post['order_type'])){
+            if(isset($post['page'])){
+                $partner = $partner->orderBy($post['order'], $post['order_type'])->paginate($request->length ?: 10);
+            }else{
+                $partner = $partner->orderBy($post['order'], $post['order_type'])->get()->toArray();
+            }
         }else{
-            $partner = $partner->orderBy('updated_at', 'desc')->get()->toArray();
+            if(isset($post['page'])){
+                $partner = $partner->orderBy('created_at', 'desc')->paginate($request->length ?: 10);
+            }else{
+                $partner = $partner->orderBy('created_at', 'desc')->get()->toArray();
+            }
         }
         return MyHelper::checkGet($partner);
     }
@@ -180,12 +212,39 @@ class ApiPartnersController extends Controller
             if (isset($post['end_date'])) {
                 $data_update['end_date'] = $post['end_date'];
             }
+            $old_status = Partner::where('id_partner', $post['id_partner'])->get('status')[0]['status'];
             $update = Partner::where('id_partner', $post['id_partner'])->update($data_update);
             if(!$update){
                 DB::rollback();
                 return response()->json(['status' => 'fail', 'messages' => ['Failed update product variant']]);
             }
             DB::commit();
+            if (isset($data_update['status'])) {
+                if($old_status=='Candidate' && $data_update['status'] == 'Active'){
+                    if (\Module::collections()->has('Autocrm')) {
+                        $autocrm = app($this->autocrm)->SendAutoCRM(
+                            'Updated Candidate Partner to Partner',
+                            $data_update['phone'],
+                            [
+                                'name' => $data_update['name'],
+                                'pin' => $post['pin'],
+                            ]
+                        );
+                        // return $autocrm;
+                        if ($autocrm) {
+                            return response()->json([
+                                'status'    => 'success',
+                                'messages'  => ['Approved sent to email partner']
+                            ]);
+                        } else {
+                            return response()->json([
+                                'status'    => 'fail',
+                                'messages'  => ['Failed to send']
+                            ]);
+                        }
+                    }
+                }
+            }
             return response()->json(['status' => 'success']);
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);

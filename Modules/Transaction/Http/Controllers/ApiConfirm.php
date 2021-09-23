@@ -33,6 +33,7 @@ use App\Lib\Ovo;
 use Modules\ProductVariant\Entities\TransactionProductVariant;
 use Modules\ShopeePay\Entities\TransactionPaymentShopeePay;
 use Modules\Transaction\Entities\TransactionBundlingProduct;
+use Modules\Transaction\Entities\TransactionOutletService;
 use Modules\Transaction\Http\Requests\Transaction\ConfirmPayment;
 
 class ApiConfirm extends Controller
@@ -145,6 +146,24 @@ class ApiConfirm extends Controller
                                 ->where('id_transaction', $check['id_transaction'])->where('type', 'Plastic')->get()->toArray();
         if (!empty($checkProductPlastic)) {
             foreach ($checkProductPlastic as $key => $value) {
+                $dataProductMidtrans = [
+                    'id'       => $value['product_code'],
+                    'price'    => abs($value['transaction_product_price']),
+                    'name'     => $value['product_name'],
+                    'quantity' => $value['transaction_product_qty'],
+                ];
+
+                $totalPriceProduct+= ($dataProductMidtrans['quantity'] * $dataProductMidtrans['price']);
+
+                array_push($productMidtrans, $dataProductMidtrans);
+                array_push($dataDetailProduct, $dataProductMidtrans);
+            }
+        }
+
+        $checkProductService = TransactionProduct::join('products', 'products.id_product', 'transaction_products.id_product')
+            ->where('id_transaction', $check['id_transaction'])->where('type', 'Service')->get()->toArray();
+        if (!empty($checkProductService)) {
+            foreach ($checkProductService as $key => $value) {
                 $dataProductMidtrans = [
                     'id'       => $value['product_code'],
                     'price'    => abs($value['transaction_product_price']),
@@ -285,12 +304,13 @@ class ApiConfirm extends Controller
                 'postal_code' => $check['transaction_shipments']['postal_code'],
             ];
         } else {
+            $checkOutletService = TransactionOutletService::where('id_transaction', $post['id'])->first();
             $dataUser = [
-                'first_name'      => $user['name'],
-                'email'           => $user['email'],
+                'first_name'      => (!empty($checkOutletService['customer_name']) ? $checkOutletService['customer_name'] : $user['name']),
+                'email'           => (!empty($checkOutletService['customer_email']) ? $checkOutletService['customer_email'] : $user['email']),
                 'phone'           => $user['phone'],
                 'billing_address' => [
-                    'first_name' => $user['name'],
+                    'first_name' => (!empty($checkOutletService['customer_name']) ? $checkOutletService['customer_name'] : $user['name']),
                     'phone'      => $user['phone'],
                 ],
             ];

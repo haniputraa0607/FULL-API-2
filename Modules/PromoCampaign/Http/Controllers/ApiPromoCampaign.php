@@ -3879,4 +3879,24 @@ class ApiPromoCampaign extends Controller
 
 		return $data_product;
     }
+
+    public function activeCampaign(Request $request)
+    {
+    	$campaign = PromoCampaign::select('id_promo_campaign', 'promo_title')
+            		->where('date_end', '>=', date('Y-m-d'))
+                    ->where(function($q) {
+                        $q->where('promo_type', '!=', 'Referral')
+                        ->orWhereNull('promo_type');
+                    })
+                    ->OrderBy('id_promo_campaign', 'DESC')
+        			->where('step_complete', '=', 1);
+
+        if ($request->featured) {
+    		$campaign->whereDoesntHave('featured_promo_campaign');
+        }
+
+        $res = $campaign->get();
+
+    	return MyHelper::checkGet($res);
+    }
 }

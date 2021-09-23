@@ -4734,6 +4734,7 @@ class ApiOnlineTransaction extends Controller
             $hs_not_available = HairstylistNotAvailable::create([
                 'id_outlet' => $trx['id_outlet'],
                 'id_user_hair_stylist' => $itemProduct['id_user_hair_stylist'],
+                'id_transaction_product_service' => $product_service['id_transaction_product_service'],
                 'booking_date' => date('Y-m-d', strtotime($itemProduct['booking_date'])),
                 'booking_time' => date('H:i:s', strtotime($itemProduct['booking_time']))
             ]);

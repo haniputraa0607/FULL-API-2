@@ -453,4 +453,23 @@ class ApiPartnersController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }
     }
+
+    public function statusPartner(){
+        $user = Auth::user();
+        $id_partner = $user['id_partner'];
+        $partner = Partner::with(['partner_bank_account','partner_locations'])->where('id_partner',$id_partner)->get();
+        if(isset($partner) && !empty($partner)){
+            if($partner==null){
+                return response()->json(['status' => 'success', 'result' => [
+                    'partner' => 'Empty',
+                ]]);
+            } else {
+                return response()->json(['status' => 'success', 'result' => [
+                    'partner' => $partner[0],
+                ]]);
+            }
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
+    }
 }

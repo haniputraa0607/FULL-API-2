@@ -49,4 +49,5 @@ Route::group(['middleware' => ['auth:partners','log_activities','user_agent','sc
     Route::get('/detailBank', ['uses' => 'ApiBankAccountsController@detailBankPartner']);
     Route::post('/updateBank', ['uses' => 'ApiBankAccountsController@updateBankPartner']);
     Route::any('/list-bank', ['uses' => 'ApiBankAccountsController@listBank']);
+    Route::get('/status', ['uses' => 'ApiPartnersController@statusPartner']);
 });

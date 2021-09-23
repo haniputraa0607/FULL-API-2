@@ -49,6 +49,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
         	Route::post('start', 'ApiMitraOutletService@startService');
         	Route::post('stop', 'ApiMitraOutletService@stopService');
         	Route::post('extend', 'ApiMitraOutletService@extendService');
+        	Route::post('complete', 'ApiMitraOutletService@completeService');
         	Route::get('box', 'ApiMitraOutletService@availableBox');
     	});    	
 	});

@@ -430,4 +430,62 @@ class ApiMitraOutletService extends Controller
 
 		return ['status' => 'success'];
     }
+
+    public function completeService(Request $request)
+    {
+    	$user = $request->user();
+    	$service = TransactionProductService::where('id_user_hair_stylist', $user->id_user_hair_stylist)
+					->where('id_transaction_product_service', $request->id_transaction_product_service)
+					->first();
+
+		if (!$service) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Service not found']
+			];
+		}
+
+		if ($service->service_status == 'Completed') {
+			return [
+				'status' => 'fail',
+				'messages' => ['Service already completed']
+			];
+		}
+
+		$box = OutletBox::where('id_outlet_box', $service->id_outlet_box)->first();
+
+		if (!$box) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Box not found']
+			];
+		}
+
+    	DB::beginTransaction();
+    	try {
+    		TransactionProductServiceLog::create([
+	    		'id_transaction_product_service' => $request->id_transaction_product_service,
+	    		'action' => 'Complete'
+	    	]);
+    		
+			$service->update([
+				'service_status' => 'Completed',
+				'completed_at' => date('Y-m-d H:i:s')
+			]);
+
+			$box->update(['outlet_box_use_status' => 0]);
+
+			DB::commit();
+    	} catch (\Exception $e) {
+
+    		\Log::error($e->getMessage());
+			DB::rollback();
+    		return [
+				'status' => 'fail',
+				'messages' => ['Failed to complete service']
+			];	
+    	}
+
+		return ['status' => 'success'];
+    }
 }

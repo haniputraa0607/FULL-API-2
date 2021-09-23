@@ -14,6 +14,7 @@ use Modules\Recruitment\Entities\HairstylistScheduleDate;
 
 use Modules\Transaction\Entities\TransactionOutletService;
 use Modules\Transaction\Entities\TransactionProductService;
+use Modules\Transaction\Entities\TransactionProductServiceLog;
 
 use Modules\Recruitment\Http\Requests\ScheduleCreateRequest;
 
@@ -42,6 +43,8 @@ class ApiMitraOutletService extends Controller
 				})
     			->where('id_user_hair_stylist', $user->id_user_hair_stylist)
     			->where('transaction_payment_status' ,'Completed')
+    			->orderBy('schedule_date', 'asc')
+    			->orderBy('schedule_time', 'asc')
 				->paginate(10)
 				->toArray();
 
@@ -94,7 +97,9 @@ class ApiMitraOutletService extends Controller
 				'timer_text' => $timerText,
 				'button_text' => 'Layani Sekarang',
 				'disable' => $disable,
-				'id_outlet_box' => $schedule->id_outlet_box ?? null
+				'id_outlet_box' => $schedule->id_outlet_box ?? null,
+				'flag_update_schedule' => $val['flag_update_schedule'],
+				'is_conflict' => $val['is_conflict']
 			];
 		}
 
@@ -167,7 +172,9 @@ class ApiMitraOutletService extends Controller
 			'timer_text' => $timerText,
 			'button_text' => 'Layani Sekarang',
 			'disable' => $disable,
-			'id_outlet_box' => $schedule->id_outlet_box ?? null
+			'id_outlet_box' => $schedule->id_outlet_box ?? null,
+			'flag_update_schedule' => $queue['flag_update_schedule'],
+			'is_conflict' => $queue['is_conflict']
 		];
 		
 		return MyHelper::checkGet($res);
@@ -194,7 +201,14 @@ class ApiMitraOutletService extends Controller
 		if (!$service) {
 			return [
 				'status' => 'fail',
-				'messages' => ['Transaction Service not found']
+				'messages' => ['Service not found']
+			];
+		}
+
+		if ($service->service_status == 'In Progress') {
+			return [
+				'status' => 'fail',
+				'messages' => ['Service already started']
 			];
 		}
 
@@ -247,10 +261,17 @@ class ApiMitraOutletService extends Controller
 
     	DB::beginTransaction();
     	try {
+    		$action = ($service->service_status == 'Stopped') ? 'Resume' : 'Start';
+	    	TransactionProductServiceLog::create([
+	    		'id_transaction_product_service' => $request->id_transaction_product_service,
+	    		'action' => $action
+	    	]);
+
 			$service->update([
 				'service_status' => 'In Progress',
 				'id_outlet_box' => $request->id_outlet_box
 			]);
+
 			$box->update(['outlet_box_use_status' => 1]);
 
 			if (empty($schedule->id_outlet_box)) {
@@ -258,8 +279,10 @@ class ApiMitraOutletService extends Controller
 				->update(['id_outlet_box' => $request->id_outlet_box]);
 			}
 
+
 			DB::commit();
     	} catch (\Exception $e) {
+
     		\Log::error($e->getMessage());
 			DB::rollback();
     		return [
@@ -267,6 +290,7 @@ class ApiMitraOutletService extends Controller
 				'messages' => ['Failed to start service']
 			];	
     	}
+
 
 		return ['status' => 'success'];
     }
@@ -281,7 +305,14 @@ class ApiMitraOutletService extends Controller
 		if (!$service) {
 			return [
 				'status' => 'fail',
-				'messages' => ['Transaction Service not found']
+				'messages' => ['Service not found']
+			];
+		}
+
+		if ($service->service_status == 'Stopped') {
+			return [
+				'status' => 'fail',
+				'messages' => ['Service already stopped']
 			];
 		}
 
@@ -296,19 +327,104 @@ class ApiMitraOutletService extends Controller
 
     	DB::beginTransaction();
     	try {
+    		TransactionProductServiceLog::create([
+	    		'id_transaction_product_service' => $request->id_transaction_product_service,
+	    		'action' => 'Stop'
+	    	]);
+    		
 			$service->update([
 				'service_status' => 'Stopped',
 				'id_outlet_box' => null
 			]);
+
 			$box->update(['outlet_box_use_status' => 0]);
-    		
+
 			DB::commit();
     	} catch (\Exception $e) {
+
     		\Log::error($e->getMessage());
 			DB::rollback();
     		return [
 				'status' => 'fail',
 				'messages' => ['Failed to stop service']
+			];	
+    	}
+
+		return ['status' => 'success'];
+    }
+
+    public function extendService(Request $request)
+    {
+    	$user = $request->user();
+    	$service = TransactionProductService::where('id_user_hair_stylist', $user->id_user_hair_stylist)
+					->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+					->join('products', 'transaction_products.id_product', 'products.id_product')
+					->where('id_transaction_product_service', $request->id_transaction_product_service)
+					->first();
+
+
+
+		if (!$service) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Service not found']
+			];
+		}
+
+		if ($service->flag_update_schedule) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Service already extended, cannot extend more than once']
+			];
+		}
+
+		if (empty($service->processing_time_service)) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Processing time not found']
+			];
+		}
+
+		$processingTime = $service->processing_time_service;
+
+		$extended = new DateTime('now +'. $processingTime .' minutes');
+		$extendedTime = $extended->format('H:i:s');
+
+    	DB::beginTransaction();
+    	try {
+
+    		TransactionProductServiceLog::create([
+	    		'id_transaction_product_service' => $request->id_transaction_product_service,
+	    		'action' => 'Extend'
+	    	]);
+
+			$service->update(['flag_update_schedule' => 1]);
+
+			$conflictServices = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
+					->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
+					->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+					->join('products', 'transaction_products.id_product', 'products.id_product')
+	    			->whereNull('service_status')
+	    			->where('id_user_hair_stylist', $user->id_user_hair_stylist)
+	    			->where('transaction_payment_status' ,'Completed')
+	    			->whereDate('schedule_date', date('Y-m-d'))
+	    			->where('schedule_time', '<', $extendedTime)
+	    			->orderBy('schedule_date', 'asc')
+	    			->orderBy('schedule_time', 'asc')
+					->get();
+
+			foreach ($conflictServices ?? [] as $conflict) {
+				$conflict->update(['is_conflict' => 1]);
+			}
+
+			DB::commit();
+    	} catch (\Exception $e) {
+
+    		\Log::error($e->getMessage());
+			DB::rollback();
+    		return [
+				'status' => 'fail',
+				'messages' => ['Failed to Extend service']
 			];	
     	}
 

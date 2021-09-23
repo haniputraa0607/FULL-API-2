@@ -387,13 +387,27 @@ class ApiPartnersController extends Controller
     public function listPartnersLogs(Request $request){
 		$post = $request->all();
         $partners_log = PartnersLog::with(['original_data']);
-        
+        // $order = 'original_data.'.'name';
+        // $partners_log = $partners_log->with(['original_data'=>function($q){
+        //     $q->orderBy('name','asc');
+        // }])->get()->toArray();
+        // return $partners_log;
         
         if(isset($post['order']) && isset($post['order_type'])){
             if(isset($post['page'])){
-                $partners_log = $partners_log->orderBy($post['order'], $post['order_type'])->paginate($request->length ?: 10);
+                if($post['order']=='created_at'){
+                    $partners_log = $partners_log->orderBy($post['order'], $post['order_type'])->paginate($request->length ?: 10);
+                }else{
+                    $order = 'original_data.'.$post['order'];
+                    $partners_log = $partners_log->orderBy($order, $post['order_type'])->paginate($request->length ?: 10);
+                }
             }else{
-                $partners_log = $partners_log->orderBy($post['order'], $post['order_type'])->get()->toArray();
+                if($post['order']=='created_at'){
+                    $partners_log = $partners_log->orderBy($post['order'], $post['order_type'])->get()->toArray();
+                }else{
+                    $order = 'original_data.'.$post['order'];
+                    $partners_log = $partners_log->orderBy($order, $post['order_type'])->get()->toArray();
+                }
             }
         }else{
             if(isset($post['page'])){

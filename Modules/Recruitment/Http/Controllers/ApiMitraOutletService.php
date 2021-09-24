@@ -7,6 +7,7 @@ use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 
 use App\Http\Models\Setting;
+use App\Http\Models\TransactionProduct;
 
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Recruitment\Entities\HairstylistSchedule;
@@ -115,15 +116,17 @@ class ApiMitraOutletService extends Controller
 				->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
 				->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
 				->join('products', 'transaction_products.id_product', 'products.id_product')
-				->where(function($q) {
-	    			$q->whereNull('service_status');
-	    			$q->orWhere('service_status', '!=', 'Completed');
-				})
     			->where('id_user_hair_stylist', $user->id_user_hair_stylist)
     			->where('id_transaction_product_service', $request->id_transaction_product_service)
     			->where('transaction_payment_status' ,'Completed')
-				->first()
-				->toArray();
+				->first();
+
+		if (!$queue) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Service not found']
+			];
+		}
 
 		$serviceInProgress = TransactionProductService::where('service_status', 'In Progress')
 							->where('id_user_hair_stylist', $user->id_user_hair_stylist)
@@ -209,6 +212,13 @@ class ApiMitraOutletService extends Controller
 			return [
 				'status' => 'fail',
 				'messages' => ['Service already started']
+			];
+		}
+
+		if ($service->service_status == 'Completed') {
+			return [
+				'status' => 'fail',
+				'messages' => ['Service already completed']
 			];
 		}
 
@@ -316,6 +326,13 @@ class ApiMitraOutletService extends Controller
 			];
 		}
 
+		if ($service->service_status == 'Completed') {
+			return [
+				'status' => 'fail',
+				'messages' => ['Service already completed']
+			];
+		}
+
 		$box = OutletBox::where('id_outlet_box', $service->id_outlet_box)->first();
 
 		if (!$box) {
@@ -375,6 +392,13 @@ class ApiMitraOutletService extends Controller
 			return [
 				'status' => 'fail',
 				'messages' => ['Service already extended, cannot extend more than once']
+			];
+		}
+
+		if ($service->service_status == 'Completed') {
+			return [
+				'status' => 'fail',
+				'messages' => ['Service already completed']
 			];
 		}
 
@@ -473,8 +497,14 @@ class ApiMitraOutletService extends Controller
 				'completed_at' => date('Y-m-d H:i:s')
 			]);
 
+			TransactionProduct::where('id_transaction_product', $service->id_transaction_product)
+			->update([
+				'transaction_product_completed_at' => date('Y-m-d H:i:s')
+	    	]);
+
 			$box->update(['outlet_box_use_status' => 0]);
 
+			$this->completeTransaction($service->id_transaction);
 			DB::commit();
     	} catch (\Exception $e) {
 
@@ -487,5 +517,19 @@ class ApiMitraOutletService extends Controller
     	}
 
 		return ['status' => 'success'];
+    }
+
+    public function completeTransaction($id_transaction)
+    {
+    	$trxProducts = TransactionProduct::where('id_transaction', $id_transaction)
+    					->whereNull('transaction_product_completed_at')
+    					->first();
+
+    	if (!$trxProducts) {
+    		TransactionOutletService::where('id_transaction', $id_transaction)
+    		->update(['completed_at' => date('Y-m-d H:i:s')]);
+    	}
+
+    	return true;
     }
 }

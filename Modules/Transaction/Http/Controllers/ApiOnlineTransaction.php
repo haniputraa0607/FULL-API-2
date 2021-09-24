@@ -1029,6 +1029,7 @@ class ApiOnlineTransaction extends Controller
             'longitude'                   => $post['longitude'],
             'distance_customer'           => $distance,
             'void_date'                   => null,
+            'transaction_from'            => $post['transaction_from']
         ];
 
         if($request->user()->complete_profile == 1){
@@ -2733,7 +2734,11 @@ class ApiOnlineTransaction extends Controller
         if(empty($result['plastic']['item']??[])){
             $result['plastic_used_status'] = false;
         }
+        $result['subtotal_product_service'] = $itemServices['subtotal_service']??0;
+        $result['subtotal_product'] = $subtotal + ($itemBundlings['subtotal_bundling']??0);
+
         $subtotal += $result['plastic']['plastic_price_total'] ?? 0;
+        $subtotal += $itemServices['subtotal_service']??0;
         $subtotal += $itemBundlings['subtotal_bundling']??0;
 
         $earnedPoint = $this->countTranscationPoint($post, $user);

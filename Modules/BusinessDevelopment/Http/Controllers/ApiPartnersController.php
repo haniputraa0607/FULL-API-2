@@ -6,9 +6,13 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Modules\BusinessDevelopment\Entities\Partner;
+use Modules\BusinessDevelopment\Entities\PartnersLog;
 use Modules\BusinessDevelopment\Entities\Location;
 use App\Lib\MyHelper;
 use DB;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use App\Http\Models\City;
 
 class ApiPartnersController extends Controller
 {
@@ -216,7 +220,7 @@ class ApiPartnersController extends Controller
             $update = Partner::where('id_partner', $post['id_partner'])->update($data_update);
             if(!$update){
                 DB::rollback();
-                return response()->json(['status' => 'fail', 'messages' => ['Failed update product variant']]);
+                return response()->json(['status' => 'fail', 'messages' => ['Failed update partner']]);
             }
             DB::commit();
             if (isset($data_update['status'])) {
@@ -242,6 +246,29 @@ class ApiPartnersController extends Controller
                                 'messages'  => ['Failed to send']
                             ]);
                         }
+                    }
+                }
+            }
+            if(isset($post['request']) && $post['request'] == 'approve'){
+                if (\Module::collections()->has('Autocrm')) {
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Approved request update data partner',
+                        $data_update['phone'],
+                        [
+                            'name' => $data_update['name']
+                        ]
+                    );
+                    // return $autocrm;
+                    if ($autocrm) {
+                        return response()->json([
+                            'status'    => 'success',
+                            'messages'  => ['Approved request has been sent to email partner']
+                        ]);
+                    } else {
+                        return response()->json([
+                            'status'    => 'fail',
+                            'messages'  => ['Failed to send']
+                        ]);
                     }
                 }
             }
@@ -275,6 +302,174 @@ class ApiPartnersController extends Controller
             return $delete;
         }else{
             return true;
+        }
+    }
+
+    public function detailByPartner(){
+        $user = Auth::user();
+        $id_partner = $user['id_partner'];
+        if(isset($id_partner) && !empty($id_partner)){
+            if($user==null){
+                return response()->json(['status' => 'success', 'result' => [
+                    'partner' => 'Empty',
+                ]]);
+            } else {
+                return response()->json(['status' => 'success', 'result' => [
+                    'partner' => $user,
+                ]]);
+            }
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
+    }
+
+    public function updateByPartner(Request $request){
+        $user = Auth::user();
+        $id_partner = $user['id_partner'];
+        $post = $request->all();
+        if (!empty($post)) {
+            $cek_partner = Partner::where(['id_partner'=>$id_partner])->first();
+            if($cek_partner){
+                DB::beginTransaction();
+                $store = PartnersLog::create([
+                    "id_partner" => $id_partner,
+                    "update_name"   => $post['name'],
+                    "update_phone"   => $post['phone'],
+                    "update_email"   => $post['email'],
+                    "update_address"   => $post['address'],
+                ]);
+                if(!$store) {
+                    DB::rollback();
+                    return response()->json(['status' => 'fail', 'messages' => ['Failed add partners log']]);
+                }
+            } else{
+                return response()->json(['status' => 'fail', 'messages' => ['Id Partner not found']]);
+            }
+            DB::commit();
+            if (\Module::collections()->has('Autocrm')) {
+                        $autocrm = app($this->autocrm)->SendAutoCRM(
+                            'Request update data partner',
+                            $user['phone'],
+                            [
+                                'name' => $cek_partner['name']
+                            ]
+                        );
+                        // return $autocrm;
+                        if ($autocrm) {
+                            return response()->json([
+                                'status'    => 'success',
+                                'messages'  => ['Permintaan ubah data telah dikirim']
+                            ]);
+                        } else {
+                            return response()->json([
+                                'status'    => 'fail',
+                                'messages'  => ['Gagal mengirim permintaan']
+                            ]);
+                        }
+                    }
+            return response()->json(MyHelper::checkCreate($store));
+        } else {
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }  
+    }
+    public function checkPassword(Request $request){
+        $user = Auth::user();
+        $id_partner = $user['id_partner'];
+        $post = $request->all();
+        if (isset($post['current_pin']) && !empty($post['current_pin'])) {
+            $partner = Partner::where('id_partner',$id_partner)->get();
+            $partner->makeVisible(['password']);
+            if(Hash::check($post['current_pin'], $partner[0]['password'])){
+                return response()->json(['status' => 'success', 'messages' => ['The password matched']]);
+            }else{
+                return response()->json(['status' => 'fail', 'messages' => ['The password does not match']]);
+            }
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
+    }
+    public function passwordByPartner(Request $request){
+        $user = Auth::user();
+        $id_partner = $user['id_partner'];
+        $post = $request->all();
+        if (isset($id_partner) && !empty($id_partner)) {
+            DB::beginTransaction();
+            $data_update['password'] = $post['password'];
+            $update = Partner::where('id_partner', $id_partner)->update($data_update);
+            if(!$update){
+                DB::rollback();
+                return response()->json(['status' => 'fail', 'messages' => ['Failed update password partner']]);
+            }
+            DB::commit();
+            return response()->json(['status' => 'success']);
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
+    }
+
+    public function listPartnersLogs(Request $request){
+		$post = $request->all();
+        $partners_log = PartnersLog::with(['original_data'])->join('partners', 'partners_logs.id_partner', '=', 'partners.id_partner')->select(['partners_logs.*', 'partners.name', 'partners.email']);
+        
+        if(isset($post['order']) && isset($post['order_type'])){
+            if(isset($post['page'])){
+                $partners_log = $partners_log->orderBy($post['order'], $post['order_type'])->paginate($request->length ?: 10);
+                
+            }else{
+                $partners_log = $partners_log->orderBy($post['order'], $post['order_type'])->get()->toArray();
+                
+            }
+        }else{
+            if(isset($post['page'])){
+                $partners_log = $partners_log->orderBy('created_at', 'desc')->paginate($request->length ?: 10);
+            }else{
+                $partners_log = $partners_log->orderBy('created_at', 'desc')->get()->toArray();
+            }
+        }
+        return MyHelper::checkGet($partners_log);
+	}
+    public function deletePartnersLogs(Request $request)
+    {
+        $id_partners_log  = $request->json('id_partners_log');
+        $delete = PartnersLog::where('id_partners_log', $id_partners_log)->delete();
+        return MyHelper::checkDelete($delete);
+    }
+
+    public function detailPartnersLogs(Request $request){
+        $post = $request->all();
+        if(isset($post['id_partners_log']) && !empty($post['id_partners_log'])){
+            $partners_log = PartnersLog::where('id_partners_log', $post['id_partners_log'])->with(['original_data'])->first();
+            if($partners_log==null){
+                return response()->json(['status' => 'success', 'result' => [
+                    'partners_log' => 'Empty',
+                ]]);
+            } else {
+                return response()->json(['status' => 'success', 'result' => [
+                    'partners_log' => $partners_log,
+                ]]);
+            }
+            
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
+    }
+
+    public function statusPartner(){
+        $user = Auth::user();
+        $id_partner = $user['id_partner'];
+        $partner = Partner::with(['partner_bank_account','partner_locations'])->where('id_partner',$id_partner)->get();
+        if(isset($partner) && !empty($partner)){
+            if($partner==null){
+                return response()->json(['status' => 'success', 'result' => [
+                    'partner' => 'Empty',
+                ]]);
+            } else {
+                return response()->json(['status' => 'success', 'result' => [
+                    'partner' => $partner[0],
+                ]]);
+            }
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }
     }
 }

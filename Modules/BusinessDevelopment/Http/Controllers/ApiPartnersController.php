@@ -232,7 +232,7 @@ class ApiPartnersController extends Controller
                             [
                                 'name' => $data_update['name'],
                                 'pin' => $post['pin'],
-                            ]
+                            ], null, null, null, null, null, null, null, 1,
                         );
                         // return $autocrm;
                         if ($autocrm) {
@@ -256,7 +256,7 @@ class ApiPartnersController extends Controller
                         $data_update['phone'],
                         [
                             'name' => $data_update['name']
-                        ]
+                        ], null, null, null, null, null, null, null, 1,
                     );
                     // return $autocrm;
                     if ($autocrm) {
@@ -352,7 +352,7 @@ class ApiPartnersController extends Controller
                             $user['phone'],
                             [
                                 'name' => $cek_partner['name']
-                            ]
+                            ], null, null, null, null, null, null, null, 1,
                         );
                         // return $autocrm;
                         if ($autocrm) {

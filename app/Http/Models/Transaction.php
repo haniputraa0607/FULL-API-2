@@ -302,4 +302,14 @@ class Transaction extends Model
     {
         return $this->hasMany(\Modules\UserFeedback\Entities\UserFeedback::class,'id_transaction','id_transaction');
     }
+
+    public function transaction_product_services()
+	{
+		return $this->hasMany(\Modules\Transaction\Entities\TransactionProductService::class, 'id_transaction');
+	}
+
+	public function transaction_products() 
+    {
+    	return $this->hasMany(TransactionProduct::class, 'id_transaction', 'id_transaction');
+	}
 }

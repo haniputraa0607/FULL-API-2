@@ -5303,4 +5303,113 @@ class ApiTransaction extends Controller
 		$list['data'] = $resData;
 		return MyHelper::checkGet($list);
     }
+
+    public function outletServiceDetail(Request $request) {
+    	$user = $request->user();
+    	$detail = Transaction::where('transaction_from', 'outlet-service')
+    			->join('transaction_outlet_services','transactions.id_transaction', 'transaction_outlet_services.id_transaction')
+    			->where('id_user', $user->id)
+    			->where('transactions.id_transaction', $request->id_transaction)
+    			->orderBy('transaction_date', 'desc')
+    			->with(
+    				'outlet.brands', 
+    				'transaction_outlet_service', 
+    				'transaction_products.transaction_product_service.user_hair_stylist',
+    				'transaction_products.product.photos',
+    				'user_feedbacks'
+    			)
+    			->first();
+
+		if (!$detail) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Transaction not found']
+			];
+		}
+		// return $detail;
+		$outlet = [
+			'id_outlet' => $detail['outlet']['id_outlet'],
+			'outlet_code' => $detail['outlet']['outlet_code'],
+			'outlet_name' => $detail['outlet']['outlet_name'],
+			'outlet_latitude' => $detail['outlet']['outlet_latitude'],
+			'outlet_longitude' => $detail['outlet']['outlet_longitude']
+		];
+
+		$brand = [
+			'id_brand' => $detail['outlet']['brands'][0]['id_brand'],
+			'brand_code' => $detail['outlet']['brands'][0]['code_brand'],
+			'brand_name' => $detail['outlet']['brands'][0]['name_brand'],
+			'brand_logo' => $detail['outlet']['brands'][0]['logo_brand']
+		];
+
+		$products = [];
+		$services = [];
+		$subtotalProduct = 0;
+		$subtotalService = 0;
+		$show_rate_popup = 0;
+		foreach ($detail['transaction_products'] as $product) {
+			if ($product['type'] == 'Service') {
+				$services[] = [
+					'id_user_hair_stylist' => $product['transaction_product_service']['id_user_hair_stylist'],
+					'hairstylist_name' => $product['transaction_product_service']['user_hair_stylist']['nickname'],
+					'schedule_date' => $product['transaction_product_service']['schedule_date'],
+					'schedule_time' => $product['transaction_product_service']['schedule_time'],
+					'product_name' => $product['product']['product_name'],
+					'subtotal' => $product['transaction_product_subtotal'],
+					'show_rate_popup' => $show_rate_popup
+				];
+				$subtotalService += abs($product['transaction_product_subtotal']);
+			} else {
+				$productPhoto = config('url.storage_url_api') . ($product['product']['photos'][0]['product_photo'] ?? 'img/product/item/default.png');
+				$products[] = [
+					'product_name' => $product['product']['product_name'],
+					'transaction_product_qty' => $product['transaction_product_qty'],
+					'transaction_product_price' => $product['transaction_product_price'],
+					'transaction_product_subtotal' => $product['transaction_product_subtotal'],
+					'photo' => $productPhoto
+				];
+				$subtotalProduct += abs($product['transaction_product_subtotal']);
+			}
+		}
+
+		$status = empty($detail['completed_at']) ? 'ongoing' : 'complete';
+
+		$paymentDetail = [];
+        
+        $paymentDetail[] = [
+            'name'          => 'Total',
+            "is_discount"   => 0,
+            'amount'        => MyHelper::requestNumber($detail['transaction_subtotal'],'_CURRENCY')
+        ];
+
+        if (!empty($detail['transaction_tax'])) {
+	        $paymentDetail[] = [
+	            'name'          => 'Tax',
+	            "is_discount"   => 0,
+	            'amount'        => MyHelper::requestNumber($detail['transaction_tax'],'_CURRENCY')
+	        ];
+        }
+
+		$res = [
+			'id_transaction' => $detail['id_transaction'],
+			'transaction_receipt_number' => $detail['transaction_receipt_number'],
+			'transaction_date' => $detail['transaction_date'],
+			'transaction_subtotal' => $detail['transaction_subtotal'],
+			'transaction_grandtotal' => $detail['transaction_grandtotal'],
+			'transaction_tax' => $detail['transaction_tax'],
+			'transaction_product_subtotal' => $subtotalProduct,
+			'transaction_service_subtotal' => $subtotalService,
+			'customer_name' => $detail['transaction_outlet_service']['customer_name'],
+			'color' => $detail['outlet']['brands'][0]['color_brand'],
+			'status' => $status,
+			'show_rate_popup' => $show_rate_popup,
+			'outlet' => $outlet,
+			'brand' => $brand,
+			'service' => $services,
+			'product' => $products,
+			'payment_detail' => $paymentDetail
+		];
+		
+		return MyHelper::checkGet($res);
+    }
 }

@@ -5229,4 +5229,78 @@ class ApiTransaction extends Controller
             ];
         }
     }
+
+    public function outletServiceList(Request $request) {
+    	$user = $request->user();
+    	$list = Transaction::where('transaction_from', 'outlet-service')
+    			->join('transaction_outlet_services','transactions.id_transaction', 'transaction_outlet_services.id_transaction')
+    			->where('id_user', $user->id)
+    			->orderBy('transaction_date', 'desc')
+    			->with('outlet.brands', 'products', 'transaction_outlet_service', 'user_feedbacks');
+
+		switch (strtolower($request->status)) {
+			case 'ongoing':
+				$list->whereNull('transaction_outlet_services.completed_at');
+				break;
+
+			case 'complete':
+				$list->whereNotNull('transaction_outlet_services.completed_at');
+				break;
+			
+			default:
+				// code...
+				break;
+		}
+
+
+		$list = $list->paginate(10)->toArray();
+
+		$resData = [];
+		foreach ($list['data'] ?? [] as $val) {
+
+			$outlet = [
+				'id_outlet' => $val['outlet']['id_outlet'],
+				'outlet_code' => $val['outlet']['outlet_code'],
+				'outlet_name' => $val['outlet']['outlet_name'],
+				'outlet_latitude' => $val['outlet']['outlet_latitude'],
+				'outlet_longitude' => $val['outlet']['outlet_longitude']
+			];
+
+			$brand = [
+				'id_brand' => $val['outlet']['brands'][0]['id_brand'],
+				'brand_code' => $val['outlet']['brands'][0]['code_brand'],
+				'brand_name' => $val['outlet']['brands'][0]['name_brand'],
+				'brand_logo' => $val['outlet']['brands'][0]['logo_brand']
+			];
+
+			$orders = [];
+			foreach ($val['products'] as $product) {
+				$orders[] = [
+					'product_name' => $product['product_name'],
+					'transaction_product_qty' => $product['pivot']['transaction_product_qty'],
+					'transaction_product_price' => $product['pivot']['transaction_product_price'],
+					'transaction_product_subtotal' => $product['pivot']['transaction_product_subtotal']
+				];
+			}
+
+			$status = empty($val['completed_at']) ? 'ongoing' : 'complete';
+			$show_rate_popup = (!empty($val['completed_at']) && empty($val['user_feedbacks'])) ? 1 : 0;
+
+			$resData[] = [
+				'id_transaction' => $val['id_transaction'],
+				'transaction_receipt_number' => $val['transaction_receipt_number'],
+				'transaction_date' => $val['transaction_date'],
+				'customer_name' => $val['transaction_outlet_service']['customer_name'],
+				'color' => $val['outlet']['brands'][0]['color_brand'],
+				'status' => $status,
+				'show_rate_popup' => $show_rate_popup,
+				'outlet' => $outlet,
+				'brand' => $brand,
+				'order' => $orders
+			];
+		}
+
+		$list['data'] = $resData;
+		return MyHelper::checkGet($list);
+    }
 }

@@ -13,6 +13,7 @@ use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Recruitment\Entities\HairstylistSchedule;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
 
+use Modules\Transaction\Entities\HairstylistNotAvailable;
 use Modules\Transaction\Entities\TransactionOutletService;
 use Modules\Transaction\Entities\TransactionProductService;
 use Modules\Transaction\Entities\TransactionProductServiceLog;
@@ -505,6 +506,10 @@ class ApiMitraOutletService extends Controller
 			$box->update(['outlet_box_use_status' => 0]);
 
 			$this->completeTransaction($service->id_transaction);
+
+            //remove hs from table not avilable
+            HairstylistNotAvailable::where('id_transaction_product_service', $service['id_transaction_product_service'])->delete();
+
 			DB::commit();
     	} catch (\Exception $e) {
 

@@ -48,6 +48,8 @@ use App\Lib\MyHelper;
 use App\Lib\PushNotificationHelper;
 use App\Lib\Midtrans;
 use App\Lib\GoSend;
+use Modules\Transaction\Entities\HairstylistNotAvailable;
+use Modules\Transaction\Entities\TransactionProductService;
 use Validator;
 use Hash;
 use DB;
@@ -970,6 +972,11 @@ Detail: ".$link['short'],
             // return subscription
             $update_subscription = app($this->subscription)->returnSubscription($trx->id_transaction);
 
+            //remove hs from table not available
+            $idTrxProductService = TransactionProductService::where('id_transaction', $trx->id_transaction)->pluck('id_transaction_product_service')->toArray();
+            if(!empty($idTrxProductService)){
+                HairstylistNotAvailable::whereIn('id_transaction_product_service', $idTrxProductService)->delete();
+            }
         }
 
         return true;

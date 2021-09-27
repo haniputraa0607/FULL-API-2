@@ -6,7 +6,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 
-class users_phone_pin_new extends FormRequest
+class users_phone_pin_new_v2 extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.

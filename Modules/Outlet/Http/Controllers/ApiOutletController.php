@@ -167,6 +167,21 @@ class ApiOutletController extends Controller
             $data['delivery_outlet'] = $post['delivery_outlet'];
         }
 
+        if(!empty($post['outlet_image'])){
+            $upload = MyHelper::uploadPhotoStrict($post['outlet_image'], 'img/outlet/', 720, 360, $data['outlet_code']);
+
+            if (isset($upload['status']) && $upload['status'] == "success") {
+                $data['outlet_image'] = $upload['path'];
+            }
+            else {
+                $data['outlet_image'] = null;
+            }
+        }
+
+        if (isset($post['outlet_description'])) {
+            $data['outlet_description'] = $post['outlet_description'];
+        }
+
         return $data;
     }
 

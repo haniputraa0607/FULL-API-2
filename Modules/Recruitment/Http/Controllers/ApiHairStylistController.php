@@ -294,8 +294,18 @@ class ApiHairStylistController extends Controller
     public function update(Request $request){
         $post = $request->json()->all();
         if(isset($post['id_user_hair_stylist']) && !empty($post['id_user_hair_stylist'])){
+            if(!empty($post['user_hair_stylist_photo'])){
+                $upload = MyHelper::uploadPhotoStrict($post['user_hair_stylist_photo'], 'img/hs/', 300, 300, $post['nickname']);
+
+                if (isset($upload['status']) && $upload['status'] == "success") {
+                    $post['user_hair_stylist_photo'] = $upload['path'];
+                }else {
+                    return response()->json(['status' => 'fail', 'messages' => ['Failed upload image']]);
+                }
+            }
+
             if(isset($post['update_type']) && $post['update_type'] == 'approve'){
-                $check = UserHairStylist::where('nickname', $post['nickname'])->first();
+                $check = UserHairStylist::where('nickname', $post['nickname'])->whereNotIn('id_user_hair_stylist', [$post['id_user_hair_stylist']])->first();
 
                 if(!empty($check)){
                     return response()->json(['status' => 'fail', 'messages' => ['Nickname already use with hairstylist : '.$check['fullname']]]);

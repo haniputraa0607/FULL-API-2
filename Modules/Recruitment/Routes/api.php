@@ -42,5 +42,15 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
         	Route::post('/', 'ApiMitra@schedule');
         	Route::post('create', 'ApiMitra@createSchedule');
     	});
+
+		Route::group(['prefix' => 'outlet-service'], function () {
+        	Route::post('customer/queue', 'ApiMitraOutletService@customerQueue');
+        	Route::post('customer/detail', 'ApiMitraOutletService@customerQueueDetail');
+        	Route::post('start', 'ApiMitraOutletService@startService');
+        	Route::post('stop', 'ApiMitraOutletService@stopService');
+        	Route::post('extend', 'ApiMitraOutletService@extendService');
+        	Route::post('complete', 'ApiMitraOutletService@completeService');
+        	Route::get('box', 'ApiMitraOutletService@availableBox');
+    	});    	
 	});
 });

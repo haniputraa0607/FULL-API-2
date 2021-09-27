@@ -38,6 +38,7 @@ class HairstylistScheduleDate extends Model
 		'id_hairstylist_schedule',
 		'date',
 		'shift',
-		'request_by'
+		'request_by',
+		'id_outlet_box'
 	];
 }

@@ -76,6 +76,7 @@ class Transaction extends Model
         'transaction_discount_bill',
 		'transaction_tax',
 		'trasaction_type',
+        'transaction_from',
 		'transaction_cashier',
 		'sales_type',
 		'transaction_device_type',

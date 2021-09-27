@@ -1029,6 +1029,7 @@ class ApiOnlineTransaction extends Controller
             'longitude'                   => $post['longitude'],
             'distance_customer'           => $distance,
             'void_date'                   => null,
+            'transaction_from'            => $post['transaction_from']
         ];
 
         if($request->user()->complete_profile == 1){
@@ -2733,7 +2734,11 @@ class ApiOnlineTransaction extends Controller
         if(empty($result['plastic']['item']??[])){
             $result['plastic_used_status'] = false;
         }
+        $result['subtotal_product_service'] = $itemServices['subtotal_service']??0;
+        $result['subtotal_product'] = $subtotal + ($itemBundlings['subtotal_bundling']??0);
+
         $subtotal += $result['plastic']['plastic_price_total'] ?? 0;
+        $subtotal += $itemServices['subtotal_service']??0;
         $subtotal += $itemBundlings['subtotal_bundling']??0;
 
         $earnedPoint = $this->countTranscationPoint($post, $user);
@@ -4734,6 +4739,7 @@ class ApiOnlineTransaction extends Controller
             $hs_not_available = HairstylistNotAvailable::create([
                 'id_outlet' => $trx['id_outlet'],
                 'id_user_hair_stylist' => $itemProduct['id_user_hair_stylist'],
+                'id_transaction_product_service' => $product_service['id_transaction_product_service'],
                 'booking_date' => date('Y-m-d', strtotime($itemProduct['booking_date'])),
                 'booking_time' => date('H:i:s', strtotime($itemProduct['booking_time']))
             ]);

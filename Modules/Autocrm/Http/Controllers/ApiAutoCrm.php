@@ -59,7 +59,7 @@ class ApiAutoCrm extends Controller
                 $users = UserFranchise::select('id_user_franchise as id', 'user_franchises.*')->where('username','=',$receipient)->get()->toArray();
             }elseif($outlet){
                 $users = UserOutlet::select('id_user_outlet as id', 'user_outlets.*')->where('phone','=',$receipient)->get()->toArray();
-            }elseif($query[0]['id_autocrm']==78 || $query[0]['id_autocrm']==79){
+            }elseif($query[0]['id_autocrm']==78 || $query[0]['id_autocrm']==79 || $query[0]['id_autocrm']==80 || $query[0]['id_autocrm']==81){
                 $users = Partner::where('phone','=',$receipient)->get()->toArray();
             }else{
                 $users = User::where('phone','=',$receipient)->get()->toArray();
@@ -212,7 +212,7 @@ class ApiAutoCrm extends Controller
 					if ($save_log) {
 						if ($recipient_type != 'outlet' && $recipient_type != 'outlet_franchise') {
 							$logData = [];
-                            if($query[0]['id_autocrm']==78 || $query[0]['id_autocrm']==79){
+                            if($query[0]['id_autocrm']==78 || $query[0]['id_autocrm']==79 || $query[0]['id_autocrm']==80 || $query[0]['id_autocrm']==81){
                                 $logData['id_user'] = $user['id_partner'];
                             }else{
                                 $logData['id_user'] = $user['id'];
@@ -317,7 +317,7 @@ class ApiAutoCrm extends Controller
 								$logs = FranchiseEmailLog::create($logData);
 							}else{
 								$logData = [];
-								if($query[0]['id_autocrm']==78 || $query[0]['id_autocrm']==79){
+								if($query[0]['id_autocrm']==78 || $query[0]['id_autocrm']==79 || $query[0]['id_autocrm']==80 || $query[0]['id_autocrm']==81){
                                     $logData['id_user'] = $user['id_partner'];
                                 }else{
                                     $logData['id_user'] = $user['id'];
@@ -463,7 +463,7 @@ class ApiAutoCrm extends Controller
 					}
                     $content 	= $this->TextReplace($crm['autocrm_sms_content'], $user['phone'], $variables);
 					$logData = [];
-                    if($query[0]['id_autocrm']==78 || $query[0]['id_autocrm']==79){
+                    if($query[0]['id_autocrm']==78 || $query[0]['id_autocrm']==79 || $query[0]['id_autocrm']==80 || $query[0]['id_autocrm']==81){
                         $logData['id_user'] = $user['id_partner'];
                     }else{
                         $logData['id_user'] = $user['id'];

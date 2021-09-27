@@ -19,7 +19,14 @@ class TransactionProductService extends Model
         'schedule_time',
         'service_status',
         'completed_at',
-        'flag_update_schedule'
+        'flag_update_schedule',
+        'id_outlet_box',
+        'is_conflict'
     ];
+
+    public function transaction()
+	{
+		return $this->belongsTo(\App\Http\Models\Transaction::class, 'id_transaction');
+	}
 
 }

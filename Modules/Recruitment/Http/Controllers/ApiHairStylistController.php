@@ -35,10 +35,10 @@ class ApiHairStylistController extends Controller
             $phone = $checkPhoneFormat['phone'];
         }
 
-        $check = UserHairStylist::where('email', $post['email'])->first();
+        $check = UserHairStylist::where('email', $post['email'])->orWhere('phone_number', $phone)->first();
 
         if(!empty($check)){
-            return response()->json(['status' => 'fail', 'messages' => ['Email already use']]);
+            return response()->json(['status' => 'fail', 'messages' => ['Email or phone already use']]);
         }
 
         $dataCreate = [
@@ -310,6 +310,13 @@ class ApiHairStylistController extends Controller
                 if(!empty($check)){
                     return response()->json(['status' => 'fail', 'messages' => ['Nickname already use with hairstylist : '.$check['fullname']]]);
                 }
+
+                $checkPhone = UserHairStylist::where('phone_number', $post['phone_number'])->whereNotIn('id_user_hair_stylist', [$post['id_user_hair_stylist']])->first();
+
+                if(!empty($checkPhone)){
+                    return response()->json(['status' => 'fail', 'messages' => ['Phone Number already use with another hairstylist']]);
+                }
+
                 unset($post['update_type']);
                 $data = $post;
                 $data['birthdate'] = date('Y-m-d', strtotime($data['birthdate']));
@@ -319,6 +326,12 @@ class ApiHairStylistController extends Controller
                 $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update($data);
                 return response()->json(MyHelper::checkUpdate($update));
             }else{
+                $checkPhone = UserHairStylist::where('phone_number', $post['phone_number'])->whereNotIn('id_user_hair_stylist', [$post['id_user_hair_stylist']])->first();
+
+                if(!empty($checkPhone)){
+                    return response()->json(['status' => 'fail', 'messages' => ['Phone Number already use with another hairstylist']]);
+                }
+
                 if(!empty($post['birthdate'])){
                     $post['birthdate'] = date('Y-m-d', strtotime($post['birthdate']));
                 }

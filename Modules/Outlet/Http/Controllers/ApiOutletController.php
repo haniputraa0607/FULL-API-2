@@ -2062,6 +2062,7 @@ class ApiOutletController extends Controller
         foreach ($brands??[[]] as $brand) {
             $outlets = Outlet::select('id_outlet','outlets.outlet_code as code',
                 'outlets.outlet_name as name',
+                'outlets.outlet_description as description',
                 'outlets.outlet_address as address',
                 'cities.city_name as city',
                 'outlets.outlet_phone as phone',
@@ -2202,6 +2203,7 @@ class ApiOutletController extends Controller
                         $insert = [
                             'outlet_code' => $value['code']??'',
                             'outlet_name' => $value['name']??'',
+                            'outlet_description' => $value['description']??'',
                             'outlet_address' => $value['address']??'',
                             'outlet_postal_code' => $value['postal_code']??'',
                             'outlet_phone' => $value['phone']??'',

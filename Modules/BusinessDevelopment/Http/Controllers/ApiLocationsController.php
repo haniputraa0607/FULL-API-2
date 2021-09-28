@@ -248,7 +248,7 @@ class ApiLocationsController extends Controller
                             $partner['phone'],
                             [
                                 'name' => $partner['name'],
-                            ]
+                            ], null, null, null, null, null, null, null, 1,
                         );
                         // return $autocrm;
                         if ($autocrm) {

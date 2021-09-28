@@ -292,4 +292,24 @@ class Transaction extends Model
         return $this->belongsTo(\App\Http\Models\Outlet::class, 'id_outlet')
             ->join('cities','cities.id_city','outlets.id_city');
     }
+
+    public function transaction_outlet_service()
+	{
+		return $this->hasOne(\Modules\Transaction\Entities\TransactionOutletService::class, 'id_transaction');
+	}
+
+	public function user_feedbacks()
+    {
+        return $this->hasMany(\Modules\UserFeedback\Entities\UserFeedback::class,'id_transaction','id_transaction');
+    }
+
+    public function transaction_product_services()
+	{
+		return $this->hasMany(\Modules\Transaction\Entities\TransactionProductService::class, 'id_transaction');
+	}
+
+	public function transaction_products() 
+    {
+    	return $this->hasMany(TransactionProduct::class, 'id_transaction', 'id_transaction');
+	}
 }

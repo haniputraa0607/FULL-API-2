@@ -22,4 +22,9 @@ class TransactionOutletService extends Model
         'completed_at'
     ];
 
+    public function transaction()
+	{
+		return $this->belongsTo(\App\Http\Models\Transaction::class, 'id_transaction');
+	}
+
 }

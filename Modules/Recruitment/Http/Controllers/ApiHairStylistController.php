@@ -35,10 +35,10 @@ class ApiHairStylistController extends Controller
             $phone = $checkPhoneFormat['phone'];
         }
 
-        $check = UserHairStylist::where('email', $post['email'])->first();
+        $check = UserHairStylist::where('email', $post['email'])->orWhere('phone_number', $phone)->first();
 
         if(!empty($check)){
-            return response()->json(['status' => 'fail', 'messages' => ['Email already use']]);
+            return response()->json(['status' => 'fail', 'messages' => ['Email or phone already use']]);
         }
 
         $dataCreate = [
@@ -294,12 +294,29 @@ class ApiHairStylistController extends Controller
     public function update(Request $request){
         $post = $request->json()->all();
         if(isset($post['id_user_hair_stylist']) && !empty($post['id_user_hair_stylist'])){
+            if(!empty($post['user_hair_stylist_photo'])){
+                $upload = MyHelper::uploadPhotoStrict($post['user_hair_stylist_photo'], 'img/hs/', 300, 300, $post['nickname']);
+
+                if (isset($upload['status']) && $upload['status'] == "success") {
+                    $post['user_hair_stylist_photo'] = $upload['path'];
+                }else {
+                    return response()->json(['status' => 'fail', 'messages' => ['Failed upload image']]);
+                }
+            }
+
             if(isset($post['update_type']) && $post['update_type'] == 'approve'){
-                $check = UserHairStylist::where('nickname', $post['nickname'])->first();
+                $check = UserHairStylist::where('nickname', $post['nickname'])->whereNotIn('id_user_hair_stylist', [$post['id_user_hair_stylist']])->first();
 
                 if(!empty($check)){
                     return response()->json(['status' => 'fail', 'messages' => ['Nickname already use with hairstylist : '.$check['fullname']]]);
                 }
+
+                $checkPhone = UserHairStylist::where('phone_number', $post['phone_number'])->whereNotIn('id_user_hair_stylist', [$post['id_user_hair_stylist']])->first();
+
+                if(!empty($checkPhone)){
+                    return response()->json(['status' => 'fail', 'messages' => ['Phone Number already use with another hairstylist']]);
+                }
+
                 unset($post['update_type']);
                 $data = $post;
                 $data['birthdate'] = date('Y-m-d', strtotime($data['birthdate']));
@@ -309,6 +326,12 @@ class ApiHairStylistController extends Controller
                 $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update($data);
                 return response()->json(MyHelper::checkUpdate($update));
             }else{
+                $checkPhone = UserHairStylist::where('phone_number', $post['phone_number'])->whereNotIn('id_user_hair_stylist', [$post['id_user_hair_stylist']])->first();
+
+                if(!empty($checkPhone)){
+                    return response()->json(['status' => 'fail', 'messages' => ['Phone Number already use with another hairstylist']]);
+                }
+
                 if(!empty($post['birthdate'])){
                     $post['birthdate'] = date('Y-m-d', strtotime($post['birthdate']));
                 }

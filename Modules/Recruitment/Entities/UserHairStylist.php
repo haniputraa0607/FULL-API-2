@@ -57,6 +57,14 @@ class UserHairStylist extends Authenticatable
         'user_hair_stylist_photo'
 	];
 
+    public function getUserHairStylistPhotoAttribute($value)
+    {
+        if(empty($value)){
+            return '';
+        }
+        return config('url.storage_url_api') . $value;
+    }
+
 	public function hairstylist_schedules()
 	{
 		return $this->hasMany(\Modules\Recruitment\Entities\HairstylistSchedule::class, 'id_user_hair_stylist');

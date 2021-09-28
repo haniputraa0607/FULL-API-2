@@ -120,4 +120,9 @@ class TransactionProduct extends Model
         $province = $this->transaction->user->city->province;
         return $province;
     }
+
+    public function transaction_product_service()
+	{
+		return $this->hasOne(\Modules\Transaction\Entities\TransactionProductService::class, 'id_transaction_product');
+	}
 }

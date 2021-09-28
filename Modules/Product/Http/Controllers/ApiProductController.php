@@ -2311,6 +2311,7 @@ class ApiProductController extends Controller
         //total date
         $totalDateShow = Setting::where('key', 'total_show_date_booking_service')->first()->value??1;
         $today = date('Y-m-d');
+        $currentTime = date('H:i');
         $listDate = [];
         $x = 0;
         $count = 1;
@@ -2324,10 +2325,14 @@ class ApiProductController extends Controller
                 $close = date('H:i', strtotime($outletSchedules[$getTime]['close']));
                 $times = [];
                 $tmpTime = $open;
-                $times[] = $open;
+                if(strtotime($date.' '.$open) > strtotime($today.' '.$currentTime)) {
+                    $times[] = $open;
+                }
                 while(strtotime($tmpTime) < strtotime($close)) {
                     $timeConvert = date('H:i', strtotime("+".$processingTime." minutes", strtotime($tmpTime)));
-                    $times[] = $timeConvert;
+                    if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime)){
+                        $times[] = $timeConvert;
+                    }
                     $tmpTime = $timeConvert;
                 }
                 $listDate[] = [

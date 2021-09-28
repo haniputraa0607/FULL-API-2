@@ -2073,7 +2073,7 @@ class ApiUser extends Controller
                         }
                     }
 
-                    $update = User::where('id', '=', $data[0]['id'])->update(['phone_verified' => '1', 'otp_valid_time' => NULL]);
+                    $update = User::where('id', '=', $data[0]['id'])->update(['otp_valid_time' => NULL]);
                     if ($update) {
                         $profile = User::select('phone', 'email', 'name', 'id_city', 'gender', 'phone_verified', 'email_verified')
                             ->where('phone', '=', $phone)

@@ -4,6 +4,7 @@ Route::group(['middleware' => ['auth:api','user_agent', 'scopes:apps', 'log_acti
 {
     Route::any('list', 'ApiNews@listNews');
     Route::any('category', 'ApiNewsCategoryController@index');
+    Route::get('featured', 'ApiNews@listNewNews');
 });
 
 Route::group(['prefix' => 'api/news', 'middleware' => ['log_activities', 'auth:api','user_agent', 'scopes:apps'], 'namespace' => 'Modules\News\Http\Controllers'], function()

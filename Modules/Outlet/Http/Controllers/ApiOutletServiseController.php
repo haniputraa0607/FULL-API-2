@@ -227,6 +227,7 @@ class ApiOutletServiseController extends Controller
             'outlet_address' => $detail['outlet_address'],
             'city_name' => $detail['city_name'],
             'color' => (empty($detail['brands'][0]['color_brand']) ? '':$detail['brands'][0]['color_brand']),
+            'brand_logo' =>  (empty($detail['brands'][0]['color_brand']) ? '':$detail['brands'][0]['logo_brand']),
             'schedules' => $arrSchedule
         ];
 

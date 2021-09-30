@@ -2,6 +2,7 @@
 
 namespace Modules\Users\Http\Controllers;
 
+use App\Http\Models\News;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
@@ -978,5 +979,34 @@ class ApiHome extends Controller
             'status' => 'success',
             'result' => $data_home
         ];
+    }
+
+    public function featuredNews(){
+        $home_text = Setting::whereIn('key',['home_promo_campaign_sub_title','home_promo_campaign_title'])->get()->keyBy('key');
+        $text['title'] = $home_text['home_news_title']['value'] ?? 'Berita';
+        $text['sub_title'] = $home_text['home_news_sub_title']['value'] ?? 'Berita menarik untuk Anda.';
+
+        $now = date('Y-m-d');
+        $news = News::with(['newsCategory' => function ($query) {
+            $query->select('id_news_category', 'category_name');
+        }])
+            ->where('news_publish_date', '<=', $now)
+            ->where(function ($query) use ($now) {
+                $query->where('news_expired_date', '>=', $now)
+                    ->orWhere('news_expired_date', null);
+            })
+            ->orderBy('news_publish_date', 'DESC')
+            ->select('id_news', 'news.id_news_category', 'news_title', 'news_publish_date', 'news_expired_date', 'news_post_date', 'news_slug', 'news_content_short', 'news_image_luar', 'news_image_dalam')
+            ->limit(5)->get()->toArray();
+
+        array_walk($news, function (&$newsItem) {
+            $newsItem['news_category'] = $newsItem['news_category'] ?: ['id_news_category' => 0, 'category_name' => 'Uncategories'];
+            $newsItem['news_post_date_indo'] = (is_null($newsItem['news_post_date'])) ? '' : MyHelper::indonesian_date_v2($newsItem['news_post_date'], 'd F Y H:i');
+        });
+
+        $data_home['text'] = $text;
+        $data_home['featured_list'] = $news;
+
+        return response()->json(MyHelper::checkGet($data_home));
     }
 }

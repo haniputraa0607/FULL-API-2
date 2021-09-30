@@ -3551,6 +3551,66 @@ class FeaturesTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00'),
                 ),
+        	355 =>
+                array(
+                    'id_feature' => 356,
+                    'feature_type' => 'List',
+                    'feature_module' => 'User Rating',
+                    'show_hide' => 1,
+                    'order' => 130,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00'),
+                ),
+            356 =>
+                array(
+                    'id_feature' => 357,
+                    'feature_type' => 'Delete',
+                    'feature_module' => 'User Rating',
+                    'show_hide' => 1,
+                    'order' => 130,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00'),
+                ),
+            357 =>
+                array(
+                    'id_feature' => 358,
+                    'feature_type' => 'List',
+                    'feature_module' => 'Rating Option',
+                    'show_hide' => 1,
+                    'order' => 131,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00'),
+                ),
+            358 =>
+                array(
+                    'id_feature' => 359,
+                    'feature_type' => 'Create',
+                    'feature_module' => 'Rating Option',
+                    'show_hide' => 1,
+                    'order' => 131,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00'),
+                ),
+            359 =>
+                array(
+                    'id_feature' => 360,
+                    'feature_type' => 'Update',
+                    'feature_module' => 'Rating Option',
+                    'show_hide' => 1,
+                    'order' => 131,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00'),
+                ),
+            360 =>
+                array(
+                    'id_feature' => 361,
+                    'feature_type' => 'Delete',
+                    'feature_module' => 'Rating Option',
+                    'show_hide' => 1,
+                    'order' => 131,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00'),
+                ),
         ));
     }
 }

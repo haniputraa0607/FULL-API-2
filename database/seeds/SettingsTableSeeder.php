@@ -1055,6 +1055,24 @@ class SettingsTableSeeder extends Seeder
                     'value_text' => NULL,
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s'),
+                ),
+            117 =>
+                array(
+                    'id_setting' => 118,
+                    'key' => 'home_news_title',
+                    'value' => 'Berita',
+                    'value_text' => NULL,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ),
+            118 =>
+                array(
+                    'id_setting' => 119,
+                    'key' => 'home_news_sub_title',
+                    'value' => 'Berita menarik untuk Anda',
+                    'value_text' => NULL,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
                 )
         ));
     }

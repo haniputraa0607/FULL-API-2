@@ -265,16 +265,40 @@ class ApiUserRatingController extends Controller
             $log_popup_user_rating->save();
 
         }
-        $result['id'] = $transaction->id_transaction;
-        $result['transaction_receipt_number'] = $transaction->transaction_receipt_number;
-        $result['question_text'] = Setting::where('key','rating_question_text')->pluck('value_text')->first()?:'How about our Service';
-        $result['transaction_date'] = date('d M Y H:i',strtotime($transaction->transaction_date));
+
+        $transaction->load('transaction_product_services.user_hair_stylist','outlet.brands');
+        $result = [];
+        $ratingList = [];
+
+        $result['outlet'] = [
+			'id_outlet' => $transaction['outlet']['id_outlet'],
+			'outlet_code' => $transaction['outlet']['outlet_code'],
+			'outlet_name' => $transaction['outlet']['outlet_name'],
+			'outlet_address' => $transaction['outlet']['outlet_address'],
+			'outlet_latitude' => $transaction['outlet']['outlet_latitude'],
+			'outlet_longitude' => $transaction['outlet']['outlet_longitude']
+		];
+
+		$result['brand'] = [
+			'id_brand' => $transaction['outlet']['brands'][0]['id_brand'],
+			'brand_code' => $transaction['outlet']['brands'][0]['code_brand'],
+			'brand_name' => $transaction['outlet']['brands'][0]['name_brand'],
+			'brand_logo' => $transaction['outlet']['brands'][0]['logo_brand']
+		];
+
         $defaultOptions = [
             'question'=>Setting::where('key','default_rating_question')->pluck('value_text')->first()?:'What\'s best from us?',
             'options' =>explode(',',Setting::where('key','default_rating_options')->pluck('value_text')->first()?:'Cleanness,Accuracy,Employee Hospitality,Process Time')
         ];
         $options = ['1'=>$defaultOptions,'2'=>$defaultOptions,'3'=>$defaultOptions,'4'=>$defaultOptions,'5'=>$defaultOptions];
-        $ratings = RatingOption::select('star','question','options')->get();
+
+        $ratingOutlet['id'] = $transaction->id_transaction;
+		$ratingOutlet['id_user_hair_stylist'] = null;
+		$ratingOutlet['detail_hairstylist'] = null;
+        $ratingOutlet['transaction_receipt_number'] = $transaction->transaction_receipt_number;
+        $ratingOutlet['question_text'] = Setting::where('key','rating_question_text')->pluck('value_text')->first()?:'How about our Service';
+        $ratingOutlet['transaction_date'] = date('d M Y H:i',strtotime($transaction->transaction_date));
+        $ratings = RatingOption::select('star','question','options')->where('rating_target', 'outlet')->get();
         foreach ($ratings as $rt) {
             $stars = explode(',',$rt['star']);
             foreach ($stars as $star) {
@@ -284,22 +308,41 @@ class ApiUserRatingController extends Controller
                 ];
             }
         }
+        $ratingOutlet['options'] = $options;
 
-        $params = ['id_transaction' => $transaction->id_transaction, 'type' => 'trx'];
+        $ratingList[] = $ratingOutlet;
 
-        $result['options'] = $options;
+        $ratings = RatingOption::select('star','question','options')->where('rating_target', 'hairstylist')->get();
+        foreach ($transaction->transaction_product_services as $service) {
+        	if ($service->service_status != 'Completed') {
+        		continue;
+        	}
+        	$options = ['1'=>$defaultOptions,'2'=>$defaultOptions,'3'=>$defaultOptions,'4'=>$defaultOptions,'5'=>$defaultOptions];
+			$ratingHs['id'] = $transaction->id_transaction;
+			$ratingHs['id_user_hair_stylist'] = $service->id_user_hair_stylist;
+			$ratingHs['detail_hairstylist'] = [
+				'nickname' => $service->user_hair_stylist->nickname,
+				'fullname' => $service->user_hair_stylist->fullname,
+				'user_hair_stylist_photo' => $service->user_hair_stylist->user_hair_stylist_photo,
+			];
+	        $ratingHs['transaction_receipt_number'] = $transaction->transaction_receipt_number;
+	        $ratingHs['question_text'] = Setting::where('key','rating_question_text')->pluck('value_text')->first()?:'How about our Service';
+	        $ratingHs['transaction_date'] = date('d M Y H:i',strtotime($transaction->transaction_date));
+	        foreach ($ratings as $rt) {
+	            $stars = explode(',',$rt['star']);
+	            foreach ($stars as $star) {
+	                $options[$star] = [
+	                    'question'=>$rt['question'],
+	                    'options'=>explode(',',$rt['options'])
+	                ];
+	            }
+	        }
+	        $ratingHs['options'] = $options;
 
-        // mocking request object and create fake request
-        $fake_request = new \Modules\Transaction\Http\Requests\TransactionDetail();
-        $fake_request->setJson(new \Symfony\Component\HttpFoundation\ParameterBag($params));
-        $fake_request->merge(['user' => $request->user()]);
-        $fake_request->setUserResolver(function () use ($request) {
-            return $request->user();
-        });
-        // get detail transaction
-        // $result['detail_trx'] = app('Modules\Transaction\Http\Controllers\ApiTransaction')->transactionDetail($fake_request)->getData(true)['result']??[];
+	        $ratingList[] = $ratingHs;        	
+        }
 
-        $result['webview_url'] = env('APP_API_URL').'api/transaction/web/view/trx/'.$result['id'];
+        $result['rating_list'] = $ratingList;
         return MyHelper::checkGet($result);
     }
     public function report(Request $request) {

@@ -7,6 +7,7 @@ use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 
 use App\Http\Models\Setting;
+use App\Http\Models\Transaction;
 use App\Http\Models\TransactionProduct;
 
 use Modules\Recruitment\Entities\UserHairStylist;
@@ -21,6 +22,8 @@ use Modules\Transaction\Entities\TransactionProductServiceLog;
 use Modules\Recruitment\Http\Requests\ScheduleCreateRequest;
 
 use Modules\Outlet\Entities\OutletBox;
+
+use Modules\UserRating\Entities\UserRatingLog;
 
 use App\Lib\MyHelper;
 use DB;
@@ -488,6 +491,7 @@ class ApiMitraOutletService extends Controller
 
     	DB::beginTransaction();
     	try {
+    		$trx = Transaction::where('id_transaction', $service->id_transaction)->first();
     		TransactionProductServiceLog::create([
 	    		'id_transaction_product_service' => $request->id_transaction_product_service,
 	    		'action' => 'Complete'
@@ -509,6 +513,24 @@ class ApiMitraOutletService extends Controller
 
             //remove hs from table not avilable
             HairstylistNotAvailable::where('id_transaction_product_service', $service['id_transaction_product_service'])->delete();
+
+            UserRatingLog::updateOrCreate([
+                'id_user' => $trx->id_user,
+                'id_transaction' => $trx->id_transaction,
+                'id_outlet' => $trx->id_outlet
+            ],[
+                'refuse_count' => 0,
+                'last_popup' => date('Y-m-d H:i:s', time() - MyHelper::setting('popup_min_interval', 'value', 900))
+            ]);
+
+            UserRatingLog::updateOrCreate([
+                'id_user' => $trx->id_user,
+                'id_transaction' => $trx->id_transaction,
+                'id_user_hair_stylist' => $service->id_user_hair_stylist
+            ],[
+                'refuse_count' => 0,
+                'last_popup' => date('Y-m-d H:i:s', time() - MyHelper::setting('popup_min_interval', 'value', 900))
+            ]);
 
 			DB::commit();
     	} catch (\Exception $e) {

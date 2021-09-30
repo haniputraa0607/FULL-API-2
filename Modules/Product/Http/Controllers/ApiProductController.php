@@ -2,6 +2,7 @@
 
 namespace Modules\Product\Http\Controllers;
 
+use App\Http\Models\OauthAccessToken;
 use App\Http\Models\Product;
 use App\Http\Models\ProductCategory;
 use App\Http\Models\ProductDiscount;
@@ -15,6 +16,7 @@ use App\Http\Models\ProductModifierPrice;
 use App\Http\Models\ProductModifierGlobalPrice;
 use App\Http\Models\Outlet;
 use App\Http\Models\Setting;
+use Lcobucci\JWT\Parser;
 use Modules\Product\Entities\ProductDetail;
 use Modules\Product\Entities\ProductGlobalPrice;
 use Modules\Product\Entities\ProductSpecialPrice;
@@ -30,6 +32,7 @@ use Modules\Product\Http\Requests\product\AvailableHs;
 use Modules\ProductBundling\Entities\BundlingProduct;
 use Modules\ProductVariant\Entities\ProductVariantGroup;
 use Modules\ProductVariant\Entities\ProductVariantPivot;
+use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Transaction\Entities\HairstylistNotAvailable;
 use Validator;
@@ -119,6 +122,10 @@ class ApiProductController extends Controller
             $data['product_variant_status'] = 1;
         }else{
             $data['product_variant_status'] = 0;
+        }
+
+        if (isset($post['processing_time_service'])) {
+            $data['processing_time_service'] = $post['processing_time_service'];
         }
 
         if (isset($post['product_brands'])) {
@@ -753,7 +760,7 @@ class ApiProductController extends Controller
                 $data['products'] = Product::select('product_code','product_name','product_description')
                     ->join('brand_product','brand_product.id_product','=','products.id_product')
                     ->where('id_brand',$post['id_brand'])
-                    ->where('product_type', 'product')
+                    ->whereIn('product_type', ['product','service'])
                     ->groupBy('products.id_product')
                     ->orderBy('position')
                     ->orderBy('products.id_product')
@@ -766,7 +773,7 @@ class ApiProductController extends Controller
                 $data['products'] = Product::select('product_categories.product_category_name','products.position','product_code','product_name','product_description','products.product_visibility')
                     ->join('brand_product','brand_product.id_product','=','products.id_product')
                     ->where('id_brand',$post['id_brand'])
-                    ->where('product_type', 'product')
+                    ->whereIn('product_type', ['product','service'])
                     ->leftJoin('product_categories','product_categories.id_product_category','=','brand_product.id_product_category')
                     ->groupBy('products.id_product')
                     ->groupBy('product_category_name')
@@ -790,7 +797,7 @@ class ApiProductController extends Controller
                     ->join('brand_product','brand_product.id_product','=','products.id_product')
                     ->leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
                     ->where('id_brand',$post['id_brand'])
-                    ->where('product_type', 'product')
+                    ->whereIn('product_type', ['product','service'])
                     ->orderBy('position')
                     ->orderBy('products.id_product')
                     ->distinct()
@@ -894,7 +901,7 @@ class ApiProductController extends Controller
 									->where('product_detail.id_outlet','=',$post['id_outlet'])
 									->where('product_detail.product_detail_visibility','=','Visible')
                                     ->where('product_detail.product_detail_status','=','Active')
-                                    ->where('products.product_type', 'product')
+                                    ->whereIn('products.product_type', ['product','service'])
                                     ->with(['category', 'discount']);
 
             if (isset($post['visibility'])) {
@@ -905,7 +912,7 @@ class ApiProductController extends Controller
                                             ->where('product_detail.product_detail_status', 'Active')
                                             ->whereNotNull('id_product_category')
                                             ->where('id_outlet', $post['id_outlet'])
-                                            ->where('products.product_type', 'product')
+                                            ->whereIn('products.product_type', ['product','service'])
                                             ->select('product_detail.id_product')->get();
                     $product = Product::whereNotIn('products.id_product', $idVisible)->with(['category', 'discount']);
                 }else{
@@ -916,11 +923,11 @@ class ApiProductController extends Controller
             }
 		} else {
 		    if(isset($post['product_setting_type']) && $post['product_setting_type'] == 'product_price'){
-                $product = Product::with(['category', 'discount', 'product_special_price', 'global_price'])->where('products.product_type', 'product');
+                $product = Product::with(['category', 'discount', 'product_special_price', 'global_price'])->whereIn('products.product_type', ['product','service']);
             }elseif(isset($post['product_setting_type']) && $post['product_setting_type'] == 'outlet_product_detail'){
-                $product = Product::with(['category', 'discount', 'product_detail'])->where('products.product_type', 'product');
+                $product = Product::with(['category', 'discount', 'product_detail'])->whereIn('products.product_type', ['product','service']);
             }else{
-                $product = Product::with(['category', 'discount'])->where('products.product_type', 'product');
+                $product = Product::with(['category', 'discount'])->whereIn('products.product_type', ['product','service']);
             }
 		}
 
@@ -972,7 +979,7 @@ class ApiProductController extends Controller
         }
 
         if(isset($post['admin_list'])){
-            $product = $product->where('product_type', 'product')
+            $product = $product->whereIn('product_type', ['product','service'])
                 ->withCount('product_detail')->withCount('product_detail_hiddens')->with(['brands']);
         }
 
@@ -2067,10 +2074,6 @@ class ApiProductController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['ID outlet can not be empty']]);
         }
 
-        if(empty($post['latitude']) && empty($post['longitude'])){
-            return response()->json(['status' => 'fail', 'messages' => ['Latitude and Longitude can not be empty']]);
-        }
-
         $outlet = Outlet::where('id_outlet', $post['id_outlet'])->first();
         if (!$outlet) {
             return [
@@ -2164,7 +2167,7 @@ class ApiProductController extends Controller
             ->join('brand_outlet', 'brand_outlet.id_brand', '=', 'brand_product.id_brand')
             ->where('brand_outlet.id_outlet', '=', $post['id_outlet'])
             ->where('brand_product.id_brand', '=', $brand['id_brand'])
-            ->where('product_type', 'product')
+            ->whereIn('product_type', ['product','service'])
             ->whereRaw('products.id_product in (CASE
                         WHEN (select product_detail.id_product from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . '  order by id_product_detail desc limit 1)
                         is NULL AND products.product_visibility = "Visible" THEN products.id_product
@@ -2208,11 +2211,14 @@ class ApiProductController extends Controller
                 'photo' => (empty($val['photos'][0]['product_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$val['photos'][0]['product_photo'])
             ];
         }
-        $distance = (float)app('Modules\Outlet\Http\Controllers\ApiOutletController')->distance($post['latitude'], $post['longitude'], $outlet['outlet_latitude'], $outlet['outlet_longitude'], "K");
-        if($distance < 1){
-            $distance = number_format($distance*1000, 0, '.', '').' m';
-        }else{
-            $distance = number_format($distance, 2, '.', '').' km';
+
+        if(!empty($post['latitude']) && !empty($post['longitude'])){
+            $distance = (float)app('Modules\Outlet\Http\Controllers\ApiOutletController')->distance($post['latitude'], $post['longitude'], $outlet['outlet_latitude'], $outlet['outlet_longitude'], "K");
+            if($distance < 1){
+                $distance = number_format($distance*1000, 0, '.', '').' m';
+            }else{
+                $distance = number_format($distance, 2, '.', '').' km';
+            }
         }
 
         $resOutlet = [
@@ -2221,7 +2227,7 @@ class ApiProductController extends Controller
             'outlet_name' => $outlet['outlet_name'],
             'outlet_image' => $outlet['outlet_image'],
             'outlet_address' => $outlet['outlet_address'],
-            'distance' => $distance
+            'distance' => $distance??''
         ];
 
         $resBrand = [
@@ -2245,6 +2251,11 @@ class ApiProductController extends Controller
     }
 
     public function outletServiceDetailProductService(Request $request){
+        $bearerToken = $request->bearerToken();
+        $tokenId = (new Parser())->parse($bearerToken)->getHeader('jti');
+        $getOauth = OauthAccessToken::find($tokenId);
+        $scopeUser = str_replace(str_split('[]""'),"",$getOauth['scopes']);
+
         $post = $request->json()->all();
         if(empty($post['id_outlet'])){
             return response()->json(['status' => 'fail', 'messages' => ['ID outlet can not be empty']]);
@@ -2313,11 +2324,41 @@ class ApiProductController extends Controller
         $today = date('Y-m-d');
         $currentTime = date('H:i');
         $listDate = [];
-        $x = 0;
-        $count = 1;
-        $processingTime = (int)$product['processing_time_service'];
-        while($count <= (int)$totalDateShow) {
-            $date = date('Y-m-d', strtotime('+'.$x.' day', strtotime($today)));
+
+        if($scopeUser == 'apps'){
+            $x = 0;
+            $count = 1;
+            $processingTime = (int)$product['processing_time_service'];
+            while($count <= (int)$totalDateShow) {
+                $date = date('Y-m-d', strtotime('+'.$x.' day', strtotime($today)));
+                $dayConvert = $day[date('D', strtotime($date))];
+                if(array_search($dayConvert, $allDay) !== false){
+                    $getTime = array_search($dayConvert, array_column($outletSchedules, 'day'));
+                    $open = date('H:i', strtotime($outletSchedules[$getTime]['open']));
+                    $close = date('H:i', strtotime($outletSchedules[$getTime]['close']));
+                    $times = [];
+                    $tmpTime = $open;
+                    if(strtotime($date.' '.$open) > strtotime($today.' '.$currentTime)) {
+                        $times[] = $open;
+                    }
+                    while(strtotime($tmpTime) < strtotime($close)) {
+                        $timeConvert = date('H:i', strtotime("+".$processingTime." minutes", strtotime($tmpTime)));
+                        if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime)){
+                            $times[] = $timeConvert;
+                        }
+                        $tmpTime = $timeConvert;
+                    }
+                    $listDate[] = [
+                        'date' => $date,
+                        'times' => $times
+                    ];
+                    $count++;
+                }
+                $x++;
+            }
+        }else{
+            $processingTime = (int)$product['processing_time_service'];
+            $date = $today;
             $dayConvert = $day[date('D', strtotime($date))];
             if(array_search($dayConvert, $allDay) !== false){
                 $getTime = array_search($dayConvert, array_column($outletSchedules, 'day'));
@@ -2335,14 +2376,14 @@ class ApiProductController extends Controller
                     }
                     $tmpTime = $timeConvert;
                 }
-                $listDate[] = [
+                $listDate = [
                     'date' => $date,
+                    'date_convert' => MyHelper::dateFormatInd($date,true,false,true),
                     'times' => $times
                 ];
-                $count++;
             }
-            $x++;
         }
+
 
         $result = [
             'color' => $brand['color_brand'],
@@ -2361,9 +2402,11 @@ class ApiProductController extends Controller
 
     public function outletServiceAvailableHs(AvailableHs $request){
         $post = $request->json()->all();
+        $bookDate = date('Y-m-d', strtotime($post['booking_date']));
+        $bookTime = date('H:i:s', strtotime($post['booking_time']));
         $hsNotAvailable = HairstylistNotAvailable::where('id_outlet', $post['id_outlet'])
-                            ->where('booking_date', date('Y-m-d', strtotime($post['booking_date'])))
-                            ->where('booking_time', date('H:i:s', strtotime($post['booking_time'])))
+                            ->where('booking_date', $bookDate)
+                            ->where('booking_time', $bookTime)
                             ->pluck('id_user_hair_stylist')->toArray();
 
         $listHs = UserHairStylist::where('id_outlet', $post['id_outlet'])
@@ -2371,10 +2414,25 @@ class ApiProductController extends Controller
 
         $res = [];
         foreach ($listHs as $val){
-            $checkAvailable = array_search($val['id_user_hair_stylist'], $hsNotAvailable);
             $availableStatus = false;
-            if($checkAvailable === false){
-                $availableStatus = true;
+            //check schedule hs
+            $shift = HairstylistScheduleDate::leftJoin('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
+                        ->whereNotNull('approve_at')->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
+                        ->whereDate('date', $bookDate)
+                        ->first()['shift']??'';
+            if(!empty($shift)){
+                $getTimeShift = $this->getTimeShift(strtolower($shift));
+                if(!empty($getTimeShift['start']) && !empty($getTimeShift['end'])){
+                    $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
+                    $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
+                    if(strtotime($bookTime) > strtotime($shiftTimeStart) && strtotime($bookTime) < strtotime($shiftTimeEnd)){
+                        //check available in transaction
+                        $checkAvailable = array_search($val['id_user_hair_stylist'], $hsNotAvailable);
+                        if($checkAvailable === false){
+                            $availableStatus = true;
+                        }
+                    }
+                }
             }
 
             $res[] = [
@@ -2386,5 +2444,20 @@ class ApiProductController extends Controller
         }
 
         return response()->json(MyHelper::checkGet($res));
+    }
+
+    function getTimeShift($shift){
+        $data = [
+            'morning' => [
+                'start' => '09:00',
+                'end'  => '15:00'
+            ],
+            'evening' => [
+                'start' => '15:00',
+                'end'  => '21:00'
+            ]
+        ];
+
+        return $data[$shift]??[];
     }
 }

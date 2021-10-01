@@ -1,6 +1,13 @@
 <?php
 
 return [
+    'cash' => [
+        'payment_gateway' => 'Cash',
+        'payment_method'  => 'Cash',
+        'status'          => 1,
+        'logo'            => env('STORAGE_URL_API').'default_image/payment_method/ic_cash.png',
+        'text'            => 'Tunai'
+    ],
     'midtrans_gopay' => [
         'payment_gateway' => 'Midtrans',
         'payment_method'  => 'Gopay',
@@ -14,6 +21,13 @@ return [
         'status'          => 'credit_card_payment_gateway:Midtrans',
         'logo'            => env('STORAGE_URL_API').'default_image/payment_method/ic_creditcard.png',
         'text'            => 'Debit/Credit Card'
+    ],
+    'midtrans_banktransfer'    => [
+        'payment_gateway' => 'Midtrans',
+        'payment_method'  => 'Bank Transfer',
+        'status'          => 1,
+        'logo'            => env('STORAGE_URL_API').'default_image/payment_method/ic_banktransfer.png',
+        'text'            => 'Bank Transfer'
     ],
     'ipay88_cc'      => [
         'payment_gateway' => 'Ipay88',

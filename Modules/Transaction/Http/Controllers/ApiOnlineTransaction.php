@@ -43,6 +43,7 @@ use App\Http\Models\TransactionSetting;
 use Modules\Product\Entities\ProductDetail;
 use Modules\Product\Entities\ProductGlobalPrice;
 use Modules\Product\Entities\ProductSpecialPrice;
+use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\SettingFraud\Entities\FraudSetting;
 use App\Http\Models\Configs;
@@ -77,6 +78,7 @@ use Guzzle\Http\Exception\ServerErrorResponseException;
 
 use Modules\Transaction\Entities\TransactionBundlingProduct;
 use Modules\Transaction\Entities\TransactionOutletService;
+use Modules\Transaction\Entities\TransactionPaymentCash;
 use Modules\Transaction\Entities\TransactionProductService;
 use Modules\UserFeedback\Entities\UserFeedbackLog;
 
@@ -119,6 +121,7 @@ class ApiOnlineTransaction extends Controller
         $this->voucher  = "Modules\Deals\Http\Controllers\ApiDealsVoucher";
         $this->subscription  = "Modules\Subscription\Http\Controllers\ApiSubscriptionVoucher";
         $this->bundling      = "Modules\ProductBundling\Http\Controllers\ApiBundlingController";
+        $this->product      = "Modules\Product\Http\Controllers\ApiProductController";
     }
 
     public function newTransaction(NewTransaction $request) {
@@ -1035,7 +1038,7 @@ class ApiOnlineTransaction extends Controller
             'transaction_point_earned'    => $post['point'],
             'transaction_cashback_earned' => $post['cashback'],
             'trasaction_payment_type'     => $post['payment_type'],
-            'transaction_payment_status'  => $post['transaction_payment_status'],
+            'transaction_payment_status'  => ($post['payment_type'] == 'Cash'? 'Completed':$post['transaction_payment_status']),
             'membership_level'            => $post['membership_level'],
             'membership_promo_id'         => $post['membership_promo_id'],
             'latitude'                    => $post['latitude'],
@@ -1805,6 +1808,40 @@ class ApiOnlineTransaction extends Controller
 
                 }
 
+            }
+
+            if ($post['payment_type'] == 'Cash') {
+                $dataRedirect = $this->dataRedirect($insertTransaction['transaction_receipt_number'], 'trx', '1');
+
+                if($config_fraud_use_queue == 1){
+                    FraudJob::dispatch($user, $insertTransaction, 'transaction')->onConnection('fraudqueue');
+                }else {
+                    if($config_fraud_use_queue != 1){
+                        $checkFraud = app($this->setting_fraud)->checkFraudTrxOnline($user, $insertTransaction);
+                    }
+                }
+
+                /* Add daily Trx*/
+                $dataDailyTrx = [
+                    'id_transaction'    => $insertTransaction['id_transaction'],
+                    'id_outlet'         => $outlet['id_outlet'],
+                    'transaction_date'  => date('Y-m-d H:i:s', strtotime($insertTransaction['transaction_date'])),
+                    'id_user'           => $user['id']
+                ];
+                DailyTransactions::create($dataDailyTrx);
+                DB::commit();
+
+                //remove for result
+                unset($insertTransaction['user']);
+                unset($insertTransaction['outlet']);
+                unset($insertTransaction['product_transaction']);
+
+                return response()->json([
+                    'status'     => 'success',
+                    'redirect'   => false,
+                    'result'     => $insertTransaction,
+                    'additional' => $dataRedirect
+                ]);
             }
         }
 
@@ -3433,6 +3470,32 @@ class ApiOnlineTransaction extends Controller
 
             if(strtotime($currentDate) > strtotime($bookTime)){
                 $errorBookTime[] = $item['user_hair_stylist_name']." (".MyHelper::dateFormatInd($bookTime).')';
+                unset($post['item_service'][$key]);
+                continue;
+            }
+
+            //get hs schedule
+            $shift = HairstylistScheduleDate::leftJoin('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
+                    ->whereNotNull('approve_at')->where('id_user_hair_stylist', $item['id_user_hair_stylist'])
+                    ->whereDate('date', date('Y-m-d', strtotime($item['booking_date'])))
+                    ->first()['shift']??'';
+            if(empty($shift)){
+                $errorHsNotAvailable[] = $item['user_hair_stylist_name']." (".MyHelper::dateFormatInd($bookTime).')';
+                unset($post['item_service'][$key]);
+                continue;
+            }
+
+            $getTimeShift = app($this->product)->getTimeShift(strtolower($shift));
+            if(empty($getTimeShift['start']) && empty($getTimeShift['end'])){
+                $errorHsNotAvailable[] = $item['user_hair_stylist_name']." (".MyHelper::dateFormatInd($bookTime).')';
+                unset($post['item_service'][$key]);
+                continue;
+            }
+
+            $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
+            $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
+            if((strtotime($bookTime) > strtotime($shiftTimeStart) && strtotime($bookTime) < strtotime($shiftTimeEnd)) === false){
+                $errorHsNotAvailable[] = $item['user_hair_stylist_name']." (".MyHelper::dateFormatInd($bookTime).')';
                 unset($post['item_service'][$key]);
                 continue;
             }

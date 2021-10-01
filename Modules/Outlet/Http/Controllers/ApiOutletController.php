@@ -167,6 +167,21 @@ class ApiOutletController extends Controller
             $data['delivery_outlet'] = $post['delivery_outlet'];
         }
 
+        if(!empty($post['outlet_image'])){
+            $upload = MyHelper::uploadPhotoStrict($post['outlet_image'], 'img/outlet/', 720, 360, $data['outlet_code']);
+
+            if (isset($upload['status']) && $upload['status'] == "success") {
+                $data['outlet_image'] = $upload['path'];
+            }
+            else {
+                $data['outlet_image'] = null;
+            }
+        }
+
+        if (isset($post['outlet_description'])) {
+            $data['outlet_description'] = $post['outlet_description'];
+        }
+
         return $data;
     }
 
@@ -2047,6 +2062,7 @@ class ApiOutletController extends Controller
         foreach ($brands??[[]] as $brand) {
             $outlets = Outlet::select('id_outlet','outlets.outlet_code as code',
                 'outlets.outlet_name as name',
+                'outlets.outlet_description as description',
                 'outlets.outlet_address as address',
                 'cities.city_name as city',
                 'outlets.outlet_phone as phone',
@@ -2187,6 +2203,7 @@ class ApiOutletController extends Controller
                         $insert = [
                             'outlet_code' => $value['code']??'',
                             'outlet_name' => $value['name']??'',
+                            'outlet_description' => $value['description']??'',
                             'outlet_address' => $value['address']??'',
                             'outlet_postal_code' => $value['postal_code']??'',
                             'outlet_phone' => $value['phone']??'',

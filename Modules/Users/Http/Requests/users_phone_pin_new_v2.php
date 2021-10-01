@@ -23,14 +23,14 @@ class users_phone_pin_new_v2 extends FormRequest
      *
      * @return array
      */
-	public function rules()
-	{
-		return [
-			'phone'			=> 'required|string|max:18',
-			'otp'		=> 'required|string|digits:6',
-			'pin'		=> 'required|string|digits:6',
-			'device_id'		=> 'max:200',
-			'device_token'	=> 'max:225'
+    public function rules()
+    {
+        return [
+            'phone'			=> 'required|string|max:18',
+            'pin_old'		=> 'required|string|digits:6',
+            'pin_new'		=> 'required|string|digits:6',
+            'device_id'		=> 'max:200',
+            'device_token'	=> 'max:225'
         ];
     }
 
@@ -39,7 +39,7 @@ class users_phone_pin_new_v2 extends FormRequest
         throw new HttpResponseException(response()->json(['status' => 'fail', 'messages'  => $validator->errors()->all()], 200));
     }
 
-        protected function validationData()
+    protected function validationData()
     {
         return $this->json()->all();
     }

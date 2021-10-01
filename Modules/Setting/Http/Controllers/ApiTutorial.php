@@ -87,7 +87,7 @@ class ApiTutorial extends Controller
         if (!$data) {
             return response()->json([
                 'status'    => 'fail',
-                'messages'  => 'Tutorial belum di setup'
+                'messages'  => ['Tutorial belum di setup']
             ]);
         }
 
@@ -118,7 +118,7 @@ class ApiTutorial extends Controller
             } else {
                 return response()->json([
                     'status'    => 'fail',
-                    'messages'  => 'Tutorial belum di setup'
+                    'messages'  => ['Tutorial belum di setup']
                 ]);
             }
             

@@ -83,10 +83,6 @@ class ApiUserV2 extends Controller
         }
 
         if($data){
-            $result = [
-                'challenge_key' => $data[0]['challenge_key']
-            ];
-
             if ($data[0]['phone_verified'] == 0) {
                 $result['register'] = true;
                 $result['confirmation_message'] = $msg_check;
@@ -97,6 +93,7 @@ class ApiUserV2 extends Controller
                 ]);
             }else{
                 $result['register'] = false;
+                $result['challenge_key'] = $data[0]['challenge_key'];
                 $result['is_suspended'] = $data[0]['is_suspended'];
                 return response()->json([
                     'status' => 'success',
@@ -395,8 +392,8 @@ class ApiUserV2 extends Controller
             ->get()
             ->toArray();
         if ($data) {
-            if (Auth::attempt(['phone' => $phone, 'password' => $request->json('otp')])) {
-                $pin     = bcrypt($request->json('pin'));
+            if (Auth::attempt(['phone' => $phone, 'password' => $request->json('pin_old')])) {
+                $pin     = bcrypt($request->json('pin_new'));
                 $update = User::where('id', '=', $data[0]['id'])->update(['password' => $pin, 'phone_verified' => '1', 'pin_changed' => '1']);
                 if (\Module::collections()->has('Autocrm')) {
                     if ($data[0]['first_pin_change'] < 1) {

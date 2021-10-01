@@ -68,6 +68,17 @@ class ApiHairStylistController extends Controller
         ];
 
         $create = UserHairStylist::create($dataCreate);
+        if($create){
+            $autocrm = app($this->autocrm)->SendAutoCRM(
+                'Register Candidate Hair Stylist',
+                $create['phone_number'],
+                [
+                    'fullname' => $create['fullname'],
+                    'phone_number' => $create['phone_number'],
+                    'email' => $create['email']
+                ], null, false, false, 'hairstylist'
+            );
+        }
         return response()->json(MyHelper::checkCreate($create));
     }
 
@@ -342,15 +353,43 @@ class ApiHairStylistController extends Controller
                     return response()->json(['status' => 'fail', 'messages' => ['Phone Number already use with another hairstylist']]);
                 }
 
+                if(isset($post['auto_generate_pin'])){
+                    $pin = MyHelper::createrandom(6, 'Angka');
+                }else{
+                    $pin = $post['pin'];
+                }
+
                 unset($post['update_type']);
+                unset($post['pin']);
+                unset($post['pin2']);
+                unset($post['auto_generate_pin']);
+                unset($post['action_type']);
                 $data = $post;
+                $data['password'] = bcrypt($pin);
                 $data['birthdate'] = date('Y-m-d', strtotime($data['birthdate']));
                 $data['join_date'] = date('Y-m-d H:i:s');
                 $data['approve_by'] = $request->user()->id;
                 $data['user_hair_stylist_status'] = 'Active';
                 $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update($data);
+
+                $autocrm = app($this->autocrm)->SendAutoCRM(
+                    'Approve Candidate Hair Stylist',
+                    $data['phone_number'],
+                    [
+                        'fullname' => $data['fullname'],
+                        'phone_number' => $data['phone_number'],
+                        'email' => $data['email'],
+                        'pin_hair_stylist' => $pin
+                    ], null, false, false, 'hairstylist'
+                );
+
             }else{
-                $checkPhone = UserHairStylist::where('phone_number', $post['phone_number'])->whereNotIn('id_user_hair_stylist', [$post['id_user_hair_stylist']])->first();
+                unset($post['action_type']);
+                $checkPhone = UserHairStylist::where(function ($q) use ($post){
+                            $q->where('phone_number', $post['phone_number'])
+                                ->orWhere('email', $post['email']);
+                        })
+                        ->whereNotIn('id_user_hair_stylist', [$post['id_user_hair_stylist']])->first();
 
                 if(!empty($checkPhone)){
                     return response()->json(['status' => 'fail', 'messages' => ['Phone Number already use with another hairstylist']]);

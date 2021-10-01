@@ -12,6 +12,8 @@ use App\Http\Models\Transaction;
 use Modules\UserRating\Entities\UserRating;
 use Modules\UserRating\Entities\RatingOption;
 
+use Modules\Transaction\Entities\TransactionProductService;
+
 use App\Lib\MyHelper;
 
 use Modules\UserRating\Entities\UserRatingLog;
@@ -138,6 +140,22 @@ class ApiUserRatingController extends Controller
                 'messages'=>['Transaction not found']
             ];
         }
+
+        $id_outlet = $trx->id_outlet;
+        $id_user_hair_stylist = null;
+        if (isset($post['id_user_hair_stylist'])) {
+			$trxService = TransactionProductService::where('id_transaction', $id)->where('id_user_hair_stylist', $post['id_user_hair_stylist'])->first();
+			if (!$trxService) {
+				return [
+	                'status'=>'fail',
+	                'messages'=>['Hairstylist not found']
+	            ];
+			}
+
+			$id_user_hair_stylist = $trxService->id_user_hair_stylist;
+			$id_outlet = null;
+        }
+
         $max_rating_value = Setting::select('value')->where('key','response_max_rating_value')->pluck('value')->first()?:2;
         if($post['rating_value'] <= $max_rating_value){
             $trx->load('outlet_name');
@@ -152,19 +170,34 @@ class ApiUserRatingController extends Controller
             ];
             app("Modules\Autocrm\Http\Controllers\ApiAutoCrm")->SendAutoCRM('User Rating', $user->phone, $variables,null,true);
         }
+
         $insert = [
             'id_transaction' => $trx->id_transaction,
             'id_user' => $request->user()->id,
+            'id_outlet' => $id_outlet,
+            'id_user_hair_stylist' => $id_user_hair_stylist,
             'rating_value' => $post['rating_value'],
             'suggestion' => $post['suggestion']??'',
             'option_question' => $post['option_question'],
             'option_value' => implode(',',array_map(function($var){return trim($var,'"');},$post['option_value']??[]))
         ];
-        $create = UserRating::updateOrCreate(['id_transaction'=>$trx->id_transaction],$insert);
-        UserRatingLog::where(['id_user' => $request->user()->id, 'id_transaction' => $id])->delete();
+        $create = UserRating::updateOrCreate([
+        	'id_transaction' => $id,
+        	'id_outlet'	=> $id_outlet,
+        	'id_user_hair_stylist' => $id_user_hair_stylist
+        ],$insert);
+
+        UserRatingLog::where([
+        	'id_user' => $request->user()->id, 
+        	'id_transaction' => $id,
+        	'id_outlet'	=> $id_outlet,
+        	'id_user_hair_stylist' => $id_user_hair_stylist
+        ])->delete();
+
         if($create){
             Transaction::where('id_transaction',$trx->id_transaction)->update(['show_rate_popup'=>0]);
         }
+
         return MyHelper::checkCreate($create);
     }
 

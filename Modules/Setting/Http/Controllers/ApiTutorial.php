@@ -79,15 +79,12 @@ class ApiTutorial extends Controller
     {
         $post = $request->json()->all();
 
-        if(!isset($post['key'])){
-            $post['key'] = 'intro_home';
-        }
-        $data = Setting::where('key', $post['key'])->first();
+        $data = Setting::where('key', 'intro_first')->first();
         
         if (!$data) {
             return response()->json([
                 'status'    => 'fail',
-                'messages'  => 'Tutorial belum di setup'
+                'messages'  => ['Tutorial belum di setup']
             ]);
         }
 
@@ -111,14 +108,14 @@ class ApiTutorial extends Controller
 
         if ($user['status_new_user'] == 1) {
 
-            $data = Setting::where('key', $post['key'])->first();
+            $data = Setting::where('key', 'intro_home')->first();
     
             if ($data) {
                 User::where('id', $user['id'])->update(['status_new_user' => 0]);
             } else {
                 return response()->json([
                     'status'    => 'fail',
-                    'messages'  => 'Tutorial belum di setup'
+                    'messages'  => ['Tutorial belum di setup']
                 ]);
             }
             

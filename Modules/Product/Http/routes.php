@@ -132,11 +132,16 @@ Route::group(['prefix' => 'api/product','middleware' => ['log_activities','auth:
     });
 });
 
-Route::group(['prefix' => 'api/outlet-service/product','middleware' => ['log_activities','auth:api'], 'namespace' => 'Modules\Product\Http\Controllers'], function()
+Route::group(['prefix' => 'api/outlet-service/product','middleware' => ['log_activities','auth:api', 'scopes:apps'], 'namespace' => 'Modules\Product\Http\Controllers'], function()
 {
-    Route::group(['middleware' => ['scopes:apps,web-apps']], function() {
-        Route::post('list', 'ApiProductController@outletServiceListProduct');
-        Route::post('detail-service', 'ApiProductController@outletServiceDetailProductService');
-        Route::post('available-hs', 'ApiProductController@outletServiceAvailableHs');
-    });
+    Route::post('list', 'ApiProductController@outletServiceListProduct');
+    Route::post('detail-service', 'ApiProductController@outletServiceDetailProductService');
+    Route::post('available-hs', 'ApiProductController@outletServiceAvailableHs');
+});
+
+Route::group(['prefix' => 'api/webapp/outlet-service/product','middleware' => ['log_activities','auth_client', 'scopes:web-apps'], 'namespace' => 'Modules\Product\Http\Controllers'], function()
+{
+    Route::post('list', 'ApiProductController@outletServiceListProduct');
+    Route::post('detail-service', 'ApiProductController@outletServiceDetailProductService');
+    Route::post('available-hs', 'ApiProductController@outletServiceAvailableHs');
 });

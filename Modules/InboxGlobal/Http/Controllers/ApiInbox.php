@@ -72,7 +72,6 @@ class ApiInbox extends Controller
 				$content = [];
 				$content['type'] 		 = 'global';
                 $content['inbox_from_title']   = '';
-                $content['inbox_from_color']  = '';
 				$content['id_inbox'] 	 = $global['id_inbox_global'];
 				$content['subject'] 	 = app($this->autocrm)->TextReplace($global['inbox_global_subject'], $user['phone']);
 				$content['clickto'] 	 = $global['inbox_global_clickto'];
@@ -134,13 +133,11 @@ class ApiInbox extends Controller
 		}
 
 		$privates = UserInbox::where('id_user','=',$user['id'])->whereDate('inboxes_send_at','>',$max_date)->get()->toArray();
-        $menuHome = (array)json_decode(Setting::where('key', 'text_menu_home')->first()->value_text??[]);//for get color
 
 		foreach($privates as $private){
 			$content = [];
 			$content['type'] 		 = 'private';
             $content['inbox_from_title']   = '';
-            $content['inbox_from_color']  = '';
 			$content['id_inbox'] 	 = $private['id_user_inboxes'];
 			$content['subject'] 	 = $private['inboxes_subject'];
 			$content['clickto'] 	 = $private['inboxes_clickto'];
@@ -153,10 +150,10 @@ class ApiInbox extends Controller
 
 			if(!empty($private['inboxes_id_reference']) && $private['inboxes_clickto'] == 'History Transaction'){
 			    $arrTransactionFrom = [
-			        'outlet-service' => ['id_menu' => 'menu1', 'title' => 'Outlet'],
-                    'home-service' => ['id_menu' => 'menu2', 'title' => 'Home Service'],
-                    'shop' => ['id_menu' => 'menu3', 'title' => 'Shop'],
-                    'academy' => ['id_menu' => 'menu4', 'title' => 'Academy']
+			        'outlet-service' => 'Outlet',
+                    'home-service' => 'Home Service',
+                    'shop' => 'Shop',
+                    'academy' => 'Academy'
                 ];
                 $dtTrx = Transaction::leftJoin('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
                                     ->leftJoin('brands', 'transaction_products.id_brand', 'brands.id_brand')
@@ -166,10 +163,8 @@ class ApiInbox extends Controller
                     if($dtTrx['transaction_from'] == 'outlet-service'){
                         $content['inbox_from_title']   = $dtTrx['name_brand'];
                     }else{
-                        $content['inbox_from_title']   = $arrTransactionFrom[$dtTrx['transaction_from']]['title']??'';
+                        $content['inbox_from_title']   = $arrTransactionFrom[$dtTrx['transaction_from']]??'';
                     }
-
-                    $content['inbox_from_color']  = $menuHome[$arrTransactionFrom[$dtTrx['transaction_from']]['id_menu']??'']->text_color??'';
                 }
             }
 

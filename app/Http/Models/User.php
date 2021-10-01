@@ -87,6 +87,7 @@ class User extends Authenticatable
 		'new_login',
 		'pin_changed',
 		'first_pin_change',
+        'status_new_user',
 		'celebrate',
 		'job',
 		'address',

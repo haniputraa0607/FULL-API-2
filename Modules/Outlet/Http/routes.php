@@ -108,10 +108,13 @@ Route::group(['prefix' => 'api/outlet', 'middleware' => ['log_activities', 'auth
 });
 
 /*outlet service*/
-Route::group(['prefix' => 'api/outlet-service', 'middleware' => ['log_activities', 'auth:api', 'user_agent'], 'namespace' => 'Modules\Outlet\Http\Controllers'], function()
+Route::group(['prefix' => 'api/outlet-service', 'middleware' => ['scopes:apps', 'log_activities', 'auth:api', 'user_agent'], 'namespace' => 'Modules\Outlet\Http\Controllers'], function()
 {
-    Route::group(['middleware' => ['scopes:apps,web-apps']], function() {
-        Route::any('nearme', 'ApiOutletServiseController@getListNearOutlet');
-        Route::post('detail', 'ApiOutletServiseController@detailOutlet');
-    });
+    Route::any('nearme', 'ApiOutletServiseController@getListNearOutlet');
+    Route::post('detail', 'ApiOutletServiseController@detailOutlet');
+});
+
+Route::group(['prefix' => 'api/webapp/outlet-service', 'middleware' => ['scopes:web-apps', 'log_activities', 'auth_client', 'user_agent'], 'namespace' => 'Modules\Outlet\Http\Controllers'], function()
+{
+    Route::post('detail', 'ApiOutletServiseController@detailOutlet');
 });

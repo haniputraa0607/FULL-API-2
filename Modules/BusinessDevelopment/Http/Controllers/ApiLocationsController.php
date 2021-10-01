@@ -231,11 +231,32 @@ class ApiLocationsController extends Controller
             if (isset($post['end_date'])) {
                 $data_update['end_date'] = $post['end_date'];
             }
+            if (isset($post['location_large'])) {
+                $data_update['location_large'] = $post['location_large'];
+            }
+            if (isset($post['rental_price'])) {
+                $data_update['rental_price'] = $post['rental_price'];
+            }
+            if (isset($post['service_charge'])) {
+                $data_update['service_charge'] = $post['service_charge'];
+            }
+            if (isset($post['promotion_levy'])) {
+                $data_update['promotion_levy'] = $post['promotion_levy'];
+            }
+            if (isset($post['renovation_cost'])) {
+                $data_update['renovation_cost'] = $post['renovation_cost'];
+            }
+            if (isset($post['partnership_fee'])) {
+                $data_update['partnership_fee'] = $post['partnership_fee'];
+            }
+            if (isset($post['income'])) {
+                $data_update['income'] = $post['income'];
+            }
             $old_status = Location::where('id_location', $post['id_location'])->get('status')[0]['status'];
             $update = Location::where('id_location', $post['id_location'])->update($data_update);
             if(!$update){
                 DB::rollback();
-                return response()->json(['status' => 'fail', 'messages' => ['Failed update product variant']]);
+                return response()->json(['status' => 'fail', 'messages' => ['Failed update location']]);
             }
             DB::commit();
             $new_id_partner = Location::where('id_location', $post['id_location'])->get('id_partner')[0]['id_partner'];

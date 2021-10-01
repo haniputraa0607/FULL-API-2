@@ -17,6 +17,17 @@ class Location extends Model
         'pic_name',
         'pic_contact',
         'id_partner',
+        'start_date',
+        'end_date',
+        'status',
+        'location_large',
+        'rental_price',
+        'service_charge',
+        'promotion_levy',
+        'renovation_costs',
+        'partnership_fee',
+        'income',
+
     ];
     public function location_partner(){
         return $this->belongsTo(Partner::class, 'id_partner');

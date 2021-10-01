@@ -7,6 +7,13 @@ Route::group(['middleware' => ['auth:api'],'prefix' => 'api/transaction', 'names
     Route::any('trigger-reversal', 'ApiOnlineTransaction@triggerReversal')->middleware('scopes:be');
 });
 
+Route::group(['middleware' => ['auth:api', 'scopes:web-apps'],'prefix' => 'api/webapp/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
+    Route::any('available-payment', 'ApiOnlineTransaction@availablePayment');
+    Route::post('check', 'ApiOnlineTransaction@checkTransaction');
+    Route::post('new', 'ApiOnlineTransaction@newTransaction')->middleware('decrypt_pin:pin,request');
+    Route::post('confirm', 'ApiConfirm@confirmTransaction');
+});
+
 Route::any('api/transaction/update-gosend', 'Modules\Transaction\Http\Controllers\ApiGosendController@updateStatus');
 Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scopes:be'], 'prefix' => 'api/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
     Route::group(['prefix' => 'invalid-flag'], function () {

@@ -33,7 +33,7 @@ class ApiPartnersController extends Controller
     {
         $post = $request->all();
         if (isset($post['status']) && $post['status'] == 'Candidate') {
-            $partner = Partner::with(['partner_bank_account','partner_locations','partner_step'])->where('status',$post['status']);
+            $partner = Partner::with(['partner_bank_account','partner_locations','partner_step'])->where('status',$post['status'])->orWhere('status','Rejected');
         } elseif(isset($post['status']) && $post['status'] == 'Active') {
             $partner = Partner::with(['partner_bank_account','partner_locations','partner_step'])->where('status','Active')->orWhere('status','Inactive');
         } else {

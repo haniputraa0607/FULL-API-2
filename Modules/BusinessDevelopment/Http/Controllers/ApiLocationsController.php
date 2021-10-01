@@ -8,6 +8,7 @@ use Illuminate\Routing\Controller;
 use Modules\BusinessDevelopment\Entities\Location;
 use App\Lib\MyHelper;
 use DB;
+use Modules\Brand\Entities\Brand;
 use Modules\BusinessDevelopment\Entities\Partner;
 
 class ApiLocationsController extends Controller
@@ -252,6 +253,9 @@ class ApiLocationsController extends Controller
             if (isset($post['income'])) {
                 $data_update['income'] = $post['income'];
             }
+            if (isset($post['id_brand'])) {
+                $data_update['id_brand'] = $post['id_brand'];
+            }
             $old_status = Location::where('id_location', $post['id_location'])->get('status')[0]['status'];
             $update = Location::where('id_location', $post['id_location'])->update($data_update);
             if(!$update){
@@ -304,4 +308,14 @@ class ApiLocationsController extends Controller
         $delete = Location::where('id_location', $id_location)->delete();
         return MyHelper::checkDelete($delete);
     }
+
+
+    public function brandsList(Request $request)
+    {
+        $post = $request->json()->all();
+        $brands = Brand::select('id_brand', 'name_brand', 'code_brand')->get()->toArray();
+        return response()->json(MyHelper::checkGet($brands));
+    }
+
+
 }

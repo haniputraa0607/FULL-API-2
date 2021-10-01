@@ -514,6 +514,7 @@ class ApiMitraOutletService extends Controller
             //remove hs from table not avilable
             HairstylistNotAvailable::where('id_transaction_product_service', $service['id_transaction_product_service'])->delete();
 
+            // log rating outlet
             UserRatingLog::updateOrCreate([
                 'id_user' => $trx->id_user,
                 'id_transaction' => $trx->id_transaction,
@@ -523,6 +524,7 @@ class ApiMitraOutletService extends Controller
                 'last_popup' => date('Y-m-d H:i:s', time() - MyHelper::setting('popup_min_interval', 'value', 900))
             ]);
 
+            // log rating hairstylist
             UserRatingLog::updateOrCreate([
                 'id_user' => $trx->id_user,
                 'id_transaction' => $trx->id_transaction,
@@ -531,6 +533,8 @@ class ApiMitraOutletService extends Controller
                 'refuse_count' => 0,
                 'last_popup' => date('Y-m-d H:i:s', time() - MyHelper::setting('popup_min_interval', 'value', 900))
             ]);
+
+            $trx->update(['show_rate_popup' => '1']);
 
 			DB::commit();
     	} catch (\Exception $e) {

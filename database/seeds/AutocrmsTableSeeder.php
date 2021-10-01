@@ -2698,7 +2698,7 @@ Message :
                     'autocrm_forward_email' => NULL,
                     'autocrm_forward_email_subject' => NULL,
                     'autocrm_forward_email_content' => NULL,
-                    'custom_text_replace'=>'%fullname%;%email%;%phone_number%;%pin_hair_stylis%;%url%;',
+                    'custom_text_replace'=>'%fullname%;%email%;%phone_number%;%pin_hair_stylist%;%url%;',
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s')
                 ),

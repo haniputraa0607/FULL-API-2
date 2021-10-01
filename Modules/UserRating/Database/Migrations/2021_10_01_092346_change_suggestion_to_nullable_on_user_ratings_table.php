@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
 
-class AlterIdTransactionUniqueOnUserRatingsTable extends Migration
+class ChangeSuggestionToNullableOnUserRatingsTable extends Migration
 {
     /**
      * Run the migrations.
@@ -14,7 +14,7 @@ class AlterIdTransactionUniqueOnUserRatingsTable extends Migration
     public function up()
     {
         Schema::table('user_ratings', function (Blueprint $table) {
-            $table->unsignedInteger('id_transaction')->unique()->change();
+        	$table->string('suggestion')->nullable(true)->change();
         });
     }
 
@@ -26,7 +26,7 @@ class AlterIdTransactionUniqueOnUserRatingsTable extends Migration
     public function down()
     {
         Schema::table('user_ratings', function (Blueprint $table) {
-            $table->unsignedInteger('id_transaction')->change();
+        	$table->string('suggestion')->nullable(false)->change();
         });
     }
 }

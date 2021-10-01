@@ -337,7 +337,7 @@ class ApiConfirm extends Controller
                     'transaction_details' => $transaction_details,
                     'customer_details'    => $dataUser,
                 );
-                $connectMidtrans = Midtrans::token($check['transaction_receipt_number'], $countGrandTotal, $dataUser, $ship=null, $dataDetailProduct, 'trx', $check['transaction_receipt_number']);
+                $connectMidtrans = Midtrans::token($check['transaction_receipt_number'], $countGrandTotal, $dataUser, $ship=null, $dataDetailProduct, 'trx', $check['transaction_receipt_number'], $post['payment_detail']);
             }
 
             if (empty($connectMidtrans['token'])) {
@@ -366,6 +366,10 @@ class ApiConfirm extends Controller
             ];
 
             switch (strtolower($post['payment_detail']??'')) {
+                case 'bank transfer':
+                    $dataNotifMidtrans['payment_type'] = 'Bank Transfer';
+                    break;
+
                 case 'credit card':
                     $dataNotifMidtrans['payment_type'] = 'Credit Card';
                     break;

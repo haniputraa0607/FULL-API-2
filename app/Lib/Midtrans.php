@@ -46,7 +46,7 @@ class Midtrans {
         // return 'Basic ' . base64_encode(env('MIDTRANS_SANDBOX_BEARER'));
     }
     
-    static function token($receipt, $grandTotal, $user=null, $shipping=null, $product=null, $type=null, $id=null) {
+    static function token($receipt, $grandTotal, $user=null, $shipping=null, $product=null, $type=null, $id=null, $payment_detail = null) {
         // $url    = env('MIDTRANS_PRO');
         $url    = env('MIDTRANS_SANDBOX');
 
@@ -71,20 +71,24 @@ class Midtrans {
             $dataMidtrans['item_details'] = $product;
         }
 
-        $dataMidtrans['credit_card'] = [
-            'secure' => true,
-        ];
-
-        if(!is_null($type) && !is_null($id)){
-            $dataMidtrans['gopay'] = [
-                'enable_callback' => true,
-                'callback_url' => env('MIDTRANS_CALLBACK').'?type='.$type.'&order_id='.urlencode($id),
-            ];
+        if($payment_detail == 'Bank Transfer'){
+            $dataMidtrans['enabled_payments'] = ["permata_va","bca_va", "bni_va", "bri_va", "other_va"];
         }else{
-            $dataMidtrans['gopay'] = [
-                'enable_callback' => true,
-                'callback_url' => env('MIDTRANS_CALLBACK').'?order_id='.urlencode($receipt),
+            $dataMidtrans['credit_card'] = [
+                'secure' => true,
             ];
+
+            if(!is_null($type) && !is_null($id)){
+                $dataMidtrans['gopay'] = [
+                    'enable_callback' => true,
+                    'callback_url' => env('MIDTRANS_CALLBACK').'?type='.$type.'&order_id='.urlencode($id),
+                ];
+            }else{
+                $dataMidtrans['gopay'] = [
+                    'enable_callback' => true,
+                    'callback_url' => env('MIDTRANS_CALLBACK').'?order_id='.urlencode($receipt),
+                ];
+            }
         }
 
         $token = MyHelper::post($url, Self::bearer(), $dataMidtrans);

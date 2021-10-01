@@ -26,11 +26,10 @@ class ConfirmPayment extends FormRequest
             'payment_time'             => 'required_if:payment_type,Manual|date_format:H:i:s',
             'payment_bank'             => 'required_if:payment_type,Manual|string',
             'payment_method'           => 'required_if:payment_type,Manual|string',
-            'payment_method'           => 'required_if:payment_type,Manual|string',
             'payment_account_number'   => 'required_if:payment_type,Manual|numeric',
             'payment_account_name'     => 'required_if:payment_type,Manual|string',
             'payment_receipt_image'    => 'required_if:payment_type,Manual',
-            'payment_detail'           => 'nullable|sometimes|string'
+            'payment_detail'           => 'required|sometimes|string'
         ];
     }
 

@@ -9,6 +9,7 @@ use Illuminate\Routing\Controller;
 use App\Http\Models\Outlet;
 use App\Http\Models\Setting;
 use App\Http\Models\Transaction;
+use App\Http\Models\TransactionProduct;
 use Modules\UserRating\Entities\UserRating;
 use Modules\UserRating\Entities\RatingOption;
 
@@ -17,6 +18,7 @@ use Modules\Transaction\Entities\TransactionProductService;
 use App\Lib\MyHelper;
 
 use Modules\UserRating\Entities\UserRatingLog;
+use Modules\OutletApp\Http\Controllers\ApiOutletApp;
 
 class ApiUserRatingController extends Controller
 {
@@ -213,7 +215,15 @@ class ApiUserRatingController extends Controller
         	'id_user_hair_stylist' => $id_user_hair_stylist
         ])->delete();
 
-        if($create){
+        $unrated = UserRatingLog::where('id_transaction',$trx->id_transaction)->first();
+        if(!$unrated){
+        	$uncompleteTrx = TransactionProduct::where('id_transaction', $trx->id_transaction)
+	    					->whereNull('transaction_product_completed_at')
+	    					->first();
+
+        	if (!$uncompleteTrx) {
+        		(new ApiOutletApp)->insertUserCashback($trx);
+        	}
             Transaction::where('id_transaction',$trx->id_transaction)->update(['show_rate_popup'=>0]);
         }
 

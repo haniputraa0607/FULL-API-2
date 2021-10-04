@@ -716,6 +716,12 @@ class ApiHome extends Controller
             $retUser['birthday'] = "";
         }
 
+        if($retUser['created_at']){
+            $retUser['created_at']=date("d F Y", strtotime($retUser['created_at']));
+        }else{
+            $retUser['created_at'] = "";
+        }
+
         $retUser['job'] = ($retUser['job'] === NULL ? '' : $retUser['job']);
         $retUser['gender'] = ($retUser['gender'] === NULL ? '' : $retUser['gender']);
         $retUser['id_city'] = ($retUser['id_city'] === NULL ? '' : $retUser['id_city']);
@@ -728,7 +734,7 @@ class ApiHome extends Controller
                 $it="";
             }
         });
-        $hidden=['password_k','created_at','updated_at','provider','phone_verified','email_unsubscribed','level','points','rank','android_device','ios_device','is_suspended','balance','subtotal_transaction','count_transaction','id_membership','relationship'];
+        $hidden=['password_k','updated_at','provider','phone_verified','email_unsubscribed','level','points','rank','android_device','ios_device','is_suspended','balance','subtotal_transaction','count_transaction','id_membership','relationship'];
         foreach ($hidden as $hide) {
             unset($retUser[$hide]);
         }

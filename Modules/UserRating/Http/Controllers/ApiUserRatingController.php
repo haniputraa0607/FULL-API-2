@@ -436,7 +436,6 @@ class ApiUserRatingController extends Controller
 	        $ratingList[] = $rating;
         }
 
-        $transaction->load('outlet.brands');
         $result = $ratingList;
         return MyHelper::checkGet($result);
     }

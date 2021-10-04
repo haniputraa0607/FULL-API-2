@@ -51,6 +51,8 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
         	Route::post('extend', 'ApiMitraOutletService@extendService');
         	Route::post('complete', 'ApiMitraOutletService@completeService');
         	Route::get('box', 'ApiMitraOutletService@availableBox');
+            Route::post('payment-cash/detail', 'ApiMitraOutletService@paymentCashDetail');
+            Route::post('payment-cash/completed', 'ApiMitraOutletService@paymentCashCompleted');
     	});    	
 	});
 });

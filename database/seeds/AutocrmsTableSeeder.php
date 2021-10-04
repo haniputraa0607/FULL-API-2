@@ -2698,7 +2698,7 @@ Message :
                     'autocrm_forward_email' => NULL,
                     'autocrm_forward_email_subject' => NULL,
                     'autocrm_forward_email_content' => NULL,
-                    'custom_text_replace'=>'%fullname%;%email%;%phone_number%;%pin_hair_stylis%;%url%;',
+                    'custom_text_replace'=>'%fullname%;%email%;%phone_number%;%pin_hair_stylist%;',
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s')
                 ),
@@ -2762,6 +2762,36 @@ Message :
 	                'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s')
 	            ),
+            87 =>
+                array (
+                    'id_autocrm' => 88,
+                    'autocrm_type' => 'Response',
+                    'autocrm_trigger' => 'Daily',
+                    'autocrm_cron_reference' => NULL,
+                    'autocrm_title' => 'Reject Candidate Partner',
+                    'autocrm_email_toogle' => '1',
+                    'autocrm_sms_toogle' => '1',
+                    'autocrm_push_toogle' => '0',
+                    'autocrm_inbox_toogle' => '0',
+                    'autocrm_forward_toogle' => '1',
+                    'autocrm_email_subject' => 'Rejected Candidate Partner',
+                    'autocrm_email_content' => 'Hello %name%, we apologize that your application to become an ixobox partner has been rejected',
+                    'autocrm_sms_content' => 'Hello %name%, we apologize that your application to become an ixobox partner has been rejected',
+                    'autocrm_push_subject' => NULL,
+                    'autocrm_push_content' => NULL,
+                    'autocrm_push_image' => NULL,
+                    'autocrm_push_clickto' => NULL,
+                    'autocrm_push_link' => NULL,
+                    'autocrm_push_id_reference' => NULL,
+                    'autocrm_inbox_subject' => NULL,
+                    'autocrm_inbox_content' => NULL,
+                    'autocrm_forward_email' => NULL,
+                    'autocrm_forward_email_subject' => 'Candidate partner has been rejected',
+                    'autocrm_forward_email_content' => 'Hai, %name% has been rejected as a partner',
+                    'custom_text_replace'=>'%pin%;',
+                    'created_at' => '2021-09-16 15:21:17',
+                    'updated_at' => '2021-09-16 15:21:17',
+                ),
         ));
     }
 }

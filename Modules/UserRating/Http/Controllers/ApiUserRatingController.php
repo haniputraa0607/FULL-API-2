@@ -267,146 +267,180 @@ class ApiUserRatingController extends Controller
      */
     public function getDetail(Request $request) {
         $post = $request->json()->all();
-        // rating item
         $user = clone $request->user();
-        if($post['id']??false){
+
+        if (isset($post['id'])) {
             $id_transaction = $post['id'];
-            $rn = $id_trx[0]??'';
-            $transaction = Transaction::select('id_transaction','transaction_receipt_number','transaction_date','id_outlet')->with(['outlet'=>function($query){
-                $query->select('outlet_name','id_outlet');
-            }])
-            ->where(['id_transaction'=>$id_transaction,'id_user'=>$user->id])
-            ->find($id_transaction);
+            $user->load('log_popup_user_rating');
+
+            $transaction = Transaction::find($id_transaction);
             if(!$transaction){
                 return [
                     'status' => 'fail',
                     'messages' => ['Transaction not found']
                 ];
             }
-        }else{
-            $user->load('log_popup_user_rating');
+
+	        $logRatings = UserRatingLog::where('id_transaction', $id_transaction)
+						->where('id_user', $user->id)
+						->with('transaction.outlet.brands')
+						->get();
+
+        } else {
+            $user->load('log_popup_user_rating.transaction.outlet.brands');
             $log_popup_user_ratings = $user->log_popup_user_rating;
             $log_popup_user_rating = null;
-            $interval =(Setting::where('key','popup_min_interval')->pluck('value')->first()?:900);
-            // dd($log_popup_user_ratings->toArray());
-            foreach($log_popup_user_ratings as $log_pop){
-                if(
-                    $log_pop->refuse_count>=(Setting::where('key','popup_max_refuse')->pluck('value')->first()?:3) ||
-                    strtotime($log_pop->last_popup)+$interval>time()
-                ){
-                    continue;
-                }
-                if($log_popup_user_rating && $log_popup_user_rating->last_popup < $log_pop->last_popup) {
-                    continue;
-                }
-                $log_popup_user_rating = $log_pop;
-            }
+            $logRatings = [];
+            $interval = (Setting::where('key','popup_min_interval')->pluck('value')->first()?:900);
+            $max_date = date('Y-m-d',time() - ((Setting::select('value')->where('key','popup_max_days')->pluck('value')->first()?:3) * 86400));
+            $maxList = Setting::where('key','popup_max_list')->pluck('value')->first() ?: 5;
 
-            if (!$log_popup_user_rating) {
+            if (empty($log_popup_user_ratings)) {
                 return MyHelper::checkGet([]);
             }
-            $max_date = date('Y-m-d',time() - ((Setting::select('value')->where('key','popup_max_days')->pluck('value')->first()?:3) * 86400));
-            $transaction = Transaction::select('id_transaction','transaction_receipt_number','transaction_date','id_outlet')->with(['outlet'=>function($query){
-                $query->select('outlet_name','id_outlet');
-            }])
-            ->where('id_transaction', $log_popup_user_rating->id_transaction)
-            ->where(['id_user'=>$user->id])
-            ->whereDate('transaction_date','>',$max_date)
-            ->orderBy('transaction_date','asc')
-            ->first();
 
-            // check if transaction is exist
-            if(!$transaction){
-                // log popup is not valid
-                $log_popup_user_rating->delete();
-                return $this->getDetail($request);
+            foreach ($log_popup_user_ratings as $log_pop) {
+                if (
+                    $log_pop->refuse_count>=(Setting::where('key','popup_max_refuse')->pluck('value')->first()?:3) ||
+                    strtotime($log_pop->last_popup)+$interval>time()
+                ) {
+                    continue;
+                }
+
+                if ($log_popup_user_rating && $log_popup_user_rating->last_popup < $log_pop->last_popup) {
+                    continue;
+                }
+
+                $log_popup_user_rating = $log_pop;
+	            $transaction = Transaction::select('id_transaction','transaction_receipt_number','transaction_date','id_outlet')
+	            ->with(['outlet'=>function($query){
+	                $query->select('outlet_name','id_outlet');
+	            }])
+	            ->where('id_transaction', $log_popup_user_rating->id_transaction)
+	            ->where(['id_user'=>$user->id])
+	            ->whereDate('transaction_date','>',$max_date)
+	            ->orderBy('transaction_date','asc')
+	            ->first();
+
+	            // check if transaction is exist
+	            if(!$transaction){
+	                // log popup is not valid
+	                continue;
+	                $log_popup_user_rating->delete();
+	                return $this->getDetail($request);
+	            }
+
+	            $log_popup_user_rating->refuse_count++;
+	            $log_popup_user_rating->last_popup = date('Y-m-d H:i:s');
+	            $log_popup_user_rating->save();
+	            $logRatings[] = $log_popup_user_rating;
+
+	            if ($maxList <= count($logRatings)) {
+	            	break;
+	            }
             }
 
-            $log_popup_user_rating->refuse_count++;
-            $log_popup_user_rating->last_popup = date('Y-m-d H:i:s');
-            $log_popup_user_rating->save();
-
+            if (empty($logRatings)) {
+                return MyHelper::checkGet([]);
+            }
         }
-
-        $transaction->load('transaction_product_services.user_hair_stylist','outlet.brands');
-        $result = [];
-        $ratingList = [];
-
-        $result['outlet'] = [
-			'id_outlet' => $transaction['outlet']['id_outlet'],
-			'outlet_code' => $transaction['outlet']['outlet_code'],
-			'outlet_name' => $transaction['outlet']['outlet_name'],
-			'outlet_address' => $transaction['outlet']['outlet_address'],
-			'outlet_latitude' => $transaction['outlet']['outlet_latitude'],
-			'outlet_longitude' => $transaction['outlet']['outlet_longitude']
-		];
-
-		$result['brand'] = [
-			'id_brand' => $transaction['outlet']['brands'][0]['id_brand'],
-			'brand_code' => $transaction['outlet']['brands'][0]['code_brand'],
-			'brand_name' => $transaction['outlet']['brands'][0]['name_brand'],
-			'brand_logo' => $transaction['outlet']['brands'][0]['logo_brand']
-		];
 
         $defaultOptions = [
             'question'=>Setting::where('key','default_rating_question')->pluck('value_text')->first()?:'What\'s best from us?',
             'options' =>explode(',',Setting::where('key','default_rating_options')->pluck('value_text')->first()?:'Cleanness,Accuracy,Employee Hospitality,Process Time')
         ];
-        $options = ['1'=>$defaultOptions,'2'=>$defaultOptions,'3'=>$defaultOptions,'4'=>$defaultOptions,'5'=>$defaultOptions];
 
-        $ratingOutlet['id'] = $transaction->id_transaction;
-		$ratingOutlet['id_user_hair_stylist'] = null;
-		$ratingOutlet['detail_hairstylist'] = null;
-        $ratingOutlet['transaction_receipt_number'] = $transaction->transaction_receipt_number;
-        $ratingOutlet['question_text'] = Setting::where('key','rating_question_text')->pluck('value_text')->first()?:'How about our Service';
-        $ratingOutlet['transaction_date'] = date('d M Y H:i',strtotime($transaction->transaction_date));
-        $ratings = RatingOption::select('star','question','options')->where('rating_target', 'outlet')->get();
-        foreach ($ratings as $rt) {
+    	$optionOutlet = ['1'=>$defaultOptions,'2'=>$defaultOptions,'3'=>$defaultOptions,'4'=>$defaultOptions,'5'=>$defaultOptions];
+        $ratingOptionOutlet = RatingOption::select('star','question','options')->where('rating_target', 'outlet')->get();
+        foreach ($ratingOptionOutlet as $rt) {
             $stars = explode(',',$rt['star']);
             foreach ($stars as $star) {
-                $options[$star] = [
+                $optionOutlet[$star] = [
                     'question'=>$rt['question'],
                     'options'=>explode(',',$rt['options'])
                 ];
             }
         }
-        $ratingOutlet['options'] = $options;
 
-        $ratingList[] = $ratingOutlet;
-
-        $ratings = RatingOption::select('star','question','options')->where('rating_target', 'hairstylist')->get();
-        foreach ($transaction->transaction_product_services as $service) {
-        	if ($service->service_status != 'Completed') {
-        		continue;
-        	}
-        	$options = ['1'=>$defaultOptions,'2'=>$defaultOptions,'3'=>$defaultOptions,'4'=>$defaultOptions,'5'=>$defaultOptions];
-			$ratingHs['id'] = $transaction->id_transaction;
-			$ratingHs['id_user_hair_stylist'] = $service->id_user_hair_stylist;
-			$ratingHs['detail_hairstylist'] = [
-				'nickname' => $service->user_hair_stylist->nickname,
-				'fullname' => $service->user_hair_stylist->fullname,
-				'user_hair_stylist_photo' => $service->user_hair_stylist->user_hair_stylist_photo,
-			];
-	        $ratingHs['transaction_receipt_number'] = $transaction->transaction_receipt_number;
-	        $ratingHs['question_text'] = Setting::where('key','rating_question_text')->pluck('value_text')->first()?:'How about our Service';
-	        $ratingHs['transaction_date'] = date('d M Y H:i',strtotime($transaction->transaction_date));
-	        foreach ($ratings as $rt) {
-	            $stars = explode(',',$rt['star']);
-	            foreach ($stars as $star) {
-	                $options[$star] = [
-	                    'question'=>$rt['question'],
-	                    'options'=>explode(',',$rt['options'])
-	                ];
-	            }
-	        }
-	        $ratingHs['options'] = $options;
-
-	        $ratingList[] = $ratingHs;        	
+    	$optionHs = ['1'=>$defaultOptions,'2'=>$defaultOptions,'3'=>$defaultOptions,'4'=>$defaultOptions,'5'=>$defaultOptions];
+        $ratingOptionHs = RatingOption::select('star','question','options')->where('rating_target', 'hairstylist')->get();
+        foreach ($ratingOptionHs as $rt) {
+            $stars = explode(',',$rt['star']);
+            foreach ($stars as $star) {
+                $optionHs[$star] = [
+                    'question'=>$rt['question'],
+                    'options'=>explode(',',$rt['options'])
+                ];
+            }
         }
 
-        $result['rating_list'] = $ratingList;
+        $ratingList = [];
+        foreach ($logRatings as $key => $log) {
+			$rating['id'] = $log['id_transaction'];
+			$rating['id_user_hair_stylist'] = null;
+			$rating['detail_hairstylist'] = null;
+	        $rating['transaction_receipt_number'] = $log['transaction']['transaction_receipt_number'];
+	        $rating['transaction_date'] = date('d M Y H:i',strtotime($log['transaction']['transaction_date']));
+	        $rating['outlet'] = [
+				'id_outlet' => $log['transaction']['outlet']['id_outlet'],
+				'outlet_code' => $log['transaction']['outlet']['outlet_code'],
+				'outlet_name' => $log['transaction']['outlet']['outlet_name'],
+				'outlet_address' => $log['transaction']['outlet']['outlet_address'],
+				'outlet_latitude' => $log['transaction']['outlet']['outlet_latitude'],
+				'outlet_longitude' => $log['transaction']['outlet']['outlet_longitude']
+			];
+			$rating['brand'] = [
+				'id_brand' => $log['transaction']['outlet']['brands'][0]['id_brand'],
+				'brand_code' => $log['transaction']['outlet']['brands'][0]['code_brand'],
+				'brand_name' => $log['transaction']['outlet']['brands'][0]['name_brand'],
+				'brand_logo' => $log['transaction']['outlet']['brands'][0]['logo_brand']
+			];
+	        $rating['question_text'] = Setting::where('key','rating_question_text')->pluck('value_text')->first()?:'How about our Service';
+			$rating['rating'] = null;
+			$rating['options'] = null;
+			
+        	if (!empty($log['id_user_hair_stylist'])) {
+        		$rating['id_user_hair_stylist'] = $log['id_user_hair_stylist'];
+	        	$rating['options'] = $optionHs;
+	        	$service = TransactionProductService::with('user_hair_stylist')
+	        	->where('id_transaction', $log['id_transaction'])
+	        	->where('id_user_hair_stylist', $log['id_user_hair_stylist'])
+	        	->first();
+
+				$rating['detail_hairstylist'] = [
+					'nickname' => $service->user_hair_stylist->nickname ?? null,
+					'fullname' => $service->user_hair_stylist->fullname ?? null,
+					'user_hair_stylist_photo' => $service->user_hair_stylist->user_hair_stylist_photo ?? null
+				];
+        	} else {
+	        	$rating['options'] = $optionOutlet;
+        	}
+
+        	$currentRating = UserRating::where([
+        		'id_transaction' => $log['id_transaction'],
+        		'id_user' => $log['id_user'],
+        		'id_outlet' => $log['id_outlet'],
+        		'id_user_hair_stylist' => $log['id_user_hair_stylist']
+        	])
+        	->first();
+	        
+	        if ($currentRating) {
+	        	$currentOption = explode(',', $currentRating['option_value']);
+	        	$rating['rating'] = [
+			        "rating_value" => $currentRating['rating_value'],
+			        "suggestion" => $currentRating['suggestion'],
+			        "option_value" => $currentOption
+	        	];
+	        }
+
+	        $ratingList[] = $rating;
+        }
+
+        $transaction->load('outlet.brands');
+        $result = $ratingList;
         return MyHelper::checkGet($result);
     }
+
     public function report(Request $request) {
         $post = $request->json()->all();
         $showOutlet = 10;

@@ -260,6 +260,32 @@ class ApiPartnersController extends Controller
                         }
                     }
                 }
+                if($old_status=='Candidate' && $data_update['status'] == 'Rejected'){
+                    $reject_data = Partner::where('id_partner', $post['id_partner'])->get();
+                    $phone_reject = $reject_data[0]["phone"];
+                    $name_reject = $reject_data[0]["name"];
+                    if (\Module::collections()->has('Autocrm')) {
+                        $autocrm = app($this->autocrm)->SendAutoCRM(
+                            'Reject Candidate Partner',
+                            $phone_reject,
+                            [
+                                'name' => $name_reject,
+                            ], null, null, null, null, null, null, null, 1,
+                        );
+                        // return $autocrm;
+                        if ($autocrm) {
+                            return response()->json([
+                                'status'    => 'success',
+                                'messages'  => ['Rejected sent to email partner']
+                            ]);
+                        } else {
+                            return response()->json([
+                                'status'    => 'fail',
+                                'messages'  => ['Failed to send']
+                            ]);
+                        }
+                    }
+                }
             }
             if(isset($post['request']) && $post['request'] == 'approve'){
                 if (\Module::collections()->has('Autocrm')) {

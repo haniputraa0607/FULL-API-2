@@ -1038,7 +1038,7 @@ class ApiOnlineTransaction extends Controller
             'transaction_point_earned'    => $post['point'],
             'transaction_cashback_earned' => $post['cashback'],
             'trasaction_payment_type'     => $post['payment_type'],
-            'transaction_payment_status'  => ($post['payment_type'] == 'Cash'? 'Completed':$post['transaction_payment_status']),
+            'transaction_payment_status'  => $post['transaction_payment_status'],
             'membership_level'            => $post['membership_level'],
             'membership_promo_id'         => $post['membership_promo_id'],
             'latitude'                    => $post['latitude'],
@@ -1811,6 +1811,34 @@ class ApiOnlineTransaction extends Controller
             }
 
             if ($post['payment_type'] == 'Cash') {
+                $createTrxPyemntCash = TransactionPaymentCash::create([
+                    'id_transaction' => $insertTransaction['id_transaction'],
+                    'payment_code' => MyHelper::createrandom(4, null, strtotime(date('Y-m-d H:i:s'))),
+                    'cash_nominal' => $insertTransaction['transaction_grandtotal']
+                ]);
+                if (!$createTrxPyemntCash) {
+                    DB::rollback();
+                    return response()->json([
+                        'status'    => 'fail',
+                        'messages'  => ['Insert Data transaction payment Failed']
+                    ]);
+                }
+
+                $multiplePaymentCash = TransactionMultiplePayment::create([
+                    'id_transaction' => $insertTransaction['id_transaction'],
+                    'type' => 'Cash',
+                    'payment_detail' => 'Cash',
+                    'id_payment' => $createTrxPyemntCash['id_transaction_payment_cash']
+                ]);
+
+                if (!$multiplePaymentCash) {
+                    DB::rollback();
+                    return response()->json([
+                        'status'    => 'fail',
+                        'messages'  => ['Insert Data multiple payment Failed']
+                    ]);
+                }
+
                 $dataRedirect = $this->dataRedirect($insertTransaction['transaction_receipt_number'], 'trx', '1');
 
                 if($config_fraud_use_queue == 1){

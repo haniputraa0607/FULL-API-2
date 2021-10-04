@@ -15,8 +15,10 @@ use Modules\Recruitment\Entities\HairstylistScheduleDate;
 
 use Modules\Transaction\Entities\HairstylistNotAvailable;
 use Modules\Transaction\Entities\TransactionOutletService;
+use Modules\Transaction\Entities\TransactionPaymentCash;
 use Modules\Transaction\Entities\TransactionProductService;
 use Modules\Transaction\Entities\TransactionProductServiceLog;
+use App\Http\Models\Transaction;
 
 use Modules\Recruitment\Http\Requests\ScheduleCreateRequest;
 
@@ -536,5 +538,92 @@ class ApiMitraOutletService extends Controller
     	}
 
     	return true;
+    }
+
+    public function paymentCashDetail(Request $request){
+        $post = $request->json()->all();
+        if(empty($post['order_id']) && empty($post['payment_code'])){
+            return ['status' => 'fail', 'messages' => ['Order ID and Payment code can not be empty']];
+        }
+
+        $trx = Transaction::join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
+                ->where('transaction_receipt_number', $post['order_id'])->first();
+        if(empty($trx)){
+            return ['status' => 'fail', 'messages' => ['Transaction not found']];
+        }
+
+        $checkCode = TransactionPaymentCash::where('id_transaction', $trx['id_transaction'])
+                    ->where('payment_code', $post['payment_code'])->first();
+        if(empty($checkCode)){
+            return ['status' => 'fail', 'messages' => ['The code you entered is wrong']];
+        }
+
+        $trxProduct = TransactionProduct::join('products', 'products.id_product', 'transaction_products.id_product')
+                        ->leftJoin('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+                        ->where('transaction_products.id_transaction', $trx['id_transaction'])
+                        ->select('products.product_name', 'transaction_products.*', 'transaction_product_services.*')->get()->toArray();
+
+        if(empty($trxProduct)){
+            return ['status' => 'fail', 'messages' => ['Products not found']];
+        }
+
+        $products = [];
+        foreach ($trxProduct as $p){
+            if($p['type'] == 'Service'){
+                $check = array_search($p['id_product'], array_column($p, 'id_product'));
+                if($check !== false){
+                    $products[$check]['qty'] = $products[$check]['qty'] + $p['transaction_product_qty'];
+                    $products[$check]['product_subtotal'] = $products[$check]['product_subtotal'] + $p['transaction_product_subtotal'];
+                    continue;
+                }
+            }
+
+            $products[] = [
+                'id_product' => $p['id_product'],
+                'product_name' => $p['product_name'],
+                'qty' => $p['transaction_product_qty'],
+                'product_subtotal' => $p['transaction_product_subtotal']
+            ];
+        }
+
+        $result = [
+            'order_id' => $trx['transaction_receipt_number'],
+            'transaction_subtotal' => $trx['transaction_subtotal'],
+            'transaction_tax' => $trx['transaction_tax'],
+            'transaction_grandtotal' => $trx['transaction_subtotal'],
+            'transaction_date' => MyHelper::dateFormatInd($trx['transaction_date']),
+            'customer_name' => $trx['customer_name'],
+            'customer_email' => $trx['customer_email'],
+            'currency' => 'Rp',
+            'products' => $products
+        ];
+
+        return response()->json(MyHelper::checkGet($result));
+    }
+
+    public function paymentCashCompleted(Request $request){
+        $user = $request->user();
+        $post = $request->json()->all();
+        if(empty($post['order_id'])){
+            return ['status' => 'fail', 'messages' => ['Order ID can not be empty']];
+        }
+
+        $trx = Transaction::where('transaction_receipt_number', $post['order_id'])->first();
+        if(empty($trx)){
+            return ['status' => 'fail', 'messages' => ['Transaction not found']];
+        }
+
+        if($trx['transaction_payment_status'] == 'Completed'){
+            return ['status' => 'fail', 'messages' => ['This transaction has been paid']];
+        }
+
+        $update = TransactionPaymentCash::where('id_transaction', $trx['id_transaction'])
+                ->update(['cash_received_by' => $user->id_user_hair_stylist]);
+
+        if($update){
+            $update = Transaction::where('id_transaction', $trx['id_transaction'])->update(['transaction_payment_status' => 'Completed']);
+        }
+
+        return response()->json(MyHelper::checkUpdate($update));
     }
 }

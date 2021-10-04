@@ -16,7 +16,6 @@ class AvailableHs extends FormRequest
     public function rules()
     {
         return [
-            "id_outlet"           => "required|integer",
             "booking_date"           => "required",
             "booking_time"           => "required",
         ];

@@ -181,14 +181,22 @@ class ApiOutletServiseController extends Controller
 
     public function detailOutlet(Request $request){
         $post = $request->json()->all();
-        if(empty($post['id_outlet'])){
-            return response()->json(['status' => 'fail', 'messages' => ['ID outlet can not be empty']]);
+        if(empty($post['id_outlet']) && empty($post['outlet_code'])){
+            return response()->json(['status' => 'fail', 'messages' => ['ID/Code outlet can not be empty']]);
         }
 
         $detail = Outlet::join('cities', 'cities.id_city', 'outlets.id_city')
-                    ->where('outlets.outlet_status', 'Active')->where('id_outlet', $post['id_outlet'])
+                    ->where('outlets.outlet_status', 'Active')
                     ->with(['outlet_schedules','brands'])
-                    ->select('outlets.*', 'cities.city_name')->first()->toArray();
+                    ->select('outlets.*', 'cities.city_name');
+
+        if(!empty($post['id_outlet'])){
+            $detail = $detail->where('id_outlet', $post['id_outlet'])->first()->toArray();
+        }
+
+        if(!empty($post['outlet_code'])){
+            $detail = $detail->where('outlet_code', $post['outlet_code'])->first()->toArray();
+        }
 
         if(empty($detail)){
             return response()->json(['status' => 'fail', 'messages' => ['Outlet not found']]);

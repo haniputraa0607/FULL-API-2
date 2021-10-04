@@ -84,6 +84,8 @@ use Modules\Transaction\Http\Requests\ShippingGoSend;
 use Modules\ProductVariant\Entities\ProductVariantGroup;
 use Modules\ProductVariant\Entities\ProductVariantGroupSpecialPrice;
 
+use Modules\UserRating\Entities\UserRatingLog;
+
 use App\Lib\MyHelper;
 use App\Lib\GoSend;
 use App\Lib\Midtrans;
@@ -5284,7 +5286,6 @@ class ApiTransaction extends Controller
 			}
 
 			$status = empty($val['completed_at']) ? 'ongoing' : 'complete';
-			$show_rate_popup = (!empty($val['completed_at']) && empty($val['user_feedbacks'])) ? 1 : 0;
 
 			$resData[] = [
 				'id_transaction' => $val['id_transaction'],
@@ -5293,7 +5294,7 @@ class ApiTransaction extends Controller
 				'customer_name' => $val['transaction_outlet_service']['customer_name'],
 				'color' => $val['outlet']['brands'][0]['color_brand'],
 				'status' => $status,
-				'show_rate_popup' => $show_rate_popup,
+				'show_rate_popup' => $val['show_rate_popup'],
 				'outlet' => $outlet,
 				'brand' => $brand,
 				'order' => $orders
@@ -5346,9 +5347,21 @@ class ApiTransaction extends Controller
 		$services = [];
 		$subtotalProduct = 0;
 		$subtotalService = 0;
-		$show_rate_popup = 0;
 		foreach ($detail['transaction_products'] as $product) {
+			$show_rate_popup = 0;
 			if ($product['type'] == 'Service') {
+				if ($product['transaction_product_service']['completed_at']) {
+					$logRating = UserRatingLog::where([
+			        	'id_user' => $user->id,
+			        	'id_transaction' => $detail['id_transaction'],
+			        	'id_user_hair_stylist' => $product['transaction_product_service']['id_user_hair_stylist']
+			        ])->first();
+
+			        if ($logRating) {
+			        	$show_rate_popup = 1;
+			        }
+				}
+
 				$services[] = [
 					'id_user_hair_stylist' => $product['transaction_product_service']['id_user_hair_stylist'],
 					'hairstylist_name' => $product['transaction_product_service']['user_hair_stylist']['nickname'],
@@ -5358,6 +5371,7 @@ class ApiTransaction extends Controller
 					'subtotal' => $product['transaction_product_subtotal'],
 					'show_rate_popup' => $show_rate_popup
 				];
+
 				$subtotalService += abs($product['transaction_product_subtotal']);
 			} else {
 				$productPhoto = config('url.storage_url_api') . ($product['product']['photos'][0]['product_photo'] ?? 'img/product/item/default.png');
@@ -5388,6 +5402,16 @@ class ApiTransaction extends Controller
 	            "is_discount"   => 0,
 	            'amount'        => MyHelper::requestNumber($detail['transaction_tax'],'_CURRENCY')
 	        ];
+        }
+
+    	$show_rate_popup = 0;
+        $logRating = UserRatingLog::where([
+        	'id_user' => $user->id,
+        	'id_transaction' => $detail['id_transaction']
+        ])->first();
+
+        if ($logRating) {
+        	$show_rate_popup = 1;
         }
 
 		$res = [

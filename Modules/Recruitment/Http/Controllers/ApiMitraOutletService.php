@@ -164,6 +164,11 @@ class ApiMitraOutletService extends Controller
 
 		$timerText .= (strtotime(date('Y-m-d H:i:s')) < strtotime($queue['schedule_date'] . ' ' .$queue['schedule_time'])) ? ' lagi' : ' lalu';
 
+		$box = OutletBox::where([
+			['id_outlet', $user->id_outlet],
+			['outlet_box_status', 'Active']
+		])->get();
+
 		$res = [
 			'id_transaction_product_service' => $queue['id_transaction_product_service'],
 			'order_id' => $queue['order_id'] ?? null,
@@ -178,7 +183,8 @@ class ApiMitraOutletService extends Controller
 			'disable' => $disable,
 			'id_outlet_box' => $schedule->id_outlet_box ?? null,
 			'flag_update_schedule' => $queue['flag_update_schedule'],
-			'is_conflict' => $queue['is_conflict']
+			'is_conflict' => $queue['is_conflict'],
+			'available_box' => $box
 		];
 		
 		return MyHelper::checkGet($res);

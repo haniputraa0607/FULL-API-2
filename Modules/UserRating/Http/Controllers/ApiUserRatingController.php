@@ -31,13 +31,20 @@ class ApiUserRatingController extends Controller
     public function index(Request $request)
     {
         $post = $request->json()->all();
-        $data = UserRating::with(['transaction'=>function($query){
-            $query->select('id_transaction','transaction_receipt_number','trasaction_type','transaction_grandtotal','id_outlet');
-        },'transaction.outlet'=>function($query){
-            $query->select('id_outlet','outlet_code','outlet_name');
-        },'user'=>function($query){
-            $query->select('id','name','phone');
-        }])->orderBy('id_user_rating','desc');
+        $data = UserRating::with([
+        	'transaction' => function($query) {
+	            $query->select('id_transaction','transaction_receipt_number','trasaction_type','transaction_grandtotal','id_outlet');
+	        },
+	        'transaction.outlet' => function($query) {
+	            $query->select('id_outlet','outlet_code','outlet_name');
+	        },
+	        'user' => function($query) {
+	            $query->select('id','name','phone');
+	        },
+	        'user_hair_stylist' => function($query) {
+                $query->select('id_user_hair_stylist','nickname','fullname','phone_number');
+            }
+	    ])->orderBy('id_user_rating','desc');
 
         // if($outlet_code = ($request['outlet_code']??false)){
         //     $data->whereHas('transaction.outlet',function($query) use ($outlet_code){
@@ -248,15 +255,20 @@ class ApiUserRatingController extends Controller
     public function show(Request $request)
     {
         $post = $request->json()->all();
-        $data = UserRating::with(['transaction'=>function($query){
-            $query->select('id_transaction','transaction_receipt_number','trasaction_type','transaction_grandtotal','id_outlet');
-        },'transaction.outlet'=>function($query){
-            $query->select('id_outlet','outlet_code','outlet_name');
-        },'user'=>function($query){
-            $query->select('id','name','phone');
-        }])->where([
-            'id_user_rating'=>$post['id']
-        ])->first();
+        $data = UserRating::with([
+        	'transaction' => function($query) {
+	            $query->select('id_transaction','transaction_receipt_number','trasaction_type','transaction_grandtotal','id_outlet');
+	        },
+	        'transaction.outlet' => function($query) {
+	            $query->select('id_outlet','outlet_code','outlet_name');
+	        },
+	        'user' => function($query) {
+	            $query->select('id','name','phone');
+	        },
+	        'user_hair_stylist' => function($query) {
+                $query->select('id_user_hair_stylist','nickname','fullname','phone_number');
+            }
+	    ])->where(['id_user_rating'=>$post['id']])->first();
         return MyHelper::checkGet($data);
     }
 
@@ -464,8 +476,12 @@ class ApiUserRatingController extends Controller
                 ->with([
                 'transaction'=>function($query){
                     $query->select('id_transaction','transaction_receipt_number','trasaction_type','transaction_grandtotal');
-                },'user'=>function($query){
+                },
+                'user'=>function($query){
                     $query->select('id','name','phone');
+                },
+                'user_hair_stylist'=>function($query){
+                    $query->select('id_user_hair_stylist','nickname','fullname','phone_number');
                 }
             ])->take(10);
             $this->applyFilter($datax,$post);
@@ -505,6 +521,12 @@ class ApiUserRatingController extends Controller
             $model->where('trasaction_type', 'pickup order');
         } elseif (($rule['transaction_type']??false) == 'offline'){
             $model->where('trasaction_type', 'offline');
+        }
+
+        if (($rule['rating_target'] ?? false) == 'hairstylist') {
+        	$model->whereNotNull($col.'.id_user_hair_stylist');
+        } else {
+        	$model->whereNotNull($col.'.id_outlet');
         }
         $model->whereDate($col.'.created_at','>=',$rule['date_start'])->whereDate($col.'.created_at','<=',$rule['date_end']);
     }
@@ -548,12 +570,16 @@ class ApiUserRatingController extends Controller
                 $datax = UserRating::where('rating_value',$i)->with([
                     'transaction'=>function($query){
                         $query->select('id_transaction','transaction_receipt_number','trasaction_type','transaction_grandtotal');
-                    },'user'=>function($query){
+                    },
+                    'user'=>function($query){
                         $query->select('id','name','phone');
+                    },
+                    'user_hair_stylist'=>function($query){
+                        $query->select('id_user_hair_stylist','nickname','fullname','phone_number');
                     }
                 ])
                 ->join('transactions','transactions.id_transaction','=','user_ratings.id_transaction')
-                ->where('id_outlet',$outlet->id_outlet)
+                ->where('transactions.id_outlet',$outlet->id_outlet)
                 ->take(10);
                 $this->applyFilter($datax,$post);
                 $counter['data'][$i] = $datax->get();

@@ -123,6 +123,14 @@ class ApiHairStylistScheduleController extends Controller
                         			break;
                         	}
                         }
+
+                        if ($row['subject'] == 'month') {
+                            $data->where('schedule_month', $row['operator']);
+                        }
+
+                        if ($row['subject'] == 'year') {
+                            $data->where('schedule_year', $row['operator'], $row['parameter']);
+                        }
                     }
                 }
             } else {
@@ -178,6 +186,14 @@ class ApiHairStylistScheduleController extends Controller
             							break;
             					}
             				}
+
+	                        if ($row['subject'] == 'month') {
+	                            $data->orWhere('schedule_month', $row['operator']);
+	                        }
+
+	                        if ($row['subject'] == 'year') {
+	                            $data->orWhere('schedule_year', $row['operator'], $row['parameter']);
+	                        }
             			}
                     }
                 });

@@ -3289,10 +3289,13 @@ class ApiOutletController extends Controller
         $data['time_zone_id'] = 'WIB';
         $default_time_zone_utc = 7;
         $time_diff = $time_zone_utc - $default_time_zone_utc;
-
+        if(isset($data['open'])&&isset($data['close'])){
         $data['open'] = date('H:i', strtotime('+'.$time_diff.' hour',strtotime($data['open'])));
         $data['close'] = date('H:i', strtotime('+'.$time_diff.' hour', strtotime($data['close'])));
-
+        }else{
+        $data['open'] = date('H:i', strtotime('+'.$time_diff.' hour'));
+        $data['close'] = date('H:i', strtotime('+'.$time_diff.' hour'));
+        }
         switch ($time_zone_utc) {
             case 8:
                 $data['time_zone_id'] = 'WITA';

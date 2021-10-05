@@ -2490,6 +2490,7 @@ class ApiProductController extends Controller
                 'id_user_hair_stylist' => $val['id_user_hair_stylist'],
                 'name' => $val['fullname'],
                 'photo' => (empty($val['user_hair_stylist_photo']) ? config('url.storage_url_api').'img/product/item/default.png':$val['user_hair_stylist_photo']),
+                'rating' => $val['total_rating'],
                 'available_status' => $availableStatus
             ];
         }

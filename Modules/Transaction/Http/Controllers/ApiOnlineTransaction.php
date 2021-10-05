@@ -193,7 +193,7 @@ class ApiOnlineTransaction extends Controller
             $outlet = optional();
         }
 
-        if($post['type'] != 'Pickup Order' && !$outlet->delivery_order) {
+        if($post['type'] == 'Delivery' && !$outlet->delivery_order) {
             DB::rollback();
             return response()->json([
                 'status'    => 'fail',
@@ -2815,11 +2815,6 @@ class ApiOnlineTransaction extends Controller
                 $result['plastic']['is_checked'] = true;
                 $result['plastic']['is_mandatory'] = true;
                 $result['plastic']['info'] = "Outlet tidak menyediakan kantong sekali pakai";
-            }else{
-                return [
-                    'status' => 'fail',
-                    'messages' => ['Invalid Order Type']
-                ];
             }
 
         }else{

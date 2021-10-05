@@ -19,7 +19,7 @@ class AddSomeColumnsToLocationsTable extends Migration
             $table->integer('service_charge')->nullable()->after('rental_price');
             $table->integer('promotion_levy')->nullable()->after('service_charge');
             $table->integer('renovation_cost')->nullable()->after('promotion_levy');
-            $table->integer('partnership_fee')->nullable()->after('renovation_costs');
+            $table->integer('partnership_fee')->nullable()->after('renovation_cost');
             $table->integer('income')->nullable()->after('partnership_fee');
         });
     }

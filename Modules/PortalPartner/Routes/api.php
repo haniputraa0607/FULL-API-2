@@ -22,5 +22,13 @@ Route::group(['prefix' => 'partner'], function () {
             Route::post('update-first-pin', 'ApiUserPartnerController@updateFirstPin');
             Route::post('detail/for-login', 'ApiUserPartnerController@detail');
         });
+        Route::group(['prefix' => 'promo'], function() {
+            Route::post('before/deals', 'ApiPromoController@listDealBeforeActive');
+            Route::post('active/deals', 'ApiPromoController@listDealActive');
+            Route::post('before/promo-campaign', 'ApiPromoController@listPromoCampaignBeforeActive');
+            Route::post('active/promo-campaign', 'ApiPromoController@listPromoCampaignActive');
+            Route::any('before/promo-campaign/filter', 'ApiPromoController@listPromoCampaign');
+            Route::post('before/subscription', 'ApiPromoController@listSubscriptionBeforeActive');
+        });
     });
 });

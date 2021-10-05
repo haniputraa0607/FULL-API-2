@@ -760,7 +760,7 @@ class ApiProductController extends Controller
                 $data['products'] = Product::select('product_code','product_name','product_description')
                     ->join('brand_product','brand_product.id_product','=','products.id_product')
                     ->where('id_brand',$post['id_brand'])
-                    ->whereIn('product_type', ['product','service'])
+                    ->where('product_type', 'product')
                     ->groupBy('products.id_product')
                     ->orderBy('position')
                     ->orderBy('products.id_product')
@@ -773,7 +773,7 @@ class ApiProductController extends Controller
                 $data['products'] = Product::select('product_categories.product_category_name','products.position','product_code','product_name','product_description','products.product_visibility')
                     ->join('brand_product','brand_product.id_product','=','products.id_product')
                     ->where('id_brand',$post['id_brand'])
-                    ->whereIn('product_type', ['product','service'])
+                    ->where('product_type', 'product')
                     ->leftJoin('product_categories','product_categories.id_product_category','=','brand_product.id_product_category')
                     ->groupBy('products.id_product')
                     ->groupBy('product_category_name')
@@ -797,7 +797,7 @@ class ApiProductController extends Controller
                     ->join('brand_product','brand_product.id_product','=','products.id_product')
                     ->leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
                     ->where('id_brand',$post['id_brand'])
-                    ->whereIn('product_type', ['product','service'])
+                    ->where('product_type', 'product')
                     ->orderBy('position')
                     ->orderBy('products.id_product')
                     ->distinct()
@@ -901,7 +901,7 @@ class ApiProductController extends Controller
 									->where('product_detail.id_outlet','=',$post['id_outlet'])
 									->where('product_detail.product_detail_visibility','=','Visible')
                                     ->where('product_detail.product_detail_status','=','Active')
-                                    ->whereIn('products.product_type', ['product','service'])
+                                    ->where('products.product_type', 'product')
                                     ->with(['category', 'discount']);
 
             if (isset($post['visibility'])) {
@@ -912,7 +912,7 @@ class ApiProductController extends Controller
                                             ->where('product_detail.product_detail_status', 'Active')
                                             ->whereNotNull('id_product_category')
                                             ->where('id_outlet', $post['id_outlet'])
-                                            ->whereIn('products.product_type', ['product','service'])
+                                            ->where('products.product_type', 'product')
                                             ->select('product_detail.id_product')->get();
                     $product = Product::whereNotIn('products.id_product', $idVisible)->with(['category', 'discount']);
                 }else{
@@ -923,11 +923,11 @@ class ApiProductController extends Controller
             }
 		} else {
 		    if(isset($post['product_setting_type']) && $post['product_setting_type'] == 'product_price'){
-                $product = Product::with(['category', 'discount', 'product_special_price', 'global_price'])->whereIn('products.product_type', ['product','service']);
+                $product = Product::with(['category', 'discount', 'product_special_price', 'global_price'])->where('products.product_type', 'product');
             }elseif(isset($post['product_setting_type']) && $post['product_setting_type'] == 'outlet_product_detail'){
-                $product = Product::with(['category', 'discount', 'product_detail'])->whereIn('products.product_type', ['product','service']);
+                $product = Product::with(['category', 'discount', 'product_detail'])->where('products.product_type', 'product');
             }else{
-                $product = Product::with(['category', 'discount'])->whereIn('products.product_type', ['product','service']);
+                $product = Product::with(['category', 'discount'])->where('products.product_type', 'product');
             }
 		}
 
@@ -979,7 +979,7 @@ class ApiProductController extends Controller
         }
 
         if(isset($post['admin_list'])){
-            $product = $product->whereIn('product_type', ['product','service'])
+            $product = $product->where('product_type', 'product')
                 ->withCount('product_detail')->withCount('product_detail_hiddens')->with(['brands']);
         }
 
@@ -2196,7 +2196,7 @@ class ApiProductController extends Controller
             ->join('brand_outlet', 'brand_outlet.id_brand', '=', 'brand_product.id_brand')
             ->where('brand_outlet.id_outlet', '=', $outlet['id_outlet'])
             ->where('brand_product.id_brand', '=', $brand['id_brand'])
-            ->whereIn('product_type', ['product','service'])
+            ->where('product_type', 'product')
             ->whereRaw('products.id_product in (CASE
                         WHEN (select product_detail.id_product from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . '  order by id_product_detail desc limit 1)
                         is NULL AND products.product_visibility = "Visible" THEN products.id_product

@@ -20,6 +20,8 @@ use App\Lib\MyHelper;
 use Modules\UserRating\Entities\UserRatingLog;
 use Modules\OutletApp\Http\Controllers\ApiOutletApp;
 
+use Modules\Recruitment\Entities\UserHairStylist;
+
 class ApiUserRatingController extends Controller
 {
     /**
@@ -207,6 +209,14 @@ class ApiUserRatingController extends Controller
         	'id_outlet'	=> $id_outlet,
         	'id_user_hair_stylist' => $id_user_hair_stylist
         ],$insert);
+
+        if ($id_user_hair_stylist) {
+        	$hsRating = UserRating::where('id_user_hair_stylist', $id_user_hair_stylist)->get()->toArray();
+        	if ($hsRating) {
+	        	$totalHsRating = array_sum(array_column($hsRating,'rating_value')) / count($hsRating);
+	        	UserHairStylist::where('id_user_hair_stylist', $id_user_hair_stylist)->update(['total_rating' => $totalHsRating]);
+        	}
+        }
 
         UserRatingLog::where([
         	'id_user' => $request->user()->id, 

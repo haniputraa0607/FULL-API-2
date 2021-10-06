@@ -508,7 +508,7 @@ class ApiUserRatingController extends Controller
         }
         $data['rating_item'] = $counter;
         $data['rating_item_count'] = count($counter);
-        $data['outlet_data'] = $outlet5->get();
+        $data['rating_data'] = $outlet5->get();
         return MyHelper::checkGet($data);
     }
     // apply filter photos only/notes_only
@@ -563,7 +563,7 @@ class ApiUserRatingController extends Controller
             if(!$outlet){
                 return MyHelper::checkGet($outlet);
             }
-            $data['outlet_data'] = $outlet;
+            $data['rating_data'] = $outlet;
             $post['id_outlet'] = $outlet->id_outlet;
             $counter['data'] = [];
             for ($i = 1; $i<=5 ;$i++) {
@@ -625,6 +625,123 @@ class ApiUserRatingController extends Controller
                 });
             }
             return MyHelper::checkGet($outlet->paginate(15)->toArray());
+        }
+    }
+
+    public function reportHairstylist(Request $request) {
+        $post = $request->json()->all();
+        if($post['id_user_hair_stylist'] ?? false){
+            $hs = UserHairStylist::select(\DB::raw('
+            	user_hair_stylist.id_user_hair_stylist,
+            	user_hair_stylist.nickname,
+            	user_hair_stylist.fullname,
+            	count(f1.id_user_rating) as rating1,
+            	count(f2.id_user_rating) as rating2,
+            	count(f3.id_user_rating) as rating3,
+            	count(f4.id_user_rating) as rating4,
+            	count(f5.id_user_rating) as rating5
+        	'))
+            ->where('user_hair_stylist.id_user_hair_stylist',$post['id_user_hair_stylist'])
+            ->join('transaction_product_services','user_hair_stylist.id_user_hair_stylist','=','transaction_product_services.id_user_hair_stylist')
+            ->leftJoin('user_ratings as f1',function($join) use ($post){
+                $join->on('f1.id_transaction','=','transaction_product_services.id_transaction')
+                ->where('f1.rating_value','=','1');
+                $this->applyFilter($join,$post,'f1');
+            })
+            ->leftJoin('user_ratings as f2',function($join) use ($post){
+                $join->on('f2.id_transaction','=','transaction_product_services.id_transaction')
+                ->where('f2.rating_value','=','2');
+                $this->applyFilter($join,$post,'f2');
+            })
+            ->leftJoin('user_ratings as f3',function($join) use ($post){
+                $join->on('f3.id_transaction','=','transaction_product_services.id_transaction')
+                ->where('f3.rating_value','=','3');
+                $this->applyFilter($join,$post,'f3');
+            })
+            ->leftJoin('user_ratings as f4',function($join) use ($post){
+                $join->on('f4.id_transaction','=','transaction_product_services.id_transaction')
+                ->where('f4.rating_value','=','4');
+                $this->applyFilter($join,$post,'f4');
+            })
+            ->leftJoin('user_ratings as f5',function($join) use ($post){
+                $join->on('f5.id_transaction','=','transaction_product_services.id_transaction')
+                ->where('f5.rating_value','=','5');
+                $this->applyFilter($join,$post,'f5');
+            })->first();
+            if(!$hs){
+                return MyHelper::checkGet($hs);
+            }
+            $data['rating_data'] = $hs;
+            $counter['data'] = [];
+            for ($i = 1; $i<=5 ;$i++) {
+                $datax = UserRating::where('rating_value',$i)->with([
+                    'transaction'=>function($query){
+                        $query->select('id_transaction','transaction_receipt_number','trasaction_type','transaction_grandtotal');
+                    },
+                    'user'=>function($query){
+                        $query->select('id','name','phone');
+                    },
+                    'user_hair_stylist'=>function($query){
+                        $query->select('id_user_hair_stylist','nickname','fullname','phone_number');
+                    }
+                ])
+                ->join('transactions','transactions.id_transaction','=','user_ratings.id_transaction')
+                ->where('user_ratings.id_user_hair_stylist',$hs->id_user_hair_stylist)
+                ->take(10);
+                $this->applyFilter($datax,$post);
+                $counter['data'][$i] = $datax->get();
+            }
+            $data['rating_item'] = $counter;
+            return MyHelper::checkGet($data);
+        }else{
+            $dasc = ($post['order'] ?? 'fullname') == 'fullname' ? 'asc' : 'desc';
+            $hs = UserHairStylist::select(\DB::raw('
+            		user_hair_stylist.id_user_hair_stylist,
+            		user_hair_stylist.phone_number,
+            		user_hair_stylist.nickname,
+            		user_hair_stylist.fullname,
+            		count(f1.id_user_rating) as rating1,
+            		count(f2.id_user_rating) as rating2,
+            		count(f3.id_user_rating) as rating3,
+            		count(f4.id_user_rating) as rating4,
+            		count(f5.id_user_rating) as rating5
+        		'))
+            ->join('transaction_product_services','user_hair_stylist.id_user_hair_stylist','=','transaction_product_services.id_user_hair_stylist')
+            ->leftJoin('user_ratings as f1',function($join) use ($post){
+                $join->on('f1.id_transaction','=','transaction_product_services.id_transaction')
+                ->where('f1.rating_value','=','1');
+                $this->applyFilter($join,$post,'f1');
+            })
+            ->leftJoin('user_ratings as f2',function($join) use ($post){
+                $join->on('f2.id_transaction','=','transaction_product_services.id_transaction')
+                ->where('f2.rating_value','=','2');
+                $this->applyFilter($join,$post,'f2');
+            })
+            ->leftJoin('user_ratings as f3',function($join) use ($post){
+                $join->on('f3.id_transaction','=','transaction_product_services.id_transaction')
+                ->where('f3.rating_value','=','3');
+                $this->applyFilter($join,$post,'f1');
+            })
+            ->leftJoin('user_ratings as f4',function($join) use ($post){
+                $join->on('f4.id_transaction','=','transaction_product_services.id_transaction')
+                ->where('f4.rating_value','=','4');
+                $this->applyFilter($join,$post,'f4');
+            })
+            ->leftJoin('user_ratings as f5',function($join) use ($post){
+                $join->on('f5.id_transaction','=','transaction_product_services.id_transaction')
+                ->where('f5.rating_value','=','5');
+                $this->applyFilter($join,$post,'f5');
+            })
+            ->orderBy($post['order'] ?? 'fullname',$dasc)
+            ->groupBy('user_hair_stylist.id_user_hair_stylist');
+            if($post['search'] ?? false){
+                $hs->where(function($query) use($post){
+                    $param = '%'.$post['search'].'%';
+                    $query->where('fullname','like',$param)
+                    ->orWhere('nickname','like',$param);
+                });
+            }
+            return MyHelper::checkGet($hs->paginate(15)->toArray());
         }
     }
 }

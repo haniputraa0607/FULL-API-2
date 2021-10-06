@@ -129,6 +129,22 @@ class ApiUserRatingController extends Controller
                 });
             }
         }
+        if($rules=$newRule['hairstylist_phone']??false){
+            foreach ($rules as $rul) {
+                $model->{$where.'Has'}('user_hair_stylist',function($query) use ($rul){
+                    $query->where('phone_number',$rul['operator'],$rul['parameter']);
+                });
+            }
+        }
+        if($rules=$newRule['rating_target']??false){
+            foreach ($rules as $rul) {
+            	if ($rul['parameter'] == 'hairstylist') {
+                	$model->{$where.'NotNull'}('user_ratings.id_user_hair_stylist');
+            	} else {
+                	$model->{$where.'NotNull'}('user_ratings.id_outlet');
+            	}
+            }
+        }
     }
 
     /**
@@ -633,6 +649,7 @@ class ApiUserRatingController extends Controller
         if($post['id_user_hair_stylist'] ?? false){
             $hs = UserHairStylist::select(\DB::raw('
             	user_hair_stylist.id_user_hair_stylist,
+            	user_hair_stylist.phone_number,
             	user_hair_stylist.nickname,
             	user_hair_stylist.fullname,
             	count(f1.id_user_rating) as rating1,

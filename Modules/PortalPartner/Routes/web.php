@@ -11,6 +11,6 @@
 |
 */
 
-//Route::prefix('portalpartner')->group(function() {
-//    Route::get('/', 'PortalPartnerController@index');
-//});
+Route::prefix('portalpartner')->group(function() {
+    Route::get('/', 'PortalPartnerController@index');
+});

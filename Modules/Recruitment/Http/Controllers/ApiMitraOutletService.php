@@ -19,7 +19,6 @@ use Modules\Transaction\Entities\TransactionOutletService;
 use Modules\Transaction\Entities\TransactionPaymentCash;
 use Modules\Transaction\Entities\TransactionProductService;
 use Modules\Transaction\Entities\TransactionProductServiceLog;
-use App\Http\Models\Transaction;
 
 use Modules\Recruitment\Http\Requests\ScheduleCreateRequest;
 

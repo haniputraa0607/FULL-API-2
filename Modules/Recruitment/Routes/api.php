@@ -30,6 +30,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
         	Route::post('detail', 'ApiHairStylistScheduleController@detail');
         	Route::post('update', 'ApiHairStylistScheduleController@update');
         	Route::get('outlet', 'ApiHairStylistScheduleController@outlet');
+        	Route::get('year-list', 'ApiHairStylistScheduleController@getScheduleYear');
     	});
     });
 });

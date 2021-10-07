@@ -13,7 +13,11 @@ use DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Http\Models\City;
+use Illuminate\Support\Facades\App;
+use PDF;
+use Storage;
 use Modules\BusinessDevelopment\Entities\StepsLog;
+use Modules\BusinessDevelopment\Entities\ConfirmationLetter;
 
 class ApiPartnersController extends Controller
 {
@@ -24,6 +28,7 @@ class ApiPartnersController extends Controller
             $this->autocrm  = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
         }
         $this->saveFile = "file/follow_up/";
+        $this->confirmation = "file/confirmation/";
     }
     /**
      * Display a listing of the resource.
@@ -158,11 +163,18 @@ class ApiPartnersController extends Controller
     {
         $post = $request->all();
         if(isset($post['id_partner']) && !empty($post['id_partner'])){
-            $partner = Partner::where('id_partner', $post['id_partner'])->with(['partner_bank_account','partner_locations','partner_step'])->first();
+            $partner = Partner::where('id_partner', $post['id_partner'])->with(['partner_bank_account','partner_locations','partner_step','partner_confirmation'])->first();
             if(($partner['partner_step'])){
                 foreach($partner['partner_step'] as $step){
                     if(isset($step['attachment']) && !empty($step['attachment'])){
                         $step['attachment'] = env('STORAGE_URL_API').'/'.$step['attachment'];
+                    }
+                }
+            } 
+            if(($partner['partner_confirmation'])){
+                foreach($partner['partner_confirmation'] as $confir){
+                    if(isset($confir['attachment']) && !empty($confir['attachment'])){
+                        $confir['attachment'] = env('STORAGE_URL_API').'/'.$confir['attachment'];
                     }
                 }
             } 
@@ -194,6 +206,9 @@ class ApiPartnersController extends Controller
             DB::beginTransaction();
             if (isset($post['name'])) {
                 $data_update['name'] = $post['name'];
+            }
+            if (isset($post['gender'])) {
+                $data_update['gender'] = $post['gender'];
             }
             if (isset($post['phone'])) {
                 $data_update['phone'] = $post['phone'];
@@ -228,7 +243,18 @@ class ApiPartnersController extends Controller
             if (isset($post['status_steps'])) {
                 $data_update['status_steps'] = $post['status_steps'];
             }
+            if (isset($post['npwp'])) {
+                $data_update['npwp'] = $post['npwp'];
+            }
+            if (isset($post['npwp_name'])) {
+                $data_update['npwp_name'] = $post['npwp_name'];
+            }
+            if (isset($post['npwp_address'])) {
+                $data_update['npwp_address'] = $post['npwp_address'];
+            }
             $old_status = Partner::where('id_partner', $post['id_partner'])->get('status')[0]['status'];
+            $old_phone = Partner::where('id_partner', $post['id_partner'])->get('phone')[0]['phone'];
+            $old_name = Partner::where('id_partner', $post['id_partner'])->get('name')[0]['name'];
             $update = Partner::where('id_partner', $post['id_partner'])->update($data_update);
             if(!$update){
                 DB::rollback();
@@ -240,9 +266,9 @@ class ApiPartnersController extends Controller
                     if (\Module::collections()->has('Autocrm')) {
                         $autocrm = app($this->autocrm)->SendAutoCRM(
                             'Updated Candidate Partner to Partner',
-                            $data_update['phone'],
+                            $old_phone,
                             [
-                                'name' => $data_update['name'],
+                                'name' => $old_name,
                                 'pin' => $post['pin'],
                             ], null, null, null, null, null, null, null, 1,
                         );
@@ -545,4 +571,52 @@ class ApiPartnersController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }
     }
+    
+    public function createConfirLetter(Request $request){
+        $post = $request->all();
+        if(isset($post['id_partner']) && !empty($post['id_partner'])){
+            $cek_partner = Partner::where(['id_partner'=>$post['id_partner']])->first();
+            if($cek_partner){
+                DB::beginTransaction();
+                $creatConf = [
+                    "id_partner"   => $post['id_partner'],
+                    "no_letter"   => $post['no_letter'],
+                    "location"   => $post['location'],
+                    "date"   => date("Y-m-d"),
+                ];
+                $data['partner'] = $cek_partner;
+                $data['letter'] = $creatConf;
+                $data['location'] = Location::where(['id_partner'=>$post['id_partner']])->first();
+                $data['city'] = City::where(['id_city'=>$data['location']['id_city']])->first();
+                // return $data;
+                $no = str_replace('/', '_', $post['no_letter']);
+                $path = $this->confirmation.'confirmation_'.$no.'.pdf';
+                $pdf = PDF::loadView('businessdevelopment::confirmation', $data);
+                Storage::put('public/'.$path, $pdf->output());
+                $creatConf['attachment'] = $path;
+                $store = ConfirmationLetter::create($creatConf);
+                if(!$store) {
+                    DB::rollback();
+                    return response()->json(['status' => 'fail', 'messages' => ['Failed create confirmation letter']]);
+                }
+            } else{
+                return response()->json(['status' => 'fail', 'messages' => ['Id Partner not found']]);
+            }
+            DB::commit();
+            return response()->json(MyHelper::checkCreate($store));
+            
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
+    }
+
+    public function pdf(Request $request){
+        // return view('businessdevelopment::confirmation');
+
+        $pdf = PDF::loadView('businessdevelopment::confirmation',);
+        Storage::put('public/file/confirmation/tes.pdf', $pdf->output());
+        return response()->json(['status' => 'success', 'messages' => ['The password matched']]);
+    }
+
+    // public function nominalToString($)
 }

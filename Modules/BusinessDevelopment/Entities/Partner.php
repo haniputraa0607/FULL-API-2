@@ -59,4 +59,7 @@ class Partner extends Authenticatable
     public function partner_step(){
         return $this->hasMany(StepsLog::class, 'id_partner');
     }
+    public function partner_confirmation(){
+        return $this->hasMany(ConfirmationLetter::class, 'id_partner');
+    }
 }

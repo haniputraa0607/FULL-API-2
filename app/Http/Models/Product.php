@@ -234,6 +234,7 @@ class Product extends Model
             ->join('product_detail', 'product_detail.id_product', 'product_service_use.id_product');
     }
 
+    
     /**
      * Generate fresh product variant tree
      * @param  integer  $id_product     id of product

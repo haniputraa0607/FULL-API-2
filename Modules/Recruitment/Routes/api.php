@@ -38,6 +38,8 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
     Route::get('splash','ApiMitra@splash');
 
     Route::group(['middleware' => ['auth:mitra', 'scopes:mitra-apps']], function () {
+    	Route::get('announcement','ApiMitra@announcementList');
+
     	Route::group(['prefix' => 'schedule'], function () {
         	Route::post('/', 'ApiMitra@schedule');
         	Route::post('create', 'ApiMitra@createSchedule');

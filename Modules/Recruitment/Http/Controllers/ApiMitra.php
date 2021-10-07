@@ -11,6 +11,7 @@ use App\Http\Models\Setting;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Recruitment\Entities\HairstylistSchedule;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
+use Modules\Recruitment\Entities\HairstylistAnnouncement;
 
 use Modules\Recruitment\Http\Requests\ScheduleCreateRequest;
 
@@ -166,5 +167,17 @@ class ApiMitra extends Controller
 
 		DB::commit();
     	return ['status' => 'success'];
+    }
+
+    public function announcementList(Request $request)
+    {
+    	$today = date('Y-m-d h:i:s');
+    	$res = HairstylistAnnouncement::select('id_hairstylist_announcement', 'date_start as date', 'content')
+				->where([
+					['date_start','<=',$today],
+					['date_end','>',$today]
+				])
+				->get();
+    	return MyHelper::checkGet($res);
     }
 }

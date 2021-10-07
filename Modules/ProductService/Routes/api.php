@@ -13,6 +13,8 @@ use Illuminate\Http\Request;
 |
 */
 
-Route::middleware('auth:api')->get('/productservice', function (Request $request) {
-    return $request->user();
+Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scopes:be'], 'prefix' => 'product-service'], function () {
+    Route::any('/', 'ApiProductServiceController@index');
+    Route::get('product-use/list', 'ApiProductServiceController@productUseList');
+    Route::post('product-use/update', 'ApiProductServiceController@productUseUpdate');
 });

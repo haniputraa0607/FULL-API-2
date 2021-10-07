@@ -31,6 +31,7 @@ use App\Lib\MyHelper;
 use Modules\Product\Http\Requests\product\AvailableHs;
 use Modules\ProductBundling\Entities\BundlingProduct;
 use Modules\ProductVariant\Entities\ProductVariantGroup;
+use Modules\ProductVariant\Entities\ProductVariantGroupDetail;
 use Modules\ProductVariant\Entities\ProductVariantPivot;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use Modules\Recruitment\Entities\UserHairStylist;
@@ -2124,12 +2125,7 @@ class ApiProductController extends Controller
                         WHEN (select outlets.outlet_different_price from outlets  where outlets.id_outlet = ' . $outlet['id_outlet'] . ' ) = 1 
                         THEN (select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $outlet['id_outlet'] . ' )
                         ELSE product_global_price.product_global_price
-                    END) as product_price'),
-            DB::raw('(CASE
-                        WHEN (select product_detail.product_detail_stock_status from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . ' order by id_product_detail desc limit 1) 
-                        is NULL THEN "Available"
-                        ELSE (select product_detail.product_detail_stock_status from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . ' order by id_product_detail desc limit 1)
-                    END) as product_stock_status'),
+                    END) as product_price')
         ])
             ->join('brand_product', 'brand_product.id_product', '=', 'products.id_product')
             ->leftJoin('product_global_price', 'product_global_price.id_product', '=', 'products.id_product')
@@ -2153,7 +2149,7 @@ class ApiProductController extends Controller
                 $query->WhereRaw('(select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $outlet['id_outlet'] . '  order by id_product_special_price desc limit 1) is NOT NULL');
                 $query->orWhereRaw('(select product_global_price.product_global_price from product_global_price  where product_global_price.id_product = products.id_product order by id_product_global_price desc limit 1) is NOT NULL');
             })
-            ->with(['photos'])
+            ->with(['photos', 'product_service_use_detail'])
             ->having('product_price', '>', 0)
             ->groupBy('products.id_product')
             ->orderByRaw('CASE WHEN products.position = 0 THEN 1 ELSE 0 END')
@@ -2163,6 +2159,12 @@ class ApiProductController extends Controller
 
         $resProdService = [];
         foreach ($productServie as $val){
+            foreach ($val['product_service_use_detail'] as $stock){
+                if($stock['quantity_use'] > $stock['product_detail_stock_service']){
+                    continue 2;
+                }
+            }
+
             $resProdService[] = [
                 'id_product' => $val['id_product'],
                 'id_brand' => $brand['id_brand'],
@@ -2172,7 +2174,7 @@ class ApiProductController extends Controller
                 'product_description' => $val['product_description'],
                 'product_price' => (int)$val['product_price'],
                 'string_product_price' => 'Rp '.number_format((int)$val['product_price'],0,",","."),
-                'product_stock_status' => $val['product_stock_status'],
+                'product_stock_status' => 'Available',
                 'photo' => (empty($val['photos'][0]['product_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$val['photos'][0]['product_photo'])
             ];
         }
@@ -2185,11 +2187,7 @@ class ApiProductController extends Controller
                         THEN (select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $outlet['id_outlet'] . ' )
                         ELSE product_global_price.product_global_price
                     END) as product_price'),
-            DB::raw('(CASE
-                        WHEN (select product_detail.product_detail_stock_status from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . ' order by id_product_detail desc limit 1) 
-                        is NULL THEN "Available"
-                        ELSE (select product_detail.product_detail_stock_status from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . ' order by id_product_detail desc limit 1)
-                    END) as product_stock_status'),
+            DB::raw('(select product_detail.product_detail_stock_item from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . ' order by id_product_detail desc limit 1) as product_stock_status')
         ])
             ->join('brand_product', 'brand_product.id_product', '=', 'products.id_product')
             ->leftJoin('product_global_price', 'product_global_price.id_product', '=', 'products.id_product')
@@ -2228,6 +2226,11 @@ class ApiProductController extends Controller
                 $val['product_price'] = ($variantTree['base_price']??false)?:$val['product_price'];
             }
 
+            $stock = 'Available';
+            if(empty($val['product_stock_status'])){
+                $stock = 'Sold Out';
+            }
+
             $resProducts[] = [
                 'id_product' => $val['id_product'],
                 'id_brand' => $brand['id_brand'],
@@ -2237,7 +2240,7 @@ class ApiProductController extends Controller
                 'product_description' => $val['product_description'],
                 'product_price' => (int)$val['product_price'],
                 'string_product_price' => 'Rp '.number_format((int)$val['product_price'],0,",","."),
-                'product_stock_status' => $val['product_stock_status'],
+                'product_stock_status' => $stock,
                 'photo' => (empty($val['photos'][0]['product_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$val['photos'][0]['product_photo'])
             ];
         }
@@ -2257,7 +2260,8 @@ class ApiProductController extends Controller
             'outlet_name' => $outlet['outlet_name'],
             'outlet_image' => $outlet['outlet_image'],
             'outlet_address' => $outlet['outlet_address'],
-            'distance' => $distance??''
+            'distance' => $distance??'',
+            'color' => $brand['color_brand']??''
         ];
 
         $resBrand = [
@@ -2432,6 +2436,7 @@ class ApiProductController extends Controller
         $result = [
             'color' => $brand['color_brand'],
             'id_product' => $product['id_product'],
+            'id_brand' => $brand['id_brand']??null,
             'product_code' => $product['product_code'],
             'product_name' => $product['product_name'],
             'product_description' => $product['product_description'],

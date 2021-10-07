@@ -9,6 +9,7 @@ namespace App\Http\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Cache;
+use Modules\ProductService\Entities\ProductServiceUse;
 use Modules\ProductVariant\Entities\ProductVariant;
 use Modules\ProductVariant\Entities\ProductVariantGroup;
 use App\Lib\MyHelper;
@@ -224,6 +225,15 @@ class Product extends Model
             ->join('product_variants', 'product_variants.id_product_variant', 'product_variant_pivot.id_product_variant');
     }
 
+    public function product_service_use() {
+        return $this->hasMany(\Modules\ProductService\Entities\ProductServiceUse::class, 'id_product_service', 'id_product');
+    }
+
+    public function product_service_use_detail() {
+        return $this->hasMany(\Modules\ProductService\Entities\ProductServiceUse::class, 'id_product_service', 'id_product')
+            ->join('product_detail', 'product_detail.id_product', 'product_service_use.id_product');
+    }
+
     /**
      * Generate fresh product variant tree
      * @param  integer  $id_product     id of product
@@ -292,7 +302,8 @@ class Product extends Model
                         ->where('product_variant_groups.product_variant_group_visibility', 'Visible');
                 });
         })->whereRaw('coalesce(product_variant_group_details.product_variant_group_status, "Active") <> "Inactive"')
-        ->whereRaw('coalesce(product_variant_group_details.product_variant_group_stock_status, "Available") <> "Sold Out"');
+        ->whereRaw('coalesce(product_variant_group_details.product_variant_group_stock_status, "Available") <> "Sold Out"')
+        ->whereRaw('product_variant_group_details.product_variant_group_detail_stock_item > 0');
 
         $variant_group_raws = $variant_group_raws->get()->toArray();
 
@@ -739,7 +750,8 @@ class Product extends Model
                         ->where('product_variant_groups.product_variant_group_visibility', 'Visible');
                 });
         })->whereRaw('coalesce(product_variant_group_details.product_variant_group_status, "Active") <> "Inactive"')
-            ->whereRaw('coalesce(product_variant_group_details.product_variant_group_stock_status, "Available") <> "Sold Out"');
+            ->whereRaw('coalesce(product_variant_group_details.product_variant_group_stock_status, "Available") <> "Sold Out"')
+            ->whereRaw('product_variant_group_details.product_variant_group_detail_stock_item > 0');
 
         $variant_group_raws = $variant_group_raws->get()->toArray();
 

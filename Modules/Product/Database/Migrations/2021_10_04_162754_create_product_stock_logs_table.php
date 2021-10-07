@@ -17,6 +17,8 @@ class CreateProductStockLogsTable extends Migration
             $table->bigIncrements('id_product_stock_log');
             $table->unsignedInteger('id_product')->nullable();
             $table->unsignedInteger('id_product_variant_group')->nullable();
+            $table->unsignedInteger('id_transaction')->nullable();
+            $table->unsignedInteger('id_user_hair_stylist')->nullable();
             $table->integer('stock_item')->default(0);
             $table->integer('stock_service')->default(0);
             $table->integer('stock_item_before')->default(0);

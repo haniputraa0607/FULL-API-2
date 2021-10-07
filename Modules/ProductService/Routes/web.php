@@ -11,6 +11,3 @@
 |
 */
 
-Route::prefix('productservice')->group(function() {
-    Route::get('/', 'ProductServiceController@index');
-});

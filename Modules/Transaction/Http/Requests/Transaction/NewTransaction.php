@@ -15,11 +15,11 @@ class NewTransaction extends FormRequest
             'item.*.modifiers.*.qty'   => 'sometimes|numeric|min:1',
             'item.*.variants'          => 'sometimes|nullable|array',
             'id_outlet'                => 'required_unless:type,Advance Order|integer',
-            'type'                     => 'required|in:Delivery,Pickup Order,GO-SEND,Advance Order,Delivery Order',
+            'type'                     => 'nullable|in:Delivery,Pickup Order,GO-SEND,Advance Order,Delivery Order',
             'notes'                    => 'nullable|string',
 //            'pickup_type'              => 'required_if:type,Pickup Order|in:set time,right now,at arrival',
 //            'pickup_at'                => 'required_if:pickup_type,set time|date_format:Y-m-d H:i:s',
-            'payment_type'             => 'nullable|in:Midtrans,Manual,Balance,Ovo,Ipay88,Shopeepay',
+            'payment_type'             => 'nullable|in:Cash,Midtrans,Manual,Balance,Ovo,Ipay88,Shopeepay',
             
             'shipping'                 => 'required_if:type,Delivery|integer',
             'cour_service'             => 'nullable|string',

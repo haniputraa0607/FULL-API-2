@@ -87,6 +87,7 @@ class User extends Authenticatable
 		'new_login',
 		'pin_changed',
 		'first_pin_change',
+        'status_new_user',
 		'celebrate',
 		'job',
 		'address',
@@ -213,9 +214,15 @@ class User extends Authenticatable
     	return $this->hasMany(\Modules\Favorite\Entities\Favorite::class, 'id_user');
     }
 
+
     public function log_popup()
     {
     	return $this->hasOne(UserFeedbackLog::class,'id_user');
+    }
+
+    public function log_popup_user_rating()
+    {
+    	return $this->hasMany(\Modules\UserRating\Entities\UserRatingLog::class,'id_user')->orderBy('last_popup')->orderBy('id_user_rating_log');
     }
 
     public function referred_user()

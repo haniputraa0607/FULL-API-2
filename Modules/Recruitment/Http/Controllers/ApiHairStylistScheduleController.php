@@ -129,7 +129,7 @@ class ApiHairStylistScheduleController extends Controller
                         }
 
                         if ($row['subject'] == 'year') {
-                            $data->where('schedule_year', $row['operator'], $row['parameter']);
+                            $data->where('schedule_year', $row['operator']);
                         }
                     }
                 }
@@ -192,7 +192,7 @@ class ApiHairStylistScheduleController extends Controller
 	                        }
 
 	                        if ($row['subject'] == 'year') {
-	                            $data->orWhere('schedule_year', $row['operator'], $row['parameter']);
+	                            $data->orWhere('schedule_year', $row['operator']);
 	                        }
             			}
                     }
@@ -356,5 +356,12 @@ class ApiHairStylistScheduleController extends Controller
         }
 
         return response()->json(MyHelper::checkUpdate($save));
+    }
+
+    public function getScheduleYear()
+    {
+        $data = HairstylistSchedule::groupBy('schedule_year')->get()->pluck('schedule_year');
+
+        return MyHelper::checkGet($data);
     }
 }

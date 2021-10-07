@@ -15,4 +15,9 @@ class UserRating extends Model
     {
         return $this->belongsTo(\App\Http\Models\User::class,'id_user','id');
     }
+    
+    public function user_hair_stylist()
+	{
+		return $this->belongsTo(\Modules\Recruitment\Entities\UserHairStylist::class, 'id_user_hair_stylist');
+	}
 }

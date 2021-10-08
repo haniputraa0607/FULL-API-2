@@ -13,6 +13,7 @@ use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Recruitment\Entities\HairstylistSchedule;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use Modules\Recruitment\Entities\HairstylistAnnouncement;
+use Modules\Recruitment\Entities\HairstylistInbox;
 
 use Modules\Recruitment\Http\Requests\ScheduleCreateRequest;
 

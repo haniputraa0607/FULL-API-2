@@ -57,6 +57,13 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
         	Route::get('box', 'ApiMitraOutletService@availableBox');
             Route::post('payment-cash/detail', 'ApiMitraOutletService@paymentCashDetail');
             Route::post('payment-cash/completed', 'ApiMitraOutletService@paymentCashCompleted');
-    	});    	
+    	});
+
+    	Route::group(['prefix' => 'inbox'], function () {
+        	Route::get('/{mode?}', 'ApiMitraInbox@listInbox');
+        	Route::post('marked', 'ApiMitraInbox@markedInbox');
+		    Route::post('unmark', 'ApiMitraInbox@unmarkInbox');
+		    Route::post('unread', 'ApiMitraInbox@unread');
+    	});
 	});
 });

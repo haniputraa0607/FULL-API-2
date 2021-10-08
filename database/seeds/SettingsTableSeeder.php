@@ -1073,6 +1073,180 @@ class SettingsTableSeeder extends Seeder
                     'value_text' => NULL,
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s'),
+                ),
+            119 =>
+                array(
+                    'id_setting' => 120,
+                    'key' => 'confirmation_letter_tempalate',
+                    'value' => '
+                        <h5 class="font-weight-bold mb-0" style="font-size: 11pt">SURAT KONFIRMASI</h5>
+                        <h6 class="font-weight-normal mb-0">%lokasi_surat%, %tanggal_surat% </h6>
+                        <h6 class="font-weight-normal mb-0">No: %no_surat%</h6>
+                        <br>
+                        <h6 class="font-weight-normal mb-0">PIHAK I	 :	PT IXOBOX MULTITREN ASIA </h6>
+                        <h6 class="font-weight-normal mb-0">PIHAK II :	%pihak_dua% </h6>
+                        <h6 class="font-weight-normal mb-0">LOCATION : 	%location_mall% - %location_city% </h6>
+
+                        <table class="table table-bordered mt-4 mb-0" width="700px" nobr>
+                        <thead>
+                            <tr class="text-center">
+                                <th width="10px">NO</th>
+                                <th colspan="2">SERVICE DESCRIPTION</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>1</td>
+                                <td width="130px">OBJECTIVE</td>
+                                <td>
+                                    <ol class="pl-2 text-justify terluar">
+                                        <li>Pihak I sebagai pemegang merek IXOBOX di teritori wilayah Indonesia, bermaksud mengadakan Perjanjian Kerja Sama Operasional (KSO) dengan Pihak II dalam mengembangkan unit outlet Ixobox di Kota Kasablanka, Jakarta;</li>
+                                        <li>Pihak I menunjuk PT. Ixobox Mitra Sejahtera sebagai Sole Operator di teritori wilayah Indonesia, untuk membantu Pihak II menjalankan operasional unit outlet Ixobox di Kota Kasablanka, Jakarta;</li>
+                                    </ol>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>2</td>
+                                <td width="130px">UNIT OUTLET</td>
+                                <td>
+                                    <ol class="pl-2 text-justify terluar">
+                                        <li>%address%;</li>
+                                        <li>Luas Lokasi = %large% M2;</li>
+                                        <li>Masa Kerja Sama antara Pihak Kedua dengan Mall, minimal 3 (tiga) tahun dan akan diperpanjang oleh Pihak Kedua;</li>
+                                        <li>Perjanjian Kerja Sama Operasional ini hanya berlaku untuk lokasi yang tercantum dalam poin 2a;</li>
+                                    </ol>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>3</td>
+                                <td width="130px">MASA KERJASAMA</td>
+                                <td>%total_waktu%, terdiri 3 (tiga) tahun pertama%sisa_waktu%</td>
+                            </tr>
+                            <tr>
+                                <td>4</td>
+                                <td width="130px">ROLES & RESPONSIBILITIEST</td>
+                                <td>
+                                    <ol class="pl-2 text-justify terluar">
+                                        <li>Tugas dan tanggung jawab Pihak I:
+                                            <ul class="pl-0 mb-1 text-justify dalam">
+                                                <li>Pihak I bertanggung jawab untuk mengelola sumber daya manusia (tenaga kerja) agar operasional outlet dapat berjalan dengan baik;</li>
+                                                <li>Pengembangan Merek;</li>
+                                                <li>Melakukan pemeliharaan dan pengembangan Ixobox system;</li>
+                                                <li>Pengembangan SOP dan sistem pendukung lainnya;</li>
+                                                <li>Melakukan pelatihan dan pengembangan kualitas tenaga kerja;</li>
+                                                <li>Pembagian hasil setiap bulan kepada Pihak II (poin 5);</li>
+                                                <li>Menanggung seluruh biaya operasional termasuk gaji dan insentif tenaga kerja;</li>
+                                                <li>Biaya akomodasi dan transportasi yang berhubungan dengan peningkatan kualitas dan pengembangan tenaga kerja ataupun penambahan atau penggantian tenaga kerja (jika diperlukan);</li>
+                                                <li>Biaya-biaya supplies dan biaya-biaya yang berhubungan dengan operasional;</li>
+                                                <li>Biaya media marketing promotion secara lokal dan nasional;</li>
+                                            </ul>
+                                        </li>
+                                    </ol>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <table class="table table-bordered mt-4 mb-0" width="700px" nobr>
+                        <thead>
+                            <tr>
+                                <td width="10px"></td>
+                                <td width="130px"></td>
+                                <td>
+                                    <ol class="pl-2 text-justify terluar" start="2">
+                                        <li>Tugas dan tanggung jawab Pihak II:
+                                            <ul class="pl-0 text-justify dalam">
+                                                <li>Membayar Partnership Fee kepada Pihak I (point 6);</li>
+                                                <li>Menanggung biaya bulanan yang berhubungan dengan lokasi (mall) setelah outlet beroperasi: biaya sewa, service charge, promotion levy, biaya listrik, biaya air (jika ada), dan lain-lain;</li>
+                                                <li>Biaya-biaya yang berhubungan dengan pemeliharaan dan kerusakan fisik outlet, dan asuransi outlet (jika ada);</li>
+                                            </ul>
+                                        </li>
+                                    </ol>
+                                </td>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>5</td>
+                                <td width="130px"PEMBAGIAN HASIL KERJASAMA</td>
+                                <td>Selama masa perjanjian Kerjasama, pembagian hasil yang dibagikan oleh Pihak I kepada Pihak II adalah sebagai berikut:
+                                    <ol class="pl-2 text-justify terluar">
+                                        <li>Skema pembagian hasil antara Pihak I dan Pihak II: 50%:50% dihitung dari penghasilan bersih outlet (net revenue), setelah dipotong 10% untuk management contribution dan diskon penjualan serta biaya administrasi bank atau merchant discount rate dari digital payment (jika ada);</li>
+                                        <li>Pembayaran akan ditransfer oleh Pihak I ke rekening Pihak II, dalam 15 hari kerja bulan berikutnya setiap bulan sesuai poin 5a;</li>
+                                    </ol>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>6</td>
+                                <td width="130px"PARTNERSHIP FEE</td>
+                                <td>
+                                    <ol class="pl-2 text-justify terluar">
+                                        <li>Partnership fee = Rp %partnership_fee% (%partnership_fee_string%). Harga belum termasuk PPN 10%. Harga tersebut mencakup:
+                                            <ul class="pl-0 text-justify dalam">
+                                                <li>Paket 5 Boxes termasuk peralatan dan perlengkapan pendukung operasional;</li>
+                                                <li>Furniture pelengkap seperti bench, credenza, meja, bangku, lemari dan lainnya;</li>
+                                                <li>Sistem pendukung, hardware dan software termasuk kiosk mesin, handphone dan fraud system panel, cctv dan finger print;</li>
+                                                <li>Starter kit package untuk supplies dan perlengkapan;</li>
+                                                <li>Decoration dan marketing tools seperti signage, TV, poster, sticker dan lainnya;</li>
+                                                <li>Penggunaan merek Ixobox selama masa berlaku Perjanjian Kerja Sama;</li>
+                                                <li>Penggunaan SOP dan sistem pendukung Ixobox lainnya;</li>
+                                                <li>Recruitment, Training dan Penempatan Tenaga kerja dan tenaga pendukung lainnya, selama masa berlaku Perjanjian Kerja Sama;</li>
+                                                <li>3D & 2D Ixobox Kota Kasablanka design concept;</li>
+                                            </ul>
+                                        </li>
+                                    </ol>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>7</td>
+                                <td width="130px">CARA PEMBAYARAN</td>
+                                <td>
+                                    <ol class="pl-2 text-justify terluar">
+                                        <li>Booking fee kesepakatan kerjasama Ixobox 20% = Rp %dp%,- (%dp_string% Rupiah), belum termasuk PPN. Dibayar maksimal 5 hari kerja setelah ditandatangani surat konfirmasi ini;</li>
+                                        <li>Down Payment 1 = Rp %dp2%,- (%dp2_string% Rupiah), belum termasuk PPN dan dibayar maksimal 2 minggu sebelum proses renovasi dilakukan;</li>
+                                        <li>Final Payment = Rp %final%,- (%final_string% Rupiah), belum termasuk PPN;</li>
+                                        @if (isset(%angsuran%) && !empty(%angsuran%))
+                                        <li>%angsuran%;</li>    
+                                        @endif
+                                        <li>Pembayaran dilakukan dengan cara transfer ke PT.Ixobox Multitren Asia, Bank BCA, nomor rekening: 6840308608 dan seluruh pembayaran yang telah disepakati dan dilakukan oleh Pihak II kepada Pihak I, tidak dapat dikembalikan;</li>
+                                    </ol>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <table class="table table-bordered mt-4 mb-0 pb-0" width="700px" nobr>
+                        <tbody>
+                            <tr>
+                                <td width="10px">8</td>
+                                <td width="130px" colspan="2">OTHER (INITIAL) INVESTMENT</td>
+                                <td colspan="8">
+                                    <ol class="pl-2 text-justify terluar">
+                                        <li>Biaya-biaya awal yang berhubungan dengan lokasi seperti instalasi listrik, internet, hoarding, APAR dan lainnya serta persiapan fit out akan dibayar oleh Pihak II kepada pemilik unit lokasi (manajemen mal);</li>
+                                        <li>Biaya-biaya yang berhubungan dengan fit out lokasi, dibayar oleh Pihak II kepada kontraktor, yang ditunjuk oleh Pihak I (termasuk biaya transportasi dan akomodasi tim kontraktor);</li>
+                                    </ol>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>9</td>
+                                <td width="130px" colspan="2">LAIN-LAIN</td>
+                                <td colspan="8">Detail dari Surat Konfimasi ini akan dituangkan dalam Perjanjian Kerjasama Operasional (KSO), yang akan ditanda-tangani oleh Pihak I dan Pihak II.</td>
+                            </tr>
+                            <tr class="text-center">
+                                <td colspan="6">Pihak Pertama <br>
+                                    <b>PT Ixobox Multitren Asia</b> <br><br><br><br><br>
+                                    <b><u>Alese Sandria</u></b> <br>
+                                    <b>General Manager</b>
+                                </td>
+                                <td colspan="5">Pihak Kedua <br><br><br><br><br><br>
+                                    <b><u>%ttd_pihak_dua%</u></b> <br>
+                                    <b>Business Partner</b>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table> 
+                    ',
+                    'value_text' => NULL,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
                 )
         ));
     }

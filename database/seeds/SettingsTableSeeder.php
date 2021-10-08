@@ -1078,16 +1078,16 @@ class SettingsTableSeeder extends Seeder
                 array(
                     'id_setting' => 120,
                     'key' => 'confirmation_letter_tempalate',
-                    'value' => '
-                        <h5 class="font-weight-bold mb-0" style="font-size: 11pt">SURAT KONFIRMASI</h5>
-                        <h6 class="font-weight-normal mb-0">%lokasi_surat%, %tanggal_surat% </h6>
-                        <h6 class="font-weight-normal mb-0">No: %no_surat%</h6>
-                        <br>
-                        <h6 class="font-weight-normal mb-0">PIHAK I	 :	PT IXOBOX MULTITREN ASIA </h6>
-                        <h6 class="font-weight-normal mb-0">PIHAK II :	%pihak_dua% </h6>
-                        <h6 class="font-weight-normal mb-0">LOCATION : 	%location_mall% - %location_city% </h6>
+                    'value' => NULL,
+                    'value_text' => '<h5 class="font-weight-bold mb-0" style="font-size: 11pt">SURAT KONFIRMASI</h5>
+                    <h6 class="font-weight-normal mb-0">%lokasi_surat%, %tanggal_surat% </h6>
+                    <h6 class="font-weight-normal mb-0">No: %no_surat%</h6>
+                    <br>
+                    <h6 class="font-weight-normal mb-0">PIHAK I	 :	PT IXOBOX MULTITREN ASIA </h6>
+                    <h6 class="font-weight-normal mb-0">PIHAK II :	%pihak_dua% </h6>
+                    <h6 class="font-weight-normal mb-0">LOCATION : 	%location_mall% - %location_city% </h6>
 
-                        <table class="table table-bordered mt-4 mb-0" width="700px" nobr>
+                    <table class="table table-bordered mt-4 mb-0" width="700px" nobr>
                         <thead>
                             <tr class="text-center">
                                 <th width="10px">NO</th>
@@ -1242,9 +1242,7 @@ class SettingsTableSeeder extends Seeder
                                 </td>
                             </tr>
                         </tbody>
-                    </table> 
-                    ',
-                    'value_text' => NULL,
+                    </table>',
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s'),
                 )

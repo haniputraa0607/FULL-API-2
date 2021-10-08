@@ -1073,6 +1073,15 @@ class SettingsTableSeeder extends Seeder
                     'value_text' => NULL,
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s'),
+                ),
+            119 =>
+                array(
+                    'id_setting' => 120,
+                    'key' => 'privacypolicy',
+                    'value' => NULL,
+                    'value_text' => '<h1>Privacy Policy</h1>',
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
                 )
         ));
     }

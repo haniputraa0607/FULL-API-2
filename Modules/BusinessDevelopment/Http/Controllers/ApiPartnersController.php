@@ -589,9 +589,34 @@ class ApiPartnersController extends Controller
                 $data['location'] = Location::where(['id_partner'=>$post['id_partner']])->first();
                 $data['city'] = City::where(['id_city'=>$data['location']['id_city']])->first();
                 // return $data;
+                $waktu = $this->timeTotal(explode('-', $data['partner']['start_date']),explode('-', $data['partner']['end_date']));
+                $send['data'] = [
+                    'pihak_dua' => $this->pihakDua($data['partner']['name'],$data['partner']['gender']),
+                    'ttd_pihak_dua' => $data['partner']['name'],
+                    'lokasi_surat' => $data['letter']['location'],
+                    'tanggal_surat' => $this->letterDate($data['letter']['date']),
+                    'no_surat' => $data['letter']['no_letter'],
+                    'location_mall' => strtoupper($data['location']['mall']),
+                    'location_city' => strtoupper($data['city']['city_name']),
+                    'address' => $data['location']['address'],
+                    'large' => $data['location']['location_large'],
+                    'partnership_fee' => $this->rupiah($data['location']['partnership_fee']),
+                    'partnership_fee_string' => $this->stringNominal($data['location']['partnership_fee']).' Rupiah',
+                    'dp' => $this->rupiah($data['location']['partnership_fee']*0.2),
+                    'dp_string' => $this->stringNominal($data['location']['partnership_fee']*0.2).' Rupiah',
+                    'dp2' => $this->rupiah($data['location']['partnership_fee']*0.3),
+                    'dp2_string' => $this->stringNominal($data['location']['partnership_fee']*0.3).' Rupiah',
+                    'final' => $this->rupiah($data['location']['partnership_fee']*0.5),
+                    'final_string' => $this->stringNominal($data['location']['partnership_fee']*0.5).' Rupiah',
+                    'total_waktu' => $waktu['total'],
+                    'sisa_waktu' => $waktu['sisa'],
+                ];
+                if(isset($data['location']['notes']) && !empty($data['location']['notes'])){
+                    $send['data']['angsuran'] = $data['location']['notes'];
+                }
                 $no = str_replace('/', '_', $post['no_letter']);
                 $path = $this->confirmation.'confirmation_'.$no.'.pdf';
-                $pdf = PDF::loadView('businessdevelopment::confirmation', $data);
+                $pdf = PDF::loadView('businessdevelopment::confirmation', $send );
                 Storage::put('public/'.$path, $pdf->output());
                 $creatConf['attachment'] = $path;
                 $store = ConfirmationLetter::create($creatConf);
@@ -610,13 +635,220 @@ class ApiPartnersController extends Controller
         }
     }
 
-    public function pdf(Request $request){
-        // return view('businessdevelopment::confirmation');
-
-        $pdf = PDF::loadView('businessdevelopment::confirmation',);
-        Storage::put('public/file/confirmation/tes.pdf', $pdf->output());
-        return response()->json(['status' => 'success', 'messages' => ['The password matched']]);
+    public function pihakDua($name, $gender){
+        if($gender=='Man'){
+            $gender_name = 'BAPAK';
+        }elseif($gender=='Woman'){
+            $gender_name = 'IBU';
+        }
+        return $pihakDua = $gender_name.' '.strtoupper($name);
+    }
+    public function letterDate($date){
+        $bulan = array (1=>'Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember');
+        $pecah = explode('-', $date);
+        return $date_latter = $pecah[2].' '.$bulan[intval($pecah[1])].' '.$pecah[0];
+    }
+    public function rupiah($nominal){
+        $rupiah = number_format($nominal ,0, ',' , '.' );
+        return $rupiah.',-';
     }
 
-    // public function nominalToString($)
+    public function stringNominal($angka) {
+        $bilangan = array('','Satu','Dua','Tiga','Empat','Lima','Enam','Tujuh','Delapan','Sembilan','Sepuluh','Sebelas');
+        if ($angka < 12) {
+            return $bilangan[$angka];
+        } else if ($angka < 20) {
+            return $bilangan[$angka - 10] . ' Belas';
+        } else if ($angka < 100) {
+            $hasil_bagi = ($angka / 10);
+            $hasil_mod = $angka % 10;
+            return trim(sprintf('%s Puluh %s', $bilangan[$hasil_bagi], $bilangan[$hasil_mod]));
+        } else if ($angka < 200) {
+            return sprintf('Seratus %s', $this->stringNominal($angka - 100));
+        } else if ($angka < 1000) {
+            $hasil_bagi = ($angka / 100);
+            $hasil_mod = $angka % 100;
+            return trim(sprintf('%s Ratus %s', $bilangan[$hasil_bagi], $this->stringNominal($hasil_mod)));
+        } else if ($angka < 2000) {
+            return trim(sprintf('Seribu %s', $this->stringNominal($angka - 1000)));
+        } else if ($angka < 1000000) {
+            $hasil_bagi = ($angka / 1000);
+            $hasil_mod = $angka % 1000;
+            return sprintf('%s Ribu %s', $this->stringNominal($hasil_bagi), $this->stringNominal($hasil_mod));
+        } else if ($angka < 1000000000) {
+            $hasil_bagi = ($angka / 1000000);
+            $hasil_mod = $angka % 1000000;
+            return trim(sprintf('%s Juta %s', $this->stringNominal($hasil_bagi), $this->stringNominal($hasil_mod)));
+        } else if ($angka < 1000000000000) {
+            $hasil_bagi = ($angka / 1000000000);
+            $hasil_mod = fmod($angka, 1000000000);
+            return trim(sprintf('%s Milyar %s', $this->stringNominal($hasil_bagi), $this->stringNominal($hasil_mod)));
+        } else if ($angka < 1000000000000000) {
+            $hasil_bagi = $angka / 1000000000000;
+            $hasil_mod = fmod($angka, 1000000000000);
+            return trim(sprintf('%s Triliun %s', $this->stringNominal($hasil_bagi), $this->stringNominal($hasil_mod)));
+        } else {
+            return 'Data Salah';
+        }
+    }
+    public function timeTotal($start_date,$end_date){
+        if($end_date[2]==$start_date[2] && $end_date[1]==$start_date[1]){
+            $tahun = $end_date[0]-$start_date[0];
+            $string_tahun = strtolower($this->stringNominal($tahun));
+            $total_waktu = $tahun.' ('.$string_tahun.')'.' tahun';
+            $array_waktu = [
+                0 => $tahun,
+            ];
+        }elseif($end_date[1]==$start_date[1]){
+            $selisih_tanggal = $end_date[2]-$start_date[2];
+            if($start_date[1]==2){
+                if($start_date[0]%4==0){
+                    $jumlah_hari = 29;
+                }else{
+                    $jumlah_hari =28;
+                }
+            }elseif($start_date[1]==4 || $start_date[1]==6 || $start_date[1]==9 || $start_date[1]==11){
+                $jumlah_hari = 30;
+            }else{
+                $jumlah_hari = 31;
+            }
+            if($selisih_tanggal>0){
+                $tahun = $end_date[0]-$start_date[0];
+                $tanggal = $end_date[2]-$start_date[2];
+            }else{
+                $awal = intval($start_date[2]);
+                $akhir = intval($end_date[2]);
+                $tahun = ($end_date[0]-$start_date[0])-1;
+                $tanggal = ($jumlah_hari-$awal)+$akhir;
+            }
+            $string_tahun = strtolower($this->stringNominal($tahun));
+            $string_tanggal = strtolower($this->stringNominal($tanggal));
+            $total_waktu = $tahun.' ('.$string_tahun.')'.' tahun '.$tanggal.' ('.$string_tanggal.')'.' hari';
+            $array_waktu = [
+                0 => $tahun,
+                2 => $tanggal,
+            ];
+        }elseif($end_date[2]==$start_date[2]){
+            $selisih_bulan = $end_date[1]-$start_date[1];
+            if($selisih_bulan>0){
+                $tahun = $end_date[0]-$start_date[0];
+                $bulan = $end_date[1]-$start_date[1];
+            }else{
+                $awal = intval($start_date[1]);
+                $akhir = intval($end_date[1]);
+                $tahun = ($end_date[0]-$start_date[0])-1;
+                $bulan = (12-$awal)+$akhir;
+            }
+            $string_tahun = strtolower($this->stringNominal($tahun));
+            $string_bulan = strtolower($this->stringNominal($bulan));
+            $total_waktu = $tahun.' ('.$string_tahun.')'.' tahun '.$bulan.' ('.$string_bulan.')'.' bulan';
+            $array_waktu = [
+                0 => $tahun,
+                1 => $bulan,
+            ];
+        }else{
+            $selisih_bulan = $end_date[1]-$start_date[1];
+            $selisih_tanggal = $end_date[2]-$start_date[2];
+            if($start_date[1]==2){
+                if($start_date[0]%4==0){
+                    $jumlah_hari = 29;
+                }else{
+                    $jumlah_hari =28;
+                }
+            }elseif($start_date[1]==4 || $start_date[1]==6 || $start_date[1]==9 || $start_date[1]==11){
+                $jumlah_hari = 30;
+            }else{
+                $jumlah_hari = 31;
+            }
+            if($selisih_tanggal>0){
+                if($selisih_bulan>0){
+                    $tahun = $end_date[0]-$start_date[0];
+                    $bulan = $end_date[1]-$start_date[1];
+                    $tanggal = $end_date[2]-$start_date[2];
+                }else{
+                    $awal = intval($start_date[1]);
+                    $akhir = intval($end_date[1]);
+                    $tahun = ($end_date[0]-$start_date[0])-1;
+                    $bulan = (12-$awal)+$akhir;
+                    $tanggal = $end_date[2]-$start_date[2];
+                }
+                $string_tahun = strtolower($this->stringNominal($tahun));
+                $string_bulan = strtolower($this->stringNominal($bulan));
+                $string_tanggal = strtolower($this->stringNominal($tanggal));
+                $total_waktu = $tahun.' ('.$string_tahun.')'.' tahun '.$bulan.' ('.$string_bulan.')'.' bulan '.$tanggal.' ('.$string_tanggal.')'.' hari';
+                $array_waktu = [
+                    0 => $tahun,
+                    1 => $bulan,
+                    2 => $tanggal,
+                ];
+            }else{
+                if($selisih_bulan==1){
+                    $tahun = $end_date[0]-$start_date[0];
+                    $tanggal = ($jumlah_hari-$start_date[2])+$end_date[2];
+                    $string_tahun = strtolower($this->stringNominal($tahun));
+                    $string_tanggal = strtolower($this->stringNominal($tanggal));
+                    $total_waktu = $tahun.' ('.$string_tahun.')'.' tahun '.$tanggal.' ('.$string_tanggal.')'.' hari';
+                    $array_waktu = [
+                        0 => $tahun,
+                        2 => $tanggal,
+                    ];
+                }elseif($selisih_bulan>0){
+                    $tahun = $end_date[0]-$start_date[0];
+                    $bulan = $end_date[1]-$start_date[1];
+                    $tanggal = ($jumlah_hari-$start_date[2])+$end_date[2];
+                    $string_tahun = strtolower($this->stringNominal($tahun));
+                    $string_bulan = strtolower($this->stringNominal($bulan));
+                    $string_tanggal = strtolower($this->stringNominal($tanggal));
+                    $total_waktu = $tahun.' ('.$string_tahun.')'.' tahun '.$bulan.' ('.$string_bulan.')'.' bulan '.$tanggal.' ('.$string_tanggal.')'.' hari';
+                    $array_waktu = [
+                        0 => $tahun,
+                        1 => $bulan,
+                        2 => $tanggal,
+                    ];
+                }else{
+                    $awal = intval($start_date[1]);
+                    $akhir = intval($end_date[1]);
+                    $tahun = ($end_date[0]-$start_date[0])-1;
+                    $bulan = (12-$awal)+$akhir;
+                    $tanggal = ($jumlah_hari-$start_date[2])+$end_date[2];
+                    $string_tahun = strtolower($this->stringNominal($tahun));
+                    $string_bulan = strtolower($this->stringNominal($bulan));
+                    $string_tanggal = strtolower($this->stringNominal($tanggal));
+                    $total_waktu = $tahun.' ('.$string_tahun.')'.' tahun '.$bulan.' ('.$string_bulan.')'.' bulan '.$tanggal.' ('.$string_tanggal.')'.' hari';
+                    $array_waktu = [
+                        0 => $tahun,
+                        1 => $bulan,
+                        2 => $tanggal,
+                    ];
+                }
+            }
+            
+        }
+        $sisa = $array_waktu[0] - 3;
+        if($sisa==0){
+            if(isset($array_waktu[1]) && isset($array_waktu[2])){
+                $string_sisa = ' + '.$array_waktu[1].' ('.strtolower($this->stringNominal($array_waktu[1])).')'.' bulan '.$array_waktu[2].' ('.strtolower($this->stringNominal($array_waktu[2])).')'.' hari berikutnya;';
+            }elseif(isset($array_waktu[1])){
+                $string_sisa = ' + '.$array_waktu[1].' ('.strtolower($this->stringNominal($array_waktu[1])).')'.' bulan berikutnya;';
+            }elseif(isset($array_waktu[2])){
+                $string_sisa = ' + '.$array_waktu[2].' ('.strtolower($this->stringNominal($array_waktu[2])).')'.' hari berikutnya;';
+            }else{
+                $string_sisa = ';';
+            }
+        }else{
+            if(isset($array_waktu[1]) && isset($array_waktu[2])){
+                $string_sisa = ' + '.$sisa.' ('.strtolower($this->stringNominal($sisa)).')'.' tahun '.$array_waktu[1].' ('.strtolower($this->stringNominal($array_waktu[1])).')'.' bulan '.$array_waktu[2].' ('.strtolower($this->stringNominal($array_waktu[2])).')'.' hari berikutnya;';
+            }elseif(isset($array_waktu[1])){
+                $string_sisa = ' + '.$sisa.' ('.strtolower($this->stringNominal($sisa)).')'.' tahun '.$array_waktu[1].' ('.strtolower($this->stringNominal($array_waktu[1])).')'.' bulan berikutnya;';
+            }elseif(isset($array_waktu[2])){
+                $string_sisa = ' + '.$sisa.' ('.strtolower($this->stringNominal($sisa)).')'.' tahun '.$array_waktu[2].' ('.strtolower($this->stringNominal($array_waktu[2])).')'.' hari berikutnya;';
+            }else{
+                $string_sisa = ' + '.$sisa.' ('.strtolower($this->stringNominal($sisa)).')'.' tahun;';
+            }
+        }
+        return [
+            'total' => $total_waktu,
+            'sisa' =>$string_sisa
+        ];
+    }
 }

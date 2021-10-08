@@ -5261,6 +5261,11 @@ class ApiOnlineTransaction extends Controller
 
     public function cartTransaction(Request $request){
         $post = $request->json()->all();
+        $bearerToken = $request->bearerToken();
+        $tokenId = (new Parser())->parse($bearerToken)->getHeader('jti');
+        $getOauth = OauthAccessToken::find($tokenId);
+        $scopeUser = str_replace(str_split('[]""'),"",$getOauth['scopes']);
+
         if(empty($post['item']) && empty($post['item_service'])){
             return response()->json([
                 'status'    => 'fail',
@@ -5269,17 +5274,25 @@ class ApiOnlineTransaction extends Controller
         }
         $post['item'] = $this->mergeProducts($post['item']??[]);
         $grandTotal = app($this->setting_trx)->grandTotal();
-        $user = User::with('memberships')->where('id', $request->user()->id)->first();
-        if (empty($user)) {
-            return response()->json([
-                'status'    => 'fail',
-                'messages'  => ['User Not Found']
-            ]);
+        if(!empty($request->user()->id)){
+            $user = User::with('memberships')->where('id', $request->user()->id)->first();
+            if (empty($user)) {
+                return response()->json([
+                    'status'    => 'fail',
+                    'messages'  => ['User Not Found']
+                ]);
+            }
         }
 
         //Check Outlet
-        $id_outlet = $post['id_outlet'];
-        $outlet = Outlet::where('id_outlet', $id_outlet)->with('today')->first();
+        if(!empty($post['outlet_code'])){
+            $outlet = Outlet::where('outlet_code', $post['outlet_code'])->with('today')->first();
+            $post['id_outlet'] = $outlet['id_outlet']??null;
+        }else{
+            $id_outlet = $post['id_outlet'];
+            $outlet = Outlet::where('id_outlet', $id_outlet)->with('today')->first();
+        }
+
         if (empty($outlet)) {
             return response()->json([
                 'status'    => 'fail',
@@ -5287,84 +5300,86 @@ class ApiOnlineTransaction extends Controller
             ]);
         }
 
-        foreach ($grandTotal as $keyTotal => $valueTotal) {
-            if ($valueTotal == 'subtotal') {
-                $post['sub'] = app($this->setting_trx)->countTransaction($valueTotal, $post);
+        if($scopeUser == 'apps'){
+            foreach ($grandTotal as $keyTotal => $valueTotal) {
+                if ($valueTotal == 'subtotal') {
+                    $post['sub'] = app($this->setting_trx)->countTransaction($valueTotal, $post);
 
-                if (gettype($post['sub']) != 'array') {
-                    $mes = ['Data Not Valid'];
+                    if (gettype($post['sub']) != 'array') {
+                        $mes = ['Data Not Valid'];
 
-                    if (isset($post['sub']->original['messages'])) {
-                        $mes = $post['sub']->original['messages'];
+                        if (isset($post['sub']->original['messages'])) {
+                            $mes = $post['sub']->original['messages'];
 
-                        if ($post['sub']->original['messages'] == ['Price Product Not Found']) {
-                            if (isset($post['sub']->original['product'])) {
-                                $mes = ['Price Product Not Found with product '.$post['sub']->original['product'].' at outlet '.$outlet['outlet_name']];
+                            if ($post['sub']->original['messages'] == ['Price Product Not Found']) {
+                                if (isset($post['sub']->original['product'])) {
+                                    $mes = ['Price Product Not Found with product '.$post['sub']->original['product'].' at outlet '.$outlet['outlet_name']];
+                                }
+                            }
+
+                            if ($post['sub']->original['messages'] == ['Price Product Not Valid'] || $post['sub']->original['messages'] == ['Price Service Product Not Valid']) {
+                                if (isset($post['sub']->original['product'])) {
+                                    $mes = ['Price Product Not Valid with product '.$post['sub']->original['product'].' at outlet '.$outlet['outlet_name']];
+                                }
+                            }
+
+                            if ($post['sub']->original['messages'] == ['Price Bundling Product Not Valid']) {
+                                if (isset($post['sub']->original['product'])) {
+                                    $mes = ['Price Product '.$post['sub']->original['product'].' Not Valid with Bundling '.$post['sub']->original['bundling_name']];
+                                }
                             }
                         }
-
-                        if ($post['sub']->original['messages'] == ['Price Product Not Valid'] || $post['sub']->original['messages'] == ['Price Service Product Not Valid']) {
-                            if (isset($post['sub']->original['product'])) {
-                                $mes = ['Price Product Not Valid with product '.$post['sub']->original['product'].' at outlet '.$outlet['outlet_name']];
-                            }
-                        }
-
-                        if ($post['sub']->original['messages'] == ['Price Bundling Product Not Valid']) {
-                            if (isset($post['sub']->original['product'])) {
-                                $mes = ['Price Product '.$post['sub']->original['product'].' Not Valid with Bundling '.$post['sub']->original['bundling_name']];
-                            }
-                        }
+                        return response()->json([
+                            'status'    => 'fail',
+                            'messages'  => $mes
+                        ]);
                     }
-                    return response()->json([
-                        'status'    => 'fail',
-                        'messages'  => $mes
-                    ]);
-                }
 
-                $post['subtotal_final'] = array_sum($post['sub']['subtotal_final']);
-                $post['subtotal'] = array_sum($post['sub']['subtotal']);
-                $post['total_discount_bundling'] = $post['sub']['total_discount_bundling']??0;
-                $post['subtotal'] = $post['subtotal'];
-            }else {
-                $post[$valueTotal] = app($this->setting_trx)->countTransaction($valueTotal, $post);
-            }
-        }
-
-        $cashBack = app($this->setting_trx)->countTransaction('cashback', $post);
-        $countUserTrx = Transaction::where('id_user', $user['id_user'])->where('transaction_payment_status', 'Completed')->count();
-        $countSettingCashback = TransactionSetting::get();
-
-        if ($countUserTrx < count($countSettingCashback)) {
-            $cashBack = $cashBack * $countSettingCashback[$countUserTrx]['cashback_percent'] / 100;
-
-            if ($cashBack > $countSettingCashback[$countUserTrx]['cashback_maximum']) {
-                $cashBack = $countSettingCashback[$countUserTrx]['cashback_maximum'];
-            }
-        } else {
-
-            $maxCash = Setting::where('key', 'cashback_maximum')->first();
-
-            if (count($user['memberships']) > 0) {
-                $cashBack = $cashBack * ($user['memberships'][0]['benefit_cashback_multiplier']) / 100;
-
-                if($user['memberships'][0]['cashback_maximum']){
-                    $maxCash['value'] = $user['memberships'][0]['cashback_maximum'];
+                    $post['subtotal_final'] = array_sum($post['sub']['subtotal_final']);
+                    $post['subtotal'] = array_sum($post['sub']['subtotal']);
+                    $post['total_discount_bundling'] = $post['sub']['total_discount_bundling']??0;
+                    $post['subtotal'] = $post['subtotal'];
+                }else {
+                    $post[$valueTotal] = app($this->setting_trx)->countTransaction($valueTotal, $post);
                 }
             }
 
-            $statusCashMax = 'no';
+            $cashBack = app($this->setting_trx)->countTransaction('cashback', $post);
+            $countUserTrx = Transaction::where('id_user', $user['id_user'])->where('transaction_payment_status', 'Completed')->count();
+            $countSettingCashback = TransactionSetting::get();
 
-            if (!empty($maxCash) && !empty($maxCash['value'])) {
-                $statusCashMax = 'yes';
-                $totalCashMax = $maxCash['value'];
-            }
+            if ($countUserTrx < count($countSettingCashback)) {
+                $cashBack = $cashBack * $countSettingCashback[$countUserTrx]['cashback_percent'] / 100;
 
-            if ($statusCashMax == 'yes') {
-                if ($totalCashMax < $cashBack) {
-                    $cashBack = $totalCashMax;
+                if ($cashBack > $countSettingCashback[$countUserTrx]['cashback_maximum']) {
+                    $cashBack = $countSettingCashback[$countUserTrx]['cashback_maximum'];
                 }
             } else {
-                $cashBack = $cashBack;
+
+                $maxCash = Setting::where('key', 'cashback_maximum')->first();
+
+                if (count($user['memberships']) > 0) {
+                    $cashBack = $cashBack * ($user['memberships'][0]['benefit_cashback_multiplier']) / 100;
+
+                    if($user['memberships'][0]['cashback_maximum']){
+                        $maxCash['value'] = $user['memberships'][0]['cashback_maximum'];
+                    }
+                }
+
+                $statusCashMax = 'no';
+
+                if (!empty($maxCash) && !empty($maxCash['value'])) {
+                    $statusCashMax = 'yes';
+                    $totalCashMax = $maxCash['value'];
+                }
+
+                if ($statusCashMax == 'yes') {
+                    if ($totalCashMax < $cashBack) {
+                        $cashBack = $totalCashMax;
+                    }
+                } else {
+                    $cashBack = $cashBack;
+                }
             }
         }
 
@@ -5465,7 +5480,7 @@ class ApiOnlineTransaction extends Controller
                 $product['variants'] = [];
             }
 
-            $product['product_price_total'] = $item['transaction_product_subtotal'];
+            $product['product_price_total'] = $item['transaction_product_subtotal']??($product['product_price']*$item['qty']);
             $product['product_price'] = (int)($product_variant_group_price??$product['product_price']);
             unset($product['product_variant_status']);
             unset($product['product_stock_status']);
@@ -5488,7 +5503,7 @@ class ApiOnlineTransaction extends Controller
             $subTotalItemService = $itemServices['subtotal_service']??0;
         }
 
-        if ($cashBack) {
+        if ($cashBack??false) {
             $result['point_earned'] = [
                 'value' => MyHelper::requestNumber($cashBack,'_CURRENCY'),
                 'text' 	=> MyHelper::setting('cashback_earned_text', 'value', 'Point yang akan didapatkan')
@@ -5522,7 +5537,9 @@ class ApiOnlineTransaction extends Controller
         $result['subtotal_item'] = $subTotalItem;
         $result['subtotal_item_service'] = $subTotalItemService;
         $result['continue_checkout'] = $continueCheckOut;
-        $result['complete_profile'] = (empty($user->complete_profile) ?false:true);
+        if($scopeUser == 'apps'){
+            $result['complete_profile'] = (empty($user->complete_profile) ?false:true);
+        }
 
         return MyHelper::checkGet($result);
     }

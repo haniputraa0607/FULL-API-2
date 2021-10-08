@@ -1201,12 +1201,10 @@ class SettingsTableSeeder extends Seeder
                                 <td width="130px">CARA PEMBAYARAN</td>
                                 <td>
                                     <ol class="pl-2 text-justify terluar">
-                                        <li>Booking fee kesepakatan kerjasama Ixobox 20% = Rp %dp%,- (%dp_string% Rupiah), belum termasuk PPN. Dibayar maksimal 5 hari kerja setelah ditandatangani surat konfirmasi ini;</li>
-                                        <li>Down Payment 1 = Rp %dp2%,- (%dp2_string% Rupiah), belum termasuk PPN dan dibayar maksimal 2 minggu sebelum proses renovasi dilakukan;</li>
-                                        <li>Final Payment = Rp %final%,- (%final_string% Rupiah), belum termasuk PPN;</li>
-                                        @if (isset(%angsuran%) && !empty(%angsuran%))
-                                        <li>%angsuran%;</li>    
-                                        @endif
+                                        <li>Booking fee kesepakatan kerjasama Ixobox 20% = Rp %dp% (%dp_string%), belum termasuk PPN. Dibayar maksimal 5 hari kerja setelah ditandatangani surat konfirmasi ini;</li>
+                                        <li>Down Payment 1 = Rp %dp2% (%dp2_string%), belum termasuk PPN dan dibayar maksimal 2 minggu sebelum proses renovasi dilakukan;</li>
+                                        <li>Final Payment = Rp %final% (%final_string%), belum termasuk PPN;</li>
+                                        %angsuran%    
                                         <li>Pembayaran dilakukan dengan cara transfer ke PT.Ixobox Multitren Asia, Bank BCA, nomor rekening: 6840308608 dan seluruh pembayaran yang telah disepakati dan dilakukan oleh Pihak II kepada Pihak I, tidak dapat dikembalikan;</li>
                                     </ol>
                                 </td>

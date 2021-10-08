@@ -3611,6 +3611,56 @@ class FeaturesTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00'),
                 ),
+            361 =>
+                array(
+                    'id_feature' => 362,
+                    'feature_type' => 'List',
+                    'feature_module' => 'Product Service',
+                    'show_hide' => 1,
+                    'order' => 132,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            362 =>
+                array(
+                    'id_feature' => 363,
+                    'feature_type' => 'Detail',
+                    'feature_module' => 'Product Service',
+                    'show_hide' => 1,
+                    'order' => 132,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            363 =>
+                array(
+                    'id_feature' => 364,
+                    'feature_type' => 'Create',
+                    'feature_module' => 'Product Service',
+                    'show_hide' => 1,
+                    'order' => 132,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            364 =>
+                array(
+                    'id_feature' => 365,
+                    'feature_type' => 'Update',
+                    'feature_module' => 'Product Service',
+                    'show_hide' => 1,
+                    'order' => 132,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            365 =>
+                array(
+                    'id_feature' => 366,
+                    'feature_type' => 'Delete',
+                    'feature_module' => 'Product Service',
+                    'show_hide' => 1,
+                    'order' => 132,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
         ));
     }
 }

@@ -1,0 +1,14 @@
+{
+    "name": "ProductService",
+    "alias": "productservice",
+    "description": "",
+    "keywords": [],
+    "active": 1,
+    "order": 0,
+    "providers": [
+        "Modules\\ProductService\\Providers\\ProductServiceServiceProvider"
+    ],
+    "aliases": {},
+    "files": [],
+    "requires": []
+}

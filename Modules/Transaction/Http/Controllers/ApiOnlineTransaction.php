@@ -301,6 +301,13 @@ class ApiOnlineTransaction extends Controller
             ]);
         }
 
+        if($user['complete_profile'] == 0){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Please complete your profile']
+            ]);
+        }
+
         //suspend
         if(isset($user['is_suspended']) && $user['is_suspended'] == '1'){
             DB::rollback();
@@ -2007,11 +2014,19 @@ class ApiOnlineTransaction extends Controller
         $post['item'] = $this->mergeProducts($post['item']??[]);
         $grandTotal = app($this->setting_trx)->grandTotal();
         $user = $request->user();
+        if($user->complete_profile == 0){
+            return response()->json([
+                'status'    => 'success',
+                'result'  => [
+                    'complete_profile' => false
+                ]
+            ]);
+        }
+
         //Check Outlet
         $id_outlet = $post['id_outlet'];
         $outlet = Outlet::where('id_outlet', $id_outlet)->with('today')->first();
         if (empty($outlet)) {
-            DB::rollback();
             return response()->json([
                 'status'    => 'fail',
                 'messages'  => ['Outlet Not Found']
@@ -4439,7 +4454,8 @@ class ApiOnlineTransaction extends Controller
                 "user_hair_stylist_name" => $item['user_hair_stylist_name'],
                 "booking_date" => $item['booking_date'],
                 "booking_date_display" => $item['booking_date_display'],
-                "booking_time" => $item['booking_time']
+                "booking_time" => $item['booking_time'],
+                "error_msg" => $item['error_msg']
             ];
             $pos = array_search($new_item, $new_items);
             if($pos === false) {
@@ -5241,5 +5257,389 @@ class ApiOnlineTransaction extends Controller
     	}
 
     	return $showList;
+    }
+
+    public function cartTransaction(Request $request){
+        $post = $request->json()->all();
+        if(empty($post['item']) && empty($post['item_service'])){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Item/Item bundling/Item Service can not be empty']
+            ]);
+        }
+        $post['item'] = $this->mergeProducts($post['item']??[]);
+        $grandTotal = app($this->setting_trx)->grandTotal();
+        $user = User::with('memberships')->where('id', $request->user()->id)->first();
+        if (empty($user)) {
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['User Not Found']
+            ]);
+        }
+
+        //Check Outlet
+        $id_outlet = $post['id_outlet'];
+        $outlet = Outlet::where('id_outlet', $id_outlet)->with('today')->first();
+        if (empty($outlet)) {
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Outlet Not Found']
+            ]);
+        }
+
+        foreach ($grandTotal as $keyTotal => $valueTotal) {
+            if ($valueTotal == 'subtotal') {
+                $post['sub'] = app($this->setting_trx)->countTransaction($valueTotal, $post);
+
+                if (gettype($post['sub']) != 'array') {
+                    $mes = ['Data Not Valid'];
+
+                    if (isset($post['sub']->original['messages'])) {
+                        $mes = $post['sub']->original['messages'];
+
+                        if ($post['sub']->original['messages'] == ['Price Product Not Found']) {
+                            if (isset($post['sub']->original['product'])) {
+                                $mes = ['Price Product Not Found with product '.$post['sub']->original['product'].' at outlet '.$outlet['outlet_name']];
+                            }
+                        }
+
+                        if ($post['sub']->original['messages'] == ['Price Product Not Valid'] || $post['sub']->original['messages'] == ['Price Service Product Not Valid']) {
+                            if (isset($post['sub']->original['product'])) {
+                                $mes = ['Price Product Not Valid with product '.$post['sub']->original['product'].' at outlet '.$outlet['outlet_name']];
+                            }
+                        }
+
+                        if ($post['sub']->original['messages'] == ['Price Bundling Product Not Valid']) {
+                            if (isset($post['sub']->original['product'])) {
+                                $mes = ['Price Product '.$post['sub']->original['product'].' Not Valid with Bundling '.$post['sub']->original['bundling_name']];
+                            }
+                        }
+                    }
+                    return response()->json([
+                        'status'    => 'fail',
+                        'messages'  => $mes
+                    ]);
+                }
+
+                $post['subtotal_final'] = array_sum($post['sub']['subtotal_final']);
+                $post['subtotal'] = array_sum($post['sub']['subtotal']);
+                $post['total_discount_bundling'] = $post['sub']['total_discount_bundling']??0;
+                $post['subtotal'] = $post['subtotal'];
+            }else {
+                $post[$valueTotal] = app($this->setting_trx)->countTransaction($valueTotal, $post);
+            }
+        }
+
+        $cashBack = app($this->setting_trx)->countTransaction('cashback', $post);
+        $countUserTrx = Transaction::where('id_user', $user['id_user'])->where('transaction_payment_status', 'Completed')->count();
+        $countSettingCashback = TransactionSetting::get();
+
+        if ($countUserTrx < count($countSettingCashback)) {
+            $cashBack = $cashBack * $countSettingCashback[$countUserTrx]['cashback_percent'] / 100;
+
+            if ($cashBack > $countSettingCashback[$countUserTrx]['cashback_maximum']) {
+                $cashBack = $countSettingCashback[$countUserTrx]['cashback_maximum'];
+            }
+        } else {
+
+            $maxCash = Setting::where('key', 'cashback_maximum')->first();
+
+            if (count($user['memberships']) > 0) {
+                $cashBack = $cashBack * ($user['memberships'][0]['benefit_cashback_multiplier']) / 100;
+
+                if($user['memberships'][0]['cashback_maximum']){
+                    $maxCash['value'] = $user['memberships'][0]['cashback_maximum'];
+                }
+            }
+
+            $statusCashMax = 'no';
+
+            if (!empty($maxCash) && !empty($maxCash['value'])) {
+                $statusCashMax = 'yes';
+                $totalCashMax = $maxCash['value'];
+            }
+
+            if ($statusCashMax == 'yes') {
+                if ($totalCashMax < $cashBack) {
+                    $cashBack = $totalCashMax;
+                }
+            } else {
+                $cashBack = $cashBack;
+            }
+        }
+
+        $subTotalItem = 0;
+        $continueCheckOut = true;
+        foreach ($post['item'] as &$item) {
+            // get detail product
+            $err = [];
+            $product = Product::select([
+                'products.id_product','products.product_name','products.product_code',
+                DB::raw('(CASE
+                            WHEN (select outlets.outlet_different_price from outlets  where outlets.id_outlet = '.$post['id_outlet'].' ) = 1 
+                            THEN (select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = '.$post['id_outlet'].' )
+                            ELSE product_global_price.product_global_price
+                        END) as product_price'),
+                DB::raw('(select product_detail.product_detail_stock_item from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . ' order by id_product_detail desc limit 1) as product_stock_status'),
+                'brand_product.id_product_category','brand_product.id_brand', 'products.product_variant_status'
+            ])
+                ->join('brand_product','brand_product.id_product','=','products.id_product')
+                ->leftJoin('product_global_price','product_global_price.id_product','=','products.id_product')
+                ->where('brand_outlet.id_outlet','=',$post['id_outlet'])
+                ->join('brand_outlet','brand_outlet.id_brand','=','brand_product.id_brand')
+                ->whereRaw('products.id_product in (CASE
+                        WHEN (select product_detail.id_product from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = '.$post['id_outlet'].' )
+                        is NULL AND products.product_visibility = "Visible" THEN products.id_product
+                        WHEN (select product_detail.id_product from product_detail  where (product_detail.product_detail_visibility = "" OR product_detail.product_detail_visibility IS NULL) AND product_detail.id_product = products.id_product AND product_detail.id_outlet = '.$post['id_outlet'].' )
+                        is NOT NULL AND products.product_visibility = "Visible" THEN products.id_product
+                        ELSE (select product_detail.id_product from product_detail  where product_detail.product_detail_visibility = "Visible" AND product_detail.id_product = products.id_product AND product_detail.id_outlet = '.$post['id_outlet'].' )
+                    END)')
+                ->whereRaw('products.id_product in (CASE
+                        WHEN (select product_detail.id_product from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = '.$post['id_outlet'].' )
+                        is NULL THEN products.id_product
+                        ELSE (select product_detail.id_product from product_detail  where product_detail.product_detail_status = "Active" AND product_detail.id_product = products.id_product AND product_detail.id_outlet = '.$post['id_outlet'].' )
+                    END)')
+                ->where(function ($query) use ($post){
+                    $query->orWhereRaw('(select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = '.$post['id_outlet'].' ) is NOT NULL');
+                    $query->orWhereRaw('(select product_global_price.product_global_price from product_global_price  where product_global_price.id_product = products.id_product) is NOT NULL');
+                })
+                ->with([
+                    'photos' => function($query){
+                        $query->select('id_product','product_photo');
+                    }
+                ])
+                ->having('product_price','>',0)
+                ->groupBy('products.id_product')
+                ->orderBy('products.position')
+                ->find($item['id_product']);
+
+            $product->append('photo');
+            $product = $product->toArray();
+
+            if($product['product_variant_status'] && !empty($item['id_product_variant_group'])){
+                $product['product_stock_status'] = ProductVariantGroupDetail::where('id_product_variant_group', $item['id_product_variant_group'])
+                        ->where('id_outlet', $outlet['id_outlet'])
+                        ->first()['product_variant_group_detail_stock_item']??0;
+            }
+
+            if($item['qty'] > $product['product_stock_status']){
+                $err[] = 'Jumlah pembelian produk melebihi stok yang tersedia';
+            }
+            unset($product['photos']);
+            $product['id_custom'] = $item['id_custom']??null;
+            $product['qty'] = $item['qty'];
+            $product['id_product_variant_group'] = $item['id_product_variant_group'] ?? null;
+
+            if($product['product_variant_status']){
+                if ($product['id_product_variant_group']) {
+                    $product['product_price'] = $item['transaction_product_price'];
+                    $product['selected_variant'] = Product::getVariantParentId($item['id_product_variant_group'], Product::getVariantTree($item['id_product'], $outlet)['variants_tree'], array_column($product['extra_modifiers']??[], 'id_product_variant'));
+                } else {
+                    $product['selected_variant'] = [];
+                }
+
+                $order = array_flip($product['selected_variant']);
+                $variants = array_merge(ProductVariant::select('id_product_variant', 'product_variant_name')->whereIn('id_product_variant', array_keys($item['variants']))->get()->toArray(), $product['extra_modifiers']??[]);
+                usort($variants, function ($a, $b) use ($order) {
+                    return $order[$a['id_product_variant']] <=> $order[$b['id_product_variant']];
+                });
+                $product['variants'] = $variants;
+
+                if($product['id_product_variant_group']){
+                    $productVariantGroup = ProductVariantGroup::where('id_product_variant_group', $product['id_product_variant_group'])->first();
+                    if($productVariantGroup['product_variant_group_visibility'] == 'Hidden'){
+                        $err[] = 'Product tidak tersedia';
+                    }else{
+                        if($outlet['outlet_different_price']){
+                            $product_variant_group_price = ProductVariantGroupSpecialPrice::where('id_product_variant_group', $product['id_product_variant_group'])->where('id_outlet', $outlet['id_outlet'])->first()['product_variant_group_price']??0;
+                        }else{
+                            $product_variant_group_price = $productVariantGroup['product_variant_group_price']??0;
+                        }
+                    }
+                }else{
+                    $product_variant_group_price = (int) $product['product_price'];
+                }
+            }else{
+                $product['id_product_variant_group'] = null;
+                $product['selected_variant'] = [];
+                $product['variants'] = [];
+            }
+
+            $product['product_price_total'] = $item['transaction_product_subtotal'];
+            $product['product_price'] = (int)($product_variant_group_price??$product['product_price']);
+            unset($product['product_variant_status']);
+            unset($product['product_stock_status']);
+            $subTotalItem = $subTotalItem + $product['product_price_total'];
+            $product['error_msg'] = (empty($err)? null:implode(".", array_unique($err)));
+
+            $item = $product;
+            if(!empty($err)){
+                $continueCheckOut = false;
+            }
+        }
+        $result['items'] = $post['item'];
+
+        $result['item_service'] = [];
+        $subTotalItemService = 0;
+        if(!empty($post['item_service'])){
+            $itemServices = $this->cartServiceProduct($post, $outlet);
+            $result['item_service'] = $itemServices['item_service']??[];
+            $continueCheckOut = $itemServices['continue_checkout'];
+            $subTotalItemService = $itemServices['subtotal_service']??0;
+        }
+
+        if ($cashBack) {
+            $result['point_earned'] = [
+                'value' => MyHelper::requestNumber($cashBack,'_CURRENCY'),
+                'text' 	=> MyHelper::setting('cashback_earned_text', 'value', 'Point yang akan didapatkan')
+            ];
+        }
+
+        $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
+            ->where('id_outlet', $outlet['id_outlet'])->first();
+
+        if(empty($brand)){
+            return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
+        }
+
+        $result['currency'] = 'Rp';
+        $result['outlet'] = [
+            'id_outlet' => $outlet['id_outlet'],
+            'outlet_code' => $outlet['outlet_code'],
+            'outlet_name' => $outlet['outlet_name'],
+            'outlet_address' => $outlet['outlet_address'],
+            'delivery_order' => $outlet['delivery_order'],
+            'today' => $outlet['today'],
+            'color' => $brand['color_brand']
+        ];
+
+        $result['brand'] = [
+            'id_brand' => $brand['id_brand'],
+            'brand_code' => $brand['code_brand'],
+            'brand_name' => $brand['name_brand'],
+            'brand_logo' => $brand['logo_brand']
+        ];
+        $result['subtotal_item'] = $subTotalItem;
+        $result['subtotal_item_service'] = $subTotalItemService;
+        $result['continue_checkout'] = $continueCheckOut;
+
+        return MyHelper::checkGet($result);
+    }
+
+    public function cartServiceProduct($post, $outlet){
+        $subTotalService = 0;
+        $itemService = [];
+        $currentDate = date('Y-m-d H:i');
+        $continueCheckOut = true;
+
+        foreach ($post['item_service']??[] as $key=>$item){
+            $err = [];
+            $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
+                ->leftJoin('brand_product', 'brand_product.id_product', 'products.id_product')
+                ->where('products.id_product', $item['id_product'])
+                ->select('products.*', 'product_global_price as product_price', 'brand_product.id_brand')
+                ->with(['product_service_use_detail'])
+                ->first();
+
+            if(empty($service)){
+                $err[] = 'Service tidak tersedia';
+            }
+
+            foreach ($service['product_service_use_detail'] as $stock){
+                if($stock['quantity_use'] > $stock['product_detail_stock_service']){
+                    $err[] = 'Service tidak tersedia';
+                    break 2;
+                }
+            }
+
+            $getProductDetail = ProductDetail::where('id_product', $service['id_product'])->where('id_outlet', $post['id_outlet'])->first();
+            $service['visibility_outlet'] = $getProductDetail['product_detail_visibility']??null;
+
+            if($service['visibility_outlet'] == 'Hidden' || (empty($service['visibility_outlet']) && $service['product_visibility'] == 'Hidden')){
+                $err[] = 'Service tidak tersedia';
+            }
+
+            if($outlet['outlet_special_status'] == 1){
+                $service['product_price'] = ProductSpecialPrice::where('id_product', $item['id_product'])
+                        ->where('id_outlet', $outlet['id_outlet'])->first()['product_special_price']??0;
+            }
+
+            if(empty($service['product_price'])){
+                $err[] = 'Service tidak tersedia';
+            }
+
+            if($service['product_detail_visibility'] == 'Hidden' || (empty($service['product_detail_visibility']) && $service['product_visibility'] == 'Hidden')){
+                $err[] = 'Service tidak tersedia';
+            }
+
+            $bookTime = date('Y-m-d H:i', strtotime(date('Y-m-d', strtotime($item['booking_date'])).' '.date('H:i', strtotime($item['booking_time']))));
+            if(strtotime($currentDate) > strtotime($bookTime)){
+                $err[] = "Waktu pemesanan Anda tidak valid";
+            }
+
+            //check available hs
+            $hs = UserHairStylist::where('id_user_hair_stylist', $item['id_user_hair_stylist'])->where('user_hair_stylist_status', 'Active')->first();
+            if(empty($hs)){
+                $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
+            }
+
+            //get hs schedule
+            $shift = HairstylistScheduleDate::leftJoin('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
+                    ->whereNotNull('approve_at')->where('id_user_hair_stylist', $item['id_user_hair_stylist'])
+                    ->whereDate('date', date('Y-m-d', strtotime($item['booking_date'])))
+                    ->first()['shift']??'';
+            if(empty($shift)){
+                $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
+            }
+
+            $getTimeShift = app($this->product)->getTimeShift(strtolower($shift));
+            if(empty($getTimeShift['start']) && empty($getTimeShift['end'])){
+                $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
+            }
+
+            $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
+            $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
+            $time = date('H:i', strtotime($item['booking_time']));
+            if((strtotime($time) > strtotime($shiftTimeStart) && strtotime($time) < strtotime($shiftTimeEnd)) === false){
+                $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
+            }
+
+            $hsNotAvailable = HairstylistNotAvailable::where('id_outlet', $post['id_outlet'])
+                ->where('booking_date', date('Y-m-d', strtotime($item['booking_date'])))
+                ->where('booking_time', date('H:i:s', strtotime($item['booking_time'])))
+                ->where('id_user_hair_stylist', $item['id_user_hair_stylist'])
+                ->first();
+
+            if(!empty($hsNotAvailable)){
+                $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
+            }
+
+            $itemService[$key] = [
+                "id_custom" => $item['id_custom'],
+                "id_brand" => $service['id_brand'],
+                "id_product" => $service['id_product'],
+                "product_code" => $service['product_code'],
+                "product_name" => $service['product_name'],
+                "product_price" => (int)$service['product_price'],
+                "id_user_hair_stylist" => $hs['id_user_hair_stylist'],
+                "user_hair_stylist_name" => $hs['fullname'],
+                "booking_date" => $item['booking_date'],
+                "booking_date_display" => MyHelper::dateFormatInd($item['booking_date'], true, false),
+                "booking_time" => $item['booking_time'],
+                "error_msg" => (empty($err)? null:implode(".", array_unique($err)))
+            ];
+            $subTotalService = $subTotalService + $service['product_price'];
+            if(!empty($err)){
+                $continueCheckOut = false;
+            }
+        }
+
+        $mergeService = $this->mergeService($itemService);
+
+        return [
+            'subtotal_service' => $subTotalService,
+            'item_service' => $mergeService,
+            'continue_checkout' => $continueCheckOut
+        ];
     }
 }

@@ -5596,13 +5596,13 @@ class ApiOnlineTransaction extends Controller
             $getTimeShift = app($this->product)->getTimeShift(strtolower($shift));
             if(empty($getTimeShift['start']) && empty($getTimeShift['end'])){
                 $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
-            }
-
-            $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
-            $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
-            $time = date('H:i', strtotime($item['booking_time']));
-            if((strtotime($time) > strtotime($shiftTimeStart) && strtotime($time) < strtotime($shiftTimeEnd)) === false){
-                $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
+            }else{
+                $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
+                $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
+                $time = date('H:i', strtotime($item['booking_time']));
+                if((strtotime($time) > strtotime($shiftTimeStart) && strtotime($time) < strtotime($shiftTimeEnd)) === false){
+                    $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
+                }
             }
 
             $hsNotAvailable = HairstylistNotAvailable::where('id_outlet', $post['id_outlet'])

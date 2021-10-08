@@ -13,6 +13,7 @@ use DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Http\Models\City;
+use App\Http\Models\Setting;
 use Illuminate\Support\Facades\App;
 use PDF;
 use Storage;
@@ -614,9 +615,12 @@ class ApiPartnersController extends Controller
                 if(isset($data['location']['notes']) && !empty($data['location']['notes'])){
                     $send['data']['angsuran'] = $data['location']['notes'];
                 }
+                $content = Setting::where('key','confirmation_letter_tempalate')->get('value_text')->first()['value_text'];
+                $pdf_contect['content'] = $this->textReplace($content,$send['data']);
+                // return $pdf_contect['content'];
                 $no = str_replace('/', '_', $post['no_letter']);
                 $path = $this->confirmation.'confirmation_'.$no.'.pdf';
-                $pdf = PDF::loadView('businessdevelopment::confirmation', $send );
+                $pdf = PDF::loadView('businessdevelopment::confirmation', $pdf_contect );
                 Storage::put('public/'.$path, $pdf->output());
                 $creatConf['attachment'] = $path;
                 $store = ConfirmationLetter::create($creatConf);
@@ -850,5 +854,33 @@ class ApiPartnersController extends Controller
             'total' => $total_waktu,
             'sisa' =>$string_sisa
         ];
+    }
+
+    public function textReplace($text,$data){
+        $text = str_replace('%lokasi_surat%',$data['lokasi_surat'],$text);
+        $text = str_replace('%tanggal_surat%',$data['tanggal_surat'],$text);
+        $text = str_replace('%no_surat%',$data['no_surat'],$text);
+        $text = str_replace('%pihak_dua%',$data['pihak_dua'],$text);
+        $text = str_replace('%location_mall%',$data['location_mall'],$text);
+        $text = str_replace('%location_city%',$data['location_mall'],$text);
+        $text = str_replace('%address%',$data['address'],$text);
+        $text = str_replace('%large%',$data['large'],$text);
+        $text = str_replace('%partnership_fee%',$data['partnership_fee'],$text);
+        $text = str_replace('%partnership_fee_string%',$data['partnership_fee_string'],$text);
+        $text = str_replace('%dp%',$data['dp'],$text);
+        $text = str_replace('%dp_string%',$data['dp_string'],$text);
+        $text = str_replace('%dp2%',$data['dp2'],$text);
+        $text = str_replace('%dp2_string%',$data['dp2_string'],$text);
+        $text = str_replace('%final%',$data['final'],$text);
+        $text = str_replace('%final_string%',$data['final_string'],$text);
+        $text = str_replace('%total_waktu%',$data['total_waktu'],$text);
+        $text = str_replace('%sisa_waktu%',$data['sisa_waktu'],$text);
+        if(isset($data['angsuran'])){
+            $angsuran = '<li>'.$data['angsuran'].'</li>';
+            $text = str_replace('%angsuran%',$angsuran,$text);
+        }else{
+            $text = str_replace('%angsuran%','',$text);
+        }
+        return $text;
     }
 }

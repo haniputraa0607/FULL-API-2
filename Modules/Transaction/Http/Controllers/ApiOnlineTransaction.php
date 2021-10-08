@@ -5522,6 +5522,7 @@ class ApiOnlineTransaction extends Controller
         $result['subtotal_item'] = $subTotalItem;
         $result['subtotal_item_service'] = $subTotalItemService;
         $result['continue_checkout'] = $continueCheckOut;
+        $result['complete_profile'] = (empty($user->complete_profile) ?false:true);
 
         return MyHelper::checkGet($result);
     }

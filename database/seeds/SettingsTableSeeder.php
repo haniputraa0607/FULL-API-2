@@ -1258,46 +1258,7 @@ class SettingsTableSeeder extends Seeder
                     'id_setting' => 122,
                     'key' => 'form_survey',
                     'value' => NULL,
-                    'value_text' => '{
-                        [
-                          "category" : "KONDISI UMUM LOKASI",
-                          "question" : [
-                            "Lokasi di area residensial (komplek perumahan) dengan populasi penduduk padat",
-                            "Lokasi dikelilingi offices, apartements, schools, campus",
-                            "Lokasi sekitartnya banyak retail F&B dan retail lainnya",
-                            "Lokasi sangat strategis: jalan raya utama 2 arah, terlihat sekilas dengan mudah, area parkir cukup luas",
-                            "Lokasi di tengah pusat kota yang padat dan meeting point",
-                            "Lokasi tidak rawan hal-hal yang mengakibatkan outlet tutup, seperti banjir, kebakaran, demonstrasi, dll"
-                          ]
-                        ],
-                        [
-                          "category" : "KONDISI DALAM LOKASI",
-                          "question" : [
-                            "Ruangan Lokasi siap pakai tanpa partisi",
-                            "Ruangan Lokasi tidak banyak kerusakan secara keseluruhan sehingga minimalkan biaya renovasi",
-                            "Tampak depan lokasi dapat dipasang signage dan fasad ixobox",
-                            "Lokasi dapat pasang reklame untuk promosi",
-                            "Listrik lokasi minimal 6000 watt",
-                            "Lokasi ada instalasi air bersih dan kotor",
-                            "Lokasi dapat dipasang partisi untuk mess hairstylist"
-                          ]
-                        ],
-                        [
-                          "category" : "UNIT OUTLET YANG DITAWARKAN",
-                          "question" : [
-                            "Unit lokasi berada di area banyak salon/barbershop/gunting rambut anak-anak",
-                            "Lokasi unit outlet sebelumnya ditempati oleh salon/barbershop (diutamakan yang ramai pelanggan)",
-                            "Unit lokasi dilewati banyak pejalan kaki dan posisinya terlihat jelas",
-                            "Ukuruan luas unit outlet adalah sesuai dengan kebutuhan/kriteria Ixobox minimal 30 m",
-                            "Biaya sewa dan service charge sesuai dengan budget sub-brand Ixobox yang ditentukan",
-                            "Biaya renovasi lokasi masuk dalam perhitungan biaya Ixobox",
-                            "Kapasitas unit outlet, dapat menambah jumlah kapasitas box di masa yang akan datang",
-                            "Rata-rata harga jual competitor lebih tinggi dari harga jual Ixobox",
-                            "Tidak sulit recruit, penempatan dan lakukan rotasi hairstylist untuk unit outlet tersebut",
-                            "Keberadaan unit outlet tidak membutuhkan biaya promosi yang tinggi"
-                          ]
-                        ],
-                      }',
+                    'value_text' => '{["category" : "KONDISI UMUM LOKASI","question" : ["Lokasi di area residensial (komplek perumahan) dengan populasi penduduk padat","Lokasi dikelilingi offices, apartements, schools, campus","Lokasi sekitartnya banyak retail F&B dan retail lainnya","Lokasi sangat strategis: jalan raya utama 2 arah, terlihat sekilas dengan mudah, area parkir cukup luas","Lokasi di tengah pusat kota yang padat dan meeting point","Lokasi tidak rawan hal-hal yang mengakibatkan outlet tutup, seperti banjir, kebakaran, demonstrasi, dll"]],["category" : "KONDISI DALAM LOKASI","question" : ["Ruangan Lokasi siap pakai tanpa partisi","Ruangan Lokasi tidak banyak kerusakan secara keseluruhan sehingga minimalkan biaya renovasi","Tampak depan lokasi dapat dipasang signage dan fasad ixobox","Lokasi dapat pasang reklame untuk promosi","Listrik lokasi minimal 6000 watt","Lokasi ada instalasi air bersih dan kotor","Lokasi dapat dipasang partisi untuk mess hairstylist"]],["category" : "UNIT OUTLET YANG DITAWARKAN","question" : ["Unit lokasi berada di area banyak salon/barbershop/gunting rambut anak-anak","Lokasi unit outlet sebelumnya ditempati oleh salon/barbershop (diutamakan yang ramai pelanggan)","Unit lokasi dilewati banyak pejalan kaki dan posisinya terlihat jelas","Ukuruan luas unit outlet adalah sesuai dengan kebutuhan/kriteria Ixobox minimal 30 m","Biaya sewa dan service charge sesuai dengan budget sub-brand Ixobox yang ditentukan","Biaya renovasi lokasi masuk dalam perhitungan biaya Ixobox","Kapasitas unit outlet, dapat menambah jumlah kapasitas box di masa yang akan datang","Rata-rata harga jual competitor lebih tinggi dari harga jual Ixobox","Tidak sulit recruit, penempatan dan lakukan rotasi hairstylist untuk unit outlet tersebut","Keberadaan unit outlet tidak membutuhkan biaya promosi yang tinggi"]],}',
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s'),
                 )

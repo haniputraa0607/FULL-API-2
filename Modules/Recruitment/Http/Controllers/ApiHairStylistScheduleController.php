@@ -123,6 +123,14 @@ class ApiHairStylistScheduleController extends Controller
                         			break;
                         	}
                         }
+
+                        if ($row['subject'] == 'month') {
+                            $data->where('schedule_month', $row['operator']);
+                        }
+
+                        if ($row['subject'] == 'year') {
+                            $data->where('schedule_year', $row['operator']);
+                        }
                     }
                 }
             } else {
@@ -178,6 +186,14 @@ class ApiHairStylistScheduleController extends Controller
             							break;
             					}
             				}
+
+	                        if ($row['subject'] == 'month') {
+	                            $data->orWhere('schedule_month', $row['operator']);
+	                        }
+
+	                        if ($row['subject'] == 'year') {
+	                            $data->orWhere('schedule_year', $row['operator']);
+	                        }
             			}
                     }
                 });
@@ -340,5 +356,12 @@ class ApiHairStylistScheduleController extends Controller
         }
 
         return response()->json(MyHelper::checkUpdate($save));
+    }
+
+    public function getScheduleYear()
+    {
+        $data = HairstylistSchedule::groupBy('schedule_year')->get()->pluck('schedule_year');
+
+        return MyHelper::checkGet($data);
     }
 }

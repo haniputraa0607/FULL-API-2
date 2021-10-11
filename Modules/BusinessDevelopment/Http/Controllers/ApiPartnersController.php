@@ -13,6 +13,7 @@ use DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Http\Models\City;
+use Modules\BusinessDevelopment\Entities\StepsLog;
 
 class ApiPartnersController extends Controller
 {
@@ -22,6 +23,7 @@ class ApiPartnersController extends Controller
         if (\Module::collections()->has('Autocrm')) {
             $this->autocrm  = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
         }
+        $this->saveFile = "file/follow_up/";
     }
     /**
      * Display a listing of the resource.
@@ -31,11 +33,11 @@ class ApiPartnersController extends Controller
     {
         $post = $request->all();
         if (isset($post['status']) && $post['status'] == 'Candidate') {
-            $partner = Partner::with(['partner_bank_account','partner_locations'])->where('status',$post['status']);
+            $partner = Partner::with(['partner_bank_account','partner_locations','partner_step'])->where('status',$post['status'])->orWhere('status','Rejected');
         } elseif(isset($post['status']) && $post['status'] == 'Active') {
-            $partner = Partner::with(['partner_bank_account','partner_locations'])->where('status','Active')->orWhere('status','Inactive');
+            $partner = Partner::with(['partner_bank_account','partner_locations','partner_step'])->where('status','Active')->orWhere('status','Inactive');
         } else {
-            $partner = Partner::with(['partner_bank_account','partner_locations']);
+            $partner = Partner::with(['partner_bank_account','partner_locations','partner_step']);
         }
         if(isset($post['conditions']) && !empty($post['conditions'])){
             $rule = 'and';
@@ -156,7 +158,14 @@ class ApiPartnersController extends Controller
     {
         $post = $request->all();
         if(isset($post['id_partner']) && !empty($post['id_partner'])){
-            $partner = Partner::where('id_partner', $post['id_partner'])->with(['partner_bank_account','partner_locations'])->first();
+            $partner = Partner::where('id_partner', $post['id_partner'])->with(['partner_bank_account','partner_locations','partner_step'])->first();
+            if(($partner['partner_step'])){
+                foreach($partner['partner_step'] as $step){
+                    if(isset($step['attachment']) && !empty($step['attachment'])){
+                        $step['attachment'] = env('STORAGE_URL_API').'/'.$step['attachment'];
+                    }
+                }
+            } 
             if($partner==null){
                 return response()->json(['status' => 'success', 'result' => [
                     'partner' => 'Empty',
@@ -216,6 +225,9 @@ class ApiPartnersController extends Controller
             if (isset($post['end_date'])) {
                 $data_update['end_date'] = $post['end_date'];
             }
+            if (isset($post['status_steps'])) {
+                $data_update['status_steps'] = $post['status_steps'];
+            }
             $old_status = Partner::where('id_partner', $post['id_partner'])->get('status')[0]['status'];
             $update = Partner::where('id_partner', $post['id_partner'])->update($data_update);
             if(!$update){
@@ -239,6 +251,32 @@ class ApiPartnersController extends Controller
                             return response()->json([
                                 'status'    => 'success',
                                 'messages'  => ['Approved sent to email partner']
+                            ]);
+                        } else {
+                            return response()->json([
+                                'status'    => 'fail',
+                                'messages'  => ['Failed to send']
+                            ]);
+                        }
+                    }
+                }
+                if($old_status=='Candidate' && $data_update['status'] == 'Rejected'){
+                    $reject_data = Partner::where('id_partner', $post['id_partner'])->get();
+                    $phone_reject = $reject_data[0]["phone"];
+                    $name_reject = $reject_data[0]["name"];
+                    if (\Module::collections()->has('Autocrm')) {
+                        $autocrm = app($this->autocrm)->SendAutoCRM(
+                            'Reject Candidate Partner',
+                            $phone_reject,
+                            [
+                                'name' => $name_reject,
+                            ], null, null, null, null, null, null, null, 1,
+                        );
+                        // return $autocrm;
+                        if ($autocrm) {
+                            return response()->json([
+                                'status'    => 'success',
+                                'messages'  => ['Rejected sent to email partner']
                             ]);
                         } else {
                             return response()->json([
@@ -457,7 +495,7 @@ class ApiPartnersController extends Controller
     public function statusPartner(){
         $user = Auth::user();
         $id_partner = $user['id_partner'];
-        $partner = Partner::with(['partner_bank_account','partner_locations'])->where('id_partner',$id_partner)->get();
+        $partner = Partner::with(['partner_bank_account','partner_locations','partner_step'])->where('id_partner',$id_partner)->get();
         if(isset($partner) && !empty($partner)){
             if($partner==null){
                 return response()->json(['status' => 'success', 'result' => [
@@ -468,6 +506,41 @@ class ApiPartnersController extends Controller
                     'partner' => $partner[0],
                 ]]);
             }
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
+    }
+    
+    public function followUp(Request $request)
+    {
+        $post = $request->all();
+        if(isset($post['id_partner']) && !empty($post['id_partner'])){
+            DB::beginTransaction();
+            $data_store = [
+                "id_partner" => $post["id_partner"],
+                "follow_up" => $post["follow_up"],
+                "note" => $post["note"],
+            ];
+            if (isset($post['attachment']) && !empty($post['attachment'])) {
+                $upload = MyHelper::uploadFile($post['attachment'], $this->saveFile, 'pdf');
+                if (isset($upload['status']) && $upload['status'] == "success") {
+                    $data_store['attachment'] = $upload['path'];
+                } else {
+                    $result = [
+                        'error'    => 1,
+                        'status'   => 'fail',
+                        'messages' => ['fail upload file']
+                    ];
+                    return $result;
+                }
+            }
+            $store = StepsLog::create($data_store);
+            if (!$store) {
+                DB::rollback();
+                return response()->json(['status' => 'fail', 'messages' => ['Failed add follow up data']]);
+            }
+            DB::commit();
+            return response()->json(MyHelper::checkCreate($store));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }

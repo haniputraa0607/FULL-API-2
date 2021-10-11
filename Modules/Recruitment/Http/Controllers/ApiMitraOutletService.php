@@ -7,20 +7,28 @@ use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 
 use App\Http\Models\Setting;
+use App\Http\Models\Transaction;
 use App\Http\Models\TransactionProduct;
 
+use Modules\Product\Entities\ProductDetail;
+use Modules\Product\Entities\ProductStockLog;
+use Modules\ProductVariant\Entities\ProductVariantGroupDetail;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Recruitment\Entities\HairstylistSchedule;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
 
 use Modules\Transaction\Entities\HairstylistNotAvailable;
 use Modules\Transaction\Entities\TransactionOutletService;
+use Modules\Transaction\Entities\TransactionPaymentCash;
 use Modules\Transaction\Entities\TransactionProductService;
 use Modules\Transaction\Entities\TransactionProductServiceLog;
 
 use Modules\Recruitment\Http\Requests\ScheduleCreateRequest;
 
 use Modules\Outlet\Entities\OutletBox;
+
+use Modules\Transaction\Entities\TransactionProductServiceUse;
+use Modules\UserRating\Entities\UserRatingLog;
 
 use App\Lib\MyHelper;
 use DB;
@@ -164,6 +172,11 @@ class ApiMitraOutletService extends Controller
 
 		$timerText .= (strtotime(date('Y-m-d H:i:s')) < strtotime($queue['schedule_date'] . ' ' .$queue['schedule_time'])) ? ' lagi' : ' lalu';
 
+		$box = OutletBox::where([
+			['id_outlet', $user->id_outlet],
+			['outlet_box_status', 'Active']
+		])->get();
+
 		$res = [
 			'id_transaction_product_service' => $queue['id_transaction_product_service'],
 			'order_id' => $queue['order_id'] ?? null,
@@ -178,7 +191,8 @@ class ApiMitraOutletService extends Controller
 			'disable' => $disable,
 			'id_outlet_box' => $schedule->id_outlet_box ?? null,
 			'flag_update_schedule' => $queue['flag_update_schedule'],
-			'is_conflict' => $queue['is_conflict']
+			'is_conflict' => $queue['is_conflict'],
+			'available_box' => $box
 		];
 		
 		return MyHelper::checkGet($res);
@@ -488,6 +502,7 @@ class ApiMitraOutletService extends Controller
 
     	DB::beginTransaction();
     	try {
+    		$trx = Transaction::where('id_transaction', $service->id_transaction)->first();
     		TransactionProductServiceLog::create([
 	    		'id_transaction_product_service' => $request->id_transaction_product_service,
 	    		'action' => 'Complete'
@@ -509,6 +524,53 @@ class ApiMitraOutletService extends Controller
 
             //remove hs from table not avilable
             HairstylistNotAvailable::where('id_transaction_product_service', $service['id_transaction_product_service'])->delete();
+
+            //update stock
+            $getProduct = TransactionProductServiceUse::where('id_transaction_product_service', $request->id_transaction_product_service)->get()->toArray();
+            foreach ($getProduct as $p){
+                $productStock = ProductDetail::where(['id_product' => $p['id_product'], 'id_outlet' => $trx['id_outlet']])->first();
+                $currentStock = $productStock['product_detail_stock_item'];
+                $currentStockService = $productStock['product_detail_stock_service'];
+                $updateDetail = $productStock->update(['product_detail_stock_service' => $currentStockService - $p['quantity_use']]);
+                if(!$updateDetail){
+                    DB::rollback();
+                    return response()->json([
+                        'status'    => 'fail',
+                        'messages'  => ['Update stock Failed']
+                    ]);
+                }
+                ProductStockLog::create([
+                    'id_product' => $p['id_product'],
+                    'id_transaction' => $trx['id_transaction'],
+                    'stock_service' => -$p['quantity_use'],
+                    'stock_item_before' => $currentStock,
+                    'stock_service_before' => $currentStockService,
+                    'stock_item_after' => $currentStock,
+                    'stock_service_after' => $currentStockService - $p['quantity_use']
+                ]);
+            }
+
+            // log rating outlet
+            UserRatingLog::updateOrCreate([
+                'id_user' => $trx->id_user,
+                'id_transaction' => $trx->id_transaction,
+                'id_outlet' => $trx->id_outlet
+            ],[
+                'refuse_count' => 0,
+                'last_popup' => date('Y-m-d H:i:s', time() - MyHelper::setting('popup_min_interval', 'value', 900))
+            ]);
+
+            // log rating hairstylist
+            UserRatingLog::updateOrCreate([
+                'id_user' => $trx->id_user,
+                'id_transaction' => $trx->id_transaction,
+                'id_user_hair_stylist' => $service->id_user_hair_stylist
+            ],[
+                'refuse_count' => 0,
+                'last_popup' => date('Y-m-d H:i:s', time() - MyHelper::setting('popup_min_interval', 'value', 900))
+            ]);
+
+            $trx->update(['show_rate_popup' => '1']);
 
 			DB::commit();
     	} catch (\Exception $e) {
@@ -536,5 +598,92 @@ class ApiMitraOutletService extends Controller
     	}
 
     	return true;
+    }
+
+    public function paymentCashDetail(Request $request){
+        $post = $request->json()->all();
+        if(empty($post['order_id']) && empty($post['payment_code'])){
+            return ['status' => 'fail', 'messages' => ['Order ID and Payment code can not be empty']];
+        }
+
+        $trx = Transaction::join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
+                ->where('transaction_receipt_number', $post['order_id'])->first();
+        if(empty($trx)){
+            return ['status' => 'fail', 'messages' => ['Transaction not found']];
+        }
+
+        $checkCode = TransactionPaymentCash::where('id_transaction', $trx['id_transaction'])
+                    ->where('payment_code', $post['payment_code'])->first();
+        if(empty($checkCode)){
+            return ['status' => 'fail', 'messages' => ['The code you entered is wrong']];
+        }
+
+        $trxProduct = TransactionProduct::join('products', 'products.id_product', 'transaction_products.id_product')
+                        ->leftJoin('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+                        ->where('transaction_products.id_transaction', $trx['id_transaction'])
+                        ->select('products.product_name', 'transaction_products.*', 'transaction_product_services.*')->get()->toArray();
+
+        if(empty($trxProduct)){
+            return ['status' => 'fail', 'messages' => ['Products not found']];
+        }
+
+        $products = [];
+        foreach ($trxProduct as $p){
+            if($p['type'] == 'Service'){
+                $check = array_search($p['id_product'], array_column($p, 'id_product'));
+                if($check !== false){
+                    $products[$check]['qty'] = $products[$check]['qty'] + $p['transaction_product_qty'];
+                    $products[$check]['product_subtotal'] = $products[$check]['product_subtotal'] + $p['transaction_product_subtotal'];
+                    continue;
+                }
+            }
+
+            $products[] = [
+                'id_product' => $p['id_product'],
+                'product_name' => $p['product_name'],
+                'qty' => $p['transaction_product_qty'],
+                'product_subtotal' => $p['transaction_product_subtotal']
+            ];
+        }
+
+        $result = [
+            'order_id' => $trx['transaction_receipt_number'],
+            'transaction_subtotal' => $trx['transaction_subtotal'],
+            'transaction_tax' => $trx['transaction_tax'],
+            'transaction_grandtotal' => $trx['transaction_subtotal'],
+            'transaction_date' => MyHelper::dateFormatInd($trx['transaction_date']),
+            'customer_name' => $trx['customer_name'],
+            'customer_email' => $trx['customer_email'],
+            'currency' => 'Rp',
+            'products' => $products
+        ];
+
+        return response()->json(MyHelper::checkGet($result));
+    }
+
+    public function paymentCashCompleted(Request $request){
+        $user = $request->user();
+        $post = $request->json()->all();
+        if(empty($post['order_id'])){
+            return ['status' => 'fail', 'messages' => ['Order ID can not be empty']];
+        }
+
+        $trx = Transaction::where('transaction_receipt_number', $post['order_id'])->first();
+        if(empty($trx)){
+            return ['status' => 'fail', 'messages' => ['Transaction not found']];
+        }
+
+        if($trx['transaction_payment_status'] == 'Completed'){
+            return ['status' => 'fail', 'messages' => ['This transaction has been paid']];
+        }
+
+        $update = TransactionPaymentCash::where('id_transaction', $trx['id_transaction'])
+                ->update(['cash_received_by' => $user->id_user_hair_stylist]);
+
+        if($update){
+            $update = Transaction::where('id_transaction', $trx['id_transaction'])->update(['transaction_payment_status' => 'Completed']);
+        }
+
+        return response()->json(MyHelper::checkUpdate($update));
     }
 }

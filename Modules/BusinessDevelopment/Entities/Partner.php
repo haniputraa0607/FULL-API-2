@@ -50,10 +50,13 @@ class Partner extends Authenticatable
 		'first_update_password',
 	];
         
-          public function partner_locations(){
+    public function partner_locations(){
         return $this->hasMany(Location::class, 'id_partner');
     }
     public function partner_bank_account(){
         return $this->belongsTo(BankAccount::class, 'id_bank_account');
+    }
+    public function partner_step(){
+        return $this->hasMany(StepsLog::class, 'id_partner');
     }
 }

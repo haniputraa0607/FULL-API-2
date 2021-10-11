@@ -14,6 +14,8 @@ class ProductDetail extends Model
         'product_detail_visibility',
         'product_detail_status',
         'product_detail_stock_status',
+        'product_detail_stock_item',
+        'product_detail_stock_service',
         'max_order',
         'created_at',
         'updated_at'

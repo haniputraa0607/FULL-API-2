@@ -31,6 +31,7 @@ use App\Lib\MyHelper;
 use Modules\Product\Http\Requests\product\AvailableHs;
 use Modules\ProductBundling\Entities\BundlingProduct;
 use Modules\ProductVariant\Entities\ProductVariantGroup;
+use Modules\ProductVariant\Entities\ProductVariantGroupDetail;
 use Modules\ProductVariant\Entities\ProductVariantPivot;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use Modules\Recruitment\Entities\UserHairStylist;
@@ -760,7 +761,7 @@ class ApiProductController extends Controller
                 $data['products'] = Product::select('product_code','product_name','product_description')
                     ->join('brand_product','brand_product.id_product','=','products.id_product')
                     ->where('id_brand',$post['id_brand'])
-                    ->whereIn('product_type', ['product','service'])
+                    ->where('product_type', 'product')
                     ->groupBy('products.id_product')
                     ->orderBy('position')
                     ->orderBy('products.id_product')
@@ -773,7 +774,7 @@ class ApiProductController extends Controller
                 $data['products'] = Product::select('product_categories.product_category_name','products.position','product_code','product_name','product_description','products.product_visibility')
                     ->join('brand_product','brand_product.id_product','=','products.id_product')
                     ->where('id_brand',$post['id_brand'])
-                    ->whereIn('product_type', ['product','service'])
+                    ->where('product_type', 'product')
                     ->leftJoin('product_categories','product_categories.id_product_category','=','brand_product.id_product_category')
                     ->groupBy('products.id_product')
                     ->groupBy('product_category_name')
@@ -797,7 +798,7 @@ class ApiProductController extends Controller
                     ->join('brand_product','brand_product.id_product','=','products.id_product')
                     ->leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
                     ->where('id_brand',$post['id_brand'])
-                    ->whereIn('product_type', ['product','service'])
+                    ->where('product_type', 'product')
                     ->orderBy('position')
                     ->orderBy('products.id_product')
                     ->distinct()
@@ -901,7 +902,7 @@ class ApiProductController extends Controller
 									->where('product_detail.id_outlet','=',$post['id_outlet'])
 									->where('product_detail.product_detail_visibility','=','Visible')
                                     ->where('product_detail.product_detail_status','=','Active')
-                                    ->whereIn('products.product_type', ['product','service'])
+                                    ->where('products.product_type', 'product')
                                     ->with(['category', 'discount']);
 
             if (isset($post['visibility'])) {
@@ -912,7 +913,7 @@ class ApiProductController extends Controller
                                             ->where('product_detail.product_detail_status', 'Active')
                                             ->whereNotNull('id_product_category')
                                             ->where('id_outlet', $post['id_outlet'])
-                                            ->whereIn('products.product_type', ['product','service'])
+                                            ->where('products.product_type', 'product')
                                             ->select('product_detail.id_product')->get();
                     $product = Product::whereNotIn('products.id_product', $idVisible)->with(['category', 'discount']);
                 }else{
@@ -923,11 +924,11 @@ class ApiProductController extends Controller
             }
 		} else {
 		    if(isset($post['product_setting_type']) && $post['product_setting_type'] == 'product_price'){
-                $product = Product::with(['category', 'discount', 'product_special_price', 'global_price'])->whereIn('products.product_type', ['product','service']);
+                $product = Product::with(['category', 'discount', 'product_special_price', 'global_price'])->where('products.product_type', 'product');
             }elseif(isset($post['product_setting_type']) && $post['product_setting_type'] == 'outlet_product_detail'){
-                $product = Product::with(['category', 'discount', 'product_detail'])->whereIn('products.product_type', ['product','service']);
+                $product = Product::with(['category', 'discount', 'product_detail'])->where('products.product_type', 'product');
             }else{
-                $product = Product::with(['category', 'discount'])->whereIn('products.product_type', ['product','service']);
+                $product = Product::with(['category', 'discount'])->where('products.product_type', 'product');
             }
 		}
 
@@ -979,7 +980,7 @@ class ApiProductController extends Controller
         }
 
         if(isset($post['admin_list'])){
-            $product = $product->whereIn('product_type', ['product','service'])
+            $product = $product->where('product_type', 'product')
                 ->withCount('product_detail')->withCount('product_detail_hiddens')->with(['brands']);
         }
 
@@ -1759,12 +1760,31 @@ class ApiProductController extends Controller
     }
     public function detail(Request $request) {
         $post = $request->json()->all();
-        if(!($post['id_outlet']??false)){
+        $bearerToken = $request->bearerToken();
+        $tokenId = (new Parser())->parse($bearerToken)->getHeader('jti');
+        $getOauth = OauthAccessToken::find($tokenId);
+        $scopeUser = str_replace(str_split('[]""'),"",$getOauth['scopes']);
+
+        if(!($post['id_outlet']??false) && empty($post['outlet_code'])){
             $post['id_outlet'] = Setting::where('key','default_outlet')->pluck('value')->first();
         }
-        $outlet = Outlet::find($post['id_outlet']);
+
+        if(!empty($post['outlet_code'])){
+            $outlet = Outlet::where('outlet_code', $post['outlet_code'])->first();
+            $post['id_brand'] = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
+                ->where('id_outlet', $outlet['id_outlet'])->first()['id_brand']??null;
+        }else{
+            $outlet = Outlet::find($post['id_outlet']);
+        }
+
         if(!$outlet){
             return MyHelper::checkGet([],'Outlet not found');
+        }
+
+        $post['id_outlet'] = $outlet['id_outlet'];
+
+        if(!empty($post['product_code'])){
+            $post['id_product'] = Product::where('product_code', $post['product_code'])->first()['id_product']??null;
         }
         //get product
         $product = Product::select('id_product','product_code','product_name','product_description','product_code','product_visibility','product_photo_detail', 'product_variant_status')
@@ -1882,7 +1902,7 @@ class ApiProductController extends Controller
         }else{
             $product['variants'] = Product::getVariantTree($product['id_product'], $outlet, false, $product['product_price'], $product['product_variant_status'])['variants_tree']??null;
         }
-        if ($product['variants']) {
+        if ($product['variants'] && $scopeUser != 'web-apps') {
             $appliedPromo = UserPromo::where('id_user', $request->user()->id)->first();
             if ($appliedPromo) {
                 switch ($appliedPromo->promo_type) {
@@ -2070,11 +2090,20 @@ class ApiProductController extends Controller
 
     public function outletServiceListProduct(Request $request){
         $post = $request->json()->all();
-        if(empty($post['id_outlet'])){
-            return response()->json(['status' => 'fail', 'messages' => ['ID outlet can not be empty']]);
+        if(empty($post['id_outlet']) && empty($post['outlet_code'])){
+            return response()->json(['status' => 'fail', 'messages' => ['ID/Code outlet can not be empty']]);
         }
 
-        $outlet = Outlet::where('id_outlet', $post['id_outlet'])->first();
+        $outlet = Outlet::with(['outlet_schedules']);
+
+        if(!empty($post['id_outlet'])){
+            $outlet = $outlet->where('id_outlet', $post['id_outlet'])->first();
+        }
+
+        if(!empty($post['outlet_code'])){
+            $outlet = $outlet->where('outlet_code', $post['outlet_code'])->first();
+        }
+
         if (!$outlet) {
             return [
                 'status' => 'fail',
@@ -2083,7 +2112,7 @@ class ApiProductController extends Controller
         }
 
         $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
-                ->where('id_outlet', $post['id_outlet'])->first();
+                ->where('id_outlet', $outlet['id_outlet'])->first();
 
         if(empty($brand)){
             return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
@@ -2093,39 +2122,34 @@ class ApiProductController extends Controller
         $productServie = Product::select([
             'products.id_product', 'products.product_name', 'products.product_code', 'products.product_description', 'product_variant_status',
             DB::raw('(CASE
-                        WHEN (select outlets.outlet_different_price from outlets  where outlets.id_outlet = ' . $post['id_outlet'] . ' ) = 1 
-                        THEN (select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $post['id_outlet'] . ' )
+                        WHEN (select outlets.outlet_different_price from outlets  where outlets.id_outlet = ' . $outlet['id_outlet'] . ' ) = 1 
+                        THEN (select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $outlet['id_outlet'] . ' )
                         ELSE product_global_price.product_global_price
-                    END) as product_price'),
-            DB::raw('(CASE
-                        WHEN (select product_detail.product_detail_stock_status from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . ' order by id_product_detail desc limit 1) 
-                        is NULL THEN "Available"
-                        ELSE (select product_detail.product_detail_stock_status from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . ' order by id_product_detail desc limit 1)
-                    END) as product_stock_status'),
+                    END) as product_price')
         ])
             ->join('brand_product', 'brand_product.id_product', '=', 'products.id_product')
             ->leftJoin('product_global_price', 'product_global_price.id_product', '=', 'products.id_product')
             ->join('brand_outlet', 'brand_outlet.id_brand', '=', 'brand_product.id_brand')
-            ->where('brand_outlet.id_outlet', '=', $post['id_outlet'])
+            ->where('brand_outlet.id_outlet', '=', $outlet['id_outlet'])
             ->where('brand_product.id_brand', '=', $brand['id_brand'])
             ->where('product_type', 'service')
             ->whereRaw('products.id_product in (CASE
-                        WHEN (select product_detail.id_product from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . '  order by id_product_detail desc limit 1)
+                        WHEN (select product_detail.id_product from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . '  order by id_product_detail desc limit 1)
                         is NULL AND products.product_visibility = "Visible" THEN products.id_product
-                        WHEN (select product_detail.id_product from product_detail  where (product_detail.product_detail_visibility = "" OR product_detail.product_detail_visibility is NULL) AND product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . '  order by id_product_detail desc limit 1)
+                        WHEN (select product_detail.id_product from product_detail  where (product_detail.product_detail_visibility = "" OR product_detail.product_detail_visibility is NULL) AND product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . '  order by id_product_detail desc limit 1)
                         is NOT NULL AND products.product_visibility = "Visible" THEN products.id_product
-                        ELSE (select product_detail.id_product from product_detail  where product_detail.product_detail_visibility = "Visible" AND product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . '  order by id_product_detail desc limit 1)
+                        ELSE (select product_detail.id_product from product_detail  where product_detail.product_detail_visibility = "Visible" AND product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . '  order by id_product_detail desc limit 1)
                     END)')
             ->whereRaw('products.id_product in (CASE
-                        WHEN (select product_detail.id_product from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . ' order by id_product_detail desc limit 1)
+                        WHEN (select product_detail.id_product from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . ' order by id_product_detail desc limit 1)
                         is NULL THEN products.id_product
-                        ELSE (select product_detail.id_product from product_detail  where product_detail.product_detail_status = "Active" AND product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . ' order by id_product_detail desc limit 1)
+                        ELSE (select product_detail.id_product from product_detail  where product_detail.product_detail_status = "Active" AND product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . ' order by id_product_detail desc limit 1)
                     END)')
-            ->where(function ($query) use ($post) {
-                $query->WhereRaw('(select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $post['id_outlet'] . '  order by id_product_special_price desc limit 1) is NOT NULL');
+            ->where(function ($query) use ($outlet) {
+                $query->WhereRaw('(select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $outlet['id_outlet'] . '  order by id_product_special_price desc limit 1) is NOT NULL');
                 $query->orWhereRaw('(select product_global_price.product_global_price from product_global_price  where product_global_price.id_product = products.id_product order by id_product_global_price desc limit 1) is NOT NULL');
             })
-            ->with(['photos'])
+            ->with(['photos', 'product_service_use_detail'])
             ->having('product_price', '>', 0)
             ->groupBy('products.id_product')
             ->orderByRaw('CASE WHEN products.position = 0 THEN 1 ELSE 0 END')
@@ -2135,15 +2159,22 @@ class ApiProductController extends Controller
 
         $resProdService = [];
         foreach ($productServie as $val){
+            foreach ($val['product_service_use_detail'] as $stock){
+                if($stock['quantity_use'] > $stock['product_detail_stock_service']){
+                    continue 2;
+                }
+            }
+
             $resProdService[] = [
                 'id_product' => $val['id_product'],
+                'id_brand' => $brand['id_brand'],
                 'product_type' => 'service',
                 'product_code' => $val['product_code'],
                 'product_name' => $val['product_name'],
                 'product_description' => $val['product_description'],
                 'product_price' => (int)$val['product_price'],
                 'string_product_price' => 'Rp '.number_format((int)$val['product_price'],0,",","."),
-                'product_stock_status' => $val['product_stock_status'],
+                'product_stock_status' => 'Available',
                 'photo' => (empty($val['photos'][0]['product_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$val['photos'][0]['product_photo'])
             ];
         }
@@ -2152,36 +2183,32 @@ class ApiProductController extends Controller
         $products = Product::select([
             'products.id_product', 'products.product_name', 'products.product_code', 'products.product_description', 'product_variant_status',
             DB::raw('(CASE
-                        WHEN (select outlets.outlet_different_price from outlets  where outlets.id_outlet = ' . $post['id_outlet'] . ' ) = 1 
-                        THEN (select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $post['id_outlet'] . ' )
+                        WHEN (select outlets.outlet_different_price from outlets  where outlets.id_outlet = ' . $outlet['id_outlet'] . ' ) = 1 
+                        THEN (select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $outlet['id_outlet'] . ' )
                         ELSE product_global_price.product_global_price
                     END) as product_price'),
-            DB::raw('(CASE
-                        WHEN (select product_detail.product_detail_stock_status from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . ' order by id_product_detail desc limit 1) 
-                        is NULL THEN "Available"
-                        ELSE (select product_detail.product_detail_stock_status from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . ' order by id_product_detail desc limit 1)
-                    END) as product_stock_status'),
+            DB::raw('(select product_detail.product_detail_stock_item from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . ' order by id_product_detail desc limit 1) as product_stock_status')
         ])
             ->join('brand_product', 'brand_product.id_product', '=', 'products.id_product')
             ->leftJoin('product_global_price', 'product_global_price.id_product', '=', 'products.id_product')
             ->join('brand_outlet', 'brand_outlet.id_brand', '=', 'brand_product.id_brand')
-            ->where('brand_outlet.id_outlet', '=', $post['id_outlet'])
+            ->where('brand_outlet.id_outlet', '=', $outlet['id_outlet'])
             ->where('brand_product.id_brand', '=', $brand['id_brand'])
-            ->whereIn('product_type', ['product','service'])
+            ->where('product_type', 'product')
             ->whereRaw('products.id_product in (CASE
-                        WHEN (select product_detail.id_product from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . '  order by id_product_detail desc limit 1)
+                        WHEN (select product_detail.id_product from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . '  order by id_product_detail desc limit 1)
                         is NULL AND products.product_visibility = "Visible" THEN products.id_product
-                        WHEN (select product_detail.id_product from product_detail  where (product_detail.product_detail_visibility = "" OR product_detail.product_detail_visibility is NULL) AND product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . '  order by id_product_detail desc limit 1)
+                        WHEN (select product_detail.id_product from product_detail  where (product_detail.product_detail_visibility = "" OR product_detail.product_detail_visibility is NULL) AND product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . '  order by id_product_detail desc limit 1)
                         is NOT NULL AND products.product_visibility = "Visible" THEN products.id_product
-                        ELSE (select product_detail.id_product from product_detail  where product_detail.product_detail_visibility = "Visible" AND product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . '  order by id_product_detail desc limit 1)
+                        ELSE (select product_detail.id_product from product_detail  where product_detail.product_detail_visibility = "Visible" AND product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . '  order by id_product_detail desc limit 1)
                     END)')
             ->whereRaw('products.id_product in (CASE
-                        WHEN (select product_detail.id_product from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . ' order by id_product_detail desc limit 1)
+                        WHEN (select product_detail.id_product from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . ' order by id_product_detail desc limit 1)
                         is NULL THEN products.id_product
-                        ELSE (select product_detail.id_product from product_detail  where product_detail.product_detail_status = "Active" AND product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $post['id_outlet'] . ' order by id_product_detail desc limit 1)
+                        ELSE (select product_detail.id_product from product_detail  where product_detail.product_detail_status = "Active" AND product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . ' order by id_product_detail desc limit 1)
                     END)')
-            ->where(function ($query) use ($post) {
-                $query->WhereRaw('(select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $post['id_outlet'] . '  order by id_product_special_price desc limit 1) is NOT NULL');
+            ->where(function ($query) use ($outlet) {
+                $query->WhereRaw('(select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $outlet['id_outlet'] . '  order by id_product_special_price desc limit 1) is NOT NULL');
                 $query->orWhereRaw('(select product_global_price.product_global_price from product_global_price  where product_global_price.id_product = products.id_product order by id_product_global_price desc limit 1) is NOT NULL');
             })
             ->with(['photos'])
@@ -2199,15 +2226,21 @@ class ApiProductController extends Controller
                 $val['product_price'] = ($variantTree['base_price']??false)?:$val['product_price'];
             }
 
+            $stock = 'Available';
+            if(empty($val['product_stock_status'])){
+                $stock = 'Sold Out';
+            }
+
             $resProducts[] = [
                 'id_product' => $val['id_product'],
+                'id_brand' => $brand['id_brand'],
                 'product_type' => 'product',
                 'product_code' => $val['product_code'],
                 'product_name' => $val['product_name'],
                 'product_description' => $val['product_description'],
                 'product_price' => (int)$val['product_price'],
                 'string_product_price' => 'Rp '.number_format((int)$val['product_price'],0,",","."),
-                'product_stock_status' => $val['product_stock_status'],
+                'product_stock_status' => $stock,
                 'photo' => (empty($val['photos'][0]['product_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$val['photos'][0]['product_photo'])
             ];
         }
@@ -2227,7 +2260,8 @@ class ApiProductController extends Controller
             'outlet_name' => $outlet['outlet_name'],
             'outlet_image' => $outlet['outlet_image'],
             'outlet_address' => $outlet['outlet_address'],
-            'distance' => $distance??''
+            'distance' => $distance??'',
+            'color' => $brand['color_brand']??''
         ];
 
         $resBrand = [
@@ -2257,11 +2291,20 @@ class ApiProductController extends Controller
         $scopeUser = str_replace(str_split('[]""'),"",$getOauth['scopes']);
 
         $post = $request->json()->all();
-        if(empty($post['id_outlet'])){
-            return response()->json(['status' => 'fail', 'messages' => ['ID outlet can not be empty']]);
+        if(empty($post['id_outlet']) && empty($post['outlet_code'])){
+            return response()->json(['status' => 'fail', 'messages' => ['ID/Code outlet can not be empty']]);
         }
 
-        $outlet = Outlet::where('id_outlet', $post['id_outlet'])->with(['outlet_schedules'])->first();
+        $outlet = Outlet::with(['outlet_schedules']);
+
+        if(!empty($post['id_outlet'])){
+            $outlet = $outlet->where('id_outlet', $post['id_outlet'])->first();
+        }
+
+        if(!empty($post['outlet_code'])){
+            $outlet = $outlet->where('outlet_code', $post['outlet_code'])->first();
+        }
+
         if (!$outlet) {
             return [
                 'status' => 'fail',
@@ -2269,30 +2312,35 @@ class ApiProductController extends Controller
             ];
         }
 
-        if(empty($post['id_product'])){
-            return response()->json(['status' => 'fail', 'messages' => ['Product not found']]);
+        if(empty($post['id_product']) && empty($post['product_code'])){
+            return response()->json(['status' => 'fail', 'messages' => ['ID/Code product can not be empty']]);
         }
 
         $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
-            ->where('id_outlet', $post['id_outlet'])->first();
+            ->where('id_outlet', $outlet['id_outlet'])->first();
 
         if(empty($brand)){
             return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
         }
 
-        $product = Product::where('products.id_product', $post['id_product'])
-                    ->where('product_type', 'service')
+        $product = Product::where('product_type', 'service')
                     ->select([
                     'products.id_product', 'products.product_name', 'products.product_code', 'products.product_description', 'product_variant_status', 'processing_time_service',
                     DB::raw('(CASE
-                                WHEN (select outlets.outlet_different_price from outlets  where outlets.id_outlet = ' . $post['id_outlet'] . ' ) = 1 
-                                THEN (select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $post['id_outlet'] . ' )
+                                WHEN (select outlets.outlet_different_price from outlets  where outlets.id_outlet = ' . $outlet['id_outlet'] . ' ) = 1 
+                                THEN (select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $outlet['id_outlet'] . ' )
                                 ELSE product_global_price.product_global_price
                             END) as product_price'),
                     ])
                     ->leftJoin('product_global_price', 'product_global_price.id_product', '=', 'products.id_product')
-                    ->with(['photos'])
-                    ->first();
+                    ->with(['photos']);
+        if(!empty($post['id_product'])){
+            $product = $product->where('products.id_product', $post['id_product'])->first();
+        }
+
+        if (!empty($post['product_code'])){
+            $product = $product->where('products.product_code', $post['product_code'])->first();
+        }
 
         if (!$product) {
             return [
@@ -2388,6 +2436,7 @@ class ApiProductController extends Controller
         $result = [
             'color' => $brand['color_brand'],
             'id_product' => $product['id_product'],
+            'id_brand' => $brand['id_brand']??null,
             'product_code' => $product['product_code'],
             'product_name' => $product['product_name'],
             'product_description' => $product['product_description'],
@@ -2404,6 +2453,13 @@ class ApiProductController extends Controller
         $post = $request->json()->all();
         $bookDate = date('Y-m-d', strtotime($post['booking_date']));
         $bookTime = date('H:i:s', strtotime($post['booking_time']));
+        if(!empty($post['outlet_code'])){
+            $post['id_outlet'] = Outlet::where('outlet_code', $post['outlet_code'])->first()->id_outlet??'';
+            if(empty($post['id_outlet'])){
+                return response()->json(['status' => 'fail', 'messages' => ['Outlet nod found']]);
+            }
+        }
+
         $hsNotAvailable = HairstylistNotAvailable::where('id_outlet', $post['id_outlet'])
                             ->where('booking_date', $bookDate)
                             ->where('booking_time', $bookTime)
@@ -2439,6 +2495,7 @@ class ApiProductController extends Controller
                 'id_user_hair_stylist' => $val['id_user_hair_stylist'],
                 'name' => $val['fullname'],
                 'photo' => (empty($val['user_hair_stylist_photo']) ? config('url.storage_url_api').'img/product/item/default.png':$val['user_hair_stylist_photo']),
+                'rating' => $val['total_rating'],
                 'available_status' => $availableStatus
             ];
         }

@@ -32,6 +32,7 @@ use App\Lib\ValueFirst;
 use Modules\Franchise\Entities\UserFranchise;
 use Modules\Franchise\Entities\FranchiseEmailLog;
 use Modules\Recruitment\Entities\UserHairStylist;
+use Modules\Recruitment\Entities\HairstylistInbox;
 use Validator;
 use Hash;
 use DB;
@@ -103,9 +104,9 @@ class ApiAutoCrm extends Controller
 
 					$to		 = $user['email'];
 					
-					$subject = $this->TextReplace($crm['autocrm_email_subject'], $receipient, $variables, null, $franchise, $partner);
+					$subject = $this->TextReplace($crm['autocrm_email_subject'], $receipient, $variables, null, $franchise, $partner, $recipient_type);
 
-					$content = $this->TextReplace($crm['autocrm_email_content'], $receipient, $variables, null, $franchise, $partner);
+					$content = $this->TextReplace($crm['autocrm_email_content'], $receipient, $variables, null, $franchise, $partner, $recipient_type);
 					//get setting email
 					$getSetting = Setting::where('key', 'LIKE', 'email%')->get()->toArray();
 					$setting = array();
@@ -244,9 +245,9 @@ class ApiAutoCrm extends Controller
 						$name = $n[0];
 
 						$to		 = $email;
-						$subject = $this->TextReplace($crm['autocrm_forward_email_subject'], $receipient, $variables, null, $franchise, $partner);
+						$subject = $this->TextReplace($crm['autocrm_forward_email_subject'], $receipient, $variables, null, $franchise, $partner, $recipient_type);
 
-						$content = $this->TextReplace($crm['autocrm_forward_email_content'], $receipient, $variables, null, $franchise, $partner);
+						$content = $this->TextReplace($crm['autocrm_forward_email_content'], $receipient, $variables, null, $franchise, $partner, $recipient_type);
 
 						// get setting email
 						$getSetting = Setting::where('key', 'LIKE', 'email%')->get()->toArray();
@@ -368,10 +369,10 @@ class ApiAutoCrm extends Controller
 								if($useragent && $useragent == "Android"){
 									$crm['autocrm_sms_content'] = '<#> '.$crm['autocrm_sms_content'].' '.ENV('HASH_KEY_'.ENV('HASH_KEY_TYPE'));
 								}
-								$senddata['message'] 	= $this->TextReplace($crm['autocrm_sms_content'], $user['phone'], $variables, null, $franchise, $partner);
+								$senddata['message'] 	= $this->TextReplace($crm['autocrm_sms_content'], $user['phone'], $variables, null, $franchise, $partner, $recipient_type);
 								$senddata['channel']	= 2;
 							} else {
-								$senddata['message'] 	= $this->TextReplace($crm['autocrm_sms_content'], $user['phone'], $variables, null, $franchise, $partner);
+								$senddata['message'] 	= $this->TextReplace($crm['autocrm_sms_content'], $user['phone'], $variables, null, $franchise, $partner, $recipient_type);
 								$senddata['channel']	= env('SMS_CHANNEL');
 							}
 							$this->jatissms->setData($senddata);
@@ -392,7 +393,7 @@ class ApiAutoCrm extends Controller
 								}
 							}
 							
-							$content 	= $this->TextReplace($crm['autocrm_sms_content'], $user['phone'], $variables, null, $franchise, $partner);
+							$content 	= $this->TextReplace($crm['autocrm_sms_content'], $user['phone'], $variables, null, $franchise, $partner, $recipient_type);
 							array_push($senddata['datapacket'],array(
 									'number' => trim($user['phone']),
 									'message' => urlencode(stripslashes(utf8_encode($content))),
@@ -406,9 +407,9 @@ class ApiAutoCrm extends Controller
 								if($useragent && $useragent == "Android"){
 									$crm['autocrm_sms_content'] = '<#> '.$crm['autocrm_sms_content'].' '.ENV('HASH_KEY_'.ENV('HASH_KEY_TYPE'));
 								}
-								$content 	= $this->TextReplace($crm['autocrm_sms_content'], $user['phone'], $variables, null, $franchise, $partner);
+								$content 	= $this->TextReplace($crm['autocrm_sms_content'], $user['phone'], $variables, null, $franchise, $partner, $recipient_type);
 							} else {
-								$content 	= $this->TextReplace($crm['autocrm_sms_content'], $user['phone'], $variables, null, $franchise, $partner);
+								$content 	= $this->TextReplace($crm['autocrm_sms_content'], $user['phone'], $variables, null, $franchise, $partner, $recipient_type);
 							}
 
 							$sendData = [
@@ -430,7 +431,7 @@ class ApiAutoCrm extends Controller
                                     $crm['autocrm_sms_content'] = '<#> '.$crm['autocrm_sms_content'].' '.ENV('HASH_KEY_'.ENV('HASH_KEY_TYPE'));
                                 }
                             }
-                            $content 	= $this->TextReplace($crm['autocrm_sms_content'], $user['phone'], $variables, null, $franchise, $partner);
+                            $content 	= $this->TextReplace($crm['autocrm_sms_content'], $user['phone'], $variables, null, $franchise, $partner, $recipient_type);
                             array_push($senddata['datapacket'],array(
                                 'number' => trim($user['phone']),
                                 'otp' => $variables['pin'],
@@ -463,7 +464,7 @@ class ApiAutoCrm extends Controller
 							$send = $this->rajasms->send();
 							break;
 					}
-                    $content 	= $this->TextReplace($crm['autocrm_sms_content'], $user['phone'], $variables, null, $franchise, $partner);
+                    $content 	= $this->TextReplace($crm['autocrm_sms_content'], $user['phone'], $variables, null, $franchise, $partner, $recipient_type);
 					$logData = [];
                     if($partner){
                         $logData['id_user'] = $user['id_partner'];
@@ -489,7 +490,7 @@ class ApiAutoCrm extends Controller
 							//send every content whatsapp
 							foreach($crm['whatsapp_content'] as $contentWhatsapp){
 								if($contentWhatsapp['content_type'] == 'text'){
-									$content = $this->TextReplace($contentWhatsapp['content'], $user['phone'], $variables, null, $franchise, $partner);
+									$content = $this->TextReplace($contentWhatsapp['content'], $user['phone'], $variables, null, $franchise, $partner, $recipient_type);
 								}else{
 									$content = $contentWhatsapp['content'];
 								}
@@ -661,8 +662,8 @@ class ApiAutoCrm extends Controller
 
 						$deviceToken = PushNotificationHelper::searchDeviceToken("phone", $user['phone']);
 						// print_r($deviceToken);exit;
-						$subject = $this->TextReplace($crm['autocrm_push_subject'], $receipient, $variables, null, $franchise, $partner);
-						$content = $this->TextReplace($crm['autocrm_push_content'], $receipient, $variables, null, $franchise, $partner);
+						$subject = $this->TextReplace($crm['autocrm_push_subject'], $receipient, $variables, null, $franchise, $partner, $recipient_type);
+						$content = $this->TextReplace($crm['autocrm_push_content'], $receipient, $variables, null, $franchise, $partner, $recipient_type);
 						$deviceToken = PushNotificationHelper::searchDeviceToken("phone", $user['phone']);
 
 						if (!empty($deviceToken)) {
@@ -695,12 +696,26 @@ class ApiAutoCrm extends Controller
 			if($crm['autocrm_inbox_toogle'] == 1 && !$forward_only){
 				if(!empty($user['id'])){
 
-					$inbox['id_user'] 	  	  = $user['id'];
-					$inbox['inboxes_subject'] = $this->TextReplace($crm['autocrm_inbox_subject'], $user['id'], $variables, 'id', $franchise, $partner);
+					if ($recipient_type == 'hairstylist') {
+						$inboxTable = new HairstylistInbox;
+						$inboxRecipient = $receipient;
+						$inboxWherefield = null;
+
+						$inbox['id_user_hair_stylist'] = $user['id'];
+					} else {
+						$inboxTable = new UserInbox;
+						$inboxRecipient = $user['id'];
+						$inboxWherefield = 'id';
+
+						$inbox['id_user'] = $user['id'];
+					}
+
+					$inbox['inboxes_subject'] = $this->TextReplace($crm['autocrm_inbox_subject'], $inboxRecipient, $variables, $inboxWherefield, $franchise, $partner, $recipient_type);
+
 					$inbox['inboxes_clickto'] = $crm['autocrm_inbox_clickto'];
 
 					if($crm['autocrm_inbox_clickto'] == 'Content'){
-						$inbox['inboxes_content'] = $this->TextReplace($crm['autocrm_inbox_content'], $user['id'], $variables, 'id', $franchise, $partner);
+						$inbox['inboxes_content'] = $this->TextReplace($crm['autocrm_inbox_content'], $inboxRecipient, $variables, $inboxWherefield, $franchise, $partner, $recipient_type);
 					}
 
 					if($crm['autocrm_inbox_clickto'] == 'Link'){
@@ -766,7 +781,7 @@ class ApiAutoCrm extends Controller
 					$inbox['created_at'] = date("Y-m-d H:i:s");
 					$inbox['updated_at'] = date("Y-m-d H:i:s");
 
-					$inboxQuery = UserInbox::insert($inbox);
+					$inboxTable::insert($inbox);
 				}
 			}
 
@@ -791,10 +806,17 @@ class ApiAutoCrm extends Controller
 		return response()->json(MyHelper::checkUpdate($query));
 	}
 
-	function TextReplace($text, $receipient, $variables = null, $wherefield = null, $franchise = 0, $partner = 0){
+	function TextReplace($text, $receipient, $variables = null, $wherefield = null, $franchise = 0, $partner = 0, $recipient_type = null){
 		$query = TextReplace::where('status','=','Activated')->get()->toArray();
 
-		if($franchise){
+		if($recipient_type == 'hairstylist') {
+            $user = UserHairStylist::select(
+                'id_user_hair_stylist as id',
+                'phone_number as phone',
+                'nickname as name',
+                'user_hair_stylist.*'
+            )->where('phone_number','=',$receipient)->get()->first();
+        }elseif($franchise){
 			$user = UserFranchise::select('id_user_franchise as id', 'user_franchises.*')->where('username','=',$receipient)->get()->first();
 		}elseif($partner){
 			$user = Partner::select('id_partner as id', 'partners.*')->where('phone','=',$receipient)->get()->first();

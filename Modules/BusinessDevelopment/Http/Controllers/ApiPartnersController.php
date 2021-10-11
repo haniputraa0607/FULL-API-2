@@ -20,6 +20,8 @@ use Storage;
 use Modules\BusinessDevelopment\Entities\StepsLog;
 use Modules\BusinessDevelopment\Entities\ConfirmationLetter;
 
+use function GuzzleHttp\json_decode;
+
 class ApiPartnersController extends Controller
 {
     public function __construct()
@@ -884,5 +886,10 @@ class ApiPartnersController extends Controller
             $text = str_replace('%angsuran%','',$text);
         }
         return $text;
+    }
+
+    public function formSurvey(Request $request){
+        $content = Setting::where('key','form_survey')->get('value_text')->first()['value_text'];
+        return $content[0];
     }
 }

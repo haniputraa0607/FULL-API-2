@@ -889,7 +889,10 @@ class ApiPartnersController extends Controller
     }
 
     public function formSurvey(Request $request){
-        $content = Setting::where('key','form_survey')->get('value_text')->first()['value_text'];
-        return $content[0];
+        $getSettingDate = Setting::where('key', 'form_survey')->first();
+        $getSettingDate = (array)json_decode($getSettingDate['value_text']??'');
+        // $form = Setting::where('key', 'form_survey')->first();
+        // $form = (array)json_decode($form['value_text']??'');
+        return $getSettingDate;
     }
 }

@@ -256,12 +256,14 @@ class ApiPartnersController extends Controller
             $old_status = Partner::where('id_partner', $post['id_partner'])->get('status')[0]['status'];
             $old_phone = Partner::where('id_partner', $post['id_partner'])->get('phone')[0]['phone'];
             $old_name = Partner::where('id_partner', $post['id_partner'])->get('name')[0]['name'];
+
             $update = Partner::where('id_partner', $post['id_partner'])->update($data_update);
             if(!$update){
                 DB::rollback();
                 return response()->json(['status' => 'fail', 'messages' => ['Failed update partner']]);
             }
             DB::commit();
+
             if (isset($data_update['status'])) {
                 if($old_status=='Candidate' && $data_update['status'] == 'Active'){
                     if (\Module::collections()->has('Autocrm')) {
@@ -876,7 +878,7 @@ class ApiPartnersController extends Controller
         $text = str_replace('%total_waktu%',$data['total_waktu'],$text);
         $text = str_replace('%sisa_waktu%',$data['sisa_waktu'],$text);
         if(isset($data['angsuran'])){
-            $angsuran = '<li>'.$data['angsuran'].'</li>';
+            $angsuran = '<li>'.$data['angsuran'].';</li>';
             $text = str_replace('%angsuran%',$angsuran,$text);
         }else{
             $text = str_replace('%angsuran%','',$text);

@@ -15,6 +15,10 @@ use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use Modules\Recruitment\Entities\HairstylistAnnouncement;
 use Modules\Recruitment\Entities\HairstylistInbox;
 
+use Modules\UserRating\Entities\UserRating;
+use Modules\UserRating\Entities\RatingOption;
+use Modules\UserRating\Entities\UserRatingLog;
+
 use Modules\Recruitment\Http\Requests\ScheduleCreateRequest;
 
 use App\Lib\MyHelper;
@@ -330,5 +334,76 @@ class ApiMitra extends Controller
         }
 
         return null;
+    }
+
+    public function ratingSummary(Request $request)
+    {
+    	$user = $request->user();
+        $ratingHs = UserHairStylist::where('user_hair_stylist.id_user_hair_stylist',$user->id_user_hair_stylist)
+			        ->leftJoin('user_ratings','user_ratings.id_user_hair_stylist','user_hair_stylist.id_user_hair_stylist')
+			        ->select(
+			        	DB::raw('
+			        		user_hair_stylist.id_user_hair_stylist,
+				        	user_hair_stylist.phone_number,
+				        	user_hair_stylist.nickname,
+				        	user_hair_stylist.fullname,
+				        	user_hair_stylist.level,
+				        	user_hair_stylist.total_rating,
+				        	COUNT(DISTINCT user_ratings.id_user) as total_customer,
+	        				SUM(
+								CASE WHEN user_ratings.rating_value = 1 THEN 1 ELSE 0 END
+							) AS rating1,
+							SUM(
+								CASE WHEN user_ratings.rating_value = 2 THEN 1 ELSE 0 END
+							) AS rating2,
+							SUM(
+								CASE WHEN user_ratings.rating_value = 3 THEN 1 ELSE 0 END
+							) AS rating3,
+							SUM(
+								CASE WHEN user_ratings.rating_value = 4 THEN 1 ELSE 0 END
+							) AS rating4,
+							SUM(
+								CASE WHEN user_ratings.rating_value = 5 THEN 1 ELSE 0 END
+							) AS rating5
+	        			'),
+			        )
+			        ->first();
+
+        $settingOptions = RatingOption::select('star','question','options')->where('rating_target', 'hairstylist')->get();
+        $options = [];
+        foreach ($settingOptions as $val) {
+        	$temp = explode(',', $val['options']);
+        	$options = array_merge($options, $temp);
+        }
+
+        $options = array_keys(array_flip($options));
+        $optionSummary = [];
+        foreach ($options as $val) {
+        	$optionSummary[$val] = UserRating::where('id_user_hair_stylist',$user->id_user_hair_stylist)
+    							->where('option_value', 'like', '%' . $val . '%')
+    							->count();
+        }
+
+        $level = $ratingHs['level'] ?? null;
+        $level = ($level == 'Hairstylist') ? 'Mitra' : (($level == 'Supervisor') ? 'SPV' : null);
+        $res = [
+        	'nickname' => $ratingHs['nickname'] ?? null,
+        	'fullname' => $ratingHs['fullname'] ?? null,
+        	'name' => $level . ' ' . $ratingHs['fullname'] ?? null,
+        	'phone_number' => $ratingHs['phone_number'] ?? null,
+        	'level' => $ratingHs['level'] ?? null,
+        	'total_customer' => (int) ($ratingHs['total_customer'] ?? null),
+        	'total_rating' => (int) ($ratingHs['total_rating'] ?? null),
+        	'rating_value' => [
+        		'5' => (int) ($ratingHs['rating5'] ?? null),
+        		'4' => (int) ($ratingHs['rating4'] ?? null),
+        		'3' => (int) ($ratingHs['rating3'] ?? null),
+        		'2' => (int) ($ratingHs['rating2'] ?? null),
+        		'1' => (int) ($ratingHs['rating1'] ?? null)
+        	],
+        	'rating_option' => $optionSummary
+        ];
+        
+        return MyHelper::checkGet($res);
     }
 }

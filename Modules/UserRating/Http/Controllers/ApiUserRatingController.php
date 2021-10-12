@@ -12,6 +12,7 @@ use App\Http\Models\Transaction;
 use App\Http\Models\TransactionProduct;
 use Modules\UserRating\Entities\UserRating;
 use Modules\UserRating\Entities\RatingOption;
+use Modules\UserRating\Entities\UserRatingSummary;
 
 use Modules\Transaction\Entities\TransactionProductService;
 
@@ -170,8 +171,13 @@ class ApiUserRatingController extends Controller
 
         $id_outlet = $trx->id_outlet;
         $id_user_hair_stylist = null;
+        $id_transaction_product_service = null;
         if (isset($post['id_user_hair_stylist'])) {
-			$trxService = TransactionProductService::where('id_transaction', $id)->where('id_user_hair_stylist', $post['id_user_hair_stylist'])->first();
+			$trxService = TransactionProductService::where('id_transaction', $id)
+						->where('id_user_hair_stylist', $post['id_user_hair_stylist'])
+						->where('id_transaction_product_service', $post['id_transaction_product_service'])
+						->first();
+
 			if (!$trxService) {
 				return [
 	                'status'=>'fail',
@@ -180,6 +186,7 @@ class ApiUserRatingController extends Controller
 			}
 
 			$id_user_hair_stylist = $trxService->id_user_hair_stylist;
+			$id_transaction_product_service = $trxService->id_transaction_product_service;
 			$id_outlet = null;
         }
         if ($id_user_hair_stylist) {
@@ -227,10 +234,13 @@ class ApiUserRatingController extends Controller
             'option_question' => $post['option_question'],
             'option_value' => implode(',',array_map(function($var){return trim($var,'"');},$post['option_value']??[]))
         ];
+
         $create = UserRating::updateOrCreate([
+        	'id_user' => $request->user()->id,
         	'id_transaction' => $id,
         	'id_outlet'	=> $id_outlet,
-        	'id_user_hair_stylist' => $id_user_hair_stylist
+        	'id_user_hair_stylist' => $id_user_hair_stylist,
+        	'id_transaction_product_service' => $id_transaction_product_service
         ],$insert);
 
         if ($id_user_hair_stylist) {
@@ -245,7 +255,8 @@ class ApiUserRatingController extends Controller
         	'id_user' => $request->user()->id, 
         	'id_transaction' => $id,
         	'id_outlet'	=> $id_outlet,
-        	'id_user_hair_stylist' => $id_user_hair_stylist
+        	'id_user_hair_stylist' => $id_user_hair_stylist,
+        	'id_transaction_product_service' => $id_transaction_product_service
         ])->delete();
 
         $unrated = UserRatingLog::where('id_transaction',$trx->id_transaction)->first();
@@ -258,6 +269,38 @@ class ApiUserRatingController extends Controller
         		(new ApiOutletApp)->insertUserCashback($trx);
         	}
             Transaction::where('id_transaction',$trx->id_transaction)->update(['show_rate_popup'=>0]);
+        }
+
+        $countRatingValue = UserRating::where([
+        	'id_outlet'	=> $id_outlet,
+        	'id_user_hair_stylist' => $id_user_hair_stylist,
+        	'rating_value'=> $post['rating_value']
+        ])->count();
+
+        $summaryRatingValue = UserRatingSummary::updateOrCreate([
+        	'id_outlet'	=> $id_outlet,
+        	'id_user_hair_stylist' => $id_user_hair_stylist,
+        	'key' => $post['rating_value'],
+        	'summary_type' => 'rating_value'
+        ],[
+        	'value' => $countRatingValue
+        ]);
+
+        foreach ($post['option_value'] ?? [] as $value) {
+			$countOptionValue = UserRating::where([
+	        	'id_outlet'	=> $id_outlet,
+	        	'id_user_hair_stylist' => $id_user_hair_stylist,
+	        	['option_value', 'like', '%' . $value . '%']
+	        ])->count();
+
+	        $summaryOptionValue = UserRatingSummary::updateOrCreate([
+	        	'id_outlet'	=> $id_outlet,
+	        	'id_user_hair_stylist' => $id_user_hair_stylist,
+	        	'key' => $value,
+	        	'summary_type' => 'option_value'
+	        ],[
+	        	'value' => $countOptionValue
+	        ]);        	
         }
 
         return MyHelper::checkCreate($create);
@@ -415,6 +458,7 @@ class ApiUserRatingController extends Controller
         $ratingList = [];
         foreach ($logRatings as $key => $log) {
 			$rating['id'] = $log['id_transaction'];
+			$rating['id_transaction_product_service'] = $log['id_transaction_product_service'];
 			$rating['id_user_hair_stylist'] = null;
 			$rating['detail_hairstylist'] = null;
 	        $rating['transaction_receipt_number'] = $log['transaction']['transaction_receipt_number'];

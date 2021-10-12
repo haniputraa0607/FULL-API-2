@@ -18,6 +18,7 @@ use Modules\Recruitment\Entities\HairstylistInbox;
 use Modules\UserRating\Entities\UserRating;
 use Modules\UserRating\Entities\RatingOption;
 use Modules\UserRating\Entities\UserRatingLog;
+use Modules\UserRating\Entities\UserRatingSummary;
 
 use Modules\Recruitment\Http\Requests\ScheduleCreateRequest;
 
@@ -349,25 +350,21 @@ class ApiMitra extends Controller
 				        	user_hair_stylist.fullname,
 				        	user_hair_stylist.level,
 				        	user_hair_stylist.total_rating,
-				        	COUNT(DISTINCT user_ratings.id_user) as total_customer,
-	        				SUM(
-								CASE WHEN user_ratings.rating_value = 1 THEN 1 ELSE 0 END
-							) AS rating1,
-							SUM(
-								CASE WHEN user_ratings.rating_value = 2 THEN 1 ELSE 0 END
-							) AS rating2,
-							SUM(
-								CASE WHEN user_ratings.rating_value = 3 THEN 1 ELSE 0 END
-							) AS rating3,
-							SUM(
-								CASE WHEN user_ratings.rating_value = 4 THEN 1 ELSE 0 END
-							) AS rating4,
-							SUM(
-								CASE WHEN user_ratings.rating_value = 5 THEN 1 ELSE 0 END
-							) AS rating5
+				        	COUNT(DISTINCT user_ratings.id_user) as total_customer
 	        			'),
 			        )
 			        ->first();
+
+        $summary = UserRatingSummary::where('id_user_hair_stylist', $user->id_user_hair_stylist)->get();
+        $summaryRating = [];
+        $summaryOption = [];
+        foreach ($summary as $val) {
+        	if ($val['summary_type'] == 'rating_value') {
+        		$summaryRating[$val['key']] = $val['value'];
+        	} else {
+        		$summaryOption[$val['key']] = $val['value'];
+        	}
+        }
 
         $settingOptions = RatingOption::select('star','question','options')->where('rating_target', 'hairstylist')->get();
         $options = [];
@@ -377,11 +374,9 @@ class ApiMitra extends Controller
         }
 
         $options = array_keys(array_flip($options));
-        $optionSummary = [];
+        $resOption = [];
         foreach ($options as $val) {
-        	$optionSummary[$val] = UserRating::where('id_user_hair_stylist',$user->id_user_hair_stylist)
-    							->where('option_value', 'like', '%' . $val . '%')
-    							->count();
+        	$resOption[$val] = $summaryOption[$val] ?? 0;
         }
 
         $level = $ratingHs['level'] ?? null;
@@ -395,13 +390,13 @@ class ApiMitra extends Controller
         	'total_customer' => (int) ($ratingHs['total_customer'] ?? null),
         	'total_rating' => (int) ($ratingHs['total_rating'] ?? null),
         	'rating_value' => [
-        		'5' => (int) ($ratingHs['rating5'] ?? null),
-        		'4' => (int) ($ratingHs['rating4'] ?? null),
-        		'3' => (int) ($ratingHs['rating3'] ?? null),
-        		'2' => (int) ($ratingHs['rating2'] ?? null),
-        		'1' => (int) ($ratingHs['rating1'] ?? null)
+        		'5' => (int) ($summaryRating['5'] ?? null),
+        		'4' => (int) ($summaryRating['4'] ?? null),
+        		'3' => (int) ($summaryRating['3'] ?? null),
+        		'2' => (int) ($summaryRating['2'] ?? null),
+        		'1' => (int) ($summaryRating['1'] ?? null)
         	],
-        	'rating_option' => $optionSummary
+        	'rating_option' => $resOption
         ];
         
         return MyHelper::checkGet($res);

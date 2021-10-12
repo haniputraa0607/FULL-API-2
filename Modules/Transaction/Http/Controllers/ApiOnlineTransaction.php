@@ -148,6 +148,9 @@ class ApiOnlineTransaction extends Controller
             ]);
         }
 
+        if(empty($post['type'])){
+            $post['type'] = null;
+        }
 
         $post['item'] = $this->mergeProducts($post['item']??[]);
         if (isset($post['pin']) && strtolower($post['payment_type']) == 'balance') {
@@ -2095,6 +2098,10 @@ class ApiOnlineTransaction extends Controller
         $shippingGoSendPrice = 0;
         $listDelivery = [];
         $error_msg=[];
+
+        if(empty($post['type'])){
+            $post['type'] = null;
+        }
 
         if($post['type'] != 'Pickup Order' && !$outlet->delivery_order) {
             $error_msg[] = 'Maaf, Outlet ini tidak support untuk delivery order';

@@ -401,4 +401,30 @@ class ApiMitra extends Controller
         
         return MyHelper::checkGet($res);
     }
+
+    public function ratingComment(Request $request)
+    {
+    	$user = $request->user();
+    	$comment = UserRating::where('user_ratings.id_user_hair_stylist', $user->id_user_hair_stylist)
+    				->leftJoin('transaction_product_services','user_ratings.id_transaction_product_service','transaction_product_services.id_transaction_product_service')
+    				->whereNotNull('suggestion')
+    				->select(
+    					'transaction_product_services.order_id',
+    					'user_ratings.id_user_rating',
+    					'user_ratings.suggestion',
+    					'user_ratings.created_at'
+    				)
+    				->paginate(10)
+    				->toArray();
+
+		$resData = [];
+		foreach ($comment['data'] ?? [] as $val) {
+			$val['created_at_indo'] = MyHelper::dateFormatInd($val['created_at'], true, false);
+			$resData[] = $val;
+		}
+
+		$comment['data'] = $resData;
+
+		return MyHelper::checkGet($comment);
+    }
 }

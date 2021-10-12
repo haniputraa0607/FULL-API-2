@@ -2411,6 +2411,7 @@ class ApiOnlineTransaction extends Controller
         $missing_bonus_product 	= false;
         $subtotal_per_brand 	= [];
         $totalItem = 0;
+        $items = [];
         foreach ($discount_promo['item']??$post['item'] as &$item) {
             // get detail product
             $product = Product::select([
@@ -2426,7 +2427,7 @@ class ApiOnlineTransaction extends Controller
                             is NULL THEN NULL
                             ELSE (select product_detail.max_order from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = '.$post['id_outlet'].' )
                         END) as max_order'),
-                    'brand_product.id_product_category','brand_product.id_brand', 'products.product_variant_status'
+                    'brand_product.id_brand', 'products.product_variant_status'
                 ])
                 ->join('brand_product','brand_product.id_product','=','products.id_product')
                 ->leftJoin('product_global_price','product_global_price.id_product','=','products.id_product')
@@ -2450,9 +2451,6 @@ class ApiOnlineTransaction extends Controller
                     $query->orWhereRaw('(select product_global_price.product_global_price from product_global_price  where product_global_price.id_product = products.id_product) is NOT NULL');
                 })
                 ->with([
-                    'brand_category' => function($query){
-                        $query->groupBy('id_product','id_brand');
-                    },
                     'photos' => function($query){
                         $query->select('id_product','product_photo');
                     },
@@ -2523,110 +2521,6 @@ class ApiOnlineTransaction extends Controller
             $product['is_promo'] = 0;
             $product['is_free'] = $item['is_free']??0;
             $product['bonus'] = $item['bonus']??0;
-            // get modifier
-            $mod_price = 0;
-            $product['modifiers'] = [];
-            $removed_modifier = [];
-            $missing_modifier = 0;
-            $extra_modifier_price = 0;
-            foreach ($item['modifiers']??[] as $key => $modifier) {
-                $id_product_modifier = is_numeric($modifier)?$modifier:$modifier['id_product_modifier'];
-                $qty_product_modifier = is_numeric($modifier)?1:$modifier['qty'];
-                $mod = ProductModifier::select('product_modifiers.id_product_modifier','code',
-                    DB::raw('(CASE
-                        WHEN product_modifiers.text_detail_trx IS NOT NULL 
-                        THEN product_modifiers.text_detail_trx
-                        ELSE product_modifiers.text
-                    END) as text'),
-                    'product_modifier_stock_status',\DB::raw('coalesce(product_modifier_price, 0) as product_modifier_price'), 'modifier_type')
-                    // product visible
-                    ->leftJoin('product_modifier_details', function($join) use ($post) {
-                        $join->on('product_modifier_details.id_product_modifier','=','product_modifiers.id_product_modifier')
-                            ->where('product_modifier_details.id_outlet',$post['id_outlet']);
-                    })
-                    ->where(function($q) {
-                        $q->where(function($q){
-                            $q->where(function($query){
-                                $query->where('product_modifier_details.product_modifier_visibility','=','Visible')
-                                ->orWhere(function($q){
-                                    $q->whereNull('product_modifier_details.product_modifier_visibility')
-                                    ->where('product_modifiers.product_modifier_visibility', 'Visible');
-                                });
-                            });
-                        })->orWhere('product_modifiers.modifier_type', '=', 'Modifier Group');
-                    })
-                    ->where(function($q){
-                        $q->where('product_modifier_status','Active')->orWhereNull('product_modifier_status');
-                    })
-                    ->groupBy('product_modifiers.id_product_modifier');
-                if($outlet['outlet_different_price']){
-                    $mod->leftJoin('product_modifier_prices',function($join) use ($post){
-                        $join->on('product_modifier_prices.id_product_modifier','=','product_modifiers.id_product_modifier');
-                        $join->where('product_modifier_prices.id_outlet',$post['id_outlet']);
-                    });
-                }else{
-                    $mod->leftJoin('product_modifier_global_prices',function($join) use ($post){
-                        $join->on('product_modifier_global_prices.id_product_modifier','=','product_modifiers.id_product_modifier');
-                    });
-                }
-                $mod = $mod->find($id_product_modifier);
-                if(!$mod){
-                    $missing_modifier++;
-                    continue;
-                }
-                $mod = $mod->toArray();
-                $scope = $mod['modifier_type'];
-                $mod['qty'] = $qty_product_modifier;
-                $mod['product_modifier_price'] = (int) $mod['product_modifier_price'];
-                if ($scope == 'Modifier Group') {
-                    if ($mod['product_modifier_stock_status'] == 'Sold Out') {
-                        $error_msg[] = MyHelper::simpleReplace(
-                            'Detail variant yang dipilih untuk produk %product_name% tidak tersedia',
-                            [
-                                'product_name' => $product['product_name']
-                            ]
-                        );
-                        continue 2;
-                    }
-                    $product['extra_modifiers'][]=[
-                        'product_variant_name' => $mod['text'],
-                        'id_product_variant' => $mod['id_product_modifier']
-                    ];
-                    $extra_modifier_price += $mod['qty'] * $mod['product_modifier_price'];
-                } else {
-                    if ($mod['product_modifier_stock_status'] != 'Sold Out') {
-                        $product['modifiers'][]=$mod;
-                    } else {
-                        $removed_modifier[] = $mod['text'];
-                    }
-                }
-                $mod_price+=$mod['qty']*$mod['product_modifier_price'];
-            }
-            if($missing_modifier){
-                $error_msg[] = MyHelper::simpleReplace(
-                    '%missing_modifier% topping untuk produk %product_name% tidak tersedia',
-                    [
-                        'missing_modifier' => $missing_modifier,
-                        'product_name' => $product['product_name']
-                    ]
-                );
-            }
-            if($removed_modifier){
-                $error_msg[] = MyHelper::simpleReplace(
-                    'Topping %removed_modifier% untuk produk %product_name% tidak tersedia',
-                    [
-                        'removed_modifier' => implode(',',$removed_modifier),
-                        'product_name' => $product['product_name']
-                    ]
-                );
-            }
-            if(!isset($tree[$product['id_brand']]['name_brand'])){
-            	$brand = Brand::select('name_brand','id_brand')->find($product['id_brand'])->toArray();
-            	if (!$product['bonus']) {
-                	$tree[$product['id_brand']] = $brand;
-            	}
-                $tree_promo[$product['id_brand']] = $brand;
-            }
 
             $product['id_product_variant_group'] = $item['id_product_variant_group'] ?? null;
             if ($product['id_product_variant_group']) {
@@ -2680,11 +2574,11 @@ class ApiOnlineTransaction extends Controller
                 $product_variant_group_price = (int) $product['product_price'];
             }
 
-            $product['product_variant_group_price'] = (int)($product_variant_group_price + $extra_modifier_price);
+            $product['product_variant_group_price'] = (int)$product_variant_group_price;
 
             $product['product_price_total'] = $item['transaction_product_subtotal'];
             $product['product_price_raw'] = (int) $product['product_price'];
-            $product['product_price_raw_total'] = (int) $product['product_price']+$mod_price;
+            $product['product_price_raw_total'] = (int) $product['product_price'];
             // $product['product_price'] = MyHelper::requestNumber($product['product_price']+$mod_price, '_CURRENCY');
             $product['product_price'] = (int) $product['product_price'];
 
@@ -2707,6 +2601,12 @@ class ApiOnlineTransaction extends Controller
             //calculate total item
             $totalItem += $product['qty'];
             // return $product;
+            if(!empty($product['product_stock_status'])){
+                $product['product_stock_status'] = 'Available';
+            }else{
+                $product['product_stock_status'] = 'Sold Out';
+            }
+            $items[] = $product;
         }
 
         if(empty($post['customer']) || empty($post['customer']['name'])){
@@ -2769,68 +2669,6 @@ class ApiOnlineTransaction extends Controller
             }
         }
 
-        if($scopeUser == 'apps'){
-            if ($post['type'] == 'Delivery Order') {
-                $listDelivery = WeHelpYou::getListTransactionDelivery($request, $outlet, $totalItem, ['gosend' => $shippingGoSendPrice]);
-                if ($promo_valid || $subs_valid) {
-                    $delivery = $pct->getActivePromoCourier($request, $listDelivery, $code ?? $deals ?? $subs);
-                    $listDelivery = $pct->reorderSelectedDelivery($listDelivery, $delivery);
-                    if (empty($delivery)) {
-                        $promo_valid 	= false;
-                        $subs_valid 	= false;
-                        $promo_discount = 0;
-                        $promo_source 	= null;
-                        $promo_error 	= app($this->promo_campaign)->promoError('transaction', ['Pengiriman tidak tersedia untuk promo ini']);
-                    } elseif ($request->courier && strpos($delivery['code'], $request->courier) === false) {
-                        $courierName 	= $this->getCourierName($request->courier);
-                        $error_msg[] = 'Pengiriman ' . $courierName . ' tidak tersedia untuk promo ini';
-                    }
-                }else{
-                    $delivery = $this->getActiveCourier($listDelivery, $request->courier);
-                }
-                $post['shipping'] = $delivery['price'] ?? $post['shipping'];
-            }
-
-            if ($promo_valid) {
-                if (isset($promo_type) && ($promo_type == 'Discount bill' || $promo_type == 'Discount delivery')) {
-                    $check_promo = app($this->promo)->checkPromo($request_promo, $request->user(), $promo_source, $code ?? $deals, $request->id_outlet, $post['item'], $post['shipping'] + $shippingGoSend, $subtotal_per_brand, $promo_error_product);
-                    if ($check_promo['status'] == 'fail') {
-                        $promo_error = app($this->promo_campaign)->promoError('transaction', $check_promo['messages'] ?? $error, null, $promo_error_product ?? 0);
-                        $promo_valid = false;
-                    }else{
-                        $promo_discount = $check_promo['data']['discount'] ?? 0;
-                        $post['discount_delivery'] = $check_promo['data']['discount_delivery'] ?? 0;
-                    }
-                }
-            }
-
-            if ($promo_valid) {
-                $check_promo = app($this->promo)->checkMinBasketSize($promo_source, $code ?? $deals, $subtotal_per_brand);
-                if ($check_promo) {
-                    $tree = $tree_promo;
-                    $subtotal = $subtotal_promo;
-                }
-                else{
-                    $promo_valid = false;
-                    $promo_discount = 0;
-                    $promo_source = null;
-                    $discount_promo['discount_delivery'] = 0;
-                    if(!empty($responseNotIncludePromo)){
-                        $error = ['Bundling : '.$post['sub']['bundling_not_include_promo'].' tidak termasuk dalam perhitungan promo. Silahkan tambahkan item lain untuk memenuhi jumlah minimum pembelian.'];
-                    }else{
-                        $error = ['Total pembelian minimum belum terpenuhi'];
-                    }
-                    $promo_error = app($this->promo_campaign)->promoError('transaction', $error, null, 'all');
-                }
-            }
-        }
-
-        foreach ($tree as $key => $tre) {
-            if (!($tre['products'] ?? false)) {
-                unset($tree[$key]);
-            }
-        }
-
         if($scopeUser == 'apps') {
             if ($promo_missing_product) {
                 $promo_valid = false;
@@ -2863,7 +2701,7 @@ class ApiOnlineTransaction extends Controller
             'delivery_order' => $outlet['delivery_order'],
             'today' => $outlet['today']
         ];
-        $result['item'] = array_values($tree);
+        $result['item'] = $items;
 
         // Additional Plastic Payment
         if($outlet['plastic_used_status'] == 'Active'){
@@ -4455,7 +4293,7 @@ class ApiOnlineTransaction extends Controller
                 "booking_date" => $item['booking_date'],
                 "booking_date_display" => $item['booking_date_display'],
                 "booking_time" => $item['booking_time'],
-                "error_msg" => $item['error_msg']
+                "error_msg" => $item['error_msg']??""
             ];
             $pos = array_search($new_item, $new_items);
             if($pos === false) {

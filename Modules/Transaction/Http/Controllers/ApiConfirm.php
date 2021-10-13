@@ -89,6 +89,10 @@ class ApiConfirm extends Controller
             ]);
         }
 
+        if(!isset($post['payment_detail'])){
+            $post['payment_detail'] = null;
+        }
+
         $checkPayment = TransactionMultiplePayment::where('id_transaction', $check['id_transaction'])->first();
         $countGrandTotal = $check['transaction_grandtotal'];
         $totalPriceProduct = 0;

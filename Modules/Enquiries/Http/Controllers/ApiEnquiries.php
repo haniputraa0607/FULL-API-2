@@ -13,6 +13,7 @@ use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 
 use App\Lib\MyHelper;
+use Modules\Enquiries\Entities\Tickets;
 use Validator;
 use App\Lib\classMaskingJson;
 use App\Lib\classJatisSMS;
@@ -28,6 +29,7 @@ use Modules\Enquiries\Http\Requests\Update;
 use Modules\Enquiries\Http\Requests\Delete;
 use Modules\Enquiries\Entities\EnquiriesFile;
 use Modules\Brand\Entities\Brand;
+use App\Lib\Ticketing;
 
 class ApiEnquiries extends Controller
 {
@@ -589,4 +591,87 @@ class ApiEnquiries extends Controller
 		$result = ['text' => $list['value'], 'value' => explode(', ' ,$list['value_text'])];
 		return response()->json(MyHelper::checkGet($result));
 	}
+
+    function createV2(Request $request){
+        $data = $this->cekInputan($request->json()->all());
+        if (isset($data['error'])) {
+            unset($data['error']);
+            return response()->json($data);
+        }
+
+        //get data user
+        $user = User::where('id', $request->user()->id)->first();
+        if (empty($user)) {
+            return response()->json(['status' => 'fail', 'messages' => ['User not found']]);
+        }
+        $data['enquiry_phone'] = $user['phone'];
+
+        //cek brand
+        if(isset($data['brand'])){
+            $brand = Brand::find($data['id_brand']);
+            if(!$brand){
+                $brand = null;
+            }
+        }else{
+            $brand = null;
+        }
+
+        $save = Enquiry::create($data);
+
+        if ($save) {
+
+            $data['attachment'] = [];
+            $data['id_enquiry'] =(string)$save->id_enquiry;
+            if (isset($data['many_upload_file'])) {
+                $files = $this->saveFiles($save->id_enquiry, $data['many_upload_file']);
+                $enquiryFile = EnquiriesFile::where('id_enquiry', $save->id_enquiry)->get();
+                foreach($enquiryFile as $dataFile){
+                    $data['attachment'][] = $dataFile->url_enquiry_file;
+                }
+                unset($data['enquiry_file']);
+            }
+            $data['brand'] = $brand;
+            $goCrm = $this->sendCrm($data);
+            $data['id_enquiry'] = $save->id_enquiry;
+        }
+
+        if(!empty(env('TICKETING_BASE_URL')) && !empty(env('TICKETING_API_KEY')) && !empty(env('TICKETING_API_SECRET'))){
+            $fileCount = count($data['file']??[]);
+
+            $dataSend = [
+                'title' => $data['enquiry_subject'].' (send by :'.$data['enquiry_name'].')',
+                'guest_email' => $data['enquiry_email'],
+                'priority' => 1,
+                'catid' => 1,
+                'sub_catid' => 1,
+                'body' => $data['enquiry_content'],
+                'file_count' => $fileCount,
+            ];
+
+
+
+            foreach ($data['file']??[] as $key=>$file){
+                $dataSend['file_'.($key+1)] = $file;
+            }
+
+            //insert data to ticketing third party
+            $ticketing = new Ticketing();
+            $ticketing->setData(['body' => $dataSend, 'url' => 'api/tickets/add_ticket']);
+            $addTicket = $ticketing->sendToTicketing();
+
+            if(isset($addTicket['status']) && $addTicket['status'] == 'success' &&
+                isset($addTicket['response']['ticket_id'])){
+                $create = Tickets::create(['phone' => $data['enquiry_phone'], 'id_user' => $user['id']??null, 'id_ticket_third_party' => $addTicket['response']['ticket_id']]);
+
+                if($create){
+                    unset($data['file']);
+                    return response()->json(MyHelper::checkCreate($data));
+                }
+            }
+
+            return response()->json(['status' => 'fail', 'messages' => ['Failed create enquiries']]);
+        }
+
+        return response()->json(MyHelper::checkCreate($data));
+    }
 }

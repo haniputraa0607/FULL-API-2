@@ -108,6 +108,7 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::post('/address/detail', 'ApiTransaction@detailAddress');
     Route::post('/address/add', 'ApiTransaction@addAddress');
     Route::post('/address/update', 'ApiTransaction@updateAddress');
+    Route::post('/address/update-favorite', 'ApiTransaction@updateAddressFavorite');
     Route::post('/address/delete', 'ApiTransaction@deleteAddress');
     Route::post('/void', 'ApiTransaction@transactionVoid');
 

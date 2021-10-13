@@ -65,5 +65,10 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
 		    Route::post('unmark', 'ApiMitraInbox@unmarkInbox');
 		    Route::post('unread', 'ApiMitraInbox@unread');
     	});
+
+		Route::group(['prefix' => 'rating'], function () {
+        	Route::get('summary', 'ApiMitra@ratingSummary');
+        	Route::get('comment', 'ApiMitra@ratingComment');
+    	});
 	});
 });

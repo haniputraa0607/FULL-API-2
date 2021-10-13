@@ -7,5 +7,6 @@ return [
     'ENC_SI' => 'J4Anj1J1WA4',
     'ENC_CM' => 'AES-256-CBC',
     'EMAIL_ADDRESS_ADMIN' => '',
-    'STORAGE' => env('STORAGE', 'local')
+    'STORAGE' => env('STORAGE', 'local'),
+    'PREFIX_TRANSACTION_NUMBER' => 'TRX'
 ];

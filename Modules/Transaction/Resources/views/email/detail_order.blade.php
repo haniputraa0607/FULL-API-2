@@ -16,7 +16,6 @@
     <tr>
         <td colspan="3" style="border-bottom-style:none;text-align:center">
             <span style="color:#b3b3b3;font-family:\'Source Sans Pro\',sans-serif;font-size:14px;line-height:1.5;margin:0;padding:0">#{{$data['transaction_receipt_number']}}<br>
-                Order ID : {{$data['detail']['order_id'] }}<br>
                 {{date('d M Y H:i', strtotime($data['transaction_date']))}}</span>
         </td>
     </tr>

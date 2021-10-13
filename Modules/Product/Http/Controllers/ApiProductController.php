@@ -2094,7 +2094,7 @@ class ApiProductController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['ID/Code outlet can not be empty']]);
         }
 
-        $outlet = Outlet::with(['outlet_schedules']);
+        $outlet = Outlet::with(['outlet_schedules', 'holidays.date_holidays', 'today']);
 
         if(!empty($post['id_outlet'])){
             $outlet = $outlet->where('id_outlet', $post['id_outlet'])->first();
@@ -2109,6 +2109,24 @@ class ApiProductController extends Controller
                 'status' => 'fail',
                 'messages' => ['Outlet not found']
             ];
+        }
+
+        $isClose = false;
+        $currentDate = date('Y-m-d');
+        $currentHour = date('H:i:s');
+        $open = date('H:i:s', strtotime($outlet['today']['open']));
+        $close = date('H:i:s', strtotime($outlet['today']['close']));
+        foreach ($outlet['holidays'] as $holidays){
+            $holiday = $holidays['date_holidays']->toArray();
+            $dates = array_column($holiday, 'date');
+            if(array_search($currentDate, $dates) !== false){
+                $isClose = true;
+                break;
+            }
+        }
+
+        if(strtotime($currentHour) < strtotime($open) || strtotime($currentHour) > strtotime($close) || $outlet['today']['is_closed'] == 1){
+            $isClose = true;
         }
 
         $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
@@ -2255,6 +2273,7 @@ class ApiProductController extends Controller
         }
 
         $resOutlet = [
+            'is_close' => $isClose,
             'id_outlet' => $outlet['id_outlet'],
             'outlet_code' => $outlet['outlet_code'],
             'outlet_name' => $outlet['outlet_name'],
@@ -2396,10 +2415,12 @@ class ApiProductController extends Controller
                         }
                         $tmpTime = $timeConvert;
                     }
-                    $listDate[] = [
-                        'date' => $date,
-                        'times' => $times
-                    ];
+                    if(!empty($times)){
+                        $listDate[] = [
+                            'date' => $date,
+                            'times' => $times
+                        ];
+                    }
                     $count++;
                 }
                 $x++;

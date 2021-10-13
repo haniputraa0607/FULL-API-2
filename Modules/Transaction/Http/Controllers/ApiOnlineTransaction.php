@@ -2103,7 +2103,7 @@ class ApiOnlineTransaction extends Controller
             $post['type'] = null;
         }
 
-        if($post['type'] != 'Pickup Order' && !$outlet->delivery_order) {
+        if($post['type'] == 'Delivery' && !$outlet->delivery_order) {
             $error_msg[] = 'Maaf, Outlet ini tidak support untuk delivery order';
         }
 

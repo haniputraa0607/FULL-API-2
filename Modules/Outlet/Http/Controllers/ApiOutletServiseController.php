@@ -188,11 +188,9 @@ class ApiOutletServiseController extends Controller
                     ->select('outlets.*', 'cities.city_name');
 
         if(!empty($post['id_outlet'])){
-            $detail = $detail->where('id_outlet', $post['id_outlet'])->first()->toArray();
-        }
-
-        if(!empty($post['outlet_code'])){
-            $detail = $detail->where('outlet_code', $post['outlet_code'])->first()->toArray();
+            $detail = $detail->where('id_outlet', $post['id_outlet'])->first();
+        }elseif(!empty($post['outlet_code'])){
+            $detail = $detail->where('outlets.outlet_code', $post['outlet_code'])->first();
         }
 
         if(empty($detail)){
@@ -202,7 +200,7 @@ class ApiOutletServiseController extends Controller
         if(empty($detail['outlet_schedules'])){
             return response()->json(['status' => 'fail', 'messages' => ['Outlet do not have schedules']]);
         }
-
+        $detail = $detail->toArray();
         //schedule
         $allDay = array_column($detail['outlet_schedules'], 'day');
         $allTimeOpen = array_unique(array_column($detail['outlet_schedules'], 'open'));

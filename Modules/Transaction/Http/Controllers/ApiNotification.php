@@ -84,7 +84,7 @@ class ApiNotification extends Controller {
 
         try{
             // CHECK ORDER ID
-            if (stristr($midtrans['order_id'], "J+")) {
+            if (stristr($midtrans['order_id'], config('configs.PREFIX_TRANSACTION_NUMBER'))) {
                 // TRANSACTION
                 $transac = Transaction::with('user.memberships', 'logTopup')->where('transaction_receipt_number', $midtrans['order_id'])->first();
     
@@ -540,29 +540,30 @@ class ApiNotification extends Controller {
         $date    = $trx['transaction_date'];
         $outlet  = $trx['outlet']['outlet_name'];
         $receipt = $trx['transaction_receipt_number'];
-        // $detail = $this->getHtml($trx, $trx['productTransaction'], $name, $phone, $date, $outlet, $receipt);
-        $detail = $this->htmlDetailTrxSuccess($trx['id_transaction']);
-
+        $detail = "";
         $title = 'Sukses';
-
-        $trxPickup = TransactionPickup::where('id_transaction', $trx['id_transaction'])->first();
         $dataOptional = [];
-        $setting_msg = json_decode(MyHelper::setting('transaction_set_time_notif_message','value_text'), true);
 
-        if($trxPickup && $trxPickup->pickup_type == 'set time') {
-            $replacer = [
-                ['%name%', '%outlet_name%', '%receipt_number%', '%order_id%'],
-                [$name, $outlet, $receipt, $mid['order_id']],
-            ];
-            $dataOptional = [
-                'push_notif_local' => 1,
-                'title_5mnt'       => str_replace($replacer[0], $replacer[1], $setting_msg['title_5mnt'] ?? '5 menit Pesananmu siap lho'),
-                'msg_5mnt'         => str_replace($replacer[0], $replacer[1], $setting_msg['msg_5mnt'] ?? 'hai %name%, siap - siap ke outlet %outlet_name% yuk. Pesananmu akan siap 5 menit lagi nih.'),
-                'title_15mnt'      => str_replace($replacer[0], $replacer[1], $setting_msg['title_15mnt'] ?? '15 menit Pesananmu siap lho'),
-                'msg_15mnt'        => str_replace($replacer[0], $replacer[1], $setting_msg['msg_15mnt'] ?? 'hai %name%, siap - siap ke outlet %outlet_name% yuk. Pesananmu akan siap 15 menit lagi nih.'),
-                'pickup_time'       => $trxPickup->pickup_at,
-            ];
+        if(!empty($trx['trasaction_type'])){
+            $detail = $this->htmlDetailTrxSuccess($trx['id_transaction']);
+            $trxPickup = TransactionPickup::where('id_transaction', $trx['id_transaction'])->first();
+            $setting_msg = json_decode(MyHelper::setting('transaction_set_time_notif_message','value_text'), true);
 
+            if($trxPickup && $trxPickup->pickup_type == 'set time') {
+                $replacer = [
+                    ['%name%', '%outlet_name%', '%receipt_number%', '%order_id%'],
+                    [$name, $outlet, $receipt, $mid['order_id']],
+                ];
+                $dataOptional = [
+                    'push_notif_local' => 1,
+                    'title_5mnt'       => str_replace($replacer[0], $replacer[1], $setting_msg['title_5mnt'] ?? '5 menit Pesananmu siap lho'),
+                    'msg_5mnt'         => str_replace($replacer[0], $replacer[1], $setting_msg['msg_5mnt'] ?? 'hai %name%, siap - siap ke outlet %outlet_name% yuk. Pesananmu akan siap 5 menit lagi nih.'),
+                    'title_15mnt'      => str_replace($replacer[0], $replacer[1], $setting_msg['title_15mnt'] ?? '15 menit Pesananmu siap lho'),
+                    'msg_15mnt'        => str_replace($replacer[0], $replacer[1], $setting_msg['msg_15mnt'] ?? 'hai %name%, siap - siap ke outlet %outlet_name% yuk. Pesananmu akan siap 15 menit lagi nih.'),
+                    'pickup_time'       => $trxPickup->pickup_at,
+                ];
+
+            }
         }
 
         $send = app($this->autocrm)->SendAutoCRM('Transaction Success', $trx->user->phone, [
@@ -1689,7 +1690,7 @@ Detail: ".$link['short'],
             $detail = TransactionShipment::with('city.province')->where('id_transaction', $data['id_transaction'])->first();
         }
 
-        $data['detail'] = $detail;
+        $data['detail'] = $detail??[];
 
         if($status == 'Expired'){
             $data['status'] = 'Your order has expired';
@@ -2022,7 +2023,7 @@ Detail: ".$link['short'],
             ]
         ];
 
-        if ($list['trasaction_payment_type'] != 'Offline') {
+        if ($list['trasaction_payment_type'] == 'Delivery') {
             $result['detail'] = [
                 'order_id_qrcode'   => $list['detail']['order_id_qrcode'],
                 'order_id'          => $list['detail']['order_id'],
@@ -2220,7 +2221,7 @@ Detail: ".$link['short'],
         $result['promo']['discount'] = $discount;
         $result['promo']['discount'] = MyHelper::requestNumber($discount,'_CURRENCY');
 
-        if ($list['trasaction_payment_type'] != 'Offline') {
+        if ($list['trasaction_payment_type'] == 'Delivery') {
             if ($list['transaction_payment_status'] == 'Cancelled') {
                 $statusOrder[] = [
                     'text'  => 'Pesanan Anda dibatalkan karena pembayaran gagal',

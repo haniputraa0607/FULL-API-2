@@ -444,10 +444,12 @@ class ApiConfirm extends Controller
             $dataMidtrans['transaction_details']['id_transaction'] = $check['id_transaction'];
             $response = [
                 'status'           => 'success',
-                'snap_token'       => $connectMidtrans['token'],
-                'redirect_url'     => $connectMidtrans['redirect_url'],
-                'transaction_data' => $dataMidtrans,
-                'url'              => env('VIEW_URL') . '/transaction/web/view/detail?data=' . $base,
+                'result' => [
+                    'snap_token'       => $connectMidtrans['token'],
+                    'redirect_url'     => $connectMidtrans['redirect_url'],
+                    'transaction_data' => $dataMidtrans,
+                    'url'              => env('VIEW_URL') . '/transaction/web/view/detail?data=' . $base,
+                ]
 
             ];
             \Cache::put('midtrans_confirm_'.$check['id_transaction'], $response, now()->addMinutes(10));

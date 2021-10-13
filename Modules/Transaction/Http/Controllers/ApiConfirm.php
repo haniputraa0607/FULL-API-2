@@ -441,6 +441,7 @@ class ApiConfirm extends Controller
             ];
             $encode = json_encode($dataEncode);
             $base   = base64_encode($encode);
+            $dataMidtrans['transaction_details']['id_transaction'] = $check['id_transaction'];
             $response = [
                 'status'           => 'success',
                 'snap_token'       => $connectMidtrans['token'],

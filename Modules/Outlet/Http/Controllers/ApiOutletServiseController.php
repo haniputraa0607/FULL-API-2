@@ -101,13 +101,6 @@ class ApiOutletServiseController extends Controller
             'Sun' => 'Minggu'
         ];
 
-        $dataDate = [
-            'current_date' => date('Y-m-d'),
-            'current_day' => date('l'),
-            'currend_day_id' => $day[date('D')],
-            'current_hour' => date('H:i:s')
-        ];
-
         $outlet = Outlet::join('cities', 'cities.id_city', 'outlets.id_city')
             ->selectRaw('cities.city_name, outlets.id_outlet, outlets.outlet_name, outlets.outlet_code,
                     outlets.outlet_latitude, outlets.outlet_longitude, outlets.outlet_address, 
@@ -123,26 +116,29 @@ class ApiOutletServiseController extends Controller
             ->whereHas('brands',function($query){
                 $query->where('brands.brand_active',1)->where('brands.brand_visibility',1);
             })
-            ->whereIn('id_outlet',function($query) use ($dataDate){
-                $query->select('id_outlet')
-                    ->from('outlet_schedules')
-                    ->where(function ($q) use($dataDate){
-                        $q->where('day', $dataDate['current_day'])->orWhere('day', $dataDate['currend_day_id']);
-                    })
-                    ->where('is_closed', 0)
-                    ->whereRaw('TIME_TO_SEC("'.$dataDate['current_hour'].'") >= TIME_TO_SEC(open) AND TIME_TO_SEC("'.$dataDate['current_hour'].'") <= TIME_TO_SEC(close)');
-            })->whereNotIn('id_outlet',function($query) use ($dataDate){
-                $query->select('id_outlet')
-                    ->from('outlet_holidays')
-                    ->join('date_holidays', 'date_holidays.id_holiday', 'outlet_holidays.id_holiday')
-                    ->where('date', $dataDate['current_date']);
-            })
-            ->with(['brands'])
+            ->with(['brands', 'holidays.date_holidays', 'today'])
             ->orderBy('distance_in_km', 'asc')
             ->limit($totalListOutlet)->get()->toArray();
 
+        $currentDate = date('Y-m-d');
+        $currentHour = date('H:i:s');
         $res = [];
         foreach ($outlet as $val){
+            $isClose = false;
+            $open = date('H:i:s', strtotime($val['today']['open']));
+            $close = date('H:i:s', strtotime($val['today']['close']));
+            foreach ($val['holidays'] as $holidays){
+                $dates = array_column($holidays['date_holidays'], 'date');
+                if(array_search($currentDate, $dates) !== false){
+                    $isClose = true;
+                    break;
+                }
+            }
+
+            if(strtotime($currentHour) < strtotime($open) || strtotime($currentHour) > strtotime($close) || $val['today']['is_closed'] == 1){
+                $isClose = true;
+            }
+
             $brand = [];
             $colorBrand = "";
             if(!empty($val['brands'])){
@@ -161,6 +157,7 @@ class ApiOutletServiseController extends Controller
                 $distance = number_format($val['distance_in_km'], 2, '.', '').' km';
             }
             $res[] = [
+                'is_close' => $isClose,
                 'id_outlet' => $val['id_outlet'],
                 'outlet_code' => $val['outlet_code'],
                 'outlet_name' => $val['outlet_name'],
@@ -191,11 +188,9 @@ class ApiOutletServiseController extends Controller
                     ->select('outlets.*', 'cities.city_name');
 
         if(!empty($post['id_outlet'])){
-            $detail = $detail->where('id_outlet', $post['id_outlet'])->first()->toArray();
-        }
-
-        if(!empty($post['outlet_code'])){
-            $detail = $detail->where('outlet_code', $post['outlet_code'])->first()->toArray();
+            $detail = $detail->where('id_outlet', $post['id_outlet'])->first();
+        }elseif(!empty($post['outlet_code'])){
+            $detail = $detail->where('outlets.outlet_code', $post['outlet_code'])->first();
         }
 
         if(empty($detail)){
@@ -205,7 +200,7 @@ class ApiOutletServiseController extends Controller
         if(empty($detail['outlet_schedules'])){
             return response()->json(['status' => 'fail', 'messages' => ['Outlet do not have schedules']]);
         }
-
+        $detail = $detail->toArray();
         //schedule
         $allDay = array_column($detail['outlet_schedules'], 'day');
         $allTimeOpen = array_unique(array_column($detail['outlet_schedules'], 'open'));

@@ -46,7 +46,7 @@ Route::group(['prefix' => 'api', 'middleware' => ['log_activities', 'user_agent'
         Route::post('pin/check-backend', 'ApiUser@checkPinBackend');
         Route::post('remove-user-device', 'ApiUser@removeUserDevice');
     });
-    Route::group(['middleware' => ['auth:api', 'user_agent', 'scopes:apps'], 'prefix' => 'home', 'namespace' => 'Modules\Users\Http\Controllers'], function()
+    Route::group(['middleware' => ['auth:api', 'user_agent', 'scopes:apps,web-apps'], 'prefix' => 'home', 'namespace' => 'Modules\Users\Http\Controllers'], function()
     {
         Route::post('/membership','ApiHome@membership');
         Route::any('/banner','ApiHome@banner');
@@ -67,6 +67,11 @@ Route::group(['prefix' => 'api', 'middleware' => ['log_activities', 'user_agent'
     {
         Route::any('splash','ApiHome@splash');
         Route::any('notloggedin', 'ApiHome@homeNotLoggedIn');
+    });
+
+    Route::group(['prefix' => 'webapp', 'namespace' => 'Modules\Users\Http\Controllers'], function()
+    {
+        Route::any('splash','ApiHome@splashWebApps');
     });
 });
 

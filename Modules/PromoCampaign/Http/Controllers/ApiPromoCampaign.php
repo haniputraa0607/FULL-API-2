@@ -883,6 +883,17 @@ class ApiPromoCampaign extends Controller
                     unset($post['promo_tag']);
                 }
 
+                if (isset($post['promo_image'])) {
+                	$upload = $this->insertPromoImage($post['promo_image']);
+		            if (empty($upload['promo_image'])) {
+		                return [
+		                	'status'  => 'fail',
+                        	'messages'  => ['Failed to upload image']
+		                ];
+		            }
+		            $post['promo_image'] = $upload['promo_image'];
+		        }
+
                 $promoCampaign = PromoCampaign::where('id_promo_campaign', '=', $post['id_promo_campaign'])->update($post);
 
                 if (!$promoCampaign) {
@@ -892,6 +903,7 @@ class ApiPromoCampaign extends Controller
 	                    'messages'  => ['Update Failed']
 	                ]);
                 }
+
                 $generateCode = $this->generateCode('update', $post['id_promo_campaign'], $post['code_type'], $promo_code, $post['prefix_code'], $post['number_last_code'], $post['total_coupon']);
 
 
@@ -922,6 +934,18 @@ class ApiPromoCampaign extends Controller
                 }
 
                 $promoCampaign = PromoCampaign::where('id_promo_campaign', '=', $post['id_promo_campaign'])->first();
+
+                if (isset($post['promo_image'])) {
+                	$upload = $this->insertPromoImage($post['promo_image']);
+		            if (empty($upload['promo_image'])) {
+		                return [
+		                	'status'  => 'fail',
+                        	'messages'  => ['Failed to upload image']
+		                ];
+		            }
+		            $post['promo_image'] = $upload['promo_image'];
+		        }
+
                 $promoCampaignUpdate = $promoCampaign->update($post);
                 $generateCode = $this->generateCode('update', $post['id_promo_campaign'], $post['code_type'], $promo_code, $post['prefix_code'], $post['number_last_code'], $post['total_coupon']);
 
@@ -973,6 +997,18 @@ class ApiPromoCampaign extends Controller
 
             $brands = $post['id_brand'];
             unset($post['id_brand']);
+
+            if (isset($post['promo_image'])) {
+            	$upload = $this->insertPromoImage($post['promo_image']);
+	            if (empty($upload['promo_image'])) {
+	                return [
+	                	'status'  => 'fail',
+                    	'messages'  => ['Failed to upload image']
+	                ];
+	            }
+	            $post['promo_image'] = $upload['promo_image'];
+	        }
+
             $promoCampaign = PromoCampaign::create($post);
             $generateCode = $this->generateCode('insert', $promoCampaign['id_promo_campaign'], $post['code_type'], $post['promo_code'], $post['prefix_code'], $post['number_last_code'], $post['total_coupon']);
             if (isset($post['promo_tag'])) {
@@ -1397,6 +1433,34 @@ class ApiPromoCampaign extends Controller
         }
 
         return $result;
+    }
+
+    public function insertPromoImage($promoImage)
+    {
+    	if (empty($promoImage)) {
+	    	return [
+	    		'status' => 'fail',
+	    		'messages' => ['Failed to upload image']
+	    	];
+    	}
+
+        if (!file_exists("img/promo-campaign/")) {
+            mkdir("img/promo-campaign/", 0755, true);
+        }
+
+        $upload = MyHelper::uploadPhotoStrict($promoImage, ("img/promo-campaign/"), 750, 375);
+
+        if (($upload['status'] ?? false) == "success") {
+            return [
+            	'status'  => 'success',
+            	'promo_image'  => $upload['path']
+            ];
+        } else {
+            return [
+            	'status'  => 'fail',
+            	'messages'  => ['Failed to upload image']
+            ];
+        }
     }
 
     public function insertPromoCampaignBrand($id_promo_campaign, $brand_list=[])

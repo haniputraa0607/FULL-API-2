@@ -23,12 +23,14 @@ Route::group(['prefix' => 'partner'], function () {
             Route::post('detail/for-login', 'ApiUserPartnerController@detail');
         });
         Route::group(['prefix' => 'promo'], function() {
-            Route::post('before/deals', 'ApiPromoController@listDealBeforeActive');
-            Route::post('active/deals', 'ApiPromoController@listDealActive');
-            Route::post('before/promo-campaign', 'ApiPromoController@listPromoCampaignBeforeActive');
-            Route::post('active/promo-campaign', 'ApiPromoController@listPromoCampaignActive');
-            Route::any('before/promo-campaign/filter', 'ApiPromoController@listPromoCampaign');
-            Route::post('before/subscription', 'ApiPromoController@listSubscriptionBeforeActive');
+            Route::post('before/deals', 'ApiDeals@listDealBefore');
+            Route::post('active/deals', 'ApiDeals@listDealActive');
+            Route::post('outlet', 'ApiOutletController@outlet');
+            Route::post('brand', 'ApiOutletController@brand');
+            Route::post('before/promo-campaign', 'ApiPromoCampaign@listPromoCampaignBefore');
+            Route::post('active/promo-campaign', 'ApiPromoCampaign@listPromoCampaignActive');
+            Route::post('before/subscription', 'ApiSubscriptionController@listSubscriptionBefore');  
+            Route::post('active/subscription', 'ApiSubscriptionController@listSubscriptionActive');  
         });
     });
      Route::group(['middleware' => ['auth:api', 'scopes:be']], function () {

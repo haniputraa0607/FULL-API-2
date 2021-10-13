@@ -1015,4 +1015,31 @@ class ApiHome extends Controller
 
         return response()->json(MyHelper::checkGet($data_home));
     }
+
+    public function splashWebApps(Request $request){
+        $getSetting = Setting::whereIn('key',[
+			    		'default_home_splash_screen_web_apps', 
+			    		'default_home_splash_duration_web_apps'
+			    	])->get()->keyBy('key');
+
+        $splash = $getSetting['default_home_splash_screen_web_apps']['value'] ?? null;
+        $duration = $getSetting['default_home_splash_duration_web_apps']['value'] ?? 5;
+
+        if (!empty($splash)) {
+            $splash = config('url.storage_url_api').$splash;
+        } else {
+            $splash = null;
+        }
+        
+        $ext = explode('.', $splash);
+        $result = [
+            'status' => 'success',
+            'result' => [
+                'splash_screen_url' => $splash."?update=".time(),
+                'splash_screen_duration' => $duration,
+                'splash_screen_ext' => '.'.end($ext)
+            ]
+        ];
+        return $result;
+    }
 }

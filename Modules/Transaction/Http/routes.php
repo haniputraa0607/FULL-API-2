@@ -7,6 +7,10 @@ Route::group(['middleware' => ['auth:api'],'prefix' => 'api/transaction', 'names
     Route::any('trigger-reversal', 'ApiOnlineTransaction@triggerReversal')->middleware('scopes:be');
 });
 
+Route::group(['middleware' => ['auth_client', 'scopes:web-apps'],'prefix' => 'api/webapp/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
+    Route::post('cart', 'ApiOnlineTransaction@cartTransaction');
+});
+
 Route::group(['middleware' => ['auth:api', 'scopes:web-apps'],'prefix' => 'api/webapp/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
     Route::any('available-payment', 'ApiOnlineTransaction@availablePayment');
     Route::post('check', 'ApiOnlineTransaction@checkTransaction');
@@ -78,7 +82,7 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::post('failed-void-payment/confirm', 'ApiManualRefundController@confirmManualRefund');
 });
 
-Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scopes:apps,web-apps'], 'prefix' => 'api/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
+Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scopes:apps'], 'prefix' => 'api/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
 
     Route::post('sync-subtotal', 'ApiOnlineTransaction@syncDataSubtotal');
     Route::get('/', 'ApiTransaction@transactionList');
@@ -104,9 +108,11 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::post('/address/detail', 'ApiTransaction@detailAddress');
     Route::post('/address/add', 'ApiTransaction@addAddress');
     Route::post('/address/update', 'ApiTransaction@updateAddress');
+    Route::post('/address/update-favorite', 'ApiTransaction@updateAddressFavorite');
     Route::post('/address/delete', 'ApiTransaction@deleteAddress');
     Route::post('/void', 'ApiTransaction@transactionVoid');
 
+    Route::post('cart', 'ApiOnlineTransaction@cartTransaction');
     Route::post('/check', 'ApiOnlineTransaction@checkTransaction');
     Route::post('/new', 'ApiOnlineTransaction@newTransaction')->middleware('decrypt_pin:pin,request');
     Route::post('/confirm', 'ApiConfirm@confirmTransaction');

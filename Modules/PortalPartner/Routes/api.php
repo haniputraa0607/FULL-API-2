@@ -31,4 +31,10 @@ Route::group(['prefix' => 'partner'], function () {
             Route::post('before/subscription', 'ApiPromoController@listSubscriptionBeforeActive');
         });
     });
+     Route::group(['middleware' => ['auth:api', 'scopes:be']], function () {
+        Route::group(['prefix' => 'select-list'], function() {
+            Route::post('lokasi', 'ApiOutletController@lokasi');
+            Route::get('partner', 'ApiOutletController@partner');
+        });
+    });
 });

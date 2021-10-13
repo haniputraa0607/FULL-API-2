@@ -25,6 +25,7 @@ use App\Lib\MyHelper;
 use DB;
 use Modules\PromoCampaign\Lib\PromoCampaignTools;
 use Modules\BusinessDevelopment\Entities\Partner;
+use Modules\BusinessDevelopment\Entities\Location;
 
 class ApiOutletController extends Controller
 {
@@ -63,5 +64,22 @@ class ApiOutletController extends Controller
        
     }
     
-    
+    public function partner(Request $request)
+    {
+    	$post = $request->json()->all();
+        $deals = Partner::where(array('status'=>'Active'))->get();
+             return response()->json(MyHelper::checkGet($deals));
+       
+    }
+    public function lokasi(Request $request)
+    {
+    	$post = $request->json()->all();
+        if(!$request->id_partner){
+        	return response()->json(['status' => 'fail', 'messages' => ['ID partner can not be empty']]);
+        }
+        $deals = Location::join('partners','partners.id_partner','locations.id_partner')
+                 ->where(array('partners.id_partner'=>$request->id_partner))->select('locations.id_location','locations.name','locations.address')->get();
+             return response()->json(MyHelper::checkGet($deals));
+       
+    }
 }

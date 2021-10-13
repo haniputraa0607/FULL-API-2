@@ -29,5 +29,6 @@ class DatabaseSeeder extends Seeder
         $this->call(PromoCampaignsTableSeeder::class);
         $this->call(PromoCampaignReferralsTableSeeder::class);
         $this->call(BankNameTableSeeder::class);
+        $this->call(SubdistrictsTableSeeder::class);
     }
 }

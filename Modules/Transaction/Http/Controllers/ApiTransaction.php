@@ -4325,7 +4325,7 @@ class ApiTransaction extends Controller
             ]);
         }
 
-        $address = UserAddress::select('id_user_address','name','short_address','address','type','latitude','longitude','description')->where('id_user', $id)->orderBy('id_user_address', 'DESC');
+        $address = UserAddress::select('id_user_address','name','short_address','address','type','latitude','longitude','description','favorite','id_subdistrict')->where('id_user', $id)->orderBy('favorite', 'DESC')->orderBy('updated_at', 'DESC');
         if(is_numeric($request->json('favorite'))){
             $address->where('favorite',$request->json('favorite'));
             if(!$request->json('favorite')){
@@ -4607,55 +4607,36 @@ class ApiTransaction extends Controller
 
     public function addAddress(AddAddress $request) {
         $post = $request->json()->all();
+        $user = $request->user();
 
-        $data['id_user'] = $request->user()->id;
-        $data['name']        = isset($post['name']) ? $post['name'] : $post['short_address'];
-        $data['short_address'] = $post['short_address'] ?? null;
-        $data['address']     = isset($post['address']) ? $post['address'] : null;
-        $data['description'] = isset($post['description']) ? $post['description'] : null;
-        $data['latitude'] = number_format($post['latitude'],8);
-        $data['longitude'] = number_format($post['longitude'],8);
-        $type = ucfirst($post['type'] ?? 'Other');
-        $data['name'] = $type != 'Other'?$type:$data['name'];
-        $exists = UserAddress::where('id_user',$request->user()->id)
-            ->where('name',$data['name'])
-            ->where('favorite',1)
-            ->where(function($q) use ($type){
-                $q->where('type',$type);
-                if($type == 'Other'){
-                    $q->orWhereNull('type');
-                }
-            })
-            ->exists();
+        $data = [
+        	'id_user' => $user->id,
+	        'name' => $post['name'] ?? $post['short_address'],
+	        'short_address' => $post['short_address'] ?? null,
+	        'address' => $post['address'] ?? null,
+	        'description' => $post['description'] ?? null,
+	        'latitude' => number_format($post['latitude'],8),
+	        'longitude' => number_format($post['longitude'],8),
+	        'id_subdistrict' => $post['id_subdistrict'] ?? null,
+	        'favorite' => $post['favorite'] ?? 0
+        ];
+
+        $exists = UserAddress::where('id_user',$user->id)->where('name',$data['name'])->exists();
         if($exists){
             return ['status'=>'fail','messages'=>['Alamat dengan nama yang sama sudah ada']];
         }
-        if(in_array($type, ['Home','Work'])){
-            UserAddress::where('type',$type)->delete();
-        }
-        $toMatch = $data;
-        unset($toMatch['name']);
-        $found = UserAddress::where($toMatch+['type'=>$type])->first();
-        if($found){
-            if($found->favorite){
-                return ['status'=>'fail','messages'=>['Alamat sudah disimpan sebagai '.(in_array($found->type,['Work','Home'])?$found->type:$found->name)]];
-            }
-            $found->update([
-                'name' => $data['name'],
-                'type' => $type?:$found->type,
-                'favorite' => 1,
-            ]);
-        }else{
-            $data['type'] = $type;
-            $data['favorite'] = 1;
-            $found = UserAddress::create($data);
+
+        $create = UserAddress::create($data);
+        if ($create && $create->favorite) {
+        	UserAddress::where('id_user',$user->id)->where('id_user_address','!=',$create->id_user_address)->update(['favorite' => 0]);
         }
 
-        return response()->json(MyHelper::checkCreate($found));
+        return response()->json(MyHelper::checkCreate($create));
     }
 
     public function updateAddress (UpdateAddress $request) {
         $post = $request->json()->all();
+        $user = $request->user();
         $data['id_user'] = $request->user()->id;
 
         if (empty($data['id_user'])) {
@@ -4665,21 +4646,46 @@ class ApiTransaction extends Controller
             ]);
         }
 
-        $data['name']        = isset($post['name']) ? $post['name'] : null;
-        $data['address']     = isset($post['address']) ? $post['address'] : null;
-        $data['short_address'] = $post['short_address'] ?? null;
-        $data['description'] = isset($post['description']) ? $post['description'] : null;
-        $data['latitude'] = $post['latitude']??null;
-        $data['longitude'] = $post['longitude']??null;
-        $type = ($post['type']??null)?ucfirst($post['type']):null;
-        if($type){
-            UserAddress::where('type',$type)->update(['type'=>null]);
+        $userAddress =  UserAddress::where('id_user_address', $post['id_user_address'])->first();
+		if (!$userAddress) {
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Address not found']
+            ]);
         }
-        $data['type'] = $type;
-        $data['favorite'] = 1;
+
+        $data['name']        	= $post['name'] ?? $userAddress->name;
+        $data['address']     	= $post['address'] ?? $userAddress->address;
+        $data['short_address'] 	= $post['short_address'] ?? $userAddress->short_address;
+        $data['description'] 	= $post['description'] ?? $userAddress->description;
+        $data['latitude'] 		= $post['latitude'] ?? $userAddress->latitude;
+        $data['longitude'] 		= $post['longitude'] ?? $userAddress->longitude;
+        $data['type'] 			= null;
+        $data['favorite'] 		= $post['favorite'] ?? $userAddress->favorite;
+        $data['id_subdistrict'] = $post['id_subdistrict'] ?? $userAddress->id_subdistrict;
 
         $update = UserAddress::where('id_user_address', $post['id_user_address'])->update($data);
+        if ($data['favorite']) {
+        	UserAddress::where('id_user',$user->id)->where('id_user_address','!=',$post['id_user_address'])->update(['favorite' => 0]);
+        }
         return response()->json(MyHelper::checkUpdate($update));
+    }
+
+    public function updateAddressFavorite(Request $request)
+    {
+    	$user = $request->user();
+		$userAddress =  UserAddress::where('id_user_address', $request->id_user_address)->first();
+		if (!$userAddress) {
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Address not found']
+            ]);
+        }
+
+        $update = $userAddress->update(['favorite' => 1]);
+    	UserAddress::where('id_user',$user->id)->where('id_user_address','!=',$request->id_user_address)->update(['favorite' => 0]);
+
+        return MyHelper::checkUpdate($update);
     }
 
     public function deleteAddress (DeleteAddress $request) {

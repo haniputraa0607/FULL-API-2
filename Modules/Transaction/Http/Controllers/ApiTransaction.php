@@ -5328,11 +5328,12 @@ class ApiTransaction extends Controller
 				'messages' => ['Transaction not found']
 			];
 		}
-		// return $detail;
+
 		$outlet = [
 			'id_outlet' => $detail['outlet']['id_outlet'],
 			'outlet_code' => $detail['outlet']['outlet_code'],
 			'outlet_name' => $detail['outlet']['outlet_name'],
+			'outlet_address' => $detail['outlet']['outlet_address'],
 			'outlet_latitude' => $detail['outlet']['outlet_latitude'],
 			'outlet_longitude' => $detail['outlet']['outlet_longitude']
 		];
@@ -5366,8 +5367,8 @@ class ApiTransaction extends Controller
 				$services[] = [
 					'id_user_hair_stylist' => $product['transaction_product_service']['id_user_hair_stylist'],
 					'hairstylist_name' => $product['transaction_product_service']['user_hair_stylist']['nickname'],
-					'schedule_date' => $product['transaction_product_service']['schedule_date'],
-					'schedule_time' => $product['transaction_product_service']['schedule_time'],
+					'schedule_date' => MyHelper::dateFormatInd($product['transaction_product_service']['schedule_date'], true, false),
+					'schedule_time' => date('H:i', strtotime($product['transaction_product_service']['schedule_time'])),
 					'product_name' => $product['product']['product_name'],
 					'subtotal' => $product['transaction_product_subtotal'],
 					'show_rate_popup' => $show_rate_popup

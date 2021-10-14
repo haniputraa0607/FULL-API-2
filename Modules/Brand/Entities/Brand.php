@@ -16,12 +16,21 @@ class Brand extends Model
         'brand_visibility',
         'code_brand',
         'logo_brand',
+        'logo_landscape_brand',
         'image_brand',
         'color_brand',
         'order_brand'
     ];
 
     public function getLogoBrandAttribute($value)
+    {
+        if(empty($value)){
+            return '';
+        }
+        return config('url.storage_url_api') . $value;
+    }
+
+    public function getLogoLandscapeBrandAttribute($value)
     {
         if(empty($value)){
             return '';

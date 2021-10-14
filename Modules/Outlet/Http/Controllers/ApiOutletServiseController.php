@@ -146,7 +146,8 @@ class ApiOutletServiseController extends Controller
                     'id_brand' => $val['brands'][0]['id_brand'],
                     'brand_code' => $val['brands'][0]['code_brand'],
                     'brand_name' => $val['brands'][0]['name_brand'],
-                    'brand_logo' => $val['brands'][0]['logo_brand']
+                    'brand_logo' => $val['brands'][0]['logo_brand'],
+                    'brand_logo_landscape' => $val['brands'][0]['logo_landscape_brand']
                 ];
                 $colorBrand = $val['brands'][0]['color_brand'];
             }
@@ -231,6 +232,7 @@ class ApiOutletServiseController extends Controller
             'city_name' => $detail['city_name'],
             'color' => (empty($detail['brands'][0]['color_brand']) ? '':$detail['brands'][0]['color_brand']),
             'brand_logo' =>  (empty($detail['brands'][0]['color_brand']) ? '':$detail['brands'][0]['logo_brand']),
+            'brand_logo_landscape' => (empty($detail['brands'][0]['logo_landscape_brand']) ? '':$detail['brands'][0]['logo_landscape_brand']),
             'schedules' => $arrSchedule
         ];
 

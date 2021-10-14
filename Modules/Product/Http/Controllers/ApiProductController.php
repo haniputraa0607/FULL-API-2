@@ -2287,7 +2287,8 @@ class ApiProductController extends Controller
             'id_brand' => $brand['id_brand'],
             'brand_code' => $brand['code_brand'],
             'brand_name' => $brand['name_brand'],
-            'brand_logo' => $brand['logo_brand']
+            'brand_logo' => $brand['logo_brand'],
+            'brand_logo_landscape' => $brand['logo_landscape_brand']
         ];
 
         $result = [

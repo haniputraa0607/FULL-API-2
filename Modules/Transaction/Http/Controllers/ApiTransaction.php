@@ -5278,7 +5278,8 @@ class ApiTransaction extends Controller
 				'id_brand' => $val['outlet']['brands'][0]['id_brand'],
 				'brand_code' => $val['outlet']['brands'][0]['code_brand'],
 				'brand_name' => $val['outlet']['brands'][0]['name_brand'],
-				'brand_logo' => $val['outlet']['brands'][0]['logo_brand']
+				'brand_logo' => $val['outlet']['brands'][0]['logo_brand'],
+                'brand_logo_landscape' => $val['outlet']['brands'][0]['logo_landscape_brand']
 			];
 
 			$orders = [];
@@ -5360,7 +5361,8 @@ class ApiTransaction extends Controller
 			'id_brand' => $detail['outlet']['brands'][0]['id_brand'],
 			'brand_code' => $detail['outlet']['brands'][0]['code_brand'],
 			'brand_name' => $detail['outlet']['brands'][0]['name_brand'],
-			'brand_logo' => $detail['outlet']['brands'][0]['logo_brand']
+			'brand_logo' => $detail['outlet']['brands'][0]['logo_brand'],
+            'brand_logo_landscape' => $detail['outlet']['brands'][0]['logo_landscape_brand']
 		];
 
 		$products = [];

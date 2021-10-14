@@ -2368,11 +2368,6 @@ class ApiProductController extends Controller
             ];
         }
 
-        if ($product['product_variant_status']) {
-            $variantTree = Product::getVariantTree($product['id_product'], ['id_outlet' => $outlet['id_outlet'], 'outlet_different_price' => $outlet['outlet_different_price']]);
-            $product['product_price'] = ($variantTree['base_price']??false)?:$product['product_price'];
-        }
-
         $day = [
             'Mon' => 'Senin',
             'Tue' => 'Selasa',
@@ -2507,6 +2502,156 @@ class ApiProductController extends Controller
                         $checkAvailable = array_search($val['id_user_hair_stylist'], $hsNotAvailable);
                         if($checkAvailable === false){
                             $availableStatus = true;
+                        }
+                    }
+                }
+            }
+
+            $res[] = [
+                'id_user_hair_stylist' => $val['id_user_hair_stylist'],
+                'name' => $val['fullname'],
+                'photo' => (empty($val['user_hair_stylist_photo']) ? config('url.storage_url_api').'img/product/item/default.png':$val['user_hair_stylist_photo']),
+                'rating' => $val['total_rating'],
+                'available_status' => $availableStatus
+            ];
+        }
+
+        return response()->json(MyHelper::checkGet($res));
+    }
+
+    public function homeServiceListProduct(){
+        $productServie = Product::select([
+                'products.id_product', 'products.product_name', 'products.product_code', 'products.product_description', 'product_variant_status',
+                'product_global_price.product_global_price as product_price', 'brand_product.id_brand'
+            ])
+            ->join('brand_product', 'brand_product.id_product', '=', 'products.id_product')
+            ->leftJoin('product_global_price', 'product_global_price.id_product', '=', 'products.id_product')
+            ->where('product_type', 'service')
+            ->where('product_visibility', 'Visible')
+            ->with(['photos'])
+            ->having('product_price', '>', 0)
+            ->orderBy('products.position')
+            ->orderBy('products.id_product')
+            ->get()->toArray();
+
+        $resProdService = [];
+        foreach ($productServie as $val){
+            $resProdService[] = [
+                'id_product' => $val['id_product'],
+                'id_brand' => $val['id_brand'],
+                'product_code' => $val['product_code'],
+                'product_name' => $val['product_name'],
+                'product_description' => $val['product_description'],
+                'product_price' => (int)$val['product_price'],
+                'string_product_price' => 'Rp '.number_format((int)$val['product_price'],0,",","."),
+                'photo' => (empty($val['photos'][0]['product_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$val['photos'][0]['product_photo'])
+            ];
+        }
+        return response()->json(MyHelper::checkGet($resProdService));
+    }
+
+    public function homeServiceDetailProductService(Request $request){
+        $post = $request->json()->all();
+        $product = Product::where('product_type', 'service')
+            ->select([
+                'products.id_product', 'products.product_name', 'products.product_code', 'products.product_description', 'product_variant_status', 'processing_time_service',
+                'product_global_price.product_global_price as product_price', 'brand_product.id_brand'
+            ])
+            ->join('brand_product', 'brand_product.id_product', '=', 'products.id_product')
+            ->leftJoin('product_global_price', 'product_global_price.id_product', '=', 'products.id_product')
+            ->where('products.id_product', $post['id_product'])->first();
+
+        if (!$product) {
+            return [
+                'status' => 'fail',
+                'messages' => ['Product not found']
+            ];
+        }
+
+        $totalDateShow = Setting::where('key', 'total_show_date_booking_service')->first()->value??1;
+        $today = date('Y-m-d');
+        $currentTime = date('H:i');
+        $listDate = [];
+
+        $x = 0;
+        $count = 1;
+        $processingTime = (int)$product['processing_time_service'];
+        while($count <= (int)$totalDateShow) {
+            $date = date('Y-m-d', strtotime('+'.$x.' day', strtotime($today)));
+            $open = date('H:i', strtotime('10:00:00'));
+            $close = date('H:i', strtotime('21:00:00'));
+            $times = [];
+            $tmpTime = $open;
+            if(strtotime($date.' '.$open) > strtotime($today.' '.$currentTime)) {
+                $times[] = $open;
+            }elseif($date == $today){
+                $times[] = 'Sekarang';
+            }
+            while(strtotime($tmpTime) < strtotime($close)) {
+                $timeConvert = date('H:i', strtotime("+".$processingTime." minutes", strtotime($tmpTime)));
+                if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime)){
+                    $times[] = $timeConvert;
+                }
+                $tmpTime = $timeConvert;
+            }
+            if(!empty($times)){
+                $listDate[] = [
+                    'date' => $date,
+                    'times' => $times
+                ];
+            }
+            $count++;
+            $x++;
+        }
+
+        $result = [
+            'id_product' => $product['id_product'],
+            'id_brand' => $brand['id_brand']??null,
+            'product_code' => $product['product_code'],
+            'product_name' => $product['product_name'],
+            'product_description' => $product['product_description'],
+            'product_price' => (int)$product['product_price'],
+            'string_product_price' => 'Rp '.number_format((int)$product['product_price'],0,",","."),
+            'photo' => (empty($product['photos'][0]['product_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$product['photos'][0]['product_photo']),
+            'list_date' => $listDate
+        ];
+
+        return response()->json(MyHelper::checkGet($result));
+    }
+
+    public function homeServiceAvailableHs(Request $request){
+        $post = $request->json()->all();
+        $bookDate = date('Y-m-d', strtotime($post['booking_date']));
+        $bookTime = date('H:i:s', strtotime($post['booking_time']));
+        $bookTimeStart = date('H:i', strtotime("-30 minutes", strtotime($bookTime)));
+        $bookTimeEnd = date('H:i', strtotime("+30 minutes", strtotime($bookTime)));
+
+        $hsNotAvailable = HairstylistNotAvailable::where('booking_date', $bookDate)
+            ->where('booking_time', '>=',$bookTimeStart)
+            ->where('booking_time', '<=',$bookTimeEnd)
+            ->pluck('id_user_hair_stylist')->toArray();
+
+        $listHs = UserHairStylist::where('user_hair_stylist_status', 'Active')->get()->toArray();
+
+        $res = [];
+        foreach ($listHs as $val){
+            $availableStatus = true;
+            //check schedule hs
+            $shift = HairstylistScheduleDate::leftJoin('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
+                    ->whereNotNull('approve_at')->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
+                    ->whereDate('date', $bookDate)
+                    ->first()['shift']??'';
+            if(!empty($shift)){
+                $availableStatus = false;
+                $getTimeShift = $this->getTimeShift(strtolower($shift));
+                if(!empty($getTimeShift['start']) && !empty($getTimeShift['end'])){
+                    $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
+                    $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
+                    if(strtotime($bookTime) > strtotime($shiftTimeStart) && strtotime($bookTime) < strtotime($shiftTimeEnd)){
+                        //check available in transaction
+                        $checkAvailable = array_search($val['id_user_hair_stylist'], $hsNotAvailable);
+                        if($checkAvailable !== false){
+                            $availableStatus = false;
                         }
                     }
                 }

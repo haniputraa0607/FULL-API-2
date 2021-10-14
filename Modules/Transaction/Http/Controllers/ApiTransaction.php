@@ -5313,11 +5313,23 @@ class ApiTransaction extends Controller
     }
 
     public function outletServiceDetail(Request $request) {
+
+    	if ($request->json('transaction_receipt_number') !== null) {
+            $trx = Transaction::where(['transaction_receipt_number' => $request->json('transaction_receipt_number')])->first();
+            if($trx) {
+                $id_transaction = $trx->id_transaction;
+            } else {
+                return MyHelper::checkGet([]);
+            }
+        } else {
+            $id_transaction = $request->json('id_transaction');
+        }
+
     	$user = $request->user();
     	$detail = Transaction::where('transaction_from', 'outlet-service')
     			->join('transaction_outlet_services','transactions.id_transaction', 'transaction_outlet_services.id_transaction')
     			->where('id_user', $user->id)
-    			->where('transactions.id_transaction', $request->id_transaction)
+    			->where('transactions.id_transaction', $id_transaction)
     			->orderBy('transaction_date', 'desc')
     			->with(
     				'outlet.brands', 

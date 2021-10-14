@@ -24,6 +24,7 @@ use Modules\Transaction\Entities\TransactionProductService;
 use Modules\Transaction\Entities\TransactionProductServiceLog;
 
 use Modules\Recruitment\Http\Requests\ScheduleCreateRequest;
+use Modules\Recruitment\Http\Requests\DetailCustomerQueueRequest;
 
 use Modules\Outlet\Entities\OutletBox;
 
@@ -118,9 +119,37 @@ class ApiMitraOutletService extends Controller
 		return MyHelper::checkGet($res);
     }
 
-    public function customerQueueDetail(Request $request)
+    public function customerQueueDetail(DetailCustomerQueueRequest $request)
     {
     	$user = $request->user();
+    	$checkQr = Transaction::where('transaction_receipt_number',$request->transaction_receipt_number)
+    				->with('transaction_product_services')
+    				->first();
+
+    	if (!$checkQr) {
+    		return [
+				'status' => 'fail',
+				'title' => 'QR code tidak terdaftar',
+				'messages' => ['Tidak dapat memulai layanan menggunakan QR code ini.']
+			];
+    	}
+
+    	$isNotValidQr = true;
+    	foreach ($checkQr['transaction_product_services'] as $val) {
+    		if ($val['id_transaction_product_service'] == $request->id_transaction_product_service) {
+    			$isNotValidQr = false;
+    			break;
+    		}
+    	}
+
+    	if ($isNotValidQr) {
+    		return [
+				'status' => 'fail',
+				'title' => 'QR code tidak sesuai',
+				'messages' => ['Tidak dapat memulai layanan menggunakan QR code ini.']
+			];
+    	}
+
     	$queue = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
 				->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
 				->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')

@@ -442,7 +442,8 @@ class ApiUserRatingController extends Controller
                 ];
             }
         }
-
+        $optionOutlet = array_values($optionOutlet);
+        
     	$optionHs = ['1'=>$defaultOptions,'2'=>$defaultOptions,'3'=>$defaultOptions,'4'=>$defaultOptions,'5'=>$defaultOptions];
         $ratingOptionHs = RatingOption::select('star','question','options')->where('rating_target', 'hairstylist')->get();
         foreach ($ratingOptionHs as $rt) {
@@ -454,6 +455,7 @@ class ApiUserRatingController extends Controller
                 ];
             }
         }
+        $optionHs = array_values($optionHs);
 
         $ratingList = [];
         foreach ($logRatings as $key => $log) {

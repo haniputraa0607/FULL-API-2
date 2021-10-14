@@ -15,10 +15,12 @@ use Illuminate\Support\Facades\Hash;
 use App\Http\Models\City;
 use App\Http\Models\Setting;
 use Illuminate\Support\Facades\App;
+use Modules\Brand\Entities\Brand;
 use PDF;
 use Storage;
 use Modules\BusinessDevelopment\Entities\StepsLog;
 use Modules\BusinessDevelopment\Entities\ConfirmationLetter;
+use Modules\BusinessDevelopment\Entities\FormSurvey;
 
 use function GuzzleHttp\json_decode;
 
@@ -32,6 +34,7 @@ class ApiPartnersController extends Controller
         }
         $this->saveFile = "file/follow_up/";
         $this->confirmation = "file/confirmation/";
+        $this->form_survey = "file/form_survey/";
     }
     /**
      * Display a listing of the resource.
@@ -166,18 +169,30 @@ class ApiPartnersController extends Controller
     {
         $post = $request->all();
         if(isset($post['id_partner']) && !empty($post['id_partner'])){
-            $partner = Partner::where('id_partner', $post['id_partner'])->with(['partner_bank_account','partner_locations','partner_step','partner_confirmation'])->first();
+            $partner = Partner::where('id_partner', $post['id_partner'])->with(['partner_bank_account','partner_locations','partner_step','partner_confirmation','partner_survey'])->first();
             if(($partner['partner_step'])){
                 foreach($partner['partner_step'] as $step){
                     if(isset($step['attachment']) && !empty($step['attachment'])){
-                        $step['attachment'] = env('STORAGE_URL_API').'/'.$step['attachment'];
+                        $step['attachment'] = env('STORAGE_URL_API').$step['attachment'];
                     }
                 }
             } 
             if(($partner['partner_confirmation'])){
                 foreach($partner['partner_confirmation'] as $confir){
                     if(isset($confir['attachment']) && !empty($confir['attachment'])){
-                        $confir['attachment'] = env('STORAGE_URL_API').'/'.$confir['attachment'];
+                        $confir['attachment'] = env('STORAGE_URL_API').$confir['attachment'];
+                    }
+                }
+            } 
+            if(($partner['partner_survey'])){
+                foreach($partner['partner_survey'] as $survey){
+                    if(isset($survey['attachment']) && !empty($survey['attachment'])){
+                        $survey['attachment'] = env('STORAGE_URL_API').$survey['attachment'];
+                    }
+                    if($survey['potential']==1){
+                        $survey['potential'] = 'OK';
+                    }else{
+                        $survey['potential'] = 'Not OK';
                     }
                 }
             } 
@@ -879,6 +894,7 @@ class ApiPartnersController extends Controller
         $text = str_replace('%final_string%',$data['final_string'],$text);
         $text = str_replace('%total_waktu%',$data['total_waktu'],$text);
         $text = str_replace('%sisa_waktu%',$data['sisa_waktu'],$text);
+        $text = str_replace('%ttd_pihak_dua%',$data['ttd_pihak_dua'],$text);
         if(isset($data['angsuran'])){
             $angsuran = '<li>'.$data['angsuran'].';</li>';
             $text = str_replace('%angsuran%',$angsuran,$text);
@@ -891,6 +907,123 @@ class ApiPartnersController extends Controller
     public function formSurvey(Request $request){
         $form = Setting::where('key', 'form_survey')->first();
         $form = json_decode($form['value_text']??'' , true);
-        return $form["cat1"]["category"];
+        return $form[$request['id_brand']];
+    }
+
+    public function createFormSurvey(Request $request){
+        $post = $request->all();
+        if(isset($post['id_partner']) && !empty($post['id_partner'])){
+            DB::beginTransaction();
+            $data_store = [
+                "id_partner" => $post["id_partner"],
+                "survey" => $post["value"],
+                "surveyor" => $post["surveyor"],
+                "potential" => $post["potential"],
+                "note" => $post["note"],
+                "survey_date" => $post["date"],
+            ];
+            $store = FormSurvey::create($data_store);
+            if (!$store) {
+                DB::rollback();
+                return response()->json(['status' => 'fail', 'messages' => ['Failed add form survey data']]);
+            }
+            DB::commit();
+            $data_update = [
+                'attachment' => $this->pdfSurvey($post["id_partner"]),
+            ];
+            $update = FormSurvey::where('id_partner', $post['id_partner'])->update($data_update);
+            if(!$update){
+                return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+            }
+            else{
+                return response()->json(['status' => 'success']);
+            }
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
+    }
+
+    public function pdfFormSurvey(Request $request){
+        $post = $request->all();
+        if(isset($post['id_partner']) && !empty($post['id_partner'])){
+            $form_survey = FormSurvey::where('id_partner', $post['id_partner'])->first();
+            $value = json_decode($form_survey['survey']??'' , true);
+            return $value["cat1"];
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
+    }
+
+    public function pdfSurvey($id = 4){
+        $form_survey = FormSurvey::where('id_partner', $id)->first();
+        $value = json_decode($form_survey['survey']??'' , true);
+        $cat1 = $value['cat1'];
+        $cat2 = $value['cat2'];
+        $cat3 = $value['cat3'];
+        $a = 0;
+        $b = 0;
+        $c = 0;
+        $d = 0;
+        foreach($cat1 as $c1){
+            if($c1['answer']=='a'){
+                $a+=1;
+            }elseif($c1['answer']=='b'){
+                $b+=1;
+            }elseif($c1['answer']=='c'){
+                $c+=1;
+            }elseif($c1['answer']=='d'){
+                $d+=1;
+            }
+        }
+        foreach($cat2 as $c2){
+            if($c2['answer']=='a'){
+                $a+=1;
+            }elseif($c2['answer']=='b'){
+                $b+=1;
+            }elseif($c2['answer']=='c'){
+                $c+=1;
+            }elseif($c2['answer']=='d'){
+                $d+=1;
+            }
+        }
+        foreach($cat3 as $c3){
+            if($c3['answer']=='a'){
+                $a+=1;
+            }elseif($c3['answer']=='b'){
+                $b+=1;
+            }elseif($c3['answer']=='c'){
+                $c+=1;
+            }elseif($c3['answer']=='d'){
+                $d+=1;
+            }
+        }
+        $total = $a + $b + $c +$d;
+        $location = Location::where('id_partner', $id)->first();
+        $brand = Brand::where('id_brand', $location['id_brand'])->first();
+        $partner = Partner::where('id_partner', $id)->first();
+        $data = [
+            'logo' => $brand['logo_brand'],
+            'location' => $location['name'],
+            'surveyor' => $form_survey['surveyor'],
+            'brand' => $brand['name_brand'],
+            'date' => $this->letterDate($form_survey['survey_date']),
+            'cat1' => $cat1,
+            'cat2' => $cat2,
+            'cat3' => $cat3,
+            'no' => 1,
+            'total_a' => $a,
+            'total_b' => $b,
+            'total_c' => $c,
+            'total_d' => $d,
+            'total' => $total,
+            'note' => $form_survey['note'],
+            'potential' => $form_survey['potential'],
+        ];
+        // return view('businessdevelopment::form_survey', $data);
+        $name = strtolower(str_replace(' ', '_', $partner['name']));
+        $path = $this->form_survey.'form_survey_'.$name.'.pdf';
+        $pdf = PDF::loadView('businessdevelopment::form_survey', $data );
+        Storage::put('public/'.$path, $pdf->output());
+        return $path;
     }
 }

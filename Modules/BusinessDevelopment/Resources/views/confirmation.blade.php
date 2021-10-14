@@ -52,7 +52,7 @@
     <header>
         <div class="row" style="text-align: center">
              <div class="col-md-12">
-                <img src="{{env('STORAGE_URL_API') }}{{ ('/images/logo_pdf.png')}}" alt="" style="height:50px;"/>
+                <img src="{{env('STORAGE_URL_API') }}{{ ('images/logo_pdf.png')}}" alt="" style="height:50px;"/>
             </div>
         </div>
     </header>

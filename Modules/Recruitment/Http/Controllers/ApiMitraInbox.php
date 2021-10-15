@@ -40,9 +40,13 @@ class ApiMitraInbox extends Controller
     	$max_date = date('Y-m-d',time() - ((Setting::select('value')->where('key','inbox_max_days')->pluck('value')->first()?:30) * 86400));
 
     	$privates = HairstylistInbox::where('id_user_hair_stylist',$user->id_user_hair_stylist)
-    				->whereDate('inboxes_send_at','>',$max_date)
-    				->get()
-    				->toArray();
+    				->whereDate('inboxes_send_at','>',$max_date);
+
+    	if ($request->category_code) {
+    		$privates->where('inboxes_category', $request->category_code);
+    	}
+
+    	$privates = $privates->get()->toArray();
 
 		foreach($privates as $private){
 			$content = [];
@@ -90,11 +94,9 @@ class ApiMitraInbox extends Controller
 
 			}
 
-			if($content['clickto'] == 'Content'){
-				$content['content'] = $private['inboxes_content'];
-			}else{
-				$content['content']	= null;
-			}
+			$content['content'] = $private['inboxes_content'];
+			$content['category'] = config('inboxcategory')['hairstylist'][$private['inboxes_category']]['name'] ?? $private['inboxes_category'];
+
 
 			if($content['clickto'] == 'Link'){
 				$content['link'] = $private['inboxes_link'];
@@ -129,42 +131,78 @@ class ApiMitraInbox extends Controller
 			$countInbox++;
 		}
 
-		if(isset($arrInbox) && !empty($arrInbox)) {
-			if($mode == 'simple'){
-				usort($arrInbox, function($a, $b){
+		$configCategory = $this->listInboxCategory()['result'] ?? [];
+		$inboxUnread = HairstylistInbox::where('id_user_hair_stylist',$user->id_user_hair_stylist)
+					->whereDate('inboxes_send_at','>',$max_date)
+					->where('read', 0)
+					->groupBy('inboxes_category')
+					->get()
+					->keyBy('inboxes_category');
+
+
+		$listCategory = [
+			[
+				'name' => 'Semua',
+				'code' => null,
+				'unread' => 0,
+				'is_selected' => 1
+			]
+		];
+		
+		foreach ($configCategory as $key => $val) {
+
+			if ($inboxUnread[$val['code']] ?? false) {
+				$listCategory[0]['unread'] = 1;
+			}
+
+			if (($request->category_code ?? false) == $val['code']) {
+				$listCategory[0]['is_selected'] = 0;
+			}
+
+			$listCategory[] = [
+				'name' => $val['name'],
+				'code' => $val['code'],
+				'unread' => ($inboxUnread[$val['code']] ?? false) ? 1 : 0,
+				'is_selected' => (($request->category_code ?? false) == $val['code']) ? 1 : 0
+			];
+		}
+
+		$messages = [];
+		if(empty($arrInbox)) {
+			$messages  = ['Belum ada pesan'];
+		}
+
+		if($mode == 'simple'){
+			usort($arrInbox, function($a, $b){
+				$t1 = strtotime($a['created_at']);
+				$t2 = strtotime($b['created_at']);
+				return $t2 - $t1;
+			});
+		}else{
+			foreach ($arrInbox as $key => $value) {
+				usort($arrInbox[$key]['list'], function($a, $b){
 					$t1 = strtotime($a['created_at']);
 					$t2 = strtotime($b['created_at']);
 					return $t2 - $t1;
 				});
-			}else{
-				foreach ($arrInbox as $key => $value) {
-					usort($arrInbox[$key]['list'], function($a, $b){
-						$t1 = strtotime($a['created_at']);
-						$t2 = strtotime($b['created_at']);
-						return $t2 - $t1;
-					});
-				}
-
-				usort($arrInbox, function($a, $b){
-					$t1 = strtotime($a['created']);
-					$t2 = strtotime($b['created']);
-					return $t2 - $t1;
-				});
 			}
 
-			$result = [
-					'status'  => 'success',
-					'result'  => $arrInbox,
-					'count'  => $countInbox,
-					'count_unread' => $countUnread,
-				];
-		} else {
-			$result = [
-					'status'  => 'fail',
-					'messages'  => ['Belum ada pesan']
-				];
+			usort($arrInbox, function($a, $b){
+				$t1 = strtotime($a['created']);
+				$t2 = strtotime($b['created']);
+				return $t2 - $t1;
+			});
 		}
-		return response()->json($result);
+
+		$result = [
+			'category' => $listCategory,
+			'inbox' => $arrInbox,
+			'count' => $countInbox,
+			'count_unread' => $countUnread,
+			'empty_text' => $messages
+		];
+
+		return MyHelper::checkGet($result);
     }
 
     	public function markedInbox(MarkedHairstylistInbox $request){
@@ -281,5 +319,21 @@ class ApiMitraInbox extends Controller
 	public function deleteInbox(DeleteHairstylistInbox $request){
     	$delete = HairstylistInbox::where('id_hairstylist_inboxes',$request->json('id_inbox'))->delete();
     	return MyHelper::checkDelete($delete);
+    }
+
+    public function listInboxCategory()
+    {
+    	$inboxCategory = config('inboxcategory')['hairstylist'];
+    	$res = [];
+    	foreach ($inboxCategory as $key => $val) {
+    		if ($val['is_active']) {
+    			$res[] = [
+    				'name' => $val['name'],
+    				'code' => $key
+    			];
+    		}
+    	}
+
+    	return MyHelper::checkGet($res);
     }
 }

@@ -60,10 +60,10 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
     	});
 
     	Route::group(['prefix' => 'inbox'], function () {
-        	Route::post('/{mode?}', 'ApiMitraInbox@listInbox');
         	Route::post('marked', 'ApiMitraInbox@markedInbox');
 		    Route::post('unmark', 'ApiMitraInbox@unmarkInbox');
 		    Route::post('unread', 'ApiMitraInbox@unread');
+        	Route::post('/{mode?}', 'ApiMitraInbox@listInbox');
     	});
 
 		Route::group(['prefix' => 'rating'], function () {

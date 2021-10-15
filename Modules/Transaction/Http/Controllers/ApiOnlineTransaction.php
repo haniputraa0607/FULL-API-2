@@ -5377,7 +5377,8 @@ class ApiOnlineTransaction extends Controller
             'id_brand' => $brand['id_brand'],
             'brand_code' => $brand['code_brand'],
             'brand_name' => $brand['name_brand'],
-            'brand_logo' => $brand['logo_brand']
+            'brand_logo' => $brand['logo_brand'],
+            'brand_logo_landscape' => $brand['brand_logo_landscape']
         ];
         $result['subtotal_item'] = $subTotalItem;
         $result['subtotal_item_service'] = $subTotalItemService;

@@ -24,6 +24,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
         Route::any('list', 'ApiHairStylistController@hsList');
         Route::post('detail', 'ApiHairStylistController@detail');
         Route::post('update', 'ApiHairStylistController@update');
+        Route::post('detail/document', 'ApiHairStylistController@detailDocument');
 
     	Route::group(['prefix' => 'schedule'], function () {
         	Route::post('list', 'ApiHairStylistScheduleController@list');
@@ -60,10 +61,10 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
     	});
 
     	Route::group(['prefix' => 'inbox'], function () {
-        	Route::get('/{mode?}', 'ApiMitraInbox@listInbox');
         	Route::post('marked', 'ApiMitraInbox@markedInbox');
 		    Route::post('unmark', 'ApiMitraInbox@unmarkInbox');
 		    Route::post('unread', 'ApiMitraInbox@unread');
+        	Route::post('/{mode?}', 'ApiMitraInbox@listInbox');
     	});
 
 		Route::group(['prefix' => 'rating'], function () {

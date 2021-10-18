@@ -256,6 +256,12 @@ class ApiLocationsController extends Controller
             if (isset($post['id_brand'])) {
                 $data_update['id_brand'] = $post['id_brand'];
             }
+            if (isset($post['mall'])) {
+                $data_update['mall'] = $post['mall'];
+            }
+            if (isset($post['notes'])) {
+                $data_update['notes'] = $post['notes'];
+            }
             $old_status = Location::where('id_location', $post['id_location'])->get('status')[0]['status'];
             $update = Location::where('id_location', $post['id_location'])->update($data_update);
             if(!$update){

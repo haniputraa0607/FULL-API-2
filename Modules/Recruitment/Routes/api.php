@@ -30,6 +30,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
         	Route::post('detail', 'ApiHairStylistScheduleController@detail');
         	Route::post('update', 'ApiHairStylistScheduleController@update');
         	Route::get('outlet', 'ApiHairStylistScheduleController@outlet');
+        	Route::get('year-list', 'ApiHairStylistScheduleController@getScheduleYear');
     	});
     });
 });
@@ -38,6 +39,9 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
     Route::get('splash','ApiMitra@splash');
 
     Route::group(['middleware' => ['auth:mitra', 'scopes:mitra-apps']], function () {
+    	Route::get('announcement','ApiMitra@announcementList');
+    	Route::get('home','ApiMitra@home');
+
     	Route::group(['prefix' => 'schedule'], function () {
         	Route::post('/', 'ApiMitra@schedule');
         	Route::post('create', 'ApiMitra@createSchedule');
@@ -53,6 +57,18 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
         	Route::get('box', 'ApiMitraOutletService@availableBox');
             Route::post('payment-cash/detail', 'ApiMitraOutletService@paymentCashDetail');
             Route::post('payment-cash/completed', 'ApiMitraOutletService@paymentCashCompleted');
-    	});    	
+    	});
+
+    	Route::group(['prefix' => 'inbox'], function () {
+        	Route::get('/{mode?}', 'ApiMitraInbox@listInbox');
+        	Route::post('marked', 'ApiMitraInbox@markedInbox');
+		    Route::post('unmark', 'ApiMitraInbox@unmarkInbox');
+		    Route::post('unread', 'ApiMitraInbox@unread');
+    	});
+
+		Route::group(['prefix' => 'rating'], function () {
+        	Route::get('summary', 'ApiMitra@ratingSummary');
+        	Route::get('comment', 'ApiMitra@ratingComment');
+    	});
 	});
 });

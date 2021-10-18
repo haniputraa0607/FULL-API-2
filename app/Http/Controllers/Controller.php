@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Http\Models\Feature;
 use App\Http\Models\UserFeature;
 use App\Http\Models\User;
+use App\Http\Models\Subdistrict;
 use App\Http\Models\City;
 use App\Http\Models\Province;
 use App\Http\Models\Level;
@@ -170,4 +171,26 @@ class Controller extends BaseController
         }
         return view('webview.maintenance_mode', $data);
     }
+
+    function listSubdistrict(Request $request){
+		$post = $request->json()->all();
+
+		$query = Subdistrict::join('cities', 'cities.id_city', 'subdistricts.id_city')
+				->join('provinces', 'provinces.id_province', 'cities.id_province');
+
+		if (isset($post['id_city'])) {
+			$query = $query->where('subdistricts.id_city', $post['id_city']);
+		}
+
+		if (isset($post['keyword'])) {
+			$query = $query->where(function ($q) use ($post){
+				$q->where('subdistrict_name', 'like', '%' . $post['keyword'] . '%')
+					->orWhere('city_name', 'like', '%' . $post['keyword'] . '%')
+					->orWhere('province_name', 'like', '%' . $post['keyword'] . '%');
+			});
+		}
+
+		$query = $query->paginate(10)->toArray();
+		return MyHelper::checkGet($query); 
+	}
 }

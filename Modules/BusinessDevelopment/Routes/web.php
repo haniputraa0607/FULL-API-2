@@ -12,5 +12,5 @@
 */
 
 Route::prefix('businessdevelopment')->group(function() {
-    Route::get('/', 'BusinessDevelopmentController@index');
+    Route::get('/tes', 'ApiPartnersController@pdfSurvey');
 });

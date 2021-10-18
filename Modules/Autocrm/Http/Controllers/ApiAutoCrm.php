@@ -714,9 +714,9 @@ class ApiAutoCrm extends Controller
 
 					$inbox['inboxes_clickto'] = $crm['autocrm_inbox_clickto'];
 
-					if($crm['autocrm_inbox_clickto'] == 'Content'){
-						$inbox['inboxes_content'] = $this->TextReplace($crm['autocrm_inbox_content'], $inboxRecipient, $variables, $inboxWherefield, $franchise, $partner, $recipient_type);
-					}
+					$inbox['inboxes_content'] = $this->TextReplace($crm['autocrm_inbox_content'], $inboxRecipient, $variables, $inboxWherefield, $franchise, $partner, $recipient_type);
+
+					$inbox['inboxes_category'] = $crm['autocrm_inbox_category'];
 
 					if($crm['autocrm_inbox_clickto'] == 'Link'){
 						$inbox['inboxes_link'] = $crm['autocrm_inbox_link'];

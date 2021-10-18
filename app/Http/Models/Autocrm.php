@@ -39,6 +39,7 @@ class Autocrm extends Model
 		'autocrm_inbox_clickto',
 		'autocrm_inbox_link',
 		'autocrm_inbox_id_reference',
+		'autocrm_inbox_category',
 		'autocrm_forward_email',
 		'autocrm_forward_email_subject',
 		'autocrm_forward_email_content',

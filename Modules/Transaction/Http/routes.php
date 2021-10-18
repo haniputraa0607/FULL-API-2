@@ -101,6 +101,8 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     // Route::post('history-point', 'ApiHistoryController@historyPoint');
     Route::post('history-balance/{mode?}', 'ApiHistoryController@historyBalance');
 
+    Route::post('history-payment', 'ApiHistoryController@paymentHistory');
+
     Route::post('/shipping', 'ApiTransaction@getShippingFee');
     Route::any('/address', 'ApiTransaction@getAddress');
     Route::post('/address/nearby', 'ApiTransaction@getNearbyAddress');

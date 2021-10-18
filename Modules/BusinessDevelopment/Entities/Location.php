@@ -27,6 +27,7 @@ class Location extends Model
         'renovation_costs',
         'partnership_fee',
         'income',
+        'notes'
 
     ];
     public function location_partner(){

@@ -458,6 +458,8 @@ class ApiUserRatingController extends Controller
         $optionHs = array_values($optionHs);
 
         $ratingList = [];
+        $title = 'Beri Penilaian';
+        $message = "Dapatkan loyalty points dengan memberikan penilaian atas transaksi Anda pada hari:  /n <b>'%date%' di '%outlet_address%'</b>";
         foreach ($logRatings as $key => $log) {
 			$rating['id'] = $log['id_transaction'];
 			$rating['id_transaction_product_service'] = $log['id_transaction_product_service'];
@@ -465,6 +467,12 @@ class ApiUserRatingController extends Controller
 			$rating['detail_hairstylist'] = null;
 	        $rating['transaction_receipt_number'] = $log['transaction']['transaction_receipt_number'];
 	        $rating['transaction_date'] = date('d M Y H:i',strtotime($log['transaction']['transaction_date']));
+
+	        $trxDate = MyHelper::dateFormatInd($log['transaction']['transaction_date'], true, false, true);
+	        $outletName = $log['transaction']['outlet']['outlet_name'];
+	        $rating['title'] = $title;
+	        $rating['messages'] = "Dapatkan loyalty points dengan memberikan penilaian atas transaksi Anda pada hari:  \n <b>" . $trxDate . " di " . $outletName . "</b>";
+
 	        $rating['outlet'] = [
 				'id_outlet' => $log['transaction']['outlet']['id_outlet'],
 				'outlet_code' => $log['transaction']['outlet']['outlet_code'],

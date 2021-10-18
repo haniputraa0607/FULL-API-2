@@ -39,6 +39,7 @@ class ApiMitraOutletService extends Controller
 {
     public function __construct() {
         date_default_timezone_set('Asia/Jakarta');
+        $this->mitra = "Modules\Recruitment\Http\Controllers\ApiMitra";
     }
 
     public function customerQueue(Request $request)
@@ -162,7 +163,7 @@ class ApiMitraOutletService extends Controller
 		if (!$queue) {
 			return [
 				'status' => 'fail',
-				'messages' => ['Service not found']
+				'messages' => ['Layanan tidak ditemukan']
 			];
 		}
 
@@ -200,12 +201,6 @@ class ApiMitraOutletService extends Controller
 		}
 
 		$timerText .= (strtotime(date('Y-m-d H:i:s')) < strtotime($queue['schedule_date'] . ' ' .$queue['schedule_time'])) ? ' lagi' : ' lalu';
-
-		$box = OutletBox::where([
-			['id_outlet', $user->id_outlet],
-			['outlet_box_status', 'Active']
-		])->get();
-
 		$res = [
 			'id_transaction_product_service' => $queue['id_transaction_product_service'],
 			'order_id' => $queue['order_id'] ?? null,
@@ -220,8 +215,7 @@ class ApiMitraOutletService extends Controller
 			'disable' => $disable,
 			'id_outlet_box' => $schedule->id_outlet_box ?? null,
 			'flag_update_schedule' => $queue['flag_update_schedule'],
-			'is_conflict' => $queue['is_conflict'],
-			'available_box' => $box
+			'is_conflict' => $queue['is_conflict']
 		];
 		
 		return MyHelper::checkGet($res);
@@ -248,21 +242,21 @@ class ApiMitraOutletService extends Controller
 		if (!$service) {
 			return [
 				'status' => 'fail',
-				'messages' => ['Service not found']
+				'messages' => ['Layanan tidak ditemukan']
 			];
 		}
 
 		if ($service->service_status == 'In Progress') {
 			return [
 				'status' => 'fail',
-				'messages' => ['Service already started']
+				'messages' => ['Layanan sudah dimulai']
 			];
 		}
 
 		if ($service->service_status == 'Completed') {
 			return [
 				'status' => 'fail',
-				'messages' => ['Service already completed']
+				'messages' => ['Layanan sudah selesai']
 			];
 		}
 
@@ -278,38 +272,56 @@ class ApiMitraOutletService extends Controller
  		if (!$schedule) {
 			return [
 				'status' => 'fail',
-				'messages' => ['Schedule not found']
+				'messages' => ['Jadwal Hairstylist tidak ditemukan']
 			];
 		}
 
  		if (isset($schedule->id_outlet_box) && $schedule->id_outlet_box != $request->id_outlet_box) {
  			return [
 				'status' => 'fail',
-				'messages' => ['Please use the same box']
+				'messages' => ['Tidak dapat menggunakan box yang berbeda']
 			];	
  		}
-
 
 		$box = OutletBox::where('id_outlet_box', $request->id_outlet_box)->first();
 
 		if (!$box) {
 			return [
 				'status' => 'fail',
-				'messages' => ['Box not found']
+				'messages' => ['Box tidak ditemukan']
 			];
 		}
 
 		if ($box->outlet_box_status != 'Active') {
 			return [
 				'status' => 'fail',
-				'messages' => ['Box is not active']
+				'messages' => ['Box tidak aktif']
 			];
 		}
 
-		if ($box->outlet_box_use_status != 0 && $schedule->id_outlet_box != $request->id_outlet_box) {
+		if ($box->outlet_box_use_status != 0) {
 			return [
 				'status' => 'fail',
-				'messages' => ['Box is used']
+				'messages' => ['Box sedang digunakan']
+			];
+		}
+
+		$shift = app($this->mitra)->timeToShift(date('H:i:s'));
+		$usedBox = HairstylistSchedule::join(
+			'hairstylist_schedule_dates', 
+			'hairstylist_schedules.id_hairstylist_schedule', 
+			'hairstylist_schedule_dates.id_hairstylist_schedule'
+		)
+ 		->where('id_user_hair_stylist', '!=', $user->id_user_hair_stylist)
+ 		->whereDate('date', date('Y-m-d'))
+ 		->where('shift', $shift)
+ 		->where('id_outlet_box', $request->id_outlet_box)
+ 		->first();
+
+ 		if ($usedBox) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Box sudah dipilih oleh Hairstylist lain']
 			];
 		}
 
@@ -341,7 +353,7 @@ class ApiMitraOutletService extends Controller
 			DB::rollback();
     		return [
 				'status' => 'fail',
-				'messages' => ['Failed to start service']
+				'messages' => ['Gagal memulai layanan']
 			];	
     	}
 
@@ -359,21 +371,21 @@ class ApiMitraOutletService extends Controller
 		if (!$service) {
 			return [
 				'status' => 'fail',
-				'messages' => ['Service not found']
+				'messages' => ['Layanan tidak ditemukan']
 			];
 		}
 
 		if ($service->service_status == 'Stopped') {
 			return [
 				'status' => 'fail',
-				'messages' => ['Service already stopped']
+				'messages' => ['Layanan sudah dihentikan']
 			];
 		}
 
 		if ($service->service_status == 'Completed') {
 			return [
 				'status' => 'fail',
-				'messages' => ['Service already completed']
+				'messages' => ['Layanan sudah selesai']
 			];
 		}
 
@@ -382,7 +394,7 @@ class ApiMitraOutletService extends Controller
 		if (!$box) {
 			return [
 				'status' => 'fail',
-				'messages' => ['Box not found']
+				'messages' => ['Box tidak ditemukan']
 			];
 		}
 
@@ -407,7 +419,7 @@ class ApiMitraOutletService extends Controller
 			DB::rollback();
     		return [
 				'status' => 'fail',
-				'messages' => ['Failed to stop service']
+				'messages' => ['Gagal menghentikan layanan']
 			];	
     	}
 
@@ -428,28 +440,28 @@ class ApiMitraOutletService extends Controller
 		if (!$service) {
 			return [
 				'status' => 'fail',
-				'messages' => ['Service not found']
+				'messages' => ['Layanan tidak ditemukan']
 			];
 		}
 
 		if ($service->flag_update_schedule) {
 			return [
 				'status' => 'fail',
-				'messages' => ['Service already extended, cannot extend more than once']
+				'messages' => ['Waktu layanan sudah diperpanjang, tidak dapat memperpanjang waktu lebih dari sekali']
 			];
 		}
 
 		if ($service->service_status == 'Completed') {
 			return [
 				'status' => 'fail',
-				'messages' => ['Service already completed']
+				'messages' => ['Layanan sudah selesai']
 			];
 		}
 
 		if (empty($service->processing_time_service)) {
 			return [
 				'status' => 'fail',
-				'messages' => ['Processing time not found']
+				'messages' => ['Waktu pemrosesan tidak ditemukan']
 			];
 		}
 
@@ -492,7 +504,7 @@ class ApiMitraOutletService extends Controller
 			DB::rollback();
     		return [
 				'status' => 'fail',
-				'messages' => ['Failed to Extend service']
+				'messages' => ['Gagal memperpanjang waktu layanan']
 			];	
     	}
 
@@ -509,14 +521,14 @@ class ApiMitraOutletService extends Controller
 		if (!$service) {
 			return [
 				'status' => 'fail',
-				'messages' => ['Service not found']
+				'messages' => ['Layanan tidak ditemukan']
 			];
 		}
 
 		if ($service->service_status == 'Completed') {
 			return [
 				'status' => 'fail',
-				'messages' => ['Service already completed']
+				'messages' => ['Layanan sudah selesai']
 			];
 		}
 
@@ -525,7 +537,7 @@ class ApiMitraOutletService extends Controller
 		if (!$box) {
 			return [
 				'status' => 'fail',
-				'messages' => ['Box not found']
+				'messages' => ['Box tidak ditemukan']
 			];
 		}
 
@@ -565,7 +577,7 @@ class ApiMitraOutletService extends Controller
                     DB::rollback();
                     return response()->json([
                         'status'    => 'fail',
-                        'messages'  => ['Update stock Failed']
+                        'messages'  => ['Gagal memperbarui stok']
                     ]);
                 }
                 ProductStockLog::create([
@@ -609,7 +621,7 @@ class ApiMitraOutletService extends Controller
 			DB::rollback();
     		return [
 				'status' => 'fail',
-				'messages' => ['Failed to complete service']
+				'messages' => ['Gagal menyelesaikan layanan']
 			];	
     	}
 
@@ -715,5 +727,68 @@ class ApiMitraOutletService extends Controller
         }
 
         return response()->json(MyHelper::checkUpdate($update));
+    }
+
+    public function outletServiceDetail(Request $request)
+    {
+    	$user = $request->user();
+    	$user->load('outlet.brands');
+
+    	$outlet = [
+			'id_outlet' => $user['outlet']['id_outlet'],
+			'outlet_code' => $user['outlet']['outlet_code'],
+			'outlet_name' => $user['outlet']['outlet_name'],
+			'outlet_address' => $user['outlet']['outlet_address'],
+			'outlet_latitude' => $user['outlet']['outlet_latitude'],
+			'outlet_longitude' => $user['outlet']['outlet_longitude']
+		];
+
+		$brand = [
+			'id_brand' => $user['outlet']['brands'][0]['id_brand'],
+			'brand_code' => $user['outlet']['brands'][0]['code_brand'],
+			'brand_name' => $user['outlet']['brands'][0]['name_brand'],
+			'brand_logo' => $user['outlet']['brands'][0]['logo_brand'],
+            'brand_logo_landscape' => $user['outlet']['brands'][0]['logo_landscape_brand']
+		];
+
+		$timeNow = date('H:i:s');
+		$shift = app($this->mitra)->timeToShift($timeNow);
+
+		$schedule = HairstylistSchedule::join(
+			'hairstylist_schedule_dates', 
+			'hairstylist_schedules.id_hairstylist_schedule', 
+			'hairstylist_schedule_dates.id_hairstylist_schedule'
+		)
+ 		->where('id_user_hair_stylist', $user->id_user_hair_stylist)
+ 		->whereDate('date', date('Y-m-d'))
+ 		->where('shift', $shift)
+ 		->first();
+
+ 		$box = [];
+ 		if ($schedule) {
+	 		if ($schedule->id_outlet_box) {
+	 			$box = OutletBox::where([
+					['id_outlet', $user->id_outlet],
+					['id_outlet_box', $schedule->id_outlet_box],
+					['outlet_box_status', 'Active']
+				])->get();
+	 		} else {
+				$box = OutletBox::where([
+					['id_outlet', $user->id_outlet],
+					['outlet_box_status', 'Active']
+				])
+				->whereDoesntHave('hairstylist_schedule_dates', function($q) use ($shift){
+					$q->whereDate('date', date('Y-m-d'))
+			 		->where('shift', $shift);
+				})->get();
+	 		}
+ 		}
+
+		$res = [
+			'outlet' => $outlet,
+			'brand' => $brand,
+			'box' => $box
+		];
+    	return MyHelper::checkGet($res);
     }
 }

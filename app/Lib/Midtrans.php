@@ -91,6 +91,12 @@ class Midtrans {
             }
         }
 
+        $dataMidtrans['callbacks'] = [
+            'finish' => env('MIDTRANS_CALLBACK').'?result=success&'.(!empty($type)? 'type='.$type.'&': ''),
+            'unfinish' => env('MIDTRANS_CALLBACK').'?result=fail&'.(!empty($type)? 'type='.$type.'&': ''),
+            'error' => env('MIDTRANS_CALLBACK').'?result=fail&'.(!empty($type)? 'type='.$type.'&': '')
+        ];
+
         $token = MyHelper::post($url, Self::bearer(), $dataMidtrans);
 
         try {

@@ -971,6 +971,7 @@ Detail: ".$link['short'],
             $trxProduct = TransactionProduct::where('id_transaction', $trx->id_transaction)->get()->toArray();
 
             foreach ($trxProduct as $p) {
+                
                 if(!empty($p['id_product_variant_group'])){
                     $productStock = ProductVariantGroupDetail::where('id_product_variant_group', $p['id_product_variant_group'])
                         ->where('id_outlet', $trx->id_outlet)->first();

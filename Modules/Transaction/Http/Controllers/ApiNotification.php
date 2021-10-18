@@ -978,7 +978,7 @@ Detail: ".$link['short'],
                 }else{
                     $productStock = ProductDetail::where('id_product', $p['id_product'])
                         ->where('id_outlet', $trx->id_outlet)->first();
-                    $productStock->update(['product_detail_stock_item' => $productStock['product_detail_stock_item'] + $p['qty']]);
+                    $productStock->update(['product_detail_stock_item' => $productStock['product_detail_stock_item'] + $p['transaction_product_qty']]);
                 }
 
                 if(!$productStock){

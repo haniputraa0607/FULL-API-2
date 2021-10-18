@@ -1471,4 +1471,43 @@ class ApiHistoryController extends Controller
         return response()->json($result);
     }
     /*============================= End Filter & Sort V2 ================================*/
+
+    public function paymentHistory(Request $request)
+    {
+        $transactions = Transaction::join('transaction_payment_midtrans', 'transactions.id_transaction', 'transaction_payment_midtrans.id_transaction')
+            ->select([
+                'transactions.id_transaction',
+                'transactions.id_outlet',
+                'transaction_date',
+                'transaction_receipt_number',
+                'transaction_grandtotal',
+                'payment_type',
+                'transaction_payment_status',
+            ])
+            ->with('outlet');
+
+        if ($request->month) {
+            $transactions->whereMonth('transaction_date', $request->month);
+        }
+
+        if ($request->year) {
+            $transactions->whereYear('transaction_date', $request->year);
+        }
+
+        $transactions = $transactions->paginate();
+
+        $transactions->transform(function ($transaction) {
+            return [
+                'transaction_date' => \Carbon\Carbon::parse($transaction->transaction_date),
+                'transaction_receipt_number' => $transaction->transaction_receipt_number,
+                'transaction_grandtotal' => $transaction->transaction_grandtotal,
+                'payment_method' => $transaction->payment_type ?: '-',
+                'transaction_payment_status' => $transaction->transaction_payment_status,
+                'transaction_payment_status_text' => $transaction->transaction_payment_status == 'Completed' ? 'Sukses' : $transaction->transaction_payment_status == 'Pending' ? 'Menunggu Pembayaran' : 'Gagal',
+                'outlet_name' => $transaction->outlet->outlet_name,
+            ];
+        });
+
+        return MyHelper::checkGet($transactions);
+    }
 }

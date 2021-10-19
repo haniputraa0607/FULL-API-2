@@ -23,9 +23,9 @@ class CreateSurveyLocationRequest extends FormRequest
             'location_large'    => 'required',
             'survey_date' 	=> 'required|date',
             'id_project'        => 'required|project',
-            'note'              => 'required',
+//            'note'              => 'required',
             'surveyor'          => 'required',
-            'attachment'          => 'required',
+//            'attachment'          => 'required',
             
         ]; 
     }

@@ -53,8 +53,7 @@ class ApiFitOutController extends Controller
         if(isset($request->id_project)){
          $project = Project::where('id_project', $request->id_project)->where(array('status'=>'Process','progres'=>"Fit Out"))
                 ->update([
-                    'progres'=>'Success',
-                    'status'=>'Success'
+                    'progres'=>'Handover',
                 ]);
          if($project){
         $fitOut = ProjectFitOut::where(array('id_project'=>$request->id_project,'status'=>'Process'))->get();

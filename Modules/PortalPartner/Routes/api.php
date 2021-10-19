@@ -1,21 +1,3 @@
-InitProject
-handover
-
-Detail Promo
-
-Modul Partner
-
-outlet
-outlet_code
-addres
-outlet_name
-outlet_address
-id_city
-outlet_postal_code
-outlet_phone
-outlet_latitude
-outlet_longitude
-
 <?php
 
 use Illuminate\Http\Request;

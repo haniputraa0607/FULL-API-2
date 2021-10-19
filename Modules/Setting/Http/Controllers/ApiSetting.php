@@ -984,6 +984,29 @@ class ApiSetting extends Controller
             }
         }
 
+        if (isset($post['default_home_splash_screen_web_apps'])) {
+            $image = Setting::where('key', 'default_home_splash_screen_web_apps')->first();
+
+            if(isset($image['value']) && file_exists($image['value'])){
+                unlink($image['value']);
+            }
+            // base64 image,path,h,w,name,ext
+            $upload = MyHelper::uploadPhotoStrict($post['default_home_splash_screen_web_apps'], $this->saveImage, 1080, 1920,'splash_web_apps');
+
+            if (isset($upload['status']) && $upload['status'] == "success") {
+                $post['default_home_splash_screen_web_apps'] = $upload['path'];
+            }
+            else {
+                $result = [
+                    'error'    => 1,
+                    'status'   => 'fail',
+                    'messages' => ['fail upload image']
+                ];
+
+                return $result;
+            }
+        }
+
         DB::beginTransaction();
         foreach ($post as $key => $value) {
             $insert = [

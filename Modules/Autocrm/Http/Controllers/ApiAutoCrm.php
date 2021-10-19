@@ -32,6 +32,7 @@ use App\Lib\ValueFirst;
 use Modules\Franchise\Entities\UserFranchise;
 use Modules\Franchise\Entities\FranchiseEmailLog;
 use Modules\Recruitment\Entities\UserHairStylist;
+use Modules\Recruitment\Entities\HairstylistInbox;
 use Validator;
 use Hash;
 use DB;
@@ -695,12 +696,26 @@ class ApiAutoCrm extends Controller
 			if($crm['autocrm_inbox_toogle'] == 1 && !$forward_only){
 				if(!empty($user['id'])){
 
-					$inbox['id_user'] 	  	  = $user['id'];
-					$inbox['inboxes_subject'] = $this->TextReplace($crm['autocrm_inbox_subject'], $user['id'], $variables, 'id', $franchise, $partner, $recipient_type);
+					if ($recipient_type == 'hairstylist') {
+						$inboxTable = new HairstylistInbox;
+						$inboxRecipient = $receipient;
+						$inboxWherefield = null;
+
+						$inbox['id_user_hair_stylist'] = $user['id'];
+					} else {
+						$inboxTable = new UserInbox;
+						$inboxRecipient = $user['id'];
+						$inboxWherefield = 'id';
+
+						$inbox['id_user'] = $user['id'];
+					}
+
+					$inbox['inboxes_subject'] = $this->TextReplace($crm['autocrm_inbox_subject'], $inboxRecipient, $variables, $inboxWherefield, $franchise, $partner, $recipient_type);
+
 					$inbox['inboxes_clickto'] = $crm['autocrm_inbox_clickto'];
 
 					if($crm['autocrm_inbox_clickto'] == 'Content'){
-						$inbox['inboxes_content'] = $this->TextReplace($crm['autocrm_inbox_content'], $user['id'], $variables, 'id', $franchise, $partner, $recipient_type);
+						$inbox['inboxes_content'] = $this->TextReplace($crm['autocrm_inbox_content'], $inboxRecipient, $variables, $inboxWherefield, $franchise, $partner, $recipient_type);
 					}
 
 					if($crm['autocrm_inbox_clickto'] == 'Link'){
@@ -766,7 +781,7 @@ class ApiAutoCrm extends Controller
 					$inbox['created_at'] = date("Y-m-d H:i:s");
 					$inbox['updated_at'] = date("Y-m-d H:i:s");
 
-					$inboxQuery = UserInbox::insert($inbox);
+					$inboxTable::insert($inbox);
 				}
 			}
 

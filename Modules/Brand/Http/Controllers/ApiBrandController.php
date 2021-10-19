@@ -16,6 +16,7 @@ use Modules\Brand\Entities\BrandProduct;
 use App\Lib\MyHelper;
 use DB;
 use Illuminate\Support\Facades\Route;
+use Image;
 
 class ApiBrandController extends Controller
 {
@@ -53,6 +54,22 @@ class ApiBrandController extends Controller
 
             if ($upload['status'] == "success") {
                 $post['logo_brand'] = $upload['path'];
+            } else {
+                $result = [
+                    'status'    => 'fail',
+                    'messages'    => ['fail upload image']
+                ];
+                return response()->json($result);
+            }
+        }
+
+        if (isset($post['logo_landscape_brand'])) {
+            $img    = Image::make($post['logo_landscape_brand']);
+            $width  = $img->width();
+            $upload = MyHelper::uploadPhotoStrict($post['logo_landscape_brand'], $path = 'img/brand/logo/', $width, 200, 'logo_landscape_brand_'.$post['code_brand']);
+
+            if ($upload['status'] == "success") {
+                $post['logo_landscape_brand'] = $upload['path'];
             } else {
                 $result = [
                     'status'    => 'fail',

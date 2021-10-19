@@ -6,7 +6,9 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 
+use Modules\Transaction\Entities\HairstylistNotAvailable;
 use Modules\Transaction\Entities\LogInvalidTransaction;
+use Modules\Transaction\Entities\TransactionProductService;
 use Queue;
 use App\Lib\Midtrans;
 
@@ -174,6 +176,13 @@ class ApiCronTrxController extends Controller
                 	DB::rollback();
                 	continue;
                 }
+
+                //remove hs from table not available
+                $idTrxProductService = TransactionProductService::where('id_transaction', $singleTrx->id_transaction)->pluck('id_transaction_product_service')->toArray();
+                if(!empty($idTrxProductService)){
+                    HairstylistNotAvailable::whereIn('id_transaction_product_service', $idTrxProductService)->delete();
+                }
+
                 DB::commit();
 
             }

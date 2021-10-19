@@ -5247,12 +5247,20 @@ class ApiTransaction extends Controller
     			->with('outlet.brands', 'products', 'transaction_outlet_service', 'user_feedbacks');
 
 		switch (strtolower($request->status)) {
+			case 'unpaid':
+				$list->where('transaction_payment_status','Pending');
+				break;
+
 			case 'ongoing':
-				$list->whereNull('transaction_outlet_services.completed_at');
+				$list->whereNull('transaction_outlet_services.completed_at')
+				->where('transaction_payment_status','Completed');
 				break;
 
 			case 'complete':
-				$list->whereNotNull('transaction_outlet_services.completed_at');
+				$list->where(function($q) {
+					$q->whereNotNull('transaction_outlet_services.completed_at')
+					->orWhere('transaction_payment_status','Cancelled');
+				});
 				break;
 			
 			default:
@@ -5292,7 +5300,15 @@ class ApiTransaction extends Controller
 				];
 			}
 
-			$status = empty($val['completed_at']) ? 'ongoing' : 'complete';
+			if ($val['transaction_payment_status'] == 'Pending') {
+				$status = 'unpaid';
+			} elseif ($val['transaction_payment_status'] == 'Cancelled') {
+				$status = 'cancelled';
+			} elseif (empty($val['completed_at']) && $val['transaction_payment_status'] == 'Completed') {
+				$status = 'ongoing';
+			} else {
+				$status = 'completed';
+			}
 
 			$resData[] = [
 				'id_transaction' => $val['id_transaction'],
@@ -5408,7 +5424,15 @@ class ApiTransaction extends Controller
 			}
 		}
 
-		$status = empty($detail['completed_at']) ? 'ongoing' : 'complete';
+		if ($detail['transaction_payment_status'] == 'Pending') {
+			$status = 'unpaid';
+		} elseif ($detail['transaction_payment_status'] == 'Cancelled') {
+			$status = 'cancelled';
+		} elseif (empty($detail['completed_at']) && $detail['transaction_payment_status'] == 'Completed') {
+			$status = 'ongoing';
+		} else {
+			$status = 'completed';
+		}
 
 		$paymentDetail = [];
         

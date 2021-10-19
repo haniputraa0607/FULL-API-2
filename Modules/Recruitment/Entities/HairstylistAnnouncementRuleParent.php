@@ -34,8 +34,8 @@ class HairstylistAnnouncementRuleParent extends Eloquent
 
 	protected $fillable = [
 		'id_hairstylist_announcement',
-		'announcement_rule',
-		'announcement_rule_next'
+		'hairstylist_announcement_rule',
+		'hairstylist_announcement_rule_next'
 	];
 
 	public function hairstylist_announcement()

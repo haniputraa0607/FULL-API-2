@@ -16,8 +16,8 @@ class CreateHairstylistAnnouncementRuleParentsTable extends Migration
         Schema::create('hairstylist_announcement_rule_parents', function (Blueprint $table) {
             $table->increments('id_hairstylist_announcement_rule_parent');
 			$table->bigInteger('id_hairstylist_announcement')->unsigned()->index('fk_hs_announcement_rule_parents_hs_announcements');
-			$table->enum('announcement_rule', array('and','or'));
-			$table->enum('announcement_rule_next', array('and','or'));
+			$table->enum('hairstylist_announcement_rule', array('and','or'));
+			$table->enum('hairstylist_announcement_rule_next', array('and','or'));
 			$table->timestamps();
         });
     }

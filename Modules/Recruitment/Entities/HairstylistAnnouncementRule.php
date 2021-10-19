@@ -32,16 +32,16 @@ class HairstylistAnnouncementRule extends Eloquent
 
 	protected $casts = [
 		'id_hairstylist_announcement_rule_parent' => 'int',
-		'announcement_rule_param_id' => 'int'
+		'hairstylist_announcement_rule_param_id' => 'int'
 	];
 
 	protected $fillable = [
 		'id_hairstylist_announcement_rule_parent',
-		'announcement_rule_subject',
-		'announcement_rule_operator',
-		'announcement_rule_param',
-		'announcement_rule_param_select',
-		'announcement_rule_param_id'
+		'hairstylist_announcement_rule_subject',
+		'hairstylist_announcement_rule_operator',
+		'hairstylist_announcement_rule_param',
+		'hairstylist_announcement_rule_param_select',
+		'hairstylist_announcement_rule_param_id'
 	];
 
 	public function hairstylist_announcement_rule_parent()

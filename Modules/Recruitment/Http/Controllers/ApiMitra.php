@@ -210,10 +210,14 @@ class ApiMitra extends Controller
 			'brand_logo' => $user['outlet']['brands'][0]['logo_brand']
 		];
 
+		$level = $user['level'];
+        $level = ($level == 'Hairstylist') ? 'Mitra' : (($level == 'Supervisor') ? 'SPV' : null);
+
     	$res = [
     		'id_user_hair_stylist' => $user['id_user_hair_stylist'],
     		'nickname' => $user['nickname'],
     		'fullname' => $user['fullname'],
+    		'name' => $level . ' ' . $user['fullname'],
     		'email' => $user['email'],
     		'phone_number' => $user['phone_number'],
     		'level' => $user['level'],
@@ -234,7 +238,7 @@ class ApiMitra extends Controller
     public function outletServiceScheduleStatus($id_user_hair_stylist)
     {
     	$today = date('Y-m-d H:i:s');
-        $timeToday = date('H:i:s', strtotime($today));
+        $todayTime = date('H:i:s', strtotime($today));
     	$status = [
     		'is_available' => 0,
     		'is_active' => 0,
@@ -246,9 +250,8 @@ class ApiMitra extends Controller
                 ->whereDate('date', date('Y-m-d', strtotime($today)))
                 ->get();
 
-
         if (empty($schedule)) {
-        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal outlet service hari ini.";
+        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal layanan outlet hari ini.";
         	return $status;
         }
 
@@ -256,25 +259,8 @@ class ApiMitra extends Controller
 		$getTimeShift = app($this->product)->getTimeShift(strtolower($shift));
 
 		if (empty($getTimeShift)) {
-        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Jadwal outlet service tidak ditemukan.";
+        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Jadwal layanan outlet tidak ditemukan.";
         	return $status;
-        }
-
-        $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
-        if ( strtotime($timeToday) < strtotime($shiftTimeStart) ) {
-        	$status['messages'][] = "Layanan belum bisa diaktifkan.\n Shift outlet service belum dimulai.";
-            return $status;
-        }
-
-        $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
-        if ( strtotime($timeToday) > strtotime($shiftTimeEnd) ) {
-        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal outlet service hari ini.";
-            return $status;
-        }
-
-        if((strtotime($timeToday) > strtotime($shiftTimeStart) && strtotime($timeToday) < strtotime($shiftTimeEnd)) === false){
-        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda berada di luar shift outlet service hari ini.";
-            return $status;
         }
 
     	$isClockIn = true;
@@ -291,19 +277,43 @@ class ApiMitra extends Controller
 
     public function homeServiceScheduleStatus($id_user_hair_stylist, $date)
     {
-    	$today = date('Y-m-d H:i:s');
-        $timeToday = date('H:i:s', strtotime($today));
+        $today = date('Y-m-d H:i:s');
+        $todayTime = date('H:i:s', strtotime($today));
+        $isHomeServiceStart = 0;
     	$status = [
     		'is_available' => 0,
-    		'is_active' => 0,
+    		'is_active' => $isHomeServiceStart,
     		'messages' => []
     	];
 
-    	$schedule = [];
+    	$schedule = HairstylistScheduleDate::join('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
+                ->whereNotNull('approve_at')->where('id_user_hair_stylist', $id_user_hair_stylist)
+                ->whereDate('date', date('Y-m-d', strtotime($today)))
+                ->get();
+
         if (empty($schedule)) {
-        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal home service hari ini.";
+    		$status['is_available'] = 1;
         	return $status;
         }
+
+        $shift = $this->getNearestShift($schedule)['shift'] ?? null;
+		$getTimeShift = app($this->product)->getTimeShift(strtolower($shift));
+
+		if (empty($getTimeShift)) {
+    		$status['is_available'] = 1;
+        	return $status;
+        }
+
+        $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
+        $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
+        if (strtotime($todayTime) > strtotime($shiftTimeStart) && strtotime($todayTime) < strtotime($shiftTimeEnd)) {
+        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n karena layanan outlet Anda sedang aktif.";
+    		$status['is_active'] = 0;
+            return $status;
+        }
+
+    	$status['is_available'] = 1;
+        return $status;
     }
 
     public function getNearestShift($schedule)

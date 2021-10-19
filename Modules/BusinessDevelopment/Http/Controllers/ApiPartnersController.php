@@ -910,6 +910,12 @@ class ApiPartnersController extends Controller
         return $form[$request['id_brand']];
     }
 
+    public function allFormSurvey(Request $request){
+        $form = Setting::where('key', 'form_survey')->first();
+        $form = json_decode($form['value_text']??'' , true);
+        return $form;
+    }
+
     public function createFormSurvey(Request $request){
         $post = $request->all();
         if(isset($post['id_partner']) && !empty($post['id_partner'])){
@@ -943,18 +949,7 @@ class ApiPartnersController extends Controller
         }
     }
 
-    public function pdfFormSurvey(Request $request){
-        $post = $request->all();
-        if(isset($post['id_partner']) && !empty($post['id_partner'])){
-            $form_survey = FormSurvey::where('id_partner', $post['id_partner'])->first();
-            $value = json_decode($form_survey['survey']??'' , true);
-            return $value["cat1"];
-        }else{
-            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
-        }
-    }
-
-    public function pdfSurvey($id = 4){
+    public function pdfSurvey($id){
         $form_survey = FormSurvey::where('id_partner', $id)->first();
         $value = json_decode($form_survey['survey']??'' , true);
         $cat1 = $value['cat1'];
@@ -1025,5 +1020,31 @@ class ApiPartnersController extends Controller
         $pdf = PDF::loadView('businessdevelopment::form_survey', $data );
         Storage::put('public/'.$path, $pdf->output());
         return $path;
+    }
+
+    public function listFormSurvey(){
+        $form = Setting::where('key', 'form_survey')->first();
+        $form = json_decode($form['value_text']??'' , true);
+        return MyHelper::checkGet($form);
+    }
+
+    public function storeFormSurvey(Request $request){
+        $post = $request->all();
+        if (isset($post['key']) && !empty($post['key'])) {
+            DB::beginTransaction();
+            $data_update = [
+                "value_text" => $post["value_text"],
+            ];
+            $update = Setting::where('key', $post['key'])->update($data_update);
+            if (!$update) {
+                DB::rollback();
+                return response()->json(['status' => 'fail', 'messages' => ['Failed add form survey data']]);
+            }
+            DB::commit();
+            return response()->json(['status' => 'success']);
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
+
     }
 }

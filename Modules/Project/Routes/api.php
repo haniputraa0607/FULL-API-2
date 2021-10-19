@@ -16,10 +16,12 @@ use Illuminate\Http\Request;
 
    Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefix' => 'project'], function() {
     //Project
+    Route::any('/initProject/{partner}/{location}', ['middleware'=>'scopes:be', 'uses' => 'ApiProjectController@initProject']);
     Route::any('/list', ['middleware'=>'scopes:be', 'uses' => 'ApiProjectController@index']);
     Route::post('/create', ['middleware'=>'scopes:be', 'uses' => 'ApiProjectController@create']);
     Route::any('/detail', ['middleware'=>'scopes:be', 'uses' => 'ApiProjectController@detail']);
-    //Survey Location 
+    Route::any('/delete', ['middleware'=>'scopes:be', 'uses' => 'ApiProjectController@destroy']);
+    //Survey Location  
     Route::post('/create/survey_location', ['middleware'=>'scopes:be', 'uses' => 'ApiSurveyLocationController@create']);
     Route::post('/delete/survey_location', ['middleware'=>'scopes:be', 'uses' => 'ApiSurveyLocationController@destroy']);
     Route::post('/next/survey_location', ['middleware'=>'scopes:be', 'uses' => 'ApiSurveyLocationController@nextStep']);
@@ -40,4 +42,9 @@ use Illuminate\Http\Request;
      Route::post('/list/fitout', ['middleware'=>'scopes:be', 'uses' => 'ApiFitOutController@index']);
      Route::post('/next/fitout', ['middleware'=>'scopes:be', 'uses' => 'ApiFitOutController@nextStep']);
     
+     //select
+      Route::group(['prefix' => 'select-list'], function() {
+            Route::get('lokasi', 'ApiSelectController@lokasi');
+            Route::get('partner', 'ApiSelectController@partner');
+        });
 });

@@ -8,31 +8,22 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 use App\Http\Models\Outlet;
 use Modules\Project\Entities\Project;
 use Modules\BusinessDevelopment\Entities\Location;
-use Modules\Project\Entities\ProjectSurveyLocation;
 
-class CreateFitOutRequest extends FormRequest
+class CreateContractRequest extends FormRequest
 {
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array
-     */
     public function rules()
     {
         return [
-        
-            'id_project'        => 'required|project',
-            'title'       	=> 'required',
-            'progres'       	=> 'required',
-//            'note'       	=> 'required',
+            'title'       => 'required',
 //            'attachment'        => 'required',
-        ]; 
+            'id_project'        => 'required|project',
+//            'note'              => 'required',
+           ]; 
     }
-     public function withValidator($validator)
+    public function withValidator($validator)
     {
-        
         $validator->addExtension('project', function ($attribute, $value, $parameters, $validator) {
-         $survey = Project::where(array('id_project'=>$value,'status'=>"Process",'progres'=>"Fit Out"))->count();
+         $survey = Project::where(array('id_project'=>$value,'status'=>"Process",'progres'=>"Contract"))->count();
          if($survey != 0){
              return true;
          } return false;
@@ -42,8 +33,8 @@ class CreateFitOutRequest extends FormRequest
     public function messages()
     {
         return [
-           'project' => 'Cek status dan progres dari project',
-           'required' => ':attribute harus diisi'
+            'required' => ':attribute harus diisi',
+            'project' => 'Cek status dan progres dari project',
         ];
     }
     public function authorize()

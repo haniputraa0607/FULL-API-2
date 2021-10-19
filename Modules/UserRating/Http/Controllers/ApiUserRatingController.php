@@ -815,4 +815,135 @@ class ApiUserRatingController extends Controller
             return MyHelper::checkGet($hs->paginate(15)->toArray());
         }
     }
+
+    public function getList(Request $request) {
+        $post = $request->json()->all();
+        $user = clone $request->user();
+
+        $logTrxs = UserRatingLog::where('id_user', $user->id)
+        		->groupBy('id_transaction')
+				->get();
+
+        $logRatings = [];
+        $interval = Setting::where('key','popup_min_interval')->pluck('value')->first() ?: 900;
+        $max_date = date('Y-m-d',time() - ((Setting::select('value')->where('key','popup_max_days')->pluck('value')->first()?:3) * 86400));
+        $maxList = Setting::where('key','popup_max_list')->pluck('value')->first() ?: 5;
+        $maxRefuse = Setting::where('key','popup_max_refuse')->pluck('value')->first() ?: 3;
+
+        if (empty($logTrxs)) {
+            return MyHelper::checkGet([]);
+        }
+
+        foreach ($logTrxs as $logTrx) {
+
+        	$trx = Transaction::where('id_transaction', $logTrx->id_transaction)->first();
+        	if (!$trx) {
+        		continue;
+        	}
+
+			$logs = UserRatingLog::where('id_user', $user->id)
+					->where('id_transaction', $logTrx->id_transaction)
+					->whereNotNull('id_user_hair_stylist')
+					->get();
+
+			foreach ($logs as $log) {
+				if ($log->refuse_count >= $maxRefuse
+					|| (strtotime($log->last_popup) + $interval) > time()
+	            ) {
+	                continue;
+	            }
+
+	            $log->refuse_count++;
+	            $log->last_popup = date('Y-m-d H:i:s');
+	            $log->save();
+				$logRatings[] = $log;
+
+				if ($maxList <= count($logRatings)) {
+	            	break;
+	            }
+			}
+
+            if ($maxList <= count($logRatings)) {
+            	break;
+            }
+        }
+
+        if (empty($logRatings)) {
+            return MyHelper::checkGet([]);
+        }
+
+        $ratingList = [];
+        $title = 'Beri Penilaian';
+        foreach ($logRatings as $key => $log) {
+			$rating['id'] = $log['id_transaction'];
+			$rating['id_transaction_product_service'] = $log['id_transaction_product_service'];
+    		$rating['id_user_hair_stylist'] = $log['id_user_hair_stylist'];
+	        $rating['transaction_receipt_number'] = $log['transaction']['transaction_receipt_number'];
+	        $rating['transaction_date'] = date('d M Y H:i',strtotime($log['transaction']['transaction_date']));
+	        $rating['outlet_rating'] = null;
+	        $rating['hairstylist_rating'] = null;
+
+	        $trxDate = MyHelper::dateFormatInd($log['transaction']['transaction_date'], true, false, true);
+	        $outletName = $log['transaction']['outlet']['outlet_name'];
+	        $rating['title'] = $title;
+	        $rating['messages'] = "Dapatkan loyalty points dengan memberikan penilaian atas transaksi Anda pada hari:  \n <b>" . $trxDate . " di " . $outletName . "</b>";
+
+	        $rating['outlet'] = [
+				'id_outlet' => $log['transaction']['outlet']['id_outlet'],
+				'outlet_code' => $log['transaction']['outlet']['outlet_code'],
+				'outlet_name' => $log['transaction']['outlet']['outlet_name'],
+				'outlet_address' => $log['transaction']['outlet']['outlet_address'],
+				'outlet_latitude' => $log['transaction']['outlet']['outlet_latitude'],
+				'outlet_longitude' => $log['transaction']['outlet']['outlet_longitude']
+			];
+			$rating['brand'] = [
+				'id_brand' => $log['transaction']['outlet']['brands'][0]['id_brand'],
+				'brand_code' => $log['transaction']['outlet']['brands'][0]['code_brand'],
+				'brand_name' => $log['transaction']['outlet']['brands'][0]['name_brand'],
+				'brand_logo' => $log['transaction']['outlet']['brands'][0]['logo_brand'],
+				'brand_logo_landscape' => $log['transaction']['outlet']['brands'][0]['logo_landscape_brand']
+			];
+			
+        	$service = TransactionProductService::with('user_hair_stylist')
+			        	->where('id_transaction', $log['id_transaction'])
+			        	->where('id_user_hair_stylist', $log['id_user_hair_stylist'])
+			        	->first();
+
+			$rating['detail_hairstylist'] = [
+				'nickname' => $service->user_hair_stylist->nickname ?? null,
+				'fullname' => $service->user_hair_stylist->fullname ?? null,
+				'user_hair_stylist_photo' => $service->user_hair_stylist->user_hair_stylist_photo ?? null
+			];
+
+        	$currentRatingHs = UserRating::where([
+        		'id_transaction' => $log['id_transaction'],
+        		'id_user' => $log['id_user'],
+        		'id_outlet' => null,
+        		'id_user_hair_stylist' => $log['id_user_hair_stylist'],
+        		'id_transaction_product_service' => $log['id_transaction_product_service'],
+        	])
+        	->first();
+	        
+	        if ($currentRatingHs) {
+		        $rating['hairstylist_rating'] = $currentRatingHs['rating_value'];
+	        }
+
+	        $currentRatingOutlet = UserRating::where([
+        		'id_transaction' => $log['id_transaction'],
+        		'id_user' => $log['id_user'],
+        		'id_outlet' => $log['transaction']['outlet']['id_outlet'],
+        		'id_user_hair_stylist' => null
+        	])
+        	->first();
+	        
+	        if ($currentRatingOutlet) {
+		        $rating['outlet_rating'] = $currentRatingOutlet['rating_value'];
+	        }
+
+	        $ratingList[] = $rating;
+        }
+
+        $result = $ratingList;
+        return MyHelper::checkGet($result);
+    }
 }

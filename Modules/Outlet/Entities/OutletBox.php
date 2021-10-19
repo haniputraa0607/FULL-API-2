@@ -16,4 +16,9 @@ class OutletBox extends Model
         'outlet_box_status',
         'outlet_box_use_status'
     ];
+
+    public function hairstylist_schedule_dates()
+	{
+		return $this->hasMany(\Modules\Recruitment\Entities\HairstylistScheduleDate::class, 'id_outlet_box');
+	}
 }

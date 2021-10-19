@@ -1,24 +1,24 @@
 <?php
 
-namespace Modules\Deals\Http\Requests\Deals;
+namespace Modules\Recruitment\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 
-class DetailDealsRequest extends FormRequest
+class DetailCustomerQueueRequest extends FormRequest
 {
+
     /**
      * Get the validation rules that apply to the request.
      *
      * @return array
      */
-    public function rules()
-    {
-        return [
-            'id_deals' 	 => 'nullable|integer',
-            'step'       => 'nullable',
-            'deals_type' => 'nullable'
+	public function rules()
+	{
+		return [
+			'transaction_receipt_number' => 'required|string',
+			'id_transaction_product_service' => 'required'
         ];
     }
 

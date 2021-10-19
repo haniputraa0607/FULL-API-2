@@ -21,8 +21,8 @@ class CreateDesainRequest extends FormRequest
         return [
             'id_project'        => 'required|project',
             'desain'       	=> 'required',
-            'note'       	=> 'required',
-            'attachment'        => 'required',
+//            'note'       	=> 'required',
+//            'attachment'        => 'required',
             'status'            => 'required',
         ]; 
     }

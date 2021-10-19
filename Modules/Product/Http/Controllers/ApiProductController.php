@@ -17,6 +17,7 @@ use App\Http\Models\ProductModifierGlobalPrice;
 use App\Http\Models\Outlet;
 use App\Http\Models\Setting;
 use Lcobucci\JWT\Parser;
+use Modules\Outlet\Entities\OutletTimeShift;
 use Modules\Product\Entities\ProductDetail;
 use Modules\Product\Entities\ProductGlobalPrice;
 use Modules\Product\Entities\ProductSpecialPrice;
@@ -2499,11 +2500,11 @@ class ApiProductController extends Controller
                         ->whereDate('date', $bookDate)
                         ->first()['shift']??'';
             if(!empty($shift)){
-                $getTimeShift = $this->getTimeShift(strtolower($shift));
+                $getTimeShift = $this->getTimeShift(strtolower($shift),$post['id_outlet']);
                 if(!empty($getTimeShift['start']) && !empty($getTimeShift['end'])){
                     $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
                     $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
-                    if(strtotime($bookTime) > strtotime($shiftTimeStart) && strtotime($bookTime) < strtotime($shiftTimeEnd)){
+                    if(strtotime($bookTime) >= strtotime($shiftTimeStart) && strtotime($bookTime) < strtotime($shiftTimeEnd)){
                         //check available in transaction
                         $checkAvailable = array_search($val['id_user_hair_stylist'], $hsNotAvailable);
                         if($checkAvailable === false){
@@ -2518,24 +2519,29 @@ class ApiProductController extends Controller
                 'name' => $val['fullname'],
                 'photo' => (empty($val['user_hair_stylist_photo']) ? config('url.storage_url_api').'img/product/item/default.png':$val['user_hair_stylist_photo']),
                 'rating' => $val['total_rating'],
-                'available_status' => $availableStatus
+                'available_status' => $availableStatus,
+                'order' => ($availableStatus ? $val['id_user_hair_stylist']:1000)
             ];
         }
+
+        usort($res, function($a, $b) {
+            return $a['order'] - $b['order'];
+        });
 
         return response()->json(MyHelper::checkGet($res));
     }
 
-    function getTimeShift($shift){
-        $data = [
-            'morning' => [
-                'start' => '09:00',
-                'end'  => '15:00'
-            ],
-            'evening' => [
-                'start' => '15:00',
-                'end'  => '21:00'
-            ]
-        ];
+    function getTimeShift($shift, $id_outlet){
+        $outletShift = OutletTimeShift::where('id_outlet', $id_outlet)->get()->toArray();
+        $data = [];
+        if(!empty($outletShift)){
+            foreach ($outletShift as $value){
+                $data[strtolower($value['shift'])] = [
+                    'start' => date('H:i', strtotime($value['shift_time_start'])),
+                    'end' => date('H:i', strtotime($value['shift_time_end']))
+                ];
+            }
+        }
 
         return $data[$shift]??[];
     }

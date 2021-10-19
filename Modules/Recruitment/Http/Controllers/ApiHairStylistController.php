@@ -9,6 +9,7 @@ use Illuminate\Routing\Controller;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Recruitment\Entities\UserHairStylistDocuments;
 use Modules\Recruitment\Http\Requests\user_hair_stylist_create;
+use Image;
 
 class ApiHairStylistController extends Controller
 {
@@ -47,6 +48,16 @@ class ApiHairStylistController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Email or phone already use']]);
         }
 
+        if (isset($post['photo']) && !empty($post['photo'])) {
+            $img = Image::make(base64_decode($post['photo']));
+            $imgwidth = $img->width();
+            $imgheight = $img->height();
+            $upload = MyHelper::uploadPhotoStrict($post['photo'], 'img/hs/', $imgwidth, $imgheight, time());
+            if ($upload['status'] == "success") {
+                $post['user_hair_stylist_photo'] = $upload['path'];
+            }
+        }
+
         $dataCreate = [
             'level' => (empty($post['level']) ? null : $post['level']),
             'email' => $post['email'],
@@ -65,7 +76,8 @@ class ApiHairStylistController extends Controller
             'recent_address' => (empty($post['recent_address']) ? null : $post['recent_address']),
             'postal_code' => (empty($post['postal_code']) ? null : $post['postal_code']),
             'marital_status' => (empty($post['marital_status']) ? null : $post['marital_status']),
-            'user_hair_stylist_status' => 'Candidate'
+            'user_hair_stylist_status' => 'Candidate',
+            'user_hair_stylist_photo' => $post['user_hair_stylist_photo']??null
         ];
 
         $create = UserHairStylist::create($dataCreate);
@@ -385,16 +397,14 @@ class ApiHairStylistController extends Controller
                     return response()->json(['status' => 'fail', 'messages' => ['Nickname already use with hairstylist : '.$check['fullname']]]);
                 }
 
-                $checkPhone = UserHairStylist::where('phone_number', $post['phone_number'])->whereNotIn('id_user_hair_stylist', [$post['id_user_hair_stylist']])->first();
-
-                if(!empty($checkPhone)){
-                    return response()->json(['status' => 'fail', 'messages' => ['Phone Number already use with another hairstylist']]);
-                }
-
                 if(isset($post['auto_generate_pin'])){
                     $pin = MyHelper::createrandom(6, 'Angka');
                 }else{
                     $pin = $post['pin'];
+                }
+                $dtHs = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->first();
+                if(empty($dtHs)){
+                    return response()->json(['status' => 'fail', 'messages' => ['Hs not found']]);
                 }
 
                 unset($post['update_type']);
@@ -404,7 +414,6 @@ class ApiHairStylistController extends Controller
                 unset($post['action_type']);
                 $data = $post;
                 $data['password'] = bcrypt($pin);
-                $data['birthdate'] = date('Y-m-d', strtotime($data['birthdate']));
                 $data['join_date'] = date('Y-m-d H:i:s');
                 $data['approve_by'] = $request->user()->id;
                 $data['user_hair_stylist_status'] = 'Active';
@@ -412,17 +421,16 @@ class ApiHairStylistController extends Controller
 
                 $autocrm = app($this->autocrm)->SendAutoCRM(
                     'Approve Candidate Hair Stylist',
-                    $data['phone_number'],
+                    $dtHs['phone_number'],
                     [
-                        'fullname' => $data['fullname'],
-                        'phone_number' => $data['phone_number'],
-                        'email' => $data['email'],
+                        'fullname' => $dtHs['fullname'],
+                        'phone_number' => $dtHs['phone_number'],
+                        'email' => $dtHs['email'],
                         'pin_hair_stylist' => $pin
                     ], null, false, false, 'hairstylist'
                 );
 
             }else{
-                $document = $post['data_document']??[];
                 unset($post['data_document']);
                 unset($post['action_type']);
                 $checkPhone = UserHairStylist::where(function ($q) use ($post){
@@ -439,7 +447,34 @@ class ApiHairStylistController extends Controller
                     $post['birthdate'] = date('Y-m-d', strtotime($post['birthdate']));
                 }
 
+                $sendCrmUpdatePin = 0;
+                if(isset($post['auto_generate_pin'])){
+                    $pin = MyHelper::createrandom(6, 'Angka');
+                    $post['password'] = bcrypt($pin);
+                    $sendCrmUpdatePin = 1;
+                }elseif(isset($post['pin']) && !empty($post['pin'])){
+                    $pin = $post['pin'];
+                    $post['password'] = bcrypt($pin);
+                    $sendCrmUpdatePin = 1;
+                }
+
+                unset($post['pin']);
+                unset($post['pin2']);
+                unset($post['auto_generate_pin']);
                 $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update($post);
+
+                if($update && $sendCrmUpdatePin == 1){
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Reset Password User Hair Stylist',
+                        $post['phone_number'],
+                        [
+                            'fullname' => $post['fullname'],
+                            'phone_number' => $post['phone_number'],
+                            'email' => $post['email'],
+                            'pin_hair_stylist' => $pin
+                        ], null, false, false, 'hairstylist'
+                    );
+                }
             }
 
             return response()->json(MyHelper::checkUpdate($update));

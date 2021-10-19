@@ -237,4 +237,9 @@ class Outlet extends Authenticatable
     {
         return $this->hasMany(\Modules\Outlet\Entities\OutletBox::class, 'id_outlet');
     }
+
+    public function outlet_time_shift()
+    {
+        return $this->hasMany(\Modules\Outlet\Entities\OutletTimeShift::class, 'id_outlet');
+    }
 }

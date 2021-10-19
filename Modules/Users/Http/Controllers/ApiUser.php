@@ -2381,7 +2381,7 @@ class ApiUser extends Controller
 
                 $update = User::where('id', '=', $data[0]['id'])->update($dataupdate);
 
-                $datauser = User::where('id', '=', $data[0]['id'])->get()->toArray();
+                $datauser = User::where('id', '=', $data[0]['id'])->with(['city','city.province'])->get()->toArray();
 
                 //cek complete profile ?
                 if ($datauser[0]['complete_profile'] != "1") {
@@ -2484,7 +2484,8 @@ class ApiUser extends Controller
                         'celebrate' => $datauser[0]['celebrate'],
                         'job' => $datauser[0]['job'],
                         'address' => $datauser[0]['address'],
-                        'id_card_image' => $urlIdCard
+                        'id_card_image' => $urlIdCard,
+                        'city' => $datauser[0]['city']
                     ],
                     'message'    => 'Data telah berhasil diubah'
                 ];

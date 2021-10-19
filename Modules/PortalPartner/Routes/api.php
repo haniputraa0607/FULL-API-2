@@ -1,3 +1,21 @@
+InitProject
+handover
+
+Detail Promo
+
+Modul Partner
+
+outlet
+outlet_code
+addres
+outlet_name
+outlet_address
+id_city
+outlet_postal_code
+outlet_phone
+outlet_latitude
+outlet_longitude
+
 <?php
 
 use Illuminate\Http\Request;
@@ -23,6 +41,7 @@ Route::group(['prefix' => 'partner'], function () {
             Route::post('detail/for-login', 'ApiUserPartnerController@detail');
         });
         Route::group(['prefix' => 'promo'], function() {
+            Route::post('detail/deals', 'ApiDeals@detail');
             Route::post('before/deals', 'ApiDeals@listDealBefore');
             Route::post('active/deals', 'ApiDeals@listDealActive');
             Route::post('outlet', 'ApiOutletController@outlet');

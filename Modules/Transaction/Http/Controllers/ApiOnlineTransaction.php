@@ -3418,7 +3418,7 @@ class ApiOnlineTransaction extends Controller
                 continue;
             }
 
-            $getTimeShift = app($this->product)->getTimeShift(strtolower($shift));
+            $getTimeShift = app($this->product)->getTimeShift(strtolower($shift), $post['id_outlet']);
             if(empty($getTimeShift['start']) && empty($getTimeShift['end'])){
                 $errorHsNotAvailable[] = $item['user_hair_stylist_name']." (".MyHelper::dateFormatInd($bookTime).')';
                 unset($post['item_service'][$key]);
@@ -5456,7 +5456,7 @@ class ApiOnlineTransaction extends Controller
                 $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
             }
 
-            $getTimeShift = app($this->product)->getTimeShift(strtolower($shift));
+            $getTimeShift = app($this->product)->getTimeShift(strtolower($shift), $post['id_outlet']);
             if(empty($getTimeShift['start']) && empty($getTimeShift['end'])){
                 $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
             }else{

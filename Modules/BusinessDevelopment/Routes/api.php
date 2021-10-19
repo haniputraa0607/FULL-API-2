@@ -47,8 +47,11 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefi
     });
     Route::group(['prefix' => '/form-survey'], function() {
         Route::post('/', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@formSurvey']);
+        Route::any('/all', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@allFormSurvey']);
+        Route::post('/store', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@storeFormSurvey']);
         Route::post('/create', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@createFormSurvey']);
-        Route::post('/pdf', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@pdfFormSurvey']);
+        Route::post('/pdf', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@pdfSurvey']);
+        Route::get('/list', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@listFormSurvey']);
     });
 });
 

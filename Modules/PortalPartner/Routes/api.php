@@ -23,6 +23,7 @@ Route::group(['prefix' => 'partner'], function () {
             Route::post('detail/for-login', 'ApiUserPartnerController@detail');
         });
         Route::group(['prefix' => 'promo'], function() {
+            Route::post('detail/deals', 'ApiDeals@detail');
             Route::post('before/deals', 'ApiDeals@listDealBefore');
             Route::post('active/deals', 'ApiDeals@listDealActive');
             Route::post('outlet', 'ApiOutletController@outlet');

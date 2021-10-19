@@ -16,10 +16,10 @@ class CreateContractRequest extends FormRequest
         return [
             'first_party'       => 'required',
             'second_party'      => 'required',
-            'attachment'        => 'required',
+//            'attachment'        => 'required',
             'nominal'    	=> 'required|integer',
             'id_project'        => 'required|project',
-            'note'              => 'required',
+//            'note'              => 'required',
            ]; 
     }
     public function withValidator($validator)

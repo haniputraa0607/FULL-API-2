@@ -24,6 +24,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
         Route::any('list', 'ApiHairStylistController@hsList');
         Route::post('detail', 'ApiHairStylistController@detail');
         Route::post('update', 'ApiHairStylistController@update');
+        Route::post('update-status', 'ApiHairStylistController@updateStatus');
         Route::post('detail/document', 'ApiHairStylistController@detailDocument');
 
     	Route::group(['prefix' => 'schedule'], function () {

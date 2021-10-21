@@ -11,6 +11,7 @@ Route::group(['middleware' => ['auth:api','log_activities','user_agent', 'scopes
 
 Route::group(['middleware' => ['auth:api','log_activities','user_agent', 'scopes:apps'], 'prefix' => 'api/inbox', 'namespace' => 'Modules\InboxGlobal\Http\Controllers'], function()
 {
+    Route::get('list-filter', 'ApiInbox@listFilterInbox');
     Route::any('user/{mode?}', 'ApiInbox@listInboxUser');
     Route::post('marked', 'ApiInbox@markedInbox');
     Route::post('unmark', 'ApiInbox@unmarkInbox');

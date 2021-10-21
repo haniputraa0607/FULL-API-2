@@ -492,4 +492,14 @@ class ApiHairStylistController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
         }
     }
+
+    public function updateStatus(Request $request){
+        $post = $request->json()->all();
+        if(!empty($post['id_user_hair_stylist'])){
+            $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update(['user_hair_stylist_status' => $post['user_hair_stylist_status']]);
+            return response()->json(MyHelper::checkUpdate($update));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    }
 }

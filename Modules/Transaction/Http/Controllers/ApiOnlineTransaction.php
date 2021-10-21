@@ -2933,6 +2933,7 @@ class ApiOnlineTransaction extends Controller
         }
 
         $result['currency'] = 'Rp';
+        $result['complete_profile'] = true;
         return MyHelper::checkGet($result)+['messages'=>$error_msg,'promo_error'=>$promo_error];
     }
 

@@ -3677,6 +3677,56 @@ class FeaturesTableSeeder extends Seeder
                 'created_at' => date('Y-m-d H:00:00'),
                 'updated_at' => date('Y-m-d H:00:00'),
             ),
+            366 => 
+            array (
+                'id_feature' => 368,
+                'created_at' => '2018-05-10 08:00:00',
+                'feature_module' => 'Announcement',
+                'feature_type' => 'List',
+                'order' => 134,
+                'show_hide' => 1,
+                'updated_at' => '2018-05-10 08:00:00',
+            ),
+            367 => 
+            array (
+                'id_feature' => 369,
+                'created_at' => '2018-05-10 08:00:00',
+                'feature_module' => 'Announcement',
+                'feature_type' => 'Detail',
+                'order' => 134,
+                'show_hide' => 1,
+                'updated_at' => '2018-05-10 08:00:00',
+            ),
+            368 => 
+            array (
+                'id_feature' => 370,
+                'created_at' => '2018-05-10 08:00:00',
+                'feature_module' => 'Announcement',
+                'feature_type' => 'Create',
+                'order' => 134,
+                'show_hide' => 1,
+                'updated_at' => '2018-05-10 08:00:00',
+            ),
+            369 => 
+            array (
+                'id_feature' => 371,
+                'created_at' => '2018-05-10 08:00:00',
+                'feature_module' => 'Announcement',
+                'feature_type' => 'Update',
+                'order' => 134,
+                'show_hide' => 1,
+                'updated_at' => '2018-05-10 08:00:00',
+            ),
+            370 => 
+            array (
+                'id_feature' => 372,
+                'created_at' => '2018-05-10 08:00:00',
+                'feature_module' => 'Announcement',
+                'feature_type' => 'Delete',
+                'order' => 134,
+                'show_hide' => 1,
+                'updated_at' => '2018-05-10 08:00:00',
+            ),
         ));
         
         

@@ -3702,6 +3702,7 @@ class ApiOutletController extends Controller
                 $update = OutletBox::where('id_outlet_box', $value['id_outlet_box'])->update([
                     'outlet_box_code' => $value['outlet_box_code'],
                     'outlet_box_name' => $value['outlet_box_name'],
+                    'outlet_box_url' => $value['outlet_box_url'],
                     'outlet_box_status' => $status
                 ]);
 
@@ -3714,6 +3715,7 @@ class ApiOutletController extends Controller
                             'id_outlet' => (int)$post['id_outlet'],
                             'outlet_box_code' => $value['outlet_box_code'],
                             'outlet_box_name' => $value['outlet_box_name'],
+                            'outlet_box_url' => $value['outlet_box_url'],
                             'outlet_box_status' => $status
                         ]);
 

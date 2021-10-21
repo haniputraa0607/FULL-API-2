@@ -9,7 +9,7 @@ use App\Http\Models\Outlet;
 use Modules\Project\Entities\Project;
 use Modules\BusinessDevelopment\Entities\Location;
 
-class CreateContractRequest extends FormRequest
+class CreateHandoverRequest extends FormRequest
 {
     public function rules()
     {
@@ -23,7 +23,7 @@ class CreateContractRequest extends FormRequest
     public function withValidator($validator)
     {
         $validator->addExtension('project', function ($attribute, $value, $parameters, $validator) {
-         $survey = Project::where(array('id_project'=>$value,'status'=>"Process",'progres'=>"Contract"))->count();
+         $survey = Project::where(array('id_project'=>$value,'status'=>"Process",'progres'=>"Handover"))->count();
          if($survey != 0){
              return true;
          } return false;

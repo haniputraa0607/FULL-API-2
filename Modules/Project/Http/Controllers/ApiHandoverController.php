@@ -32,40 +32,41 @@ class ApiHandoverController extends Controller
             $note = $request->note;
         }
         if($store){
-            $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, 'pdf');
-            if (isset($upload['status']) && $upload['status'] == "success") {
-                    $attachment = $upload['path'];
-                } else {
-                    $result = [
-                        'status'   => 'fail',
-                        'messages' => ['fail upload file']
-                    ];
-                    return $result;
-                }
+            if(isset($request->attachment)){
+                    $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, 'pdf');
+                     if (isset($upload['status']) && $upload['status'] == "success") {
+                             $attachment = $upload['path'];
+                         } else {
+                             $result = [
+                                 'status'   => 'fail',
+                                 'messages' => ['fail upload file']
+                             ];
+                             return $result;
+                         }
+                 }
+            
             $store = ProjectHandover::where(array('id_project'=>$request->id_project))->update([
-                    "first_party"   =>  $request->first_party,
-                    "second_party"   =>  $request->second_party,
-                    "nominal"   =>  $request->nominal,
+                    "title"   =>  $request->title,
                     "attachment"   =>  $attachment,
                     "note"   =>  $note
                 ]);
             $store = ProjectHandover::where(array('id_project'=>$request->id_project))->first();
         }else{
-            $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, 'pdf');
-             if (isset($upload['status']) && $upload['status'] == "success") {
-                    $attachment = $upload['path'];
-                } else {
-                    $result = [
-                        'status'   => 'fail',
-                        'messages' => ['fail upload file']
-                    ];
-                    return $result;
-                }
+            if(isset($request->attachment)){
+                    $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, 'pdf');
+                     if (isset($upload['status']) && $upload['status'] == "success") {
+                             $attachment = $upload['path'];
+                         } else {
+                             $result = [
+                                 'status'   => 'fail',
+                                 'messages' => ['fail upload file']
+                             ];
+                             return $result;
+                         }
+                 }
                 $store = ProjectHandover::create([
                     "id_project"   =>  $request->id_project,
-                    "first_party"   =>  $request->first_party,
-                    "second_party"   =>  $request->second_party,
-                    "nominal"   =>  $request->nominal,
+                    "title"   =>  $request->title,
                     "attachment"   =>  $attachment,
                     "note"   =>  $note
                 ]);
@@ -76,9 +77,10 @@ class ApiHandoverController extends Controller
     public function nextStep(Request $request)
     {
         if(isset($request->id_project)){
-         $project = Project::where('id_project', $request->id_project)->where(array('status'=>'Process','progres'=>"Contract"))
+         $project = Project::where('id_project', $request->id_project)->where(array('status'=>'Process','progres'=>"Handover"))
                 ->update([
-                    'progres'=>'Fit Out'
+                    'progres'=>'Success',
+                    'status'=>'Success'
                 ]);
          if($project){
         $contract = ProjectHandover::where(array('id_project'=>$request->id_project,'status'=>'Process'))->update([
@@ -86,7 +88,7 @@ class ApiHandoverController extends Controller
         ]);
          return response()->json(['status' => 'success']);
          }
-         return response()->json(['status' => 'fail', 'messages' => ['Proses Desain Lokasi belum ada']]);
+         return response()->json(['status' => 'fail', 'messages' => ['Progres bukan handover']]);
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }

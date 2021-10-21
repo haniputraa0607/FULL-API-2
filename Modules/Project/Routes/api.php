@@ -47,4 +47,11 @@ use Illuminate\Http\Request;
             Route::get('lokasi', 'ApiSelectController@lokasi');
             Route::get('partner', 'ApiSelectController@partner');
         });
+        
+   //handover
+    Route::post('/create/handover', ['middleware'=>'scopes:be', 'uses' => 'ApiHandoverController@create']);
+    Route::post('/delete/handover', ['middleware'=>'scopes:be', 'uses' => 'ApiHandoverController@destroy']);
+    Route::post('/next/handover', ['middleware'=>'scopes:be', 'uses' => 'ApiHandoverController@nextStep']);
+    Route::post('/detail/handover', ['middleware'=>'scopes:be', 'uses' => 'ApiHandoverController@detail']);
+   
 });

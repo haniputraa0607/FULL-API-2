@@ -26,40 +26,55 @@ class ApiDesainController extends Controller
     public function create(CreateDesainRequest $request)
     {
         $projectDesain = ProjectDesain::where(array('id_project'=>$request->id_project))->orderby('id_projects_desain','DESC')->first();
+        $attachment = null;
+        $note = null;
+        if(isset($request->note)){
+            $note = $request->note;
+        }
         if(!$projectDesain){
-            $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, 'pdf');
-            if (isset($upload['status']) && $upload['status'] == "success") {
-                    $attachment = $upload['path'];
-                } else {
-                    $result = [
-                        'status'   => 'fail',
-                        'messages' => ['fail upload file']
-                    ];
-                    return $result;
-                }
+           if(isset($request->attachment)){
+                    $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, 'pdf');
+                     if (isset($upload['status']) && $upload['status'] == "success") {
+                             $attachment = $upload['path'];
+                         } else {
+                             $result = [
+                                 'status'   => 'fail',
+                                 'messages' => ['fail upload file']
+                             ];
+                             return $result;
+                         }
+                 }
             $store = ProjectDesain::create([
                     "id_project"   =>  $request->id_project,
                     "desain"   =>  1,
                     "status"   =>  $request->status,
                     "attachment"   =>  $attachment,
-                    "note"   =>  $request->note
+                    "note"   =>  $note
                 ]);
-        }else{$upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, 'pdf');
-                if (isset($upload['status']) && $upload['status'] == "success") {
-                           $attachment = $upload['path'];
-                       } else {
-                           $result = [
-                               'status'   => 'fail',
-                               'messages' => ['fail upload file']
-                           ];
-                           return $result;
-                }
+        }else{
+            $attachment = $projectDesain->attachment;
+            $note = $projectDesain->note;
+            if(isset($request->note)){
+                $note = $request->note;
+            }
+            if(isset($request->attachment)){
+                    $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, 'pdf');
+                     if (isset($upload['status']) && $upload['status'] == "success") {
+                             $attachment = $upload['path'];
+                         } else {
+                             $result = [
+                                 'status'   => 'fail',
+                                 'messages' => ['fail upload file']
+                             ];
+                             return $result;
+                         }
+                 }
                 $store = ProjectDesain::create([
                     "id_project"   =>  $request->id_project,
                     "desain"   =>  $projectDesain->desain+1,
                     "status"   =>  $request->status,
                     "attachment"   => $attachment,
-                    "note"   =>  $request->note
+                    "note"   =>  $note
                 ]);
         }
             return response()->json(MyHelper::checkCreate($store));

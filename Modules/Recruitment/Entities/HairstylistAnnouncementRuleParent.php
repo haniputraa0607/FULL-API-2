@@ -47,4 +47,10 @@ class HairstylistAnnouncementRuleParent extends Eloquent
 	{
 		return $this->hasMany(\Modules\Recruitment\Entities\HairstylistAnnouncementRule::class, 'id_hairstylist_announcement_rule_parent');
 	}
+
+	public function rules()
+	{
+		return $this->hasMany(\Modules\Recruitment\Entities\HairstylistAnnouncementRule::class, 'id_hairstylist_announcement_rule_parent')
+					->select('id_hairstylist_announcement_rule','id_hairstylist_announcement_rule_parent','hairstylist_announcement_rule_subject as subject', 'hairstylist_announcement_rule_operator as operator', 'hairstylist_announcement_rule_param as parameter', 'hairstylist_announcement_rule_param_id as id', 'hairstylist_announcement_rule_param_select as parameter_select');
+	}
 }

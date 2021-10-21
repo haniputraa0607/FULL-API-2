@@ -26,6 +26,7 @@ use App\Http\Models\Product;
 use App\Http\Models\ProductPrice;
 use Modules\Outlet\Entities\DeliveryOutlet;
 use Modules\Outlet\Entities\OutletBox;
+use Modules\Outlet\Entities\OutletTimeShift;
 use Modules\Product\Entities\ProductDetail;
 use Modules\Product\Entities\ProductGlobalPrice;
 use Modules\Product\Entities\ProductSpecialPrice;
@@ -610,7 +611,7 @@ class ApiOutletController extends Controller
         }elseif(isset($post['admin']) && isset($post['type']) && $post['type'] == 'export'){
             $outlet = Outlet::with(['user_outlets','city','today','product_prices','product_prices.product'])->select('*');
         }elseif(isset($post['admin'])){
-            $outlet = Outlet::with(['user_outlets','city.province','today', 'outlet_schedules', 'outlet_box'])->select('*');
+            $outlet = Outlet::with(['user_outlets','city.province','today', 'outlet_schedules', 'outlet_box', 'outlet_time_shift'])->select('*');
             if(isset($post['id_product'])){
                 $outlet = $outlet->with(['product_detail'=> function($q) use ($post){
                     $q->where('id_product', $post['id_product']);
@@ -3725,5 +3726,32 @@ class ApiOutletController extends Controller
 
         DB::commit();
         return response()->json(['status' => 'success']);
+    }
+
+    function shiftTimeSave(Request $request){
+        $post = $request->json()->all();
+        if(empty($post['id_outlet'])){
+            return response()->json(['status' => 'fail', 'messages' => ['ID outlet can not be empty']]);
+        }
+
+        $insert = [];
+        foreach ($post['shift_data'] as $value) {
+            OutletTimeShift::where('id_outlet', $post['id_outlet'])->delete();
+            $insert[] = [
+                'id_outlet' => $post['id_outlet'],
+                'shift' => $value['shift'],
+                'shift_time_start' => date('H:i', strtotime($value['shift_time_start'])),
+                'shift_time_end' => date('H:i', strtotime($value['shift_time_end'])),
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s'),
+            ];
+        }
+
+        $save = false;
+        if(!empty($insert)){
+            $save = OutletTimeShift::insert($insert);
+        }
+
+        return response()->json(MyHelper::checkUpdate($save));
     }
 }

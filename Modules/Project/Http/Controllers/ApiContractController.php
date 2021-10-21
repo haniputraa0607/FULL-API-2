@@ -25,43 +25,57 @@ class ApiContractController extends Controller
     public function create(CreateContractRequest $request)
     {
         $store = ProjectContract::where(array('id_project'=>$request->id_project))->first();
+        $attachment = null;
+        $note = null;
+        if(isset($request->note)){
+            $note = $request->note;
+        }
         if($store){
-            $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, 'pdf');
-            if (isset($upload['status']) && $upload['status'] == "success") {
-                    $attachment = $upload['path'];
-                } else {
-                    $result = [
-                        'status'   => 'fail',
-                        'messages' => ['fail upload file']
-                    ];
-                    return $result;
-                }
+             $attachment = $store->attachment;
+            $note = $store->note;
+            if(isset($request->note)){
+                $note = $request->note;
+            }
+             if(isset($request->attachment)){
+                    $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, 'pdf');
+                     if (isset($upload['status']) && $upload['status'] == "success") {
+                             $attachment = $upload['path'];
+                         } else {
+                             $result = [
+                                 'status'   => 'fail',
+                                 'messages' => ['fail upload file']
+                             ];
+                             return $result;
+                         }
+                 }
             $store = ProjectContract::where(array('id_project'=>$request->id_project))->update([
                     "first_party"   =>  $request->first_party,
                     "second_party"   =>  $request->second_party,
                     "nominal"   =>  $request->nominal,
                     "attachment"   =>  $attachment,
-                    "note"   =>  $request->note
+                    "note"   =>  $note
                 ]);
             $store = ProjectContract::where(array('id_project'=>$request->id_project))->first();
         }else{
-            $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, 'pdf');
-             if (isset($upload['status']) && $upload['status'] == "success") {
-                    $attachment = $upload['path'];
-                } else {
-                    $result = [
-                        'status'   => 'fail',
-                        'messages' => ['fail upload file']
-                    ];
-                    return $result;
-                }
+             if(isset($request->attachment)){
+                    $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, 'pdf');
+                     if (isset($upload['status']) && $upload['status'] == "success") {
+                             $attachment = $upload['path'];
+                         } else {
+                             $result = [
+                                 'status'   => 'fail',
+                                 'messages' => ['fail upload file']
+                             ];
+                             return $result;
+                         }
+                 }
                 $store = ProjectContract::create([
                     "id_project"   =>  $request->id_project,
                     "first_party"   =>  $request->first_party,
                     "second_party"   =>  $request->second_party,
                     "nominal"   =>  $request->nominal,
                     "attachment"   =>  $attachment,
-                    "note"   =>  $request->note
+                    "note"   =>  $note
                 ]);
         }
             return response()->json(MyHelper::checkCreate($store));

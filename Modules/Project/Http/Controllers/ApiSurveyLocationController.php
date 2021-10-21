@@ -22,39 +22,55 @@ class ApiSurveyLocationController extends Controller
     }
     public function create(CreateSurveyLocationRequest $request)
     {
+        
         $store = ProjectSurveyLocation::where(array('id_project'=>$request->id_project))->first();
+        $attachment = null;
+        $note = null;
+        if(isset($request->note)){
+            $note = $request->note;
+        }
         if($store){
-            $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, 'pdf');
-            if (isset($upload['status']) && $upload['status'] == "success") {
-                    $attachment = $upload['path'];
-                } else {
-                    $result = [
-                        'status'   => 'fail',
-                        'messages' => ['fail upload file']
-                    ];
-                    return $result;
-                }
+            $attachment = $store->attachment;
+            $note = $store->note;
+            if(isset($request->note)){
+                $note = $request->note;
+            }
+           if(isset($request->attachment)){
+                    $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, 'pdf');
+                     if (isset($upload['status']) && $upload['status'] == "success") {
+                             $attachment = $upload['path'];
+                         } else {
+                             $result = [
+                                 'status'   => 'fail',
+                                 'messages' => ['fail upload file']
+                             ];
+                             return $result;
+                         }
+                 }
             $store = ProjectSurveyLocation::where(array('id_project'=>$request->id_project))->update([
                     "location_length"   =>  $request->location_length,
                     "location_width"   =>  $request->location_width,
                     "location_large"   =>  $request->location_large,
                     "surveyor"   =>  $request->surveyor,
                     "survey_date"   =>  date_format(date_create($request->survey_date),"Y-m-d H:i:s"),
-                    "note"   =>  $request->note,
+                    "note"   =>  $note,
                     "attachment"   =>  $attachment,
                 ]);
             $store = ProjectSurveyLocation::where(array('id_project'=>$request->id_project))->first();
         }else{
-            $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, 'pdf');
-            if (isset($upload['status']) && $upload['status'] == "success") {
-                    $attachment = $upload['path'];
-                } else {
-                    $result = [
-                        'status'   => 'fail',
-                        'messages' => ['fail upload file']
-                    ];
-                    return $result;
-                }
+            
+            if(isset($request->attachment)){
+                    $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, 'pdf');
+                     if (isset($upload['status']) && $upload['status'] == "success") {
+                             $attachment = $upload['path'];
+                         } else {
+                             $result = [
+                                 'status'   => 'fail',
+                                 'messages' => ['fail upload file']
+                             ];
+                             return $result;
+                         }
+                 }
                 $store = ProjectSurveyLocation::create([
                     "id_project"   =>  $request->id_project,
                     "location_length"   =>  $request->location_length,
@@ -63,7 +79,7 @@ class ApiSurveyLocationController extends Controller
                     "surveyor"   =>  $request->surveyor, 
                     "survey_date"   => date_format(date_create($request->survey_date),"Y-m-d H:i:s"),
                     "attachment"   =>  $attachment,
-                    "note"   =>  $request->note
+                    "note"   =>  $note
                 ]);
         }
             return response()->json(MyHelper::checkCreate($store));

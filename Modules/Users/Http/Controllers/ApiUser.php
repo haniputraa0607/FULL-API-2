@@ -1571,9 +1571,9 @@ class ApiUser extends Controller
 
                 $result             = [];
                 $result['status']     = 'success';
-                $result['date']     = date('Y-m-d H:i:s');
-                $result['device']     = $device;
-                $result['ip']         = $ip;
+                $res['date']     = date('Y-m-d H:i:s');
+                $res['device']     = $device;
+                $res['ip']         = $ip;
 
                 if ($request->json('latitude') && $request->json('longitude')) {
                     $userLocation = UserLocation::create([
@@ -1630,6 +1630,14 @@ class ApiUser extends Controller
                         ]
                     );
                 }
+
+                if ($datauser[0]['pin_changed'] == '0') {
+                    $res['pin_changed'] = false;
+                } else {
+                    $res['pin_changed'] = true;
+                }
+                $res['email'] = (empty($datauser[0]['email']) ?"" :$datauser[0]['email']);
+                $result['result'] = $res;
             } else {
                 //kalo login gagal
                 if ($datauser) {
@@ -1657,15 +1665,6 @@ class ApiUser extends Controller
                 $result             = [];
                 $result['status']     = 'fail';
                 $result['messages'] = ['Kata sandi yang kamu masukkan kurang tepat'];
-                $result['date']     = date('Y-m-d H:i:s');
-                $result['device']     = $device;
-                $result['ip']         = $ip;
-            }
-
-            if ($datauser[0]['pin_changed'] == '0') {
-                $result['pin_changed'] = false;
-            } else {
-                $result['pin_changed'] = true;
             }
         } else {
             $result['status']     = 'fail';

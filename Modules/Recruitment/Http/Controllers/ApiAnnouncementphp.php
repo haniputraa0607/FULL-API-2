@@ -244,4 +244,204 @@ class ApiAnnouncement extends Controller
 		}
 		return response()->json($result);
 	}
+
+	function hairstylistFilter($conditions = null, $order_field = 'id_user_hair_stylist', $order_method = 'asc', $skip = 0, $take = 99999999999, $keyword = null, $columns = null, $objOnly = false)
+    {
+    	
+        $prevResult = [];
+        $finalResult = [];
+        $status_all_user = 0;
+
+        $key = 0;
+        foreach ($conditions as $key => $cond) {
+        	$query = UserHairStylist::leftJoin('outlets', 'outlets.id_outlet', 'user_hair_stylist.id_outlet')
+        			->leftJoin('brand_outlet', 'brand_outlet.id_outlet', 'outlets.id_outlet')
+            		->leftJoin('cities', 'cities.id_city', 'outlets.id_city')
+                    ->leftJoin('provinces', 'provinces.id_province', 'cities.id_province')
+                    ->where('user_hair_stylist.user_hair_stylist_status','Active')
+                    ->orderBy($order_field, $order_method);
+
+            if ($cond != null) {
+
+                $rule = $cond['rule'];
+                unset($cond['rule']);
+
+                $conRuleNext = $cond['rule_next'];
+                unset($cond['rule_next']);
+
+                if (isset($cond['rules'])) {
+                    $cond = $cond['rules'];
+                }
+
+                /*========= Check conditions related to the subject of the transaction =========*/
+                $countTrxDate = 0;
+                $arr_tmp_product = [];
+                $arr_tmp_outlet = [];
+                foreach ($cond as $i => $condition) {
+                    if($condition['subject'] == 'all_user'){
+                        $status_all_user = 1;
+                        break 2;
+                    }
+                }
+                /*================================== END check ==================================*/
+                $query = $this->queryFilter($cond, $rule, $query);
+            }
+
+            $result = array_pluck($query->get()->toArray(), 'id_user_hair_stylist');
+
+            if ($key > 0) {
+                if ($ruleNext == 'and') {
+                    $prevResult = array_intersect($result, $prevResult);
+                } else {
+                    $prevResult = array_unique(array_merge($result, $prevResult));
+                }
+                $ruleNext = $conRuleNext;
+            } else {
+                $prevResult = $result;
+                $ruleNext = $conRuleNext;
+            }
+
+            $key++;
+        }
+        /*============= Final query when condition not null =============*/
+        $finalResult = UserHairStylist::leftJoin('outlets', 'outlets.id_outlet', 'user_hair_stylist.id_outlet')
+        			->leftJoin('brand_outlet', 'brand_outlet.id_outlet', 'outlets.id_outlet')
+            		->leftJoin('cities', 'cities.id_city', 'outlets.id_city')
+                    ->leftJoin('provinces', 'provinces.id_province', 'cities.id_province')
+                    ->where('user_hair_stylist.user_hair_stylist_status','Active')
+                    ->orderBy($order_field, $order_method)
+            		->whereIn('user_hair_stylist.id_user_hair_stylist', $prevResult);
+
+        $resultCount = $finalResult->count();
+        if ($columns) {
+            foreach ($columns as $in=>$c){
+                if($c == 'email' || $c == 'nickname' || $c == 'phone_number'){
+                    $columns[$in] = 'user_hair_stylist.'.$c;
+                }
+            }
+            $finalResult->select($columns);
+        }
+
+        if ($objOnly) {
+            return $finalResult;
+        }
+
+        $result = $finalResult->skip($skip)->take($take)->get()->toArray();
+        if ($result) {
+            $response = [
+                'status'    => 'success',
+                'result'    => $result,
+                'total' => $resultCount
+            ];
+        } else {
+            $response = [
+                'status'    => 'fail',
+                'messages'    => ['hairstylist Not Found']
+            ];
+        }
+
+        return $response;
+    }
+
+    function queryFilter($conditions, $rule, $query)
+    {
+        foreach ($conditions as $index => $condition) {
+        	if (empty($condition['subject'])) {
+        		continue;
+        	}
+
+            if ($condition['operator'] != '=') {
+                $conditionParameter = $condition['operator'];
+            }
+
+            /*============= All query with rule 'AND' ==================*/
+            if ($rule == 'and') {
+            	if (in_array($condition['subject'], ['id_brand', 'id_outlet','id_province','id_city','hairstylist_level'])) {
+            		switch ($condition['subject']) {
+            			case 'id_brand':
+                    		$var = "brand_outlet.id_brand";
+            				break;
+
+        				case 'id_province':
+                    		$var = "provinces.id_province";
+            				break;
+
+            			case 'id_city':
+                    		$var = "cities.id_city";
+            				break;
+
+        				case 'hairstylist_level':
+                    		$var = "user_hair_stylist.level";
+            				break;
+
+            			case 'id_outlet':
+                    		$var = "outlets.id_outlet";
+            				break;
+            			
+            			default:
+            				continue 2;
+            				break;
+            		}
+
+                    $query = $query->where($var, '=', $condition['parameter']);
+                } elseif (in_array($condition['subject'], ['phone_number'])) {
+                    $var = "user_hair_stylist." . $condition['subject'];
+
+                    if ($condition['operator'] == 'like')
+                        $query = $query->where($var, 'like', '%' . $condition['parameter'] . '%');
+                    elseif (strtoupper($condition['operator']) == 'WHERE IN')
+                        $query = $query->whereIn($var, explode(',', $condition['parameter']));
+                    else
+                        $query = $query->where($var, '=', $condition['parameter']);
+                }
+
+            }
+            /*====================== End IF ============================*/
+
+            /*============= All query with rule 'OR' ==================*/
+            else {
+            	if (in_array($condition['subject'], ['id_brand', 'id_outlet','id_province','id_city','hairstylist_level'])) {
+            		switch ($condition['subject']) {
+            			case 'id_brand':
+                    		$var = "brand_outlet.id_brand";
+            				break;
+
+        				case 'id_province':
+                    		$var = "provinces.id_province";
+            				break;
+
+            			case 'id_city':
+                    		$var = "cities.id_city";
+            				break;
+
+        				case 'hairstylist_level':
+                    		$var = "user_hair_stylist.level";
+            				break;
+
+            			case 'id_outlet':
+                    		$var = "outlets.id_outlet";
+            				break;
+            			
+            			default:
+            				continue 2;
+            				break;
+            		}
+
+                    $query = $query->orWhere($var, '=', $condition['parameter']);
+                } elseif (in_array($condition['subject'], ['phone_number'])) {
+	                $var = "user_hair_stylist." . $condition['subject'];
+
+	                if ($condition['operator'] == 'like')
+	                    $query = $query->orWhere($var, 'like', '%' . $condition['parameter'] . '%');
+	                elseif (strtoupper($condition['operator']) == 'WHERE IN')
+	                    $query = $query->orWhereIn($var, explode(',', $condition['parameter']));
+	                else
+	                    $query = $query->orWhere($var, '=', $condition['parameter']);
+	            }
+            } 
+            /*====================== End ELSE ============================*/
+        }
+
+        return $query;
+    }
 }

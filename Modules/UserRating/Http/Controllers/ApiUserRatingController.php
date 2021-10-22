@@ -502,7 +502,8 @@ class ApiUserRatingController extends Controller
 				$rating['detail_hairstylist'] = [
 					'nickname' => $service->user_hair_stylist->nickname ?? null,
 					'fullname' => $service->user_hair_stylist->fullname ?? null,
-					'user_hair_stylist_photo' => $service->user_hair_stylist->user_hair_stylist_photo ?? null
+					'user_hair_stylist_photo' => $service->user_hair_stylist->user_hair_stylist_photo ?? null,
+					'is_favorite' => 0
 				];
         	} else {
 	        	$rating['options'] = $optionOutlet;
@@ -912,7 +913,8 @@ class ApiUserRatingController extends Controller
 			$rating['detail_hairstylist'] = [
 				'nickname' => $service->user_hair_stylist->nickname ?? null,
 				'fullname' => $service->user_hair_stylist->fullname ?? null,
-				'user_hair_stylist_photo' => $service->user_hair_stylist->user_hair_stylist_photo ?? null
+				'user_hair_stylist_photo' => $service->user_hair_stylist->user_hair_stylist_photo ?? null,
+				'is_favorite' => 0
 			];
 
         	$currentRatingHs = UserRating::where([

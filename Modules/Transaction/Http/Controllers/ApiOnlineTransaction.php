@@ -4025,6 +4025,7 @@ class ApiOnlineTransaction extends Controller
                 'payment_method'  => $payment['payment_method'],
                 'logo'            => $payment['logo'],
                 'text'            => $payment['text'],
+                'description'     => $value['description'],
                 'status'          => (int) $value['status'] ? 1 : 0
             ];
             unset($availablePayment[$value['code']]);
@@ -4045,6 +4046,7 @@ class ApiOnlineTransaction extends Controller
                     'payment_method'  => $payment['payment_method'],
                     'logo'            => $payment['logo'],
                     'text'            => $payment['text'],
+                    'description'     => $payment['description'],
                     'status'          => $status
                 ];
             }

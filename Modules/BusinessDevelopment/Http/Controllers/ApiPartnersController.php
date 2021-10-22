@@ -949,8 +949,7 @@ class ApiPartnersController extends Controller
         }
     }
 
-    public function pdfSurvey(){
-        $id = 6;
+    public function pdfSurvey($id){
         $form_survey = FormSurvey::where('id_partner', $id)->first();
         $value = json_decode($form_survey['survey']??'' , true);
         $a = 0;

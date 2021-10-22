@@ -125,13 +125,8 @@ class ApiProjectController extends Controller
         }
         return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
     }
-    public function initProject(Partner $partner,Location $location)
+    public function initProject(Partner $partner,Location $location, $note = null)
     { 
-        
-           $note = null;
-           if(isset($request->note)){
-        $note = $request->note;
-        }
         $project = Project::create(
                 [
                     'id_partner' =>$partner->id_partner,
@@ -148,6 +143,7 @@ class ApiProjectController extends Controller
             'outlet_postal_code' => $location->city_postal_code,
             'outlet_latitude' => $location->latitude,
             'outlet_longitude' => $location->longitude,
+            'outlet_status' => $location->status,
         ]);
         return response()->json(['status' => 'success','result'=>[
             'project'=>$project,

@@ -18,12 +18,8 @@
             padding: 2px 10px 2px 2px;
             border-color: black;
         }
-        .kotak {
-            border: 1px;
-            padding: 5px;
-        }
         .main > table > tbody> tr > td {
-            font-size: 6pt;
+            font-size: 6pt; 
         }
         .head tr td,
         .head tr th{
@@ -34,6 +30,8 @@
         }
         .checklist {
             text-align: center;
+            font-family: DejaVu Sans;
+            font-size: 9pt;
         }
         .judul {
             font-weight: bold;
@@ -102,9 +100,9 @@
                 <tr>
                     <td></td>
                     <td width="400px">Sub-Brand : {{ $brand }}</td>
-                    <td width="20px" style="border: 1px; text-align: center;border-style: solid; padding: 2px; !important">@if ($potential==1) 1 @endif</td>
+                    <td width="20px" style="border: 1px; text-align: center;border-style: solid; padding: 2px; !important">@if ($potential==1)<span class="checklist">&#10003</span>@endif</td>
                     <td style="padding-left: 5px"><span class="ok">OK</span></td>
-                    <td width="20px" style="border: 1px; text-align: center;border-style: solid; padding: 2px; !important">@if ($potential==0) 1 @endif</td>
+                    <td width="20px" style="border: 1px; text-align: center;border-style: solid; padding: 2px; !important">@if ($potential==0)<span class="checklist">&#10003</span>@endif</td>
                     <td style="padding-left: 5px"><span class="ok pl-4">NOT OK</span></td>
                 </tr>
             </tbody>
@@ -124,47 +122,23 @@
 
         <table class="table table-bordered mt-2 mb-0 main" width="700px" style="font-size: 9px" nobr>
             <tbody>
+                @foreach ($value as $v)
                 <tr>
-                    <td class="judul pl-4" colspan="6">A. <span class="sub" style="padding-left: 10px; margin-left: 10px;">KONDISI UMUM LOKASI</span></td>
+                    <td class="judul pl-4" colspan="6">{{ $abjad[$no_abjad++] }}. <span class="sub" style="padding-left: 10px; margin-left: 10px;">{{ $v['category'] }}</span></td>
                 </tr>
-                @foreach ($cat1 as $c1)
-                <tr>
-                    <td class="no" width="8px">{{ $no++ }}</td>
-                    <td width="340px">{{ $c1['question'] }}</td>
-                    <td class="checklist" width="25px">@if ($c1['answer']=='a')&#10003;@endif</td>
-                    <td class="checklist" width="25px">@if ($c1['answer']=='b')&#10003;@endif</td>
-                    <td class="checklist" width="25px">@if ($c1['answer']=='c')&#10003;@endif</td>
-                    <td class="checklist" width="25px">@if ($c1['answer']=='d')&#10003;@endif</td>
-                </tr>
-                @endforeach
-                <tr>
-                    <td class="judul pl-4" colspan="6">B. <span class="sub" style="padding-left: 10px; margin-left: 10px;">KONDISI DALAM LOKASI</span></td>
-                </tr>
-                @foreach ($cat2 as $c2)
+                @foreach ($v['value'] as $val)
                 <tr>
                     <td class="no" width="8px">{{ $no++ }}</td>
-                    <td width="340px">{{ $c2['question'] }}</td>
-                    <td class="checklist" width="25px">@if ($c2['answer']=='a')&#10003;@endif</td>
-                    <td class="checklist" width="25px">@if ($c2['answer']=='b')&#10003;@endif</td>
-                    <td class="checklist" width="25px">@if ($c2['answer']=='c')&#10003;@endif</td>
-                    <td class="checklist" width="25px">@if ($c2['answer']=='d')&#10003;@endif</td>
+                    <td width="340px">{{ $val['question'] }}</td>
+                    <td class="checklist" width="25px">@if ($val['answer']=='a')&#10003;@endif</td>
+                    <td class="checklist" width="25px">@if ($val['answer']=='b')&#10003;@endif</td>
+                    <td class="checklist" width="25px">@if ($val['answer']=='c')&#10003;@endif</td>
+                    <td class="checklist" width="25px">@if ($val['answer']=='d')&#10003;@endif</td>
                 </tr>
                 @endforeach
-                <tr>
-                    <td class="judul pl-4" colspan="6">C. <span class="sub" style="padding-left: 10px; margin-left: 10px;">UNIT OUTLET YANG DITAWARKAN</span></td>
-                </tr>
-                    @foreach ($cat3 as $c3)
-                    <tr>
-                    <td class="no" width="8px">{{ $no++ }}</td>
-                    <td width="340px">{{ $c3['question'] }}</td>
-                    <td class="checklist" width="25px">@if ($c3['answer']=='a')&#10003;@endif</td>
-                    <td class="checklist" width="25px">@if ($c3['answer']=='b')&#10003;@endif</td>
-                    <td class="checklist" width="25px">@if ($c3['answer']=='c')&#10003;@endif</td>
-                    <td class="checklist" width="25px">@if ($c3['answer']=='d')&#10003;@endif</td>
-                </tr>
                 @endforeach
                 <tr>
-                    <td rowspan="2" colspan="2" class="total" style="vertical-align: middle; border-bottom-style: hidden; border-left-style: hidden; !important"> Total Score</td>
+                    <td rowspan="2" colspan="2" class="total" style="vertical-align: middle; border-left: 1px  solid white; border-bottom: 1px  solid white;"> Total Score</td>
                     <td class="checklist" width="25px">{{ $total_a }}</td>
                     <td class="checklist" width="25px">{{ $total_b }}</td>
                     <td class="checklist" width="25px">{{ $total_c }}</td>
@@ -174,8 +148,8 @@
                     <td colspan="4">Nilai = {{ $total }}</td>
                 </tr>
                 <tr>
-                    <td style="border-right-style: hidden; border-left-style: hidden;"></td>
-                    <td style="border-right-style: hidden; border-left-style: hidden;" colspan="5">Note: a=4, b=3, c=2, d=1 </td>
+                    <td style="border-left: 1px  solid white; border-right: 1px  solid white;"></td>
+                    <td style="border-right: 1px  solid white;" colspan="5">Note: a=4, b=3, c=2, d=1 </td>
                 </tr>
                 <tr class="keterangan">
                     <td colspan="2">Keterangan & Referensi</td>

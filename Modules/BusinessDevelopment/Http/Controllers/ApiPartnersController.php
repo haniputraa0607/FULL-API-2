@@ -640,7 +640,7 @@ class ApiPartnersController extends Controller
                 $no = str_replace('/', '_', $post['no_letter']);
                 $path = $this->confirmation.'confirmation_'.$no.'.pdf';
                 $pdf = PDF::loadView('businessdevelopment::confirmation', $pdf_contect );
-                Storage::put('public/'.$path, $pdf->output());
+                Storage::put('public/'.$path, $pdf->output(),'public');
                 $creatConf['attachment'] = $path;
                 $store = ConfirmationLetter::create($creatConf);
                 if(!$store) {
@@ -996,7 +996,7 @@ class ApiPartnersController extends Controller
         $name = strtolower(str_replace(' ', '_', $partner['name']));
         $path = $this->form_survey.'form_survey_'.$name.'.pdf';
         $pdf = PDF::loadView('businessdevelopment::form_survey', $data );
-        Storage::put('public/'.$path, $pdf->output());
+        Storage::put('public/'.$path, $pdf->output(),'public');
         return $path;
     }
 

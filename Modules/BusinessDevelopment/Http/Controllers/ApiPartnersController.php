@@ -907,7 +907,7 @@ class ApiPartnersController extends Controller
     public function formSurvey(Request $request){
         $form = Setting::where('key', 'form_survey')->first();
         $form = json_decode($form['value_text']??'' , true);
-        return $form[$request['id_brand']];
+        return $form[$request['id_brand']]??[];
     }
 
     public function allFormSurvey(Request $request){
@@ -949,50 +949,29 @@ class ApiPartnersController extends Controller
         }
     }
 
-    public function pdfSurvey($id){
+    public function pdfSurvey(){
+        $id = 6;
         $form_survey = FormSurvey::where('id_partner', $id)->first();
         $value = json_decode($form_survey['survey']??'' , true);
-        $cat1 = $value['cat1'];
-        $cat2 = $value['cat2'];
-        $cat3 = $value['cat3'];
         $a = 0;
         $b = 0;
         $c = 0;
         $d = 0;
-        foreach($cat1 as $c1){
-            if($c1['answer']=='a'){
-                $a+=1;
-            }elseif($c1['answer']=='b'){
-                $b+=1;
-            }elseif($c1['answer']=='c'){
-                $c+=1;
-            }elseif($c1['answer']=='d'){
-                $d+=1;
+        foreach($value as $v){
+            foreach($v['value'] as $val){
+                if($val['answer']=='a'){
+                    $a = $a + 1;
+                }elseif($val['answer']=='b'){
+                    $b = $b + 1;
+                }elseif($val['answer']=='c'){
+                    $c = $c + 1;
+                }elseif($val['answer']=='d'){
+                    $d = $d + 1;
+                }
             }
         }
-        foreach($cat2 as $c2){
-            if($c2['answer']=='a'){
-                $a+=1;
-            }elseif($c2['answer']=='b'){
-                $b+=1;
-            }elseif($c2['answer']=='c'){
-                $c+=1;
-            }elseif($c2['answer']=='d'){
-                $d+=1;
-            }
-        }
-        foreach($cat3 as $c3){
-            if($c3['answer']=='a'){
-                $a+=1;
-            }elseif($c3['answer']=='b'){
-                $b+=1;
-            }elseif($c3['answer']=='c'){
-                $c+=1;
-            }elseif($c3['answer']=='d'){
-                $d+=1;
-            }
-        }
-        $total = $a + $b + $c +$d;
+        $alphas = range('A', 'Z');
+        $total = ($a*4) + ($b*3) + ($c*2) + ($d*1);
         $location = Location::where('id_partner', $id)->first();
         $brand = Brand::where('id_brand', $location['id_brand'])->first();
         $partner = Partner::where('id_partner', $id)->first();
@@ -1002,9 +981,8 @@ class ApiPartnersController extends Controller
             'surveyor' => $form_survey['surveyor'],
             'brand' => $brand['name_brand'],
             'date' => $this->letterDate($form_survey['survey_date']),
-            'cat1' => $cat1,
-            'cat2' => $cat2,
-            'cat3' => $cat3,
+            'abjad' => $alphas,
+            'no_abjad' => 0,
             'no' => 1,
             'total_a' => $a,
             'total_b' => $b,
@@ -1013,6 +991,7 @@ class ApiPartnersController extends Controller
             'total' => $total,
             'note' => $form_survey['note'],
             'potential' => $form_survey['potential'],
+            'value' => $value,
         ];
         // return view('businessdevelopment::form_survey', $data);
         $name = strtolower(str_replace(' ', '_', $partner['name']));

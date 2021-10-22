@@ -30,6 +30,7 @@ class ApiMitra extends Controller
     public function __construct() {
         date_default_timezone_set('Asia/Jakarta');
         $this->product = "Modules\Product\Http\Controllers\ApiProductController";
+        $this->announcement = "Modules\Recruitment\Http\Controllers\ApiAnnouncement";
     }
 
     public function splash(Request $request){
@@ -179,13 +180,35 @@ class ApiMitra extends Controller
 
     public function announcementList(Request $request)
     {
+    	$user = $request->user();
     	$today = date('Y-m-d h:i:s');
-    	$res = HairstylistAnnouncement::select('id_hairstylist_announcement', 'date_start as date', 'content')
-				->where([
-					['date_start','<=',$today],
-					['date_end','>',$today]
-				])
-				->get();
+    	$anns = HairstylistAnnouncement::select('id_hairstylist_announcement', 'date_start as date', 'content')
+    			->with('hairstylist_announcement_rule_parents.rules')
+    			->whereDate('date_start','<=',$today)
+    			->whereDate('date_end','>',$today)
+				->get()
+				->toArray();
+
+		$res = [];
+		foreach ($anns as $key => $ann) {
+			$cons = array();
+			$cons['subject'] = 'phone_number';
+			$cons['operator'] = '=';
+			$cons['parameter'] = $user['phone_number'];
+
+			array_push($ann['hairstylist_announcement_rule_parents'], ['rule' => 'and', 'rule_next' => 'and', 'rules' => [$cons]]);
+			$users = app($this->announcement)->hairstylistFilter($ann['hairstylist_announcement_rule_parents']);
+
+			if (empty($users['status']) || $users['status'] != 'success') {
+				continue;
+			}
+
+			$res[] = [
+				'id_hairstylist_announcement' => $ann['id_hairstylist_announcement'],
+				'date' => $ann['date'],
+				'content' => $ann['content']
+			];
+		}
     	return MyHelper::checkGet($res);
     }
 

@@ -24,6 +24,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
         Route::any('list', 'ApiHairStylistController@hsList');
         Route::post('detail', 'ApiHairStylistController@detail');
         Route::post('update', 'ApiHairStylistController@update');
+        Route::post('update-status', 'ApiHairStylistController@updateStatus');
         Route::post('detail/document', 'ApiHairStylistController@detailDocument');
 
     	Route::group(['prefix' => 'schedule'], function () {
@@ -32,6 +33,13 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
         	Route::post('update', 'ApiHairStylistScheduleController@update');
         	Route::get('outlet', 'ApiHairStylistScheduleController@outlet');
         	Route::get('year-list', 'ApiHairStylistScheduleController@getScheduleYear');
+    	});
+
+    	Route::group(['prefix' => 'announcement'], function () {
+        	Route::post('list', ['middleware' => 'feature_control:368,371', 'uses' =>'ApiAnnouncement@listAnnouncement']);
+		    Route::post('detail', ['middleware' => 'feature_control:369', 'uses' =>'ApiAnnouncement@detailAnnouncement']);
+		    Route::post('create', ['middleware' => 'feature_control:370', 'uses' =>'ApiAnnouncement@createAnnouncement']);
+		    Route::post('delete', ['middleware' => 'feature_control:372', 'uses' =>'ApiAnnouncement@deleteAnnouncement']);
     	});
     });
 });

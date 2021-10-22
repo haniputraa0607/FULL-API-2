@@ -11,6 +11,7 @@ class OutletTimeShift extends Model
 
     protected $fillable = [
         'id_outlet',
+        'id_outlet_schedule',
         'shift',
         'shift_time_start',
         'shift_time_end'

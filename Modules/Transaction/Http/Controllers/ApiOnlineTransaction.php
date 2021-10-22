@@ -3343,6 +3343,7 @@ class ApiOnlineTransaction extends Controller
         $errorHsNotAvailable = [];
         $errorBookTime = [];
         $currentDate = date('Y-m-d H:i');
+        $idOutletSchedule = $outlet['today']['id_outlet_schedule']??null;
 
         foreach ($post['item_service']??[] as $key=>$item){
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
@@ -3419,7 +3420,7 @@ class ApiOnlineTransaction extends Controller
                 continue;
             }
 
-            $getTimeShift = app($this->product)->getTimeShift(strtolower($shift), $post['id_outlet']);
+            $getTimeShift = app($this->product)->getTimeShift(strtolower($shift), $post['id_outlet'],$idOutletSchedule);
             if(empty($getTimeShift['start']) && empty($getTimeShift['end'])){
                 $errorHsNotAvailable[] = $item['user_hair_stylist_name']." (".MyHelper::dateFormatInd($bookTime).')';
                 unset($post['item_service'][$key]);
@@ -5398,6 +5399,7 @@ class ApiOnlineTransaction extends Controller
         $itemService = [];
         $currentDate = date('Y-m-d H:i');
         $continueCheckOut = true;
+        $idOutletSchedule = $outlet['today']['id_outlet_schedule']??null;
 
         foreach ($post['item_service']??[] as $key=>$item){
             $err = [];
@@ -5459,7 +5461,7 @@ class ApiOnlineTransaction extends Controller
                 $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
             }
 
-            $getTimeShift = app($this->product)->getTimeShift(strtolower($shift), $post['id_outlet']);
+            $getTimeShift = app($this->product)->getTimeShift(strtolower($shift), $post['id_outlet'], $idOutletSchedule);
             if(empty($getTimeShift['start']) && empty($getTimeShift['end'])){
                 $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
             }else{

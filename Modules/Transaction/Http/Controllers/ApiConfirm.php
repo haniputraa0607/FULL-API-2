@@ -4,6 +4,7 @@ namespace Modules\Transaction\Http\Controllers;
 
 use App\Http\Models\Configs;
 use App\Http\Models\OauthAccessToken;
+use App\Http\Models\Outlet;
 use App\Http\Models\TransactionProduct;
 use App\Jobs\FraudJob;
 use Illuminate\Http\Request;
@@ -94,6 +95,8 @@ class ApiConfirm extends Controller
                 'messages' => ['Transaction Invalid'],
             ]);
         }
+
+        $outletCode = Outlet::where('id_outlet', $check['id_outlet'])->first()['outlet_code']??null;
 
         if(!isset($post['payment_detail'])){
             $post['payment_detail'] = null;
@@ -341,13 +344,13 @@ class ApiConfirm extends Controller
                     'customer_details'    => $dataUser,
                     'shipping_address'    => $dataShipping,
                 );
-                $connectMidtrans = Midtrans::token($check['transaction_receipt_number'], $countGrandTotal, $dataUser, $dataShipping, $dataDetailProduct, 'trx', $check['transaction_receipt_number'], $scopeUser);
+                $connectMidtrans = Midtrans::token($check['transaction_receipt_number'], $countGrandTotal, $dataUser, $dataShipping, $dataDetailProduct, 'trx', $check['id_transaction'], $scopeUser, $outletCode);
             } else {
                 $dataMidtrans = array(
                     'transaction_details' => $transaction_details,
                     'customer_details'    => $dataUser,
                 );
-                $connectMidtrans = Midtrans::token($check['transaction_receipt_number'], $countGrandTotal, $dataUser, $ship=null, $dataDetailProduct, 'trx', $check['transaction_receipt_number'], $post['payment_detail'], $scopeUser);
+                $connectMidtrans = Midtrans::token($check['transaction_receipt_number'], $countGrandTotal, $dataUser, $ship=null, $dataDetailProduct, 'trx', $check['id_transaction'], $post['payment_detail'], $scopeUser, $outletCode);
             }
 
             if (empty($connectMidtrans['token'])) {
@@ -425,18 +428,18 @@ class ApiConfirm extends Controller
             $dataMidtrans['payment']          = $detailPayment;
             $dataMidtrans['midtrans_product'] = $dataDetailProduct;
 
-            // $update = Transaction::where('transaction_receipt_number', $post['id'])->update(['trasaction_payment_type' => $post['payment_type']]);
+             $update = Transaction::where('id_transaction', $post['id'])->update(['trasaction_payment_type' => $post['payment_type']]);
 
-            // if (!$update) {
-            //     DB::rollback();
-            //     return response()->json([
-            //         'status'    => 'fail',
-            //         'messages'  => [
-            //             'Payment Midtrans Invalid.'
-            //         ],
-            //         'data' => [$connectMidtrans]
-            //     ]);
-            // }
+             if (!$update) {
+                 DB::rollback();
+                 return response()->json([
+                     'status'    => 'fail',
+                     'messages'  => [
+                         'Payment Midtrans Invalid.'
+                     ],
+                     'data' => [$connectMidtrans]
+                 ]);
+             }
 
             DB::commit();
 

@@ -3430,7 +3430,7 @@ class ApiOnlineTransaction extends Controller
             $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
             $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
             $time = date('H:i', strtotime($item['booking_time']));
-            if((strtotime($time) > strtotime($shiftTimeStart) && strtotime($time) < strtotime($shiftTimeEnd)) === false){
+            if((strtotime($time) >= strtotime($shiftTimeStart) && strtotime($time) < strtotime($shiftTimeEnd)) === false){
                 $errorHsNotAvailable[] = $item['user_hair_stylist_name']." (".MyHelper::dateFormatInd($bookTime).')';
                 unset($post['item_service'][$key]);
                 continue;
@@ -5468,7 +5468,7 @@ class ApiOnlineTransaction extends Controller
                 $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
                 $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
                 $time = date('H:i', strtotime($item['booking_time']));
-                if((strtotime($time) > strtotime($shiftTimeStart) && strtotime($time) < strtotime($shiftTimeEnd)) === false){
+                if((strtotime($time) >= strtotime($shiftTimeStart) && strtotime($time) < strtotime($shiftTimeEnd)) === false){
                     $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
                 }
             }

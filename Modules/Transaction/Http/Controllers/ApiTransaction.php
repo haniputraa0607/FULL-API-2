@@ -4362,7 +4362,11 @@ class ApiTransaction extends Controller
         usort($result, function ($a, $b){
             return $a['position'] <=> $b['position'];
         });
-        return response()->json(MyHelper::checkGet($result));
+
+    	return [
+    		'status' => 'success',
+    		'result' => $result
+    	];
     }
 
     public function getNearbyAddress(GetNearbyAddress $request) {

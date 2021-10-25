@@ -611,7 +611,7 @@ class ApiOutletController extends Controller
         }elseif(isset($post['admin']) && isset($post['type']) && $post['type'] == 'export'){
             $outlet = Outlet::with(['user_outlets','city','today','product_prices','product_prices.product'])->select('*');
         }elseif(isset($post['admin'])){
-            $outlet = Outlet::with(['user_outlets','city.province','today', 'outlet_schedules', 'outlet_box', 'outlet_time_shift'])->select('*');
+            $outlet = Outlet::with(['user_outlets','city.province','today', 'outlet_schedules', 'outlet_schedules.time_shift', 'outlet_box'])->select('*');
             if(isset($post['id_product'])){
                 $outlet = $outlet->with(['product_detail'=> function($q) use ($post){
                     $q->where('id_product', $post['id_product']);
@@ -2484,10 +2484,7 @@ class ApiOutletController extends Controller
                     return response()->json(['status' => 'fail']);
                 }
             }else{
-                $new = OutletSchedule::create([
-                    'id_outlet' => $post['id_outlet'],
-                    'day' => $value['day']
-                ]+$value);
+                $new = OutletSchedule::create($data);
                 if (!$new) {
                     DB::rollBack();
                     return response()->json(['status' => 'fail']);
@@ -2508,6 +2505,30 @@ class ApiOutletController extends Controller
                     'new_data' => json_encode($new_data)
                 ]);
             }
+            if(!$old){
+                $post['data_shift'][$key][0]['id_outlet_schedule'] = $new_data['id_outlet_schedule'];
+                $post['data_shift'][$key][1]['id_outlet_schedule'] = $new_data['id_outlet_schedule'];
+            }
+        }
+
+        $insertShift = [];
+        foreach ($post['data_shift'] as $dt_shift){
+            foreach ($dt_shift as $shift){
+                $insertShift[] = [
+                    'id_outlet' => $post['id_outlet'],
+                    'id_outlet_schedule' => $shift['id_outlet_schedule'],
+                    'shift' => $shift['shift'],
+                    'shift_time_start' => date('H:i', strtotime($shift['start'])),
+                    'shift_time_end' => date('H:i', strtotime($shift['end'])),
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ];
+            }
+        }
+
+        if(!empty($insertShift)){
+            OutletTimeShift::where('id_outlet', $post['id_outlet'])->delete();
+            OutletTimeShift::insert($insertShift);
         }
 
         DB::commit();

@@ -30,6 +30,7 @@ Route::group(['prefix' => 'partner'], function () {
             Route::post('brand', 'ApiOutletController@brand');
             Route::post('before/promo-campaign', 'ApiPromoCampaign@listPromoCampaignBefore');
             Route::post('active/promo-campaign', 'ApiPromoCampaign@listPromoCampaignActive');
+            Route::post('detail/promo-campaign', 'ApiPromoCampaign@detail');
             Route::post('before/subscription', 'ApiSubscriptionController@listSubscriptionBefore');  
             Route::post('active/subscription', 'ApiSubscriptionController@listSubscriptionActive');  
         });

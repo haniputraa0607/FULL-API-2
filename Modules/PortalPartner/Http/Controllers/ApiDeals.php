@@ -847,9 +847,19 @@ class ApiDeals extends Controller
 		
 		$query = DataTables::of($query)
                 ->addColumn('action', function ($data) {
-                    $btnDelete = '<a class="btn btn-sm btn-primary text-nowrap" target="_blank" href="'. url('report/promo/deals/detail/'.$data['id_deals']).'/'.$data['deals_type'].'"><i class="fa fa-search" style="font-size : 14px; padding-right : 0px"></i></a>';  
+                    $slug = MyHelper::createSlug($data['id_deals'], $data['created_at']);
+                    $btnDelete = '<a class="btn btn-sm btn-primary text-nowrap" href="'. env('APP_URL').'report/promo/deals/detail/'.$slug.'"><i class="fa fa-search" style="font-size : 14px; padding-right : 0px"></i></a>';  
                      return '<div class="btn-group btn-group" role="group">'. $btnDelete.'</div>';
                  })
+                ->editColumn('deals_voucher_price', function($row) {
+                    if($row['deals_voucher_price_type'] == 'free'){ 
+                        return $row['deals_voucher_price_type'];
+                    } elseif (!empty($row['deals_voucher_price_point'])){
+                        return number_format($row['deals_voucher_price_point']).' Points';
+                    }elseif (!empty($row['deals_voucher_price_cash'])){
+                        return 'IDR'.number_format($row['deals_voucher_price_cash']);
+                    }
+                })
                 ->editColumn('deals_voucher_price', function($row) {
                     if($row['deals_voucher_price_type'] == 'free'){ 
                         return $row['deals_voucher_price_type'];
@@ -867,6 +877,10 @@ class ApiDeals extends Controller
                   $publish_start = date('d M Y', strtotime($row['deals_start'])).' - '.date('d M Y', strtotime($row['deals_end']));
                   return $publish_start;
                 })
+                ->editColumn('deals_start', function($row) {
+                  $publish_start = date('d M Y', strtotime($row['deals_start'])).' - '.date('d M Y', strtotime($row['deals_end']));
+                  return $publish_start;
+                })
                 ->make(true);
                 
 		return $query;
@@ -876,9 +890,16 @@ class ApiDeals extends Controller
     {
         $post = $request->json()->all();
         $user = $request->user();
-
-        $deals = $this->getDealsData($post['id_deals'], $post['step'], $post['deals_type']);
-
+        $step = 'all';
+        $deals_type = "Deals";
+        $id = MyHelper::explodeSlug($post['id_deals'])[0]??'';
+        if(isset($post['step'])){
+            $step = $post['step'];
+        }
+        if(isset($post['deals_type'])){
+            $deals_type = $post['deals_type'];
+        }
+        $deals = $this->getDealsData($id, $step, $deals_type);
         if (isset($deals)) {
             $deals = $deals->toArray();
         }else{
@@ -980,7 +1001,6 @@ class ApiDeals extends Controller
 	    		$deals['description'] = $desc;
         	}
         }
-
         if ($deals_type != 'Promotion' && $post['step'] == 'all') {
         	$used_voucher = DealsVoucher::join('transaction_vouchers', 'deals_vouchers.id_deals_voucher', 'transaction_vouchers.id_deals_voucher')
         					->where('id_deals', $deals->id_deals)

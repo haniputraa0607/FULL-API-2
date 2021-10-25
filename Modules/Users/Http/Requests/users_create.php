@@ -32,7 +32,7 @@ class users_create extends FormRequest
 			'email'			=> 'required|email|unique:users,email',
 			'gender'		=> 'in:Male,Female|nullable',
 			'birthday'		=> 'date_format:"m/d/Y"|nullable',
-			'id_city'		=> 'integer|max:501',
+			'id_city'		=> 'integer',
 			'is_verified'	=> 'integer',
 			'level'			=> 'in:Admin,Admin Outlet,Customer,',
 			'sent_pin'		=> 'required|in:Yes,No'

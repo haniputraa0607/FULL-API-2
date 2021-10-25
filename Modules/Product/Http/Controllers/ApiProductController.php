@@ -2476,12 +2476,22 @@ class ApiProductController extends Controller
         $post = $request->json()->all();
         $bookDate = date('Y-m-d', strtotime($post['booking_date']));
         $bookTime = date('H:i:s', strtotime($post['booking_time']));
+
         if(!empty($post['outlet_code'])){
-            $post['id_outlet'] = Outlet::where('outlet_code', $post['outlet_code'])->first()->id_outlet??'';
-            if(empty($post['id_outlet'])){
-                return response()->json(['status' => 'fail', 'messages' => ['Outlet nod found']]);
-            }
+            $outlet = Outlet::where('outlet_code', $post['outlet_code'])->with(['today'])->first();
+        }elseif(!empty($post['id_outlet'])){
+            $outlet = Outlet::where('id_outlet', $post['id_outlet'])->with(['today'])->first();
         }
+
+        if(empty($outlet)){
+            return response()->json(['status' => 'fail', 'messages' => ['Outlet nod found']]);
+        }
+
+        if(empty($outlet['today'])){
+            return response()->json(['status' => 'fail', 'messages' => ['Schedule can not be empty']]);
+        }
+        $post['id_outlet'] = $outlet['id_outlet'];
+        $idOutletSchedule = $outlet['today']['id_outlet_schedule'];
 
         $hsNotAvailable = HairstylistNotAvailable::where('id_outlet', $post['id_outlet'])
                             ->where('booking_date', $bookDate)
@@ -2500,7 +2510,7 @@ class ApiProductController extends Controller
                         ->whereDate('date', $bookDate)
                         ->first()['shift']??'';
             if(!empty($shift)){
-                $getTimeShift = $this->getTimeShift(strtolower($shift),$post['id_outlet']);
+                $getTimeShift = $this->getTimeShift(strtolower($shift),$post['id_outlet'], $idOutletSchedule);
                 if(!empty($getTimeShift['start']) && !empty($getTimeShift['end'])){
                     $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
                     $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
@@ -2531,8 +2541,9 @@ class ApiProductController extends Controller
         return response()->json(MyHelper::checkGet($res));
     }
 
-    function getTimeShift($shift, $id_outlet){
-        $outletShift = OutletTimeShift::where('id_outlet', $id_outlet)->get()->toArray();
+    function getTimeShift($shift, $id_outlet, $id_outlet_schedule){
+        $outletShift = OutletTimeShift::where('id_outlet', $id_outlet)
+                        ->where('id_outlet_schedule', $id_outlet_schedule)->get()->toArray();
         $data = [];
         if(!empty($outletShift)){
             foreach ($outletShift as $value){

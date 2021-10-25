@@ -45,6 +45,7 @@ class ApiUserV2 extends Controller
     {
         $phone = $request->json('phone');
 
+        $phoneOld = $phone;
         $phone = preg_replace("/[^0-9]/", "", $phone);
 
         $checkPhoneFormat = MyHelper::phoneCheckFormat($phone);
@@ -70,21 +71,22 @@ class ApiUserV2 extends Controller
 
         switch (env('OTP_TYPE', 'PHONE')) {
             case 'MISSCALL':
-                $msg_check = str_replace('%phone%', $phone, MyHelper::setting('message_send_otp_miscall', 'value_text', 'Kami akan mengirimkan kode OTP melalui Missed Call ke %phone%.<br/>Anda akan mendapatkan panggilan dari nomor 6 digit.<br/>Nomor panggilan tsb adalah Kode OTP Anda.'));
+                $msg_check = str_replace('%phone%', $phoneOld, MyHelper::setting('message_send_otp_miscall', 'value_text', 'Kami akan mengirimkan kode OTP melalui Missed Call ke %phone%.<br/>Anda akan mendapatkan panggilan dari nomor 6 digit.<br/>Nomor panggilan tsb adalah Kode OTP Anda.'));
                 break;
 
             case 'WA':
-                $msg_check = str_replace('%phone%', $phone, MyHelper::setting('message_send_otp_wa', 'value_text', 'Kami akan mengirimkan kode OTP melalui Whatsapp.<br/>Pastikan nomor %phone% terdaftar di Whatsapp.'));
+                $msg_check = str_replace('%phone%', $phoneOld, MyHelper::setting('message_send_otp_wa', 'value_text', 'Kami akan mengirimkan kode OTP melalui Whatsapp.<br/>Pastikan nomor %phone% terdaftar di Whatsapp.'));
                 break;
 
             default:
-                $msg_check = str_replace('%phone%', $phone, MyHelper::setting('message_send_otp_sms', 'value_text', 'Kami akan mengirimkan kode OTP melalui SMS.<br/>Pastikan nomor %phone% aktif.'));
+                $msg_check = str_replace('%phone%', $phoneOld, MyHelper::setting('message_send_otp_sms', 'value_text', 'Kami akan mengirimkan kode OTP melalui SMS.<br/>Pastikan nomor %phone% aktif.'));
                 break;
         }
 
         if($data){
             if ($data[0]['phone_verified'] == 0) {
                 $result['register'] = true;
+                $result['forgot'] = (!empty($data[0]['pin_changed'] == 1 ? true : false));
                 $result['confirmation_message'] = $msg_check;
                 return response()->json([
                     'status' => 'success',
@@ -92,6 +94,7 @@ class ApiUserV2 extends Controller
                 ]);
             }else{
                 $result['register'] = false;
+                $result['forgot'] = false;
                 $result['challenge_key'] = $data[0]['challenge_key'];
                 return response()->json([
                     'status' => 'success',
@@ -104,6 +107,7 @@ class ApiUserV2 extends Controller
                 'status' => 'success',
                 'result' => [
                     'register' => true,
+                    'forgot' => false,
                     'confirmation_message' => $msg_check
                 ]
             ]);
@@ -114,6 +118,7 @@ class ApiUserV2 extends Controller
     {
         $phone = $request->json('phone');
 
+        $phoneOld = $phone;
         $phone = preg_replace("/[^0-9]/", "", $phone);
 
         $checkPhoneFormat = MyHelper::phoneCheckFormat($phone);
@@ -234,15 +239,15 @@ class ApiUserV2 extends Controller
 
             switch (env('OTP_TYPE', 'PHONE')) {
                 case 'MISSCALL':
-                    $msg_otp = str_replace('%phone%', $phone, MyHelper::setting('message_sent_otp_miscall', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui Missed Call.'));
+                    $msg_otp = str_replace('%phone%', $phoneOld, MyHelper::setting('message_sent_otp_miscall', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui Missed Call.'));
                     break;
 
                 case 'WA':
-                    $msg_otp = str_replace('%phone%', $phone, MyHelper::setting('message_sent_otp_wa', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui Whatsapp.'));
+                    $msg_otp = str_replace('%phone%', $phoneOld, MyHelper::setting('message_sent_otp_wa', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui Whatsapp.'));
                     break;
 
                 default:
-                    $msg_otp = str_replace('%phone%', $phone, MyHelper::setting('message_sent_otp_sms', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui SMS.'));
+                    $msg_otp = str_replace('%phone%', $phoneOld, MyHelper::setting('message_sent_otp_sms', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui SMS.'));
                     break;
             }
 
@@ -325,15 +330,15 @@ class ApiUserV2 extends Controller
 
             switch (env('OTP_TYPE', 'PHONE')) {
                 case 'MISSCALL':
-                    $msg_otp = str_replace('%phone%', $phone, MyHelper::setting('message_sent_otp_miscall', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui Missed Call.'));
+                    $msg_otp = str_replace('%phone%', $phoneOld, MyHelper::setting('message_sent_otp_miscall', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui Missed Call.'));
                     break;
 
                 case 'WA':
-                    $msg_otp = str_replace('%phone%', $phone, MyHelper::setting('message_sent_otp_wa', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui Whatsapp.'));
+                    $msg_otp = str_replace('%phone%', $phoneOld, MyHelper::setting('message_sent_otp_wa', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui Whatsapp.'));
                     break;
 
                 default:
-                    $msg_otp = str_replace('%phone%', $phone, MyHelper::setting('message_sent_otp_sms', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui SMS.'));
+                    $msg_otp = str_replace('%phone%', $phoneOld, MyHelper::setting('message_sent_otp_sms', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui SMS.'));
                     break;
             }
 
@@ -433,6 +438,7 @@ class ApiUserV2 extends Controller
     {
         $phone = $request->json('phone');
 
+        $phoneOld = $phone;
         $phone = preg_replace("/[^0-9]/", "", $phone);
 
         $checkPhoneFormat = MyHelper::phoneCheckFormat($phone);
@@ -527,15 +533,15 @@ class ApiUserV2 extends Controller
 
             switch (env('OTP_TYPE', 'PHONE')) {
                 case 'MISSCALL':
-                    $msg_otp = str_replace('%phone%', $phone, MyHelper::setting('message_sent_otp_miscall', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui Missed Call.'));
+                    $msg_otp = str_replace('%phone%', $phoneOld, MyHelper::setting('message_sent_otp_miscall', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui Missed Call.'));
                     break;
 
                 case 'WA':
-                    $msg_otp = str_replace('%phone%', $phone, MyHelper::setting('message_sent_otp_wa', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui Whatsapp.'));
+                    $msg_otp = str_replace('%phone%', $phoneOld, MyHelper::setting('message_sent_otp_wa', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui Whatsapp.'));
                     break;
 
                 default:
-                    $msg_otp = str_replace('%phone%', $phone, MyHelper::setting('message_sent_otp_sms', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui SMS.'));
+                    $msg_otp = str_replace('%phone%', $phoneOld, MyHelper::setting('message_sent_otp_sms', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui SMS.'));
                     break;
             }
 

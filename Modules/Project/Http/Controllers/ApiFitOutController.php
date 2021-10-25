@@ -27,24 +27,58 @@ class ApiFitOutController extends Controller
     }
     public function create(CreateFitOutRequest $request)
     {
-            $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, 'pdf');
-            if (isset($upload['status']) && $upload['status'] == "success") {
-                    $attachment = $upload['path'];
-                } else {
-                    $result = [
-                        'status'   => 'fail',
-                        'messages' => ['fail upload file']
-                    ];
-                    return $result;
-                }
+        $attachment = null;
+        $note = null;
+        if(isset($request->note)){
+            $note = $request->note;
+        }
+        $store = ProjectFitOut::where(array('id_project'=>$request->id_project))->first();
+        if($store){
+            $attachment = $store->attachment;
+            $note = $store->note;
+            if(isset($request->note)){
+                $note = $request->note;
+            }
+            if(isset($request->attachment)){
+                    $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, 'pdf');
+                     if (isset($upload['status']) && $upload['status'] == "success") {
+                             $attachment = $upload['path'];
+                         } else {
+                             $result = [
+                                 'status'   => 'fail',
+                                 'messages' => ['fail upload file']
+                             ];
+                             return $result;
+                         }
+                 }
             $store = ProjectFitOut::create([
                     "id_project"   =>  $request->id_project,
                     "title"   =>   $request->title,
                     "progres"   =>   $request->progres,
                     "attachment"   =>  $attachment,
-                    "note"   =>  $request->note
+                    "note"   =>  $note
                 ]);
-       
+        }else{
+            if(isset($request->attachment)){
+                    $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, 'pdf');
+                     if (isset($upload['status']) && $upload['status'] == "success") {
+                             $attachment = $upload['path'];
+                         } else {
+                             $result = [
+                                 'status'   => 'fail',
+                                 'messages' => ['fail upload file']
+                             ];
+                             return $result;
+                         }
+                 }
+            $store = ProjectFitOut::create([
+                    "id_project"   =>  $request->id_project,
+                    "title"   =>   $request->title,
+                    "progres"   =>   $request->progres,
+                    "attachment"   =>  $attachment,
+                    "note"   =>  $note
+                ]);
+        }
             return response()->json(MyHelper::checkCreate($store));
     }
     

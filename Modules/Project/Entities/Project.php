@@ -10,6 +10,7 @@ use Modules\Project\Entities\ProjectSurveyLocation;
 use Modules\Project\Entities\ProjectDesain;
 use Modules\Project\Entities\ProjectContract;
 use Modules\Project\Entities\ProjectFitOut;
+use Modules\Project\Entities\ProjectHandover;
 
 class Project extends Model
 {
@@ -42,5 +43,8 @@ class Project extends Model
     }
     public function project_contract(){
         return $this->hasOne(ProjectContract::class, 'id_project');
+    }
+    public function project_handover(){
+        return $this->hasOne(ProjectHandover::class, 'id_project');
     }
 }

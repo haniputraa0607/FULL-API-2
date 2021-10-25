@@ -988,7 +988,7 @@ class ApiHome extends Controller
     }
 
     public function featuredNews(){
-        $home_text = Setting::whereIn('key',['home_promo_campaign_sub_title','home_promo_campaign_title'])->get()->keyBy('key');
+        $home_text = Setting::whereIn('key',['home_news_title','home_news_sub_title'])->get()->keyBy('key');
         $text['title'] = $home_text['home_news_title']['value'] ?? 'Berita';
         $text['sub_title'] = $home_text['home_news_sub_title']['value'] ?? 'Berita menarik untuk Anda.';
 

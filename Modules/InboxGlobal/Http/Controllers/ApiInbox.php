@@ -132,12 +132,15 @@ class ApiInbox extends Controller
 			}
 		}
 
-		$privates = UserInbox::where('id_user','=',$user['id'])->whereDate('inboxes_send_at','>',$max_date)->get()->toArray();
+		$privates = UserInbox::where('id_user','=',$user['id'])->whereDate('inboxes_send_at','>',$max_date);
 
+		if(!empty($request->json('inbox_from')) && $request->json('inbox_from') != 'all'){
+            $privates = $privates->where('inboxes_from', $request->json('inbox_from'));
+        }
+        $privates = $privates->get()->toArray();
 		foreach($privates as $private){
 			$content = [];
 			$content['type'] 		 = 'private';
-            $content['inbox_from_title']   = '';
 			$content['id_inbox'] 	 = $private['id_user_inboxes'];
 			$content['subject'] 	 = $private['inboxes_subject'];
 			$content['clickto'] 	 = $private['inboxes_clickto'];
@@ -148,25 +151,13 @@ class ApiInbox extends Controller
 				$content['id_reference'] = 0;
 			}
 
-			if(!empty($private['inboxes_id_reference']) && $private['inboxes_clickto'] == 'History Transaction'){
-			    $arrTransactionFrom = [
-			        'outlet-service' => 'Outlet',
-                    'home-service' => 'Home Service',
-                    'shop' => 'Shop',
-                    'academy' => 'Academy'
-                ];
-                $dtTrx = Transaction::leftJoin('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
-                                    ->leftJoin('brands', 'transaction_products.id_brand', 'brands.id_brand')
-                                    ->where('transactions.id_transaction', $private['inboxes_id_reference'])
-                                    ->select('transaction_from', 'brands.name_brand')->first();
-                if(!empty($dtTrx)){
-                    if($dtTrx['transaction_from'] == 'outlet-service'){
-                        $content['inbox_from_title']   = $dtTrx['name_brand'];
-                    }else{
-                        $content['inbox_from_title']   = $arrTransactionFrom[$dtTrx['transaction_from']]??'';
-                    }
-                }
-            }
+            $arrTransactionFrom = [
+                'outlet-service' => 'Outlet',
+                'home-service' => 'Home Service',
+                'shop' => 'Shop',
+                'academy' => 'Academy'
+            ];
+            $content['inbox_from_title']   = $arrTransactionFrom[$private['inboxes_from']]??"";
 
 			if($content['clickto']=='Deals Detail'){
 				$content['id_brand'] = $private['id_brand'];
@@ -454,5 +445,57 @@ class ApiInbox extends Controller
 			'result'=>['unread'=>$countUnread]
 		];
 	}
+
+	public function listFilterInbox(Request $request){
+        $user = $request->user();
+        $max_date = date('Y-m-d',time() - ((Setting::select('value')->where('key','inbox_max_days')->pluck('value')->first()?:30) * 86400));
+        $statusUnread = UserInbox::where('id_user','=',$user['id'])->whereDate('inboxes_send_at','>',$max_date)
+                        ->select('inboxes_from', DB::raw('CASE 
+                        WHEN COUNT(CASE WHEN user_inboxes.read = 0 THEN 1 ELSE NULL END) > 0 THEN 1 
+                        ELSE 0 END AS status_unread'))
+                        ->whereNotNull('inboxes_from')
+                        ->groupBy('inboxes_from')
+                        ->get()->toArray();
+        $statusUnreadAll = UserInbox::where('id_user','=',$user['id'])->whereDate('inboxes_send_at','>',$max_date)->where('read', 0)->first();
+        $filter = [
+            [
+                'filter_key' => 'all',
+                'filter_title' => 'Semua',
+                'status_unread' => (!empty($statusUnreadAll) ? 1:0)
+            ],
+            [
+                'filter_key' => 'outlet-service',
+                'filter_title' => 'Outlet Service',
+                'status_unread' => 0
+            ],
+            [
+                'filter_key' => 'home-service',
+                'filter_title' => 'Home Service',
+                'status_unread' => 0
+            ],
+            [
+                'filter_key' => 'shop',
+                'filter_title' => 'Shop',
+                'status_unread' => 0
+            ],
+            [
+                'filter_key' => 'academy',
+                'filter_title' => 'Academy',
+                'status_unread' => 0
+            ]
+        ];
+
+        foreach ($statusUnread as $dt){
+            if(empty($dt['inboxes_from'])){
+                $dt['inboxes_from'] = 'all';
+            }
+            $search = array_search($dt['inboxes_from'], array_column($filter,'filter_key'));
+            if($search !== false){
+                $filter[$search]['status_unread'] = (int)$dt['status_unread'];
+            }
+        }
+
+        return response()->json(MyHelper::checkGet($filter));
+    }
 
 }

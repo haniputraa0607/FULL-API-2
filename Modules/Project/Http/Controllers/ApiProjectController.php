@@ -103,7 +103,7 @@ class ApiProjectController extends Controller
         $id_project = $request['id_project'];
         if(isset($id_project) && !empty($id_project)){
             $project = Project::where(array('id_project'=>$id_project))
-                    ->with(['project_locations','project_partners','project_survey','project_desain','project_contract','project_fitout'])
+                    ->with(['project_locations','project_partners','project_survey','project_desain','project_contract','project_fitout','project_handover'])
                     ->join('locations','locations.id_location','projects.id_location')
                     ->join('partners','partners.id_partner','projects.id_partner')
                     ->select('projects.*','partners.name as name_partner','locations.name as name_location')

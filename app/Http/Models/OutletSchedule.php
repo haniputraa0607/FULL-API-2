@@ -30,4 +30,8 @@ class OutletSchedule extends Model
 	{
 		return $this->belongsTo(\App\Http\Models\Outlet::class, 'id_outlet');
 	}
+
+	public function time_shift(){
+        return $this->hasMany(\Modules\Outlet\Entities\OutletTimeShift::class, 'id_outlet_schedule');
+    }
 }

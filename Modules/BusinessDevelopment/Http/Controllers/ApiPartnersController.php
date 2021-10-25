@@ -608,7 +608,6 @@ class ApiPartnersController extends Controller
                 $data['letter'] = $creatConf;
                 $data['location'] = Location::where(['id_partner'=>$post['id_partner']])->first();
                 $data['city'] = City::where(['id_city'=>$data['location']['id_city']])->first();
-                // return $data;
                 $waktu = $this->timeTotal(explode('-', $data['partner']['start_date']),explode('-', $data['partner']['end_date']));
                 $send['data'] = [
                     'pihak_dua' => $this->pihakDua($data['partner']['name'],$data['partner']['gender']),
@@ -640,7 +639,7 @@ class ApiPartnersController extends Controller
                 $no = str_replace('/', '_', $post['no_letter']);
                 $path = $this->confirmation.'confirmation_'.$no.'.pdf';
                 $pdf = PDF::loadView('businessdevelopment::confirmation', $pdf_contect );
-                Storage::put('public/'.$path, $pdf->output(),'public');
+                Storage::put($path, $pdf->output(),'public');
                 $creatConf['attachment'] = $path;
                 $store = ConfirmationLetter::create($creatConf);
                 if(!$store) {
@@ -996,7 +995,7 @@ class ApiPartnersController extends Controller
         $name = strtolower(str_replace(' ', '_', $partner['name']));
         $path = $this->form_survey.'form_survey_'.$name.'.pdf';
         $pdf = PDF::loadView('businessdevelopment::form_survey', $data );
-        Storage::put('public/'.$path, $pdf->output(),'public');
+        Storage::put($path, $pdf->output(),'public');
         return $path;
     }
 

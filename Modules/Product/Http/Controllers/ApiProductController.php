@@ -2392,12 +2392,12 @@ class ApiProductController extends Controller
         $totalDateShow = Setting::where('key', 'total_show_date_booking_service')->first()->value??1;
         $today = date('Y-m-d');
         $currentTime = date('H:i');
+        $processingTime = (int)(empty($product['processing_time_service']) ? 30:$product['processing_time_service']);
         $listDate = [];
 
         if($scopeUser == 'apps'){
             $x = 0;
             $count = 1;
-            $processingTime = (int)$product['processing_time_service'];
             while($count <= (int)$totalDateShow) {
                 $date = date('Y-m-d', strtotime('+'.$x.' day', strtotime($today)));
                 $dayConvert = $day[date('D', strtotime($date))];
@@ -2411,6 +2411,11 @@ class ApiProductController extends Controller
                         $times[] = $open;
                     }
                     while(strtotime($tmpTime) < strtotime($close)) {
+                        $dateTimeConvert = date('Y-m-d H:i', strtotime("+".$processingTime." minutes", strtotime($date.' '.$tmpTime)));
+                        if(strtotime($dateTimeConvert) > strtotime($date.' '.$close)){
+                            break;
+                        }
+
                         $timeConvert = date('H:i', strtotime("+".$processingTime." minutes", strtotime($tmpTime)));
                         if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime)){
                             $times[] = $timeConvert;
@@ -2428,7 +2433,6 @@ class ApiProductController extends Controller
                 $x++;
             }
         }else{
-            $processingTime = (int)$product['processing_time_service'];
             $date = $today;
             $dayConvert = $day[date('D', strtotime($date))];
             if(array_search($dayConvert, $allDay) !== false){
@@ -2441,6 +2445,11 @@ class ApiProductController extends Controller
                     $times[] = $open;
                 }
                 while(strtotime($tmpTime) < strtotime($close)) {
+                    $dateTimeConvert = date('Y-m-d H:i', strtotime("+".$processingTime." minutes", strtotime($date.' '.$tmpTime)));
+                    if(strtotime($dateTimeConvert) > strtotime($date.' '.$close)){
+                        break;
+                    }
+
                     $timeConvert = date('H:i', strtotime("+".$processingTime." minutes", strtotime($tmpTime)));
                     if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime)){
                         $times[] = $timeConvert;

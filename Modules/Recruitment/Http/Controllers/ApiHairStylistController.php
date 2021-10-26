@@ -502,4 +502,18 @@ class ApiHairStylistController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
         }
     }
+
+    public function delete(Request $request){
+        $post = $request->json()->all();
+        if(!empty($post['id_user_hair_stylist'])){
+            $check = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->first();
+            if($check['user_hair_stylist_status'] == 'Active' || $check['user_hair_stylist_status'] == 'Inactive'){
+                return response()->json(['status' => 'fail', 'messages' => ['Can not delete active/inactive hair stylist']]);
+            }
+            $del = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->delete();
+            return response()->json(MyHelper::checkDelete($del));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    }
 }

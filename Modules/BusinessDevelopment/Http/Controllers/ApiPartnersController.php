@@ -270,6 +270,15 @@ class ApiPartnersController extends Controller
             if (isset($post['npwp_address'])) {
                 $data_update['npwp_address'] = $post['npwp_address'];
             }
+            if(isset($data_update['start_date']) && isset($data_update['end_date'])){
+                $start = explode('-', $data_update['start_date']);
+                $end = explode('-', $data_update['end_date']);
+                try{
+                    $waktu = $this->timeTotal($start,$end);
+                }catch(\Exception $e) {
+                    return response()->json(['status' => 'fail_date', 'messages' => ['Start Date and End Date must be at least 3 years apar']]);
+                }
+            }
             $old_status = Partner::where('id_partner', $post['id_partner'])->get('status')[0]['status'];
             $old_phone = Partner::where('id_partner', $post['id_partner'])->get('phone')[0]['phone'];
             $old_name = Partner::where('id_partner', $post['id_partner'])->get('name')[0]['name'];

@@ -572,6 +572,11 @@ class ApiOutletController extends Controller
         $post = $request->json()->all();
 
         $outlet = Outlet::with(['user_outlets','city','today', 'outlet_schedules'])->select('*');
+
+        if(isset($post['outlet_academy_status'])){
+            $outlet = $outlet->where('outlet_academy_status', $post['outlet_academy_status']);
+        }
+
         if(isset($post['id_product'])){
             $outlet = $outlet->with(['product_detail'=> function($q) use ($post){
                 $q->where('id_product', $post['id_product']);
@@ -590,6 +595,11 @@ class ApiOutletController extends Controller
         $outlet = Outlet::with(['user_outlets','city','today', 'outlet_schedules'])
             ->where('outlet_different_price', 1)
             ->select('*');
+
+        if(isset($post['outlet_academy_status'])){
+            $outlet = $outlet->where('outlet_academy_status', $post['outlet_academy_status']);
+        }
+
         if(isset($post['id_product'])){
             $outlet = $outlet->with(['product_special_price'=> function($q) use ($post){
                         $q->where('id_product', $post['id_product']);
@@ -612,6 +622,11 @@ class ApiOutletController extends Controller
             $outlet = Outlet::with(['user_outlets','city','today','product_prices','product_prices.product'])->select('*');
         }elseif(isset($post['admin'])){
             $outlet = Outlet::with(['user_outlets','city.province','today', 'outlet_schedules', 'outlet_schedules.time_shift', 'outlet_box'])->select('*');
+
+            if(isset($post['outlet_academy_status'])){
+                $outlet = $outlet->where('outlet_academy_status', $post['outlet_academy_status']);
+            }
+
             if(isset($post['id_product'])){
                 $outlet = $outlet->with(['product_detail'=> function($q) use ($post){
                     $q->where('id_product', $post['id_product']);

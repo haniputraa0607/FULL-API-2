@@ -13,6 +13,6 @@ use Illuminate\Http\Request;
 |
 */
 
-Route::middleware('auth:api')->get('/academy', function (Request $request) {
-    return $request->user();
+Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scopes:be'], 'prefix' => 'academy'], function () {
+    Route::any('product', 'ApiProductAcademyController@index');
 });

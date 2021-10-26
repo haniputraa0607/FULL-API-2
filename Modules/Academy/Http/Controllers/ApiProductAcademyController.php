@@ -2,9 +2,16 @@
 
 namespace Modules\Academy\Http\Controllers;
 
+use App\Http\Models\Outlet;
+use App\Http\Models\Product;
+use App\Http\Models\ProductPhoto;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
+use Modules\Outlet\Http\Requests\Outlet\OutletList;
+use Modules\Product\Entities\ProductDetail;
+use DB;
+use App\Lib\MyHelper;
 
 class ApiProductAcademyController extends Controller
 {
@@ -12,68 +19,103 @@ class ApiProductAcademyController extends Controller
      * Display a listing of the resource.
      * @return Response
      */
-    public function index()
+    public function index(Request $request)
     {
-        return view('academy::index');
-    }
+        $post = $request->json()->all();
 
-    /**
-     * Show the form for creating a new resource.
-     * @return Response
-     */
-    public function create()
-    {
-        return view('academy::create');
-    }
+        if (isset($post['visibility'])) {
 
-    /**
-     * Store a newly created resource in storage.
-     * @param Request $request
-     * @return Response
-     */
-    public function store(Request $request)
-    {
-        //
-    }
+            if ($post['visibility'] == 'Hidden') {
+                $idVisible = ProductDetail::join('products', 'products.id_product', '=', 'product_detail.id_product')
+                    ->where('product_detail.product_detail_visibility', 'Visible')
+                    ->where('product_detail.product_detail_status', 'Active')
+                    ->where('id_outlet', $post['id_outlet'])
+                    ->where('products.product_type', 'academy')
+                    ->pluck('product_detail.id_product')->toArray();
+                $product = Product::whereNotIn('products.id_product', $idVisible)->where('products.product_type', 'academy');
+            } else {
+                $product = Product::join('product_detail','product_detail.id_product','=','products.id_product')
+                    ->where('product_detail.id_outlet','=',$post['id_outlet'])
+                    ->where('product_detail.product_detail_visibility','=','Visible')
+                    ->where('product_detail.product_detail_status','=','Active')
+                    ->where('products.product_type', 'academy');
+            }
 
-    /**
-     * Show the specified resource.
-     * @param int $id
-     * @return Response
-     */
-    public function show($id)
-    {
-        return view('academy::show');
-    }
+            unset($post['id_outlet']);
+        }else{
+            if(isset($post['product_setting_type']) && $post['product_setting_type'] == 'product_price'){
+                $product = Product::with(['category', 'discount', 'product_special_price', 'global_price'])->where('products.product_type', 'academy');
+            }elseif(isset($post['product_setting_type']) && $post['product_setting_type'] == 'outlet_product_detail'){
+                $product = Product::with(['category', 'discount', 'product_detail'])->where('products.product_type', 'academy');
+            }else{
+                $product = Product::with(['category', 'discount'])->where('products.product_type', 'academy');
+            }
+        }
 
-    /**
-     * Show the form for editing the specified resource.
-     * @param int $id
-     * @return Response
-     */
-    public function edit($id)
-    {
-        return view('academy::edit');
-    }
+        if(isset($post['rule'])){
+            foreach ($post['rule'] as $rule){
+                if($rule[0] !== 'all_product'){
+                    if ($rule[1] == 'like' && isset($rule[2])) {
+                        $rule[2] = '%' . $rule[2] . '%';
+                    }
 
-    /**
-     * Update the specified resource in storage.
-     * @param Request $request
-     * @param int $id
-     * @return Response
-     */
-    public function update(Request $request, $id)
-    {
-        //
-    }
+                    if($post['operator'] == 'or'){
+                        if(isset($rule[2])){
+                            $product->orWhere('products.'.$rule[0], $rule[1],$rule[2]);
+                        }else{
+                            $product->orWhere('products.'.$rule[0], $rule[1]);
+                        }
+                    }else{
+                        if(isset($rule[2])){
+                            $product->where('products.'.$rule[0], $rule[1],$rule[2]);
+                        }else{
+                            $product->where('products.'.$rule[0], $rule[1]);
+                        }
+                    }
+                }
+            }
+        }
 
-    /**
-     * Remove the specified resource from storage.
-     * @param int $id
-     * @return Response
-     */
-    public function destroy($id)
-    {
-        //
+        if (isset($post['id_product'])) {
+            $product->with('category')->where('products.id_product', $post['id_product'])->with(['brands']);
+        }
+
+        if (isset($post['product_code'])) {
+            $product->with(['global_price','product_special_price','product_tags','brands','product_promo_categories'=>function($q){$q->select('product_promo_categories.id_product_promo_category');}])->where('products.product_code', $post['product_code']);
+        }
+
+        if (isset($post['update_price']) && $post['update_price'] == 1) {
+            $product->where('product_variant_status', 0);
+        }
+
+        if (isset($post['product_name'])) {
+            $product->where('products.product_name', 'LIKE', '%'.$post['product_name'].'%');
+        }
+
+        if(isset($post['orderBy'])){
+            $product = $product->orderBy($post['orderBy']);
+        }
+        else{
+            $product = $product->orderBy('position', 'asc');
+        }
+
+        if(isset($post['admin_list'])){
+            $product = $product->withCount('product_detail')->withCount('product_detail_hiddens')->with(['brands']);
+        }
+
+        if(isset($post['pagination'])){
+            $product = $product->paginate(10);
+        }else{
+            $product = $product->get();
+        }
+
+        if (!empty($product)) {
+            foreach ($product as $key => $value) {
+                $product[$key]['photos'] = ProductPhoto::select('*', DB::raw('if(product_photo is not null, (select concat("'.config('url.storage_url_api').'", product_photo)), "'.config('url.storage_url_api').'img/default.jpg") as url_product_photo'))->where('id_product', $value['id_product'])->orderBy('product_photo_order', 'ASC')->get()->toArray();
+            }
+        }
+
+        $product = $product->toArray();
+        return response()->json(MyHelper::checkGet($product));
     }
 }

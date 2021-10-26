@@ -8,6 +8,7 @@ use App\Http\Models\ProductPhoto;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
+use Modules\Franchise\Entities\Setting;
 use Modules\Outlet\Http\Requests\Outlet\OutletList;
 use Modules\Product\Entities\ProductDetail;
 use DB;
@@ -26,19 +27,17 @@ class ApiProductAcademyController extends Controller
         if (isset($post['visibility'])) {
 
             if ($post['visibility'] == 'Hidden') {
-                $idVisible = ProductDetail::join('products', 'products.id_product', '=', 'product_detail.id_product')
-                    ->where('product_detail.product_detail_visibility', 'Visible')
-                    ->where('product_detail.product_detail_status', 'Active')
-                    ->where('id_outlet', $post['id_outlet'])
-                    ->where('products.product_type', 'academy')
-                    ->pluck('product_detail.id_product')->toArray();
-                $product = Product::whereNotIn('products.id_product', $idVisible)->where('products.product_type', 'academy');
-            } else {
                 $product = Product::join('product_detail','product_detail.id_product','=','products.id_product')
                     ->where('product_detail.id_outlet','=',$post['id_outlet'])
-                    ->where('product_detail.product_detail_visibility','=','Visible')
-                    ->where('product_detail.product_detail_status','=','Active')
+                    ->where('product_detail.product_detail_visibility','=','Hidden')
                     ->where('products.product_type', 'academy');
+            } else {
+                $ids = Product::join('product_detail','product_detail.id_product','=','products.id_product')
+                    ->where('product_detail.id_outlet','=',$post['id_outlet'])
+                    ->where('product_detail.product_detail_visibility','=','Hidden')
+                    ->where('products.product_type', 'academy')->pluck('products.id_product')->toArray();
+                $product = Product::whereNotIn('id_product', $ids)
+                        ->where('products.product_type', 'academy');
             }
 
             unset($post['id_outlet']);
@@ -117,5 +116,10 @@ class ApiProductAcademyController extends Controller
 
         $product = $product->toArray();
         return response()->json(MyHelper::checkGet($product));
+    }
+
+    public function settingInstalment(){
+        $data = (array)json_decode(Setting::where('key', 'setting_instalment_product_academy')->first()['value_text']??'');
+        return response()->json(MyHelper::checkGet($data));
     }
 }

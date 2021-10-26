@@ -25,18 +25,16 @@ class ApiProductServiceController extends Controller
         if (isset($post['visibility'])) {
 
             if ($post['visibility'] == 'Hidden') {
-                $idVisible = ProductDetail::join('products', 'products.id_product', '=', 'product_detail.id_product')
-                    ->where('product_detail.product_detail_visibility', 'Visible')
-                    ->where('product_detail.product_detail_status', 'Active')
-                    ->where('id_outlet', $post['id_outlet'])
-                    ->where('products.product_type', 'service')
-                    ->pluck('product_detail.id_product')->toArray();
-                $product = Product::whereNotIn('products.id_product', $idVisible)->where('products.product_type', 'service');
-            } else {
                 $product = Product::join('product_detail','product_detail.id_product','=','products.id_product')
                     ->where('product_detail.id_outlet','=',$post['id_outlet'])
-                    ->where('product_detail.product_detail_visibility','=','Visible')
-                    ->where('product_detail.product_detail_status','=','Active')
+                    ->where('product_detail.product_detail_visibility','=','Hidden')
+                    ->where('products.product_type', 'service');
+            } else {
+                $ids = Product::join('product_detail','product_detail.id_product','=','products.id_product')
+                    ->where('product_detail.id_outlet','=',$post['id_outlet'])
+                    ->where('product_detail.product_detail_visibility','=','Hidden')
+                    ->where('products.product_type', 'service')->pluck('products.id_product')->toArray();
+                $product = Product::whereNotIn('id_product', $ids)
                     ->where('products.product_type', 'service');
             }
 

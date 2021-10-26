@@ -188,75 +188,131 @@ class ApiMitra extends Controller
     public function createSchedule(ScheduleCreateRequest $request)
     {
     	$user = $request->user();
-		$schedule = HairstylistSchedule::where([
-			['schedule_month', $request->month],
-			['schedule_year', $request->year],
-			['id_user_hair_stylist', $user->id_user_hair_stylist],
-		])->first();
+    	$post = $request->json()->all();
 
-    	DB::beginTransaction();
-    	if ($schedule) {
-    		if ($schedule->approve_at) {
-    			return [
-					'status' => 'fail',
-					'messages' => ['Schedule has been approved']
-				];
-    		}
-    		HairstylistScheduleDate::where('id_hairstylist_schedule', $schedule->id_hairstylist_schedule)->delete();
-    		$schedule->update(['reject_at' => null]);
-    	} else {
-    		$schedule = HairstylistSchedule::create([
-    			'id_user_hair_stylist' => $user->id_user_hair_stylist,
-				'id_outlet' 		=> $user->id_outlet,
-				'schedule_month' 	=> $request->month,
-				'schedule_year' 	=> $request->year,
-				'request_at' 		=> date('Y-m-d H:i:s')
-    		]);
-    	}
-
-		if (!$schedule) {
-			return [
-				'status' => 'fail',
-				'messages' => ['Failed to create schedule']
-			];
-		}
-
-    	$insertData = [];
-    	$request_by = 'Hairstylist';
-    	$created_at = date('Y-m-d H:i:s');
-    	$updated_at = date('Y-m-d H:i:s');
-
-    	foreach ($request->morning as $val) {
-    		$insertData[] = [
-    			'id_hairstylist_schedule' => $schedule->id_hairstylist_schedule,
-        		'date' => $val,
-        		'shift' => 'Morning',
-        		'request_by' => $request_by,
-        		'created_at' => $created_at,
-        		'updated_at' => $updated_at
-    		];
-    	}
-
-    	foreach ($request->evening as $val) {
-    		$insertData[] = [
-    			'id_hairstylist_schedule' => $schedule->id_hairstylist_schedule,
-        		'date' => $val,
-        		'shift' => 'Evening',
-        		'request_by' => $request_by,
-        		'created_at' => $created_at,
-        		'updated_at' => $updated_at
-    		];
-    	}
-
-    	$insert = HairstylistScheduleDate::insert($insertData);
-
-    	if (!$insert) {
-    		DB::rollback();
+    	if ($user->level != 'Supervisor') {
     		return [
 				'status' => 'fail',
-				'messages' => ['Failed to create schedule']
+				'messages' => ['Jadwal hanya dapat dibuat oleh Hairstylist dengan level Supervisor']
 			];
     	}
+
+    	$thisMonth = $request->month ?? date('n');
+		$thisYear  = $request->year  ?? date('Y');
+		$date = $thisYear . '-' . $thisMonth . '-01';
+		$end  = $thisYear . '-' . $thisMonth . '-' . date('t', strtotime($date));
+
+		$listDate = [];
+		while (strtotime($date) <= strtotime($end)) {
+			$listDate[] = [
+				'date' => date('Y-m-d', strtotime($date)),
+				'day'  => date('l', strtotime($date))
+			];
+
+			$date = date("Y-m-d", strtotime("+1 day", strtotime($date)));
+		}
+
+    	$hairstylists = UserHairStylist::where('id_outlet', $user->id_outlet)
+						->where('user_hair_stylist_status', 'Active')
+						->with([
+							'hairstylist_schedules' => function($q) use ($request, $user){
+								$q->where([
+									['schedule_month', $request->month],
+									['schedule_year', $request->year],
+									['id_outlet', $user->id_outlet],
+								]);
+							},
+							'hairstylist_schedules.hairstylist_schedule_dates' => function($q) {
+								$q->orderBy('date','asc');
+							}
+						])
+						->get();
+
+		$newSchedules = [];
+		foreach ($post['schedule'] ?? [] as $val) {
+			$newSchedules[$val['id_user_hair_stylist']] = $val['shift'];
+		}
+
+    	DB::beginTransaction();
+		foreach ($hairstylists as $hs) {
+			$newSchedule = $newSchedules[$hs['id_user_hair_stylist']] ?? [];
+			if (empty($newSchedule)) {
+				continue;
+			}
+
+			$schedule = $hs['hairstylist_schedules'][0] ?? null;
+			$schedule_dates = $schedule['hairstylist_schedule_dates'] ?? [];
+			if (!is_array($schedule_dates)) {
+				$schedule_dates = $schedule_dates->toArray();
+			}
+
+			$tmpListDate = [];
+			foreach ($schedule_dates as $val) {
+				$date = date('Y-m-d', strtotime($val['date']));
+				$tmpListDate[$date] = $val;
+			}
+			
+			$oldSchedule = [];
+			foreach ($listDate as $val) {
+				$date = date('d', strtotime($val['date']));
+				$shift = 0;
+				if (!empty($tmpListDate[$val['date']]['shift'])) {
+					$shift = $tmpListDate[$val['date']]['shift'] == 'Morning' ? 1 : 2;
+				}
+				$oldSchedule[] = $shift;
+			}
+
+       		if ($oldSchedule == $newSchedule) {
+       			continue;
+       		}
+
+			if (!$schedule) {
+	    		$schedule = HairstylistSchedule::create([
+	    			'id_user_hair_stylist' 	=> $hs->id_user_hair_stylist,
+					'id_outlet' 			=> $hs->id_outlet,
+					'schedule_month' 		=> $request->month,
+					'schedule_year' 		=> $request->year,
+					'request_at' 			=> date('Y-m-d H:i:s')
+	    		]);
+			}
+
+    		HairstylistScheduleDate::where('id_hairstylist_schedule', $schedule->id_hairstylist_schedule)->delete();
+    		$schedule->update([
+    			'approve_at' 		=> null,
+    			'approve_by' 		=> null,
+    			'reject_at' 		=> null,
+    			'last_updated_by' 	=> null
+    		]);
+
+	    	$insertData = [];
+	    	$request_by = 'Hairstylist';
+	    	$created_at = date('Y-m-d H:i:s');
+	    	$updated_at = date('Y-m-d H:i:s');
+
+	    	foreach ($newSchedule as $key => $val) {
+	    		if (empty($val)) {
+	    			continue;
+	    		}
+	    		$insertData[] = [
+	    			'id_hairstylist_schedule' => $schedule->id_hairstylist_schedule,
+	        		'date' => $listDate[$key]['date'],
+	        		'shift' => $val == 1 ? 'Morning' : 'Evening',
+	        		'request_by' => $request_by,
+	        		'created_at' => $created_at,
+	        		'updated_at' => $updated_at
+	    		];
+	    	}
+
+	    	$insert = HairstylistScheduleDate::insert($insertData);
+
+	    	if (!$insert) {
+	    		DB::rollback();
+	    		return [
+					'status' => 'fail',
+					'messages' => ['Gagal membuat jadwal']
+				];
+	    	}
+		}
 
 		DB::commit();
     	return ['status' => 'success'];

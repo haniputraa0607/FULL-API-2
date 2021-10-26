@@ -3674,9 +3674,111 @@ class FeaturesTableSeeder extends Seeder
                 'feature_module' => 'Privacy Policy',
                 'show_hide' => 1,
                 'order' => 133,
+                'created_at' => date('Y-m-d H:00:00'),
+                'updated_at' => date('Y-m-d H:00:00'),
+            ),
+            366 => 
+            array (
+                'id_feature' => 368,
+                'created_at' => '2018-05-10 08:00:00',
+                'feature_module' => 'Announcement',
+                'feature_type' => 'List',
+                'order' => 134,
+                'show_hide' => 1,
+                'updated_at' => '2018-05-10 08:00:00',
+            ),
+            367 => 
+            array (
+                'id_feature' => 369,
+                'created_at' => '2018-05-10 08:00:00',
+                'feature_module' => 'Announcement',
+                'feature_type' => 'Detail',
+                'order' => 134,
+                'show_hide' => 1,
+                'updated_at' => '2018-05-10 08:00:00',
+            ),
+            368 => 
+            array (
+                'id_feature' => 370,
+                'created_at' => '2018-05-10 08:00:00',
+                'feature_module' => 'Announcement',
+                'feature_type' => 'Create',
+                'order' => 134,
+                'show_hide' => 1,
+                'updated_at' => '2018-05-10 08:00:00',
+            ),
+            369 => 
+            array (
+                'id_feature' => 371,
+                'created_at' => '2018-05-10 08:00:00',
+                'feature_module' => 'Announcement',
+                'feature_type' => 'Update',
+                'order' => 134,
+                'show_hide' => 1,
+                'updated_at' => '2018-05-10 08:00:00',
                 'created_at' => NULL,
                 'updated_at' => NULL,
             ),
+            370 => 
+            array (
+                'id_feature' => 372,
+                'created_at' => '2018-05-10 08:00:00',
+                'feature_module' => 'Announcement',
+                'feature_type' => 'Delete',
+                'order' => 134,
+                'show_hide' => 1,
+                'updated_at' => '2018-05-10 08:00:00',
+            ),
+            371 =>
+                array (
+                    'feature_module' => 'Product Academy',
+                    'feature_type' => 'List',
+                    'id_feature' => 373,
+                    'order' => 135,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            372 =>
+                array (
+                    'feature_module' => 'Product Academy',
+                    'feature_type' => 'Detail',
+                    'id_feature' => 374,
+                    'order' => 135,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            373 =>
+                array (
+                    'feature_module' => 'Product Academy',
+                    'feature_type' => 'Create',
+                    'id_feature' => 375,
+                    'order' => 135,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            374 =>
+                array (
+                    'feature_module' => 'Product Academy',
+                    'feature_type' => 'Update',
+                    'id_feature' => 376,
+                    'order' => 135,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            375 =>
+                array (
+                    'feature_module' => 'Product Academy',
+                    'feature_type' => 'Delete',
+                    'id_feature' => 377,
+                    'order' => 135,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
         ));
         
         

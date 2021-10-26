@@ -9,6 +9,8 @@ use Illuminate\Routing\Controller;
 use App\Http\Models\Setting;
 use App\Http\Models\Outlet;
 
+use Modules\Outlet\Entities\OutletTimeShift;
+
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Recruitment\Entities\HairstylistSchedule;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
@@ -62,42 +64,124 @@ class ApiMitra extends Controller
 
     public function schedule(Request $request)
     {
-		$thisMonth = $request->month ?? date('n');
-		$thisYear  = $request->year  ?? date('Y');
 		$user = $request->user();
 
-		$schedule = HairstylistSchedule::where([
-			['schedule_month', $thisMonth],
-			['schedule_year', $thisYear],
-			['id_user_hair_stylist', $user->id_user_hair_stylist],
-		])->first();
+		$outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
+		if (!$outlet) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Outlet tidak ditemukan']
+			];
+		}
+		$thisMonth = $request->month ?? date('n');
+		$thisYear  = $request->year  ?? date('Y');
+		$date = $thisYear . '-' . $thisMonth . '-01';
+		$end  = $thisYear . '-' . $thisMonth . '-' . date('t', strtotime($date));
 
-		$morning = [];
-		$evening = [];
-		if ($schedule) {
+		$resDate = [];
+		$listDate = [];
+		while (strtotime($date) <= strtotime($end)) {
+			$listDate[] = [
+				'date' => date('Y-m-d', strtotime($date)),
+				'day'  => date('l', strtotime($date))
+			];
 
-			$schedule['status'] = $schedule['approve_at'] ? 'approved' : ($schedule['reject_at'] ? 'rejected' : 'pending');
-
-			$schedule_dates = HairstylistScheduleDate::where('id_hairstylist_schedule', $schedule->id_hairstylist_schedule)
-							->orderBy('date','asc')
-							->get();
-
-			foreach ($schedule_dates as $val) {
-				$tempDate = date('Y-m-d', strtotime($val['date']));
-				if ($val['shift'] == 'Morning') {
-					$morning[] = $tempDate;
-				} else {
-					$evening[] = $tempDate;
-				}
-			}
+			$resDate[] = MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($date)), 'D  d/m');
+			$date = date("Y-m-d", strtotime("+1 day", strtotime($date)));
 		}
 
-		$res = [
-			'detail'  => $schedule,
-			'morning' => $morning,
-			'evening' => $evening
+		$hairstylists = UserHairStylist::where('id_outlet', $user->id_outlet)
+						->where('user_hair_stylist_status', 'Active')
+						->with([
+							'hairstylist_schedules' => function($q) use ($thisMonth, $thisYear, $user){
+								$q->where([
+									['schedule_month', $thisMonth],
+									['schedule_year', $thisYear],
+									['id_outlet', $user->id_outlet],
+								]);
+							},
+							'hairstylist_schedules.hairstylist_schedule_dates' => function($q) {
+								$q->orderBy('date','asc');
+							}
+						])
+						->get();
+
+		$resHairstylist = [];
+		foreach ($hairstylists as $hs) {
+
+			$schedule = $hs['hairstylist_schedules'][0] ?? null;
+			$schedule['status'] = $schedule['approve_at'] ? 'approved' : ($schedule['reject_at'] ? 'rejected' : 'pending');
+			$schedule_dates = $schedule['hairstylist_schedule_dates'] ?? [];
+
+			$tmpListDate = [];
+			foreach ($schedule_dates as $val) {
+				$date = date('Y-m-d', strtotime($val['date']));
+				$tmpListDate[$date] = $val;
+			}
+			
+			$tmpShift = [];
+			foreach ($listDate as $val) {
+				$date = date('d', strtotime($val['date']));
+				$shift = 0;
+				if (!empty($tmpListDate[$val['date']]['shift'])) {
+					$shift = $tmpListDate[$val['date']]['shift'] == 'Morning' ? 1 : 2;
+				}
+				$tmpShift[] = $shift;
+			}
+
+			$resHairstylist[] = [
+				'id_user_hair_stylist' => $hs['id_user_hair_stylist'],
+				'nickname' => $hs['nickname'],
+				'fullname' => $hs['fullname'],
+				'shift' => $tmpShift
+			];
+		}
+
+		$outletShift = OutletTimeShift::where('id_outlet', $user->id_outlet)->get()->keyBy('shift');
+		$shiftInfo = [];
+		$timeStart = date('H:i', strtotime($outletShift['Morning']['shift_time_start'] ?? '09:00'));
+		$timeEnd = date('H:i', strtotime($outletShift['Morning']['shift_time_end'] ?? '15:00'));
+		$shiftInfo['shift_1'] = [
+			'name' => 'Shift Pagi',
+			'time' => $timeStart . ' - ' . $timeEnd
+		];
+		$timeStart = date('H:i', strtotime($outletShift['Evening']['shift_time_start'] ?? '15:00'));
+		$timeEnd = date('H:i', strtotime($outletShift['Evening']['shift_time_end'] ?? '21:00'));
+		$shiftInfo['shift_2'] = [
+			'name' => 'Shift Sore',
+			'time' => $timeStart . ' - ' . $timeEnd
+		];
+		$shiftInfo['shift_0'] = [
+			'name' => 'Tidak ada shift',
+			'time' => null,
 		];
 
+		$month_info = [
+			'prev_month' => [
+				'name' => MyHelper::indonesian_date_v2(date('F Y', strtotime('-1 Month ' . $thisYear . '-' . $thisMonth . '-01')), 'F Y'),
+				'month' => date('m', strtotime('-1 Month ' . $thisYear . '-' . $thisMonth . '-01')),
+				'year' => date('Y', strtotime('-1 Month ' . $thisYear . '-' . $thisMonth . '-01'))
+			],
+			'this_month' => [
+				'name' => MyHelper::indonesian_date_v2(date('F Y', strtotime($thisYear . '-' . $thisMonth . '-01')), 'F Y'),
+				'month' => date('m', strtotime($thisYear . '-' . $thisMonth . '-01')),
+				'year' => date('Y', strtotime($thisYear . '-' . $thisMonth . '-01'))
+			],
+			'next_month' => [
+				'name' => MyHelper::indonesian_date_v2(date('F Y', strtotime('+1 Month ' . $thisYear . '-' . $thisMonth . '-01')), 'F Y'),
+				'month' => date('m', strtotime('+1 Month ' . $thisYear . '-' . $thisMonth . '-01')),
+				'year' => date('Y', strtotime('+1 Month ' . $thisYear . '-' . $thisMonth . '-01'))
+			]
+		];
+		
+		$res = [
+			'id_outlet' => $outlet['id_outlet'],
+			'outlet_name' => $outlet['outlet_name'],
+			'month' => $month_info,
+			'shift_info' => $shiftInfo,
+			'list_date' => $resDate,
+			'list_hairstylist' => $resHairstylist
+		];
 		return MyHelper::checkGet($res);
     }
 

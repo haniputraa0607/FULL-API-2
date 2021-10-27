@@ -141,6 +141,13 @@ class ApiOnlineTransaction extends Controller
             ]);
         }
 
+        if(empty($post['outlet_code']) && empty($post['id_outlet'])){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['ID/Code outlet can not be empty']
+            ]);
+        }
+
         if(empty($post['transaction_from'])){
             return response()->json([
                 'status'    => 'fail',
@@ -185,7 +192,17 @@ class ApiOnlineTransaction extends Controller
         $dataDetailProduct = [];
         $userTrxProduct = [];
 
-        if(isset($post['id_outlet'])){
+        if(!empty($post['outlet_code'])){
+            $outlet = Outlet::where('outlet_code', $post['outlet_code'])->with('today')->first();
+            $post['id_outlet'] = $outlet['id_outlet']??null;
+            if (empty($outlet)) {
+                DB::rollback();
+                return response()->json([
+                    'status'    => 'fail',
+                    'messages'  => ['Outlet Not Found']
+                ]);
+            }
+        }elseif(isset($post['id_outlet'])){
             $outlet = Outlet::where('id_outlet', $post['id_outlet'])->with('today')->first();
             if (empty($outlet)) {
                 DB::rollback();
@@ -507,14 +524,14 @@ class ApiOnlineTransaction extends Controller
         $error_msg=[];
         //check product service
         if(!empty($post['item_service'])){
-            $product_service = $this->checkServiceProduct($post, $outlet);
-            $post['item_service'] = $product_service['item_service']??[];
-            if(!empty($product_service['error_message']??[])){
+            $productService = $this->checkServiceProduct($post, $outlet);
+            $post['item_service'] = $productService['item_service']??[];
+            if(!empty($productService['error_message']??[])){
                 DB::rollback();
                 return response()->json([
                     'status'    => 'fail',
                     'product_sold_out_status' => true,
-                    'messages'  => $product_service['error_message']
+                    'messages'  => $productService['error_message']
                 ]);
             }
         }
@@ -1892,7 +1909,7 @@ class ApiOnlineTransaction extends Controller
      * @param  CheckTransaction $request [description]
      * @return View                    [description]
      */
-    public function checkTransaction(CheckTransaction $request) {
+    public function checkTransaction(Request $request) {
         $post = $request->json()->all();
         $bearerToken = $request->bearerToken();
         $tokenId = (new Parser())->parse($bearerToken)->getHeader('jti');
@@ -1905,6 +1922,13 @@ class ApiOnlineTransaction extends Controller
                 'messages'  => ['Item/Item Service can not be empty']
             ]);
         }
+        if(empty($post['outlet_code']) && empty($post['id_outlet'])){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['ID/Code outlet can not be empty']
+            ]);
+        }
+
         $post['item'] = $this->mergeProducts($post['item']??[]);
         $grandTotal = app($this->setting_trx)->grandTotal();
         $user = $request->user();
@@ -1918,8 +1942,13 @@ class ApiOnlineTransaction extends Controller
         }
 
         //Check Outlet
+        if(!empty($post['outlet_code'])){
+            $outlet = Outlet::where('outlet_code', $post['outlet_code'])->with('today')->first();
+            $post['id_outlet'] = $outlet['id_outlet']??null;
+        }else{
+            $outlet = Outlet::where('id_outlet', $post['id_outlet'])->with('today')->first();
+        }
         $id_outlet = $post['id_outlet'];
-        $outlet = Outlet::where('id_outlet', $id_outlet)->with('today')->first();
         if (empty($outlet)) {
             return response()->json([
                 'status'    => 'fail',
@@ -3935,21 +3964,12 @@ class ApiOnlineTransaction extends Controller
                 'id_brand' => $item['id_brand'],
                 'id_product' => $item['id_product'],
                 'id_product_variant_group' => ($item['id_product_variant_group']??null) ?: null,
-//                'note' => $item['note']??null,
-//                'modifiers' => array_map(function($i){
-//                        if (is_numeric($i)) {
-//                            return [
-//                                'id_product_modifier' => $i,
-//                                'qty' => 1
-//                            ];
-//                        }
-//                        return [
-//                            'id_product_modifier' => $i['id_product_modifier'],
-//                            'qty' => $i['qty']
-//                        ];
-//                    },array_merge($item['modifiers']??[], $item['extra_modifiers']??[])),
+                'product_name' => $item['product_name'],
+                'product_code' => $item['product_code'],
+                'product_price' => 0,
+                'product_price_total' => 0,
+                'photo' => ''
             ];
-            //usort($new_item['modifiers'],function($a, $b) { return $a['id_product_modifier'] <=> $b['id_product_modifier']; });
             $pos = array_search($new_item, $new_items);
             if($pos === false) {
                 $new_items[] = $new_item;
@@ -5101,8 +5121,14 @@ class ApiOnlineTransaction extends Controller
                 ->orderBy('products.position')
                 ->find($item['id_product']);
 
-            $product->append('photo');
-            $product = $product->toArray();
+            if(!empty($product)){
+                $product->append('photo');
+                $product = $product->toArray();
+            }else{
+                $item['error_msg'] = 'Stok produk tidak ditemukan';
+                $continueCheckOut = false;
+                continue;
+            }
 
             if($product['product_variant_status'] && !empty($item['id_product_variant_group'])){
                 $product['product_stock_status'] = ProductVariantGroupDetail::where('id_product_variant_group', $item['id_product_variant_group'])

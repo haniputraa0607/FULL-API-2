@@ -270,6 +270,15 @@ class ApiPartnersController extends Controller
             if (isset($post['npwp_address'])) {
                 $data_update['npwp_address'] = $post['npwp_address'];
             }
+            if(isset($data_update['start_date']) && isset($data_update['end_date'])){
+                $start = explode('-', $data_update['start_date']);
+                $end = explode('-', $data_update['end_date']);
+                try{
+                    $waktu = $this->timeTotal($start,$end);
+                }catch(\Exception $e) {
+                    return response()->json(['status' => 'fail_date', 'messages' => ['Start Date and End Date must be at least 3 years apar']]);
+                }
+            }
             $old_status = Partner::where('id_partner', $post['id_partner'])->get('status')[0]['status'];
             $old_phone = Partner::where('id_partner', $post['id_partner'])->get('phone')[0]['phone'];
             $old_name = Partner::where('id_partner', $post['id_partner'])->get('name')[0]['name'];
@@ -608,7 +617,6 @@ class ApiPartnersController extends Controller
                 $data['letter'] = $creatConf;
                 $data['location'] = Location::where(['id_partner'=>$post['id_partner']])->first();
                 $data['city'] = City::where(['id_city'=>$data['location']['id_city']])->first();
-                // return $data;
                 $waktu = $this->timeTotal(explode('-', $data['partner']['start_date']),explode('-', $data['partner']['end_date']));
                 $send['data'] = [
                     'pihak_dua' => $this->pihakDua($data['partner']['name'],$data['partner']['gender']),
@@ -640,7 +648,7 @@ class ApiPartnersController extends Controller
                 $no = str_replace('/', '_', $post['no_letter']);
                 $path = $this->confirmation.'confirmation_'.$no.'.pdf';
                 $pdf = PDF::loadView('businessdevelopment::confirmation', $pdf_contect );
-                Storage::put('public/'.$path, $pdf->output(),'public');
+                Storage::put($path, $pdf->output(),'public');
                 $creatConf['attachment'] = $path;
                 $store = ConfirmationLetter::create($creatConf);
                 if(!$store) {
@@ -996,7 +1004,7 @@ class ApiPartnersController extends Controller
         $name = strtolower(str_replace(' ', '_', $partner['name']));
         $path = $this->form_survey.'form_survey_'.$name.'.pdf';
         $pdf = PDF::loadView('businessdevelopment::form_survey', $data );
-        Storage::put('public/'.$path, $pdf->output(),'public');
+        Storage::put($path, $pdf->output(),'public');
         return $path;
     }
 

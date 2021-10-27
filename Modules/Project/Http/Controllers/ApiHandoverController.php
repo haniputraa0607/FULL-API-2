@@ -57,8 +57,9 @@ class ApiHandoverController extends Controller
                     "note"   =>  $note
                 ]);
             $store = ProjectHandover::where(array('id_project'=>$request->id_project))->first();
-            $outlet = Project::where('id_project', $request->id_project)
-                ->join('locations','locations.id_location','projects.id_location')
+            $project = Project::where('id_project',$request->id_project)->first();
+            $outlet = Project::join('locations','locations.id_location','projects.id_location')
+                ->where('locations.id_location', $project->id_location)
                 ->join('cities','cities.id_city','locations.id_city')
                 ->join('outlets','outlets.id_city','cities.id_city')
                 ->update(['outlet_status'=>"Active"]);
@@ -87,8 +88,8 @@ class ApiHandoverController extends Controller
                     'status'=>'Success',
                     "note"   =>  $note
                 ]);
-                $outlet = Project::where('id_project', $request->id_project)
-                ->join('locations','locations.id_location','projects.id_location')
+                $outlet = Project::join('locations','locations.id_location','projects.id_location')
+                ->where('locations.id_location', $project->id_location)
                 ->join('cities','cities.id_city','locations.id_city')
                 ->join('outlets','outlets.id_city','cities.id_city')
                 ->update(['outlet_status'=>"Active"]);

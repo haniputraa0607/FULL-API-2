@@ -52,11 +52,14 @@ use Hash;
 use DB;
 use Mail;
 use Image;
+use JmesPath\Env;
+use Illuminate\Support\Facades\Storage;
 
 class ApiSetting extends Controller
 {
 
     public $saveImage = "img/";
+    public $logo = 'images/';
     public $endPoint;
 
     function __construct() {
@@ -1842,5 +1845,31 @@ class ApiSetting extends Controller
 
             return response()->json(MyHelper::checkUpdate($update));
         }
+    }
+
+    public function setLogoConfirmation(Request $request){
+        $post = $request->json()->all();
+        $upload = MyHelper::uploadPhoto($post['image'], $this->logo, null, 'logo_pdf');
+        if (isset($upload['status']) && $upload['status'] == "success") {
+            return response()->json([
+                'status'=>'success',
+                'messages'=>['Success added confirmation letter logo']
+            ]);
+        }else {
+            return response()->json([
+                'status'=>'fail',
+                'messages'=>['Failed added confirmation letter logo']
+            ]);
+        }
+    }
+
+    public function getLogoConfirmation(){
+        if(Storage::exists('images/logo_pdf.png'))
+        {
+            $data['logo'] = env('STORAGE_URL_API').'images/logo_pdf.png';
+        }else{
+            $data['logo'] = '';
+        }
+        return $data;
     }
 }

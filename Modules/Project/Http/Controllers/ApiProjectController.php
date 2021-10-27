@@ -12,7 +12,7 @@ use App\Lib\MyHelper;
 use Modules\BusinessDevelopment\Entities\Partner;
 use Modules\BusinessDevelopment\Entities\Location;
 use App\Http\Models\Outlet;
-
+use Modules\Project\Http\Requests\Project\UpdateProjectRequest;
 class ApiProjectController extends Controller
 {
    
@@ -125,6 +125,11 @@ class ApiProjectController extends Controller
         }
         return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
     }
+    public function update(UpdateProjectRequest $request)
+    {
+         $project = Project::where('id_project', $request->id_project)->where(array('status'=>'Process'))->update(['note'=>$request->note]);
+         return response()->json(['status' => 'success', 'result' => $project ]);
+    }
     public function initProject(Partner $partner,Location $location, $note = null)
     { 
         $project = Project::create(
@@ -143,7 +148,7 @@ class ApiProjectController extends Controller
             'outlet_postal_code' => $location->city_postal_code,
             'outlet_latitude' => $location->latitude,
             'outlet_longitude' => $location->longitude,
-            'outlet_status' => $location->status,
+            'outlet_status' => 'Inactive',
         ]);
         return response()->json(['status' => 'success','result'=>[
             'project'=>$project,

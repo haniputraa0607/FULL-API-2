@@ -23,8 +23,9 @@ class ApiHandoverController extends Controller
         }
         $this->saveFile = "file/project/handover/"; 
     }
-    public function create(CreateHandoverRequest $request)
+    public function create(Request $request)
     {
+        
         $store = ProjectHandover::where(array('id_project'=>$request->id_project))->first();
         $attachment = '';
         $note = '';
@@ -44,13 +45,23 @@ class ApiHandoverController extends Controller
                              return $result;
                          }
                  }
-            
+             $project = Project::where('id_project', $request->id_project)->where(array('status'=>'Process','progres'=>"Handover"))
+                ->update([
+                    'progres'=>'Success',
+                    'status'=>'Success'
+                ]);
             $store = ProjectHandover::where(array('id_project'=>$request->id_project))->update([
                     "title"   =>  $request->title,
                     "attachment"   =>  $attachment,
+                    'status'=>'Success',
                     "note"   =>  $note
                 ]);
             $store = ProjectHandover::where(array('id_project'=>$request->id_project))->first();
+            $outlet = Project::where('id_project', $request->id_project)
+                ->join('locations','locations.id_location','projects.id_location')
+                ->join('cities','cities.id_city','locations.id_city')
+                ->join('outlets','outlets.id_city','cities.id_city')
+                ->update(['outlet_status'=>"Active"]);
         }else{
             if(isset($request->attachment)){
                     $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, 'pdf');
@@ -64,12 +75,23 @@ class ApiHandoverController extends Controller
                              return $result;
                          }
                  }
+                  $project = Project::where('id_project', $request->id_project)->where(array('status'=>'Process','progres'=>"Handover"))
+                ->update([
+                    'progres'=>'Success',
+                    'status'=>'Success'
+                ]);
                 $store = ProjectHandover::create([
                     "id_project"   =>  $request->id_project,
                     "title"   =>  $request->title,
                     "attachment"   =>  $attachment,
+                    'status'=>'Success',
                     "note"   =>  $note
                 ]);
+                $outlet = Project::where('id_project', $request->id_project)
+                ->join('locations','locations.id_location','projects.id_location')
+                ->join('cities','cities.id_city','locations.id_city')
+                ->join('outlets','outlets.id_city','cities.id_city')
+                ->update(['outlet_status'=>"Active"]);
         }
             return response()->json(MyHelper::checkCreate($store));
     }

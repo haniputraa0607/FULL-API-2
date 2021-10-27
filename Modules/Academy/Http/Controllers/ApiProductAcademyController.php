@@ -117,15 +117,4 @@ class ApiProductAcademyController extends Controller
         $product = $product->toArray();
         return response()->json(MyHelper::checkGet($product));
     }
-
-    public function settingInstalment(){
-        $data = (array)json_decode(Setting::where('key', 'setting_instalment_product_academy')->first()['value_text']??'');
-        return response()->json(MyHelper::checkGet($data));
-    }
-
-    public function settingInstalmentSave(Request $request){
-        $post = $request->json()->all();
-        $save = Setting::updateOrCreate(['key' => 'setting_instalment_product_academy'], ['value_text' => json_encode($post['data'])]);
-        return response()->json(MyHelper::checkUpdate($save));
-    }
 }

@@ -15,6 +15,16 @@ use Illuminate\Http\Request;
 
 Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scopes:be'], 'prefix' => 'academy'], function () {
     Route::any('product', 'ApiProductAcademyController@index');
-    Route::get('product/setting/instalment', 'ApiProductAcademyController@settingInstalment');
-    Route::post('product/setting/instalment/save', 'ApiProductAcademyController@settingInstalmentSave');
+    Route::get('setting/instalment', 'ApiAcademyController@settingInstalment');
+    Route::post('setting/instalment/save', 'ApiAcademyController@settingInstalmentSave');
+    Route::get('setting/banner', 'ApiAcademyController@settingBanner');
+    Route::post('setting/banner/save', 'ApiAcademyController@settingBannerSave');
+});
+
+Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scopes:apps'], 'prefix' => 'academy'], function () {
+    Route::any('outlet/nearme', 'ApiAcademyController@getListNearOutlet');
+    Route::post('outlet/detail', 'ApiAcademyController@detailOutlet');
+    Route::get('banner', 'ApiAcademyController@academyBanner');
+    Route::post('product/list', 'ApiAcademyController@academyListProduct');
+    Route::post('product/detail', 'ApiAcademyController@academyDetailProduct');
 });

@@ -19,8 +19,7 @@ class ScheduleCreateRequest extends FormRequest
 		return [
 			'month'			=> 'required|numeric|between:1,12',
 			'year'			=> 'required|string',
-			'morning'		=> 'required|array',
-            'evening'   	=> 'required|array'            
+			'schedule'		=> 'required|array'
         ];
     }
 

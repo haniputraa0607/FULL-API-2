@@ -2505,6 +2505,7 @@ class ApiOnlineTransaction extends Controller
             $product['product_price_total'] = $item['transaction_product_subtotal'];
             $product['product_price_raw'] = (int) $product['product_price'];
             $product['product_price_raw_total'] = (int) $product['product_price'];
+            $product['qty_stock'] = (int)$product['product_stock_status'];
             // $product['product_price'] = MyHelper::requestNumber($product['product_price']+$mod_price, '_CURRENCY');
             $product['product_price'] = (int) $product['product_price'];
 
@@ -5182,9 +5183,10 @@ class ApiOnlineTransaction extends Controller
             $product['product_price_total'] = $item['transaction_product_subtotal']??($product['product_price']*$item['qty']);
             $product['product_price'] = (int)($product_variant_group_price??$product['product_price']);
             unset($product['product_variant_status']);
-            unset($product['product_stock_status']);
             $subTotalItem = $subTotalItem + $product['product_price_total'];
             $product['error_msg'] = (empty($err)? null:implode(".", array_unique($err)));
+            $product['qty_stock'] = (int)$product['product_stock_status'];
+            unset($product['product_stock_status']);
 
             $item = $product;
             if(!empty($err)){

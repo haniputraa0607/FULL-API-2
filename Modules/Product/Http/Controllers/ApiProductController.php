@@ -2278,6 +2278,7 @@ class ApiProductController extends Controller
                 'product_price' => (int)$val['product_price'],
                 'string_product_price' => 'Rp '.number_format((int)$val['product_price'],0,",","."),
                 'product_stock_status' => $stock,
+                'qty_stock' => (int)$val['product_stock_status'],
                 'photo' => (empty($val['photos'][0]['product_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$val['photos'][0]['product_photo'])
             ];
         }

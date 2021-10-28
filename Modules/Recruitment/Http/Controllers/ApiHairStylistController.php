@@ -324,9 +324,44 @@ class ApiHairStylistController extends Controller
     public function update(Request $request){
         $post = $request->json()->all();
         if(isset($post['id_user_hair_stylist']) && !empty($post['id_user_hair_stylist'])){
-            if(isset($post['update_type'])){
+            if(isset($post['update_type']) && $post['update_type'] != 'approve'){
                 $getData = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->first();
-                if($post['update_type'] == 'reject'){
+                if(!empty($post['data_document']['attachment'])){
+                    $upload = MyHelper::uploadFile($post['data_document']['attachment'], 'document/hs/', $post['data_document']['ext'], $post['id_user_hair_stylist'].'_'.str_replace(" ","_", $post['data_document']['document_type']));
+                    if (isset($upload['status']) && $upload['status'] == "success") {
+                        $path = $upload['path'];
+                    }else {
+                        return response()->json(['status' => 'fail', 'messages' => ['Failed upload document']]);
+                    }
+                }
+
+                if(!empty($post['data_document']['attachment_psychological_test'])){
+                    $upload = MyHelper::uploadFile($post['data_document']['attachment_psychological_test'], 'document/hs/', $post['data_document']['attachment_psychological_test_ext'], $post['id_user_hair_stylist'].'_attachment_psychological_test');
+                    if (isset($upload['status']) && $upload['status'] == "success") {
+                        $pathPsychological = $upload['path'];
+                    }else {
+                        return response()->json(['status' => 'fail', 'messages' => ['Failed upload document psychological test']]);
+                    }
+
+                    $createDoc = UserHairStylistDocuments::create([
+                        'id_user_hair_stylist' => $post['id_user_hair_stylist'],
+                        'document_type' => $post['data_document']['document_type'],
+                        'process_date' => date('Y-m-d H:i:s', strtotime($post['data_document']['process_date']??null)),
+                        'process_name_by' => $post['data_document']['process_name_by']??null,
+                        'process_notes' => $post['data_document']['process_notes'],
+                        'attachment' => $path??null,
+                        'attachment_psychological_test' => $pathPsychological??null,
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s')
+                    ]);
+                    if(!$createDoc){
+                        return response()->json(MyHelper::checkCreate($createDoc));
+                    }
+                }
+
+                $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update(['user_hair_stylist_status' => $post['update_type']]);
+
+                if($update && $post['update_type'] == 'Rejected'){
                     $autocrm = app($this->autocrm)->SendAutoCRM(
                         'Rejected Candidate Hair Stylist',
                         $getData['phone_number'],
@@ -336,48 +371,8 @@ class ApiHairStylistController extends Controller
                             'email' => $getData['email']
                         ], null, false, false, 'hairstylist'
                     );
-
-                    if(!$autocrm){
-                        return response()->json(['status' => 'fail', 'messages' => ['Failed send notif reject']]);
-                    }
-
-                    $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update(['user_hair_stylist_status' => 'Rejected']);
-                    return response()->json(MyHelper::checkUpdate($update));
-                }elseif($post['update_type'] != 'approve'){
-
-                    $insertDocument = [];
-                    foreach ($post['data_document'] as $doc){
-                        if(!empty($doc['attachment'])){
-                            $upload = MyHelper::uploadFile($doc['attachment'], 'document/hs/', $doc['ext'], $post['id_user_hair_stylist'].'_'.str_replace(" ","_", $doc['document_type']));
-                            if (isset($upload['status']) && $upload['status'] == "success") {
-                                $path = $upload['path'];
-                            }else {
-                                return response()->json(['status' => 'fail', 'messages' => ['Failed upload document']]);
-                            }
-                        }
-
-                        $insertDocument[] = [
-                            'id_user_hair_stylist' => $post['id_user_hair_stylist'],
-                            'document_type' => $doc['document_type'],
-                            'process_date' => date('Y-m-d H:i:s', strtotime($doc['process_date']??date('Y-m-d H:i:s'))),
-                            'process_name_by' => $doc['process_name_by']??null,
-                            'process_notes' => $doc['process_notes'],
-                            'attachment' => $path??null,
-                            'created_at' => date('Y-m-d H:i:s'),
-                            'updated_at' => date('Y-m-d H:i:s')
-                        ];
-                    }
-
-                    if(!empty($insertDocument)){
-                        $update = UserHairStylistDocuments::insert($insertDocument);
-                        if(!$update){
-                            return response()->json(MyHelper::checkUpdate($update));
-                        }
-                    }
-
-                    $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update(['user_hair_stylist_status' => $post['update_type']]);
-                    return response()->json(MyHelper::checkUpdate($update));
                 }
+                return response()->json(MyHelper::checkUpdate($update));
             }
 
             if(!empty($post['user_hair_stylist_photo'])){

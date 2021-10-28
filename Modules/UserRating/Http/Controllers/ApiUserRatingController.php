@@ -1022,13 +1022,7 @@ class ApiUserRatingController extends Controller
 				];
         	}
 
-        	$currentRating = UserRating::where([
-        		'id_transaction' => $log['id_transaction'],
-        		'id_user' => $log['id_user'],
-        		'id_outlet' => $log['id_outlet'],
-        		'id_user_hair_stylist' => $log['id_user_hair_stylist']
-        	])
-        	->first();
+        	$currentRating = $log;
 	        
 	        if ($currentRating) {
 	        	$currentOption = explode(',', $currentRating['option_value']);

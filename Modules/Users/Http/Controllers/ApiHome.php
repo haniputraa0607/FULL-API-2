@@ -1026,7 +1026,7 @@ class ApiHome extends Controller
         $duration = $getSetting['default_home_splash_duration_web_apps']['value'] ?? 5;
 
         if (!empty($splash)) {
-            $splash = config('url.storage_url_api').$splash;
+            $splash = config('url.storage_url_api').$splash."?update=".time();
         } else {
             $splash = null;
         }
@@ -1035,7 +1035,7 @@ class ApiHome extends Controller
         $result = [
             'status' => 'success',
             'result' => [
-                'splash_screen_url' => $splash."?update=".time(),
+                'splash_screen_url' => $splash,
                 'splash_screen_duration' => $duration,
                 'splash_screen_ext' => '.'.end($ext)
             ]

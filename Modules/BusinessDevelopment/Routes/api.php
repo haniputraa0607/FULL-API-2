@@ -53,6 +53,24 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefi
         Route::post('/pdf', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@pdfSurvey']);
         Route::get('/list', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@listFormSurvey']);
     });
+    
+    //Close Temporary Partners
+    Route::group(['prefix' => '/close-temporary'], function() {
+        Route::post('/', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersCloseController@index']);
+        Route::post('/create', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersCloseController@create']);
+        Route::post('/update', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersCloseController@update']);
+        Route::post('/createActive', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersCloseController@create_active']);
+        Route::post('/updateActive', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersCloseController@update_active']);
+        Route::post('/detail', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersCloseController@detail']);
+        Route::post('/submit', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersCloseController@submit']);
+        Route::post('/reject', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersCloseController@reject']);
+        Route::post('/success', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersCloseController@success']);
+        Route::post('/closeTemporary', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersCloseController@closeTemporary']);
+        Route::post('/temporary', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersCloseController@temporary']);
+        Route::post('/lampiran/create', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersCloseController@lampiranCreate']);
+        Route::post('/lampiran/delete', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersCloseController@lampiranDelete']);
+        Route::post('/lampiran/data', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersCloseController@lampiranData']);
+    });
 });
 
 Route::group(['middleware' => ['auth:partners','log_activities','user_agent','scopes:partners'],'prefix' => 'partner'], function() {

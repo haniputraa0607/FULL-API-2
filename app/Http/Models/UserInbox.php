@@ -48,7 +48,8 @@ class UserInbox extends Model
 		'inboxes_id_reference',
 		'inboxes_category',
 		'inboxes_content',
-		'inboxes_send_at'
+		'inboxes_send_at',
+        'inboxes_from'
 	];
 
 	public function campaign()

@@ -13,6 +13,7 @@ class OutletBox extends Model
         'id_outlet',
         'outlet_box_code',
         'outlet_box_name',
+        'outlet_box_url',
         'outlet_box_status',
         'outlet_box_use_status'
     ];

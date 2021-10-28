@@ -186,6 +186,14 @@ class Transaction extends Model
             ->orderBy('transaction_products.id_product');
 	}
 
+	public function productServiceTransaction() 
+    {
+    	return $this->hasMany(TransactionProduct::class, 'id_transaction', 'id_transaction')
+            ->where('type', 'Service')
+            ->whereNull('id_bundling_product')
+            ->orderBy('transaction_products.id_product');
+	}
+
     public function allProductTransaction() 
     {
     	return $this->hasMany(TransactionProduct::class, 'id_transaction', 'id_transaction')

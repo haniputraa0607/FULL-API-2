@@ -69,4 +69,11 @@ return [
             'end'   => '23:45',
         ]
     ],
+    'online_payment' => [
+        'payment_gateway' => 'Midtrans',
+        'payment_method'  => 'Midtrans',
+        'status'          => 1,
+        'logo'            => env('STORAGE_URL_API').'default_image/payment_method/ic_online_payment.png',
+        'text'            => 'Online Payment'
+    ],
 ];

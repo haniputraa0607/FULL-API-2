@@ -270,6 +270,15 @@ class ApiPartnersController extends Controller
             if (isset($post['npwp_address'])) {
                 $data_update['npwp_address'] = $post['npwp_address'];
             }
+            if(isset($data_update['start_date']) && isset($data_update['end_date'])){
+                $start = explode('-', $data_update['start_date']);
+                $end = explode('-', $data_update['end_date']);
+                try{
+                    $waktu = $this->timeTotal($start,$end);
+                }catch(\Exception $e) {
+                    return response()->json(['status' => 'fail_date', 'messages' => ['Start Date and End Date must be at least 3 years apar']]);
+                }
+            }
             $old_status = Partner::where('id_partner', $post['id_partner'])->get('status')[0]['status'];
             $old_phone = Partner::where('id_partner', $post['id_partner'])->get('phone')[0]['phone'];
             $old_name = Partner::where('id_partner', $post['id_partner'])->get('name')[0]['name'];
@@ -608,7 +617,6 @@ class ApiPartnersController extends Controller
                 $data['letter'] = $creatConf;
                 $data['location'] = Location::where(['id_partner'=>$post['id_partner']])->first();
                 $data['city'] = City::where(['id_city'=>$data['location']['id_city']])->first();
-                // return $data;
                 $waktu = $this->timeTotal(explode('-', $data['partner']['start_date']),explode('-', $data['partner']['end_date']));
                 $send['data'] = [
                     'pihak_dua' => $this->pihakDua($data['partner']['name'],$data['partner']['gender']),
@@ -640,7 +648,7 @@ class ApiPartnersController extends Controller
                 $no = str_replace('/', '_', $post['no_letter']);
                 $path = $this->confirmation.'confirmation_'.$no.'.pdf';
                 $pdf = PDF::loadView('businessdevelopment::confirmation', $pdf_contect );
-                Storage::put('public/'.$path, $pdf->output());
+                Storage::put($path, $pdf->output(),'public');
                 $creatConf['attachment'] = $path;
                 $store = ConfirmationLetter::create($creatConf);
                 if(!$store) {
@@ -907,7 +915,7 @@ class ApiPartnersController extends Controller
     public function formSurvey(Request $request){
         $form = Setting::where('key', 'form_survey')->first();
         $form = json_decode($form['value_text']??'' , true);
-        return $form[$request['id_brand']];
+        return $form[$request['id_brand']]??[];
     }
 
     public function allFormSurvey(Request $request){
@@ -952,47 +960,25 @@ class ApiPartnersController extends Controller
     public function pdfSurvey($id){
         $form_survey = FormSurvey::where('id_partner', $id)->first();
         $value = json_decode($form_survey['survey']??'' , true);
-        $cat1 = $value['cat1'];
-        $cat2 = $value['cat2'];
-        $cat3 = $value['cat3'];
         $a = 0;
         $b = 0;
         $c = 0;
         $d = 0;
-        foreach($cat1 as $c1){
-            if($c1['answer']=='a'){
-                $a+=1;
-            }elseif($c1['answer']=='b'){
-                $b+=1;
-            }elseif($c1['answer']=='c'){
-                $c+=1;
-            }elseif($c1['answer']=='d'){
-                $d+=1;
+        foreach($value as $v){
+            foreach($v['value'] as $val){
+                if($val['answer']=='a'){
+                    $a = $a + 1;
+                }elseif($val['answer']=='b'){
+                    $b = $b + 1;
+                }elseif($val['answer']=='c'){
+                    $c = $c + 1;
+                }elseif($val['answer']=='d'){
+                    $d = $d + 1;
+                }
             }
         }
-        foreach($cat2 as $c2){
-            if($c2['answer']=='a'){
-                $a+=1;
-            }elseif($c2['answer']=='b'){
-                $b+=1;
-            }elseif($c2['answer']=='c'){
-                $c+=1;
-            }elseif($c2['answer']=='d'){
-                $d+=1;
-            }
-        }
-        foreach($cat3 as $c3){
-            if($c3['answer']=='a'){
-                $a+=1;
-            }elseif($c3['answer']=='b'){
-                $b+=1;
-            }elseif($c3['answer']=='c'){
-                $c+=1;
-            }elseif($c3['answer']=='d'){
-                $d+=1;
-            }
-        }
-        $total = $a + $b + $c +$d;
+        $alphas = range('A', 'Z');
+        $total = ($a*4) + ($b*3) + ($c*2) + ($d*1);
         $location = Location::where('id_partner', $id)->first();
         $brand = Brand::where('id_brand', $location['id_brand'])->first();
         $partner = Partner::where('id_partner', $id)->first();
@@ -1002,9 +988,8 @@ class ApiPartnersController extends Controller
             'surveyor' => $form_survey['surveyor'],
             'brand' => $brand['name_brand'],
             'date' => $this->letterDate($form_survey['survey_date']),
-            'cat1' => $cat1,
-            'cat2' => $cat2,
-            'cat3' => $cat3,
+            'abjad' => $alphas,
+            'no_abjad' => 0,
             'no' => 1,
             'total_a' => $a,
             'total_b' => $b,
@@ -1013,12 +998,13 @@ class ApiPartnersController extends Controller
             'total' => $total,
             'note' => $form_survey['note'],
             'potential' => $form_survey['potential'],
+            'value' => $value,
         ];
         // return view('businessdevelopment::form_survey', $data);
         $name = strtolower(str_replace(' ', '_', $partner['name']));
         $path = $this->form_survey.'form_survey_'.$name.'.pdf';
         $pdf = PDF::loadView('businessdevelopment::form_survey', $data );
-        Storage::put('public/'.$path, $pdf->output());
+        Storage::put($path, $pdf->output(),'public');
         return $path;
     }
 

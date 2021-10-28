@@ -54,8 +54,12 @@ class ApiSurveyLocationController extends Controller
                     "surveyor"   =>  $request->surveyor,
                     "survey_date"   =>  date_format(date_create($request->survey_date),"Y-m-d H:i:s"),
                     "note"   =>  $note,
+                    "status"=>'Success',
                     "attachment"   =>  $attachment,
                 ]);
+            $project = Project::where(array('id_project'=>$request->id_project,'progres'=>'Survey Location'))->update([
+             'progres'=>'Desain Location'
+         ]);
             $store = ProjectSurveyLocation::where(array('id_project'=>$request->id_project))->first();
         }else{
             
@@ -71,6 +75,9 @@ class ApiSurveyLocationController extends Controller
                              return $result;
                          }
                  }
+                 $project = Project::where(array('id_project'=>$request->id_project,'progres'=>'Survey Location'))->update([
+                                'progres'=>'Desain Location'
+                            ]);
                 $store = ProjectSurveyLocation::create([
                     "id_project"   =>  $request->id_project,
                     "location_length"   =>  $request->location_length,
@@ -79,6 +86,7 @@ class ApiSurveyLocationController extends Controller
                     "surveyor"   =>  $request->surveyor, 
                     "survey_date"   => date_format(date_create($request->survey_date),"Y-m-d H:i:s"),
                     "attachment"   =>  $attachment,
+                     'status'=>'Success',
                     "note"   =>  $note
                 ]);
         }

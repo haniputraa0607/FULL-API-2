@@ -26,6 +26,7 @@ use App\Http\Models\Product;
 use App\Http\Models\ProductPrice;
 use Modules\Outlet\Entities\DeliveryOutlet;
 use Modules\Outlet\Entities\OutletBox;
+use Modules\Outlet\Entities\OutletTimeShift;
 use Modules\Product\Entities\ProductDetail;
 use Modules\Product\Entities\ProductGlobalPrice;
 use Modules\Product\Entities\ProductSpecialPrice;
@@ -151,6 +152,12 @@ class ApiOutletController extends Controller
             $data['status_franchise'] = $post['status_franchise'];
         }else{
             $data['status_franchise'] = 0;
+        }
+
+        if (isset($post['outlet_academy_status'])) {
+            $data['outlet_academy_status'] = $post['outlet_academy_status'];
+        }else{
+            $data['outlet_academy_status'] = 0;
         }
 
         if (isset($post['plastic_used_status'])) {
@@ -571,6 +578,11 @@ class ApiOutletController extends Controller
         $post = $request->json()->all();
 
         $outlet = Outlet::with(['user_outlets','city','today', 'outlet_schedules'])->select('*');
+
+        if(isset($post['outlet_academy_status'])){
+            $outlet = $outlet->where('outlet_academy_status', $post['outlet_academy_status']);
+        }
+
         if(isset($post['id_product'])){
             $outlet = $outlet->with(['product_detail'=> function($q) use ($post){
                 $q->where('id_product', $post['id_product']);
@@ -589,6 +601,11 @@ class ApiOutletController extends Controller
         $outlet = Outlet::with(['user_outlets','city','today', 'outlet_schedules'])
             ->where('outlet_different_price', 1)
             ->select('*');
+
+        if(isset($post['outlet_academy_status'])){
+            $outlet = $outlet->where('outlet_academy_status', $post['outlet_academy_status']);
+        }
+
         if(isset($post['id_product'])){
             $outlet = $outlet->with(['product_special_price'=> function($q) use ($post){
                         $q->where('id_product', $post['id_product']);
@@ -610,7 +627,12 @@ class ApiOutletController extends Controller
         }elseif(isset($post['admin']) && isset($post['type']) && $post['type'] == 'export'){
             $outlet = Outlet::with(['user_outlets','city','today','product_prices','product_prices.product'])->select('*');
         }elseif(isset($post['admin'])){
-            $outlet = Outlet::with(['user_outlets','city.province','today', 'outlet_schedules', 'outlet_box'])->select('*');
+            $outlet = Outlet::with(['user_outlets','city.province','today', 'outlet_schedules', 'outlet_schedules.time_shift', 'outlet_box'])->select('*');
+
+            if(isset($post['outlet_academy_status'])){
+                $outlet = $outlet->where('outlet_academy_status', $post['outlet_academy_status']);
+            }
+
             if(isset($post['id_product'])){
                 $outlet = $outlet->with(['product_detail'=> function($q) use ($post){
                     $q->where('id_product', $post['id_product']);
@@ -2483,10 +2505,7 @@ class ApiOutletController extends Controller
                     return response()->json(['status' => 'fail']);
                 }
             }else{
-                $new = OutletSchedule::create([
-                    'id_outlet' => $post['id_outlet'],
-                    'day' => $value['day']
-                ]+$value);
+                $new = OutletSchedule::create($data);
                 if (!$new) {
                     DB::rollBack();
                     return response()->json(['status' => 'fail']);
@@ -2507,6 +2526,30 @@ class ApiOutletController extends Controller
                     'new_data' => json_encode($new_data)
                 ]);
             }
+            if(!$old){
+                $post['data_shift'][$key][0]['id_outlet_schedule'] = $new_data['id_outlet_schedule'];
+                $post['data_shift'][$key][1]['id_outlet_schedule'] = $new_data['id_outlet_schedule'];
+            }
+        }
+
+        $insertShift = [];
+        foreach ($post['data_shift'] as $dt_shift){
+            foreach ($dt_shift as $shift){
+                $insertShift[] = [
+                    'id_outlet' => $post['id_outlet'],
+                    'id_outlet_schedule' => $shift['id_outlet_schedule'],
+                    'shift' => $shift['shift'],
+                    'shift_time_start' => date('H:i', strtotime($shift['start'])),
+                    'shift_time_end' => date('H:i', strtotime($shift['end'])),
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ];
+            }
+        }
+
+        if(!empty($insertShift)){
+            OutletTimeShift::where('id_outlet', $post['id_outlet'])->delete();
+            OutletTimeShift::insert($insertShift);
         }
 
         DB::commit();
@@ -3701,6 +3744,7 @@ class ApiOutletController extends Controller
                 $update = OutletBox::where('id_outlet_box', $value['id_outlet_box'])->update([
                     'outlet_box_code' => $value['outlet_box_code'],
                     'outlet_box_name' => $value['outlet_box_name'],
+                    'outlet_box_url' => $value['outlet_box_url'],
                     'outlet_box_status' => $status
                 ]);
 
@@ -3713,6 +3757,7 @@ class ApiOutletController extends Controller
                             'id_outlet' => (int)$post['id_outlet'],
                             'outlet_box_code' => $value['outlet_box_code'],
                             'outlet_box_name' => $value['outlet_box_name'],
+                            'outlet_box_url' => $value['outlet_box_url'],
                             'outlet_box_status' => $status
                         ]);
 
@@ -3725,5 +3770,32 @@ class ApiOutletController extends Controller
 
         DB::commit();
         return response()->json(['status' => 'success']);
+    }
+
+    function shiftTimeSave(Request $request){
+        $post = $request->json()->all();
+        if(empty($post['id_outlet'])){
+            return response()->json(['status' => 'fail', 'messages' => ['ID outlet can not be empty']]);
+        }
+
+        $insert = [];
+        foreach ($post['shift_data'] as $value) {
+            OutletTimeShift::where('id_outlet', $post['id_outlet'])->delete();
+            $insert[] = [
+                'id_outlet' => $post['id_outlet'],
+                'shift' => $value['shift'],
+                'shift_time_start' => date('H:i', strtotime($value['shift_time_start'])),
+                'shift_time_end' => date('H:i', strtotime($value['shift_time_end'])),
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s'),
+            ];
+        }
+
+        $save = false;
+        if(!empty($insert)){
+            $save = OutletTimeShift::insert($insert);
+        }
+
+        return response()->json(MyHelper::checkUpdate($save));
     }
 }

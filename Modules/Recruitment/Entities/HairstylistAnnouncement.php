@@ -18,4 +18,11 @@ class HairstylistAnnouncement extends Model
 		'date_end',
 		'content'
 	];
+
+	public function hairstylist_announcement_rule_parents()
+	{
+		return $this->hasMany(\Modules\Recruitment\Entities\HairstylistAnnouncementRuleParent::class, 'id_hairstylist_announcement')
+					->select('id_hairstylist_announcement_rule_parent', 'id_hairstylist_announcement', 'hairstylist_announcement_rule as rule', 'hairstylist_announcement_rule_next as rule_next');
+	}
+
 }

@@ -23,14 +23,22 @@ Route::group(['prefix' => 'partner'], function () {
             Route::post('detail/for-login', 'ApiUserPartnerController@detail');
         });
         Route::group(['prefix' => 'promo'], function() {
+            Route::post('detail/deals', 'ApiDeals@detail');
             Route::post('before/deals', 'ApiDeals@listDealBefore');
             Route::post('active/deals', 'ApiDeals@listDealActive');
             Route::post('outlet', 'ApiOutletController@outlet');
             Route::post('brand', 'ApiOutletController@brand');
             Route::post('before/promo-campaign', 'ApiPromoCampaign@listPromoCampaignBefore');
             Route::post('active/promo-campaign', 'ApiPromoCampaign@listPromoCampaignActive');
+            Route::post('detail/promo-campaign', 'ApiPromoCampaign@detail');
             Route::post('before/subscription', 'ApiSubscriptionController@listSubscriptionBefore');  
             Route::post('active/subscription', 'ApiSubscriptionController@listSubscriptionActive');  
+        });
+    });
+     Route::group(['middleware' => ['auth:api', 'scopes:be']], function () {
+        Route::group(['prefix' => 'select-list'], function() {
+            Route::post('lokasi', 'ApiOutletController@lokasi');
+            Route::get('partner', 'ApiOutletController@partner');
         });
     });
 });

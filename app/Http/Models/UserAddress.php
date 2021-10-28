@@ -47,7 +47,8 @@ class UserAddress extends Model
 		'latitude',
 		'longitude',
 		'favorite',
-		'type'
+		'type',
+		'id_subdistrict'
 	];
 
 	public function city()
@@ -58,6 +59,11 @@ class UserAddress extends Model
 	public function user()
 	{
 		return $this->belongsTo(\App\Http\Models\User::class, 'id_user');
+	}
+
+	public function subdistrict()
+	{
+		return $this->belongsTo(\App\Http\Models\Subdistrict::class, 'id_subdistrict');
 	}
 
 	public function getTypeAttribute($value)

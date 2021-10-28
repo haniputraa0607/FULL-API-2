@@ -7,7 +7,9 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Modules\Recruitment\Entities\UserHairStylist;
+use Modules\Recruitment\Entities\UserHairStylistDocuments;
 use Modules\Recruitment\Http\Requests\user_hair_stylist_create;
+use Image;
 
 class ApiHairStylistController extends Controller
 {
@@ -46,6 +48,16 @@ class ApiHairStylistController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Email or phone already use']]);
         }
 
+        if (isset($post['photo']) && !empty($post['photo'])) {
+            $img = Image::make(base64_decode($post['photo']));
+            $imgwidth = $img->width();
+            $imgheight = $img->height();
+            $upload = MyHelper::uploadPhotoStrict($post['photo'], 'img/hs/', $imgwidth, $imgheight, time());
+            if ($upload['status'] == "success") {
+                $post['user_hair_stylist_photo'] = $upload['path'];
+            }
+        }
+
         $dataCreate = [
             'level' => (empty($post['level']) ? null : $post['level']),
             'email' => $post['email'],
@@ -64,7 +76,8 @@ class ApiHairStylistController extends Controller
             'recent_address' => (empty($post['recent_address']) ? null : $post['recent_address']),
             'postal_code' => (empty($post['postal_code']) ? null : $post['postal_code']),
             'marital_status' => (empty($post['marital_status']) ? null : $post['marital_status']),
-            'user_hair_stylist_status' => 'Candidate'
+            'user_hair_stylist_status' => 'Candidate',
+            'user_hair_stylist_photo' => $post['user_hair_stylist_photo']??null
         ];
 
         $create = UserHairStylist::create($dataCreate);
@@ -85,7 +98,7 @@ class ApiHairStylistController extends Controller
     public function canditateList(Request $request){
         $post = $request->json()->all();
 
-        $data = UserHairStylist::whereIn('user_hair_stylist_status', ['Candidate', 'Rejected'])->orderBy('created_at', 'desc');
+        $data = UserHairStylist::whereNotIn('user_hair_stylist_status', ['Active', 'Inactive'])->orderBy('created_at', 'desc');
 
         if(isset($post['date_start']) && !empty($post['date_start']) &&
             isset($post['date_end']) && !empty($post['date_end'])){
@@ -298,7 +311,8 @@ class ApiHairStylistController extends Controller
                         	'hairstylist_schedules' => function($q) {
                         		$q->limit(2)->orderBy('created_at', 'desc');
 	                        },
-	                        'hairstylist_schedules.hairstylist_schedule_dates'
+	                        'hairstylist_schedules.hairstylist_schedule_dates',
+                            'documents'
 	                    ])
                         ->first();
             return response()->json(MyHelper::checkGet($detail));
@@ -310,23 +324,54 @@ class ApiHairStylistController extends Controller
     public function update(Request $request){
         $post = $request->json()->all();
         if(isset($post['id_user_hair_stylist']) && !empty($post['id_user_hair_stylist'])){
-            if(isset($post['update_type']) && $post['update_type'] == 'reject'){
+            if(isset($post['update_type']) && $post['update_type'] != 'approve'){
                 $getData = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->first();
-                $autocrm = app($this->autocrm)->SendAutoCRM(
-                    'Rejected Candidate Hair Stylist',
-                    $getData['phone_number'],
-                    [
-                        'fullname' => $getData['fullname'],
-                        'phone_number' => $getData['phone_number'],
-                        'email' => $getData['email']
-                    ], null, false, false, 'hairstylist'
-                );
-
-                if(!$autocrm){
-                    return response()->json(['status' => 'fail', 'messages' => ['Failed send notif reject']]);
+                if(!empty($post['data_document']['attachment'])){
+                    $upload = MyHelper::uploadFile($post['data_document']['attachment'], 'document/hs/', $post['data_document']['ext'], $post['id_user_hair_stylist'].'_'.str_replace(" ","_", $post['data_document']['document_type']));
+                    if (isset($upload['status']) && $upload['status'] == "success") {
+                        $path = $upload['path'];
+                    }else {
+                        return response()->json(['status' => 'fail', 'messages' => ['Failed upload document']]);
+                    }
                 }
 
-                $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update(['user_hair_stylist_status' => 'Rejected']);
+                if(!empty($post['data_document']['attachment_psychological_test'])){
+                    $upload = MyHelper::uploadFile($post['data_document']['attachment_psychological_test'], 'document/hs/', $post['data_document']['attachment_psychological_test_ext'], $post['id_user_hair_stylist'].'_attachment_psychological_test');
+                    if (isset($upload['status']) && $upload['status'] == "success") {
+                        $pathPsychological = $upload['path'];
+                    }else {
+                        return response()->json(['status' => 'fail', 'messages' => ['Failed upload document psychological test']]);
+                    }
+
+                    $createDoc = UserHairStylistDocuments::create([
+                        'id_user_hair_stylist' => $post['id_user_hair_stylist'],
+                        'document_type' => $post['data_document']['document_type'],
+                        'process_date' => date('Y-m-d H:i:s', strtotime($post['data_document']['process_date']??null)),
+                        'process_name_by' => $post['data_document']['process_name_by']??null,
+                        'process_notes' => $post['data_document']['process_notes'],
+                        'attachment' => $path??null,
+                        'attachment_psychological_test' => $pathPsychological??null,
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s')
+                    ]);
+                    if(!$createDoc){
+                        return response()->json(MyHelper::checkCreate($createDoc));
+                    }
+                }
+
+                $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update(['user_hair_stylist_status' => $post['update_type']]);
+
+                if($update && $post['update_type'] == 'Rejected'){
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Rejected Candidate Hair Stylist',
+                        $getData['phone_number'],
+                        [
+                            'fullname' => $getData['fullname'],
+                            'phone_number' => $getData['phone_number'],
+                            'email' => $getData['email']
+                        ], null, false, false, 'hairstylist'
+                    );
+                }
                 return response()->json(MyHelper::checkUpdate($update));
             }
 
@@ -347,16 +392,14 @@ class ApiHairStylistController extends Controller
                     return response()->json(['status' => 'fail', 'messages' => ['Nickname already use with hairstylist : '.$check['fullname']]]);
                 }
 
-                $checkPhone = UserHairStylist::where('phone_number', $post['phone_number'])->whereNotIn('id_user_hair_stylist', [$post['id_user_hair_stylist']])->first();
-
-                if(!empty($checkPhone)){
-                    return response()->json(['status' => 'fail', 'messages' => ['Phone Number already use with another hairstylist']]);
-                }
-
                 if(isset($post['auto_generate_pin'])){
                     $pin = MyHelper::createrandom(6, 'Angka');
                 }else{
                     $pin = $post['pin'];
+                }
+                $dtHs = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->first();
+                if(empty($dtHs)){
+                    return response()->json(['status' => 'fail', 'messages' => ['Hs not found']]);
                 }
 
                 unset($post['update_type']);
@@ -366,7 +409,6 @@ class ApiHairStylistController extends Controller
                 unset($post['action_type']);
                 $data = $post;
                 $data['password'] = bcrypt($pin);
-                $data['birthdate'] = date('Y-m-d', strtotime($data['birthdate']));
                 $data['join_date'] = date('Y-m-d H:i:s');
                 $data['approve_by'] = $request->user()->id;
                 $data['user_hair_stylist_status'] = 'Active';
@@ -374,16 +416,17 @@ class ApiHairStylistController extends Controller
 
                 $autocrm = app($this->autocrm)->SendAutoCRM(
                     'Approve Candidate Hair Stylist',
-                    $data['phone_number'],
+                    $dtHs['phone_number'],
                     [
-                        'fullname' => $data['fullname'],
-                        'phone_number' => $data['phone_number'],
-                        'email' => $data['email'],
+                        'fullname' => $dtHs['fullname'],
+                        'phone_number' => $dtHs['phone_number'],
+                        'email' => $dtHs['email'],
                         'pin_hair_stylist' => $pin
                     ], null, false, false, 'hairstylist'
                 );
 
             }else{
+                unset($post['data_document']);
                 unset($post['action_type']);
                 $checkPhone = UserHairStylist::where(function ($q) use ($post){
                             $q->where('phone_number', $post['phone_number'])
@@ -399,10 +442,71 @@ class ApiHairStylistController extends Controller
                     $post['birthdate'] = date('Y-m-d', strtotime($post['birthdate']));
                 }
 
+                $sendCrmUpdatePin = 0;
+                if(isset($post['auto_generate_pin'])){
+                    $pin = MyHelper::createrandom(6, 'Angka');
+                    $post['password'] = bcrypt($pin);
+                    $sendCrmUpdatePin = 1;
+                }elseif(isset($post['pin']) && !empty($post['pin'])){
+                    $pin = $post['pin'];
+                    $post['password'] = bcrypt($pin);
+                    $sendCrmUpdatePin = 1;
+                }
+
+                unset($post['pin']);
+                unset($post['pin2']);
+                unset($post['auto_generate_pin']);
                 $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update($post);
+
+                if($update && $sendCrmUpdatePin == 1){
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Reset Password User Hair Stylist',
+                        $post['phone_number'],
+                        [
+                            'fullname' => $post['fullname'],
+                            'phone_number' => $post['phone_number'],
+                            'email' => $post['email'],
+                            'pin_hair_stylist' => $pin
+                        ], null, false, false, 'hairstylist'
+                    );
+                }
             }
 
             return response()->json(MyHelper::checkUpdate($update));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    }
+
+    public function detailDocument(Request $request){
+        $post = $request->json()->all();
+        if(!empty($post['id_user_hair_stylist_document'])){
+            $detail = UserHairStylistDocuments::where('id_user_hair_stylist_document', $post['id_user_hair_stylist_document'])->first();
+            return response()->json(MyHelper::checkGet($detail));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    }
+
+    public function updateStatus(Request $request){
+        $post = $request->json()->all();
+        if(!empty($post['id_user_hair_stylist'])){
+            $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update(['user_hair_stylist_status' => $post['user_hair_stylist_status']]);
+            return response()->json(MyHelper::checkUpdate($update));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    }
+
+    public function delete(Request $request){
+        $post = $request->json()->all();
+        if(!empty($post['id_user_hair_stylist'])){
+            $check = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->first();
+            if($check['user_hair_stylist_status'] == 'Active' || $check['user_hair_stylist_status'] == 'Inactive'){
+                return response()->json(['status' => 'fail', 'messages' => ['Can not delete active/inactive hair stylist']]);
+            }
+            $del = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->delete();
+            return response()->json(MyHelper::checkDelete($del));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
         }

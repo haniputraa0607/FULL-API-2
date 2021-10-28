@@ -16,8 +16,8 @@ class DetailDealsRequest extends FormRequest
     public function rules()
     {
         return [
-            'id_deals' 	 => 'nullable|integer',
-            'step' 		 => 'nullable',
+            'id_deals' 	 => 'required',
+            'step' 	=> 'nullable',
             'deals_type' => 'nullable'
         ];
     }
@@ -39,6 +39,6 @@ class DetailDealsRequest extends FormRequest
 
     protected function validationData()
     {
-        return $this->json()->all();
+        return $this->all();
     }
 }

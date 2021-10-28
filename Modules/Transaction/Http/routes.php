@@ -80,6 +80,9 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
 
     Route::post('failed-void-payment', 'ApiManualRefundController@listFailedVoidPayment');
     Route::post('failed-void-payment/confirm', 'ApiManualRefundController@confirmManualRefund');
+
+    Route::post('outlet-service', 'ApiTransactionOutletService@listOutletService');
+    Route::post('outlet-service/detail', 'ApiTransactionOutletService@detailTransaction');
 });
 
 Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scopes:apps'], 'prefix' => 'api/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
@@ -101,6 +104,8 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     // Route::post('history-point', 'ApiHistoryController@historyPoint');
     Route::post('history-balance/{mode?}', 'ApiHistoryController@historyBalance');
 
+    Route::post('history-payment', 'ApiHistoryController@paymentHistory');
+
     Route::post('/shipping', 'ApiTransaction@getShippingFee');
     Route::any('/address', 'ApiTransaction@getAddress');
     Route::post('/address/nearby', 'ApiTransaction@getNearbyAddress');
@@ -108,6 +113,7 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::post('/address/detail', 'ApiTransaction@detailAddress');
     Route::post('/address/add', 'ApiTransaction@addAddress');
     Route::post('/address/update', 'ApiTransaction@updateAddress');
+    Route::post('/address/update-favorite', 'ApiTransaction@updateAddressFavorite');
     Route::post('/address/delete', 'ApiTransaction@deleteAddress');
     Route::post('/void', 'ApiTransaction@transactionVoid');
 
@@ -126,6 +132,7 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::group(['prefix' => 'transaction'], function () {
     	Route::post('list', 'ApiTransaction@outletServiceList');
     	Route::post('detail', 'ApiTransaction@outletServiceDetail');
+        Route::post('cancel', 'ApiOnlineTransaction@cancelTransaction');
 	});
 });
 

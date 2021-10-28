@@ -331,7 +331,7 @@ class ApiDeals extends Controller
                 }
             }
         }
-
+        
         //jika mobile di pagination
         if (!$request->json('web')) {
             $result = $this->dealsPaginate($deals);
@@ -847,11 +847,21 @@ class ApiDeals extends Controller
 		
 		$query = DataTables::of($query)
                 ->addColumn('action', function ($data) {
-                    $btnDelete = '<a class="btn btn-sm btn-primary text-nowrap" target="_blank" href="'. url('report/promo/deals/detail/'.$data['id_deals']).'/'.$data['deals_type'].'"><i class="fa fa-search" style="font-size : 14px; padding-right : 0px"></i></a>';  
+                    $slug = MyHelper::createSlug($data['id_deals'], $data['created_at']);
+                    $btnDelete = '<a class="btn btn-sm btn-primary text-nowrap" href="'. env('APP_URL').'report/promo/deals/detail/'.$slug.'"><i class="fa fa-search" style="font-size : 14px; padding-right : 0px"></i></a>';  
                      return '<div class="btn-group btn-group" role="group">'. $btnDelete.'</div>';
                  })
                 ->editColumn('deals_voucher_price', function($row) {
-                    if($row['deals_voucher_price_type'] == 'free'){
+                    if($row['deals_voucher_price_type'] == 'free'){ 
+                        return $row['deals_voucher_price_type'];
+                    } elseif (!empty($row['deals_voucher_price_point'])){
+                        return number_format($row['deals_voucher_price_point']).' Points';
+                    }elseif (!empty($row['deals_voucher_price_cash'])){
+                        return 'IDR'.number_format($row['deals_voucher_price_cash']);
+                    }
+                })
+                ->editColumn('deals_voucher_price', function($row) {
+                    if($row['deals_voucher_price_type'] == 'free'){ 
                         return $row['deals_voucher_price_type'];
                     } elseif (!empty($row['deals_voucher_price_point'])){
                         return number_format($row['deals_voucher_price_point']).' Points';
@@ -867,11 +877,140 @@ class ApiDeals extends Controller
                   $publish_start = date('d M Y', strtotime($row['deals_start'])).' - '.date('d M Y', strtotime($row['deals_end']));
                   return $publish_start;
                 })
+                ->editColumn('deals_start', function($row) {
+                  $publish_start = date('d M Y', strtotime($row['deals_start'])).' - '.date('d M Y', strtotime($row['deals_end']));
+                  return $publish_start;
+                })
                 ->make(true);
                 
 		return $query;
 	}
+    
+    public function detail(DetailDealsRequest $request)
+    {
+        $post = $request->json()->all();
+        $user = $request->user();
+        $step = 'all';
+        $deals_type = "Deals";
+        $id = MyHelper::explodeSlug($post['id_deals'])[0]??'';
+        if(isset($post['step'])){
+            $step = $post['step'];
+        }
+        if(isset($post['deals_type'])){
+            $deals_type = $post['deals_type'];
+        }
+        $deals = $this->getDealsData($id, $step, $deals_type);
+        if (isset($deals)) {
+            $deals = $deals->toArray();
+        }else{
+            $deals = false;
+        }
 
+        if ($deals) {
+            $result = [
+                'status'  => 'success',
+                'result'  => $deals
+            ];
+        } else {
+            $result = [
+                'status'  => 'fail',
+                'messages'  => ['Deals Not Found']
+            ];
+        }
+
+        return response()->json($result);
+    }
+
+    function getDealsData($id_deals, $step, $deals_type='Deals')
+    {
+    	$post['id_deals'] = $id_deals;
+    	$post['step'] = $step;
+    	$post['deals_type'] = $deals_type;
+
+    	if ($deals_type == 'Promotion' || $deals_type == 'deals_promotion') {
+    		$deals = DealsPromotionTemplate::where('id_deals_promotion_template', '=', $post['id_deals']);
+    		$table = 'deals_promotion';
+    	}else{
+    		if ($deals_type == 'promotion-deals') {
+    			$post['deals_type'] = 'promotion';
+    		}
+    		$deals = Deal::where('id_deals', '=', $post['id_deals'])->where('deals_type','=',$post['deals_type']);
+    		$table = 'deals';
+    	}
+
+        if ( ($post['step'] == 1 || $post['step'] == 'all') ){
+			$deals = $deals->with(['outlets', 'outlet_groups']);
+        }
+
+        if ( ($post['step'] == 1 || $post['step'] == 'all') ){
+			$deals = $deals->with([$table.'_brands']);
+        }
+
+        if ($post['step'] == 2 || $post['step'] == 'all') {
+			$deals = $deals->with([
+                $table.'_product_discount.product',
+                $table.'_product_discount.brand',
+                $table.'_product_discount.product_variant_pivot.product_variant',
+                $table.'_product_discount_rules',
+                $table.'_tier_discount_product.product',
+                $table.'_tier_discount_product.brand',
+                $table.'_tier_discount_product.product_variant_pivot.product_variant',
+                $table.'_tier_discount_rules',
+                $table.'_buyxgety_product_requirement.product',
+                $table.'_buyxgety_product_requirement.brand',
+                $table.'_buyxgety_product_requirement.product_variant_pivot.product_variant',
+                $table.'_buyxgety_rules.product',
+                $table.'_buyxgety_rules.brand',
+                $table.'_buyxgety_rules.product_variant_pivot.product_variant',
+                $table.'_buyxgety_rules.deals_buyxgety_product_modifiers.modifier',
+                $table.'_discount_bill_rules',
+                $table.'_discount_bill_products.product',
+                $table.'_discount_bill_products.brand',
+                $table.'_discount_bill_products.product_variant_pivot.product_variant',
+                $table.'_discount_delivery_rules',
+                $table.'_shipment_method',
+                $table.'_payment_method',
+                'brand',
+                'brands',
+                'created_by_user' => function($q) {
+                	$q->select('id', 'name', 'level');
+                }
+            ]);
+        }
+
+        if ($post['step'] == 3 || $post['step'] == 'all') {
+			$deals = $deals->with([$table.'_content.'.$table.'_content_details']);
+        }
+
+        if ($post['step'] == 'all') {
+			// $deals = $deals->with(['created_by_user']);
+        }
+
+        $deals = $deals->first();
+
+        if ($deals) {
+        	if ($post['step'] == 'all' && $deals_type != 'Promotion' && $deals_type != 'promotion-deals') {
+	        	$deals_array = $deals->toArray();
+	        	if ($deals_type == 'Deals' || $deals_type == 'Hidden' || $deals_type == 'WelcomeVoucher' || $deals_type == 'Quest') {
+	        		$type = 'deals';
+	        	}else{
+	        		$type = $deals_type;
+	        	}
+	        	$getProduct = app($this->promo_campaign)->getProduct($type, $deals_array);
+	    		$desc = app($this->promo_campaign)->getPromoDescription($type, $deals_array, $getProduct['product']??'', true);
+	    		$deals['description'] = $desc;
+        	}
+        }
+        if ($deals_type != 'Promotion' && $post['step'] == 'all') {
+        	$used_voucher = DealsVoucher::join('transaction_vouchers', 'deals_vouchers.id_deals_voucher', 'transaction_vouchers.id_deals_voucher')
+        					->where('id_deals', $deals->id_deals)
+        					->where('transaction_vouchers.status', 'success')
+        					->count();
+        	$deals->deals_total_used = $used_voucher;
+        }
+
+        return $deals;
+    }
 
 
 }

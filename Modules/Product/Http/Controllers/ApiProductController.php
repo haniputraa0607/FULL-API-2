@@ -17,6 +17,7 @@ use App\Http\Models\ProductModifierGlobalPrice;
 use App\Http\Models\Outlet;
 use App\Http\Models\Setting;
 use Lcobucci\JWT\Parser;
+use Modules\Outlet\Entities\OutletTimeShift;
 use Modules\Product\Entities\ProductDetail;
 use Modules\Product\Entities\ProductGlobalPrice;
 use Modules\Product\Entities\ProductSpecialPrice;
@@ -151,6 +152,21 @@ class ApiProductController extends Controller
             }
         }
 
+        if (isset($post['product_short_description'])) {
+            $data['product_short_description'] = $post['product_short_description'];
+        }
+
+        if (isset($post['product_academy_duration'])) {
+            $data['product_academy_duration'] = $post['product_academy_duration'];
+        }
+
+        if (isset($post['product_academy_total_meeting'])) {
+            $data['product_academy_total_meeting'] = $post['product_academy_total_meeting'];
+        }
+
+        if (isset($post['product_academy_hours_meeting'])) {
+            $data['product_academy_hours_meeting'] = $post['product_academy_hours_meeting'];
+        }
     	return $data;
     }
 
@@ -235,8 +251,8 @@ class ApiProductController extends Controller
             if($id_product_detail == 0){
                 $update = ProductDetail::create(['id_product' => $post['id_product'],
                     'id_outlet' => $post['id_outlet'][$key],
-                    'product_stock_status' => $post['product_detail_stock_status'][$key],
-                    'product_visibility' => $post['product_detail_visibility'][$key]
+                    'product_detail_stock_status' => $post['product_detail_stock_status'][$key],
+                    'product_detail_visibility' => $post['product_detail_visibility'][$key]
                 ]);
                 $create = ProductStockStatusUpdate::create([
                     'id_product' => $post['id_product'],
@@ -908,16 +924,17 @@ class ApiProductController extends Controller
             if (isset($post['visibility'])) {
 
                 if($post['visibility'] == 'Hidden'){
-                    $idVisible = ProductDetail::join('products', 'products.id_product','=', 'product_detail.id_product')
-                                            ->where('product_detail.product_detail_visibility', 'Visible')
-                                            ->where('product_detail.product_detail_status', 'Active')
-                                            ->whereNotNull('id_product_category')
-                                            ->where('id_outlet', $post['id_outlet'])
-                                            ->where('products.product_type', 'product')
-                                            ->select('product_detail.id_product')->get();
-                    $product = Product::whereNotIn('products.id_product', $idVisible)->with(['category', 'discount']);
+                    $product = Product::join('product_detail','product_detail.id_product','=','products.id_product')
+                        ->where('product_detail.id_outlet','=',$post['id_outlet'])
+                        ->where('product_detail.product_detail_visibility','=','Hidden')
+                        ->where('products.product_type', 'product')->with(['category', 'discount']);
                 }else{
-                    $product = $product->whereNotNull('id_product_category');
+                    $ids = Product::join('product_detail','product_detail.id_product','=','products.id_product')
+                        ->where('product_detail.id_outlet','=',$post['id_outlet'])
+                        ->where('product_detail.product_detail_visibility','=','Hidden')
+                        ->where('products.product_type', 'product')->pluck('products.id_product')->toArray();
+                    $product = Product::whereNotIn('id_product', $ids)
+                        ->where('products.product_type', 'product')->with(['category', 'discount']);
                 }
 
                 unset($post['id_outlet']);
@@ -1127,22 +1144,24 @@ class ApiProductController extends Controller
 
     	// check data
         DB::beginTransaction();
-        $brands=$post['product_brands']??false;
-        if(!$brands){
-            $brands = ['0'];
-            $post['product_brands'] = ['0'];
-        }
-        if(in_array('*', $post['product_brands'])){
-            $brands=Brand::select('id_brand')->get()->toArray();
-            $brands=array_column($brands, 'id_brand');
-        }
-        BrandProduct::where('id_product',$request->json('id_product'))->delete();
-        foreach ($brands as $id_brand) {
-            BrandProduct::create([
-                'id_product'=>$request->json('id_product'),
-                'id_brand'=>$id_brand,
-                'id_product_category'=>$request->json('id_product_category')
-            ]);
+        if(!empty($post['product_brands'])){
+            $brands=$post['product_brands']??false;
+            if(!$brands){
+                $brands = ['0'];
+                $post['product_brands'] = ['0'];
+            }
+            if(in_array('*', $post['product_brands'])){
+                $brands=Brand::select('id_brand')->get()->toArray();
+                $brands=array_column($brands, 'id_brand');
+            }
+            BrandProduct::where('id_product',$request->json('id_product'))->delete();
+            foreach ($brands as $id_brand) {
+                BrandProduct::create([
+                    'id_product'=>$request->json('id_product'),
+                    'id_brand'=>$id_brand,
+                    'id_product_category'=>$request->json('id_product_category')
+                ]);
+            }
         }
         unset($post['product_brands']);
         // promo_category
@@ -2259,6 +2278,7 @@ class ApiProductController extends Controller
                 'product_price' => (int)$val['product_price'],
                 'string_product_price' => 'Rp '.number_format((int)$val['product_price'],0,",","."),
                 'product_stock_status' => $stock,
+                'qty_stock' => (int)$val['product_stock_status'],
                 'photo' => (empty($val['photos'][0]['product_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$val['photos'][0]['product_photo'])
             ];
         }
@@ -2287,7 +2307,8 @@ class ApiProductController extends Controller
             'id_brand' => $brand['id_brand'],
             'brand_code' => $brand['code_brand'],
             'brand_name' => $brand['name_brand'],
-            'brand_logo' => $brand['logo_brand']
+            'brand_logo' => $brand['logo_brand'],
+            'brand_logo_landscape' => $brand['logo_landscape_brand']
         ];
 
         $result = [
@@ -2368,6 +2389,11 @@ class ApiProductController extends Controller
             ];
         }
 
+        if ($product['product_variant_status']) {
+            $variantTree = Product::getVariantTree($product['id_product'], ['id_outlet' => $outlet['id_outlet'], 'outlet_different_price' => $outlet['outlet_different_price']]);
+            $product['product_price'] = ($variantTree['base_price']??false)?:$product['product_price'];
+        }
+
         $day = [
             'Mon' => 'Senin',
             'Tue' => 'Selasa',
@@ -2385,12 +2411,12 @@ class ApiProductController extends Controller
         $totalDateShow = Setting::where('key', 'total_show_date_booking_service')->first()->value??1;
         $today = date('Y-m-d');
         $currentTime = date('H:i');
+        $processingTime = (int)(empty($product['processing_time_service']) ? 30:$product['processing_time_service']);
         $listDate = [];
 
         if($scopeUser == 'apps'){
             $x = 0;
             $count = 1;
-            $processingTime = (int)$product['processing_time_service'];
             while($count <= (int)$totalDateShow) {
                 $date = date('Y-m-d', strtotime('+'.$x.' day', strtotime($today)));
                 $dayConvert = $day[date('D', strtotime($date))];
@@ -2404,6 +2430,11 @@ class ApiProductController extends Controller
                         $times[] = $open;
                     }
                     while(strtotime($tmpTime) < strtotime($close)) {
+                        $dateTimeConvert = date('Y-m-d H:i', strtotime("+".$processingTime." minutes", strtotime($date.' '.$tmpTime)));
+                        if(strtotime($dateTimeConvert) > strtotime($date.' '.$close)){
+                            break;
+                        }
+
                         $timeConvert = date('H:i', strtotime("+".$processingTime." minutes", strtotime($tmpTime)));
                         if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime)){
                             $times[] = $timeConvert;
@@ -2421,7 +2452,6 @@ class ApiProductController extends Controller
                 $x++;
             }
         }else{
-            $processingTime = (int)$product['processing_time_service'];
             $date = $today;
             $dayConvert = $day[date('D', strtotime($date))];
             if(array_search($dayConvert, $allDay) !== false){
@@ -2434,6 +2464,11 @@ class ApiProductController extends Controller
                     $times[] = $open;
                 }
                 while(strtotime($tmpTime) < strtotime($close)) {
+                    $dateTimeConvert = date('Y-m-d H:i', strtotime("+".$processingTime." minutes", strtotime($date.' '.$tmpTime)));
+                    if(strtotime($dateTimeConvert) > strtotime($date.' '.$close)){
+                        break;
+                    }
+
                     $timeConvert = date('H:i', strtotime("+".$processingTime." minutes", strtotime($tmpTime)));
                     if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime)){
                         $times[] = $timeConvert;
@@ -2469,12 +2504,22 @@ class ApiProductController extends Controller
         $post = $request->json()->all();
         $bookDate = date('Y-m-d', strtotime($post['booking_date']));
         $bookTime = date('H:i:s', strtotime($post['booking_time']));
+
         if(!empty($post['outlet_code'])){
-            $post['id_outlet'] = Outlet::where('outlet_code', $post['outlet_code'])->first()->id_outlet??'';
-            if(empty($post['id_outlet'])){
-                return response()->json(['status' => 'fail', 'messages' => ['Outlet nod found']]);
-            }
+            $outlet = Outlet::where('outlet_code', $post['outlet_code'])->with(['today'])->first();
+        }elseif(!empty($post['id_outlet'])){
+            $outlet = Outlet::where('id_outlet', $post['id_outlet'])->with(['today'])->first();
         }
+
+        if(empty($outlet)){
+            return response()->json(['status' => 'fail', 'messages' => ['Outlet nod found']]);
+        }
+
+        if(empty($outlet['today'])){
+            return response()->json(['status' => 'fail', 'messages' => ['Schedule can not be empty']]);
+        }
+        $post['id_outlet'] = $outlet['id_outlet'];
+        $idOutletSchedule = $outlet['today']['id_outlet_schedule'];
 
         $hsNotAvailable = HairstylistNotAvailable::where('id_outlet', $post['id_outlet'])
                             ->where('booking_date', $bookDate)
@@ -2493,11 +2538,11 @@ class ApiProductController extends Controller
                         ->whereDate('date', $bookDate)
                         ->first()['shift']??'';
             if(!empty($shift)){
-                $getTimeShift = $this->getTimeShift(strtolower($shift));
+                $getTimeShift = $this->getTimeShift(strtolower($shift),$post['id_outlet'], $idOutletSchedule);
                 if(!empty($getTimeShift['start']) && !empty($getTimeShift['end'])){
                     $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
                     $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
-                    if(strtotime($bookTime) > strtotime($shiftTimeStart) && strtotime($bookTime) < strtotime($shiftTimeEnd)){
+                    if(strtotime($bookTime) >= strtotime($shiftTimeStart) && strtotime($bookTime) < strtotime($shiftTimeEnd)){
                         //check available in transaction
                         $checkAvailable = array_search($val['id_user_hair_stylist'], $hsNotAvailable);
                         if($checkAvailable === false){
@@ -2512,174 +2557,30 @@ class ApiProductController extends Controller
                 'name' => $val['fullname'],
                 'photo' => (empty($val['user_hair_stylist_photo']) ? config('url.storage_url_api').'img/product/item/default.png':$val['user_hair_stylist_photo']),
                 'rating' => $val['total_rating'],
-                'available_status' => $availableStatus
+                'available_status' => $availableStatus,
+                'order' => ($availableStatus ? $val['id_user_hair_stylist']:1000)
             ];
         }
+
+        usort($res, function($a, $b) {
+            return $a['order'] - $b['order'];
+        });
 
         return response()->json(MyHelper::checkGet($res));
     }
 
-    public function homeServiceListProduct(){
-        $productServie = Product::select([
-                'products.id_product', 'products.product_name', 'products.product_code', 'products.product_description', 'product_variant_status',
-                'product_global_price.product_global_price as product_price', 'brand_product.id_brand'
-            ])
-            ->join('brand_product', 'brand_product.id_product', '=', 'products.id_product')
-            ->leftJoin('product_global_price', 'product_global_price.id_product', '=', 'products.id_product')
-            ->where('product_type', 'service')
-            ->where('product_visibility', 'Visible')
-            ->with(['photos'])
-            ->having('product_price', '>', 0)
-            ->orderBy('products.position')
-            ->orderBy('products.id_product')
-            ->get()->toArray();
-
-        $resProdService = [];
-        foreach ($productServie as $val){
-            $resProdService[] = [
-                'id_product' => $val['id_product'],
-                'id_brand' => $val['id_brand'],
-                'product_code' => $val['product_code'],
-                'product_name' => $val['product_name'],
-                'product_description' => $val['product_description'],
-                'product_price' => (int)$val['product_price'],
-                'string_product_price' => 'Rp '.number_format((int)$val['product_price'],0,",","."),
-                'photo' => (empty($val['photos'][0]['product_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$val['photos'][0]['product_photo'])
-            ];
-        }
-        return response()->json(MyHelper::checkGet($resProdService));
-    }
-
-    public function homeServiceDetailProductService(Request $request){
-        $post = $request->json()->all();
-        $product = Product::where('product_type', 'service')
-            ->select([
-                'products.id_product', 'products.product_name', 'products.product_code', 'products.product_description', 'product_variant_status', 'processing_time_service',
-                'product_global_price.product_global_price as product_price', 'brand_product.id_brand'
-            ])
-            ->join('brand_product', 'brand_product.id_product', '=', 'products.id_product')
-            ->leftJoin('product_global_price', 'product_global_price.id_product', '=', 'products.id_product')
-            ->where('products.id_product', $post['id_product'])->first();
-
-        if (!$product) {
-            return [
-                'status' => 'fail',
-                'messages' => ['Product not found']
-            ];
-        }
-
-        $totalDateShow = Setting::where('key', 'total_show_date_booking_service')->first()->value??1;
-        $today = date('Y-m-d');
-        $currentTime = date('H:i');
-        $listDate = [];
-
-        $x = 0;
-        $count = 1;
-        $processingTime = (int)$product['processing_time_service'];
-        while($count <= (int)$totalDateShow) {
-            $date = date('Y-m-d', strtotime('+'.$x.' day', strtotime($today)));
-            $open = date('H:i', strtotime('10:00:00'));
-            $close = date('H:i', strtotime('21:00:00'));
-            $times = [];
-            $tmpTime = $open;
-            if(strtotime($date.' '.$open) > strtotime($today.' '.$currentTime)) {
-                $times[] = $open;
-            }elseif($date == $today){
-                $times[] = 'Sekarang';
-            }
-            while(strtotime($tmpTime) < strtotime($close)) {
-                $timeConvert = date('H:i', strtotime("+".$processingTime." minutes", strtotime($tmpTime)));
-                if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime)){
-                    $times[] = $timeConvert;
-                }
-                $tmpTime = $timeConvert;
-            }
-            if(!empty($times)){
-                $listDate[] = [
-                    'date' => $date,
-                    'times' => $times
+    function getTimeShift($shift, $id_outlet, $id_outlet_schedule){
+        $outletShift = OutletTimeShift::where('id_outlet', $id_outlet)
+                        ->where('id_outlet_schedule', $id_outlet_schedule)->get()->toArray();
+        $data = [];
+        if(!empty($outletShift)){
+            foreach ($outletShift as $value){
+                $data[strtolower($value['shift'])] = [
+                    'start' => date('H:i', strtotime($value['shift_time_start'])),
+                    'end' => date('H:i', strtotime($value['shift_time_end']))
                 ];
             }
-            $count++;
-            $x++;
         }
-
-        $result = [
-            'id_product' => $product['id_product'],
-            'id_brand' => $brand['id_brand']??null,
-            'product_code' => $product['product_code'],
-            'product_name' => $product['product_name'],
-            'product_description' => $product['product_description'],
-            'product_price' => (int)$product['product_price'],
-            'string_product_price' => 'Rp '.number_format((int)$product['product_price'],0,",","."),
-            'photo' => (empty($product['photos'][0]['product_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$product['photos'][0]['product_photo']),
-            'list_date' => $listDate
-        ];
-
-        return response()->json(MyHelper::checkGet($result));
-    }
-
-    public function homeServiceAvailableHs(Request $request){
-        $post = $request->json()->all();
-        $bookDate = date('Y-m-d', strtotime($post['booking_date']));
-        $bookTime = date('H:i:s', strtotime($post['booking_time']));
-        $bookTimeStart = date('H:i', strtotime("-30 minutes", strtotime($bookTime)));
-        $bookTimeEnd = date('H:i', strtotime("+30 minutes", strtotime($bookTime)));
-
-        $hsNotAvailable = HairstylistNotAvailable::where('booking_date', $bookDate)
-            ->where('booking_time', '>=',$bookTimeStart)
-            ->where('booking_time', '<=',$bookTimeEnd)
-            ->pluck('id_user_hair_stylist')->toArray();
-
-        $listHs = UserHairStylist::where('user_hair_stylist_status', 'Active')->get()->toArray();
-
-        $res = [];
-        foreach ($listHs as $val){
-            $availableStatus = true;
-            //check schedule hs
-            $shift = HairstylistScheduleDate::leftJoin('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
-                    ->whereNotNull('approve_at')->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
-                    ->whereDate('date', $bookDate)
-                    ->first()['shift']??'';
-            if(!empty($shift)){
-                $availableStatus = false;
-                $getTimeShift = $this->getTimeShift(strtolower($shift));
-                if(!empty($getTimeShift['start']) && !empty($getTimeShift['end'])){
-                    $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
-                    $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
-                    if(strtotime($bookTime) > strtotime($shiftTimeStart) && strtotime($bookTime) < strtotime($shiftTimeEnd)){
-                        //check available in transaction
-                        $checkAvailable = array_search($val['id_user_hair_stylist'], $hsNotAvailable);
-                        if($checkAvailable !== false){
-                            $availableStatus = false;
-                        }
-                    }
-                }
-            }
-
-            $res[] = [
-                'id_user_hair_stylist' => $val['id_user_hair_stylist'],
-                'name' => $val['fullname'],
-                'photo' => (empty($val['user_hair_stylist_photo']) ? config('url.storage_url_api').'img/product/item/default.png':$val['user_hair_stylist_photo']),
-                'rating' => $val['total_rating'],
-                'available_status' => $availableStatus
-            ];
-        }
-
-        return response()->json(MyHelper::checkGet($res));
-    }
-
-    function getTimeShift($shift){
-        $data = [
-            'morning' => [
-                'start' => '09:00',
-                'end'  => '15:00'
-            ],
-            'evening' => [
-                'start' => '15:00',
-                'end'  => '21:00'
-            ]
-        ];
 
         return $data[$shift]??[];
     }

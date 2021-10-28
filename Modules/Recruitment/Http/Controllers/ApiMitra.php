@@ -9,6 +9,8 @@ use Illuminate\Routing\Controller;
 use App\Http\Models\Setting;
 use App\Http\Models\Outlet;
 
+use Modules\Outlet\Entities\OutletTimeShift;
+
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Recruitment\Entities\HairstylistSchedule;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
@@ -30,6 +32,7 @@ class ApiMitra extends Controller
     public function __construct() {
         date_default_timezone_set('Asia/Jakarta');
         $this->product = "Modules\Product\Http\Controllers\ApiProductController";
+        $this->announcement = "Modules\Recruitment\Http\Controllers\ApiAnnouncement";
     }
 
     public function splash(Request $request){
@@ -61,117 +64,255 @@ class ApiMitra extends Controller
 
     public function schedule(Request $request)
     {
-		$thisMonth = $request->month ?? date('n');
-		$thisYear  = $request->year  ?? date('Y');
 		$user = $request->user();
 
-		$schedule = HairstylistSchedule::where([
-			['schedule_month', $thisMonth],
-			['schedule_year', $thisYear],
-			['id_user_hair_stylist', $user->id_user_hair_stylist],
-		])->first();
+		$outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
+		if (!$outlet) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Outlet tidak ditemukan']
+			];
+		}
+		$thisMonth = $request->month ?? date('n');
+		$thisYear  = $request->year  ?? date('Y');
+		$date = $thisYear . '-' . $thisMonth . '-01';
+		$end  = $thisYear . '-' . $thisMonth . '-' . date('t', strtotime($date));
 
-		$morning = [];
-		$evening = [];
-		if ($schedule) {
+		$resDate = [];
+		$listDate = [];
+		while (strtotime($date) <= strtotime($end)) {
+			$listDate[] = [
+				'date' => date('Y-m-d', strtotime($date)),
+				'day'  => date('l', strtotime($date))
+			];
 
-			$schedule['status'] = $schedule['approve_at'] ? 'approved' : ($schedule['reject_at'] ? 'rejected' : 'pending');
-
-			$schedule_dates = HairstylistScheduleDate::where('id_hairstylist_schedule', $schedule->id_hairstylist_schedule)
-							->orderBy('date','asc')
-							->get();
-
-			foreach ($schedule_dates as $val) {
-				$tempDate = date('Y-m-d', strtotime($val['date']));
-				if ($val['shift'] == 'Morning') {
-					$morning[] = $tempDate;
-				} else {
-					$evening[] = $tempDate;
-				}
-			}
+			$resDate[] = MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($date)), 'D  d/m');
+			$date = date("Y-m-d", strtotime("+1 day", strtotime($date)));
 		}
 
-		$res = [
-			'detail'  => $schedule,
-			'morning' => $morning,
-			'evening' => $evening
+		$hairstylists = UserHairStylist::where('id_outlet', $user->id_outlet)
+						->where('user_hair_stylist_status', 'Active')
+						->with([
+							'hairstylist_schedules' => function($q) use ($thisMonth, $thisYear, $user){
+								$q->where([
+									['schedule_month', $thisMonth],
+									['schedule_year', $thisYear],
+									['id_outlet', $user->id_outlet],
+								]);
+							},
+							'hairstylist_schedules.hairstylist_schedule_dates' => function($q) {
+								$q->orderBy('date','asc');
+							}
+						])
+						->get();
+
+		$resHairstylist = [];
+		foreach ($hairstylists as $hs) {
+
+			$schedule = $hs['hairstylist_schedules'][0] ?? null;
+			$schedule['status'] = $schedule['approve_at'] ? 'approved' : ($schedule['reject_at'] ? 'rejected' : 'pending');
+			$schedule_dates = $schedule['hairstylist_schedule_dates'] ?? [];
+
+			$tmpListDate = [];
+			foreach ($schedule_dates as $val) {
+				$date = date('Y-m-d', strtotime($val['date']));
+				$tmpListDate[$date] = $val;
+			}
+			
+			$tmpShift = [];
+			foreach ($listDate as $val) {
+				$date = date('d', strtotime($val['date']));
+				$shift = 0;
+				if (!empty($tmpListDate[$val['date']]['shift'])) {
+					$shift = $tmpListDate[$val['date']]['shift'] == 'Morning' ? 1 : 2;
+				}
+				$tmpShift[] = $shift;
+			}
+
+			$resHairstylist[] = [
+				'id_user_hair_stylist' => $hs['id_user_hair_stylist'],
+				'nickname' => $hs['nickname'],
+				'fullname' => $hs['fullname'],
+				'shift' => $tmpShift
+			];
+		}
+
+		$outletShift = OutletTimeShift::where('id_outlet', $user->id_outlet)->get()->keyBy('shift');
+		$shiftInfo = [];
+		$timeStart = date('H:i', strtotime($outletShift['Morning']['shift_time_start'] ?? '09:00'));
+		$timeEnd = date('H:i', strtotime($outletShift['Morning']['shift_time_end'] ?? '15:00'));
+		$shiftInfo['shift_1'] = [
+			'name' => 'Shift Pagi',
+			'time' => $timeStart . ' - ' . $timeEnd
+		];
+		$timeStart = date('H:i', strtotime($outletShift['Evening']['shift_time_start'] ?? '15:00'));
+		$timeEnd = date('H:i', strtotime($outletShift['Evening']['shift_time_end'] ?? '21:00'));
+		$shiftInfo['shift_2'] = [
+			'name' => 'Shift Sore',
+			'time' => $timeStart . ' - ' . $timeEnd
+		];
+		$shiftInfo['shift_0'] = [
+			'name' => 'Tidak ada shift',
+			'time' => null,
 		];
 
+		$month_info = [
+			'prev_month' => [
+				'name' => MyHelper::indonesian_date_v2(date('F Y', strtotime('-1 Month ' . $thisYear . '-' . $thisMonth . '-01')), 'F Y'),
+				'month' => date('m', strtotime('-1 Month ' . $thisYear . '-' . $thisMonth . '-01')),
+				'year' => date('Y', strtotime('-1 Month ' . $thisYear . '-' . $thisMonth . '-01'))
+			],
+			'this_month' => [
+				'name' => MyHelper::indonesian_date_v2(date('F Y', strtotime($thisYear . '-' . $thisMonth . '-01')), 'F Y'),
+				'month' => date('m', strtotime($thisYear . '-' . $thisMonth . '-01')),
+				'year' => date('Y', strtotime($thisYear . '-' . $thisMonth . '-01'))
+			],
+			'next_month' => [
+				'name' => MyHelper::indonesian_date_v2(date('F Y', strtotime('+1 Month ' . $thisYear . '-' . $thisMonth . '-01')), 'F Y'),
+				'month' => date('m', strtotime('+1 Month ' . $thisYear . '-' . $thisMonth . '-01')),
+				'year' => date('Y', strtotime('+1 Month ' . $thisYear . '-' . $thisMonth . '-01'))
+			]
+		];
+		
+		$res = [
+			'id_outlet' => $outlet['id_outlet'],
+			'outlet_name' => $outlet['outlet_name'],
+			'month' => $month_info,
+			'shift_info' => $shiftInfo,
+			'list_date' => $resDate,
+			'list_hairstylist' => $resHairstylist
+		];
 		return MyHelper::checkGet($res);
     }
 
     public function createSchedule(ScheduleCreateRequest $request)
     {
     	$user = $request->user();
-		$schedule = HairstylistSchedule::where([
-			['schedule_month', $request->month],
-			['schedule_year', $request->year],
-			['id_user_hair_stylist', $user->id_user_hair_stylist],
-		])->first();
+    	$post = $request->json()->all();
 
-    	DB::beginTransaction();
-    	if ($schedule) {
-    		if ($schedule->approve_at) {
-    			return [
-					'status' => 'fail',
-					'messages' => ['Schedule has been approved']
-				];
-    		}
-    		HairstylistScheduleDate::where('id_hairstylist_schedule', $schedule->id_hairstylist_schedule)->delete();
-    		$schedule->update(['reject_at' => null]);
-    	} else {
-    		$schedule = HairstylistSchedule::create([
-    			'id_user_hair_stylist' => $user->id_user_hair_stylist,
-				'id_outlet' 		=> $user->id_outlet,
-				'schedule_month' 	=> $request->month,
-				'schedule_year' 	=> $request->year,
-				'request_at' 		=> date('Y-m-d H:i:s')
-    		]);
-    	}
-
-		if (!$schedule) {
-			return [
-				'status' => 'fail',
-				'messages' => ['Failed to create schedule']
-			];
-		}
-
-    	$insertData = [];
-    	$request_by = 'Hairstylist';
-    	$created_at = date('Y-m-d H:i:s');
-    	$updated_at = date('Y-m-d H:i:s');
-
-    	foreach ($request->morning as $val) {
-    		$insertData[] = [
-    			'id_hairstylist_schedule' => $schedule->id_hairstylist_schedule,
-        		'date' => $val,
-        		'shift' => 'Morning',
-        		'request_by' => $request_by,
-        		'created_at' => $created_at,
-        		'updated_at' => $updated_at
-    		];
-    	}
-
-    	foreach ($request->evening as $val) {
-    		$insertData[] = [
-    			'id_hairstylist_schedule' => $schedule->id_hairstylist_schedule,
-        		'date' => $val,
-        		'shift' => 'Evening',
-        		'request_by' => $request_by,
-        		'created_at' => $created_at,
-        		'updated_at' => $updated_at
-    		];
-    	}
-
-    	$insert = HairstylistScheduleDate::insert($insertData);
-
-    	if (!$insert) {
-    		DB::rollback();
+    	if ($user->level != 'Supervisor') {
     		return [
 				'status' => 'fail',
-				'messages' => ['Failed to create schedule']
+				'messages' => ['Jadwal hanya dapat dibuat oleh Hairstylist dengan level Supervisor']
 			];
     	}
+
+    	$thisMonth = $request->month ?? date('n');
+		$thisYear  = $request->year  ?? date('Y');
+		$date = $thisYear . '-' . $thisMonth . '-01';
+		$end  = $thisYear . '-' . $thisMonth . '-' . date('t', strtotime($date));
+
+		$listDate = [];
+		while (strtotime($date) <= strtotime($end)) {
+			$listDate[] = [
+				'date' => date('Y-m-d', strtotime($date)),
+				'day'  => date('l', strtotime($date))
+			];
+
+			$date = date("Y-m-d", strtotime("+1 day", strtotime($date)));
+		}
+
+    	$hairstylists = UserHairStylist::where('id_outlet', $user->id_outlet)
+						->where('user_hair_stylist_status', 'Active')
+						->with([
+							'hairstylist_schedules' => function($q) use ($request, $user){
+								$q->where([
+									['schedule_month', $request->month],
+									['schedule_year', $request->year],
+									['id_outlet', $user->id_outlet],
+								]);
+							},
+							'hairstylist_schedules.hairstylist_schedule_dates' => function($q) {
+								$q->orderBy('date','asc');
+							}
+						])
+						->get();
+
+		$newSchedules = [];
+		foreach ($post['schedule'] ?? [] as $val) {
+			$newSchedules[$val['id_user_hair_stylist']] = $val['shift'];
+		}
+
+    	DB::beginTransaction();
+		foreach ($hairstylists as $hs) {
+			$newSchedule = $newSchedules[$hs['id_user_hair_stylist']] ?? [];
+			if (empty($newSchedule)) {
+				continue;
+			}
+
+			$schedule = $hs['hairstylist_schedules'][0] ?? null;
+			$schedule_dates = $schedule['hairstylist_schedule_dates'] ?? [];
+			if (!is_array($schedule_dates)) {
+				$schedule_dates = $schedule_dates->toArray();
+			}
+
+			$tmpListDate = [];
+			foreach ($schedule_dates as $val) {
+				$date = date('Y-m-d', strtotime($val['date']));
+				$tmpListDate[$date] = $val;
+			}
+			
+			$oldSchedule = [];
+			foreach ($listDate as $val) {
+				$date = date('d', strtotime($val['date']));
+				$shift = 0;
+				if (!empty($tmpListDate[$val['date']]['shift'])) {
+					$shift = $tmpListDate[$val['date']]['shift'] == 'Morning' ? 1 : 2;
+				}
+				$oldSchedule[] = $shift;
+			}
+
+       		if ($oldSchedule == $newSchedule) {
+       			continue;
+       		}
+
+			if (!$schedule) {
+	    		$schedule = HairstylistSchedule::create([
+	    			'id_user_hair_stylist' 	=> $hs->id_user_hair_stylist,
+					'id_outlet' 			=> $hs->id_outlet,
+					'schedule_month' 		=> $request->month,
+					'schedule_year' 		=> $request->year,
+					'request_at' 			=> date('Y-m-d H:i:s')
+	    		]);
+			}
+
+    		HairstylistScheduleDate::where('id_hairstylist_schedule', $schedule->id_hairstylist_schedule)->delete();
+    		$schedule->update([
+    			'approve_at' 		=> null,
+    			'approve_by' 		=> null,
+    			'reject_at' 		=> null,
+    			'last_updated_by' 	=> null
+    		]);
+
+	    	$insertData = [];
+	    	$request_by = 'Hairstylist';
+	    	$created_at = date('Y-m-d H:i:s');
+	    	$updated_at = date('Y-m-d H:i:s');
+
+	    	foreach ($newSchedule as $key => $val) {
+	    		if (empty($val)) {
+	    			continue;
+	    		}
+	    		$insertData[] = [
+	    			'id_hairstylist_schedule' => $schedule->id_hairstylist_schedule,
+	        		'date' => $listDate[$key]['date'],
+	        		'shift' => $val == 1 ? 'Morning' : 'Evening',
+	        		'request_by' => $request_by,
+	        		'created_at' => $created_at,
+	        		'updated_at' => $updated_at
+	    		];
+	    	}
+
+	    	$insert = HairstylistScheduleDate::insert($insertData);
+
+	    	if (!$insert) {
+	    		DB::rollback();
+	    		return [
+					'status' => 'fail',
+					'messages' => ['Gagal membuat jadwal']
+				];
+	    	}
+		}
 
 		DB::commit();
     	return ['status' => 'success'];
@@ -179,13 +320,35 @@ class ApiMitra extends Controller
 
     public function announcementList(Request $request)
     {
+    	$user = $request->user();
     	$today = date('Y-m-d h:i:s');
-    	$res = HairstylistAnnouncement::select('id_hairstylist_announcement', 'date_start as date', 'content')
-				->where([
-					['date_start','<=',$today],
-					['date_end','>',$today]
-				])
-				->get();
+    	$anns = HairstylistAnnouncement::select('id_hairstylist_announcement', 'date_start as date', 'content')
+    			->with('hairstylist_announcement_rule_parents.rules')
+    			->whereDate('date_start','<=',$today)
+    			->whereDate('date_end','>',$today)
+				->get()
+				->toArray();
+
+		$res = [];
+		foreach ($anns as $key => $ann) {
+			$cons = array();
+			$cons['subject'] = 'phone_number';
+			$cons['operator'] = '=';
+			$cons['parameter'] = $user['phone_number'];
+
+			array_push($ann['hairstylist_announcement_rule_parents'], ['rule' => 'and', 'rule_next' => 'and', 'rules' => [$cons]]);
+			$users = app($this->announcement)->hairstylistFilter($ann['hairstylist_announcement_rule_parents']);
+
+			if (empty($users['status']) || $users['status'] != 'success') {
+				continue;
+			}
+
+			$res[] = [
+				'id_hairstylist_announcement' => $ann['id_hairstylist_announcement'],
+				'date' => $ann['date'],
+				'content' => $ann['content']
+			];
+		}
     	return MyHelper::checkGet($res);
     }
 
@@ -210,10 +373,14 @@ class ApiMitra extends Controller
 			'brand_logo' => $user['outlet']['brands'][0]['logo_brand']
 		];
 
+		$level = $user['level'];
+        $level = ($level == 'Hairstylist') ? 'Mitra' : (($level == 'Supervisor') ? 'SPV' : null);
+
     	$res = [
     		'id_user_hair_stylist' => $user['id_user_hair_stylist'],
     		'nickname' => $user['nickname'],
     		'fullname' => $user['fullname'],
+    		'name' => $level . ' ' . $user['fullname'],
     		'email' => $user['email'],
     		'phone_number' => $user['phone_number'],
     		'level' => $user['level'],
@@ -234,7 +401,7 @@ class ApiMitra extends Controller
     public function outletServiceScheduleStatus($id_user_hair_stylist)
     {
     	$today = date('Y-m-d H:i:s');
-        $timeToday = date('H:i:s', strtotime($today));
+        $todayTime = date('H:i:s', strtotime($today));
     	$status = [
     		'is_available' => 0,
     		'is_active' => 0,
@@ -246,9 +413,8 @@ class ApiMitra extends Controller
                 ->whereDate('date', date('Y-m-d', strtotime($today)))
                 ->get();
 
-
         if (empty($schedule)) {
-        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal outlet service hari ini.";
+        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal layanan outlet hari ini.";
         	return $status;
         }
 
@@ -256,25 +422,8 @@ class ApiMitra extends Controller
 		$getTimeShift = app($this->product)->getTimeShift(strtolower($shift));
 
 		if (empty($getTimeShift)) {
-        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Jadwal outlet service tidak ditemukan.";
+        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Jadwal layanan outlet tidak ditemukan.";
         	return $status;
-        }
-
-        $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
-        if ( strtotime($timeToday) < strtotime($shiftTimeStart) ) {
-        	$status['messages'][] = "Layanan belum bisa diaktifkan.\n Shift outlet service belum dimulai.";
-            return $status;
-        }
-
-        $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
-        if ( strtotime($timeToday) > strtotime($shiftTimeEnd) ) {
-        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal outlet service hari ini.";
-            return $status;
-        }
-
-        if((strtotime($timeToday) > strtotime($shiftTimeStart) && strtotime($timeToday) < strtotime($shiftTimeEnd)) === false){
-        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda berada di luar shift outlet service hari ini.";
-            return $status;
         }
 
     	$isClockIn = true;
@@ -291,19 +440,43 @@ class ApiMitra extends Controller
 
     public function homeServiceScheduleStatus($id_user_hair_stylist, $date)
     {
-    	$today = date('Y-m-d H:i:s');
-        $timeToday = date('H:i:s', strtotime($today));
+        $today = date('Y-m-d H:i:s');
+        $todayTime = date('H:i:s', strtotime($today));
+        $isHomeServiceStart = 0;
     	$status = [
     		'is_available' => 0,
-    		'is_active' => 0,
+    		'is_active' => $isHomeServiceStart,
     		'messages' => []
     	];
 
-    	$schedule = [];
+    	$schedule = HairstylistScheduleDate::join('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
+                ->whereNotNull('approve_at')->where('id_user_hair_stylist', $id_user_hair_stylist)
+                ->whereDate('date', date('Y-m-d', strtotime($today)))
+                ->get();
+
         if (empty($schedule)) {
-        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal home service hari ini.";
+    		$status['is_available'] = 1;
         	return $status;
         }
+
+        $shift = $this->getNearestShift($schedule)['shift'] ?? null;
+		$getTimeShift = app($this->product)->getTimeShift(strtolower($shift));
+
+		if (empty($getTimeShift)) {
+    		$status['is_available'] = 1;
+        	return $status;
+        }
+
+        $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
+        $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
+        if (strtotime($todayTime) > strtotime($shiftTimeStart) && strtotime($todayTime) < strtotime($shiftTimeEnd)) {
+        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n karena layanan outlet Anda sedang aktif.";
+    		$status['is_active'] = 0;
+            return $status;
+        }
+
+    	$status['is_available'] = 1;
+        return $status;
     }
 
     public function getNearestShift($schedule)

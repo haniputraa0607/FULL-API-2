@@ -1571,9 +1571,9 @@ class ApiUser extends Controller
 
                 $result             = [];
                 $result['status']     = 'success';
-                $result['date']     = date('Y-m-d H:i:s');
-                $result['device']     = $device;
-                $result['ip']         = $ip;
+                $res['date']     = date('Y-m-d H:i:s');
+                $res['device']     = $device;
+                $res['ip']         = $ip;
 
                 if ($request->json('latitude') && $request->json('longitude')) {
                     $userLocation = UserLocation::create([
@@ -1630,6 +1630,14 @@ class ApiUser extends Controller
                         ]
                     );
                 }
+
+                if ($datauser[0]['pin_changed'] == '0') {
+                    $res['pin_changed'] = false;
+                } else {
+                    $res['pin_changed'] = true;
+                }
+                $res['email'] = (empty($datauser[0]['email']) ?"" :$datauser[0]['email']);
+                $result['result'] = $res;
             } else {
                 //kalo login gagal
                 if ($datauser) {
@@ -1657,15 +1665,6 @@ class ApiUser extends Controller
                 $result             = [];
                 $result['status']     = 'fail';
                 $result['messages'] = ['Kata sandi yang kamu masukkan kurang tepat'];
-                $result['date']     = date('Y-m-d H:i:s');
-                $result['device']     = $device;
-                $result['ip']         = $ip;
-            }
-
-            if ($datauser[0]['pin_changed'] == '0') {
-                $result['pin_changed'] = false;
-            } else {
-                $result['pin_changed'] = true;
             }
         } else {
             $result['status']     = 'fail';
@@ -2381,7 +2380,7 @@ class ApiUser extends Controller
 
                 $update = User::where('id', '=', $data[0]['id'])->update($dataupdate);
 
-                $datauser = User::where('id', '=', $data[0]['id'])->get()->toArray();
+                $datauser = User::where('id', '=', $data[0]['id'])->with(['city','city.province'])->get()->toArray();
 
                 //cek complete profile ?
                 if ($datauser[0]['complete_profile'] != "1") {
@@ -2484,7 +2483,8 @@ class ApiUser extends Controller
                         'celebrate' => $datauser[0]['celebrate'],
                         'job' => $datauser[0]['job'],
                         'address' => $datauser[0]['address'],
-                        'id_card_image' => $urlIdCard
+                        'id_card_image' => $urlIdCard,
+                        'city' => $datauser[0]['city']
                     ],
                     'message'    => 'Data telah berhasil diubah'
                 ];

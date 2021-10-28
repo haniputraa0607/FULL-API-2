@@ -4325,7 +4325,7 @@ class ApiTransaction extends Controller
             ]);
         }
 
-        $address = UserAddress::select('id_user_address','name','short_address','address','type','latitude','longitude','description')->where('id_user', $id)->orderBy('id_user_address', 'DESC');
+        $address = UserAddress::select('id_user_address','name','short_address','address','type','latitude','longitude','description','favorite','id_subdistrict')->where('id_user', $id)->orderBy('favorite', 'DESC')->orderBy('updated_at', 'DESC');
         if(is_numeric($request->json('favorite'))){
             $address->where('favorite',$request->json('favorite'));
             if(!$request->json('favorite')){
@@ -4362,7 +4362,11 @@ class ApiTransaction extends Controller
         usort($result, function ($a, $b){
             return $a['position'] <=> $b['position'];
         });
-        return response()->json(MyHelper::checkGet($result));
+
+    	return [
+    		'status' => 'success',
+    		'result' => $result
+    	];
     }
 
     public function getNearbyAddress(GetNearbyAddress $request) {
@@ -4607,55 +4611,36 @@ class ApiTransaction extends Controller
 
     public function addAddress(AddAddress $request) {
         $post = $request->json()->all();
+        $user = $request->user();
 
-        $data['id_user'] = $request->user()->id;
-        $data['name']        = isset($post['name']) ? $post['name'] : $post['short_address'];
-        $data['short_address'] = $post['short_address'] ?? null;
-        $data['address']     = isset($post['address']) ? $post['address'] : null;
-        $data['description'] = isset($post['description']) ? $post['description'] : null;
-        $data['latitude'] = number_format($post['latitude'],8);
-        $data['longitude'] = number_format($post['longitude'],8);
-        $type = ucfirst($post['type'] ?? 'Other');
-        $data['name'] = $type != 'Other'?$type:$data['name'];
-        $exists = UserAddress::where('id_user',$request->user()->id)
-            ->where('name',$data['name'])
-            ->where('favorite',1)
-            ->where(function($q) use ($type){
-                $q->where('type',$type);
-                if($type == 'Other'){
-                    $q->orWhereNull('type');
-                }
-            })
-            ->exists();
+        $data = [
+        	'id_user' => $user->id,
+	        'name' => $post['name'] ?? $post['short_address'],
+	        'short_address' => $post['short_address'] ?? null,
+	        'address' => $post['address'] ?? null,
+	        'description' => $post['description'] ?? null,
+	        'latitude' => number_format($post['latitude'],8),
+	        'longitude' => number_format($post['longitude'],8),
+	        'id_subdistrict' => $post['id_subdistrict'] ?? null,
+	        'favorite' => $post['favorite'] ?? 0
+        ];
+
+        $exists = UserAddress::where('id_user',$user->id)->where('name',$data['name'])->exists();
         if($exists){
             return ['status'=>'fail','messages'=>['Alamat dengan nama yang sama sudah ada']];
         }
-        if(in_array($type, ['Home','Work'])){
-            UserAddress::where('type',$type)->delete();
-        }
-        $toMatch = $data;
-        unset($toMatch['name']);
-        $found = UserAddress::where($toMatch+['type'=>$type])->first();
-        if($found){
-            if($found->favorite){
-                return ['status'=>'fail','messages'=>['Alamat sudah disimpan sebagai '.(in_array($found->type,['Work','Home'])?$found->type:$found->name)]];
-            }
-            $found->update([
-                'name' => $data['name'],
-                'type' => $type?:$found->type,
-                'favorite' => 1,
-            ]);
-        }else{
-            $data['type'] = $type;
-            $data['favorite'] = 1;
-            $found = UserAddress::create($data);
+
+        $create = UserAddress::create($data);
+        if ($create && $create->favorite) {
+        	UserAddress::where('id_user',$user->id)->where('id_user_address','!=',$create->id_user_address)->update(['favorite' => 0]);
         }
 
-        return response()->json(MyHelper::checkCreate($found));
+        return response()->json(MyHelper::checkCreate($create));
     }
 
     public function updateAddress (UpdateAddress $request) {
         $post = $request->json()->all();
+        $user = $request->user();
         $data['id_user'] = $request->user()->id;
 
         if (empty($data['id_user'])) {
@@ -4665,21 +4650,46 @@ class ApiTransaction extends Controller
             ]);
         }
 
-        $data['name']        = isset($post['name']) ? $post['name'] : null;
-        $data['address']     = isset($post['address']) ? $post['address'] : null;
-        $data['short_address'] = $post['short_address'] ?? null;
-        $data['description'] = isset($post['description']) ? $post['description'] : null;
-        $data['latitude'] = $post['latitude']??null;
-        $data['longitude'] = $post['longitude']??null;
-        $type = ($post['type']??null)?ucfirst($post['type']):null;
-        if($type){
-            UserAddress::where('type',$type)->update(['type'=>null]);
+        $userAddress =  UserAddress::where('id_user_address', $post['id_user_address'])->first();
+		if (!$userAddress) {
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Address not found']
+            ]);
         }
-        $data['type'] = $type;
-        $data['favorite'] = 1;
+
+        $data['name']        	= $post['name'] ?? $userAddress->name;
+        $data['address']     	= $post['address'] ?? $userAddress->address;
+        $data['short_address'] 	= $post['short_address'] ?? $userAddress->short_address;
+        $data['description'] 	= $post['description'] ?? $userAddress->description;
+        $data['latitude'] 		= $post['latitude'] ?? $userAddress->latitude;
+        $data['longitude'] 		= $post['longitude'] ?? $userAddress->longitude;
+        $data['type'] 			= null;
+        $data['favorite'] 		= $post['favorite'] ?? $userAddress->favorite;
+        $data['id_subdistrict'] = $post['id_subdistrict'] ?? $userAddress->id_subdistrict;
 
         $update = UserAddress::where('id_user_address', $post['id_user_address'])->update($data);
+        if ($data['favorite']) {
+        	UserAddress::where('id_user',$user->id)->where('id_user_address','!=',$post['id_user_address'])->update(['favorite' => 0]);
+        }
         return response()->json(MyHelper::checkUpdate($update));
+    }
+
+    public function updateAddressFavorite(Request $request)
+    {
+    	$user = $request->user();
+		$userAddress =  UserAddress::where('id_user_address', $request->id_user_address)->first();
+		if (!$userAddress) {
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Address not found']
+            ]);
+        }
+
+        $update = $userAddress->update(['favorite' => 1]);
+    	UserAddress::where('id_user',$user->id)->where('id_user_address','!=',$request->id_user_address)->update(['favorite' => 0]);
+
+        return MyHelper::checkUpdate($update);
     }
 
     public function deleteAddress (DeleteAddress $request) {
@@ -5241,12 +5251,20 @@ class ApiTransaction extends Controller
     			->with('outlet.brands', 'products', 'transaction_outlet_service', 'user_feedbacks');
 
 		switch (strtolower($request->status)) {
+			case 'unpaid':
+				$list->where('transaction_payment_status','Pending');
+				break;
+
 			case 'ongoing':
-				$list->whereNull('transaction_outlet_services.completed_at');
+				$list->whereNull('transaction_outlet_services.completed_at')
+				->where('transaction_payment_status','Completed');
 				break;
 
 			case 'complete':
-				$list->whereNotNull('transaction_outlet_services.completed_at');
+				$list->where(function($q) {
+					$q->whereNotNull('transaction_outlet_services.completed_at')
+					->orWhere('transaction_payment_status','Cancelled');
+				});
 				break;
 			
 			default:
@@ -5272,7 +5290,8 @@ class ApiTransaction extends Controller
 				'id_brand' => $val['outlet']['brands'][0]['id_brand'],
 				'brand_code' => $val['outlet']['brands'][0]['code_brand'],
 				'brand_name' => $val['outlet']['brands'][0]['name_brand'],
-				'brand_logo' => $val['outlet']['brands'][0]['logo_brand']
+				'brand_logo' => $val['outlet']['brands'][0]['logo_brand'],
+                'brand_logo_landscape' => $val['outlet']['brands'][0]['logo_landscape_brand']
 			];
 
 			$orders = [];
@@ -5285,7 +5304,15 @@ class ApiTransaction extends Controller
 				];
 			}
 
-			$status = empty($val['completed_at']) ? 'ongoing' : 'complete';
+			if ($val['transaction_payment_status'] == 'Pending') {
+				$status = 'unpaid';
+			} elseif ($val['transaction_payment_status'] == 'Cancelled') {
+				$status = 'cancelled';
+			} elseif (empty($val['completed_at']) && $val['transaction_payment_status'] == 'Completed') {
+				$status = 'ongoing';
+			} else {
+				$status = 'completed';
+			}
 
 			$resData[] = [
 				'id_transaction' => $val['id_transaction'],
@@ -5307,11 +5334,23 @@ class ApiTransaction extends Controller
     }
 
     public function outletServiceDetail(Request $request) {
+
+    	if ($request->json('transaction_receipt_number') !== null) {
+            $trx = Transaction::where(['transaction_receipt_number' => $request->json('transaction_receipt_number')])->first();
+            if($trx) {
+                $id_transaction = $trx->id_transaction;
+            } else {
+                return MyHelper::checkGet([]);
+            }
+        } else {
+            $id_transaction = $request->json('id_transaction');
+        }
+
     	$user = $request->user();
     	$detail = Transaction::where('transaction_from', 'outlet-service')
     			->join('transaction_outlet_services','transactions.id_transaction', 'transaction_outlet_services.id_transaction')
     			->where('id_user', $user->id)
-    			->where('transactions.id_transaction', $request->id_transaction)
+    			->where('transactions.id_transaction', $id_transaction)
     			->orderBy('transaction_date', 'desc')
     			->with(
     				'outlet.brands', 
@@ -5328,11 +5367,12 @@ class ApiTransaction extends Controller
 				'messages' => ['Transaction not found']
 			];
 		}
-		// return $detail;
+
 		$outlet = [
 			'id_outlet' => $detail['outlet']['id_outlet'],
 			'outlet_code' => $detail['outlet']['outlet_code'],
 			'outlet_name' => $detail['outlet']['outlet_name'],
+			'outlet_address' => $detail['outlet']['outlet_address'],
 			'outlet_latitude' => $detail['outlet']['outlet_latitude'],
 			'outlet_longitude' => $detail['outlet']['outlet_longitude']
 		];
@@ -5341,7 +5381,8 @@ class ApiTransaction extends Controller
 			'id_brand' => $detail['outlet']['brands'][0]['id_brand'],
 			'brand_code' => $detail['outlet']['brands'][0]['code_brand'],
 			'brand_name' => $detail['outlet']['brands'][0]['name_brand'],
-			'brand_logo' => $detail['outlet']['brands'][0]['logo_brand']
+			'brand_logo' => $detail['outlet']['brands'][0]['logo_brand'],
+            'brand_logo_landscape' => $detail['outlet']['brands'][0]['logo_landscape_brand']
 		];
 
 		$products = [];
@@ -5366,8 +5407,8 @@ class ApiTransaction extends Controller
 				$services[] = [
 					'id_user_hair_stylist' => $product['transaction_product_service']['id_user_hair_stylist'],
 					'hairstylist_name' => $product['transaction_product_service']['user_hair_stylist']['nickname'],
-					'schedule_date' => $product['transaction_product_service']['schedule_date'],
-					'schedule_time' => $product['transaction_product_service']['schedule_time'],
+					'schedule_date' => MyHelper::dateFormatInd($product['transaction_product_service']['schedule_date'], true, false),
+					'schedule_time' => date('H:i', strtotime($product['transaction_product_service']['schedule_time'])),
 					'product_name' => $product['product']['product_name'],
 					'subtotal' => $product['transaction_product_subtotal'],
 					'show_rate_popup' => $show_rate_popup
@@ -5387,7 +5428,15 @@ class ApiTransaction extends Controller
 			}
 		}
 
-		$status = empty($detail['completed_at']) ? 'ongoing' : 'complete';
+		if ($detail['transaction_payment_status'] == 'Pending') {
+			$status = 'unpaid';
+		} elseif ($detail['transaction_payment_status'] == 'Cancelled') {
+			$status = 'cancelled';
+		} elseif (empty($detail['completed_at']) && $detail['transaction_payment_status'] == 'Completed') {
+			$status = 'ongoing';
+		} else {
+			$status = 'completed';
+		}
 
 		$paymentDetail = [];
         

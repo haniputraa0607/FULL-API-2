@@ -2,6 +2,7 @@
 
 namespace Modules\Autocrm\Http\Controllers;
 
+use App\Http\Models\Transaction;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
@@ -714,9 +715,9 @@ class ApiAutoCrm extends Controller
 
 					$inbox['inboxes_clickto'] = $crm['autocrm_inbox_clickto'];
 
-					if($crm['autocrm_inbox_clickto'] == 'Content'){
-						$inbox['inboxes_content'] = $this->TextReplace($crm['autocrm_inbox_content'], $inboxRecipient, $variables, $inboxWherefield, $franchise, $partner, $recipient_type);
-					}
+					$inbox['inboxes_content'] = $this->TextReplace($crm['autocrm_inbox_content'], $inboxRecipient, $variables, $inboxWherefield, $franchise, $partner, $recipient_type);
+
+					$inbox['inboxes_category'] = $crm['autocrm_inbox_category'];
 
 					if($crm['autocrm_inbox_clickto'] == 'Link'){
 						$inbox['inboxes_link'] = $crm['autocrm_inbox_link'];
@@ -732,7 +733,9 @@ class ApiAutoCrm extends Controller
                     }
                     elseif ($crm['autocrm_inbox_clickto'] == 'History Transaction') {
                         if (isset($variables['id_transaction'])) {
+                            $inboxFrom = Transaction::where('transactions.id_transaction', $variables['id_transaction'])->pluck('transaction_from')->first();
                             $inbox['inboxes_id_reference'] = $variables['id_transaction'];
+                            $inbox['inboxes_from'] = $inboxFrom;
                         } else {
                             $inbox['inboxes_id_reference'] = 0;
                         }

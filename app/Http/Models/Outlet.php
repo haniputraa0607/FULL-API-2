@@ -85,10 +85,9 @@ class Outlet extends Authenticatable
 		'deep_link_gojek',
 		'deep_link_grab',
 		'delivery_order',
-		// 'outlet_open_hours',
-		// 'outlet_close_hours'
 		'status_franchise',
         'outlet_special_status',
+        'outlet_academy_status',
 		'plastic_used_status',
         'outlet_special_fee',
         'time_zone_utc'

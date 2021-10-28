@@ -3779,6 +3779,56 @@ class FeaturesTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00')
                 ),
+            376 =>
+                array (
+                    'feature_module' => 'Request Hair Stylist',
+                    'feature_type' => 'Create',
+                    'id_feature' => 378,
+                    'order' => 136,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            377 =>
+                array (
+                    'feature_module' => 'Request Hair Stylist',
+                    'feature_type' => 'List',
+                    'id_feature' => 379,
+                    'order' => 136,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            378 =>
+                array (
+                    'feature_module' => 'Request Hair Stylist',
+                    'feature_type' => 'Detail',
+                    'id_feature' => 380,
+                    'order' => 136,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            379 =>
+                array (
+                    'feature_module' => 'Request Hair Stylist',
+                    'feature_type' => 'Update',
+                    'id_feature' => 381,
+                    'order' => 136,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            380 =>
+                array (
+                    'feature_module' => 'Request Hair Stylist',
+                    'feature_type' => 'Delete',
+                    'id_feature' => 382,
+                    'order' => 136,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
         ));
         
         

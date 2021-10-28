@@ -53,6 +53,7 @@ class Product extends Model
 		'product_code',
 		'product_name',
 		'product_name_pos',
+        'product_short_description',
         'product_description',
         'product_photo_detail',
 		'product_video',
@@ -69,7 +70,10 @@ class Product extends Model
         'product_length',
         'product_width',
         'product_height',
-        'processing_time_service'
+        'processing_time_service',
+        'product_academy_duration',
+        'product_academy_total_meeting',
+        'product_academy_hours_meeting'
     ];
     
 

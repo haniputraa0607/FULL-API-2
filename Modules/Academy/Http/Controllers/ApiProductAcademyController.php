@@ -1,18 +1,20 @@
 <?php
 
-namespace Modules\ProductService\Http\Controllers;
+namespace Modules\Academy\Http\Controllers;
 
+use App\Http\Models\Outlet;
 use App\Http\Models\Product;
 use App\Http\Models\ProductPhoto;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
+use Modules\Franchise\Entities\Setting;
+use Modules\Outlet\Http\Requests\Outlet\OutletList;
 use Modules\Product\Entities\ProductDetail;
-use App\Lib\MyHelper;
 use DB;
-use Modules\ProductService\Entities\ProductServiceUse;
+use App\Lib\MyHelper;
 
-class ApiProductServiceController extends Controller
+class ApiProductAcademyController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -28,24 +30,24 @@ class ApiProductServiceController extends Controller
                 $product = Product::join('product_detail','product_detail.id_product','=','products.id_product')
                     ->where('product_detail.id_outlet','=',$post['id_outlet'])
                     ->where('product_detail.product_detail_visibility','=','Hidden')
-                    ->where('products.product_type', 'service');
+                    ->where('products.product_type', 'academy');
             } else {
                 $ids = Product::join('product_detail','product_detail.id_product','=','products.id_product')
                     ->where('product_detail.id_outlet','=',$post['id_outlet'])
                     ->where('product_detail.product_detail_visibility','=','Hidden')
-                    ->where('products.product_type', 'service')->pluck('products.id_product')->toArray();
+                    ->where('products.product_type', 'academy')->pluck('products.id_product')->toArray();
                 $product = Product::whereNotIn('id_product', $ids)
-                    ->where('products.product_type', 'service');
+                        ->where('products.product_type', 'academy');
             }
 
             unset($post['id_outlet']);
         }else{
             if(isset($post['product_setting_type']) && $post['product_setting_type'] == 'product_price'){
-                $product = Product::with(['category', 'discount', 'product_special_price', 'global_price'])->where('products.product_type', 'service');
+                $product = Product::with(['category', 'discount', 'product_special_price', 'global_price'])->where('products.product_type', 'academy');
             }elseif(isset($post['product_setting_type']) && $post['product_setting_type'] == 'outlet_product_detail'){
-                $product = Product::with(['category', 'discount', 'product_detail'])->where('products.product_type', 'service');
+                $product = Product::with(['category', 'discount', 'product_detail'])->where('products.product_type', 'academy');
             }else{
-                $product = Product::with(['category', 'discount', 'product_service_use'])->where('products.product_type', 'service');
+                $product = Product::with(['category', 'discount'])->where('products.product_type', 'academy');
             }
         }
 
@@ -114,36 +116,5 @@ class ApiProductServiceController extends Controller
 
         $product = $product->toArray();
         return response()->json(MyHelper::checkGet($product));
-    }
-
-    public function productUseList(){
-        $list = Product::where('product_type', 'product')->select('id_product', 'product_name', 'product_code')->get()->toArray();
-        return response()->json(MyHelper::checkGet($list));
-    }
-
-    public function productUseUpdate(Request $request){
-        $post = $request->json()->all();
-        if(isset($post['id_product_service']) && !empty($post['id_product_service'])){
-            if(empty($post['product_use_data'])){
-                return response()->json(['status' => 'fail', 'messages' => ['Data can not be empty']]);
-            }
-
-            ProductServiceUse::where('id_product_service', $post['id_product_service'])->delete();
-            $insert = [];
-            foreach ($post['product_use_data'] as $pu){
-                $insert[] = [
-                    'id_product_service' => $post['id_product_service'],
-                    'id_product' => $pu['id_product'],
-                    'quantity_use' => (int)$pu['quantity_use'],
-                    'updated_at' => date('Y-m-d H:i:s'),
-                    'created_at' => date('Y-m-d H:i:s')
-                ];
-            }
-
-            $save = ProductServiceUse::insert($insert);
-            return response()->json(MyHelper::checkUpdate($save));
-        }else{
-            return response()->json(['status' => 'fail', 'messages' => ['ID product service can not be empty']]);
-        }
     }
 }

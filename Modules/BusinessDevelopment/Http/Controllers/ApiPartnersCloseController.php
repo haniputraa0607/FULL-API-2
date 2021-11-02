@@ -30,6 +30,8 @@ use Modules\BusinessDevelopment\Http\Requests\Close\CreateLampiranCloseTemporary
 use function GuzzleHttp\json_decode;
 use Modules\BusinessDevelopment\Entities\PartnersCloseTemporary;
 use Modules\BusinessDevelopment\Entities\PartnersCloseTemporaryDocument;
+use Modules\BusinessDevelopment\Entities\PartnersCloseTemporaryOutlet;
+use App\Http\Models\Outlet;
 
 class ApiPartnersCloseController extends Controller
 {
@@ -115,6 +117,14 @@ class ApiPartnersCloseController extends Controller
     public function detail(Request $request){
          $store = PartnersCloseTemporary::where(array('id_partners_close_temporary'=>$request->id_partners_close_temporary))->with(['lampiran'])->first();
          if($store){
+             $outlet = PartnersCloseTemporaryOutlet::where(array('partners_close_temporary_outlet.id_partners_close_temporary'=>$store->id_partners_close_temporary))
+                                ->join('outlets','outlets.id_outlet','partners_close_temporary_outlet.id_outlet')->count();
+             if($outlet > 0){
+                 $store['outlet'] = PartnersCloseTemporaryOutlet::where(array('partners_close_temporary_outlet.id_partners_close_temporary'=>$store->id_partners_close_temporary))
+                                ->join('outlets','outlets.id_outlet','partners_close_temporary_outlet.id_outlet')->get();
+             }else{
+                 $store['outlet'] = false;
+             }
               return response()->json(['status' => 'success','result'=>$store]);
          }
            return response()->json(['status' => 'fail','message'=>"Data Not Found"]);
@@ -129,20 +139,29 @@ class ApiPartnersCloseController extends Controller
            return response()->json(['status' => 'success','message'=>"Data Not Found"]);
     }
     public function success(Request $request){
-         $store = PartnersCloseTemporary::where(array('id_partners_close_temporary'=>$request->id_partners_close_temporary))->first();
+         $store = PartnersCloseTemporary::where(array('id_partners_close_temporary'=>$request->id_partners_close_temporary,'status'=>'Process'))->first();
          if($store){
-             $store->status = "Success";
-             $partner = Partner::where(array('id_partner'=>$store->id_partner))->update([
-                 'status'=>'Inactive'
-             ]);
+             $store->status = "Waiting";
              $store->save();
-             
-             $outlet = Partner::join('locations','locations.id_partner','partners.id_partner')
-                ->where('locations.id_partner', $store->id_partner)
-                ->join('cities','cities.id_city','locations.id_city')
-                ->join('outlets','outlets.id_city','cities.id_city')
-                ->update(['outlet_status'=>"Inactive"]);
-              return response()->json(['status' => 'success','result'=>$outlet]);
+              return response()->json(['status' => 'success']);
+         }
+           return response()->json(['status' => 'fail','message'=>"Data Not Found"]);
+    }
+    public function successActive(Request $request){
+         $store = PartnersCloseTemporary::where(array('id_partners_close_temporary'=>$request->id_partners_close_temporary,'status'=>'Process'))->first();
+         if($store){
+             $store->status = "Waiting";
+             $latest = PartnersCloseTemporary::where(array('id_partner'=>$store->id_partner,'status'=>'Success','start_date'=>null))->orderby('created_at','desc')->first();
+             $outlet = PartnersCloseTemporaryOutlet::where(array('id_partners_close_temporary'=>$latest->id_partners_close_temporary))->get();
+             $store->save();
+            foreach ($outlet as $value) {
+                    $new_temporary = PartnersCloseTemporaryOutlet::create(
+                            [
+                               'id_partners_close_temporary'=>$store->id_partners_close_temporary,
+                               'id_outlet'=>$value->id_outlet
+                            ]);
+                }
+              return response()->json(['status' => 'success']);
          }
            return response()->json(['status' => 'fail','message'=>"Data Not Found"]);
     }
@@ -181,5 +200,62 @@ class ApiPartnersCloseController extends Controller
             return MyHelper::checkDelete($project);
         }
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+    }
+    public function cronInactive(){
+        $project = PartnersCloseTemporary::where(array('status'=>"Waiting",'start_date'=>null))->get();
+        foreach ($project as $value) {
+            $closeoutlet = Partner::join('locations','locations.id_partner','partners.id_partner')
+                ->where('locations.id_partner', $value->id_partner)
+                ->join('cities','cities.id_city','locations.id_city')
+                ->join('outlets','outlets.id_city','cities.id_city')
+                ->where('outlets.outlet_status','Active')
+                ->get();
+            foreach ($outlet as $value) {
+                    $closeoutlet = PartnersCloseTemporaryOutlet::create(
+                            [
+                               'id_partners_close_temporary'=>$store->id_partners_close_temporary,
+                               'id_outlet'=>$value->id_outlet
+                            ]);
+                }
+            $store = PartnersCloseTemporary::where(array('id_partners_close_temporary'=>$value['id_partners_close_temporary']))
+                    ->update([
+                        'status'=>'Success'
+                    ]);
+            $partner = Partner::where(array('id_partner'=>$value['id_partner']))->update([
+                 'status'=>'Inactive'
+             ]);
+            $outlet = PartnersCloseTemporaryOutlet::where(array('id_partners_close_temporary'=>$value['id_partners_close_temporary']))->get();
+            foreach ($outlet as $val) {
+                $update = Outlet::where(array('id_outlet'=>$val['id_outlet']))
+                        ->update([
+                            'outlet_status'=>'Inactive'
+                        ]);
+            }
+        }
+        return response()->json(['status' => 'success']);
+            
+           
+    }
+    public function cronActive(){
+        $project = PartnersCloseTemporary::where(array('status'=>"Waiting",'close_date'=>null))->get();
+        foreach ($project as $value) {
+            $store = PartnersCloseTemporary::where(array('id_partners_close_temporary'=>$value['id_partners_close_temporary']))
+                    ->update([
+                        'status'=>'Success'
+                    ]);
+            $partner = Partner::where(array('id_partner'=>$value['id_partner']))->update([
+                 'status'=>'Active'
+             ]);
+            $outlet = PartnersCloseTemporaryOutlet::where(array('id_partners_close_temporary'=>$value['id_partners_close_temporary']))->get();
+            foreach ($outlet as $val) {
+                $update = Outlet::where(array('id_outlet'=>$val['id_outlet']))
+                        ->update([
+                            'outlet_status'=>'Active'
+                        ]);
+            }
+        }
+        return response()->json(['status' => 'success']);
+            
+           
     }
 }

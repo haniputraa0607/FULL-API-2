@@ -2281,6 +2281,12 @@ class ApiUser extends Controller
             $phone = $checkPhoneFormat['phone'];
         }
 
+        if ($request->name && !preg_match ("/^[a-zA-Z\s]+$/", $request->name)) {
+        	return response()->json([
+                'status' => 'fail',
+                'messages' => ['Nama hanya boleh berisi huruf dan spasi']
+            ]);
+        } 
 
         $data = User::where('phone', '=', $phone)
             ->get()

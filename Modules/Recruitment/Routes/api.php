@@ -82,4 +82,15 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
         	Route::get('comment', 'ApiMitra@ratingComment');
     	});
 	});
+
+    Route::group(['middleware' => ['auth:api'],'prefix' => 'request'], function () {
+        Route::any('/', ['middleware'=>['feature_control:379','scopes:be'],'uses' => 'ApiRequestHairStylistController@index']);
+        Route::any('/outlet', ['middleware'=>['feature_control:379','scopes:be'],'uses' => 'ApiRequestHairStylistController@listOutlet']);
+        Route::post('/create', ['middleware'=>['feature_control:378','scopes:be'],'uses' => 'ApiRequestHairStylistController@store']);
+        Route::post('/delete', ['middleware'=>['feature_control:378','scopes:be'],'uses' => 'ApiRequestHairStylistController@destroy']);
+        Route::post('/detail', ['middleware'=>['feature_control:378','scopes:be'],'uses' => 'ApiRequestHairStylistController@show']);
+        Route::post('/update', ['middleware'=>['feature_control:378','scopes:be'],'uses' => 'ApiRequestHairStylistController@update']);
+    });
+
+
 });

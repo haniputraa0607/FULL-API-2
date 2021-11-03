@@ -216,10 +216,12 @@ class ApiProductServiceController extends Controller
         $x = 0;
         $count = 1;
         $processingTime = Setting::where('key', 'home_service_processing_time')->first()['value']??60;
+        $timeStart = Setting::where('key', 'home_service_time_start')->first()['value']??'07:00:00';
+        $timeEnd = Setting::where('key', 'home_service_time_end')->first()['value']??'22:00:00';
         while($count <= (int)$totalDateShow) {
             $date = date('Y-m-d', strtotime('+'.$x.' day', strtotime($today)));
-            $open = date('H:i', strtotime('07:00:00'));
-            $close = date('H:i', strtotime('22:00:00'));
+            $open = date('H:i', strtotime($timeStart));
+            $close = date('H:i', strtotime($timeEnd));
             $times = [];
             $tmpTime = $open;
             if(strtotime($date.' '.$open) > strtotime($today.' '.$currentTime)) {

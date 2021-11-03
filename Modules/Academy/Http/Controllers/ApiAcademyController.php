@@ -389,8 +389,8 @@ class ApiAcademyController extends Controller
         }
 
         $res = [
-            'brand' => $brand,
-            'outlet' => $outlet,
+            'brand' => (empty($brand) ? null : $brand),
+            'outlet' => (empty($outlet) ? null : $outlet),
             'products' => $resProd
         ];
 
@@ -453,8 +453,8 @@ class ApiAcademyController extends Controller
             }
 
             $resDetail = [
-                'outlet' => $outlet,
-                'brand' => $brand,
+                'brand' => (empty($brand) ? null : $brand),
+                'outlet' => (empty($outlet) ? null : $outlet),
                 'detail' => [
                     'id_product' => $detail['id_product'],
                     'product_code' => $detail['product_code'],

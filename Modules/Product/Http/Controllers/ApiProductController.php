@@ -58,6 +58,7 @@ use Modules\PromoCampaign\Entities\UserPromo;
 use App\Http\Models\Deal;
 use Modules\PromoCampaign\Entities\PromoCampaign;
 use Modules\Subscription\Entities\Subscription;
+use App\Http\Models\OutletSchedule;
 
 class ApiProductController extends Controller
 {
@@ -2506,20 +2507,30 @@ class ApiProductController extends Controller
         $bookTime = date('H:i:s', strtotime($post['booking_time']));
 
         if(!empty($post['outlet_code'])){
-            $outlet = Outlet::where('outlet_code', $post['outlet_code'])->with(['today'])->first();
+            $outlet = Outlet::where('outlet_code', $post['outlet_code'])->first();
         }elseif(!empty($post['id_outlet'])){
-            $outlet = Outlet::where('id_outlet', $post['id_outlet'])->with(['today'])->first();
+            $outlet = Outlet::where('id_outlet', $post['id_outlet'])->first();
         }
 
         if(empty($outlet)){
             return response()->json(['status' => 'fail', 'messages' => ['Outlet nod found']]);
         }
 
-        if(empty($outlet['today'])){
-            return response()->json(['status' => 'fail', 'messages' => ['Schedule can not be empty']]);
-        }
         $post['id_outlet'] = $outlet['id_outlet'];
-        $idOutletSchedule = $outlet['today']['id_outlet_schedule'];
+
+        //get Schedule
+        $day = [
+            'Mon' => 'Senin',
+            'Tue' => 'Selasa',
+            'Wed' => 'Rabu',
+            'Thu' => 'Kamis',
+            'Fri' => 'Jumat',
+            'Sat' => 'Sabtu',
+            'Sun' => 'Minggu'
+        ];
+        $bookDay = $day[date('D', strtotime($bookDate))];
+        $idOutletSchedule = OutletSchedule::where('id_outlet', $outlet['id_outlet'])
+                          ->where('day', $bookDay)->first()['id_outlet_schedule']??null;
 
         $hsNotAvailable = HairstylistNotAvailable::where('id_outlet', $post['id_outlet'])
                             ->where('booking_date', $bookDate)

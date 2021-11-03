@@ -147,10 +147,3 @@ Route::group(['prefix' => 'api/webapp/outlet-service/product','middleware' => ['
     Route::post('available-hs', 'ApiProductController@outletServiceAvailableHs');
     Route::post('detail', 'ApiProductController@detail');
 });
-
-Route::group(['prefix' => 'api/home-service/product','middleware' => ['log_activities','auth_client', 'scopes:apps'], 'namespace' => 'Modules\Product\Http\Controllers'], function()
-{
-    Route::get('list', 'ApiProductController@homeServiceListProduct');
-    Route::post('detail-service', 'ApiProductController@homeServiceDetailProductService');
-    Route::post('available-hs', 'ApiProductController@homeServiceAvailableHs');
-});

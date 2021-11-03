@@ -40,6 +40,7 @@ class ApiMitraShopService extends Controller
     public function __construct() {
         date_default_timezone_set('Asia/Jakarta');
         $this->mitra = "Modules\Recruitment\Http\Controllers\ApiMitra";
+        $this->mitra_outlet_service = "Modules\Recruitment\Http\Controllers\ApiMitraOutletService";
         $this->trx = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
         $this->trx_outlet_service = "Modules\Transaction\Http\Controllers\ApiTransactionOutletService";
     }
@@ -55,6 +56,11 @@ class ApiMitraShopService extends Controller
 
     	if ($trx->transaction_payment_status != 'Completed' && $trx->trasaction_payment_type != 'Cash') {
     		return ['status' => 'fail', 'messages' => ['Proses pembayaran belum selesai']];
+    	}
+
+    	if ($trx->id_outlet != $user->id_outlet) {
+    		$outlet = Outlet::where('id_outlet', $trx->id_outlet)->first();
+    		return ['status' => 'fail', 'messages' => ['Pengambilan barang hanya dapat dilakukan di outlet ' .$outlet->outlet_name]];
     	}
 
     	$paymentCash = 0;
@@ -80,7 +86,7 @@ class ApiMitraShopService extends Controller
 
     	$trxProduct = $trx->transaction_products;
         if(empty($trxProduct) || $trxProduct->isEmpty()){
-            return ['status' => 'fail', 'messages' => ['Produk tidak ditemukan']];
+            return ['status' => 'fail', 'messages' => ['Barang tidak ditemukan']];
         }
 
         $products = [];
@@ -110,5 +116,45 @@ class ApiMitraShopService extends Controller
     	];
 
     	return MyHelper::checkGet($res);
+    }
+
+    public function confirmShopService(Request $request)
+    {
+    	$user = $request->user();
+    	$trx = Transaction::where('transaction_receipt_number', $request->transaction_receipt_number)->first();
+    	if (!$trx) {
+    		return ['status' => 'fail', 'messages' => ['Transaksi tidak ditemukan']];
+    	}
+
+    	if ($trx->transaction_payment_status != 'Completed') {
+    		return ['status' => 'fail', 'messages' => ['Proses pembayaran belum selesai']];
+    	}
+
+    	if ($trx->id_outlet != $user->id_outlet) {
+    		$outlet = Outlet::where('id_outlet', $trx->id_outlet)->first();
+    		return ['status' => 'fail', 'messages' => ['Pengambilan barang hanya dapat dilakukan di outlet ' .$outlet->outlet_name]];
+    	}
+
+    	$trxProducts = TransactionProduct::where('id_transaction', $trx->id_transaction)
+						->where('type', 'Product')
+						->get();
+
+		if (empty($trxProducts) || $trxProducts->isEmpty()) {
+			return ['status' => 'fail', 'messages' => ['Barang tidak ditemukan']];
+		}
+
+    	DB::beginTransaction();
+    	foreach ($trxProducts as $product) {
+    		$product->update([
+    			'transaction_product_completed_at' => date('Y-m-d H:i:s'),
+    			'id_user_hair_stylist' => $user->id_user_hair_stylist
+    		]);
+    	}
+
+    	app($this->mitra_outlet_service)->completeTransaction($trx->id_transaction);
+
+    	DB::commit();
+
+    	return ['status' => 'success'];
     }
 }

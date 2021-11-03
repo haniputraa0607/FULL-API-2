@@ -157,4 +157,78 @@ class ApiMitraShopService extends Controller
 
     	return ['status' => 'success'];
     }
+
+    public function historyShopService(Request $request)
+    {
+    	$user = $request->user();
+    	$id_user_hair_stylist = $user->id_user_hair_stylist;
+
+    	$thisMonth = $request->month ?? date('n');
+		$thisYear  = $request->year  ?? date('Y');
+    	$dateStart = $thisYear . '-' . $thisMonth . '-01';
+		$dateEnd   = $thisYear . '-' . $thisMonth . '-' . date('t', strtotime($dateStart));
+
+    	$month_info = [
+			'prev_month' => [
+				'name' => MyHelper::indonesian_date_v2(date('F Y', strtotime('-1 Month ' . $thisYear . '-' . $thisMonth . '-01')), 'F Y'),
+				'month' => date('m', strtotime('-1 Month ' . $thisYear . '-' . $thisMonth . '-01')),
+				'year' => date('Y', strtotime('-1 Month ' . $thisYear . '-' . $thisMonth . '-01'))
+			],
+			'this_month' => [
+				'name' => MyHelper::indonesian_date_v2(date('F Y', strtotime($thisYear . '-' . $thisMonth . '-01')), 'F Y'),
+				'month' => date('m', strtotime($thisYear . '-' . $thisMonth . '-01')),
+				'year' => date('Y', strtotime($thisYear . '-' . $thisMonth . '-01'))
+			],
+			'next_month' => [
+				'name' => MyHelper::indonesian_date_v2(date('F Y', strtotime('+1 Month ' . $thisYear . '-' . $thisMonth . '-01')), 'F Y'),
+				'month' => date('m', strtotime('+1 Month ' . $thisYear . '-' . $thisMonth . '-01')),
+				'year' => date('Y', strtotime('+1 Month ' . $thisYear . '-' . $thisMonth . '-01'))
+			]
+		];
+
+    	$trxs = Transaction::whereHas('transaction_products', function($q) use ($id_user_hair_stylist) {
+    		$q->where('id_user_hair_stylist', $id_user_hair_stylist);
+    	})
+    	->whereBetween('transaction_date', [$dateStart, $dateEnd])
+    	->with([
+    		'user',
+    		'transaction_products.product.photos',
+    		'transaction_products' => function($q) {
+    			$q->where('type', 'Product');
+    		}
+    	])
+    	->get();
+
+    	$histories = [];
+    	foreach ($trxs as $trx) {
+	        $products = [];
+	        $subtotalProduct = 0;
+	        $trxProduct = $trx->transaction_products;
+	        foreach ($trxProduct as $product){
+	        	$productPhoto = config('url.storage_url_api') . ($product['product']['photos'][0]['product_photo'] ?? 'img/product/item/default.png');
+	            $products[] = [
+	                'id_product' => $product['id_product'],
+	                'product_name' => $product['product']['product_name'],
+					'qty' => $product['transaction_product_qty'],
+					'price' => $product['transaction_product_price'],
+					'subtotal' => $product['transaction_product_subtotal'],
+					'photo' => $productPhoto
+	            ];
+	            $subtotalProduct += abs($product['transaction_product_subtotal']);
+	        }
+    		$histories[] = [
+    			'transaction_receipt_number' => $trx['transaction_receipt_number'],
+    			'transaction_date' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($trx['transaction_date'])), 'j F Y'),
+    			'name' => $trx['user']['name'],
+    			'product' => $products,
+    		];
+    	}
+    	
+    	$res = [
+    		'month' => $month_info,
+    		'histories' => $histories
+    	];
+
+    	return MyHelper::checkGet($res);
+    }
 }

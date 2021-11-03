@@ -73,6 +73,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
     	Route::group(['prefix' => 'shop-service'], function () {
         	Route::post('detail', 'ApiMitraShopService@detailShopService');
         	Route::post('confirm', 'ApiMitraShopService@confirmShopService');
+        	Route::post('history', 'ApiMitraShopService@historyShopService');
     	});
 
     	Route::group(['prefix' => 'inbox'], function () {

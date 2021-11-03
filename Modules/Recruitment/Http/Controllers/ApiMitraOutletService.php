@@ -41,6 +41,7 @@ class ApiMitraOutletService extends Controller
         date_default_timezone_set('Asia/Jakarta');
         $this->mitra = "Modules\Recruitment\Http\Controllers\ApiMitra";
         $this->trx = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
+        $this->trx_outlet_service = "Modules\Transaction\Http\Controllers\ApiTransactionOutletService";
     }
 
     public function customerQueue(Request $request)
@@ -54,8 +55,12 @@ class ApiMitraOutletService extends Controller
 	    			$q->whereNull('service_status');
 	    			$q->orWhere('service_status', '!=', 'Completed');
 				})
-    			->where('id_user_hair_stylist', $user->id_user_hair_stylist)
-    			->where('transaction_payment_status' ,'Completed')
+    			->where('transaction_product_services.id_user_hair_stylist', $user->id_user_hair_stylist)
+    			->where(function($q) {
+	    			$q->where('trasaction_payment_type', 'Cash')
+	    			->orWhere('transaction_payment_status', 'Completed');
+				})
+    			->where('transaction_payment_status', '!=', 'Cancelled')
     			->orderBy('schedule_date', 'asc')
     			->orderBy('schedule_time', 'asc')
 				->paginate(10)
@@ -98,21 +103,40 @@ class ApiMitraOutletService extends Controller
 
 			$timerText .= (strtotime(date('Y-m-d H:i:s')) < strtotime($val['schedule_date'] . ' ' .$val['schedule_time'])) ? ' lagi' : ' lalu';
 
+			$trx = Transaction::where('id_transaction', $val['id_transaction'])->first();
+			$trxPayment = app($this->trx_outlet_service)->transactionPayment($trx);
+	    	$paymentMethod = null;
+	    	foreach ($trxPayment['payment'] as $p) {
+	    		$paymentMethod = $p['name'];
+	    		if (strtolower($p['name']) != 'balance') {
+	    			break;
+	    		}
+	    	}
+
+	    	$buttonText = 'Layani';
+	    	$paymentCash = 0;
+	    	if ($val['transaction_payment_status'] != 'Completed' && $val['trasaction_payment_type'] == 'Cash') {
+	    		$buttonText = 'Pembayaran';
+	    		$paymentCash = 1;
+	    	}
+
 			$resData[] = [
 				'id_transaction_product_service' => $val['id_transaction_product_service'],
 				'order_id' => $val['order_id'] ?? null,
 				'customer_name' => $val['customer_name'],
-				'schedule_date' => $val['schedule_date'],
-				'schedule_time' => $val['schedule_time'],
+				'schedule_date' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($val['schedule_date'])), 'j F Y'),
+				'schedule_time' => date('H:i', strtotime($val['schedule_time'])),
 				'service_status' => $val['service_status'],
-				'trasaction_payment_type' => $val['trasaction_payment_type'],
+				'payment_method' => $paymentMethod,
 				'product_name' => $val['product_name'],
+				'price' => $val['transaction_product_net'],
 				'timer_text' => $timerText,
-				'button_text' => 'Layani Sekarang',
+				'button_text' => $buttonText,
 				'disable' => $disable,
 				'id_outlet_box' => $schedule->id_outlet_box ?? null,
 				'flag_update_schedule' => $val['flag_update_schedule'],
-				'is_conflict' => $val['is_conflict']
+				'is_conflict' => $val['is_conflict'],
+				'payment_cash' => $paymentCash 
 			];
 		}
 
@@ -156,7 +180,7 @@ class ApiMitraOutletService extends Controller
 				->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
 				->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
 				->join('products', 'transaction_products.id_product', 'products.id_product')
-    			->where('id_user_hair_stylist', $user->id_user_hair_stylist)
+    			->where('transaction_product_services.id_user_hair_stylist', $user->id_user_hair_stylist)
     			->where('id_transaction_product_service', $request->id_transaction_product_service)
     			->where('transaction_payment_status' ,'Completed')
 				->first();
@@ -202,17 +226,28 @@ class ApiMitraOutletService extends Controller
 		}
 
 		$timerText .= (strtotime(date('Y-m-d H:i:s')) < strtotime($queue['schedule_date'] . ' ' .$queue['schedule_time'])) ? ' lagi' : ' lalu';
+
+		$trx = Transaction::where('id_transaction', $val['id_transaction'])->first();
+		$trxPayment = app($this->trx_outlet_service)->transactionPayment($trx);
+    	$paymentMethod = null;
+    	foreach ($trxPayment['payment'] as $p) {
+    		$paymentMethod = $p['name'];
+    		if (strtolower($p['name']) != 'balance') {
+    			break;
+    		}
+    	}
+
 		$res = [
 			'id_transaction_product_service' => $queue['id_transaction_product_service'],
 			'order_id' => $queue['order_id'] ?? null,
 			'customer_name' => $queue['customer_name'],
-			'schedule_date' => $queue['schedule_date'],
-			'schedule_time' => $queue['schedule_time'],
+			'schedule_date' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($queue['schedule_date'])), 'j F Y'),
+			'schedule_time' => date('H:i', strtotime($queue['schedule_time'])),
 			'service_status' => $queue['service_status'],
-			'trasaction_payment_type' => $queue['trasaction_payment_type'],
+			'payment_method' => $paymentMethod,
 			'product_name' => $queue['product_name'],
 			'timer_text' => $timerText,
-			'button_text' => 'Layani Sekarang',
+			'button_text' => 'Layani',
 			'disable' => $disable,
 			'id_outlet_box' => $schedule->id_outlet_box ?? null,
 			'flag_update_schedule' => $queue['flag_update_schedule'],

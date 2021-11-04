@@ -70,6 +70,12 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
             Route::post('payment-cash/completed', 'ApiMitraOutletService@paymentCashCompleted');
     	});
 
+    	Route::group(['prefix' => 'shop-service'], function () {
+        	Route::post('detail', 'ApiMitraShopService@detailShopService');
+        	Route::post('confirm', 'ApiMitraShopService@confirmShopService');
+        	Route::post('history', 'ApiMitraShopService@historyShopService');
+    	});
+
     	Route::group(['prefix' => 'inbox'], function () {
         	Route::post('marked', 'ApiMitraInbox@markedInbox');
 		    Route::post('unmark', 'ApiMitraInbox@unmarkInbox');

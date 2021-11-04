@@ -5371,7 +5371,7 @@ class ApiOnlineTransaction extends Controller
         if($trx['transaction_from'] == 'home-service'){
             $trxHomeService = TransactionHomeService::where('id_transaction', $id_transaction)->first();
 
-            if($trxHomeService){
+            if(!empty($trxHomeService['id_user_hair_stylist'])){
                 $save = HairstylistNotAvailable::create([
                     'id_outlet' => $trx['id_outlet'],
                     'id_user_hair_stylist' => $trxHomeService['id_user_hair_stylist'],

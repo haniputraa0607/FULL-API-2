@@ -13,6 +13,7 @@ use Modules\ProductVariant\Entities\ProductVariant;
 
 class FavoriteUserHiarStylist extends Model
 {
+    protected $table = 'favorite_use_hair_stylist';
 	protected $primaryKey = 'id_favorite_use_hair_stylist';
 
 	protected $fillable = [

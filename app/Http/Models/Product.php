@@ -73,7 +73,8 @@ class Product extends Model
         'processing_time_service',
         'product_academy_duration',
         'product_academy_total_meeting',
-        'product_academy_hours_meeting'
+        'product_academy_hours_meeting',
+        'available_home_service'
     ];
     
 

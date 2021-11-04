@@ -8,6 +8,8 @@ use App\Http\Models\Setting;
 use App\Http\Models\Transaction;
 use App\Http\Models\TransactionProduct;
 use App\Http\Models\UserAddress;
+use App\Jobs\ExportFranchiseJob;
+use App\Jobs\FindingHSHomeService;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use App\Lib\MyHelper;
@@ -113,7 +115,7 @@ class ApiTransactionHomeService extends Controller
                 $err[] = 'Service tidak tersedia';
             }
 
-            if(!empty($idHs)){
+            if(!empty($idHs) && $post['preference_hair_stylist'] == 'favorite'){
                 $hs = UserHairStylist::where('id_user_hair_stylist', $idHs)->where('user_hair_stylist_status', 'Active')->first();
                 $outlet = Outlet::where('id_outlet', $hs['id_outlet'])->first();
                 if(empty($hs)){
@@ -287,7 +289,7 @@ class ApiTransactionHomeService extends Controller
                 continue;
             }
 
-            if(!empty($idHs)){
+            if(!empty($idHs) && $post['preference_hair_stylist'] == 'favorite'){
                 $hs = UserHairStylist::where('id_user_hair_stylist', $idHs)->where('user_hair_stylist_status', 'Active')->first();
                 $outlet = Outlet::where('id_outlet', $hs['id_outlet'])->first();
                 if(empty($hs)){
@@ -530,6 +532,7 @@ class ApiTransactionHomeService extends Controller
             ]);
         }
         $idHs = $checkHS['id_user_hair_stylist'];
+        $arrHs = $checkHS['all_id_hs'];
 
         $post['item_service'] = $this->mergeService($post['item_service']);
         $errItem = [];
@@ -547,7 +550,7 @@ class ApiTransactionHomeService extends Controller
                 $errItem[] = 'Service tidak tersedia';
             }
 
-            if(!empty($idHs)){
+            if(!empty($idHs) && $post['preference_hair_stylist'] == 'favorite'){
                 $hs = UserHairStylist::where('id_user_hair_stylist', $idHs)->where('user_hair_stylist_status', 'Active')->first();
                 $outlet = Outlet::where('id_outlet', $hs['id_outlet'])->first();
                 if(empty($hs)){
@@ -848,6 +851,10 @@ class ApiTransactionHomeService extends Controller
         }
 
         DB::commit();
+        if(!empty($arrHs)){
+            FindingHSHomeService::dispatch(['id_transaction' => $insertTransaction['id_transaction'], 'arr_id_hs' => $arrHs])->allOnConnection('finding_hs_queue');
+        }
+
         return response()->json([
             'status'   => 'success',
             'result'   => $insertTransaction
@@ -979,12 +986,13 @@ class ApiTransactionHomeService extends Controller
                     return $a['distance'] > $b['distance'];
                 });
 
-                $idHs = $arrIDHs[0]['id_user_hair_stylist'];
+                $arrIdHs = array_column($arrIDHs, 'id_user_hair_stylist');
             }
         }
 
         return [
             'id_user_hair_stylist' => $idHs??null,
+            'all_id_hs' => $arrIdHs??[],
             'error_all' => $errAll??[]
         ];
     }

@@ -168,6 +168,7 @@ class ApiProductServiceController extends Controller
             ->leftJoin('product_global_price', 'product_global_price.id_product', '=', 'products.id_product')
             ->where('product_type', 'service')
             ->where('product_visibility', 'Visible')
+            ->where('available_home_service', 1)
             ->with(['photos'])
             ->having('product_price', '>', 0)
             ->orderBy('products.position')

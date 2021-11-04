@@ -418,8 +418,9 @@ class ApiMitra extends Controller
         	return $status;
         }
 
-        $shift = $this->getNearestShift($schedule)['shift'] ?? null;
-		$getTimeShift = app($this->product)->getTimeShift(strtolower($shift));
+        $shift = $this->getNearestShift($schedule);
+        $outlet = Outlet::where('id_outlet', $shift->id_outlet)->with(['today'])->first();
+		$getTimeShift = app($this->product)->getTimeShift(strtolower($shift['shift']), $shift->id_outlet, $outlet['today']['id_outlet_schedule']);
 
 		if (empty($getTimeShift)) {
         	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Jadwal layanan outlet tidak ditemukan.";
@@ -459,8 +460,9 @@ class ApiMitra extends Controller
         	return $status;
         }
 
-        $shift = $this->getNearestShift($schedule)['shift'] ?? null;
-		$getTimeShift = app($this->product)->getTimeShift(strtolower($shift));
+        $shift = $this->getNearestShift($schedule);
+        $outlet = Outlet::where('id_outlet', $shift->id_outlet)->with(['today'])->first();
+		$getTimeShift = app($this->product)->getTimeShift(strtolower($shift['shift']), $shift->id_outlet, $outlet['today']['id_outlet_schedule']);
 
 		if (empty($getTimeShift)) {
     		$status['is_available'] = 1;

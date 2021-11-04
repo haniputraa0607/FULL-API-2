@@ -48,6 +48,7 @@ class TransactionProduct extends Model
 		'id_outlet',
 		'id_brand',
 		'id_user',
+		'id_user_hair_stylist',
 		'transaction_product_qty',
         'transaction_product_bundling_qty',
 		'transaction_product_price',

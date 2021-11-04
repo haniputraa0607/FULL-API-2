@@ -18,3 +18,10 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
     Route::get('product-use/list', 'ApiProductServiceController@productUseList');
     Route::post('product-use/update', 'ApiProductServiceController@productUseUpdate');
 });
+
+Route::group(['middleware' => ['log_activities','auth:api', 'user_agent', 'scopes:apps'], 'prefix' => 'home-service/product'], function()
+{
+    Route::get('list', 'ApiProductServiceController@homeServiceListProduct');
+    Route::post('detail-service', 'ApiProductServiceController@homeServiceDetailProductService');
+    Route::post('available-hs/favorite', 'ApiProductServiceController@homeServiceAvailableHsFavorite');
+});

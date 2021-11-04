@@ -78,6 +78,7 @@ use Guzzle\Http\Message\Response as ResponseGuzzle;
 use Guzzle\Http\Exception\ServerErrorResponseException;
 
 use Modules\Transaction\Entities\TransactionBundlingProduct;
+use Modules\Transaction\Entities\TransactionHomeService;
 use Modules\Transaction\Entities\TransactionOutletService;
 use Modules\Transaction\Entities\TransactionPaymentCash;
 use Modules\Transaction\Entities\TransactionProductService;
@@ -4635,7 +4636,7 @@ class ApiOnlineTransaction extends Controller
             foreach ($product['product_service_use_detail'] as $stock){
                 $insertProductUse[] = [
                     'id_transaction' => $trx['id_transaction'],
-                    'id_transaction_product_service' => $product_service['id_transaction_product_service'],
+                    'id_transaction_product' => $trx_product['id_transaction_product'],
                     'id_product' => $stock['id_product'],
                     'quantity_use' => $stock['quantity_use'],
                     'created_at' => date('Y-m-d H:i:s'),
@@ -5365,26 +5366,42 @@ class ApiOnlineTransaction extends Controller
     }
 
     function bookHS($id_transaction){
-        $data = TransactionProductService::where('transactions.id_transaction', $id_transaction)
+        $trx = Transaction::where('id_transaction', $id_transaction)->first();
+
+        if($trx['transaction_from'] == 'home-service'){
+            $trxHomeService = TransactionHomeService::where('id_transaction', $id_transaction)->first();
+
+            if(!empty($trxHomeService['id_user_hair_stylist'])){
+                $save = HairstylistNotAvailable::create([
+                    'id_outlet' => $trx['id_outlet'],
+                    'id_user_hair_stylist' => $trxHomeService['id_user_hair_stylist'],
+                    'id_transaction' => $trx['id_transaction'],
+                    'booking_date' => date('Y-m-d', strtotime($trxHomeService['schedule_date'])),
+                    'booking_time' => date('H:i:s', strtotime($trxHomeService['schedule_time']))
+                ]);
+            }
+        }elseif($trx['transaction_from'] == 'outlet-service'){
+            $data = TransactionProductService::where('transactions.id_transaction', $id_transaction)
                 ->join('transactions', 'transactions.id_transaction', 'transaction_product_services.id_transaction')
                 ->select('transaction_product_services.*', 'transactions.id_outlet')
                 ->get()->toArray();
 
-        $insert = [];
-        foreach ($data as $dt){
-            $insert[] = [
-                'id_outlet' => $dt['id_outlet'],
-                'id_user_hair_stylist' => $dt['id_user_hair_stylist'],
-                'id_transaction_product_service' => $dt['id_transaction_product_service'],
-                'booking_date' => date('Y-m-d', strtotime($dt['schedule_date'])),
-                'booking_time' => date('H:i:s', strtotime($dt['schedule_time'])),
-                'updated_at' => date('Y-m-d H:i:s'),
-                'created_at' => date('Y-m-d H:i:s')
-            ];
-        }
+            $insert = [];
+            foreach ($data as $dt){
+                $insert[] = [
+                    'id_outlet' => $dt['id_outlet'],
+                    'id_user_hair_stylist' => $dt['id_user_hair_stylist'],
+                    'id_transaction_product_service' => $dt['id_transaction_product_service'],
+                    'booking_date' => date('Y-m-d', strtotime($dt['schedule_date'])),
+                    'booking_time' => date('H:i:s', strtotime($dt['schedule_time'])),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                    'created_at' => date('Y-m-d H:i:s')
+                ];
+            }
 
-        if(!empty($insert)){
-            $save = HairstylistNotAvailable::insert($insert);
+            if(!empty($insert)){
+                $save = HairstylistNotAvailable::insert($insert);
+            }
         }
 
         return $save??true;

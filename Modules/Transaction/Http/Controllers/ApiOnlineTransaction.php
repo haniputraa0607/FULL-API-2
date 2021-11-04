@@ -5450,8 +5450,8 @@ class ApiOnlineTransaction extends Controller
         return $update??true;
     }
 
-    function bookProductServiceStock($trx,$id_transaction_product_service){
-        $getProduct = TransactionProductServiceUse::where('id_transaction_product_service', $id_transaction_product_service)->get()->toArray();
+    function bookProductServiceStock($trx,$id_transaction_product){
+        $getProduct = TransactionProductServiceUse::where('id_transaction_product', $id_transaction_product)->get()->toArray();
         foreach ($getProduct as $p){
             $productStock = ProductDetail::where(['id_product' => $p['id_product'], 'id_outlet' => $trx['id_outlet']])->first();
             $currentStock = $productStock['product_detail_stock_item'];

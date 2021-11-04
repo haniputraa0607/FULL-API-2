@@ -168,7 +168,7 @@ class ApiMitraShopService extends Controller
     	$dateStart = $thisYear . '-' . $thisMonth . '-01';
 		$dateEnd   = $thisYear . '-' . $thisMonth . '-' . date('t', strtotime($dateStart));
 
-    	$month_info = [
+    	$monthInfo = [
 			'prev_month' => [
 				'name' => MyHelper::indonesian_date_v2(date('F Y', strtotime('-1 Month ' . $thisYear . '-' . $thisMonth . '-01')), 'F Y'),
 				'month' => date('m', strtotime('-1 Month ' . $thisYear . '-' . $thisMonth . '-01')),
@@ -186,6 +186,9 @@ class ApiMitraShopService extends Controller
 			]
 		];
 
+		if (strtotime($thisYear . '-' . $thisMonth . '-01') == strtotime(date('Y-n-01'))) {
+			$monthInfo['next_month'] = null;
+		}
     	$trxs = Transaction::whereHas('transaction_products', function($q) use ($id_user_hair_stylist) {
     		$q->where('id_user_hair_stylist', $id_user_hair_stylist);
     	})
@@ -225,7 +228,7 @@ class ApiMitraShopService extends Controller
     	}
     	
     	$res = [
-    		'month' => $month_info,
+    		'month' => $monthInfo,
     		'histories' => $histories
     	];
 

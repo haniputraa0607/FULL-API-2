@@ -568,7 +568,7 @@ class ApiMitraOutletService extends Controller
             HairstylistNotAvailable::where('id_transaction_product_service', $service['id_transaction_product_service'])->delete();
 
             //update stock
-            app($this->trx)->bookProductServiceStock($trx, $request->id_transaction_product_service);
+            app($this->trx)->bookProductServiceStock($trx, $service->id_transaction_product);
 
             // log rating outlet
             UserRatingLog::updateOrCreate([

@@ -54,7 +54,7 @@ class ApiMitraShopService extends Controller
     		return ['status' => 'fail', 'messages' => ['Transaksi tidak ditemukan']];
     	}
 
-    	if ($trx->transaction_payment_status != 'Completed' && $trx->trasaction_payment_type != 'Cash') {
+    	if ($trx->transaction_payment_status == 'Pending' && $trx->trasaction_payment_type != 'Cash') {
     		return ['status' => 'fail', 'messages' => ['Proses pembayaran belum selesai']];
     	}
 
@@ -64,7 +64,7 @@ class ApiMitraShopService extends Controller
     	}
 
     	$paymentCash = 0;
-    	if ($trx->transaction_payment_status != 'Completed' && $trx->trasaction_payment_type == 'Cash') {
+    	if ($trx->transaction_payment_status == 'Pending' && $trx->trasaction_payment_type == 'Cash') {
     		$paymentCash = 1;
     	}
 

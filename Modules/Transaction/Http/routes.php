@@ -16,6 +16,8 @@ Route::group(['middleware' => ['auth:api', 'scopes:web-apps'],'prefix' => 'api/w
     Route::post('check', 'ApiOnlineTransaction@checkTransaction');
     Route::post('new', 'ApiOnlineTransaction@newTransaction')->middleware('decrypt_pin:pin,request');
     Route::post('confirm', 'ApiConfirm@confirmTransaction');
+    Route::post('list', 'ApiTransaction@outletServiceList');
+	Route::post('detail', 'ApiTransaction@outletServiceDetail');
 });
 
 Route::any('api/transaction/update-gosend', 'Modules\Transaction\Http\Controllers\ApiGosendController@updateStatus');

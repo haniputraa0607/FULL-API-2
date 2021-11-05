@@ -262,6 +262,57 @@ class ApiProductServiceController extends Controller
         return response()->json(MyHelper::checkGet($result));
     }
 
+    /**
+     * Return home service available datetime
+     * @param  Request $request 
+     * @return Response
+     */
+    public function availableDateTime(Request $request){
+        $post = $request->json()->all();
+
+        $totalDateShow = Setting::where('key', 'total_show_date_booking_service')->first()->value??1;
+        $today = date('Y-m-d');
+        $currentTime = date('H:i');
+        $listDate = [];
+
+        $x = 0;
+        $count = 1;
+        $processingTime = Setting::where('key', 'home_service_processing_time')->first()['value']??60;
+        $timeStart = Setting::where('key', 'home_service_time_start')->first()['value']??'07:00:00';
+        $timeEnd = Setting::where('key', 'home_service_time_end')->first()['value']??'22:00:00';
+        while($count <= (int)$totalDateShow) {
+            $date = date('Y-m-d', strtotime('+'.$x.' day', strtotime($today)));
+            $open = date('H:i', strtotime($timeStart));
+            $close = date('H:i', strtotime($timeEnd));
+            $times = [];
+            $tmpTime = $open;
+            if(strtotime($date.' '.$open) > strtotime($today.' '.$currentTime)) {
+                $times[] = $open;
+            }elseif($date == $today){
+                $times[] = 'Sekarang';
+            }
+            while(strtotime($tmpTime) < strtotime($close)) {
+                $timeConvert = date('H:i', strtotime("+".$processingTime." minutes", strtotime($tmpTime)));
+                if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime)){
+                    $times[] = $timeConvert;
+                }
+                $tmpTime = $timeConvert;
+            }
+            if(!empty($times)){
+                $listDate[] = [
+                    'date' => $date,
+                    'times' => $times
+                ];
+            }
+            $count++;
+            $x++;
+        }
+
+        $result = $listDate;
+
+        return response()->json(MyHelper::checkGet($result));
+    }
+
     public function homeServiceAvailableHsFavorite(Request $request){
         $post = $request->json()->all();
         $idUser = $request->user()->id??null;

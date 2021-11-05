@@ -23,6 +23,7 @@ use Modules\Product\Entities\ProductGlobalPrice;
 use Modules\Product\Entities\ProductSpecialPrice;
 use Modules\Product\Entities\ProductStockStatusUpdate;
 use Modules\Product\Entities\ProductProductPromoCategory;
+use Modules\Product\Entities\ProductGroup;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -2595,5 +2596,230 @@ class ApiProductController extends Controller
         }
 
         return $data[$shift]??[];
+    }
+
+    public function shopListProduct(Request $request){
+        $post = $request->json()->all();
+        if(empty($post['id_outlet']) && empty($post['outlet_code'])) {
+        	$post['id_outlet'] = Setting::where('key', 'default_outlet')->pluck('value');
+        }
+        $outlet = Outlet::with(['outlet_schedules', 'holidays.date_holidays', 'today']);
+
+        if(!empty($post['id_outlet'])){
+            $outlet = $outlet->where('id_outlet', $post['id_outlet'])->first();
+        }
+
+        if(!empty($post['outlet_code'])){
+            $outlet = $outlet->where('outlet_code', $post['outlet_code'])->first();
+        }
+
+        if (!$outlet) {
+            return [
+                'status' => 'fail',
+                'messages' => ['Outlet tidak ditemukan']
+            ];
+        }
+
+        $isClose = false;
+        $currentDate = date('Y-m-d');
+        $currentHour = date('H:i:s');
+        $open = date('H:i:s', strtotime($outlet['today']['open']));
+        $close = date('H:i:s', strtotime($outlet['today']['close']));
+        foreach ($outlet['holidays'] as $holidays){
+            $holiday = $holidays['date_holidays']->toArray();
+            $dates = array_column($holiday, 'date');
+            if(array_search($currentDate, $dates) !== false){
+                $isClose = true;
+                break;
+            }
+        }
+
+        if(strtotime($currentHour) < strtotime($open) || strtotime($currentHour) > strtotime($close) || $outlet['today']['is_closed'] == 1){
+            $isClose = true;
+        }
+
+        $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
+                ->where('id_outlet', $outlet['id_outlet'])->first();
+
+        if(empty($brand)){
+            return response()->json(['status' => 'fail', 'messages' => ['Outlet tidak memiliki brand']]);
+        }
+
+        //get data product
+        $products = Product::select([
+	            'products.id_product', 
+	            'products.product_name', 
+	            'products.product_code', 
+	            'products.product_description', 
+	            'product_variant_status',
+	            'product_groups.id_product_group',
+	            'product_groups.product_group_code',
+	            'product_groups.product_group_name',
+	            'product_groups.product_group_description',
+	            'product_groups.product_group_photo',
+	            DB::raw('
+	            	MIN(CASE
+                        WHEN (select outlets.outlet_different_price from outlets 
+                    			where outlets.id_outlet = ' . $outlet['id_outlet'] . ' 
+            				) = 1 
+                        THEN (select product_special_price.product_special_price from product_special_price 
+                        		where product_special_price.id_product = products.id_product 
+                        		AND product_special_price.id_outlet = ' . $outlet['id_outlet'] . ' 
+                    		)
+                        ELSE product_global_price.product_global_price
+                    	END
+                    ) as product_price
+                '),
+	            DB::raw('
+	            	(select product_detail.product_detail_stock_item from product_detail 
+	            		JOIN products ON product_detail.id_product = products.id_product
+	            		WHERE products.id_product_group = product_groups.id_product_group 
+	            		AND product_detail.id_outlet = ' . $outlet['id_outlet'] . ' 
+	            		order by product_detail.product_detail_stock_item desc limit 1
+            		) as product_stock_status
+            	')
+	        ])
+            ->join('brand_product', 'brand_product.id_product', '=', 'products.id_product')
+            ->leftJoin('product_global_price', 'product_global_price.id_product', '=', 'products.id_product')
+            ->join('brand_outlet', 'brand_outlet.id_brand', '=', 'brand_product.id_brand')
+            ->join('product_groups', 'product_groups.id_product_group', '=', 'products.id_product_group')
+            ->join('product_detail', 'product_detail.id_product', '=', 'products.id_product')
+            ->where('brand_outlet.id_outlet', '=', $outlet['id_outlet'])
+            ->where('product_detail.id_outlet', '=', $outlet['id_outlet'])
+            ->where('brand_product.id_brand', '=', $brand['id_brand'])
+            ->where('product_type', 'product')
+            ->whereRaw('
+            	products.id_product in (
+            		CASE
+                    WHEN (select product_detail.id_product from product_detail  
+                    		where product_detail.id_product = products.id_product 
+                    		AND product_detail.id_outlet = ' . $outlet['id_outlet'] . '  
+                    		order by id_product_detail desc limit 1
+                		) is NULL AND products.product_visibility = "Visible" 
+                    THEN products.id_product
+                    WHEN (select product_detail.id_product from product_detail  
+                    		where (product_detail.product_detail_visibility = "" OR product_detail.product_detail_visibility is NULL) 
+                    		AND product_detail.id_product = products.id_product 
+                    		AND product_detail.id_outlet = ' . $outlet['id_outlet'] . '  
+                    		order by id_product_detail desc limit 1
+                		) is NOT NULL AND products.product_visibility = "Visible" 
+                    THEN products.id_product
+                    ELSE (select product_detail.id_product from product_detail  
+                    		where product_detail.product_detail_visibility = "Visible" 
+                    		AND product_detail.id_product = products.id_product 
+                    		AND product_detail.id_outlet = ' . $outlet['id_outlet'] . '  
+                    		order by id_product_detail desc limit 1
+                		)
+                    END
+                )
+            ')
+            ->whereRaw('products.id_product in (
+            	CASE
+                WHEN (select product_detail.id_product from product_detail  
+                		where product_detail.id_product = products.id_product 
+                		AND product_detail.id_outlet = ' . $outlet['id_outlet'] . ' 
+                		order by id_product_detail desc limit 1
+            		) is NULL 
+        		THEN products.id_product
+                ELSE (select product_detail.id_product from product_detail 
+                		where product_detail.product_detail_status = "Active" 
+                		AND product_detail.id_product = products.id_product 
+                		AND product_detail.id_outlet = ' . $outlet['id_outlet'] . ' 
+                		order by id_product_detail desc limit 1
+            		)
+                END
+                )
+            ')
+            ->where(function ($query) use ($outlet) {
+                $query->WhereRaw('
+                	(select product_special_price.product_special_price from product_special_price  
+                		where product_special_price.id_product = products.id_product 
+                		AND product_special_price.id_outlet = ' . $outlet['id_outlet'] . '  
+                		order by id_product_special_price desc limit 1
+            		) is NOT NULL
+            	');
+                $query->orWhereRaw('
+                	(select product_global_price.product_global_price from product_global_price  
+                		where product_global_price.id_product = products.id_product 
+                		order by id_product_global_price desc limit 1
+                	) is NOT NULL
+            	');
+            })
+            ->having('product_price', '>', 0)
+            ->groupBy('products.id_product_group')
+            ->orderByRaw('CASE WHEN products.position = 0 THEN 1 ELSE 0 END')
+            ->orderBy('products.position')
+            ->orderBy('products.id_product')
+            ->get()
+            ->toArray();
+
+        $available = [];
+        $soldOut = [];
+        foreach ($products as $val){
+            $stock = 'Available';
+            if(empty($val['product_stock_status'])){
+                $stock = 'Sold Out';
+            }
+
+            $temp = [
+                'id_product' => $val['id_product'],
+                'id_product_group' => $val['id_product_group'],
+                'id_brand' => $brand['id_brand'],
+                'product_type' => 'product',
+                'product_group_code' => $val['product_group_code'],
+                'product_group_name' => $val['product_group_name'],
+                'product_group_description' => $val['product_group_description'],
+                'product_price' => (int)$val['product_price'],
+                'string_product_price' => 'Rp '.number_format((int)$val['product_price'],0,",","."),
+                'product_stock_status' => $stock,
+                'qty_stock' => (int)$val['product_stock_status'],
+                'photo' => (empty($val['product_group_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$val['product_group_photo'])
+            ];
+
+            if ($stock == 'Available') {
+            	$available[] = $temp;
+            } else {
+            	$soldOut[] = $temp;
+            }
+        }
+
+        $resProducts = array_merge($available, $soldOut);
+
+        if(!empty($post['latitude']) && !empty($post['longitude'])){
+            $distance = (float)app('Modules\Outlet\Http\Controllers\ApiOutletController')->distance($post['latitude'], $post['longitude'], $outlet['outlet_latitude'], $outlet['outlet_longitude'], "K");
+            if($distance < 1){
+                $distance = number_format($distance*1000, 0, '.', '').' m';
+            }else{
+                $distance = number_format($distance, 2, '.', '').' km';
+            }
+        }
+
+        $resOutlet = [
+            'is_close' => $isClose,
+            'id_outlet' => $outlet['id_outlet'],
+            'outlet_code' => $outlet['outlet_code'],
+            'outlet_name' => $outlet['outlet_name'],
+            'outlet_image' => $outlet['outlet_image'],
+            'outlet_address' => $outlet['outlet_address'],
+            'distance' => $distance??'',
+            'color' => $brand['color_brand']??''
+        ];
+
+        $resBrand = [
+            'id_brand' => $brand['id_brand'],
+            'brand_code' => $brand['code_brand'],
+            'brand_name' => $brand['name_brand'],
+            'brand_logo' => $brand['logo_brand'],
+            'brand_logo_landscape' => $brand['logo_landscape_brand']
+        ];
+
+        $result = [
+            'color' => $brand['color_brand'],
+            'outlet' => $resOutlet,
+            'brand' => $resBrand,
+            'products' => $resProducts
+        ];
+
+        return response()->json(MyHelper::checkGet($result));
     }
 }

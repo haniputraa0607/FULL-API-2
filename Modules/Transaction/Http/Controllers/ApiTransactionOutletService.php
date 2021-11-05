@@ -79,6 +79,15 @@ class ApiTransactionOutletService extends Controller
 	            ->leftJoin('transaction_product_services','transactions.id_transaction','=','transaction_product_services.id_transaction')
 	            ->leftJoin('products','products.id_product','=','transaction_products.id_product')
 	            ->with('user')
+	            ->select(
+	            	'transaction_product_services.*',
+	            	'transaction_outlet_services.*',
+	            	'products.*',
+	            	'transaction_products.*',
+	            	'outlets.*',
+	            	'users.*',
+	            	'transactions.*',
+	            )
 	            ->groupBy('transactions.id_transaction');
 
         $countTotal = null;

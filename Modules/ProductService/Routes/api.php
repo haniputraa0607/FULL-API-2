@@ -26,3 +26,8 @@ Route::group(['middleware' => ['log_activities','auth:api', 'user_agent', 'scope
     Route::post('available-datetime', 'ApiProductServiceController@availableDateTime');
     Route::post('available-hs/favorite', 'ApiProductServiceController@homeServiceAvailableHsFavorite');
 });
+
+Route::group(['middleware' => ['log_activities','auth:api', 'user_agent', 'scopes:apps'], 'prefix' => 'home-service'], function()
+{
+    Route::get('available-datetime', 'ApiProductServiceController@availableDateTime');
+});

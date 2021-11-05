@@ -115,7 +115,7 @@ class ApiMitraOutletService extends Controller
 
 	    	$buttonText = 'Layani';
 	    	$paymentCash = 0;
-	    	if ($val['transaction_payment_status'] != 'Completed' && $val['trasaction_payment_type'] == 'Cash') {
+	    	if ($val['transaction_payment_status'] == 'Pending' && $val['trasaction_payment_type'] == 'Cash') {
 	    		$buttonText = 'Pembayaran';
 	    		$paymentCash = 1;
 	    	}

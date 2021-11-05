@@ -56,6 +56,7 @@ use Illuminate\Routing\Controller;
 use Modules\Subscription\Entities\SubscriptionUserVoucher;
 use Modules\Transaction\Entities\LogInvalidTransaction;
 use Modules\Transaction\Entities\TransactionBundlingProduct;
+use Modules\Transaction\Entities\TransactionPaymentCash;
 use Modules\Transaction\Http\Requests\RuleUpdate;
 
 use Modules\Transaction\Http\Requests\TransactionDetail;
@@ -96,6 +97,8 @@ use Mail;
 use Image;
 use Illuminate\Support\Facades\Log;
 use Modules\Quest\Entities\Quest;
+use Lcobucci\JWT\Parser;
+use App\Http\Models\OauthAccessToken;
 
 class ApiTransaction extends Controller
 {
@@ -104,6 +107,7 @@ class ApiTransaction extends Controller
     function __construct() {
         date_default_timezone_set('Asia/Jakarta');
         $this->shopeepay      = 'Modules\ShopeePay\Http\Controllers\ShopeePayController';
+        $this->trx_outlet_service = "Modules\Transaction\Http\Controllers\ApiTransactionOutletService";
     }
 
     public function transactionRule() {
@@ -5244,32 +5248,44 @@ class ApiTransaction extends Controller
 
     public function outletServiceList(Request $request) {
     	$user = $request->user();
+    	$bearerToken = $request->bearerToken();
+        $tokenId = (new Parser())->parse($bearerToken)->getHeader('jti');
+        $getOauth = OauthAccessToken::find($tokenId);
+        $scopeUser = str_replace(str_split('[]""'),"",$getOauth['scopes']);
+
     	$list = Transaction::where('transaction_from', 'outlet-service')
     			->join('transaction_outlet_services','transactions.id_transaction', 'transaction_outlet_services.id_transaction')
     			->where('id_user', $user->id)
     			->orderBy('transaction_date', 'desc')
     			->with('outlet.brands', 'products', 'transaction_outlet_service', 'user_feedbacks');
 
-		switch (strtolower($request->status)) {
-			case 'unpaid':
-				$list->where('transaction_payment_status','Pending');
-				break;
+		if ($scopeUser == 'apps') {
+			switch (strtolower($request->status)) {
+				case 'unpaid':
+					$list->where('transaction_payment_status','Pending');
+					break;
 
-			case 'ongoing':
-				$list->whereNull('transaction_outlet_services.completed_at')
-				->where('transaction_payment_status','Completed');
-				break;
+				case 'ongoing':
+					$list->whereNull('transaction_outlet_services.completed_at')
+					->where('transaction_payment_status','Completed');
+					break;
 
-			case 'complete':
-				$list->where(function($q) {
-					$q->whereNotNull('transaction_outlet_services.completed_at')
-					->orWhere('transaction_payment_status','Cancelled');
-				});
-				break;
-			
-			default:
-				// code...
-				break;
+				case 'complete':
+					$list->where(function($q) {
+						$q->whereNotNull('transaction_outlet_services.completed_at')
+						->orWhere('transaction_payment_status','Cancelled');
+					});
+					break;
+				
+				default:
+					// code...
+					break;
+			}
+		} else {
+			$list->where(function ($q) {
+				$q->whereNull('transaction_outlet_services.completed_at')
+					->orWhere('transactions.show_rate_popup', 1);
+			});
 		}
 
 
@@ -5464,11 +5480,28 @@ class ApiTransaction extends Controller
         	$show_rate_popup = 1;
         }
 
+        $trx = Transaction::where('id_transaction', $detail['id_transaction'])->first();
+		$trxPayment = app($this->trx_outlet_service)->transactionPayment($trx);
+    	$paymentMethod = null;
+    	foreach ($trxPayment['payment'] as $p) {
+    		$paymentMethod = $p['name'];
+    		if (strtolower($p['name']) != 'balance') {
+    			break;
+    		}
+    	}
+
+    	$paymentCashCode = null;
+    	if ($detail['transaction_payment_status'] == 'Pending' && $detail['trasaction_payment_type'] == 'Cash') {
+    		$paymentCash = TransactionPaymentCash::where('id_transaction', $detail['id_transaction'])->first();
+    		$paymentCashCode = $paymentCash->payment_code;
+    	}
+
 		$res = [
 			'id_transaction' => $detail['id_transaction'],
 			'transaction_receipt_number' => $detail['transaction_receipt_number'],
 			'qrcode' => 'https://chart.googleapis.com/chart?chl=' . $detail['transaction_receipt_number'] . '&chs=250x250&cht=qr&chld=H%7C0',
 			'transaction_date' => $detail['transaction_date'],
+			'transaction_date_indo' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($detail['transaction_date'])), 'j F Y'),
 			'transaction_subtotal' => $detail['transaction_subtotal'],
 			'transaction_grandtotal' => $detail['transaction_grandtotal'],
 			'transaction_tax' => $detail['transaction_tax'],
@@ -5477,6 +5510,9 @@ class ApiTransaction extends Controller
 			'customer_name' => $detail['transaction_outlet_service']['customer_name'],
 			'color' => $detail['outlet']['brands'][0]['color_brand'],
 			'status' => $status,
+			'transaction_payment_status' => $detail['transaction_payment_status'],
+			'payment_method' => $paymentMethod,
+			'payment_cash_code' => $paymentCashCode,
 			'show_rate_popup' => $show_rate_popup,
 			'outlet' => $outlet,
 			'brand' => $brand,

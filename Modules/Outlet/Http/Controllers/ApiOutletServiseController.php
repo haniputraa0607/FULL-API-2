@@ -185,7 +185,7 @@ class ApiOutletServiseController extends Controller
 
         $detail = Outlet::join('cities', 'cities.id_city', 'outlets.id_city')
                     ->where('outlets.outlet_status', 'Active')
-                    ->with(['outlet_schedules','brands'])
+                    ->with(['outlet_schedules','brands', 'today', 'holidays', 'holidays.date_holidays'])
                     ->select('outlets.*', 'cities.city_name');
 
         if(!empty($post['id_outlet'])){
@@ -222,8 +222,27 @@ class ApiOutletServiseController extends Controller
             }
         }
 
+        $isClose = false;
+        $currentDate = date('Y-m-d');
+        $currentHour = date('H:i:s');
+        $open = date('H:i:s', strtotime($detail['today']['open']));
+        $close = date('H:i:s', strtotime($detail['today']['close']));
+        foreach ($detail['holidays'] as $holidays){
+            $holiday = $holidays['date_holidays'];
+            $dates = array_column($holiday, 'date');
+            if(array_search($currentDate, $dates) !== false){
+                $isClose = true;
+                break;
+            }
+        }
+
+        if(strtotime($currentHour) < strtotime($open) || strtotime($currentHour) > strtotime($close) || $detail['today']['is_closed'] == 1){
+            $isClose = true;
+        }
+
         $res = [
             'id_outlet' => $detail['id_outlet'],
+            'is_close' => $isClose,
             'outlet_code' => $detail['outlet_code'],
             'outlet_name' => $detail['outlet_name'],
             'outlet_description' => (empty($detail['outlet_description']) ? "":$detail['outlet_description']),

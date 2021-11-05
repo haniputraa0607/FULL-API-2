@@ -90,6 +90,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
         Route::post('/delete', ['middleware'=>['feature_control:378','scopes:be'],'uses' => 'ApiRequestHairStylistController@destroy']);
         Route::post('/detail', ['middleware'=>['feature_control:378','scopes:be'],'uses' => 'ApiRequestHairStylistController@show']);
         Route::post('/update', ['middleware'=>['feature_control:378','scopes:be'],'uses' => 'ApiRequestHairStylistController@update']);
+        Route::post('/list-hs', ['middleware'=>['feature_control:378','scopes:be'],'uses' => 'ApiRequestHairStylistController@listHairStylistsOutlet']);
     });
 
 

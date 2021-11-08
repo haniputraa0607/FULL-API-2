@@ -25,6 +25,7 @@ class TransactionHomeService extends Model
         'destination_address_name',
         'destination_note',
         'destination_latitude',
-        'destination_longitude'
+        'destination_longitude',
+        'counter_finding_hair_stylist'
     ];
 }

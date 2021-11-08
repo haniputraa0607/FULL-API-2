@@ -1042,4 +1042,42 @@ class ApiHome extends Controller
         ];
         return $result;
     }
+
+    public function featuredProduct(Request $request)
+    {
+    	$featured = $this->getSpecificBanner('product_group');
+
+    	return ['status' => 'success', 'result' => $featured];
+    }
+
+    public function getSpecificBanner($banner_type = null)
+    {
+        $banners = Banner::orderBy('position')
+            ->where('banner_start', '<=', date('Y-m-d H:i:s'))
+            ->where('banner_end', '>=', date('Y-m-d H:i:s'))
+            ->where(function($query) {
+                $query->where('time_start', "<=", date("H:i:s"))
+                    ->where('time_end', ">=", date("H:i:s"))
+                    ->orWhereNull('time_start')
+                    ->orWhereNull('time_end');
+            });
+
+        if ($banner_type) {
+        	$banners->where('type', $banner_type);
+        }
+
+        $banners = $banners->get();
+
+        $array = [];
+        foreach ($banners as $key => $value) {
+
+            $item['image_url']    = config('url.storage_url_api').$value->image;
+    		$item['type']         = $value->type;
+            $item['id_reference'] = $value->id_reference;
+
+            array_push($array, $item);
+        }
+
+        return $array;
+    }
 }

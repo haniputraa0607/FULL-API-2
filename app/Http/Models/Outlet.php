@@ -88,6 +88,7 @@ class Outlet extends Authenticatable
 		'status_franchise',
         'outlet_special_status',
         'outlet_academy_status',
+        'online_shop_status',
 		'plastic_used_status',
         'outlet_special_fee',
         'time_zone_utc'

@@ -4,6 +4,7 @@ namespace Modules\Transaction\Http\Controllers;
 
 use App\Http\Models\DailyTransactions;
 use App\Http\Models\OauthAccessToken;
+use App\Http\Models\OutletSchedule;
 use App\Jobs\DisburseJob;
 use App\Jobs\FraudJob;
 use Illuminate\Http\Request;
@@ -194,7 +195,7 @@ class ApiOnlineTransaction extends Controller
         $userTrxProduct = [];
 
         if(!empty($post['outlet_code'])){
-            $outlet = Outlet::where('outlet_code', $post['outlet_code'])->with('today')->first();
+            $outlet = Outlet::where('outlet_code', $post['outlet_code'])->with('today')->where('outlet_status', 'Active')->first();
             $post['id_outlet'] = $outlet['id_outlet']??null;
             if (empty($outlet)) {
                 DB::rollback();
@@ -204,7 +205,7 @@ class ApiOnlineTransaction extends Controller
                 ]);
             }
         }elseif(isset($post['id_outlet'])){
-            $outlet = Outlet::where('id_outlet', $post['id_outlet'])->with('today')->first();
+            $outlet = Outlet::where('id_outlet', $post['id_outlet'])->with('today')->where('outlet_status', 'Active')->first();
             if (empty($outlet)) {
                 DB::rollback();
                 return response()->json([
@@ -224,9 +225,7 @@ class ApiOnlineTransaction extends Controller
                 ]);
         }
 
-        $issetDate = false;
         if (isset($post['transaction_date'])) {
-            $issetDate = true;
             $post['transaction_date'] = date('Y-m-d H:i:s', strtotime($post['transaction_date']));
         } else {
             $post['transaction_date'] = date('Y-m-d H:i:s');
@@ -242,7 +241,7 @@ class ApiOnlineTransaction extends Controller
         }
 
         //cek outlet holiday
-        if($issetDate == false){
+        if(empty($post['item_service'])){
             $holiday = Holiday::join('outlet_holidays', 'holidays.id_holiday', 'outlet_holidays.id_holiday')->join('date_holidays', 'holidays.id_holiday', 'date_holidays.id_holiday')
                     ->where('id_outlet', $outlet['id_outlet'])->whereDay('date_holidays.date', date('d'))->whereMonth('date_holidays.date', date('m'))->get();
             if(count($holiday) > 0){
@@ -1944,10 +1943,10 @@ class ApiOnlineTransaction extends Controller
 
         //Check Outlet
         if(!empty($post['outlet_code'])){
-            $outlet = Outlet::where('outlet_code', $post['outlet_code'])->with('today')->first();
+            $outlet = Outlet::where('outlet_code', $post['outlet_code'])->with('today')->where('outlet_status', 'Active')->first();
             $post['id_outlet'] = $outlet['id_outlet']??null;
         }else{
-            $outlet = Outlet::where('id_outlet', $post['id_outlet'])->with('today')->first();
+            $outlet = Outlet::where('id_outlet', $post['id_outlet'])->with('today')->where('outlet_status', 'Active')->first();
         }
         $id_outlet = $post['id_outlet'];
         if (empty($outlet)) {
@@ -1963,48 +1962,6 @@ class ApiOnlineTransaction extends Controller
             $post['transaction_date'] = date('Y-m-d H:i:s', strtotime($post['transaction_date']));
         } else {
             $post['transaction_date'] = date('Y-m-d H:i:s');
-        }
-        $outlet_status = 1;
-        //cek outlet active
-        if(isset($outlet['outlet_status']) && $outlet['outlet_status'] == 'Inactive'){
-            $outlet_status = 0;
-        }
-
-        //cek outlet holiday
-        if($issetDate == false){
-            $holiday = Holiday::join('outlet_holidays', 'holidays.id_holiday', 'outlet_holidays.id_holiday')->join('date_holidays', 'holidays.id_holiday', 'date_holidays.id_holiday')
-                    ->where('id_outlet', $outlet['id_outlet'])->whereDay('date_holidays.date', date('d'))->whereMonth('date_holidays.date', date('m'))->get();
-            if(count($holiday) > 0){
-                foreach($holiday as $i => $holi){
-                    if($holi['yearly'] == '0'){
-                        if($holi['date'] == date('Y-m-d')){
-                            $outlet_status = 0;
-                        }
-                    }else{
-                        $outlet_status = 0;
-                    }
-                }
-            }
-
-            if($outlet['today']['is_closed'] == '1'){
-                $outlet_status = 0;
-            }
-
-            $settingTime = Setting::where('key', 'processing_time')->first();
-
-             if($outlet['today']['close'] && $outlet['today']['close'] != "00:00" && $outlet['today']['open'] && $outlet['today']['open'] != '00:00'){
-
-                if($settingTime && $settingTime->value){
-                    if($outlet['today']['close'] && date('H:i') > date('H:i', strtotime($outlet['today']['close']))){
-                        $outlet_status = 0;
-                    }
-                }
-
-                //cek outlet open - close hour
-                if(($outlet['today']['open'] && date('H:i') < date('H:i', strtotime($outlet['today']['open']))) || ($outlet['today']['close'] && date('H:i') > date('H:i', strtotime($outlet['today']['close'])))){
-                    $outlet_status = 0;
-                }
-            }
         }
 
         if (!isset($post['payment_type'])) {
@@ -2599,8 +2556,6 @@ class ApiOnlineTransaction extends Controller
             $post['discount'] = $post['discount'] + $promo_discount;
             $post['discount_delivery'] = $post['discount_delivery'] + ($discount_promo['discount_delivery']??0);
         }
-
-        $outlet['today']['status'] = $outlet_status?'open':'closed';
 
         $result['outlet'] = [
             'id_outlet' => $outlet['id_outlet'],
@@ -3214,8 +3169,46 @@ class ApiOnlineTransaction extends Controller
         $errorBookTime = [];
         $currentDate = date('Y-m-d H:i');
         $idOutletSchedule = $outlet['today']['id_outlet_schedule']??null;
+        $day = [
+            'Mon' => 'Senin',
+            'Tue' => 'Selasa',
+            'Wed' => 'Rabu',
+            'Thu' => 'Kamis',
+            'Fri' => 'Jumat',
+            'Sat' => 'Sabtu',
+            'Sun' => 'Minggu'
+        ];
 
         foreach ($post['item_service']??[] as $key=>$item){
+            //check outlet
+            $outletSchedule = OutletSchedule::where('id_outlet', $outlet['id_outlet'])->where('day', $day[date('D', strtotime($item['booking_date']))])->first();
+            $open = date('H:i:s', strtotime($outletSchedule['open']));
+            $close = date('H:i:s', strtotime($outletSchedule['close']));
+            $currentHour = date('H:i:s', strtotime($item['booking_time']));
+            if(strtotime($currentHour) < strtotime($open) || strtotime($currentHour) > strtotime($close) || $outletSchedule['is_closed'] == 1){
+                $errorServiceName[] = 'Outlet tutup pada '.MyHelper::dateFormatInd($item['booking_date']);
+                unset($post['item_service'][$key]);
+                continue;
+            }
+
+            $holiday = Holiday::join('outlet_holidays', 'holidays.id_holiday', 'outlet_holidays.id_holiday')->join('date_holidays', 'holidays.id_holiday', 'date_holidays.id_holiday')
+                ->where('id_outlet', $outlet['id_outlet'])->whereDay('date_holidays.date', date('d', strtotime($item['booking_date'])))->whereMonth('date_holidays.date', date('m', strtotime($item['booking_date'])))->get();
+            if(count($holiday) > 0){
+                foreach($holiday as $i => $holi){
+                    if($holi['yearly'] == '0'){
+                        if($holi['date'] == date('Y-m-d')){
+                            $errorServiceName[] = 'Outlet tutup pada '.MyHelper::dateFormatInd($item['booking_date']);
+                            unset($post['item_service'][$key]);
+                            continue;
+                        }
+                    }else{
+                        $errorServiceName[] = 'Outlet tutup pada '.MyHelper::dateFormatInd($item['booking_date']);
+                        unset($post['item_service'][$key]);
+                        continue;
+                    }
+                }
+            }
+
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
                         ->leftJoin('brand_product', 'brand_product.id_product', 'products.id_product')
                         ->where('products.id_product', $item['id_product'])
@@ -5253,9 +5246,40 @@ class ApiOnlineTransaction extends Controller
         $currentDate = date('Y-m-d H:i');
         $continueCheckOut = true;
         $idOutletSchedule = $outlet['today']['id_outlet_schedule']??null;
+        $day = [
+            'Mon' => 'Senin',
+            'Tue' => 'Selasa',
+            'Wed' => 'Rabu',
+            'Thu' => 'Kamis',
+            'Fri' => 'Jumat',
+            'Sat' => 'Sabtu',
+            'Sun' => 'Minggu'
+        ];
 
         foreach ($post['item_service']??[] as $key=>$item){
             $err = [];
+            $outletSchedule = OutletSchedule::where('id_outlet', $outlet['id_outlet'])->where('day', $day[date('D', strtotime($item['booking_date']))])->first();
+            $open = date('H:i:s', strtotime($outletSchedule['open']));
+            $close = date('H:i:s', strtotime($outletSchedule['close']));
+            $currentHour = date('H:i:s', strtotime($item['booking_time']));
+            if(strtotime($currentHour) < strtotime($open) || strtotime($currentHour) > strtotime($close) || $outletSchedule['is_closed'] == 1){
+                $err[] = 'Outlet tutup pada '.MyHelper::dateFormatInd($item['booking_date']);
+            }
+
+            $holiday = Holiday::join('outlet_holidays', 'holidays.id_holiday', 'outlet_holidays.id_holiday')->join('date_holidays', 'holidays.id_holiday', 'date_holidays.id_holiday')
+                ->where('id_outlet', $outlet['id_outlet'])->whereDay('date_holidays.date', date('d', strtotime($item['booking_date'])))->whereMonth('date_holidays.date', date('m', strtotime($item['booking_date'])))->get();
+            if(count($holiday) > 0){
+                foreach($holiday as $i => $holi){
+                    if($holi['yearly'] == '0'){
+                        if($holi['date'] == date('Y-m-d')){
+                            $err[] = 'Outlet tutup pada '.MyHelper::dateFormatInd($item['booking_date']);
+                        }
+                    }else{
+                        $err[] = 'Outlet tutup pada '.MyHelper::dateFormatInd($item['booking_date']);
+                    }
+                }
+            }
+
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
                 ->leftJoin('brand_product', 'brand_product.id_product', 'products.id_product')
                 ->where('products.id_product', $item['id_product'])

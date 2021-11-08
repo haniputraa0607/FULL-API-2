@@ -3829,6 +3829,16 @@ class FeaturesTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00')
                 ),
+            381 =>
+                array (
+                    'feature_module' => 'Approve Request Hair Stylist',
+                    'feature_type' => 'Update',
+                    'id_feature' => 383,
+                    'order' => 137,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
         ));
         
         

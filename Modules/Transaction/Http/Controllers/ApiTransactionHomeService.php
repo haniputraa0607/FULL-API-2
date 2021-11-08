@@ -9,11 +9,12 @@ use App\Http\Models\Transaction;
 use App\Http\Models\TransactionProduct;
 use App\Http\Models\UserAddress;
 use App\Jobs\ExportFranchiseJob;
-use App\Jobs\FindingHSHomeService;
+use App\Jobs\FindingHairStylistHomeService;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use App\Lib\MyHelper;
 use Modules\Product\Entities\ProductDetail;
+use Modules\Product\Entities\ProductStockLog;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Transaction\Entities\HairstylistNotAvailable;
@@ -754,7 +755,8 @@ class ApiTransactionHomeService extends Controller
             'destination_address_name' => $address['name'],
             'destination_note' => $address['description'],
             'destination_latitude' => $address['latitude'],
-            'destination_longitude' => $address['longitude']
+            'destination_longitude' => $address['longitude'],
+            'counter_finding_hair_stylist' => (!empty($idHs) ? 1 : 0)
         ]);
 
         if (!$createHomeService) {
@@ -850,9 +852,14 @@ class ApiTransactionHomeService extends Controller
             ]);
         }
 
+        if($post['preference_hair_stylist'] == 'favorite'){
+            app($this->online_trx)->bookHS($insertTransaction['id_transaction']);
+            $this->bookProductServiceStockHM($insertTransaction['id_transaction']);
+        }
+
         DB::commit();
         if(!empty($arrHs)){
-            FindingHSHomeService::dispatch(['id_transaction' => $insertTransaction['id_transaction'], 'arr_id_hs' => $arrHs])->allOnConnection('finding_hs_queue');
+            FindingHairStylistHomeService::dispatch(['id_transaction' => $insertTransaction['id_transaction'], 'id_transaction_home_service' => $createHomeService['id_transaction_home_service'],'arr_id_hs' => $arrHs])->allOnConnection('findinghairstylistqueue');
         }
 
         return response()->json([
@@ -861,7 +868,7 @@ class ApiTransactionHomeService extends Controller
         ]);
     }
 
-    function checkAvailableHS($post){
+    function checkAvailableHS($post, $rejectHS = []){
         $bookDate = date('Y-m-d', strtotime($post['booking_date']));
         $bookTime = date('H:i:s', strtotime($post['booking_time']));
         $currentDate = date('Y-m-d H:i:s');
@@ -941,6 +948,7 @@ class ApiTransactionHomeService extends Controller
                 $listHs = $listHs->where('gender', $post['preference_hair_stylist']);
             }
 
+            $hsNotAvailable = array_unique(array_merge($hsNotAvailable, $rejectHS));
             $listHs = $listHs->whereNotIn('id_user_hair_stylist', $hsNotAvailable)->get()->toArray();
             foreach ($listHs as $val){
                 if(empty($val['latitude']) && empty($val['longitude'])){
@@ -995,5 +1003,74 @@ class ApiTransactionHomeService extends Controller
             'all_id_hs' => $arrIdHs??[],
             'error_all' => $errAll??[]
         ];
+    }
+
+    function bookProductServiceStockHM($id_transaction){
+        $getAllProduct = TransactionProduct::where('id_transaction', $id_transaction)->get()->toArray();
+
+        foreach ($getAllProduct as $stock){
+            $getProduct = TransactionProductServiceUse::where('id_transaction_product', $stock['id_transaction_product'])->get()->toArray();
+            foreach ($getProduct as $p){
+                $productStock = ProductDetail::where(['id_product' => $p['id_product'], 'id_outlet' => $stock['id_outlet']])->first();
+                $currentStock = $productStock['product_detail_stock_item'];
+                $currentStockService = $productStock['product_detail_stock_service'];
+                $updateDetail = $productStock->update(['product_detail_stock_service' => $currentStockService - $p['quantity_use']]);
+                if(!$updateDetail){
+                    DB::rollback();
+                    return response()->json([
+                        'status'    => 'fail',
+                        'messages'  => ['Gagal memperbarui stok']
+                    ]);
+                }
+                ProductStockLog::create([
+                    'id_product' => $p['id_product'],
+                    'id_transaction' => $stock['id_transaction'],
+                    'stock_service' => -$p['quantity_use'],
+                    'stock_item_before' => $currentStock,
+                    'stock_service_before' => $currentStockService,
+                    'stock_item_after' => $currentStock,
+                    'stock_service_after' => $currentStockService - $p['quantity_use']
+                ]);
+            }
+        }
+
+        return $updateDetail??true;
+    }
+
+    function cancelBookProductServiceStockHM($id_transaction){
+        $getAllProduct = TransactionProduct::where('id_transaction', $id_transaction)->get()->toArray();
+
+        foreach ($getAllProduct as $stock){
+            $getProduct = TransactionProductServiceUse::where('id_transaction_product', $stock['id_transaction_product'])->get()->toArray();
+            foreach ($getProduct as $p){
+                $productStock = ProductDetail::where(['id_product' => $p['id_product'], 'id_outlet' => $stock['id_outlet']])->first();
+                $currentStock = $productStock['product_detail_stock_item'];
+                $currentStockService = $productStock['product_detail_stock_service'];
+                $updateDetail = $productStock->update(['product_detail_stock_service' => $currentStockService + $p['quantity_use']]);
+                if(!$updateDetail){
+                    DB::rollback();
+                    return response()->json([
+                        'status'    => 'fail',
+                        'messages'  => ['Gagal memperbarui stok']
+                    ]);
+                }
+                ProductStockLog::create([
+                    'id_product' => $p['id_product'],
+                    'id_transaction' => $stock['id_transaction'],
+                    'stock_service' => $p['quantity_use'],
+                    'stock_item_before' => $currentStock,
+                    'stock_service_before' => $currentStockService,
+                    'stock_item_after' => $currentStock,
+                    'stock_service_after' => $currentStockService + $p['quantity_use']
+                ]);
+            }
+        }
+
+        return $updateDetail??true;
+    }
+
+    function cancelBookHS($id_transaction){
+        $del = HairstylistNotAvailable::where('id_transaction', $id_transaction)->delete();
+        return $del;
     }
 }

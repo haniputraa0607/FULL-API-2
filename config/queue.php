@@ -118,6 +118,13 @@ return [
             'retry_after' => 90,
         ],
 
+        'findinghairstylistqueue' => [
+            'driver' => 'database',
+            'table' => 'finding_hairstylist_jobs',
+            'queue' => 'findinghairstylistqueue',
+            'retry_after' => 90,
+        ],
+
         'beanstalkd' => [
             'driver' => 'beanstalkd',
             'host' => 'localhost',

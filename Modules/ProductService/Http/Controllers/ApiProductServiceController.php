@@ -346,7 +346,7 @@ class ApiProductServiceController extends Controller
         $listHs = UserHairStylist::where('user_hair_stylist_status', 'Active')
             ->whereIn('id_user_hair_stylist', function($query) use($idUser){
             $query->select('id_user_hair_stylist')
-                ->from('favorite_use_hair_stylist')
+                ->from('favorite_user_hair_stylist')
                 ->where('id_user', $idUser);
         })->get()->toArray();
 

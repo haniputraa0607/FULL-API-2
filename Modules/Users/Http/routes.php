@@ -28,7 +28,10 @@ Route::group(['prefix' => 'api', 'middleware' => ['log_activities', 'user_agent'
         Route::post('pin/forgot', 'ApiUserV2@forgotPin');
         Route::post('pin/change', 'ApiUserV2@changePin')->middleware(['decrypt_pin:pin_new','decrypt_pin:pin_old']);
         Route::post('pin/request', 'ApiUserV2@pinRequest');
-        Route::post('profile/update', 'ApiUser@profileUpdate');
+        Route::group(['middleware' => ['auth:api']], function()
+	    {
+        	Route::post('profile/update', 'ApiUser@profileUpdate');
+	    });
 	});
 
     Route::group(['middleware' => ['auth_client', 'scopes:web-apps'], 'prefix' => 'webapp/users', 'namespace' => 'Modules\Users\Http\Controllers'], function()
@@ -39,7 +42,10 @@ Route::group(['prefix' => 'api', 'middleware' => ['log_activities', 'user_agent'
         Route::post('pin/forgot', 'ApiUserV2@forgotPin');
         Route::post('pin/change', 'ApiUserV2@changePin')->middleware(['decrypt_pin:pin_new','decrypt_pin:pin_old']);
         Route::post('pin/request', 'ApiUserV2@pinRequest');
-        Route::post('profile/update', 'ApiUser@profileUpdate');
+        Route::group(['middleware' => ['auth:api']], function()
+	    {
+        	Route::post('profile/update', 'ApiUser@profileUpdate');
+	    });
     });
 
     Route::group(['middleware' => ['auth_client', 'scopes:be'], 'prefix' => 'users', 'namespace' => 'Modules\Users\Http\Controllers'], function()

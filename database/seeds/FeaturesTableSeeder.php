@@ -3831,10 +3831,10 @@ class FeaturesTableSeeder extends Seeder
                 ),
             381 =>
                 array (
-                    'feature_module' => 'Request Hair Stylist',
-                    'feature_type' => 'Approve',
+                    'feature_module' => 'Approve Request Hair Stylist',
+                    'feature_type' => 'Update',
                     'id_feature' => 383,
-                    'order' => 136,
+                    'order' => 137,
                     'show_hide' => 1,
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00')

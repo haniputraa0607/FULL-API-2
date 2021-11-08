@@ -2598,7 +2598,7 @@ class ApiProductController extends Controller
         return $data[$shift]??[];
     }
 
-    public function shopListProduct(Request $request){
+    public function shopListProduct(Request $request) {
         $post = $request->json()->all();
         if(empty($post['id_outlet']) && empty($post['outlet_code'])) {
         	$post['id_outlet'] = Setting::where('key', 'default_outlet')->pluck('value');
@@ -2821,5 +2821,190 @@ class ApiProductController extends Controller
         ];
 
         return response()->json(MyHelper::checkGet($result));
+    }
+
+    public function shopDetailProduct(Request $request) {
+
+    	if (!$request->id_product_group) {
+    		return [
+    			'status' => 'fail', 
+    			'messages' => ['Produk tidak ditemukan']
+    		];
+    	}
+
+    	$id_outlet = $request->id_outlet ?? Setting::where('key','default_outlet')->pluck('value')->first();
+        $outlet = Outlet::find($id_outlet);
+        if(!$outlet){
+    		return ['status' => 'fail', 'messages' => ['Outlet tidak ditemukan']];
+        }
+
+        $id_brand = $request->id_brand;
+        $brand = Brand::find($id_brand);
+        if(!$brand){
+    		return ['status' => 'fail', 'messages' => ['Brand tidak ditemukan']];
+        }
+
+    	$products = Product::select(
+    					'products.*',
+    					'product_groups.product_group_code',
+    					'product_groups.product_group_name',
+    					'product_groups.product_group_description',
+    					'brand_product.id_brand',
+			        	DB::raw('
+			            	(CASE
+		                        WHEN ' . $outlet->outlet_different_price . ' = 1 
+		                        THEN (select product_special_price.product_special_price from product_special_price 
+	                        		where product_special_price.id_product = products.id_product 
+	                        		AND product_special_price.id_outlet = ' . $id_outlet . ' 
+	                    		)
+		                        ELSE product_global_price.product_global_price
+		                    	END
+		                    ) as product_price
+		                '),
+		                DB::raw('
+		                	(select product_detail.product_detail_stock_item from product_detail
+			                	where product_detail.id_product = products.id_product 
+			                	AND product_detail.id_outlet = ' . $id_outlet . ' 
+			                	order by id_product_detail desc limit 1
+		                	) as product_stock_status
+	                	')
+			        )
+    				->join('brand_product', 'brand_product.id_product', '=', 'products.id_product')
+		            ->leftJoin('product_global_price', 'product_global_price.id_product', '=', 'products.id_product')
+		            ->join('brand_outlet', 'brand_outlet.id_brand', '=', 'brand_product.id_brand')
+		            ->join('product_groups', 'product_groups.id_product_group', '=', 'products.id_product_group')
+		            ->where('brand_outlet.id_outlet', '=', $id_outlet)
+		            ->where('brand_product.id_brand', '=', $id_brand)
+		            ->where('product_type', 'product')
+		            ->whereRaw('products.id_product in (
+		            	CASE
+		                WHEN (select product_detail.id_product from product_detail  
+		                		where product_detail.id_product = products.id_product 
+		                		AND product_detail.id_outlet = ' . $id_outlet . ' 
+		                		order by id_product_detail desc limit 1
+		            		) is NULL 
+		        		THEN products.id_product
+		                ELSE (select product_detail.id_product from product_detail 
+		                		where product_detail.product_detail_status = "Active" 
+		                		AND product_detail.id_product = products.id_product 
+		                		AND product_detail.id_outlet = ' . $id_outlet . ' 
+		                		order by id_product_detail desc limit 1
+		            		)
+		                END
+		                )
+		            ')
+		            ->where(function ($query) use ($id_outlet) {
+		                $query->WhereRaw('
+		                	(select product_special_price.product_special_price from product_special_price  
+		                		where product_special_price.id_product = products.id_product 
+		                		AND product_special_price.id_outlet = ' . $id_outlet . '  
+		                		order by id_product_special_price desc limit 1
+		            		) is NOT NULL
+		            	');
+		                $query->orWhereRaw('
+		                	(select product_global_price.product_global_price from product_global_price  
+		                		where product_global_price.id_product = products.id_product 
+		                		order by id_product_global_price desc limit 1
+		                	) is NOT NULL
+		            	');
+		            })
+    				->where('products.id_product_group', $request->id_product_group)
+		            ->having('product_price', '>', 0)
+		            ->groupBy('products.id_product')
+		            ->orderByRaw('CASE WHEN products.position = 0 THEN 1 ELSE 0 END')
+		            ->orderBy('products.position')
+		            ->orderBy('products.id_product')
+		            ->with(['photos'])
+		            ->get()
+		            ->toArray();
+
+		usort($products, function ($a, $b) {
+			return $a['product_price'] <=> $b['product_price'];
+		});
+
+		$selectedProduct = null;
+		$photos = [];
+		$variants = [];
+		foreach ($products as $product) {
+	        $product['product_detail'] = ProductDetail::where(['id_product' => $product['id_product'], 'id_outlet' => $id_outlet])->first();
+
+	        if (empty($product['product_detail'])) {
+	            $product['product_detail']['product_detail_visibility'] = $product['product_visibility'];
+	            $product['product_detail']['product_detail_status'] = 'Active';
+	        }
+	        $max_order = null;
+
+	        if (isset($product['product_detail']['max_order'])) {
+	            $max_order = $product['product_detail']['max_order'];
+	        }
+	        if ($max_order == null) {
+	            $max_order = Outlet::select('max_order')->where('id_outlet', $id_outlet)->pluck('max_order')->first();
+	            if ($max_order == null) {
+	                $max_order = Setting::select('value')->where('key','max_order')->pluck('value')->first();
+	                if($max_order == null){
+	                    $max_order = 100;
+	                }
+	            }
+	        }
+	        
+	        if(($product['product_detail']['product_detail_visibility'] ?? false) == 'Hidden') {
+	            continue;
+	        }
+	        unset($product['product_detail']);
+	        
+	        $product['max_order'] = (int) $max_order;
+	        $product['max_order_alert'] = MyHelper::simpleReplace(Setting::select('value_text')->where('key','transaction_exceeds_limit_text')->pluck('value_text')->first()?:'Transaksi anda melebihi batas! Maksimal transaksi untuk %product_name% : %max_order%',
+	                    [
+	                        'product_name' => $product['product_name'],
+	                        'max_order' => $max_order
+	                    ]
+	                );
+
+        	$disable = 0;
+	        if (empty($product['product_stock_status'])) {
+	        	$disable = 1;
+	        }
+
+	        $variant = [
+	        	'id_product' => $product['id_product'],
+	        	'id_product_group' => $product['id_product_group'],
+	        	'id_brand' => $product['id_brand'],
+		        'product_code' => $product['product_code'],
+		        'product_name' => $product['product_name'],
+		        'variant_name' => $product['variant_name'],
+		        'product_description' => $product['product_description'],
+		        'product_visibility' => $product['product_visibility'],
+                'product_group_code' => $product['product_group_code'],
+                'product_group_name' => $product['product_group_name'],
+                'product_group_description' => $product['product_group_description'],
+                'product_price' => (int)$product['product_price'],
+                'string_product_price' => 'Rp '.number_format((int)$product['product_price'],0,",","."),
+                'qty_stock' => (int)$product['product_stock_status'],
+		        'max_order' => $product['max_order'],
+		        'max_order_alert' => $product['max_order_alert'],
+		        'disable' => $disable
+	        ];
+
+	        $variants[] = $variant;
+			$photos[] = config('url.storage_url_api') . ($product['product_photo_detail'] ?? 'img/product/item/detail/default.png');
+			if (!$selectedProduct && (!$request->id_product || $request->id_product == $product['id_product'])) {
+				$selectedProduct = $variant;
+			}
+		}
+
+		if (!$selectedProduct) {
+    		return ['status' => 'fail', 'messages' => ['Produk tidak ditemukan']];
+        }
+
+        $selectedProduct['photos'] = $photos;
+
+        $res = [
+        	'detail' => $selectedProduct,
+        	'outlet' => Outlet::select('id_outlet','outlet_code','outlet_address','outlet_name')->find($id_outlet),
+        	'variants' => $variants,
+        	'popup_message' => $selectedProduct['disable'] ? 'Produk yang dipilih tidak tersedia' : ''
+        ];
+
+        return MyHelper::checkGet($res);
     }
 }

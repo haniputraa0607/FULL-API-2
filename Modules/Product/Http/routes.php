@@ -151,4 +151,5 @@ Route::group(['prefix' => 'api/webapp/outlet-service/product','middleware' => ['
 Route::group(['prefix' => 'api/shop/product','middleware' => ['log_activities','auth:api', 'scopes:apps'], 'namespace' => 'Modules\Product\Http\Controllers'], function()
 {
     Route::post('list', 'ApiProductController@shopListProduct');
+    Route::post('detail', 'ApiProductController@shopDetailProduct');
 });

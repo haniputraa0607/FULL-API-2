@@ -110,6 +110,9 @@ class ApiRequestHairStylistController extends Controller
             if (isset($post['notes'])) {
                 $data_store['notes'] = $post['notes'];
             }
+            if (isset($post['notes_om'])) {
+                $data_store['notes_om'] = $post['notes_om'];
+            }
             $cek_outlet = Outlet::where(['id_outlet'=>$data_store['id_outlet']])->first();
             if ($cek_outlet) {
                 DB::beginTransaction();
@@ -217,5 +220,16 @@ class ApiRequestHairStylistController extends Controller
     public function listOutlet(Request $request){
         $outlet = Outlet::where('outlet_status','active')->get()->toArray();
         return response()->json(MyHelper::checkCreate($outlet));
+    }
+
+    public function listHairStylistsOutlet(Request $request){
+        $post = $request->all();
+        if (isset($post['id_outlet']) && !empty($post['id_outlet'])) {
+            $list = UserHairStylist::where('user_hair_stylist_status','Active')->where('id_outlet',$post['id_outlet'])->get()->toArray();
+            return $list;
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
+        
     }
 }

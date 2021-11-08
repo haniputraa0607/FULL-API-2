@@ -14,7 +14,8 @@ class RequestHairStylist extends Model
 		'number_of_request',
 		'status',
 		'applicant',
-		'notes'
+		'notes',
+		'notes_om'
 	];
     public function outlet_request(){
         return $this->belongsTo(Outlet::class, 'id_outlet');

@@ -55,6 +55,7 @@ Route::group(['prefix' => 'api', 'middleware' => ['log_activities', 'user_agent'
         Route::any('/featured-subscription','ApiHome@featuredSubscription');
         Route::any('/featured-promo-campaign','ApiHome@featuredPromoCampaign');
         Route::any('/featured-news','ApiHome@featuredNews');
+        Route::any('/featured-product','ApiHome@featuredProduct');
         Route::post('refresh-point-balance', 'ApiHome@refreshPointBalance');
         Route::get('social-media','ApiHome@socialMedia');
     });

@@ -2838,11 +2838,13 @@ class ApiProductController extends Controller
     		return ['status' => 'fail', 'messages' => ['Outlet tidak ditemukan']];
         }
 
-        $id_brand = $request->id_brand;
-        $brand = Brand::find($id_brand);
+        $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
+                ->where('id_outlet', $id_outlet)->first();
         if(!$brand){
     		return ['status' => 'fail', 'messages' => ['Brand tidak ditemukan']];
         }
+
+        $id_brand = $brand->id_brand;
 
     	$products = Product::select(
     					'products.*',
@@ -2994,6 +2996,10 @@ class ApiProductController extends Controller
 
 		if (!$selectedProduct) {
     		return ['status' => 'fail', 'messages' => ['Produk tidak ditemukan']];
+        }
+
+        if (count($variants) <= 1) {
+        	$variants = [];
         }
 
         $selectedProduct['photos'] = $photos;

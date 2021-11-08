@@ -366,7 +366,7 @@ class ApiFavoriteController extends Controller
     public function destroyFavoriteHS(Request $request){
         $user = $request->user();
         $delete = FavoriteUserHiarStylist::where([
-            ['id_favorite_user_hair_stylist',$request->json('id_favorite_user_hair_stylist')],
+            ['id_user_hair_stylist',$request->json('id_user_hair_stylist')],
             ['id_user',$user->id]
         ])->delete();
         return MyHelper::checkDelete($delete);

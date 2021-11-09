@@ -74,6 +74,33 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefi
         Route::post('/lampiran/delete', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersCloseController@lampiranDelete']);
         Route::post('/lampiran/data', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersCloseController@lampiranData']);
     });
+    Route::group(['prefix' => '/outlet'], function() {
+        Route::post('/', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseController@index']);
+        Route::post('/ready', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseController@ready']);
+        Route::post('/partner', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseController@partner']);
+        Route::group(['prefix' => '/cutoff'], function() {
+            Route::post('/create', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseController@createCutOff']);
+            Route::post('/update', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseController@updateCutOff']);
+            Route::post('/detail', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseController@detailCutOff']);
+            Route::post('/reject', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseController@rejectCutOff']);
+            Route::post('/success', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseController@successCutOff']);
+            Route::post('/cronCutOff', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseController@cronCutOff']);
+            Route::post('/lampiran/create', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseController@lampiranCreateCutOff']);
+            Route::post('/lampiran/delete', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseController@lampiranDeleteCutOff']);
+            Route::post('/lampiran/data', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseController@lampiranDataCutOff']);
+        });
+        Route::group(['prefix' => '/change'], function() {
+            Route::post('/create', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseController@createChange']);
+            Route::post('/update', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseController@updateChange']);
+            Route::post('/detail', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseController@detailChange']);
+            Route::post('/reject', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseController@rejectChange']);
+            Route::post('/success', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseController@successChange']);
+            Route::post('/cronChange', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseController@cronChange']);
+            Route::post('/lampiran/create', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseController@lampiranCreateChange']);
+            Route::post('/lampiran/delete', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseController@lampiranDeleteChange']);
+            Route::post('/lampiran/data', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseController@lampiranDataChange']);
+        });
+    });
 });
 
 Route::group(['middleware' => ['auth:partners','log_activities','user_agent','scopes:partners'],'prefix' => 'partner'], function() {

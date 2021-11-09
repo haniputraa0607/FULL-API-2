@@ -3841,9 +3841,49 @@ class FeaturesTableSeeder extends Seeder
                 ),
             382 =>
                 array (
-                    'feature_module' => 'Home Service Setting',
-                    'feature_type' => 'Update',
+                    'feature_module' => 'Product Group',
+                    'feature_type' => 'Create',
                     'id_feature' => 384,
+                    'order' => 138,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            383 =>
+                array (
+                    'feature_module' => 'Product Group',
+                    'feature_type' => 'List',
+                    'id_feature' => 385,
+                    'order' => 138,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            384 =>
+                array (
+                    'feature_module' => 'Product Group',
+                    'feature_type' => 'Detail',
+                    'id_feature' => 386,
+                    'order' => 138,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            385 =>
+                array (
+                    'feature_module' => 'Product Group',
+                    'feature_type' => 'Update',
+                    'id_feature' => 387,
+                    'order' => 138,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            386 =>
+                array (
+                    'feature_module' => 'Product Group',
+                    'feature_type' => 'Delete',
+                    'id_feature' => 388,
                     'order' => 138,
                     'show_hide' => 1,
                     'created_at' => date('Y-m-d H:00:00'),

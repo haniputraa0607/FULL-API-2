@@ -130,6 +130,14 @@ Route::group(['prefix' => 'api/product','middleware' => ['log_activities','auth:
         Route::post('create', 'ApiTagController@createProductTag');
         Route::post('delete', 'ApiTagController@deleteProductTag');
     });
+
+    /* tag */
+    Route::group(['prefix' => 'product-group'], function() {
+        Route::any('list', 'ApiProductGroupController@list')->middleware(['feature_control:385']);
+        Route::post('create', 'ApiProductGroupController@create')->middleware(['feature_control:384']);
+        Route::post('update', 'ApiProductGroupController@update')->middleware(['feature_control:387']);
+        Route::post('delete', 'ApiProductGroupController@delete')->middleware(['feature_control:388']);
+    });
 });
 
 Route::group(['prefix' => 'api/outlet-service/product','middleware' => ['log_activities','auth:api', 'scopes:apps'], 'namespace' => 'Modules\Product\Http\Controllers'], function()

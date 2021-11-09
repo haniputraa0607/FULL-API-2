@@ -3889,6 +3889,16 @@ class FeaturesTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00')
                 ),
+            387 =>
+                array (
+                    'feature_module' => 'Home Service Setting',
+                    'feature_type' => 'Update',
+                    'id_feature' => 389,
+                    'order' => 139,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
         ));
         
         

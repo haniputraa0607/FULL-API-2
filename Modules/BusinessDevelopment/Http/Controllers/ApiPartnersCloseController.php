@@ -115,7 +115,7 @@ class ApiPartnersCloseController extends Controller
            return response()->json(['status' => 'fail','result'=>[]]);
     }
     public function detail(Request $request){
-         $store = PartnersCloseTemporary::where(array('id_partners_close_temporary'=>$request->id_partners_close_temporary))->with(['lampiran'])->first();
+         $store = PartnersCloseTemporary::where(array('id_partners_close_temporary'=>$request->id_partners_close_temporary))->with(['lampiran','partner'])->first();
          if($store){
              $outlet = PartnersCloseTemporaryOutlet::where(array('partners_close_temporary_outlet.id_partners_close_temporary'=>$store->id_partners_close_temporary))
                                 ->join('outlets','outlets.id_outlet','partners_close_temporary_outlet.id_outlet')->count();
@@ -204,17 +204,17 @@ class ApiPartnersCloseController extends Controller
     public function cronInactive(){
         $project = PartnersCloseTemporary::where(array('status'=>"Waiting",'start_date'=>null))->get();
         foreach ($project as $value) {
-            $closeoutlet = Partner::join('locations','locations.id_partner','partners.id_partner')
+            $closeoutletall = Partner::join('locations','locations.id_partner','partners.id_partner')
                 ->where('locations.id_partner', $value->id_partner)
                 ->join('cities','cities.id_city','locations.id_city')
                 ->join('outlets','outlets.id_city','cities.id_city')
                 ->where('outlets.outlet_status','Active')
                 ->get();
-            foreach ($outlet as $value) {
+            foreach ($closeoutletall as $va) {
                     $closeoutlet = PartnersCloseTemporaryOutlet::create(
                             [
-                               'id_partners_close_temporary'=>$store->id_partners_close_temporary,
-                               'id_outlet'=>$value->id_outlet
+                               'id_partners_close_temporary'=>$value['id_partners_close_temporary'],
+                               'id_outlet'=>$va['id_outlet']
                             ]);
                 }
             $store = PartnersCloseTemporary::where(array('id_partners_close_temporary'=>$value['id_partners_close_temporary']))

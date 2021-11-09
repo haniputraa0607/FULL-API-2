@@ -24,7 +24,7 @@ class CreateCloseTemporaryActiveRequest extends FormRequest
     public function withValidator($validator)
     {
         $validator->addExtension('partner', function ($attribute, $value, $parameters, $validator) {
-         $survey = PartnersCloseTemporary::where(array('id_partner'=>$value,'status'=>"Process"))->first();
+         $survey = PartnersCloseTemporary::where(array('id_partner'=>$value,'status'=>"Process"))->orwhere(array('status'=>"Waiting"))->first();
          if($survey){
              return false;
          } return true;

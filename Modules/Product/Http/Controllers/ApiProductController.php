@@ -2,6 +2,7 @@
 
 namespace Modules\Product\Http\Controllers;
 
+use App\Http\Models\Holiday;
 use App\Http\Models\OauthAccessToken;
 use App\Http\Models\Product;
 use App\Http\Models\ProductCategory;
@@ -2432,9 +2433,30 @@ class ApiProductController extends Controller
             $x = 0;
             $count = 1;
             while($count <= (int)$totalDateShow) {
+                $close = 0;
                 $date = date('Y-m-d', strtotime('+'.$x.' day', strtotime($today)));
                 $dayConvert = $day[date('D', strtotime($date))];
-                if(array_search($dayConvert, $allDay) !== false){
+
+                $outletSchedule = OutletSchedule::where('id_outlet', $outlet['id_outlet'])->where('day', $dayConvert)->first();
+                if($outletSchedule['is_closed'] == 1){
+                    $close = 1;
+                }
+
+                $holiday = Holiday::join('outlet_holidays', 'holidays.id_holiday', 'outlet_holidays.id_holiday')->join('date_holidays', 'holidays.id_holiday', 'date_holidays.id_holiday')
+                    ->where('id_outlet', $outlet['id_outlet'])->whereDay('date_holidays.date', date('d', strtotime($date)))->whereMonth('date_holidays.date', date('m', strtotime($date)))->get();
+                if(count($holiday) > 0){
+                    foreach($holiday as $i => $holi){
+                        if($holi['yearly'] == '0'){
+                            if($holi['date'] == $date){
+                                $close = 1;
+                            }
+                        }else{
+                            $close = 1;
+                        }
+                    }
+                }
+
+                if($close == 0 && array_search($dayConvert, $allDay) !== false){
                     $getTime = array_search($dayConvert, array_column($outletSchedules, 'day'));
                     $open = date('H:i', strtotime($outletSchedules[$getTime]['open']));
                     $close = date('H:i', strtotime($outletSchedules[$getTime]['close']));

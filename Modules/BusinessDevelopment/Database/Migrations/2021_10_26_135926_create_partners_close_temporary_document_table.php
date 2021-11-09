@@ -31,6 +31,6 @@ class CreatePartnersCloseTemporaryDocumentTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('partners_close_temporary');
+        Schema::dropIfExists('partners_close_temporary_document');
     }
 }

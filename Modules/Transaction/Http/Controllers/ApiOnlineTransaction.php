@@ -28,6 +28,7 @@ use App\Http\Models\TransactionProductModifier;
 use Modules\Product\Entities\ProductStockLog;
 use Modules\ProductBundling\Entities\BundlingOutlet;
 use Modules\ProductBundling\Entities\BundlingProduct;
+use Modules\ProductService\Entities\ProductServiceUse;
 use Modules\ProductVariant\Entities\ProductVariantGroup;
 use Modules\ProductVariant\Entities\ProductVariantGroupDetail;
 use Modules\ProductVariant\Entities\ProductVariantGroupSpecialPrice;
@@ -3179,6 +3180,7 @@ class ApiOnlineTransaction extends Controller
             'Sun' => 'Minggu'
         ];
 
+        $tempStock = [];
         foreach ($post['item_service']??[] as $key=>$item){
             //check outlet
             $outletSchedule = OutletSchedule::where('id_outlet', $outlet['id_outlet'])->where('day', $day[date('D', strtotime($item['booking_date']))])->first();
@@ -3213,7 +3215,7 @@ class ApiOnlineTransaction extends Controller
                         ->leftJoin('brand_product', 'brand_product.id_product', 'products.id_product')
                         ->where('products.id_product', $item['id_product'])
                         ->select('products.*', 'product_global_price as product_price', 'brand_product.id_brand')
-                        ->with(['product_service_use_detail'])
+                        ->with(['product_service_use'])
                         ->where('product_type', 'service')
                         ->first();
 
@@ -3223,11 +3225,25 @@ class ApiOnlineTransaction extends Controller
                 continue;
             }
 
-            foreach ($service['product_service_use_detail'] as $stock){
-                if($stock['quantity_use'] > $stock['product_detail_stock_service']){
+            if(!empty($service['product_service_use'])){
+                $getProductUse = ProductServiceUse::join('product_detail', 'product_detail.id_product', 'product_service_use.id_product')
+                    ->where('product_service_use.id_product_service', $service['id_product'])
+                    ->where('product_detail.id_outlet', $outlet['id_outlet'])->get()->toArray();
+                if(count($service['product_service_use']) != count($getProductUse)){
                     $errorServiceName[] = $item['product_name'];
                     unset($post['item_service'][$key]);
-                    continue 2;
+                    continue;
+                }
+
+                foreach ($getProductUse as $stock){
+                    $use = $stock['quantity_use'] * 1;
+                    $allUse = ($tempStock[$stock['id_product']]??0) + $use;
+                    if($allUse > $stock['product_detail_stock_service']){
+                        $errorServiceName[] = $item['product_name'];
+                        unset($post['item_service'][$key]);
+                        continue 2;
+                    }
+                    $tempStock[$stock['id_product']] = $allUse;
                 }
             }
 
@@ -3300,9 +3316,13 @@ class ApiOnlineTransaction extends Controller
                 continue;
             }
 
+            $processingTime = $service['processing_time_service'];
+            $bookTimeStart = date("H:i:s", strtotime('-'.$processingTime.' minutes', strtotime($item['booking_time'])));
+            $bookTimeEnd = date("H:i:s", strtotime('+'.$processingTime.' minutes', strtotime($item['booking_time'])));
             $hsNotAvailable = HairstylistNotAvailable::where('id_outlet', $post['id_outlet'])
                 ->where('booking_date', date('Y-m-d', strtotime($item['booking_date'])))
-                ->where('booking_time', date('H:i:s', strtotime($item['booking_time'])))
+                ->where('booking_time', '>=', $bookTimeStart)
+                ->where('booking_time', '<=', $bookTimeEnd)
                 ->where('id_user_hair_stylist', $item['id_user_hair_stylist'])
                 ->first();
 
@@ -3310,6 +3330,15 @@ class ApiOnlineTransaction extends Controller
                 $errorHsNotAvailable[] = $item['user_hair_stylist_name']." (".MyHelper::dateFormatInd($bookTime).')';
                 unset($post['item_service'][$key]);
                 continue;
+            }
+
+            //checking same time
+            foreach ($itemService as $s){
+                if(strtotime($s['booking_time']) >= strtotime($bookTimeStart) && strtotime($s['booking_time']) <= strtotime($bookTimeEnd)){
+                    $errorHsNotAvailable[] = $item['user_hair_stylist_name']." (".MyHelper::dateFormatInd($bookTime).')';
+                    unset($post['item_service'][$key]);
+                    continue 2;
+                }
             }
 
             $itemService[] = [
@@ -4524,11 +4553,12 @@ class ApiOnlineTransaction extends Controller
     }
 
     function insertServiceProduct($data, $trx, $outlet, $post, &$productMidtrans, &$userTrxProduct){
+        $tempStock = [];
         foreach ($data as $itemProduct){
             $product = Product::leftJoin('brand_product', 'brand_product.id_product', 'products.id_product')
                             ->where('products.id_product', $itemProduct['id_product'])
                             ->where('product_type', 'service')
-                            ->with(['product_service_use_detail'])
+                            ->with(['product_service_use'])
                             ->select('products.*', 'brand_product.id_brand')->first();
 
             if (empty($product)) {
@@ -4539,13 +4569,29 @@ class ApiOnlineTransaction extends Controller
                 ];
             }
 
-            foreach ($product['product_service_use_detail'] as $stock){
-                if($stock['quantity_use'] > $stock['product_detail_stock_service']){
+            if(!empty($service['product_service_use'])){
+                $getProductUse = ProductServiceUse::join('product_detail', 'product_detail.id_product', 'product_service_use.id_product')
+                    ->where('product_service_use.id_product_service', $service['id_product'])
+                    ->where('product_detail.id_outlet', $outlet['id_outlet'])->get()->toArray();
+                if(count($service['product_service_use']) != count($getProductUse)){
                     DB::rollback();
                     return [
                         'status'    => 'fail',
                         'messages'  => ['Product use in service '.$itemProduct['product_name']. ' not available']
                     ];
+                }
+
+                foreach ($getProductUse as $stock){
+                    $use = $stock['quantity_use'] * 1;
+                    $allUse = ($tempStock[$stock['id_product']]??0) + $use;
+                    if($allUse > $stock['product_detail_stock_service']){
+                        DB::rollback();
+                        return [
+                            'status'    => 'fail',
+                            'messages'  => ['Product use in service '.$itemProduct['product_name']. ' not available']
+                        ];
+                    }
+                    $tempStock[$stock['id_product']] = $allUse;
                 }
             }
 
@@ -5256,6 +5302,7 @@ class ApiOnlineTransaction extends Controller
             'Sun' => 'Minggu'
         ];
 
+        $tempStock = [];
         foreach ($post['item_service']??[] as $key=>$item){
             $err = [];
             $outletSchedule = OutletSchedule::where('id_outlet', $outlet['id_outlet'])->where('day', $day[date('D', strtotime($item['booking_date']))])->first();
@@ -5284,19 +5331,32 @@ class ApiOnlineTransaction extends Controller
                 ->leftJoin('brand_product', 'brand_product.id_product', 'products.id_product')
                 ->where('products.id_product', $item['id_product'])
                 ->select('products.*', 'product_global_price as product_price', 'brand_product.id_brand')
-                ->with(['product_service_use_detail'])
+                ->with(['product_service_use'])
                 ->first();
 
             if(empty($service)){
                 $err[] = 'Service tidak tersedia';
             }
 
-            foreach ($service['product_service_use_detail'] as $stock){
-                if($stock['quantity_use'] > $stock['product_detail_stock_service']){
-                    $err[] = 'Service tidak tersedia';
-                    break 2;
+            if(!empty($service['product_service_use'])){
+                $getProductUse = ProductServiceUse::join('product_detail', 'product_detail.id_product', 'product_service_use.id_product')
+                    ->where('product_service_use.id_product_service', $service['id_product'])
+                    ->where('product_detail.id_outlet', $outlet['id_outlet'])->get()->toArray();
+                if(count($service['product_service_use']) != count($getProductUse)){
+                    $err[] = 'Stok habis';
+                }
+
+                foreach ($getProductUse as $stock){
+                    $use = $stock['quantity_use'] * 1;
+                    $allUse = ($tempStock[$stock['id_product']]??0) + $use;
+                    if($allUse > $stock['product_detail_stock_service']){
+                        $err[] = 'Stok habis';
+                        break;
+                    }
+                    $tempStock[$stock['id_product']] = $allUse;
                 }
             }
+
 
             $getProductDetail = ProductDetail::where('id_product', $service['id_product'])->where('id_outlet', $post['id_outlet'])->first();
             $service['visibility_outlet'] = $getProductDetail['product_detail_visibility']??null;
@@ -5350,14 +5410,25 @@ class ApiOnlineTransaction extends Controller
                 }
             }
 
+            $processingTime = $service['processing_time_service'];
+            $bookTimeStart = date("H:i:s", strtotime('-'.$processingTime.' minutes', strtotime($item['booking_time'])));
+            $bookTimeEnd = date("H:i:s", strtotime('+'.$processingTime.' minutes', strtotime($item['booking_time'])));
             $hsNotAvailable = HairstylistNotAvailable::where('id_outlet', $post['id_outlet'])
                 ->where('booking_date', date('Y-m-d', strtotime($item['booking_date'])))
-                ->where('booking_time', date('H:i:s', strtotime($item['booking_time'])))
+                ->where('booking_time', '>=', $bookTimeStart)
+                ->where('booking_time', '<=', $bookTimeEnd)
                 ->where('id_user_hair_stylist', $item['id_user_hair_stylist'])
                 ->first();
 
             if(!empty($hsNotAvailable)){
                 $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
+            }
+
+            //checking same time
+            foreach ($itemService as $s){
+                if(strtotime($s['booking_time']) >= strtotime($bookTimeStart) && strtotime($s['booking_time']) <= strtotime($bookTimeEnd)){
+                    $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
+                }
             }
 
             $itemService[$key] = [

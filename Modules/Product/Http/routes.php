@@ -137,6 +137,10 @@ Route::group(['prefix' => 'api/product','middleware' => ['log_activities','auth:
         Route::post('create', 'ApiProductGroupController@create')->middleware(['feature_control:384']);
         Route::post('update', 'ApiProductGroupController@update')->middleware(['feature_control:387']);
         Route::post('delete', 'ApiProductGroupController@delete')->middleware(['feature_control:388']);
+        Route::any('detail/{id_product_group}', 'ApiProductGroupController@detail')->middleware(['feature_control:386']);
+        Route::post('product-list', 'ApiProductGroupController@productList');
+        Route::post('add-product', 'ApiProductGroupController@addProduct');
+        Route::post('remove-product', 'ApiProductGroupController@removeProduct');
     });
 });
 

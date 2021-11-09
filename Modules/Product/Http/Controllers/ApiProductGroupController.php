@@ -59,4 +59,45 @@ class ApiProductGroupController extends Controller
     	$delete = ProductGroup::where('id_product_group', $request->id_product_group)->delete();
     	return MyHelper::checkDelete($delete);
     }
+
+    public function detail(Request $request, $id_product_group)
+    {
+        $data = ProductGroup::where('id_product_group', $id_product_group)
+        		->with('products')
+	            ->first();
+
+        return MyHelper::checkGet($data);
+    }
+
+    public function productList(Request $request)
+    {
+        $post = $request->json()->all();
+
+        $listProduct = Product::where('product_type', 'product')
+        				->where(function($q) use ($post) {
+        					$q->whereNull('id_product_group')
+        					->orWhere('id_product_group', '!=', $post['id_product_group']);
+        				})
+        				->get();
+
+        return $listProduct;
+    }
+
+    public function addProduct(Request $request)
+    {
+        $post = $request->json()->all();
+
+        $update = Product::whereIn('id_product', $post['products'])->update(['id_product_group' => $post['id_product_group']]);
+	        
+        return ['status' => 'success'];
+    }
+
+    public function removeProduct(Request $request)
+    {
+        $post = $request->json()->all();
+
+        $update = Product::where('id_product', $post['id_product'])->update(['id_product_group' => null]);
+	        
+        return ['status' => 'success'];
+    }
 }

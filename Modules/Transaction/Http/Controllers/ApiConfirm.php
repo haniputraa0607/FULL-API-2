@@ -462,6 +462,12 @@ class ApiConfirm extends Controller
 
             ];
             \Cache::put('midtrans_confirm_'.$check['id_transaction'], $response, now()->addMinutes(10));
+
+            //book item and hs
+            if($check['transaction_from'] == 'outlet-service' || $check['transaction_from'] == 'shop'){
+                app($this->trx)->bookHS($check['id_transaction']);
+                app($this->trx)->bookProductStock($check['id_transaction']);
+            }
             return response()->json($response);
         } elseif ($post['payment_type'] == 'Ovo') {
 

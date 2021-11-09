@@ -171,12 +171,6 @@ class ApiNotification extends Controller {
                             ]);
                         }
 
-                        //book item and hs
-                        if($newTrx['transaction_from'] == 'outlet-service' || $newTrx['transaction_from'] == 'shop'){
-                            app($this->trx)->bookHS($newTrx['id_transaction']);
-                            app($this->trx)->bookProductStock($newTrx['id_transaction']);
-                        }
-
                         $sendNotifOutlet = app($this->trx)->outletNotif($newTrx['id_transaction']);
 
                         if($this->url_oauth != ''){

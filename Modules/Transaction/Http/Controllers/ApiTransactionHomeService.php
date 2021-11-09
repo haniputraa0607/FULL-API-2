@@ -172,6 +172,8 @@ class ApiTransactionHomeService extends Controller
         if(!empty($errAll)){
             $continueCheckOut = false;
         }
+        $result['id_user_address'] = $address['id_user_address'];
+        $result['notes'] = (empty($post['notes']) ? $address['description']:$post['notes']);
         $result['preference_hair_stylist'] = $post['preference_hair_stylist'];
         $result['id_user_hair_stylist'] = $idHs;
         $result['booking_date'] = $post['booking_date'];
@@ -433,6 +435,8 @@ class ApiTransactionHomeService extends Controller
         if(!empty($errAll)){
             $continueCheckOut = false;
         }
+        $result['id_user_address'] = $address['id_user_address'];
+        $result['notes'] = (empty($post['notes']) ? $address['description']:$post['notes']);
         $result['preference_hair_stylist'] = $post['preference_hair_stylist'];
         $result['id_user_hair_stylist'] = $idHs;
         $result['booking_date'] = $post['booking_date'];
@@ -753,7 +757,7 @@ class ApiTransactionHomeService extends Controller
             'destination_address' => $address['address'],
             'destination_short_address' => $address['short_address'],
             'destination_address_name' => $address['name'],
-            'destination_note' => $address['description'],
+            'destination_note' => (empty($post['notes']) ? $address['description']:$post['notes']),
             'destination_latitude' => $address['latitude'],
             'destination_longitude' => $address['longitude'],
             'counter_finding_hair_stylist' => (!empty($idHs) ? 1 : 0)

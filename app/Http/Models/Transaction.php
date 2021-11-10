@@ -107,7 +107,8 @@ class Transaction extends Model
 		'need_manual_void',
 		'failed_void_reason',
 		'shipment_method',
-		'shipment_courier'
+		'shipment_courier',
+        'scope'
 	];
 
 	public $manual_refund = 0;

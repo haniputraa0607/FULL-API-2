@@ -134,6 +134,12 @@ class ApiProductController extends Controller
             $data['processing_time_service'] = $post['processing_time_service'];
         }
 
+        if (isset($post['available_home_service'])) {
+            $data['available_home_service'] = 1;
+        }else{
+            $data['available_home_service'] = 0;
+        }
+
         if (isset($post['product_brands'])) {
             if(($post['product_brands'][0]??false) == '*') {
                 $data['product_brands'] = Brand::select('id_brand')->pluck('id_brand')->toArray();

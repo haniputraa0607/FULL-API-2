@@ -2,6 +2,7 @@
 
 namespace Modules\Product\Http\Controllers;
 
+use App\Http\Models\Holiday;
 use App\Http\Models\OauthAccessToken;
 use App\Http\Models\Product;
 use App\Http\Models\ProductCategory;
@@ -60,6 +61,7 @@ use App\Http\Models\Deal;
 use Modules\PromoCampaign\Entities\PromoCampaign;
 use Modules\Subscription\Entities\Subscription;
 use App\Http\Models\OutletSchedule;
+use Modules\ProductService\Entities\ProductServiceUse;
 
 class ApiProductController extends Controller
 {
@@ -2189,7 +2191,7 @@ class ApiProductController extends Controller
                 $query->WhereRaw('(select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $outlet['id_outlet'] . '  order by id_product_special_price desc limit 1) is NOT NULL');
                 $query->orWhereRaw('(select product_global_price.product_global_price from product_global_price  where product_global_price.id_product = products.id_product order by id_product_global_price desc limit 1) is NOT NULL');
             })
-            ->with(['photos', 'product_service_use_detail'])
+            ->with(['photos', 'product_service_use'])
             ->having('product_price', '>', 0)
             ->groupBy('products.id_product')
             ->orderByRaw('CASE WHEN products.position = 0 THEN 1 ELSE 0 END')
@@ -2199,9 +2201,19 @@ class ApiProductController extends Controller
 
         $resProdService = [];
         foreach ($productServie as $val){
-            foreach ($val['product_service_use_detail'] as $stock){
-                if($stock['quantity_use'] > $stock['product_detail_stock_service']){
-                    continue 2;
+            if(!empty($val['product_service_use'])){
+                $getProductUse = ProductServiceUse::join('product_detail', 'product_detail.id_product', 'product_service_use.id_product')
+                    ->where('product_service_use.id_product_service', $val['id_product'])
+                    ->where('product_detail.id_outlet', $outlet['id_outlet'])->get()->toArray();
+                if(count($val['product_service_use']) != count($getProductUse)){
+                    continue;
+                }
+
+                foreach ($getProductUse as $stock){
+                    $use = $stock['quantity_use'] * 1;
+                    if($use > $stock['product_detail_stock_service']){
+                        continue 2;
+                    }
                 }
             }
 
@@ -2267,7 +2279,7 @@ class ApiProductController extends Controller
             }
 
             $stock = 'Available';
-            if(empty($val['product_stock_status'])){
+            if(empty($val['product_stock_status']) || $val['product_stock_status'] <= 0){
                 $stock = 'Sold Out';
             }
 
@@ -2421,9 +2433,30 @@ class ApiProductController extends Controller
             $x = 0;
             $count = 1;
             while($count <= (int)$totalDateShow) {
+                $close = 0;
                 $date = date('Y-m-d', strtotime('+'.$x.' day', strtotime($today)));
                 $dayConvert = $day[date('D', strtotime($date))];
-                if(array_search($dayConvert, $allDay) !== false){
+
+                $outletSchedule = OutletSchedule::where('id_outlet', $outlet['id_outlet'])->where('day', $dayConvert)->first();
+                if($outletSchedule['is_closed'] == 1){
+                    $close = 1;
+                }
+
+                $holiday = Holiday::join('outlet_holidays', 'holidays.id_holiday', 'outlet_holidays.id_holiday')->join('date_holidays', 'holidays.id_holiday', 'date_holidays.id_holiday')
+                    ->where('id_outlet', $outlet['id_outlet'])->whereDay('date_holidays.date', date('d', strtotime($date)))->whereMonth('date_holidays.date', date('m', strtotime($date)))->get();
+                if(count($holiday) > 0){
+                    foreach($holiday as $i => $holi){
+                        if($holi['yearly'] == '0'){
+                            if($holi['date'] == $date){
+                                $close = 1;
+                            }
+                        }else{
+                            $close = 1;
+                        }
+                    }
+                }
+
+                if($close == 0 && array_search($dayConvert, $allDay) !== false){
                     $getTime = array_search($dayConvert, array_column($outletSchedules, 'day'));
                     $open = date('H:i', strtotime($outletSchedules[$getTime]['open']));
                     $close = date('H:i', strtotime($outletSchedules[$getTime]['close']));

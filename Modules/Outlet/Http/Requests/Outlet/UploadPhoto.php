@@ -1,12 +1,12 @@
 <?php
 
-namespace Modules\POS\Http\Requests;
+namespace Modules\Outlet\Http\Requests\Outlet;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 
-class updateQuinosUser extends FormRequest
+class UploadPhoto extends FormRequest
 {
     /**
      * Get the validation rules that apply to the request.
@@ -16,8 +16,8 @@ class updateQuinosUser extends FormRequest
     public function rules()
     {
         return [
-            'username'		=> 'required',
-            'new_password'	=> 'required',
+            "id_outlet" => "required|integer",
+            "photo"     => "required",
         ];
     }
 

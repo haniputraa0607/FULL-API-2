@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\BusinessDevelopment\Http\Requests\Close;
+namespace Modules\BusinessDevelopment\Http\Requests\CutOff;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
@@ -8,36 +8,28 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 use App\Http\Models\Outlet;
 use Modules\Project\Entities\Project;
 use Modules\BusinessDevelopment\Entities\Location;
-
+use Modules\BusinessDevelopment\Entities\OutletCutOff;
 use Modules\BusinessDevelopment\Entities\Partner;
 use Modules\BusinessDevelopment\Entities\PartnersCloseTemporary;
 
-class UpdateCloseTemporaryRequest extends FormRequest
+class UpdateOutletCutOffRequest extends FormRequest
 {
     public function rules()
     {
         return [
-            'title'                              => 'required',
-            'close_date'                         => 'required|close_date|today',
-            'id_partners_close_temporary'        => 'required|partner',
+            'id_outlet_cut_off' => 'required|outlet',
+            'date'              => 'required|today',
+            'title'              => 'required',
            ]; 
     }
     public function withValidator($validator)
     {
-        $validator->addExtension('partner', function ($attribute, $value, $parameters, $validator) {
-         $survey = PartnersCloseTemporary::where(array('id_partners_close_temporary'=>$value,'status'=>"Process"))->first();
+        $validator->addExtension('outlet', function ($attribute, $value, $parameters, $validator) {
+         $survey = OutletCutOff::where(array('id_outlet_cut_off'=>$value,'status'=>"Process"))->first();
          if($survey){
              return true;
          } return false;
-        }); 
-        $validator->addExtension('close_date', function ($attribute, $value, $parameters, $validator) {
-         $data = $validator->getData();
-         $partner = PartnersCloseTemporary::where(array('id_partners_close_temporary'=>$data['id_partners_close_temporary']))->first();
-         $survey = Partner::where(array('id_partner'=>$partner['id_partner'],'status'=>"Active"))->whereDate('end_date','>=',$value)->first();
-         if($survey){
-             return true; 
-         } return false;
-        }); 
+        });
         $validator->addExtension('today', function ($attribute, $value, $parameters, $validator) {
             $data = strtotime($value);
             $now = strtotime(date('Y-m-d'));
@@ -50,9 +42,8 @@ class UpdateCloseTemporaryRequest extends FormRequest
     {
         return [
             'required' => ':attribute harus diisi',
-            'partner' => 'Status tidak dalam proses',
-            'close_date' => 'Close date melebihi kontrak',
-            'today'=>"Minimal hari ini"
+            'outlet' => 'Data cut off outlet tidak sedang dalam proses',
+            'today' => "Minimal hari ini",
         ];
     }
     public function authorize()

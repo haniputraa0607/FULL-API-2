@@ -48,18 +48,18 @@ use Storage;
 use Modules\Brand\Entities\BrandOutlet;
 use Modules\Brand\Entities\Brand;
 
-use Modules\Outlet\Http\Requests\outlet\Upload;
-use Modules\Outlet\Http\Requests\outlet\Update;
-use Modules\Outlet\Http\Requests\outlet\UpdateStatus;
-use Modules\Outlet\Http\Requests\outlet\UpdatePhoto;
-use Modules\Outlet\Http\Requests\outlet\UploadPhoto;
-use Modules\Outlet\Http\Requests\outlet\Create;
-use Modules\Outlet\Http\Requests\outlet\Delete;
-use Modules\Outlet\Http\Requests\outlet\DeletePhoto;
-use Modules\Outlet\Http\Requests\outlet\Nearme;
-use Modules\Outlet\Http\Requests\outlet\Filter;
-use Modules\Outlet\Http\Requests\outlet\OutletList;
-use Modules\Outlet\Http\Requests\outlet\OutletListOrderNow;
+use Modules\Outlet\Http\Requests\Outlet\Upload;
+use Modules\Outlet\Http\Requests\Outlet\Update;
+use Modules\Outlet\Http\Requests\Outlet\UpdateStatus;
+use Modules\Outlet\Http\Requests\Outlet\UpdatePhoto;
+use Modules\Outlet\Http\Requests\Outlet\UploadPhoto;
+use Modules\Outlet\Http\Requests\Outlet\Create;
+use Modules\Outlet\Http\Requests\Outlet\Delete;
+use Modules\Outlet\Http\Requests\Outlet\DeletePhoto;
+use Modules\Outlet\Http\Requests\Outlet\Nearme;
+use Modules\Outlet\Http\Requests\Outlet\Filter;
+use Modules\Outlet\Http\Requests\Outlet\OutletList;
+use Modules\Outlet\Http\Requests\Outlet\OutletListOrderNow;
 
 use Modules\Outlet\Http\Requests\UserOutlet\Create as CreateUserOutlet;
 use Modules\Outlet\Http\Requests\UserOutlet\Update as UpdateUserOutlet;
@@ -2535,6 +2535,10 @@ class ApiOutletController extends Controller
         $insertShift = [];
         foreach ($post['data_shift'] as $dt_shift){
             foreach ($dt_shift as $shift){
+                if(date('H:i', strtotime($shift['start'])) == '00:00' ||
+                    date('H:i', strtotime($shift['end'])) == '00:00'){
+                    continue;
+                }
                 $insertShift[] = [
                     'id_outlet' => $post['id_outlet'],
                     'id_outlet_schedule' => $shift['id_outlet_schedule'],

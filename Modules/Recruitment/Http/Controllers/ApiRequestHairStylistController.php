@@ -31,7 +31,7 @@ class ApiRequestHairStylistController extends Controller
     public function index(Request $request)
     {
         $post = $request->all();
-        $request_mitra = RequestHairStylist::with(['outlet_request']);
+        $request_mitra = RequestHairStylist::with(['outlet_request','applicant_request']);
         if(isset($post['conditions']) && !empty($post['conditions'])){
             $rule = 'and';
             if(isset($post['rule'])){

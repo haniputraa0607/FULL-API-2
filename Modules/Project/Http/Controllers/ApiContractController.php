@@ -51,9 +51,14 @@ class ApiContractController extends Controller
             $store = ProjectContract::where(array('id_project'=>$request->id_project))->update([
                     "first_party"   =>  $request->first_party,
                     "second_party"   =>  $request->second_party,
-                    "nominal"   =>  $request->nominal,
+                    "nominal"   => str_replace(',', '', $request->nominal),
                     "attachment"   =>  $attachment,
+                    "status"=>'Success',
                     "note"   =>  $note
+                ]);
+            $project = Project::where('id_project', $request->id_project)->where(array('status'=>'Process','progres'=>"Contract"))
+                ->update([
+                    'progres'=>'Fit Out'
                 ]);
             $store = ProjectContract::where(array('id_project'=>$request->id_project))->first();
         }else{
@@ -69,12 +74,17 @@ class ApiContractController extends Controller
                              return $result;
                          }
                  }
+                 $project = Project::where('id_project', $request->id_project)->where(array('status'=>'Process','progres'=>"Contract"))
+                ->update([
+                    'progres'=>'Fit Out'
+                ]);
                 $store = ProjectContract::create([
                     "id_project"   =>  $request->id_project,
                     "first_party"   =>  $request->first_party,
                     "second_party"   =>  $request->second_party,
-                    "nominal"   =>  $request->nominal,
+                    "nominal"   => str_replace(',', '', $request->nominal),
                     "attachment"   =>  $attachment,
+                    "status"=>'Success',
                     "note"   =>  $note
                 ]);
         }

@@ -26,6 +26,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
         Route::post('update', 'ApiHairStylistController@update');
         Route::post('update-status', 'ApiHairStylistController@updateStatus');
         Route::post('detail/document', 'ApiHairStylistController@detailDocument');
+        Route::post('delete', 'ApiHairStylistController@delete');
 
     	Route::group(['prefix' => 'schedule'], function () {
         	Route::post('list', 'ApiHairStylistScheduleController@list');
@@ -69,6 +70,12 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
             Route::post('payment-cash/completed', 'ApiMitraOutletService@paymentCashCompleted');
     	});
 
+    	Route::group(['prefix' => 'shop-service'], function () {
+        	Route::post('detail', 'ApiMitraShopService@detailShopService');
+        	Route::post('confirm', 'ApiMitraShopService@confirmShopService');
+        	Route::post('history', 'ApiMitraShopService@historyShopService');
+    	});
+
     	Route::group(['prefix' => 'inbox'], function () {
         	Route::post('marked', 'ApiMitraInbox@markedInbox');
 		    Route::post('unmark', 'ApiMitraInbox@unmarkInbox');
@@ -81,4 +88,16 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
         	Route::get('comment', 'ApiMitra@ratingComment');
     	});
 	});
+
+    Route::group(['middleware' => ['auth:api'],'prefix' => 'request'], function () {
+        Route::any('/', ['middleware'=>['feature_control:379','scopes:be'],'uses' => 'ApiRequestHairStylistController@index']);
+        Route::any('/outlet', ['middleware'=>['feature_control:379','scopes:be'],'uses' => 'ApiRequestHairStylistController@listOutlet']);
+        Route::post('/create', ['middleware'=>['feature_control:378','scopes:be'],'uses' => 'ApiRequestHairStylistController@store']);
+        Route::post('/delete', ['middleware'=>['feature_control:378','scopes:be'],'uses' => 'ApiRequestHairStylistController@destroy']);
+        Route::post('/detail', ['middleware'=>['feature_control:378','scopes:be'],'uses' => 'ApiRequestHairStylistController@show']);
+        Route::post('/update', ['middleware'=>['feature_control:378','scopes:be'],'uses' => 'ApiRequestHairStylistController@update']);
+        Route::post('/list-hs', ['middleware'=>['feature_control:378','scopes:be'],'uses' => 'ApiRequestHairStylistController@listHairStylistsOutlet']);
+    });
+
+
 });

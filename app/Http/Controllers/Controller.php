@@ -82,7 +82,11 @@ class Controller extends BaseController
 		}
 
 		$query = $query->get()->toArray();
-		return MyHelper::checkGet($query); 
+
+		return [
+    		'status' => 'success',
+    		'result' => $query
+    	];
 	}
 
 	function listProvince(Request $request){
@@ -190,7 +194,15 @@ class Controller extends BaseController
 			});
 		}
 
-		$query = $query->paginate(10)->toArray();
-		return MyHelper::checkGet($query); 
+        if ($request->page) {
+            $query = $query->paginate(10)->toArray();
+        } else {
+            $query = $query->get()->toArray();
+        }
+
+    	return [
+    		'status' => 'success',
+    		'result' => $query
+    	];
 	}
 }

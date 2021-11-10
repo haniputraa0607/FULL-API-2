@@ -65,4 +65,7 @@ class Partner extends Authenticatable
     public function partner_survey(){
         return $this->hasMany(FormSurvey::class, 'id_partner');
     }
+    public function partner_close_temporary(){
+        return $this->hasMany(PartnersCloseTemporary::class, 'id_partner');
+    }
 }

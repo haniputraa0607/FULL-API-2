@@ -20,6 +20,7 @@ use Illuminate\Http\Request;
     Route::any('/list', ['middleware'=>'scopes:be', 'uses' => 'ApiProjectController@index']);
     Route::post('/create', ['middleware'=>'scopes:be', 'uses' => 'ApiProjectController@create']);
     Route::any('/detail', ['middleware'=>'scopes:be', 'uses' => 'ApiProjectController@detail']);
+    Route::any('/update', ['middleware'=>'scopes:be', 'uses' => 'ApiProjectController@update']);
     Route::any('/delete', ['middleware'=>'scopes:be', 'uses' => 'ApiProjectController@destroy']);
     //Survey Location  
     Route::post('/create/survey_location', ['middleware'=>'scopes:be', 'uses' => 'ApiSurveyLocationController@create']);

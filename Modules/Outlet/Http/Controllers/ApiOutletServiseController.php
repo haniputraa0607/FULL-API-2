@@ -48,18 +48,18 @@ use Storage;
 use Modules\Brand\Entities\BrandOutlet;
 use Modules\Brand\Entities\Brand;
 
-use Modules\Outlet\Http\Requests\outlet\Upload;
-use Modules\Outlet\Http\Requests\outlet\Update;
-use Modules\Outlet\Http\Requests\outlet\UpdateStatus;
-use Modules\Outlet\Http\Requests\outlet\UpdatePhoto;
-use Modules\Outlet\Http\Requests\outlet\UploadPhoto;
-use Modules\Outlet\Http\Requests\outlet\Create;
-use Modules\Outlet\Http\Requests\outlet\Delete;
-use Modules\Outlet\Http\Requests\outlet\DeletePhoto;
-use Modules\Outlet\Http\Requests\outlet\Nearme;
-use Modules\Outlet\Http\Requests\outlet\Filter;
-use Modules\Outlet\Http\Requests\outlet\OutletList;
-use Modules\Outlet\Http\Requests\outlet\OutletListOrderNow;
+use Modules\Outlet\Http\Requests\Outlet\Upload;
+use Modules\Outlet\Http\Requests\Outlet\Update;
+use Modules\Outlet\Http\Requests\Outlet\UpdateStatus;
+use Modules\Outlet\Http\Requests\Outlet\UpdatePhoto;
+use Modules\Outlet\Http\Requests\Outlet\UploadPhoto;
+use Modules\Outlet\Http\Requests\Outlet\Create;
+use Modules\Outlet\Http\Requests\Outlet\Delete;
+use Modules\Outlet\Http\Requests\Outlet\DeletePhoto;
+use Modules\Outlet\Http\Requests\Outlet\Nearme;
+use Modules\Outlet\Http\Requests\Outlet\Filter;
+use Modules\Outlet\Http\Requests\Outlet\OutletList;
+use Modules\Outlet\Http\Requests\Outlet\OutletListOrderNow;
 
 use Modules\Outlet\Http\Requests\UserOutlet\Create as CreateUserOutlet;
 use Modules\Outlet\Http\Requests\UserOutlet\Update as UpdateUserOutlet;
@@ -185,7 +185,7 @@ class ApiOutletServiseController extends Controller
 
         $detail = Outlet::join('cities', 'cities.id_city', 'outlets.id_city')
                     ->where('outlets.outlet_status', 'Active')
-                    ->with(['outlet_schedules','brands'])
+                    ->with(['outlet_schedules','brands', 'today', 'holidays', 'holidays.date_holidays'])
                     ->select('outlets.*', 'cities.city_name');
 
         if(!empty($post['id_outlet'])){
@@ -222,8 +222,27 @@ class ApiOutletServiseController extends Controller
             }
         }
 
+        $isClose = false;
+        $currentDate = date('Y-m-d');
+        $currentHour = date('H:i:s');
+        $open = date('H:i:s', strtotime($detail['today']['open']));
+        $close = date('H:i:s', strtotime($detail['today']['close']));
+        foreach ($detail['holidays'] as $holidays){
+            $holiday = $holidays['date_holidays'];
+            $dates = array_column($holiday, 'date');
+            if(array_search($currentDate, $dates) !== false){
+                $isClose = true;
+                break;
+            }
+        }
+
+        if(strtotime($currentHour) < strtotime($open) || strtotime($currentHour) > strtotime($close) || $detail['today']['is_closed'] == 1){
+            $isClose = true;
+        }
+
         $res = [
             'id_outlet' => $detail['id_outlet'],
+            'is_close' => $isClose,
             'outlet_code' => $detail['outlet_code'],
             'outlet_name' => $detail['outlet_name'],
             'outlet_description' => (empty($detail['outlet_description']) ? "":$detail['outlet_description']),

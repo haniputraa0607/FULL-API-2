@@ -116,6 +116,10 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     /* Menu Setting */
     Route::any('/text_menu/update', ['middleware' => 'feature_control:161', 'uses' => 'ApiSetting@updateTextMenu']);
     Route::get('/text_menu/configs', ['middleware' => 'feature_control:160', 'uses' => 'ApiSetting@configsMenu']);
+    
+    /* Confirmation Logo */
+    Route::post('/confirmation-logo', ['middleware' => 'feature_control:338', 'uses' => 'ApiSetting@setLogoConfirmation']);
+    Route::get('/get-confirmation-logo', ['middleware' => 'feature_control:338', 'uses' => 'ApiSetting@getLogoConfirmation']);
 
     /* Phone Setting */
     Route::any('/phone/update', ['middleware' => 'feature_control:210', 'uses' => 'ApiSetting@updatePhoneSetting']);

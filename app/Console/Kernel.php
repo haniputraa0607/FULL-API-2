@@ -197,6 +197,10 @@ class Kernel extends ConsoleKernel
          * run every day at
          */
         $schedule->call('Modules\ProductBundling\Http\Controllers\ApiBundlingController@bundlingToday')->dailyAt('04:00');
+        $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiPartnersCloseController@cronInactive')->dailyAt('00:00');
+        $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiPartnersCloseController@cronActive')->dailyAt('00:00');
+        $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiOutletCloseController@cronCutOff')->dailyAt('00:00');
+        $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiOutletCloseController@cronChange')->dailyAt('00:00');
     }
 
     /**

@@ -17,7 +17,7 @@ class CreateContractRequest extends FormRequest
             'first_party'       => 'required',
             'second_party'      => 'required',
 //            'attachment'        => 'required',
-            'nominal'    	=> 'required|integer',
+            'nominal'    	=> 'required',
             'id_project'        => 'required|project',
 //            'note'              => 'required',
            ]; 

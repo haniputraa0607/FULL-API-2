@@ -2,10 +2,16 @@
 
 namespace Modules\Transaction\Http\Controllers;
 
+use App\Http\Models\LogBalance;
 use App\Http\Models\Outlet;
 use App\Http\Models\OutletSchedule;
 use App\Http\Models\Setting;
 use App\Http\Models\Transaction;
+use App\Http\Models\TransactionMultiplePayment;
+use App\Http\Models\TransactionPaymentBalance;
+use App\Http\Models\TransactionPaymentManual;
+use App\Http\Models\TransactionPaymentMidtran;
+use App\Http\Models\TransactionPaymentOffline;
 use App\Http\Models\TransactionProduct;
 use App\Http\Models\UserAddress;
 use App\Jobs\ExportFranchiseJob;
@@ -13,18 +19,23 @@ use App\Jobs\FindingHairStylistHomeService;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use App\Lib\MyHelper;
+use Modules\Brand\Entities\Brand;
+use Modules\IPay88\Entities\TransactionPaymentIpay88;
 use Modules\Product\Entities\ProductDetail;
 use Modules\Product\Entities\ProductStockLog;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use Modules\Recruitment\Entities\UserHairStylist;
+use Modules\ShopeePay\Entities\TransactionPaymentShopeePay;
 use Modules\Transaction\Entities\HairstylistNotAvailable;
 use App\Http\Models\TransactionPayment;
 use App\Http\Models\User;
 use App\Http\Models\Product;
 use App\Http\Models\StockLog;
 use Modules\ProductService\Entities\ProductServiceUse;
+use Modules\Transaction\Entities\LogInvalidTransaction;
 use Modules\Transaction\Entities\TransactionHomeService;
 use Modules\Transaction\Entities\TransactionHomeServiceStatusUpdate;
+use Modules\Transaction\Entities\TransactionPaymentCash;
 use Modules\Transaction\Entities\TransactionProductServiceUse;
 use Modules\Transaction\Http\Requests\Transaction\NewTransaction;
 use Modules\UserFeedback\Entities\UserFeedbackLog;
@@ -90,6 +101,7 @@ class ApiTransactionHomeService extends Controller
         $itemService = [];
         $arrProccessingTime = [];
         $continueCheckOut = true;
+        $subtotal = 0;
 
         //process get time start and end
         foreach ($post['item_service']??[] as $key=>$item){
@@ -167,6 +179,7 @@ class ApiTransactionHomeService extends Controller
             if(!empty($err)){
                 $continueCheckOut = false;
             }
+            $subtotal = $subtotal + ((int)$service['product_price'] * $item['qty']);
         }
 
         if(!empty($errAll)){
@@ -182,6 +195,7 @@ class ApiTransactionHomeService extends Controller
         $result['booking_date_display'] = MyHelper::dateFormatInd($post['booking_date'].' '.$post['booking_time'], true, true);
         $result['address'] = $address;
         $result['item_service'] = $itemService;
+        $result['subtotal'] = $subtotal;
         $result['currency'] = 'Rp';
         $result['complete_profile'] = (empty($user->complete_profile) ?false:true);
         $result['continue_checkout'] = $continueCheckOut;

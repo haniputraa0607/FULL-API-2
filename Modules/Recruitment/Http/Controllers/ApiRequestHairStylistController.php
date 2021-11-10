@@ -107,6 +107,9 @@ class ApiRequestHairStylistController extends Controller
             if (isset($post['applicant'])) {
                 $data_store['applicant'] = $post['applicant'];
             }
+            if (isset($post['applicant_phone'])) {
+                $data_store['applicant_phone'] = $post['applicant_phone'];
+            }
             if (isset($post['notes'])) {
                 $data_store['notes'] = $post['notes'];
             }
@@ -182,6 +185,9 @@ class ApiRequestHairStylistController extends Controller
             }
             if (isset($post['applicant'])) {
                 $data_update['applicant'] = $post['applicant'];
+            }
+            if (isset($post['applicant_phone'])) {
+                $data_update['applicant_phone'] = $post['applicant_phone'];
             }
             if (isset($post['notes'])) {
                 $data_update['notes'] = $post['notes'];

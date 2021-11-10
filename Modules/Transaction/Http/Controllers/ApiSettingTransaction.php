@@ -294,4 +294,31 @@ class ApiSettingTransaction extends Controller
             return MyHelper::checkUpdate($update);
         }
     }
+
+    public function homeServiceSetting(Request $request){
+        $post = $request->json()->all();
+
+        if(empty($post)){
+            $timeStart = Setting::where('key', 'home_service_time_start')->first()['value']??'07:00';
+            $timeEnd = Setting::where('key', 'home_service_time_end')->first()['value']??'22:00';
+            $duration = Setting::where('key', 'home_service_processing_time')->first()['value']??60;
+            $radius = Setting::where('key', 'home_service_hs_maximum_radius')->first()['value']??25;
+
+            $result = [
+                'time_start' => $timeStart,
+                'time_end' => $timeEnd,
+                'duration' => $duration,
+                'radius' => $radius
+            ];
+
+            return response()->json(MyHelper::checkGet($result));
+        }else{
+            Setting::updateOrCreate(['key' => 'home_service_time_start'], ['value' => $post['time_start']]);
+            Setting::updateOrCreate(['key' => 'home_service_time_end'], ['value' => $post['time_end']]);
+            Setting::updateOrCreate(['key' => 'home_service_processing_time'], ['value' => $post['duration']]);
+            Setting::updateOrCreate(['key' => 'home_service_hs_maximum_radius'], ['value' => $post['radius']]);
+
+            return response()->json(MyHelper::checkUpdate(true));
+        }
+    }
 }

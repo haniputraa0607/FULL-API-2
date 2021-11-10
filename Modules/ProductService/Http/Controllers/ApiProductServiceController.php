@@ -411,6 +411,6 @@ class ApiProductServiceController extends Controller
             return $a['distance'] > $b['distance'];
         });
 
-        return response()->json(MyHelper::checkGet($res));
+        return response()->json(['status' => 'success', 'result' => $res]);
     }
 }

@@ -37,6 +37,7 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::get('rule', 'ApiTransaction@transactionRule');
     Route::post('rule/update', 'ApiTransaction@transactionRuleUpdate');
 
+    Route::any('be/filter', 'ApiTransaction@transactionFilter');
     Route::get('/courier', 'ApiTransaction@internalCourier');
     Route::post('/point', 'ApiTransaction@pointUser');
     Route::post('/point/filter', 'ApiTransaction@pointUserFilter');
@@ -46,7 +47,8 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::post('/setting', 'ApiSettingTransaction@settingTrx');
     Route::any('/setting/package-detail-delivery', 'ApiSettingTransaction@packageDetailDelivery');
     Route::any('/setting/image-delivery', 'ApiSettingTransaction@imageDelivery');
-    Route::any('be/filter', 'ApiTransaction@transactionFilter');
+    Route::get('/setting/home-service', 'ApiSettingTransaction@homeServiceSetting');
+    Route::post('/setting/home-service', 'ApiSettingTransaction@homeServiceSetting');
 
     Route::post('retry-void-payment/retry', 'ApiTransaction@retry');
 

@@ -26,27 +26,4 @@ class ProductGroup extends Model
     {
         return $this->hasMany(\App\Http\Models\Product::class,'id_product_group','id_product_group');
     }
-
-    public function getProductGroupPhotoAttribute($value)
-    {
-        if($value){
-            return config('url.storage_url_api').$value;
-        }
-        $this->load(['products'=>function($query){
-            $query->select('id_product','id_product_group')->whereHas('photos')->with('photos');
-        }]);
-        $prd = $this->products->toArray();
-        if(!$prd){
-            return config('url.storage_url_api').'img/product/item/default.png';
-        }
-        return ($prd[0]['photos'][0]['url_product_photo'] ?? config('url.storage_url_api').'img/product/item/default.png');
-    }
-
-    public function getProductGroupImageDetailAttribute($value)
-    {
-        if($value){
-            return config('url.storage_url_api').$value;
-        }
-        return config('url.storage_url_api').'img/product/item/default.png';
-    }
 }

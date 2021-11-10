@@ -140,6 +140,7 @@ Route::group(['prefix' => 'api/product','middleware' => ['log_activities','auth:
         Route::any('detail/{id_product_group}', 'ApiProductGroupController@detail')->middleware(['feature_control:386']);
         Route::post('product-list', 'ApiProductGroupController@productList');
         Route::post('add-product', 'ApiProductGroupController@addProduct');
+        Route::post('update-product', 'ApiProductGroupController@updateProduct');
         Route::post('remove-product', 'ApiProductGroupController@removeProduct');
     });
 });

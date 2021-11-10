@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Modules\Product\Entities\ProductGroup;
+use DB;
 
 class ApiProductGroupController extends Controller
 {
@@ -97,6 +98,23 @@ class ApiProductGroupController extends Controller
         $post = $request->json()->all();
 
         $update = Product::where('id_product', $post['id_product'])->update(['id_product_group' => null]);
+	        
+        return ['status' => 'success'];
+    }
+
+    public function updateProduct(Request $request)
+    {
+        $post = $request->json()->all();
+        DB::beginTransaction();
+        try {
+	        foreach ($post['variants'] ?? [] as $id_product => $name) {
+	        	$update = Product::where('id_product', $id_product)->update(['variant_name' => $name]);
+	        }
+	        DB::commit();
+        } catch (\Exception $e) {
+        	DB::rollBack();
+        	return ['status' => 'fail', 'messages' => ['Failed to update product']];
+        }
 	        
         return ['status' => 'success'];
     }

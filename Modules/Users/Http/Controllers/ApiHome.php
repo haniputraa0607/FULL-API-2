@@ -1026,7 +1026,7 @@ class ApiHome extends Controller
         $duration = $getSetting['default_home_splash_duration_web_apps']['value'] ?? 5;
 
         if (!empty($splash)) {
-            $splash = config('url.storage_url_api').$splash;
+            $splash = config('url.storage_url_api').$splash."?update=".time();
         } else {
             $splash = null;
         }
@@ -1035,11 +1035,49 @@ class ApiHome extends Controller
         $result = [
             'status' => 'success',
             'result' => [
-                'splash_screen_url' => $splash."?update=".time(),
+                'splash_screen_url' => $splash,
                 'splash_screen_duration' => $duration,
                 'splash_screen_ext' => '.'.end($ext)
             ]
         ];
         return $result;
+    }
+
+    public function featuredProduct(Request $request)
+    {
+    	$featured = $this->getSpecificBanner('product_group');
+
+    	return ['status' => 'success', 'result' => $featured];
+    }
+
+    public function getSpecificBanner($banner_type = null)
+    {
+        $banners = Banner::orderBy('position')
+            ->where('banner_start', '<=', date('Y-m-d H:i:s'))
+            ->where('banner_end', '>=', date('Y-m-d H:i:s'))
+            ->where(function($query) {
+                $query->where('time_start', "<=", date("H:i:s"))
+                    ->where('time_end', ">=", date("H:i:s"))
+                    ->orWhereNull('time_start')
+                    ->orWhereNull('time_end');
+            });
+
+        if ($banner_type) {
+        	$banners->where('type', $banner_type);
+        }
+
+        $banners = $banners->get();
+
+        $array = [];
+        foreach ($banners as $key => $value) {
+
+            $item['image_url']    = config('url.storage_url_api').$value->image;
+    		$item['type']         = $value->type;
+            $item['id_reference'] = $value->id_reference;
+
+            array_push($array, $item);
+        }
+
+        return $array;
     }
 }

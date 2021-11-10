@@ -48,18 +48,18 @@ use Storage;
 use Modules\Brand\Entities\BrandOutlet;
 use Modules\Brand\Entities\Brand;
 
-use Modules\Outlet\Http\Requests\outlet\Upload;
-use Modules\Outlet\Http\Requests\outlet\Update;
-use Modules\Outlet\Http\Requests\outlet\UpdateStatus;
-use Modules\Outlet\Http\Requests\outlet\UpdatePhoto;
-use Modules\Outlet\Http\Requests\outlet\UploadPhoto;
-use Modules\Outlet\Http\Requests\outlet\Create;
-use Modules\Outlet\Http\Requests\outlet\Delete;
-use Modules\Outlet\Http\Requests\outlet\DeletePhoto;
-use Modules\Outlet\Http\Requests\outlet\Nearme;
-use Modules\Outlet\Http\Requests\outlet\Filter;
-use Modules\Outlet\Http\Requests\outlet\OutletList;
-use Modules\Outlet\Http\Requests\outlet\OutletListOrderNow;
+use Modules\Outlet\Http\Requests\Outlet\Upload;
+use Modules\Outlet\Http\Requests\Outlet\Update;
+use Modules\Outlet\Http\Requests\Outlet\UpdateStatus;
+use Modules\Outlet\Http\Requests\Outlet\UpdatePhoto;
+use Modules\Outlet\Http\Requests\Outlet\UploadPhoto;
+use Modules\Outlet\Http\Requests\Outlet\Create;
+use Modules\Outlet\Http\Requests\Outlet\Delete;
+use Modules\Outlet\Http\Requests\Outlet\DeletePhoto;
+use Modules\Outlet\Http\Requests\Outlet\Nearme;
+use Modules\Outlet\Http\Requests\Outlet\Filter;
+use Modules\Outlet\Http\Requests\Outlet\OutletList;
+use Modules\Outlet\Http\Requests\Outlet\OutletListOrderNow;
 
 use Modules\Outlet\Http\Requests\UserOutlet\Create as CreateUserOutlet;
 use Modules\Outlet\Http\Requests\UserOutlet\Update as UpdateUserOutlet;
@@ -152,6 +152,12 @@ class ApiOutletController extends Controller
             $data['status_franchise'] = $post['status_franchise'];
         }else{
             $data['status_franchise'] = 0;
+        }
+
+        if (isset($post['outlet_academy_status'])) {
+            $data['outlet_academy_status'] = $post['outlet_academy_status'];
+        }else{
+            $data['outlet_academy_status'] = 0;
         }
 
         if (isset($post['plastic_used_status'])) {
@@ -572,6 +578,11 @@ class ApiOutletController extends Controller
         $post = $request->json()->all();
 
         $outlet = Outlet::with(['user_outlets','city','today', 'outlet_schedules'])->select('*');
+
+        if(isset($post['outlet_academy_status'])){
+            $outlet = $outlet->where('outlet_academy_status', $post['outlet_academy_status']);
+        }
+
         if(isset($post['id_product'])){
             $outlet = $outlet->with(['product_detail'=> function($q) use ($post){
                 $q->where('id_product', $post['id_product']);
@@ -590,6 +601,11 @@ class ApiOutletController extends Controller
         $outlet = Outlet::with(['user_outlets','city','today', 'outlet_schedules'])
             ->where('outlet_different_price', 1)
             ->select('*');
+
+        if(isset($post['outlet_academy_status'])){
+            $outlet = $outlet->where('outlet_academy_status', $post['outlet_academy_status']);
+        }
+
         if(isset($post['id_product'])){
             $outlet = $outlet->with(['product_special_price'=> function($q) use ($post){
                         $q->where('id_product', $post['id_product']);
@@ -611,7 +627,12 @@ class ApiOutletController extends Controller
         }elseif(isset($post['admin']) && isset($post['type']) && $post['type'] == 'export'){
             $outlet = Outlet::with(['user_outlets','city','today','product_prices','product_prices.product'])->select('*');
         }elseif(isset($post['admin'])){
-            $outlet = Outlet::with(['user_outlets','city.province','today', 'outlet_schedules', 'outlet_box', 'outlet_time_shift'])->select('*');
+            $outlet = Outlet::with(['user_outlets','city.province','today', 'outlet_schedules', 'outlet_schedules.time_shift', 'outlet_box'])->select('*');
+
+            if(isset($post['outlet_academy_status'])){
+                $outlet = $outlet->where('outlet_academy_status', $post['outlet_academy_status']);
+            }
+
             if(isset($post['id_product'])){
                 $outlet = $outlet->with(['product_detail'=> function($q) use ($post){
                     $q->where('id_product', $post['id_product']);
@@ -2484,10 +2505,7 @@ class ApiOutletController extends Controller
                     return response()->json(['status' => 'fail']);
                 }
             }else{
-                $new = OutletSchedule::create([
-                    'id_outlet' => $post['id_outlet'],
-                    'day' => $value['day']
-                ]+$value);
+                $new = OutletSchedule::create($data);
                 if (!$new) {
                     DB::rollBack();
                     return response()->json(['status' => 'fail']);
@@ -2508,6 +2526,34 @@ class ApiOutletController extends Controller
                     'new_data' => json_encode($new_data)
                 ]);
             }
+            if(!$old){
+                $post['data_shift'][$key][0]['id_outlet_schedule'] = $new_data['id_outlet_schedule'];
+                $post['data_shift'][$key][1]['id_outlet_schedule'] = $new_data['id_outlet_schedule'];
+            }
+        }
+
+        $insertShift = [];
+        foreach ($post['data_shift'] as $dt_shift){
+            foreach ($dt_shift as $shift){
+                if(date('H:i', strtotime($shift['start'])) == '00:00' ||
+                    date('H:i', strtotime($shift['end'])) == '00:00'){
+                    continue;
+                }
+                $insertShift[] = [
+                    'id_outlet' => $post['id_outlet'],
+                    'id_outlet_schedule' => $shift['id_outlet_schedule'],
+                    'shift' => $shift['shift'],
+                    'shift_time_start' => date('H:i', strtotime($shift['start'])),
+                    'shift_time_end' => date('H:i', strtotime($shift['end'])),
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ];
+            }
+        }
+
+        if(!empty($insertShift)){
+            OutletTimeShift::where('id_outlet', $post['id_outlet'])->delete();
+            OutletTimeShift::insert($insertShift);
         }
 
         DB::commit();

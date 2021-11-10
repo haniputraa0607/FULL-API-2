@@ -13,6 +13,7 @@ class HairstylistNotAvailable extends Model
     protected $fillable   = [
         'id_outlet',
         'id_user_hair_stylist',
+        'id_transaction',
         'id_transaction_product_service',
         'booking_date',
         'booking_time'

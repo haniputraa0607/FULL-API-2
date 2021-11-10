@@ -16,6 +16,8 @@ Route::group(['middleware' => ['auth:api', 'scopes:web-apps'],'prefix' => 'api/w
     Route::post('check', 'ApiOnlineTransaction@checkTransaction');
     Route::post('new', 'ApiOnlineTransaction@newTransaction')->middleware('decrypt_pin:pin,request');
     Route::post('confirm', 'ApiConfirm@confirmTransaction');
+    Route::post('list', 'ApiTransaction@outletServiceList');
+	Route::post('detail', 'ApiTransaction@outletServiceDetail');
 });
 
 Route::any('api/transaction/update-gosend', 'Modules\Transaction\Http\Controllers\ApiGosendController@updateStatus');
@@ -80,6 +82,9 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
 
     Route::post('failed-void-payment', 'ApiManualRefundController@listFailedVoidPayment');
     Route::post('failed-void-payment/confirm', 'ApiManualRefundController@confirmManualRefund');
+
+    Route::post('outlet-service', 'ApiTransactionOutletService@listOutletService');
+    Route::post('outlet-service/detail', 'ApiTransactionOutletService@detailTransaction');
 });
 
 Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scopes:apps'], 'prefix' => 'api/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
@@ -122,6 +127,11 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::post('/prod/confirm', 'ApiTransactionProductionController@confirmTransaction2');
     Route::post('fake-update-why', 'ApiWehelpyouController@updateFakeStatus');
     Route::get('/{key}', 'ApiTransaction@transactionList');
+
+    //home service
+    Route::post('home-service/cart', 'ApiTransactionHomeService@cart');
+    Route::post('home-service/check', 'ApiTransactionHomeService@check');
+    Route::post('home-service/new', 'ApiTransactionHomeService@newTransactionHomeService');
 });
 
 Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scopes:apps,web-apps'], 'prefix' => 'api/outlet-service', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
@@ -129,6 +139,7 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::group(['prefix' => 'transaction'], function () {
     	Route::post('list', 'ApiTransaction@outletServiceList');
     	Route::post('detail', 'ApiTransaction@outletServiceDetail');
+        Route::post('cancel', 'ApiOnlineTransaction@cancelTransaction');
 	});
 });
 

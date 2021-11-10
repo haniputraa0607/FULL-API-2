@@ -959,33 +959,6 @@ Detail: ".$link['short'],
 
             // return subscription
             $update_subscription = app($this->subscription)->returnSubscription($trx->id_transaction);
-
-            //remove hs from table not available
-            $idTrxProductService = TransactionProductService::where('id_transaction', $trx->id_transaction)->pluck('id_transaction_product_service')->toArray();
-            if(!empty($idTrxProductService)){
-                HairstylistNotAvailable::whereIn('id_transaction_product_service', $idTrxProductService)->delete();
-            }
-
-            //update stock
-            ProductStockLog::where('id_transaction', $trx->id_transaction)->delete();
-            $trxProduct = TransactionProduct::where('id_transaction', $trx->id_transaction)->get()->toArray();
-
-            foreach ($trxProduct as $p) {
-                
-                if(!empty($p['id_product_variant_group'])){
-                    $productStock = ProductVariantGroupDetail::where('id_product_variant_group', $p['id_product_variant_group'])
-                        ->where('id_outlet', $trx->id_outlet)->first();
-                    $productStock->update(['product_variant_group_detail_stock_item' => $productStock['product_variant_group_detail_stock_item'] + $p['qty']]);
-                }else{
-                    $productStock = ProductDetail::where('id_product', $p['id_product'])
-                        ->where('id_outlet', $trx->id_outlet)->first();
-                    $productStock->update(['product_detail_stock_item' => $productStock['product_detail_stock_item'] + $p['transaction_product_qty']]);
-                }
-
-                if(!$productStock){
-                    return false;
-                }
-            }
         }
 
         return true;

@@ -56,7 +56,10 @@ class UserHairStylist extends Authenticatable
         'approve_by',
         'user_hair_stylist_photo',
         'total_rating',
-        'total_balance'
+        'total_balance',
+        'latitude',
+        'longitude',
+        'home_service_status'
 	];
 
     public function getUserHairStylistPhotoAttribute($value)

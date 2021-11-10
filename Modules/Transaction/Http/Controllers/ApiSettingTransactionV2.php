@@ -137,14 +137,15 @@ class ApiSettingTransactionV2 extends Controller
 
         // return $data;
         if ($value == 'subtotal') {
-            $outlet = Outlet::select('id_outlet', 'outlet_different_price')->where('id_outlet',$data['id_outlet'])->first();
-            $different_price = $outlet->outlet_different_price;
+            $outlet = (empty($data['id_outlet']) ? []:Outlet::select('id_outlet', 'outlet_different_price')->where('id_outlet',$data['id_outlet'])->first());
+            $different_price = $outlet->outlet_different_price??0;
             $dataSubtotal = [];
             $dataSubtotalFinal = [];
             $dataSubtotalPerBrand = [];
+            $loopable = [];
             if ($discount_promo['item'] ?? false) {
                 $loopable = &$discount_promo['item'];
-            } else {
+            } elseif(!empty($data['item'])) {
                 $loopable = &$data['item'];
             }
             foreach ($loopable as $keyData => &$valueData) {
@@ -425,8 +426,9 @@ class ApiSettingTransactionV2 extends Controller
                         ]);
                     }
 
-                    array_push($dataSubtotal, (int)$service['product_price']);
-                    array_push($dataSubtotalFinal, (int)$service['product_price']);
+                    $servicePrice = (int)$service['product_price'] * ($valueService['qty']??1);
+                    array_push($dataSubtotal, $servicePrice);
+                    array_push($dataSubtotalFinal, $servicePrice);
                 }
             }
 
@@ -442,7 +444,7 @@ class ApiSettingTransactionV2 extends Controller
         if ($value == 'discount') {
             $discountTotal = 0;
 
-            foreach ($discount_promo['item']??$data['item'] as $keyData => $valueData) {
+            foreach ($discount_promo['item']??$data['item']??[] as $keyData => $valueData) {
                 $this_discount=0;
                 $this_discount=$valueData['discount']??0;
                 $discountTotal += $this_discount;

@@ -46,7 +46,7 @@ class Midtrans {
         // return 'Basic ' . base64_encode(env('MIDTRANS_SANDBOX_BEARER'));
     }
     
-    static function token($receipt, $grandTotal, $user=null, $shipping=null, $product=null, $type=null, $id=null, $payment_detail = null, $scopeUser = 'apps') {
+    static function token($receipt, $grandTotal, $user=null, $shipping=null, $product=null, $type=null, $id=null, $payment_detail = null, $scopeUser = 'apps', $outletCode = null) {
         // $url    = env('MIDTRANS_PRO');
         $url    = env('MIDTRANS_SANDBOX');
 
@@ -71,31 +71,31 @@ class Midtrans {
             $dataMidtrans['item_details'] = $product;
         }
 
-        if($payment_detail == 'Bank Transfer'){
-            $dataMidtrans['enabled_payments'] = ["permata_va","bca_va", "bni_va", "bri_va", "other_va"];
-        }else{
-            $dataMidtrans['credit_card'] = [
-                'secure' => true,
-            ];
-
-            if(!is_null($type) && !is_null($id)){
-                $dataMidtrans['gopay'] = [
-                    'enable_callback' => true,
-                    'callback_url' => ($scopeUser == 'apps'? env('MIDTRANS_CALLBACK_APPS'):env('MIDTRANS_CALLBACK')).'?type='.$type.'&order_id='.urlencode($id),
-                ];
-            }else{
-                $dataMidtrans['gopay'] = [
-                    'enable_callback' => true,
-                    'callback_url' => ($scopeUser == 'apps'? env('MIDTRANS_CALLBACK_APPS'):env('MIDTRANS_CALLBACK')).'?order_id='.urlencode($receipt),
-                ];
-            }
-        }
-
-        $dataMidtrans['callbacks'] = [
-            'finish' => ($scopeUser == 'apps'? env('MIDTRANS_CALLBACK_APPS'):env('MIDTRANS_CALLBACK')).'?result=success&'.(!empty($type)? 'type='.$type.'&': ''),
-            'unfinish' => ($scopeUser == 'apps'? env('MIDTRANS_CALLBACK_APPS'):env('MIDTRANS_CALLBACK')).'?result=fail&'.(!empty($type)? 'type='.$type.'&': ''),
-            'error' => ($scopeUser == 'apps'? env('MIDTRANS_CALLBACK_APPS'):env('MIDTRANS_CALLBACK')).'?result=fail&'.(!empty($type)? 'type='.$type.'&': '')
+        $dataMidtrans['credit_card'] = [
+            'secure' => true,
         ];
+
+        if ($scopeUser == 'web-apps'){
+            $dataMidtrans['gopay'] = [
+                'enable_callback' => true,
+                'callback_url' => env('MIDTRANS_CALLBACK').$outletCode.'/payment-finish'.'?id_transaction='.$id.'&result=success',
+            ];
+            $dataMidtrans['callbacks'] = [
+                'finish' => env('MIDTRANS_CALLBACK').$outletCode.'/payment-finish'.'?id_transaction='.$id.'&result=success',
+                'unfinish' => env('MIDTRANS_CALLBACK').$outletCode.'/payment-finish'.'?id_transaction='.$id.'&result=fail',
+                'error' => env('MIDTRANS_CALLBACK').$outletCode.'/payment-finish'.'?id_transaction='.$id.'&result=fail'
+            ];
+        }else{
+            $dataMidtrans['gopay'] = [
+                'enable_callback' => true,
+                'callback_url' => env('MIDTRANS_CALLBACK_APPS').'?order_id='.urlencode($receipt).(!empty($type)? '&type='.$type: ''),
+            ];
+            $dataMidtrans['callbacks'] = [
+                'finish' => env('MIDTRANS_CALLBACK_APPS').'?result=success&'.(!empty($type)? 'type='.$type.'&': ''),
+                'unfinish' => env('MIDTRANS_CALLBACK_APPS').'?result=fail&'.(!empty($type)? 'type='.$type.'&': ''),
+                'error' => env('MIDTRANS_CALLBACK_APPS').'?result=fail&'.(!empty($type)? 'type='.$type.'&': '')
+            ];
+        }
 
         $token = MyHelper::post($url, Self::bearer(), $dataMidtrans);
 

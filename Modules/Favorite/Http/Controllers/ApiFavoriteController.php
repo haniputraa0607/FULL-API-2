@@ -8,6 +8,7 @@ use Illuminate\Routing\Controller;
 use Modules\Favorite\Entities\Favorite;
 use Modules\Favorite\Entities\FavoriteModifier;
 
+use Modules\Favorite\Entities\FavoriteUserHiarStylist;
 use Modules\Favorite\Http\Requests\CreateRequest;
 
 use App\Http\Models\Setting;
@@ -334,6 +335,38 @@ class ApiFavoriteController extends Controller
         $user = $request->user();
         $delete = Favorite::where([
             ['id_favorite',$request->json('id_favorite')],
+            ['id_user',$user->id]
+        ])->delete();
+        return MyHelper::checkDelete($delete);
+    }
+
+    public function storeFavoriteHS(Request $request){
+        $post = $request->json()->all();
+        if(empty($post['id_user_hair_stylist'])){
+            return [
+                'status'=>'fail',
+                'messages'=>['Failed insert favorite HS']
+            ];
+        }
+
+        $user = $request->user();
+        $create = FavoriteUserHiarStylist::updateOrCreate([
+            'id_user' => $user->id,
+            'id_user_hair_stylist' => $post['id_user_hair_stylist']
+        ], [
+            'id_user' => $user->id,
+            'id_user_hair_stylist' => $post['id_user_hair_stylist'],
+            'created_at' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        return MyHelper::checkCreate($create);
+    }
+
+    public function destroyFavoriteHS(Request $request){
+        $user = $request->user();
+        $delete = FavoriteUserHiarStylist::where([
+            ['id_user_hair_stylist',$request->json('id_user_hair_stylist')],
             ['id_user',$user->id]
         ])->delete();
         return MyHelper::checkDelete($delete);

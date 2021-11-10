@@ -85,10 +85,10 @@ class Outlet extends Authenticatable
 		'deep_link_gojek',
 		'deep_link_grab',
 		'delivery_order',
-		// 'outlet_open_hours',
-		// 'outlet_close_hours'
 		'status_franchise',
         'outlet_special_status',
+        'outlet_academy_status',
+        'online_shop_status',
 		'plastic_used_status',
         'outlet_special_fee',
         'time_zone_utc'
@@ -236,10 +236,5 @@ class Outlet extends Authenticatable
     public function outlet_box()
     {
         return $this->hasMany(\Modules\Outlet\Entities\OutletBox::class, 'id_outlet');
-    }
-
-    public function outlet_time_shift()
-    {
-        return $this->hasMany(\Modules\Outlet\Entities\OutletTimeShift::class, 'id_outlet');
     }
 }

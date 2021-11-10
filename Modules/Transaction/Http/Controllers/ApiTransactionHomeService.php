@@ -724,7 +724,8 @@ class ApiTransactionHomeService extends Controller
             'latitude'                    => $post['latitude'],
             'longitude'                   => $post['longitude'],
             'void_date'                   => null,
-            'transaction_from'            => $post['transaction_from']
+            'transaction_from'            => $post['transaction_from'],
+            'scope'                       => 'apps'
         ];
 
         $useragent = $_SERVER['HTTP_USER_AGENT'];
@@ -739,6 +740,19 @@ class ApiTransactionHomeService extends Controller
         $insertTransaction = Transaction::create($transaction);
 
         if (!$insertTransaction) {
+            DB::rollback();
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Insert Transaction Failed']
+            ]);
+        }
+
+        $receipt = config('configs.PREFIX_TRANSACTION_NUMBER').'-'.MyHelper::createrandom(4,'Angka').time().substr($insertTransaction['id_outlet'], 0, 4);
+        $updateReceiptNumber = Transaction::where('id_transaction', $insertTransaction['id_transaction'])->update([
+            'transaction_receipt_number' => $receipt
+        ]);
+
+        if (!$updateReceiptNumber) {
             DB::rollback();
             return response()->json([
                 'status'    => 'fail',

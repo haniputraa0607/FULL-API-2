@@ -87,6 +87,10 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
         	Route::get('summary', 'ApiMitra@ratingSummary');
         	Route::get('comment', 'ApiMitra@ratingComment');
     	});
+
+        Route::group(['prefix' => 'home-service'], function () {
+            Route::post('update-status', 'ApiMitraHomeService@activeInactiveHomeService');
+        });
 	});
 
     Route::group(['middleware' => ['auth:api'],'prefix' => 'request'], function () {

@@ -2002,7 +2002,7 @@ class FeaturesTableSeeder extends Seeder
                 'id_feature' => 199,
                 'feature_type' => 'Update',
                 'feature_module' => 'Default Outlet',
-                'show_hide' => 0,
+                'show_hide' => 1,
                 'order' => 81,
                 'created_at' => '2021-09-29 10:00:00',
                 'updated_at' => '2021-09-29 10:00:00',
@@ -3835,6 +3835,66 @@ class FeaturesTableSeeder extends Seeder
                     'feature_type' => 'Update',
                     'id_feature' => 383,
                     'order' => 137,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            382 =>
+                array (
+                    'feature_module' => 'Product Group',
+                    'feature_type' => 'Create',
+                    'id_feature' => 384,
+                    'order' => 138,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            383 =>
+                array (
+                    'feature_module' => 'Product Group',
+                    'feature_type' => 'List',
+                    'id_feature' => 385,
+                    'order' => 138,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            384 =>
+                array (
+                    'feature_module' => 'Product Group',
+                    'feature_type' => 'Detail',
+                    'id_feature' => 386,
+                    'order' => 138,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            385 =>
+                array (
+                    'feature_module' => 'Product Group',
+                    'feature_type' => 'Update',
+                    'id_feature' => 387,
+                    'order' => 138,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            386 =>
+                array (
+                    'feature_module' => 'Product Group',
+                    'feature_type' => 'Delete',
+                    'id_feature' => 388,
+                    'order' => 138,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            387 =>
+                array (
+                    'feature_module' => 'Home Service Setting',
+                    'feature_type' => 'Update',
+                    'id_feature' => 389,
+                    'order' => 139,
                     'show_hide' => 1,
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00')

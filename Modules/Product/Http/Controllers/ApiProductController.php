@@ -134,6 +134,12 @@ class ApiProductController extends Controller
             $data['processing_time_service'] = $post['processing_time_service'];
         }
 
+        if (isset($post['available_home_service'])) {
+            $data['available_home_service'] = 1;
+        }else{
+            $data['available_home_service'] = 0;
+        }
+
         if (isset($post['product_brands'])) {
             if(($post['product_brands'][0]??false) == '*') {
                 $data['product_brands'] = Brand::select('id_brand')->pluck('id_brand')->toArray();
@@ -2847,9 +2853,9 @@ class ApiProductController extends Controller
         ];
 
         $result = [
-            'color' => $brand['color_brand'],
+            /*'color' => $brand['color_brand'],
             'outlet' => $resOutlet,
-            'brand' => $resBrand,
+            'brand' => $resBrand,*/
             'products' => $resProducts
         ];
 
@@ -3039,7 +3045,7 @@ class ApiProductController extends Controller
 
         $res = [
         	'detail' => $selectedProduct,
-        	'outlet' => Outlet::select('id_outlet','outlet_code','outlet_address','outlet_name')->find($id_outlet),
+        	// 'outlet' => Outlet::select('id_outlet','outlet_code','outlet_address','outlet_name')->find($id_outlet),
         	'variants' => $variants,
         	'popup_message' => $selectedProduct['disable'] ? 'Produk yang dipilih tidak tersedia' : ''
         ];

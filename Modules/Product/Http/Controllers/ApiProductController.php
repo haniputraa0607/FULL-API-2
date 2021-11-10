@@ -2814,9 +2814,9 @@ class ApiProductController extends Controller
         ];
 
         $result = [
-            'color' => $brand['color_brand'],
+            /*'color' => $brand['color_brand'],
             'outlet' => $resOutlet,
-            'brand' => $resBrand,
+            'brand' => $resBrand,*/
             'products' => $resProducts
         ];
 
@@ -3006,7 +3006,7 @@ class ApiProductController extends Controller
 
         $res = [
         	'detail' => $selectedProduct,
-        	'outlet' => Outlet::select('id_outlet','outlet_code','outlet_address','outlet_name')->find($id_outlet),
+        	// 'outlet' => Outlet::select('id_outlet','outlet_code','outlet_address','outlet_name')->find($id_outlet),
         	'variants' => $variants,
         	'popup_message' => $selectedProduct['disable'] ? 'Produk yang dipilih tidak tersedia' : ''
         ];

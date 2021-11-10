@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Modules\Product\Entities\ProductGroup;
+use App\Http\Models\Transaction;
 use DB;
 
 class ApiProductGroupController extends Controller
@@ -57,6 +58,16 @@ class ApiProductGroupController extends Controller
 
     public function delete(Request $request)
     {
+    	$trx = Transaction::leftJoin('transaction_products','transactions.id_transaction','transaction_products.id_transaction')
+    			->join('products','transaction_products.id_product','products.id_product')
+    			->where('transactions.transaction_payment_status','Completed')
+    			->where('products.id_product_group',$request->id_product_group)
+    			->first();
+
+    	if ($trx) {
+    		return ['status' => 'fail', 'messages' => ['Product Group already used on transaction']];
+    	}
+
     	$delete = ProductGroup::where('id_product_group', $request->id_product_group)->delete();
     	return MyHelper::checkDelete($delete);
     }

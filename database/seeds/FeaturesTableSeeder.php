@@ -2002,7 +2002,7 @@ class FeaturesTableSeeder extends Seeder
                 'id_feature' => 199,
                 'feature_type' => 'Update',
                 'feature_module' => 'Default Outlet',
-                'show_hide' => 0,
+                'show_hide' => 1,
                 'order' => 81,
                 'created_at' => '2021-09-29 10:00:00',
                 'updated_at' => '2021-09-29 10:00:00',

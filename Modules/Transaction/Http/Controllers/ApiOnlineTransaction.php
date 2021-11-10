@@ -1033,7 +1033,8 @@ class ApiOnlineTransaction extends Controller
             'longitude'                   => $post['longitude'],
             'distance_customer'           => $distance,
             'void_date'                   => null,
-            'transaction_from'            => $post['transaction_from']
+            'transaction_from'            => $post['transaction_from'],
+            'scope'                       => $scopeUser??null
         ];
 
         if($request->user()->complete_profile == 1){

@@ -172,6 +172,7 @@ class ApiTransactionHomeService extends Controller
         if(!empty($errAll)){
             $continueCheckOut = false;
         }
+        unset($address['description']);
         $result['id_user_address'] = $address['id_user_address'];
         $result['notes'] = (empty($post['notes']) ? $address['description']:$post['notes']);
         $result['preference_hair_stylist'] = $post['preference_hair_stylist'];
@@ -179,6 +180,7 @@ class ApiTransactionHomeService extends Controller
         $result['booking_date'] = $post['booking_date'];
         $result['booking_time'] = $post['booking_time'];
         $result['booking_date_display'] = MyHelper::dateFormatInd($post['booking_date'].' '.$post['booking_time'], true, true);
+        $result['address'] = $address;
         $result['item_service'] = $itemService;
         $result['currency'] = 'Rp';
         $result['complete_profile'] = (empty($user->complete_profile) ?false:true);
@@ -423,6 +425,7 @@ class ApiTransactionHomeService extends Controller
             ]);
         }
 
+        unset($address['description']);
         $result['customer'] = [
             "name" => $user['name'],
             "email" => $user['email'],

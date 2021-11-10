@@ -206,8 +206,7 @@ class ApiPartnersCloseController extends Controller
         foreach ($project as $value) {
             $closeoutletall = Partner::join('locations','locations.id_partner','partners.id_partner')
                 ->where('locations.id_partner', $value->id_partner)
-                ->join('cities','cities.id_city','locations.id_city')
-                ->join('outlets','outlets.id_city','cities.id_city')
+                ->join('outlets','outlets.id_location','locations.id_location')
                 ->where('outlets.outlet_status','Active')
                 ->get();
             foreach ($closeoutletall as $va) {

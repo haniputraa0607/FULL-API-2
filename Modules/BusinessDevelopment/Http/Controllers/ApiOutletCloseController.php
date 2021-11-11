@@ -26,6 +26,8 @@ use Modules\BusinessDevelopment\Entities\OutletCutOff;
 use Modules\BusinessDevelopment\Entities\OutletCutOffDocument;
 use Modules\BusinessDevelopment\Entities\OutletChangeOwnership;
 use Modules\BusinessDevelopment\Entities\OutletChangeOwnershipDocument;
+use Modules\BusinessDevelopment\Entities\OutletCloseTemporary;
+use Modules\BusinessDevelopment\Entities\OutletCloseTemporaryDocument;
 use App\Http\Models\Outlet;
 use Modules\BusinessDevelopment\Http\Requests\CutOff\CreateOutletCutOffRequest;
 use Modules\BusinessDevelopment\Http\Requests\CutOff\UpdateOutletCutOffRequest;
@@ -49,7 +51,7 @@ class ApiOutletCloseController extends Controller
          if($request->id_partner){
                 $project = Outlet::where('locations.id_partner',$request->id_partner)
                             ->join('cities','cities.id_city','outlets.id_city')
-                            ->join('locations','locations.id_city','cities.id_city')
+                            ->join('locations','locations.id_location','outlets.id_location')
                            ->orderby('outlets.created_at','desc')->get();
            foreach ($project as $value) {
                $cutoff = OutletCutOff::where(array('id_outlet'=>$value['id_outlet']))
@@ -60,6 +62,10 @@ class ApiOutletCloseController extends Controller
                         ->orderby('created_at','desc')
                         ->first();
                $value['change'] = $change;
+               $close = OutletCloseTemporary::where(array('id_outlet'=>$value['id_outlet']))
+                        ->orderby('created_at','desc')
+                        ->first();
+               $value['close'] = $close;
            }
             return response()->json(['status' => 'success', 'result' => $project]);
         }
@@ -69,8 +75,7 @@ class ApiOutletCloseController extends Controller
          if($request->id_partner){
              $list = array();
                 $project = Outlet::where('outlets.outlet_status',"Active")
-                            ->join('cities','cities.id_city','outlets.id_city')
-                            ->join('locations','locations.id_city','cities.id_city')
+                            ->join('locations','locations.id_location','outlets.id_location')
                             ->where('locations.id_partner',$request->id_partner)
                             ->select(['outlets.outlet_name','outlets.id_outlet'])
                            ->orderby('outlets.created_at','desc')->get();
@@ -81,11 +86,14 @@ class ApiOutletCloseController extends Controller
                $change = OutletChangeOwnership::where(array('id_outlet'=>$value['id_outlet']))
                         ->orderby('created_at','desc')
                         ->first();
-               if(empty($cutoff)&&empty($change)){
+               $close = OutletCloseTemporary::where(array('id_outlet'=>$value['id_outlet']))
+                        ->orderby('created_at','desc')
+                        ->first();
+               if(empty($cutoff)&&empty($change)&&empty($close)){
                    array_push($list,$value);
                }
                if(isset($cutoff)&&isset($change)){
-                   if($cutoff->status=="Reject"&&$change->status=="Reject"){
+                   if($cutoff->status=="Reject"&&$change->status=="Reject"&&$close->status=="Reject"){
                    array_push($list,$value);
                    }
                }
@@ -193,8 +201,7 @@ class ApiOutletCloseController extends Controller
     public function cronCutOff(){
         $outlet = OutletCutOff::where(array('status'=>"Waiting"))->get();
         foreach ($outlet as $value) {
-            $location = Location::join('cities','cities.id_city','locations.id_city')
-                        ->join('outlets','outlets.id_city','cities.id_city')
+            $location = Location::join('outlets','outlets.id_location','locations.id_location')
                         ->where('outlets.id_outlet',$value['id_outlet'])
                         ->update(['locations.status'=>'Inactive','outlets.outlet_status'=>'Inactive']);
             $store = OutletCutOff::where(array('id_outlet_cut_off'=>$value['id_outlet_cut_off']))
@@ -261,7 +268,7 @@ class ApiOutletCloseController extends Controller
     public function lampiranCreateChange(CreateLampiranChangeOwnershipRequest $request){
         $attachment = null;
         if(isset($request->attachment)){
-                    $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFileCutOff, 'pdf');
+                    $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFileChangeOwnership, 'pdf');
                      if (isset($upload['status']) && $upload['status'] == "success") {
                              $attachment = $upload['path'];
                          } else {
@@ -297,8 +304,7 @@ class ApiOutletCloseController extends Controller
     public function cronChange(){
         $outlet = OutletChangeOwnership::where(array('status'=>"Waiting"))->get();
         foreach ($outlet as $value) {
-            $location = Location::join('cities','cities.id_city','locations.id_city')
-                        ->join('outlets','outlets.id_city','cities.id_city')
+            $location = Location::join('outlets','outlets.id_location','locations.id_location')
                         ->where('outlets.id_outlet',$value['id_outlet'])->first();
             $location->id_partner = $value['to_id_partner'];
             $location->save();

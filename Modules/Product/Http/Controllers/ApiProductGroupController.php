@@ -9,6 +9,7 @@ use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Modules\Product\Entities\ProductGroup;
 use App\Http\Models\Transaction;
+use App\Http\Models\Banner;
 use DB;
 
 class ApiProductGroupController extends Controller
@@ -179,5 +180,124 @@ class ApiProductGroupController extends Controller
         }
 	        
         return ['status' => 'success'];
+    }
+
+    public function featuredList()
+    {
+    	$featured = Banner::select([
+    					'banners.*',
+    					DB::raw('
+			            	(select product_groups.product_group_name from product_groups 
+			            		WHERE product_groups.id_product_group = banners.id_reference 
+			            		limit 1
+		            		) as product_group_name
+		            	'),
+		            	DB::raw('
+			            	(select product_groups.product_group_photo from product_groups 
+			            		WHERE product_groups.id_product_group = banners.id_reference 
+			            		limit 1
+		            		) as product_group_photo
+		            	')
+    				])
+    				->orderBy('position')
+    				->where('type', 'product_group')
+    				->get();
+
+		foreach ($featured as $key => $value) {
+			if (empty($value['product_group_photo'])) {
+	            $featured[$key]['url_photo'] = config('url.storage_url_api').'img/default.jpg';
+	        }
+	        else {
+	            $featured[$key]['url_photo'] = config('url.storage_url_api').$value['product_group_photo'];
+	        }
+		}
+
+        return MyHelper::checkGet($featured);
+    }
+
+    public function featuredCreate(Request $request)
+    {
+        $post = $request->except('_token');
+
+		$createData = [
+			'banner_start' => date('Y-m-d H:i:s', strtotime($post['banner_start'])),
+			'banner_end' => date('Y-m-d H:i:s', strtotime($post['banner_end'])),
+			'type' => 'product_group',
+			'id_reference' => $post['id_product_group']
+		];
+
+        $create = Banner::create($createData);
+
+        return MyHelper::checkCreate($create);
+    }
+
+    public function featuredReorder(Request $request)
+    {
+        $post = $request->json()->all();
+
+        DB::beginTransaction();
+        foreach ($post['id_banner'] as $key => $id_banner) {
+            // reorder
+            $update = Banner::find($id_banner)->update(['position' => $key+1]);
+
+            if (!$update) {
+                DB:: rollback();
+                return [
+                    'status' => 'fail',
+                    'messages' => ['Sort featured product group failed']
+                ];
+            }
+        }
+        DB::commit();
+
+        return MyHelper::checkUpdate($update);
+    }
+
+    public function featuredUpdate(Request $request)
+    {
+        $post = $request->json()->all();
+
+		$updateData = [
+			'banner_start' => date('Y-m-d H:i:s', strtotime($post['banner_start'])),
+			'banner_end' => date('Y-m-d H:i:s', strtotime($post['banner_end'])),
+			'type' => 'product_group',
+			'id_reference' => $post['id_product_group']
+		];
+
+        $featured = Banner::find($post['id_banner']);
+        $update = $featured->update($updateData);
+
+        return MyHelper::checkCreate($update);
+    }
+
+    public function featuredDestroy(Request $request)
+    {
+        $post = $request->json()->all();
+        $featured = Banner::find($post['id_banner']);
+        if (!$featured) {
+            return [
+                'status' => 'fail',
+                'messages' => ['Data not found']
+            ];
+        }
+
+        $delete = $featured->delete();
+
+        return MyHelper::checkDelete($delete);
+    }
+
+    public function activeList(Request $request)
+    {
+    	$featured = $this->featuredList()['result'] ?? [];
+    	if (!is_array($featured)) {
+    		$featured = $featured->toArray();
+    	}
+    	$id_product_groups = array_column($featured, 'id_reference');
+
+    	$res = ProductGroup::whereHas('products')
+    				->whereNotIn('id_product_group', $id_product_groups)
+    				->get();
+
+    	return MyHelper::checkGet($res);
     }
 }

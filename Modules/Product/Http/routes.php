@@ -134,6 +134,7 @@ Route::group(['prefix' => 'api/product','middleware' => ['log_activities','auth:
     /* tag */
     Route::group(['prefix' => 'product-group'], function() {
         Route::any('list', 'ApiProductGroupController@list')->middleware(['feature_control:385']);
+        Route::get('active-list', 'ApiProductGroupController@activeList')->middleware(['feature_control:385']);
         Route::post('create', 'ApiProductGroupController@create')->middleware(['feature_control:384']);
         Route::post('update', 'ApiProductGroupController@update')->middleware(['feature_control:387']);
         Route::post('delete', 'ApiProductGroupController@delete')->middleware(['feature_control:388']);
@@ -142,6 +143,15 @@ Route::group(['prefix' => 'api/product','middleware' => ['log_activities','auth:
         Route::post('add-product', 'ApiProductGroupController@addProduct');
         Route::post('update-product', 'ApiProductGroupController@updateProduct');
         Route::post('remove-product', 'ApiProductGroupController@removeProduct');
+
+	    Route::group(['prefix' => 'featured'], function()
+	    {
+	        Route::get('list', 'ApiProductGroupController@featuredList');
+	        Route::post('create', 'ApiProductGroupController@featuredCreate');
+	        Route::post('update', 'ApiProductGroupController@featuredUpdate');
+	        Route::post('reorder', 'ApiProductGroupController@featuredReorder');
+	        Route::post('delete', 'ApiProductGroupController@featuredDestroy');
+	    });
     });
 });
 

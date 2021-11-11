@@ -127,10 +127,23 @@ class ApiOnlineTransaction extends Controller
         $this->subscription  = "Modules\Subscription\Http\Controllers\ApiSubscriptionVoucher";
         $this->bundling      = "Modules\ProductBundling\Http\Controllers\ApiBundlingController";
         $this->product      = "Modules\Product\Http\Controllers\ApiProductController";
+        $this->trx_home_service      = "Modules\Transaction\Http\Controllers\ApiTransactionHomeService";
     }
 
     public function newTransaction(NewTransaction $request) {
         $post = $request->json()->all();
+        if(empty($post['transaction_from'])){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Parameter transaction_from can not be empty']
+            ]);
+        }
+
+        if($post['transaction_from'] == 'home-service'){
+            $homeService = app($this->trx_home_service)->newTransactionHomeService($request);
+            return $homeService;
+        }
+
         $bearerToken = $request->bearerToken();
         $tokenId = (new Parser())->parse($bearerToken)->getHeader('jti');
         $getOauth = OauthAccessToken::find($tokenId);
@@ -148,13 +161,6 @@ class ApiOnlineTransaction extends Controller
             return response()->json([
                 'status'    => 'fail',
                 'messages'  => ['ID/Code outlet can not be empty']
-            ]);
-        }
-
-        if(empty($post['transaction_from'])){
-            return response()->json([
-                'status'    => 'fail',
-                'messages'  => ['Parameter transaction_from can not be empty']
             ]);
         }
 
@@ -1913,6 +1919,18 @@ class ApiOnlineTransaction extends Controller
      */
     public function checkTransaction(Request $request) {
         $post = $request->json()->all();
+        if(empty($post['transaction_from'])){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Parameter transaction_from can not be empty']
+            ]);
+        }
+
+        if($post['transaction_from'] == 'home-service'){
+            $homeService = app($this->trx_home_service)->check($request);
+            return $homeService;
+        }
+
         $bearerToken = $request->bearerToken();
         $tokenId = (new Parser())->parse($bearerToken)->getHeader('jti');
         $getOauth = OauthAccessToken::find($tokenId);
@@ -4996,6 +5014,18 @@ class ApiOnlineTransaction extends Controller
 
     public function cartTransaction(Request $request){
         $post = $request->json()->all();
+        if(empty($post['transaction_from'])){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Parameter transaction_from can not be empty']
+            ]);
+        }
+
+        if($post['transaction_from'] == 'home-service'){
+            $homeService = app($this->trx_home_service)->cart($request);
+            return $homeService;
+        }
+
         $bearerToken = $request->bearerToken();
         $tokenId = (new Parser())->parse($bearerToken)->getHeader('jti');
         $getOauth = OauthAccessToken::find($tokenId);

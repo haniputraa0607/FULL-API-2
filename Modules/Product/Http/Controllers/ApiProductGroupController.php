@@ -40,7 +40,7 @@ class ApiProductGroupController extends Controller
 			} else {
 				return [
 					'status'   => 'fail',
-					'messages' => ['fail upload image']
+					'messages' => ['failed to upload image']
 				];
 			}
         }
@@ -74,8 +74,6 @@ class ApiProductGroupController extends Controller
     	$photo = $productGroup['product_group_photo'];
 		if (isset($request->photo)) {
 
-			MyHelper::deletePhoto($productGroup['product_group_photo']);
-
 			$upload = MyHelper::uploadPhotoStrict($request->photo, "img/product/product-group/", 300, 300);
 
 			if (isset($upload['status']) && $upload['status'] == "success") {
@@ -83,9 +81,11 @@ class ApiProductGroupController extends Controller
 			} else {
 				return [
 					'status'   => 'fail',
-					'messages' => ['fail upload image']
+					'messages' => ['failed to upload image']
 				];
 			}
+
+			MyHelper::deletePhoto($productGroup['product_group_photo']);
         }
 
     	$productGroup->update([
@@ -204,12 +204,7 @@ class ApiProductGroupController extends Controller
     				->get();
 
 		foreach ($featured as $key => $value) {
-			if (empty($value['product_group_photo'])) {
-	            $featured[$key]['url_photo'] = config('url.storage_url_api').'img/default.jpg';
-	        }
-	        else {
-	            $featured[$key]['url_photo'] = config('url.storage_url_api').$value['product_group_photo'];
-	        }
+            $featured[$key]['image_url'] = config('url.storage_url_api').$value['image'];
 		}
 
         return MyHelper::checkGet($featured);
@@ -219,10 +214,25 @@ class ApiProductGroupController extends Controller
     {
         $post = $request->except('_token');
 
+        $image = null;
+		if (isset($request->image)) {
+			$upload = MyHelper::uploadPhotoStrict($request->image, "img/banner/", 750, 375);
+
+			if (isset($upload['status']) && $upload['status'] == "success") {
+				$image = $upload['path'];
+			} else {
+				return [
+					'status'   => 'fail',
+					'messages' => ['failed to upload image']
+				];
+			}
+        }
+
 		$createData = [
 			'banner_start' => date('Y-m-d H:i:s', strtotime($post['banner_start'])),
 			'banner_end' => date('Y-m-d H:i:s', strtotime($post['banner_end'])),
 			'type' => 'product_group',
+			'image' => $image,
 			'id_reference' => $post['id_product_group']
 		];
 
@@ -257,14 +267,32 @@ class ApiProductGroupController extends Controller
     {
         $post = $request->json()->all();
 
+        $featured = Banner::find($post['id_banner']);
+
+        $image = $featured->image;
+		if (isset($request->image)) {
+			$upload = MyHelper::uploadPhotoStrict($request->image, "img/banner/", 750, 375);
+
+			if (isset($upload['status']) && $upload['status'] == "success") {
+				$image = $upload['path'];
+			} else {
+				return [
+					'status'   => 'fail',
+					'messages' => ['failed to upload image']
+				];
+			}
+
+			$delete = MyHelper::deletePhoto($featured->image);
+        }
+
 		$updateData = [
 			'banner_start' => date('Y-m-d H:i:s', strtotime($post['banner_start'])),
 			'banner_end' => date('Y-m-d H:i:s', strtotime($post['banner_end'])),
 			'type' => 'product_group',
+			'image' => $image,
 			'id_reference' => $post['id_product_group']
 		];
 
-        $featured = Banner::find($post['id_banner']);
         $update = $featured->update($updateData);
 
         return MyHelper::checkCreate($update);
@@ -281,8 +309,11 @@ class ApiProductGroupController extends Controller
             ];
         }
 
-        $delete = $featured->delete();
+        $delete = Banner::where('id_banner', $featured->id_banner)->delete();
 
+        if ($delete) {
+        	$delete = MyHelper::deletePhoto($featured->image);
+        }
         return MyHelper::checkDelete($delete);
     }
 

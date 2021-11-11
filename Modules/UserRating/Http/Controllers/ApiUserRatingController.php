@@ -22,6 +22,7 @@ use Modules\UserRating\Entities\UserRatingLog;
 use Modules\OutletApp\Http\Controllers\ApiOutletApp;
 
 use Modules\Recruitment\Entities\UserHairStylist;
+use Modules\Favorite\Entities\FavoriteUserHiarStylist;
 
 class ApiUserRatingController extends Controller
 {
@@ -500,11 +501,15 @@ class ApiUserRatingController extends Controller
 	        	->where('id_user_hair_stylist', $log['id_user_hair_stylist'])
 	        	->first();
 
+	        	$isFavorite = FavoriteUserHiarStylist::where('id_user_hair_stylist',$log['id_user_hair_stylist'])
+	        					->where('id_user', $log['id_user'])
+	        					->first();
+
 				$rating['detail_hairstylist'] = [
 					'nickname' => $service->user_hair_stylist->nickname ?? null,
 					'fullname' => $service->user_hair_stylist->fullname ?? null,
 					'user_hair_stylist_photo' => $service->user_hair_stylist->user_hair_stylist_photo ?? null,
-					'is_favorite' => 0
+					'is_favorite' => $isFavorite ? 1 : 0
 				];
         	} else {
 	        	$rating['options'] = $optionOutlet;
@@ -911,11 +916,15 @@ class ApiUserRatingController extends Controller
 			        	->where('id_user_hair_stylist', $log['id_user_hair_stylist'])
 			        	->first();
 
+        	$isFavorite = FavoriteUserHiarStylist::where('id_user_hair_stylist',$log['id_user_hair_stylist'])
+	        					->where('id_user', $log['id_user'])
+	        					->first();
+
 			$rating['detail_hairstylist'] = [
 				'nickname' => $service->user_hair_stylist->nickname ?? null,
 				'fullname' => $service->user_hair_stylist->fullname ?? null,
 				'user_hair_stylist_photo' => $service->user_hair_stylist->user_hair_stylist_photo ?? null,
-				'is_favorite' => 0
+				'is_favorite' => $isFavorite ? 1 : 0
 			];
 
         	$currentRatingHs = UserRating::where([
@@ -1014,11 +1023,15 @@ class ApiUserRatingController extends Controller
 	        	->where('id_user_hair_stylist', $log['id_user_hair_stylist'])
 	        	->first();
 
+	        	$isFavorite = FavoriteUserHiarStylist::where('id_user_hair_stylist',$log['id_user_hair_stylist'])
+	        					->where('id_user', $log['id_user'])
+	        					->first();
+
 				$rating['detail_hairstylist'] = [
 					'nickname' => $service->user_hair_stylist->nickname ?? null,
 					'fullname' => $service->user_hair_stylist->fullname ?? null,
 					'user_hair_stylist_photo' => $service->user_hair_stylist->user_hair_stylist_photo ?? null,
-					'is_favorite' => 0
+					'is_favorite' => $isFavorite ? 1 : 0
 				];
         	}
 

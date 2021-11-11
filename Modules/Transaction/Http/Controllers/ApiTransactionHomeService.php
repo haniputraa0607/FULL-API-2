@@ -86,6 +86,12 @@ class ApiTransactionHomeService extends Controller
             }
         }
 
+        $bookNow = false;
+        if(strtolower($post['booking_time']) == 'sekarang'){
+            $bookNow = true;
+            $post['booking_time'] = $post['booking_time_user'];
+        }
+
         $errAll = [];
         $address = UserAddress::where('id_user', $user->id)->where('id_user_address', $post['id_user_address'])->first();
         if(empty($address)){
@@ -189,6 +195,10 @@ class ApiTransactionHomeService extends Controller
         $result['id_user_hair_stylist'] = $idHs;
         $result['booking_date'] = $post['booking_date'];
         $result['booking_time'] = $post['booking_time'];
+        if($bookNow){
+            $result['booking_time_user'] = $post['booking_time'];
+            $result['booking_time'] = 'Sekarang';
+        }
         $result['booking_date_display'] = MyHelper::dateFormatInd($post['booking_date'].' '.$post['booking_time'], true, true);
         $result['address'] = $address;
         $result['item_service'] = $itemService;
@@ -260,6 +270,12 @@ class ApiTransactionHomeService extends Controller
                     'messages'  => ['User hair stylist can not be empty']
                 ]);
             }
+        }
+
+        $bookNow = false;
+        if(strtolower($post['booking_time']) == 'sekarang'){
+            $bookNow = true;
+            $post['booking_time'] = $post['booking_time_user'];
         }
 
         $address = UserAddress::where('id_user', $user->id)->where('id_user_address', $post['id_user_address'])->first();
@@ -455,6 +471,10 @@ class ApiTransactionHomeService extends Controller
         $result['id_user_hair_stylist'] = $idHs;
         $result['booking_date'] = $post['booking_date'];
         $result['booking_time'] = $post['booking_time'];
+        if($bookNow){
+            $result['booking_time_user'] = $post['booking_time'];
+            $result['booking_time'] = 'Sekarang';
+        }
         $result['booking_date_display'] = MyHelper::dateFormatInd($post['booking_date'].' '.$post['booking_time'], true, true);
         $result['item_service'] = $itemService;
         $result['subtotal'] = $post['subtotal'];
@@ -528,6 +548,12 @@ class ApiTransactionHomeService extends Controller
                 'status'    => 'fail',
                 'messages'  => ['Address user not found']
             ]);
+        }
+
+        $bookNow = false;
+        if(strtolower($post['booking_time']) == 'sekarang'){
+            $bookNow = true;
+            $post['booking_time'] = $post['booking_time_user'];
         }
 
         $post['latitude'] = $address['latitude'];
@@ -779,6 +805,7 @@ class ApiTransactionHomeService extends Controller
             'preference_hair_stylist' => $post['preference_hair_stylist'],
             'status' => null,
             'schedule_date' => date('Y-m-d', strtotime($post['booking_date'])),
+            'schedule_set_time' => ($bookNow? 'right now':'set time'),
             'schedule_time' => date('H:i:s', strtotime($post['booking_time'])),
             'destination_name' => $user['name'],
             'destination_phone' => $user['phone'],

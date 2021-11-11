@@ -1020,7 +1020,7 @@ class ApiTransactionHomeService extends Controller
             }
 
             if(empty($arrIDHs)){
-                $errAll[] = "Tidak ada hair stylist yang available didekat Anda";
+                $errAll[] = "Tidak ada hair stylist yang available didekat Anda diwaktu yang Anda pilih";
             }else{
                 usort($arrIDHs, function($a, $b) {
                     return $a['distance'] > $b['distance'];

@@ -8,6 +8,8 @@ class ProductGroup extends Model
 {
     protected $primaryKey = 'id_product_group';
 
+    protected $appends = ['url_photo'];
+
     protected $fillable   = [
         'id_product_category',
         'product_group_code',
@@ -26,4 +28,13 @@ class ProductGroup extends Model
     {
         return $this->hasMany(\App\Http\Models\Product::class,'id_product_group','id_product_group');
     }
+
+    public function getUrlPhotoAttribute() {
+		if (empty($this->product_group_photo)) {
+            return config('url.storage_url_api').'img/default.jpg';
+        }
+        else {
+            return config('url.storage_url_api').$this->product_group_photo;
+        }
+	}
 }

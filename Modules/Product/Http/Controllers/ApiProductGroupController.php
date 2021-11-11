@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Modules\Product\Entities\ProductGroup;
+use App\Http\Models\Transaction;
 use DB;
 
 class ApiProductGroupController extends Controller
@@ -29,9 +30,25 @@ class ApiProductGroupController extends Controller
     		return ['status' => 'fail', 'messages' => ['Product Group Code ' . $request->product_group_code . ' already used']];
     	}
 
+    	$photo = null;
+		if (isset($request->photo)) {
+			$upload = MyHelper::uploadPhotoStrict($request->photo, "img/product/product-group/", 300, 300);
+
+			if (isset($upload['status']) && $upload['status'] == "success") {
+				$photo = $upload['path'];
+			} else {
+				return [
+					'status'   => 'fail',
+					'messages' => ['fail upload image']
+				];
+			}
+        }
+
     	$create = ProductGroup::create([
     		'product_group_code' => $request->product_group_code,
-    		'product_group_name' => $request->product_group_name
+    		'product_group_name' => $request->product_group_name,
+    		'product_group_photo' => $photo,
+    		'product_group_description' => $request->product_group_description
     	]);
 
     	return MyHelper::checkCreate($create);
@@ -47,9 +64,34 @@ class ApiProductGroupController extends Controller
     		return ['status' => 'fail', 'messages' => ['Product Group Code ' . $request->product_group_code . ' already used']];
     	}
 
-    	$update = ProductGroup::where('id_product_group', $request->id_product_group)->update([
+    	$productGroup = ProductGroup::where('id_product_group', $request->id_product_group)->first();
+
+    	if (!$productGroup) {
+    		return ['status' => 'fail', 'messages' => ['Product Group not found']];
+    	}
+
+    	$photo = $productGroup['product_group_photo'];
+		if (isset($request->photo)) {
+
+			MyHelper::deletePhoto($productGroup['product_group_photo']);
+
+			$upload = MyHelper::uploadPhotoStrict($request->photo, "img/product/product-group/", 300, 300);
+
+			if (isset($upload['status']) && $upload['status'] == "success") {
+				$photo = $upload['path'];
+			} else {
+				return [
+					'status'   => 'fail',
+					'messages' => ['fail upload image']
+				];
+			}
+        }
+
+    	$productGroup->update([
     		'product_group_code' => $request->product_group_code,
-    		'product_group_name' => $request->product_group_name
+    		'product_group_name' => $request->product_group_name,
+    		'product_group_photo' => $photo,
+    		'product_group_description' => $request->product_group_description
     	]);
 
     	return ['status' => 'success'];
@@ -57,7 +99,27 @@ class ApiProductGroupController extends Controller
 
     public function delete(Request $request)
     {
+    	$trx = Transaction::leftJoin('transaction_products','transactions.id_transaction','transaction_products.id_transaction')
+    			->join('products','transaction_products.id_product','products.id_product')
+    			->where('transactions.transaction_payment_status','Completed')
+    			->where('products.id_product_group',$request->id_product_group)
+    			->first();
+
+    	if ($trx) {
+    		return ['status' => 'fail', 'messages' => ['Product Group already used on transaction']];
+    	}
+
+    	$productGroup = ProductGroup::where('id_product_group', $request->id_product_group)->first();
+
+    	if (!$productGroup) {
+    		return ['status' => 'fail', 'messages' => ['Product Group not found']];
+    	}
+
+
     	$delete = ProductGroup::where('id_product_group', $request->id_product_group)->delete();
+    	if ($delete) {
+    		MyHelper::deletePhoto($productGroup['product_group_photo']);
+    	}
     	return MyHelper::checkDelete($delete);
     }
 

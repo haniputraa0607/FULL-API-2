@@ -129,7 +129,7 @@ class ApiSubscriptionController extends Controller
                  ->join('brand_outlet','brand_outlet.id_brand','brands.id_brand')
                  ->join('outlets','outlets.id_outlet','subscription_outlets.id_outlet')
                  ->join('cities','cities.id_city','outlets.id_city')
-                 ->join('locations','locations.id_city','cities.id_city')
+                 ->join('locations','locations.id_location','outlets.id_location')
                  ->join('partners','partners.id_partner','locations.id_partner')
                  ->where('subscriptions.subscription_start','>', date('Y-m-d H:i:s'))
                  ->where(array('partners.id_partner'=>$request->id_partner));
@@ -395,7 +395,7 @@ class ApiSubscriptionController extends Controller
         $subs = Subscription::join('subscription_outlets', 'subscription_outlets.id_subscription', 'subscriptions.id_subscription')
                  ->join('outlets','outlets.id_outlet','subscription_outlets.id_outlet')
                  ->join('cities','cities.id_city','outlets.id_city')
-                 ->join('locations','locations.id_city','cities.id_city')
+                 ->join('locations','locations.id_location','outlets.id_location')
                  ->join('partners','partners.id_partner','locations.id_partner')
                  ->where('subscriptions.subscription_start','<', date('Y-m-d H:i:s'))
                  ->where('subscriptions.subscription_end','>', date('Y-m-d H:i:s'))

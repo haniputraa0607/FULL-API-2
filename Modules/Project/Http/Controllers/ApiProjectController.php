@@ -142,6 +142,7 @@ class ApiProjectController extends Controller
                 ]);
         $outlet = Outlet::create([
             'outlet_code' => $this->outlet_code(),
+            'id_location' => $location->id_location,
             'outlet_name' => $location->name,
             'outlet_address' => $location->address,
             'id_city' => $location->id_city,

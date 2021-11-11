@@ -85,7 +85,7 @@ class ApiDeals extends Controller
                  ->join('deals_outlets','deals_outlets.id_deals','deals.id_deals')
                  ->join('outlets','outlets.id_outlet','deals_outlets.id_outlet')
                  ->join('cities','cities.id_city','outlets.id_city')
-                 ->join('locations','locations.id_city','cities.id_city')
+                 ->join('locations','locations.id_location','outlets.id_location')
                  ->join('partners','partners.id_partner','locations.id_partner')
                  ->where(array('partners.id_partner'=>$request->id_partner))
                  ->Select('deals.*','brands.*','outlets.*');
@@ -132,7 +132,7 @@ class ApiDeals extends Controller
                  ->join('deals_outlets','deals_outlets.id_deals','deals.id_deals')
                  ->join('outlets','outlets.id_outlet','deals_outlets.id_outlet')
                  ->join('cities','cities.id_city','outlets.id_city')
-                 ->join('locations','locations.id_city','cities.id_city')
+                 ->join('locations','locations.id_location','outlets.id_location')
                  ->join('partners','partners.id_partner','locations.id_partner')
                  ->where(array('partners.id_partner'=>$request->id_partner))
                 ->Select('deals.*','brands.*','outlets.*');

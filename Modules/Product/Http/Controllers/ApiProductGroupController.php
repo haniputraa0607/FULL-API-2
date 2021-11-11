@@ -9,6 +9,7 @@ use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Modules\Product\Entities\ProductGroup;
 use App\Http\Models\Transaction;
+use App\Http\Models\Banner;
 use DB;
 
 class ApiProductGroupController extends Controller
@@ -39,7 +40,7 @@ class ApiProductGroupController extends Controller
 			} else {
 				return [
 					'status'   => 'fail',
-					'messages' => ['fail upload image']
+					'messages' => ['failed to upload image']
 				];
 			}
         }
@@ -73,8 +74,6 @@ class ApiProductGroupController extends Controller
     	$photo = $productGroup['product_group_photo'];
 		if (isset($request->photo)) {
 
-			MyHelper::deletePhoto($productGroup['product_group_photo']);
-
 			$upload = MyHelper::uploadPhotoStrict($request->photo, "img/product/product-group/", 300, 300);
 
 			if (isset($upload['status']) && $upload['status'] == "success") {
@@ -82,9 +81,11 @@ class ApiProductGroupController extends Controller
 			} else {
 				return [
 					'status'   => 'fail',
-					'messages' => ['fail upload image']
+					'messages' => ['failed to upload image']
 				];
 			}
+
+			MyHelper::deletePhoto($productGroup['product_group_photo']);
         }
 
     	$productGroup->update([
@@ -179,5 +180,155 @@ class ApiProductGroupController extends Controller
         }
 	        
         return ['status' => 'success'];
+    }
+
+    public function featuredList()
+    {
+    	$featured = Banner::select([
+    					'banners.*',
+    					DB::raw('
+			            	(select product_groups.product_group_name from product_groups 
+			            		WHERE product_groups.id_product_group = banners.id_reference 
+			            		limit 1
+		            		) as product_group_name
+		            	'),
+		            	DB::raw('
+			            	(select product_groups.product_group_photo from product_groups 
+			            		WHERE product_groups.id_product_group = banners.id_reference 
+			            		limit 1
+		            		) as product_group_photo
+		            	')
+    				])
+    				->orderBy('position')
+    				->where('type', 'product_group')
+    				->get();
+
+		foreach ($featured as $key => $value) {
+            $featured[$key]['image_url'] = config('url.storage_url_api').$value['image'];
+		}
+
+        return MyHelper::checkGet($featured);
+    }
+
+    public function featuredCreate(Request $request)
+    {
+        $post = $request->except('_token');
+
+        $image = null;
+		if (isset($request->image)) {
+			$upload = MyHelper::uploadPhotoStrict($request->image, "img/banner/", 750, 375);
+
+			if (isset($upload['status']) && $upload['status'] == "success") {
+				$image = $upload['path'];
+			} else {
+				return [
+					'status'   => 'fail',
+					'messages' => ['failed to upload image']
+				];
+			}
+        }
+
+		$createData = [
+			'banner_start' => date('Y-m-d H:i:s', strtotime($post['banner_start'])),
+			'banner_end' => date('Y-m-d H:i:s', strtotime($post['banner_end'])),
+			'type' => 'product_group',
+			'image' => $image,
+			'id_reference' => $post['id_product_group']
+		];
+
+        $create = Banner::create($createData);
+
+        return MyHelper::checkCreate($create);
+    }
+
+    public function featuredReorder(Request $request)
+    {
+        $post = $request->json()->all();
+
+        DB::beginTransaction();
+        foreach ($post['id_banner'] as $key => $id_banner) {
+            // reorder
+            $update = Banner::find($id_banner)->update(['position' => $key+1]);
+
+            if (!$update) {
+                DB:: rollback();
+                return [
+                    'status' => 'fail',
+                    'messages' => ['Sort featured product group failed']
+                ];
+            }
+        }
+        DB::commit();
+
+        return MyHelper::checkUpdate($update);
+    }
+
+    public function featuredUpdate(Request $request)
+    {
+        $post = $request->json()->all();
+
+        $featured = Banner::find($post['id_banner']);
+
+        $image = $featured->image;
+		if (isset($request->image)) {
+			$upload = MyHelper::uploadPhotoStrict($request->image, "img/banner/", 750, 375);
+
+			if (isset($upload['status']) && $upload['status'] == "success") {
+				$image = $upload['path'];
+			} else {
+				return [
+					'status'   => 'fail',
+					'messages' => ['failed to upload image']
+				];
+			}
+
+			$delete = MyHelper::deletePhoto($featured->image);
+        }
+
+		$updateData = [
+			'banner_start' => date('Y-m-d H:i:s', strtotime($post['banner_start'])),
+			'banner_end' => date('Y-m-d H:i:s', strtotime($post['banner_end'])),
+			'type' => 'product_group',
+			'image' => $image,
+			'id_reference' => $post['id_product_group']
+		];
+
+        $update = $featured->update($updateData);
+
+        return MyHelper::checkCreate($update);
+    }
+
+    public function featuredDestroy(Request $request)
+    {
+        $post = $request->json()->all();
+        $featured = Banner::find($post['id_banner']);
+        if (!$featured) {
+            return [
+                'status' => 'fail',
+                'messages' => ['Data not found']
+            ];
+        }
+
+        $delete = Banner::where('id_banner', $featured->id_banner)->delete();
+
+        if ($delete) {
+        	$delete = MyHelper::deletePhoto($featured->image);
+        }
+        return MyHelper::checkDelete($delete);
+    }
+
+    public function activeList(Request $request)
+    {
+    	$featured = $this->featuredList()['result'] ?? [];
+    	if (!is_array($featured)) {
+    		$featured = $featured->toArray();
+    	}
+    	$id_product_groups = array_column($featured, 'id_reference');
+
+    	$res = ProductGroup::whereHas('products')
+    				->whereNotIn('id_product_group', $id_product_groups)
+    				->get();
+
+    	return MyHelper::checkGet($res);
     }
 }

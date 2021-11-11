@@ -8,6 +8,8 @@ class ProductGroup extends Model
 {
     protected $primaryKey = 'id_product_group';
 
+    protected $appends = ['url_photo'];
+
     protected $fillable   = [
         'id_product_category',
         'product_group_code',
@@ -27,26 +29,12 @@ class ProductGroup extends Model
         return $this->hasMany(\App\Http\Models\Product::class,'id_product_group','id_product_group');
     }
 
-    public function getProductGroupPhotoAttribute($value)
-    {
-        if($value){
-            return config('url.storage_url_api').$value;
+    public function getUrlPhotoAttribute() {
+		if (empty($this->product_group_photo)) {
+            return config('url.storage_url_api').'img/default.jpg';
         }
-        $this->load(['products'=>function($query){
-            $query->select('id_product','id_product_group')->whereHas('photos')->with('photos');
-        }]);
-        $prd = $this->products->toArray();
-        if(!$prd){
-            return config('url.storage_url_api').'img/product/item/default.png';
+        else {
+            return config('url.storage_url_api').$this->product_group_photo;
         }
-        return ($prd[0]['photos'][0]['url_product_photo'] ?? config('url.storage_url_api').'img/product/item/default.png');
-    }
-
-    public function getProductGroupImageDetailAttribute($value)
-    {
-        if($value){
-            return config('url.storage_url_api').$value;
-        }
-        return config('url.storage_url_api').'img/product/item/default.png';
-    }
+	}
 }

@@ -37,6 +37,7 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::get('rule', 'ApiTransaction@transactionRule');
     Route::post('rule/update', 'ApiTransaction@transactionRuleUpdate');
 
+    Route::any('be/filter', 'ApiTransaction@transactionFilter');
     Route::get('/courier', 'ApiTransaction@internalCourier');
     Route::post('/point', 'ApiTransaction@pointUser');
     Route::post('/point/filter', 'ApiTransaction@pointUserFilter');
@@ -46,7 +47,8 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::post('/setting', 'ApiSettingTransaction@settingTrx');
     Route::any('/setting/package-detail-delivery', 'ApiSettingTransaction@packageDetailDelivery');
     Route::any('/setting/image-delivery', 'ApiSettingTransaction@imageDelivery');
-    Route::any('be/filter', 'ApiTransaction@transactionFilter');
+    Route::get('/setting/home-service', 'ApiSettingTransaction@homeServiceSetting');
+    Route::post('/setting/home-service', 'ApiSettingTransaction@homeServiceSetting');
 
     Route::post('retry-void-payment/retry', 'ApiTransaction@retry');
 
@@ -85,6 +87,9 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
 
     Route::post('outlet-service', 'ApiTransactionOutletService@listOutletService');
     Route::post('outlet-service/detail', 'ApiTransactionOutletService@detailTransaction');
+
+    Route::post('home-service', 'ApiTransactionHomeService@listHomeService');
+    Route::post('home-service/detail', 'ApiTransactionHomeService@detailTransaction');
 });
 
 Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scopes:apps'], 'prefix' => 'api/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
@@ -127,11 +132,6 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::post('/prod/confirm', 'ApiTransactionProductionController@confirmTransaction2');
     Route::post('fake-update-why', 'ApiWehelpyouController@updateFakeStatus');
     Route::get('/{key}', 'ApiTransaction@transactionList');
-
-    //home service
-    Route::post('home-service/cart', 'ApiTransactionHomeService@cart');
-    Route::post('home-service/check', 'ApiTransactionHomeService@check');
-    Route::post('home-service/new', 'ApiTransactionHomeService@newTransactionHomeService');
 });
 
 Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scopes:apps,web-apps'], 'prefix' => 'api/outlet-service', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {

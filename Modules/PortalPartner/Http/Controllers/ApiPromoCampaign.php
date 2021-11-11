@@ -109,251 +109,125 @@ class ApiPromoCampaign extends Controller
         $this->promo       	= "Modules\PromoCampaign\Http\Controllers\ApiPromo";
         $this->autocrm      = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
     }
-
-   public function listPromoCampaignBefore(Request $request)
+    
+  
+     function listPromoCampaignBefore(Request $request) 
     {
-        $result = array();
-        $post = $request->json()->all();
-        $promo_type = $request->promo_type;
+    	$post = $request->json()->all();
         if(!$request->id_partner){
         	return response()->json(['status' => 'fail', 'messages' => ['ID partner can not be empty']]);
         }
-        try {
-            $query = PromoCampaign::where('promo_campaigns.date_start','>', date('Y-m-d H:i:s')) 
-                 ->join('promo_campaign_brands','promo_campaign_brands.id_promo_campaign','promo_campaigns.id_promo_campaign')
+        $query = PromoCampaign::join('promo_campaign_brands','promo_campaign_brands.id_promo_campaign','promo_campaigns.id_promo_campaign')
                  ->join('brands','brands.id_brand','promo_campaign_brands.id_brand')
                  ->join('brand_outlet','brand_outlet.id_brand','brands.id_brand')
                  ->join('outlets','outlets.id_outlet','brand_outlet.id_outlet')
                  ->join('cities','cities.id_city','outlets.id_city')
-                 ->join('locations','locations.id_city','cities.id_city')
+                 ->join('locations','locations.id_location','outlets.id_location')
                  ->join('partners','partners.id_partner','locations.id_partner')
                  ->where(array('partners.id_partner'=>$request->id_partner))
-                 ->OrderBy('promo_campaigns.id_promo_campaign', 'DESC');
-                    
-            $count = (new PromoCampaign)->newQuery();
-
-            if (isset($promo_type)) {
-
-                $query = $query->where('promo_campaigns.promo_type', '=' ,$promo_type);
-
-            }
-
-            if ($request->json('rule')) {
-                $filter = $this->listPromoCampaignFilterList($query, $request);
-                $this->listPromoCampaignFilterList($count, $request);
-                }
-            
-            if ($filter??false) {
-                $result = array_merge($result, $filter);
-            }
-            $query = $query->get()->toArray();
-            
-            $query = $this->dealsPaginate($query);
-            return response()->json(MyHelper::checkGet($query));
-        } catch (\Exception $e) {
-            
-            return response()->json(['status' => 'error', 'messages' => [$e->getMessage()]]);
+                 ->OrderBy('promo_campaigns.id_promo_campaign', 'DESC')
+                ->Select('promo_campaigns.*','brands.*','outlets.*');
+        
+        if ($request->json('rule')){
+             $this->filterList($query,$request->json('rule'),$request->json('operator')??'and');
         }
+        $query = $query->distinct()->get()->toArray();
+        $result = array();
+        foreach ($query as $value) {
+            if(strtotime($value['date_start'])>= strtotime(date('Y-m-d H:i:s'))) { 
+                array_push($result,$value);
+            }
+        }    
+        //jika mobile di pagination
+        if (!$request->json('web')) {
+            $result = $this->paginate($result);
+            $resultMessage = 'Nantikan penawaran menarik dari kami';
+            return response()->json(MyHelper::checkGet($result, $resultMessage));
+        }
+        else{
+            $result = $this->paginate($result);
+            return response()->json(MyHelper::checkGet($result));
+        }
+       
     }
    public function listPromoCampaignActive(Request $request)
     {
-        $result = array();
         $post = $request->json()->all();
-        $promo_type = $request->promo_type;
         if(!$request->id_partner){
         	return response()->json(['status' => 'fail', 'messages' => ['ID partner can not be empty']]);
         }
-        try {
-            $query = PromoCampaign::where('promo_campaigns.date_start','<', date('Y-m-d H:i:s')) 
-                 ->where('promo_campaigns.date_end','>', date('Y-m-d H:i:s')) 
-                 ->join('promo_campaign_brands','promo_campaign_brands.id_promo_campaign','promo_campaigns.id_promo_campaign')
+        $query = PromoCampaign::join('promo_campaign_brands','promo_campaign_brands.id_promo_campaign','promo_campaigns.id_promo_campaign')
                  ->join('brands','brands.id_brand','promo_campaign_brands.id_brand')
                  ->join('brand_outlet','brand_outlet.id_brand','brands.id_brand')
                  ->join('outlets','outlets.id_outlet','brand_outlet.id_outlet')
                  ->join('cities','cities.id_city','outlets.id_city')
-                 ->join('locations','locations.id_city','cities.id_city')
+                 ->join('locations','locations.id_location','outlets.id_location')
                  ->join('partners','partners.id_partner','locations.id_partner')
                  ->where(array('partners.id_partner'=>$request->id_partner))
-                 ->OrderBy('promo_campaigns.id_promo_campaign', 'DESC');
-                    
-            $count = (new PromoCampaign)->newQuery();
-
-            if (isset($promo_type)) {
-
-                $query = $query->where('promo_campaigns.promo_type', '=' ,$promo_type);
-
+                 ->OrderBy('promo_campaigns.id_promo_campaign', 'DESC')
+                ->Select('promo_campaigns.*','brands.*','outlets.*');
+        
+        if ($request->json('rule')){
+             $this->filterList($query,$request->json('rule'),$request->json('operator')??'and');
+        }
+        $query = $query->distinct()->get()->toArray();
+        $result = array();
+        foreach ($query as $value) {
+            if(strtotime($value['date_start'])<= strtotime(date('Y-m-d H:i:s'))&&strtotime($value['date_end'])>= strtotime(date('Y-m-d H:i:s'))) { 
+                array_push($result,$value);
             }
-
-            if ($request->json('rule')) {
-                $filter = $this->listPromoCampaignFilterList($query, $request);
-                $this->listPromoCampaignFilterList($count, $request);
-            }
-            
-            if ($filter??false) {
-                $result = array_merge($result, $filter);
-            }
-            $query = $query->get()->toArray();
-            $query = $this->dealsPaginate($query);
-            return response()->json(MyHelper::checkGet($query));
-        } catch (\Exception $e) {
-            return response()->json(['status' => 'error', 'messages' => [$e->getMessage()]]);
+        }    
+        //jika mobile di pagination
+        if (!$request->json('web')) {
+            $result = $this->paginate($result);
+            $resultMessage = 'Nantikan penawaran menarik dari kami';
+            return response()->json(MyHelper::checkGet($result, $resultMessage));
+        }
+        else{
+            $result = $this->paginate($result);
+            return response()->json(MyHelper::checkGet($result));
         }
     }
   
-    protected function listPromoCampaignFilterList($query, $request)
-    {
-        $allowed = array(
-            'operator' => ['=', 'like', '<', '>', '<=', '>='],
-            'subject' => [
-                'campaign_name', 
-                'promo_title', 
-                'code_type', 
-                'prefix_code', 
-                'number_last_code', 
-                'total_code', 
-                'date_start', 
-                'date_end', 
-                'is_all_outlet', 
-                'promo_type', 
-                'used_code', 
-                'id_outlet', 
-                'id_product', 
-                'id_user',
-                'used_by_user',
-                'used_at_outlet',
-                'promo_code'
-            ],
-            'mainSubject' => [
-                'campaign_name', 
-                'promo_title', 
-                'code_type', 
-                'prefix_code', 
-                'number_last_code', 
-                'total_code', 
-                'date_start', 
-                'date_end', 
-                'is_all_outlet', 
-                'promo_type', 
-                'used_code'
-            ]
-        );
-        $request->validate([
-            'operator' => 'required|in:or,and',
-            'rule.*.subject' => 'required|in:' . implode(',', $allowed['subject']),
-            'rule.*.operator' => 'in:' . implode(',', $allowed['operator']),
-            'rule.*.parameter' => 'required'
-        ]);
-        $return = [];
-        $where = $request->json('operator') == 'or' ? 'orWhere' : 'where';
-        if ($request->json('date_start')) {
-            $query->where('promo_campaigns.date_start', '>=', $request->json('date_start'));
+   public function filterList($query,$rules,$operator='and'){
+        $newRule=[];
+        foreach ($rules as $var) {
+            $rule=[$var['operator']??'=',$var['parameter']];
+            if($rule[0]=='like'){
+                $rule[1]='%'.$rule[1].'%';
+            }
+            $newRule[$var['subject']][]=$rule;
         }
-        if ($request->json('date_end')) {
-            $query->where('promo_campaigns.date_end', '<=', $request->json('date_end'));
-        }
-        $rule = $request->json('rule');
-        foreach ($rule as $value) {
-            if (in_array($value['subject'], $allowed['mainSubject'])) {
-                if (!in_array($value['subject'], $allowed['subject'])) {
-                    continue;
-                }
-                if (!(isset($value['operator']) && $value['operator'] && in_array($value['operator'], $allowed['operator']))) {
-                    $value['operator'] = '=';
-                }
-                if ($value['operator'] == 'like') {
-                    $query->$where($value['subject'], $value['operator'], '%' . $value['parameter'] . '%');
-                } else {
-                    $query->$where($value['subject'], $value['operator'], $value['parameter']);
-                }
-            } else {
-                switch ($value['subject']) {
-                    case 'id_outlet':
-                    if ($value['parameter'] == '0') {
-                        $query->$where('is_all_outlet', '1');
-                    } else {
-                        $query->leftJoin('promo_campaign_outlets', 'promo_campaigns.id_promo_campaign', '=', 'promo_campaign_outlets.id_promo_campaign');
-                        $query->$where(function ($query) use ($value) {
-                            $query->where('promo_campaign_outlets.id_outlet', $value['parameter']);
-                            $query->orWhere('is_all_outlet', '1');
-                        });
+        $where=$operator=='and'?'where':'orWhere';
+        $subjects=['campaign_name','promo_title','code_type','user_type','product_type','promo_type'];
+        $i = 1;
+        foreach ($subjects as $subject) {
+            if($rules2=$newRule[$subject]??false){
+                foreach ($rules2 as $rule) {
+                    if($i<=1){
+                    $query->where($subject,$rule[0],$rule[1]);
+                    }else{
+                    $query->$where($subject,$rule[0],$rule[1]);    
                     }
-                    break;
-
-                    case 'id_user':
-                    $query->leftJoin('promo_campaign_user_filters', 'promo_campaign_user_filters.id_promo_campaign', '=', 'promo_campaigns.id_promo_campaign');
-                    switch ($value['parameter']) {
-                        case 'all user':
-                        $query->$where('promo_campaign_user_filters.subject', 'all_user');
-                        break;
-
-                        case 'new user':
-                        $query->$where(function ($query) {
-                            $query->where('promo_campaign_user_filters.subject', 'count_transaction');
-                            $query->where('promo_campaign_user_filters.parameter', '0');
-                        });
-                        break;
-
-                        case 'existing user':
-                        $query->$where(function ($query) {
-                            $query->where('promo_campaign_user_filters.subject', 'count_transaction');
-                            $query->where('promo_campaign_user_filters.parameter', '1');
-                        });
-                        break;
-
-                        default:
-                                # code...
-                        break;
-                    }
-                    break;
-
-                    case 'id_product':
-                    $query->leftJoin('promo_campaign_buyxgety_product_requirements', 'promo_campaign_buyxgety_product_requirements.id_promo_campaign', '=', 'promo_campaigns.id_promo_campaign');
-                    $query->leftJoin('promo_campaign_product_discounts', 'promo_campaign_product_discounts.id_promo_campaign', '=', 'promo_campaigns.id_promo_campaign');
-                    $query->leftJoin('promo_campaign_tier_discount_products', 'promo_campaign_tier_discount_products.id_promo_campaign', '=', 'promo_campaigns.id_promo_campaign');
-                    if ($value['parameter'] == '0') {
-                        $query->$where(function ($query) {
-                            $query->where('promo_type', 'Product discount');
-                            $query->where('promo_campaign_product_discounts.id_product', null);
-                        });
-                    } else {
-                        $query->$where(DB::raw('IF(promo_type=\'Product discount\',promo_campaign_product_discounts.id_product,IF(promo_type=\'Tier discount\',promo_campaign_tier_discount_products.id_product,promo_campaign_buyxgety_product_requirements.id_product))'), $value['parameter']);
-                    }
-                    break;
-
-                    case 'used_by_user':
-                    $wherein=$where.'In';
-                    $query->$wherein('id_promo_campaign',function($query) use ($value,$where){
-                        $query->select('id_promo_campaign')->from(with(new Reports)->getTable())->where('user_phone',$value['operator'],$value['operator'] == 'like'?'%'.$value['parameter'].'%':$value['parameter'])->groupBy('id_promo_campaign');
-                    });
-                    break;
-
-                    case 'used_at_outlet':
-                    $wherein=$where.'In';
-                    $query->$wherein('id_promo_campaign',function($query) use ($value,$where){
-                        $query->select('id_promo_campaign')->from(with(new Reports)->getTable())->where('id_outlet',$value['parameter'])->groupBy('id_promo_campaign');
-                    });
-                    break;
-
-                    case 'promo_code':
-                    $wherein=$where.'In';
-                    $query->$wherein('id_promo_campaign',function($query) use ($value,$where){
-                        $query->select('id_promo_campaign')->from(with(new PromoCode)->getTable())->where('promo_code',$value['operator'],$value['operator'] == 'like'?'%'.$value['parameter'].'%':$value['parameter'])->groupBy('id_promo_campaign');
-                    });
-                    break;
-
-                    default:
-                        # code...
-                    break;
+                    $i++;
                 }
             }
-            $return[] = $value;
         }
-        return [
-            'rule' => $return, 
-            'operator' => $request->json('operator')
-        ];
+       
+       
+        if($rules2=$newRule['id_outlet']??false){
+            foreach ($rules2 as $rule) {
+                $query->$where('outlets.id_outlet',$rule[0],$rule[1]);
+            }
+        }
+        if($rules2=$newRule['id_brand']??false){
+            foreach ($rules2 as $rule) {
+                    $query->$where('brands.id_brand',$rule[0],$rule[1]);
+            }
+        }
     }
-    function dealsPaginate($query)
+   
+    function paginate($query)
 	{
 		$query = DataTables::of($query)
                         ->addColumn('action', function ($data) {

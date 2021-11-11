@@ -160,6 +160,12 @@ class ApiOutletController extends Controller
             $data['outlet_academy_status'] = 0;
         }
 
+        if (isset($post['outlet_service_status'])) {
+            $data['outlet_service_status'] = $post['outlet_service_status'];
+        }else{
+            $data['outlet_service_status'] = 0;
+        }
+
         if (isset($post['plastic_used_status'])) {
             $data['plastic_used_status'] = $post['plastic_used_status'];
         }else{
@@ -2535,6 +2541,10 @@ class ApiOutletController extends Controller
         $insertShift = [];
         foreach ($post['data_shift'] as $dt_shift){
             foreach ($dt_shift as $shift){
+                if(date('H:i', strtotime($shift['start'])) == '00:00' ||
+                    date('H:i', strtotime($shift['end'])) == '00:00'){
+                    continue;
+                }
                 $insertShift[] = [
                     'id_outlet' => $post['id_outlet'],
                     'id_outlet_schedule' => $shift['id_outlet_schedule'],

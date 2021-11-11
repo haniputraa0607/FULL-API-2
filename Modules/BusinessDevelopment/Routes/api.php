@@ -134,6 +134,20 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefi
             Route::post('/lampiran/delete', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseController@lampiranDeleteChange']);
             Route::post('/lampiran/data', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseController@lampiranDataChange']);
         });
+        Route::group(['prefix' => '/close'], function() {
+            Route::post('/', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseTemporaryController@index']);
+            Route::post('/index', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseTemporaryController@indexClose']);
+            Route::post('/create', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseTemporaryController@createClose']);
+            Route::post('/update', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseTemporaryController@updateClose']);
+            Route::post('/detail', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseTemporaryController@detailClose']);
+            Route::post('/reject', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseTemporaryController@rejectClose']);
+            Route::post('/success', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseTemporaryController@successClose']);
+            Route::post('/cronClose', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseTemporaryController@cronClose']);
+            Route::post('/lampiran/create', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseTemporaryController@lampiranCreateClose']);
+            Route::post('/lampiran/delete', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseTemporaryController@lampiranDeleteClose']);
+            Route::post('/lampiran/data', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseTemporaryController@lampiranDataClose']);
+        
+        });
     });
 });
 

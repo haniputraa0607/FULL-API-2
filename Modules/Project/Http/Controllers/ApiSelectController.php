@@ -41,7 +41,7 @@ class ApiSelectController extends Controller
         	return response()->json(['status' => 'fail', 'messages' => ['ID partner can not be empty']]);
         }
         $deals = Outlet::join('cities','cities.id_city','outlets.id_city')
-                 ->join('locations','locations.id_city','cities.id_city')
+                 ->join('locations','locations.id_location','outlets.id_location')
                  ->join('partners','partners.id_partner','locations.id_partner')
                  ->where(array('partners.id_partner'=>$request->id_partner))->select('outlets.*')->get();
              return response()->json(MyHelper::checkGet($deals));
@@ -56,7 +56,7 @@ class ApiSelectController extends Controller
         $deals = Brand::join('brand_outlet','brand_outlet.id_brand','brands.id_brand')
                  ->join('outlets','outlets.id_outlet','brand_outlet.id_outlet')
                  ->join('cities','cities.id_city','outlets.id_city')
-                 ->join('locations','locations.id_city','cities.id_city')
+                 ->join('locations','locations.id_location','outlets.id_location')
                  ->join('partners','partners.id_partner','locations.id_partner')
                  ->where(array('partners.id_partner'=>$request->id_partner))
                 ->Select('brands.*')->get();

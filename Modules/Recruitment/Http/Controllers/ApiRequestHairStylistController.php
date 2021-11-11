@@ -31,7 +31,7 @@ class ApiRequestHairStylistController extends Controller
     public function index(Request $request)
     {
         $post = $request->all();
-        $request_mitra = RequestHairStylist::with(['outlet_request']);
+        $request_mitra = RequestHairStylist::with(['outlet_request','applicant_request']);
         if(isset($post['conditions']) && !empty($post['conditions'])){
             $rule = 'and';
             if(isset($post['rule'])){
@@ -104,8 +104,8 @@ class ApiRequestHairStylistController extends Controller
             if (isset($post['status'])) {
                 $data_store['status'] = $post['status'];
             }
-            if (isset($post['applicant'])) {
-                $data_store['applicant'] = $post['applicant'];
+            if (isset($post['id_user'])) {
+                $data_store['id_user'] = $post['id_user'];
             }
             if (isset($post['notes'])) {
                 $data_store['notes'] = $post['notes'];
@@ -140,7 +140,7 @@ class ApiRequestHairStylistController extends Controller
     {
         $post = $request->all();
         if(isset($post['id_request_hair_stylist']) && !empty($post['id_request_hair_stylist'])){
-            $req_hair_stylist = RequestHairStylist::with(['outlet_request'])->where('id_request_hair_stylist', $post['id_request_hair_stylist'])->first();
+            $req_hair_stylist = RequestHairStylist::with(['outlet_request','applicant_request'])->where('id_request_hair_stylist', $post['id_request_hair_stylist'])->first();
             $req_hair_stylist['id_hs'] = json_decode($req_hair_stylist['id_hs']??'' , true)['id_hair_stylist'];
             return response()->json(['status' => 'success', 'result' => [
                 'request_hair_stylist' => $req_hair_stylist,
@@ -180,8 +180,8 @@ class ApiRequestHairStylistController extends Controller
             if (isset($post['status'])) {
                 $data_update['status'] = $post['status'];
             }
-            if (isset($post['applicant'])) {
-                $data_update['applicant'] = $post['applicant'];
+            if (isset($post['id_user'])) {
+                $data_store['id_user'] = $post['id_user'];
             }
             if (isset($post['notes'])) {
                 $data_update['notes'] = $post['notes'];

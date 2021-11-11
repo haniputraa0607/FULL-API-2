@@ -362,6 +362,7 @@ class ApiProductServiceController extends Controller
         $bookDay = $day[date('D', strtotime($bookDate))];
         $res = [];
         foreach ($listHs as $val){
+            $available = false;
             //check schedule hs
             $shift = HairstylistScheduleDate::leftJoin('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
                     ->whereNotNull('approve_at')->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
@@ -373,14 +374,14 @@ class ApiProductServiceController extends Controller
                 $getTimeShift = app($this->product)->getTimeShift(strtolower($shift),$val['id_outlet'], $idOutletSchedule);
                 if(!empty($getTimeShift['end'])){
                     $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
-                    if(strtotime($shiftTimeEnd) > strtotime($bookTime)){
-                        continue;
+                    if((strtotime($shiftTimeEnd) > strtotime($bookTime)) === false){
+                        $available = true;
                     }
                 }
             }
 
-            if(array_search($val['id_user_hair_stylist'], $hsNotAvailable) !== false){
-                continue;
+            if(array_search($val['id_user_hair_stylist'], $hsNotAvailable) === false){
+                $available = true;
             }
 
             if(empty($val['latitude']) && empty($val['longitude'])){
@@ -388,7 +389,6 @@ class ApiProductServiceController extends Controller
             }
             $distance = (float)app($this->outlet)->distance($post['latitude'], $post['longitude'], $val['latitude'], $val['longitude'], "K");
 
-            $available = false;
             if($distance > 0 && $distance <= $maximumRadius){
                 $available = true;
             }
@@ -411,6 +411,6 @@ class ApiProductServiceController extends Controller
             return $a['distance'] > $b['distance'];
         });
 
-        return response()->json(MyHelper::checkGet($res));
+        return response()->json(['status' => 'success', 'result' => $res]);
     }
 }

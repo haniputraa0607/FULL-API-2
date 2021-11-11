@@ -805,4 +805,70 @@ class ApiMitraOutletService extends Controller
 		];
     	return MyHelper::checkGet($res);
     }
+
+    public function customerHistory(Request $request)
+    {
+    	$user = $request->user();
+    	$tps = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
+				->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
+				->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+				->join('products', 'transaction_products.id_product', 'products.id_product')
+				->join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')
+				->where(function($q) {
+	    			$q->whereNull('service_status');
+	    			$q->orWhere('service_status', '<>', 'In Progress');
+				})
+    			->where('transaction_product_services.id_user_hair_stylist', $user->id_user_hair_stylist)
+    			->where(function($q) {
+	    			$q->where('trasaction_payment_type', 'Cash')
+	    			->orWhere('transaction_payment_status', 'Completed');
+				})
+    			->where('transaction_payment_status', '!=', 'Cancelled')
+    			->orderBy('schedule_date', 'asc')
+    			->orderBy('schedule_time', 'asc');
+
+    	if ($filter_range = $request->filter_range) {
+    		if (is_array($filter_range)) {
+    			$tps->whereDate('schedule_date', '>=', date('Y-m-d', strtotime($filter_range[0])));
+    			$tps->whereDate('schedule_date', '<=', date('Y-m-d', strtotime($filter_range[1] ?? $filter_range[0])));
+    		} elseif ($filter_range == 'last7days') {
+    			$tps->whereDate('schedule_date', '>=', date('Y-m-d', strtotime('-7 days')));
+    		} elseif ($filter_range == 'last30days') {
+    			$tps->whereDate('schedule_date', '>=', date('Y-m-d', strtotime('-30 days')));
+    		} elseif ($filter_range == 'this_month') {
+    			$tps->whereDate('schedule_date', '>=', date('Y-m-01'));
+    		}
+    	}
+
+		$tps = $tps->paginate(10);
+
+		$tps->transform(function($item) use ($user) {
+			$trx = Transaction::where('id_transaction', $item->id_transaction)->first();
+			$trxPayment = app($this->trx_outlet_service)->transactionPayment($trx);
+	    	$paymentMethod = null;
+	    	foreach ($trxPayment['payment'] as $p) {
+	    		$paymentMethod = $p['name'];
+	    		if (strtolower($p['name']) != 'balance') {
+	    			break;
+	    		}
+	    	}
+
+			return [
+				'id_transaction_product_service' => $item->id_transaction_product_service,
+				'transaction_date' => MyHelper::indonesian_date_v2($item->schedule_date, 'd F Y'),
+				'service_start' => date('H:i', strtotime($item->schedule_time)), //TODO update with service start
+				'service_end' => date('H:i', strtotime($item->completed_at)),
+				'customer_name' => $item->customer_name,
+				'product_name' => $item->product_name,
+				'order_id' => $item->order_id,
+				'outlet_name' => $item->outlet_name,
+				'hairstylist_name' => $user->fullname,
+				'schedule_time' => date('H:i', strtotime($item->schedule_time)),
+				'price' => $item->transaction_product_net,
+				'payment_method' => $paymentMethod,
+			];
+		});
+
+		return MyHelper::checkGet($tps);
+    }
 }

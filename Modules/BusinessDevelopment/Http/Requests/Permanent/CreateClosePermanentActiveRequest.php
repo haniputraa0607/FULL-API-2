@@ -54,7 +54,7 @@ class CreateClosePermanentActiveRequest extends FormRequest
     {
         return [
             'required' => ':attribute harus diisi',
-            'partner' => 'Partners sedang mengajukan pemutusan sementara',
+            'partner' => 'Partners sedang mengajukan pemutusan permanen',
             'partner_status' => 'Kontrak partner sudah berakhir',
             'start_date' => 'Start date melebihi kontrak',
             'today'=>"Minimal hari ini"

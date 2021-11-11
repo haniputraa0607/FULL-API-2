@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\BusinessDevelopment\Http\Requests\Permanent;
+namespace Modules\BusinessDevelopment\Http\Requests\becomes;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
@@ -8,37 +8,36 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 use App\Http\Models\Outlet;
 use Modules\Project\Entities\Project;
 use Modules\BusinessDevelopment\Entities\Location;
-
 use Modules\BusinessDevelopment\Entities\Partner;
-use Modules\BusinessDevelopment\Entities\PartnersClosePermanent;
+use Modules\BusinessDevelopment\Entities\PartnersBecomesIxobox;
 
-class CreateClosePermanentRequest extends FormRequest
+class CreateBecomesIxoboxActiveRequest extends FormRequest
 {
     public function rules()
     {
         return [
             'title'             => 'required',
-            'close_date'        => 'required|close_date|today',
-            'id_partner'        => 'required|partner',
+            'start_date'        => 'required|start_date|today',
+            'id_partner'        => 'required|partner|partner_status',
            ]; 
     }
     public function withValidator($validator)
     {
         $validator->addExtension('partner', function ($attribute, $value, $parameters, $validator) {
-         $survey = PartnersClosePermanent::where(array('id_partner'=>$value,'status'=>"Process"))->orwhere(array('status'=>"Waiting"))->first();
+         $survey = PartnersBecomesIxobox::where(array('id_partner'=>$value,'status'=>"Process"))->orwhere(array('status'=>"Waiting"))->first();
          if($survey){
              return false;
          } return true;
-        });
-        $validator->addExtension('partner_status', function ($attribute, $value, $parameters, $validator) {
-         $survey = Partner::where(array('id_partner'=>$value,'status'=>"Active"))->first();
-         if($survey){
-             return false; 
-         } return true;
         }); 
-        $validator->addExtension('close_date', function ($attribute, $value, $parameters, $validator) {
+        $validator->addExtension('partner_status', function ($attribute, $value, $parameters, $validator) {
+         $survey = Partner::where(array('id_partner'=>$value,'status'=>"Inactive"))->whereDate('end_date','>=',date('Y-m-d'))->first();
+         if($survey){
+             return true; 
+         } return false;
+        }); 
+        $validator->addExtension('start_date', function ($attribute, $value, $parameters, $validator) {
          $data = $validator->getData();
-         $survey = Partner::where(array('id_partner'=>$data['id_partner'],'status'=>"Active"))->whereDate('end_date','>=',$value)->first();
+         $survey = Partner::where(array('id_partner'=>$data['id_partner'],'status'=>"Inactive"))->whereDate('end_date','>=',$value)->first();
          if($survey){
              return true; 
          } return false;
@@ -55,8 +54,9 @@ class CreateClosePermanentRequest extends FormRequest
     {
         return [
             'required' => ':attribute harus diisi',
-            'partner' => 'Partners sedang mengajukan pemutusan permanen',
-            'close_date' => 'Close date melebihi kontrak',
+            'partner' => 'Partners sedang mengajukan pergantian status kerja sama',
+            'partner_status' => 'Kontrak partner sudah berakhir',
+            'start_date' => 'Start date melebihi kontrak',
             'today'=>"Minimal hari ini"
         ];
     }

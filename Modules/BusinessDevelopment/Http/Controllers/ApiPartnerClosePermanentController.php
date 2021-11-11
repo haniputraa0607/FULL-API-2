@@ -16,6 +16,8 @@ use Modules\BusinessDevelopment\Entities\PartnersClosePermanent;
 use Modules\BusinessDevelopment\Entities\PartnersClosePermanentDocument;
 use Modules\BusinessDevelopment\Entities\PartnersClosePermanentOutlet;
 use App\Http\Models\Outlet;
+use Modules\BusinessDevelopment\Entities\Location;
+use DB;
 
 class ApiPartnerClosePermanentController extends Controller
 {
@@ -202,98 +204,50 @@ class ApiPartnerClosePermanentController extends Controller
     }
 
     public function cronInactive(){
-        $project = PartnersClosePermanent::where(array('status'=>"Waiting",'start_date'=>null))->get();
-        foreach ($project as $value) {
-            $closeoutletall = Partner::join('locations','locations.id_partner','partners.id_partner')
-            ->where('locations.id_partner', $value->id_partner)
-            ->join('cities','cities.id_city','locations.id_city')
-            ->join('outlets','outlets.id_city','cities.id_city')
-            ->where('outlets.outlet_status','Active')
-            ->get();
-            foreach ($closeoutletall as $va) {
-                $closeoutlet = PartnersClosePermanentOutlet::create(
-                    [
-                        'id_partners_close_permanent'=>$value['id_partners_close_permanent'],
-                        'id_outlet'=>$va['id_outlet']
+        $log = MyHelper::logCron('Partner Close Permanent');
+        try{
+            $project = PartnersClosePermanent::where(array('status'=>"Waiting",'start_date'=>null))->get();
+            DB::beginTransaction();
+            foreach ($project as $value) {
+                $closeoutletall = Partner::join('locations','locations.id_partner','partners.id_partner')
+                ->where('locations.id_partner', $value->id_partner)
+                ->join('cities','cities.id_city','locations.id_city')
+                ->join('outlets','outlets.id_city','cities.id_city')
+                ->where('outlets.outlet_status','Active')
+                ->get();
+                foreach ($closeoutletall as $va) {
+                    $closeoutlet = PartnersClosePermanentOutlet::create(
+                        [
+                            'id_partners_close_permanent'=>$value['id_partners_close_permanent'],
+                            'id_outlet'=>$va['id_outlet']
+                        ]);
+                    }
+                    $store = PartnersClosePermanent::where(array('id_partners_close_permanent'=>$value['id_partners_close_permanent']))
+                    ->update([
+                    'status'=>'Success'
                     ]);
-            }
-            $store = PartnersClosePermanent::where(array('id_partners_close_permanent'=>$value['id_partners_close_permanent']))
-            ->update([
-            'status'=>'Success'
-            ]);
-            $partner = Partner::where(array('id_partner'=>$value['id_partner']))->update([
-                'status'=>'Inactive'
-            ]);
-            $outlet = PartnersClosePermanentOutlet::where(array('id_partners_close_permanent'=>$value['id_partners_close_permanent']))->get();
-            foreach ($outlet as $val) {
-                $update = Outlet::where(array('id_outlet'=>$val['id_outlet']))
-                ->update([
-                    'outlet_status'=>'Inactive'
-                ]);
-            }
+                    $partner = Partner::where(array('id_partner'=>$value['id_partner']))->update([
+                        'status'=>'Inactive'
+                    ]);
+                    $location = Location::where(array('id_partner'=>$value['id_partner']))->update([
+                        'status'=>'Inactive'
+                    ]);
+                    $outlet = PartnersClosePermanentOutlet::where(array('id_partners_close_permanent'=>$value['id_partners_close_permanent']))->get();
+                    foreach ($outlet as $val) {
+                        $update = Outlet::where(array('id_outlet'=>$val['id_outlet']))
+                        ->update([
+                            'outlet_status'=>'Inactive'
+                        ]);
+                    }
+                }
+                DB::commit();
+                $log->success('success');
+                return response()->json(['status' => 'success']);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $log->fail($e->getMessage());
         }
-        return response()->json(['status' => 'success']);
-    }
-    
-    public function cronActive(){
-        $project = PartnersClosePermanent::where(array('status'=>"Waiting",'close_date'=>null))->get();
-        foreach ($project as $value) {
-            $store = PartnersClosePermanent::where(array('id_partners_close_permanent'=>$value['id_partners_close_permanent']))
-            ->update([
-                'status'=>'Success'
-            ]);
-            $partner = Partner::where(array('id_partner'=>$value['id_partner']))->update([
-                'status'=>'Active'
-            ]);
-            $outlet = PartnersClosePermanentOutlet::where(array('id_partners_close_permanent'=>$value['id_partners_close_permanent']))->get();
-            foreach ($outlet as $val) {
-                $update = Outlet::where(array('id_outlet'=>$val['id_outlet']))
-                ->update([
-                    'outlet_status'=>'Active'
-                ]);
-            }
-        }
-        return response()->json(['status' => 'success']);
-    }
-        
-        
-    /**
-     * Store a newly created resource in storage.
-     * @param Request $request
-     * @return Response
-     */
-    public function store(Request $request)
-    {
-        //
     }
 
-    /**
-     * Show the specified resource.
-     * @param int $id
-     * @return Response
-     */
-    public function show($id)
-    {
-        return view('businessdevelopment::show');
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     * @param int $id
-     * @return Response
-     */
-    public function edit($id)
-    {
-        return view('businessdevelopment::edit');
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     * @param int $id
-     * @return Response
-     */
-    public function destroy($id)
-    {
-        //
-    }
 }

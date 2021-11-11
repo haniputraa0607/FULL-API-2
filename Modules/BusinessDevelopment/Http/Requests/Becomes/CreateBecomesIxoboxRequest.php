@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\BusinessDevelopment\Http\Requests\Permanent;
+namespace Modules\BusinessDevelopment\Http\Requests\becomes;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
@@ -10,9 +10,9 @@ use Modules\Project\Entities\Project;
 use Modules\BusinessDevelopment\Entities\Location;
 
 use Modules\BusinessDevelopment\Entities\Partner;
-use Modules\BusinessDevelopment\Entities\PartnersClosePermanent;
+use Modules\BusinessDevelopment\Entities\PartnersBecomesIxobox;
 
-class CreateClosePermanentRequest extends FormRequest
+class CreateBecomesIxoboxRequest extends FormRequest
 {
     public function rules()
     {
@@ -25,7 +25,7 @@ class CreateClosePermanentRequest extends FormRequest
     public function withValidator($validator)
     {
         $validator->addExtension('partner', function ($attribute, $value, $parameters, $validator) {
-         $survey = PartnersClosePermanent::where(array('id_partner'=>$value,'status'=>"Process"))->orwhere(array('status'=>"Waiting"))->first();
+         $survey = PartnersBecomesIxobox::where(array('id_partner'=>$value,'status'=>"Process"))->orwhere(array('status'=>"Waiting"))->first();
          if($survey){
              return false;
          } return true;
@@ -55,7 +55,7 @@ class CreateClosePermanentRequest extends FormRequest
     {
         return [
             'required' => ':attribute harus diisi',
-            'partner' => 'Partners sedang mengajukan pemutusan permanen',
+            'partner' => 'Partners sedang mengajukan pergantian status kerja sama',
             'close_date' => 'Close date melebihi kontrak',
             'today'=>"Minimal hari ini"
         ];

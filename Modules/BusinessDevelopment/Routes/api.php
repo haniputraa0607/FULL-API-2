@@ -83,15 +83,30 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefi
         Route::post('/reject', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnerClosePermanentController@reject']);
         Route::post('/permanent', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnerClosePermanentController@permanent']);
         Route::post('/cronInactive', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnerClosePermanentController@cronInactive']);
-        Route::post('/cronActive', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnerClosePermanentController@cronActive']);
         Route::post('/update', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnerClosePermanentController@update']);
         Route::post('/updateActive', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnerClosePermanentController@update_active']);
-        // Route::post('/submit', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnerClosePermanentController@submit']);
         Route::post('/success', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnerClosePermanentController@success']);
         Route::post('/successActive', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnerClosePermanentController@successActive']);
         Route::post('/lampiran/create', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnerClosePermanentController@lampiranCreate']);
         Route::post('/lampiran/delete', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnerClosePermanentController@lampiranDelete']);
         Route::post('/lampiran/data', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnerClosePermanentController@lampiranData']);
+    });
+    Route::group(['prefix' => '/becomes-ixobox'], function() {
+        Route::post('/', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@index']);
+        Route::post('/create', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@create']);
+        Route::post('/createActive', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@create_active']);
+        Route::post('/becomesIxobox', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@becomesIxobox']);
+        Route::post('/detail', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@detail']);
+        Route::post('/reject', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@reject']);
+        Route::post('/becomes', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@becomes']);
+        Route::post('/cronBecomeIxobox', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@cronBecomeIxobox']);
+        Route::post('/update', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@update']);
+        Route::post('/updateActive', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@update_active']);
+        Route::post('/success', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@success']);
+        Route::post('/successActive', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@successActive']);
+        Route::post('/lampiran/create', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@lampiranCreate']);
+        Route::post('/lampiran/delete', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@lampiranDelete']);
+        Route::post('/lampiran/data', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@lampiranData']);
     });
     Route::group(['prefix' => '/outlet'], function() {
         Route::post('/', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseController@index']);

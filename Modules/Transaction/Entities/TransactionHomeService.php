@@ -16,6 +16,7 @@ class TransactionHomeService extends Model
         'id_user_hair_stylist',
         'status',
         'schedule_date',
+        'schedule_set_time',
         'schedule_time',
         'preference_hair_stylist',
         'destination_name',

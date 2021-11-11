@@ -87,6 +87,9 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
 
     Route::post('outlet-service', 'ApiTransactionOutletService@listOutletService');
     Route::post('outlet-service/detail', 'ApiTransactionOutletService@detailTransaction');
+
+    Route::post('home-service', 'ApiTransactionHomeService@listHomeService');
+    Route::post('home-service/detail', 'ApiTransactionHomeService@detailTransaction');
 });
 
 Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scopes:apps'], 'prefix' => 'api/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {

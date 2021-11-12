@@ -86,6 +86,7 @@ use Modules\ProductVariant\Entities\ProductVariantGroup;
 use Modules\ProductVariant\Entities\ProductVariantGroupSpecialPrice;
 
 use Modules\UserRating\Entities\UserRatingLog;
+use Modules\Recruitment\Entities\UserHairStylist;
 
 use App\Lib\MyHelper;
 use App\Lib\GoSend;
@@ -5623,5 +5624,169 @@ class ApiTransaction extends Controller
 
 		$list['data'] = $resData;
 		return MyHelper::checkGet($list);
+    }
+
+    public function homeServiceDetail(Request $request) {
+
+    	$user = $request->user();
+    	$detail = Transaction::where('transaction_from', 'home-service')
+    			->join('transaction_home_services','transactions.id_transaction', 'transaction_home_services.id_transaction')
+    			->where('id_user', $user->id)
+    			->where(function ($q) use ($request) {
+    				$q->where('transactions.id_transaction', $request->id_transaction);
+    				$q->orWhere('transactions.transaction_receipt_number', $request->transaction_receipt_number);
+    			})
+    			->orderBy('transaction_date', 'desc')
+    			->with(
+    				'outlet.brands', 
+    				'transaction_products.product.photos',
+    				'user_feedbacks'
+    			)
+    			->first();
+
+		if (!$detail) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Transaction not found']
+			];
+		}
+
+		$hairstylist = UserHairStylist::where('id_user_hair_stylist', $detail['id_user_hair_stylist'])->first();
+		if (!empty($detail['outlet'])) {
+			$outlet = [
+				'id_outlet' => $detail['outlet']['id_outlet'],
+				'outlet_code' => $detail['outlet']['outlet_code'],
+				'outlet_name' => $detail['outlet']['outlet_name'],
+				'outlet_address' => $detail['outlet']['outlet_address'],
+				'outlet_latitude' => $detail['outlet']['outlet_latitude'],
+				'outlet_longitude' => $detail['outlet']['outlet_longitude']
+			];
+		}
+
+		if (!empty($detail['outlet']['brands'])) {
+			$brand = [
+				'id_brand' => $detail['outlet']['brands'][0]['id_brand'],
+				'brand_code' => $detail['outlet']['brands'][0]['code_brand'],
+				'brand_name' => $detail['outlet']['brands'][0]['name_brand'],
+				'brand_logo' => $detail['outlet']['brands'][0]['logo_brand'],
+	            'brand_logo_landscape' => $detail['outlet']['brands'][0]['logo_landscape_brand']
+			];
+		}
+
+		$services = [];
+		$subtotalService = 0;
+		foreach ($detail['transaction_products'] as $product) {
+			$show_rate_popup = 0;
+			if ($product['type'] == 'Service') {
+				if ( $detail['status'] == ['Completed'] ) {
+					$logRating = UserRatingLog::where([
+			        	'id_user' => $user->id,
+			        	'id_transaction' => $detail['id_transaction'],
+			        	'id_user_hair_stylist' => $hairstylist['id_user_hair_stylist']
+			        ])->first();
+
+			        if ($logRating) {
+			        	$show_rate_popup = 1;
+			        }
+				}
+
+				$services[] = [
+					'id_user_hair_stylist' => $hairstylist['id_user_hair_stylist'],
+					'hairstylist_name' => $hairstylist['nickname'],
+					'schedule_date' => MyHelper::dateFormatInd($detail['schedule_date'], true, false),
+					'schedule_time' => date('H:i', strtotime($detail['schedule_time'])),
+					'product_name' => $product['product']['product_name'],
+					'subtotal' => $product['transaction_product_subtotal'],
+					'show_rate_popup' => $show_rate_popup
+				];
+
+				$subtotalService += abs($product['transaction_product_subtotal']);
+			}
+		}
+
+		if ($detail['transaction_payment_status'] == 'Pending') {
+			$status = 'unpaid';
+		} elseif ($detail['transaction_payment_status'] == 'Cancelled') {
+			$status = 'cancelled';
+		} elseif (empty($detail['completed_at']) && $detail['transaction_payment_status'] == 'Completed') {
+			$status = 'ongoing';
+		} else {
+			$status = 'completed';
+		}
+
+		$paymentDetail = [];
+        $paymentDetail[] = [
+            'name'          => 'Total',
+            "is_discount"   => 0,
+            'amount'        => MyHelper::requestNumber($detail['transaction_subtotal'],'_CURRENCY')
+        ];
+
+        if (!empty($detail['transaction_tax'])) {
+	        $paymentDetail[] = [
+	            'name'          => 'Tax',
+	            "is_discount"   => 0,
+	            'amount'        => MyHelper::requestNumber($detail['transaction_tax'],'_CURRENCY')
+	        ];
+        }
+
+    	$show_rate_popup = 0;
+        $logRating = UserRatingLog::where([
+        	'id_user' => $user->id,
+        	'id_transaction' => $detail['id_transaction']
+        ])->first();
+
+        if ($logRating) {
+        	$show_rate_popup = 1;
+        }
+
+        $trx = Transaction::where('id_transaction', $detail['id_transaction'])->first();
+		$trxPayment = app($this->trx_outlet_service)->transactionPayment($trx);
+    	$paymentMethod = null;
+    	foreach ($trxPayment['payment'] as $p) {
+    		$paymentMethod = $p['name'];
+    		if (strtolower($p['name']) != 'balance') {
+    			break;
+    		}
+    	}
+
+    	$homeDetail = [
+    		'preference_hair_stylist' => $detail['preference_hair_stylist'],
+    		'destination_phone' => $detail['destination_phone'],
+    		'destination_address' => $detail['destination_address'],
+    		'destination_short_address' => $detail['destination_short_address'],
+    		'destination_address_name' => $detail['destination_address_name'],
+    		'destination_note' => $detail['destination_note'],
+    		'destination_latitude' => $detail['destination_latitude'],
+    		'destination_longitude' => $detail['destination_longitude'],
+    	];
+
+		$res = [
+			'id_transaction' => $detail['id_transaction'],
+			'transaction_receipt_number' => $detail['transaction_receipt_number'],
+			'qrcode' => 'https://chart.googleapis.com/chart?chl=' . $detail['transaction_receipt_number'] . '&chs=250x250&cht=qr&chld=H%7C0',
+			'transaction_date' => $detail['transaction_date'],
+			'transaction_date_indo' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($detail['transaction_date'])), 'j F Y'),
+			'transaction_subtotal' => $detail['transaction_subtotal'],
+			'transaction_grandtotal' => $detail['transaction_grandtotal'],
+			'transaction_tax' => $detail['transaction_tax'],
+			'transaction_product_subtotal' => null,
+			'transaction_service_subtotal' => $subtotalService,
+			'customer_name' => $detail['destination_name'],
+			'color' => $detail['outlet']['brands'][0]['color_brand'],
+			'status' => $status,
+			'home_service_status' => $detail['status'],
+			'transaction_payment_status' => $detail['transaction_payment_status'],
+			'payment_method' => $paymentMethod,
+			'payment_cash_code' => null,
+			'show_rate_popup' => $show_rate_popup,
+			'outlet' => $outlet ?? null,
+			'brand' => $brand ?? null,
+			'service' => $services,
+			'product' => null,
+			'payment_detail' => $paymentDetail,
+			'home_service_detail' => $homeDetail
+		];
+		
+		return MyHelper::checkGet($res);
     }
 }

@@ -152,6 +152,7 @@ class ApiAcademyController extends Controller
                 $query->where('brands.brand_active',1)->where('brands.brand_visibility',1);
             })
             ->with(['brands', 'holidays.date_holidays', 'today'])
+            ->whereNotIn('outlet_code', ['00000'])
             ->orderBy('distance_in_km', 'asc')
             ->limit($totalListOutlet)->get()->toArray();
 

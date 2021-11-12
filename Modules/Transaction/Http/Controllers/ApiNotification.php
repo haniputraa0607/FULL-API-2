@@ -957,6 +957,12 @@ Detail: ".$link['short'],
             	return false;
             }
 
+            //cancel book hs and product
+            if($trx->transaction_from == 'outlet-service' || $trx->transaction_from == 'shop') {
+                app($this->trx)->cancelBookHS($trx->id_transaction);
+                app($this->trx)->cancelBookProductStock($trx->id_transaction);
+            }
+
             // return subscription
             $update_subscription = app($this->subscription)->returnSubscription($trx->id_transaction);
         }

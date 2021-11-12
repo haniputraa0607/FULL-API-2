@@ -78,18 +78,16 @@ class ApiTransactionHomeService extends Controller
         }
 
         if($post['preference_hair_stylist'] == 'favorite' && empty($post['id_user_hair_stylist'])){
-            if (empty($user)) {
-                return response()->json([
-                    'status'    => 'fail',
-                    'messages'  => ['User hair stylist can not be empty']
-                ]);
-            }
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['User hair stylist can not be empty']
+            ]);
         }
 
         $bookNow = false;
         if(strtolower($post['booking_time']) == 'sekarang'){
             $bookNow = true;
-            $post['booking_time'] = $post['booking_time_user'];
+            $post['booking_time'] = date('H:i', strtotime("+2 minutes", strtotime($post['booking_time_user'])));
         }
 
         $errAll = [];
@@ -113,11 +111,12 @@ class ApiTransactionHomeService extends Controller
         }
 
         $post['sum_time'] = array_sum($arrProccessingTime);
-        $checkHS = $this->checkAvailableHS($post);
+        $checkHS = $this->checkAvailableHS($post, [], $user);
         $idHs = $checkHS['id_user_hair_stylist']??null;
         $errAll = array_merge($errAll, $checkHS['error_all']??[]);
 
         $post['item_service'] = $this->mergeService($post['item_service']);
+        $outlet = Outlet::where('outlet_code', '00000')->first();
         foreach ($post['item_service']??[] as $key=>$item){
             $err = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
@@ -133,7 +132,6 @@ class ApiTransactionHomeService extends Controller
 
             if(!empty($idHs) && $post['preference_hair_stylist'] == 'favorite'){
                 $hs = UserHairStylist::where('id_user_hair_stylist', $idHs)->where('user_hair_stylist_status', 'Active')->first();
-                $outlet = Outlet::where('id_outlet', $hs['id_outlet'])->first();
                 if(empty($hs)){
                     $err[] = "Outlet hair stylist not found";
                 }
@@ -264,18 +262,16 @@ class ApiTransactionHomeService extends Controller
         }
 
         if($post['preference_hair_stylist'] == 'favorite' && empty($post['id_user_hair_stylist'])){
-            if (empty($user)) {
-                return response()->json([
-                    'status'    => 'fail',
-                    'messages'  => ['User hair stylist can not be empty']
-                ]);
-            }
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['User hair stylist can not be empty']
+            ]);
         }
 
         $bookNow = false;
         if(strtolower($post['booking_time']) == 'sekarang'){
             $bookNow = true;
-            $post['booking_time'] = $post['booking_time_user'];
+            $post['booking_time'] = date('H:i', strtotime("+2 minutes", strtotime($post['booking_time_user'])));
         }
 
         $address = UserAddress::where('id_user', $user->id)->where('id_user_address', $post['id_user_address'])->first();
@@ -301,11 +297,12 @@ class ApiTransactionHomeService extends Controller
         }
 
         $post['sum_time'] = array_sum($arrProccessingTime);
-        $checkHS = $this->checkAvailableHS($post);
+        $checkHS = $this->checkAvailableHS($post, [], $user);
         $idHs = $checkHS['id_user_hair_stylist']??null;
         $errAll = array_merge($errAll, $checkHS['error_all']??[]);
 
         $post['item_service'] = $this->mergeService($post['item_service']);
+        $outlet = Outlet::where('outlet_code', '00000')->first();
         foreach ($post['item_service']??[] as $key=>$item){
             $err = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
@@ -317,15 +314,16 @@ class ApiTransactionHomeService extends Controller
 
             if(empty($service)){
                 $err[] = 'Service tidak tersedia';
+                $errAll[] = 'Service tidak tersedia';
                 unset($item[$key]);
                 continue;
             }
 
             if(!empty($idHs) && $post['preference_hair_stylist'] == 'favorite'){
                 $hs = UserHairStylist::where('id_user_hair_stylist', $idHs)->where('user_hair_stylist_status', 'Active')->first();
-                $outlet = Outlet::where('id_outlet', $hs['id_outlet'])->first();
                 if(empty($hs)){
                     $err[] = "Outlet hair stylist not found";
+                    $errAll[] = 'Outlet hair stylist not found';
                     unset($item[$key]);
                     continue;
                 }
@@ -336,6 +334,7 @@ class ApiTransactionHomeService extends Controller
                         ->where('product_detail.id_outlet', $outlet['id_outlet'])->get()->toArray();
                     if(count($service['product_service_use']) != count($getProductUse)){
                         $err[] = 'Stok habis';
+                        $errAll[] = 'Stok habis';
                         unset($item[$key]);
                         continue;
                     }
@@ -344,6 +343,7 @@ class ApiTransactionHomeService extends Controller
                         $use = $stock['quantity_use'] * $item['qty'];
                         if($use > $stock['product_detail_stock_service']){
                             $err[] = 'Stok habis';
+                            $errAll[] = 'Stok habis';
                             unset($item[$key]);
                             continue;
                         }
@@ -355,12 +355,14 @@ class ApiTransactionHomeService extends Controller
 
                 if($service['visibility_outlet'] == 'Hidden' || (empty($service['visibility_outlet']) && $service['product_visibility'] == 'Hidden')){
                     $err[] = 'Service tidak tersedia';
+                    $errAll[] = 'Service tidak tersedia';
                     unset($item[$key]);
                     continue;
                 }
 
                 if(empty($service['product_price'])){
                     $err[] = 'Service tidak tersedia';
+                    $errAll[] = 'Service tidak tersedia';
                     unset($item[$key]);
                     continue;
                 }
@@ -476,7 +478,7 @@ class ApiTransactionHomeService extends Controller
             $result['booking_time'] = 'Sekarang';
         }
         $result['booking_date_display'] = MyHelper::dateFormatInd($post['booking_date'].' '.$post['booking_time'], true, true);
-        $result['item_service'] = $itemService;
+        $result['item_service'] = array_values($itemService);
         $result['subtotal'] = $post['subtotal'];
         $result['tax'] = (int) $post['tax'];
         $result['grandtotal'] = (int)$result['subtotal'] + (int)$post['tax'] ;
@@ -521,12 +523,10 @@ class ApiTransactionHomeService extends Controller
         }
 
         if($post['preference_hair_stylist'] == 'favorite' && empty($post['id_user_hair_stylist'])){
-            if (empty($user)) {
-                return response()->json([
-                    'status'    => 'fail',
-                    'messages'  => ['User hair stylist can not be empty']
-                ]);
-            }
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['User hair stylist can not be empty']
+            ]);
         }
 
         if(empty($post['transaction_from'])){
@@ -553,7 +553,7 @@ class ApiTransactionHomeService extends Controller
         $bookNow = false;
         if(strtolower($post['booking_time']) == 'sekarang'){
             $bookNow = true;
-            $post['booking_time'] = $post['booking_time_user'];
+            $post['booking_time'] = date('H:i', strtotime("+2 minutes", strtotime($post['booking_time_user'])));
         }
 
         $post['latitude'] = $address['latitude'];
@@ -569,7 +569,7 @@ class ApiTransactionHomeService extends Controller
         }
 
         $post['sum_time'] = array_sum($arrProccessingTime);
-        $checkHS = $this->checkAvailableHS($post);
+        $checkHS = $this->checkAvailableHS($post, [], $user);
         if(!empty($checkHS['error_all'])){
             return response()->json([
                 'status'    => 'fail',
@@ -582,6 +582,7 @@ class ApiTransactionHomeService extends Controller
         $post['item_service'] = $this->mergeService($post['item_service']);
         $errItem = [];
         $post['id_outlet'] = null;
+        $outlet = Outlet::where('outlet_code', '00000')->first();
         foreach ($post['item_service']??[] as $key=>$item){
             $detailStock = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
@@ -597,7 +598,6 @@ class ApiTransactionHomeService extends Controller
 
             if(!empty($idHs) && $post['preference_hair_stylist'] == 'favorite'){
                 $hs = UserHairStylist::where('id_user_hair_stylist', $idHs)->where('user_hair_stylist_status', 'Active')->first();
-                $outlet = Outlet::where('id_outlet', $hs['id_outlet'])->first();
                 if(empty($hs)){
                     $errItem[] = "Outlet hair stylist not found";
                 }
@@ -826,18 +826,6 @@ class ApiTransactionHomeService extends Controller
             ]);
         }
 
-        $insertTrxHMStatusUpdate = TransactionHomeServiceStatusUpdate::create([
-            'id_transaction' => $insertTransaction['id_transaction'],
-            'status' => 'Finding Hair Stylist'
-        ]);
-        if (!$insertTrxHMStatusUpdate) {
-            DB::rollback();
-            return response()->json([
-                'status'    => 'fail',
-                'messages'  => ['Insert Transaction Home Service Status Update Failed']
-            ]);
-        }
-
         $userTrxProduct = [];
         foreach ($post['item_service'] as $itemProduct){
 
@@ -927,11 +915,15 @@ class ApiTransactionHomeService extends Controller
         ]);
     }
 
-    function checkAvailableHS($post, $rejectHS = []){
+    function checkAvailableHS($post, $rejectHS = [], $user = []){
+        $userTimeZone = (empty($user['user_time_zone_utc']) ? 7 : $user['user_time_zone_utc']);
+        $diffTimeZone = $userTimeZone - 7;
+        $currentDate = date('Y-m-d H:i:s');
+        $currentDate = date('Y-m-d H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($currentDate)));
         $bookDate = date('Y-m-d', strtotime($post['booking_date']));
         $bookTime = date('H:i:s', strtotime($post['booking_time']));
-        $currentDate = date('Y-m-d H:i:s');
-        $bookDateTime = date('Y-m-d H:i', strtotime($bookDate.' '.$bookTime));
+        $bookDateTime = date('Y-m-d H:i:s', strtotime($bookDate.' '.$bookTime));
+
         if(strtotime($currentDate) > strtotime($bookDateTime)){
             $errAll[] = "Waktu pemesanan Anda tidak valid";
         }
@@ -954,7 +946,7 @@ class ApiTransactionHomeService extends Controller
                 $errAll[] = "Hair stylist tidak ditemukan";
             }
 
-            if(empty($val['latitude']) && empty($val['longitude'])){
+            if(empty($hs['latitude']) && empty($hs['longitude'])){
                 $errAll[] = "Hair stylist tidak aktif";
             }
             $distance = (float)app($this->outlet)->distance($post['latitude'], $post['longitude'], $hs['latitude'], $hs['longitude'], "K");
@@ -1126,11 +1118,6 @@ class ApiTransactionHomeService extends Controller
         }
 
         return $updateDetail??true;
-    }
-
-    function cancelBookHS($id_transaction){
-        $del = HairstylistNotAvailable::where('id_transaction', $id_transaction)->delete();
-        return $del;
     }
 
     public function listHomeService(Request $request)

@@ -99,6 +99,7 @@ class User extends Authenticatable
         'otp_increment',
         'transaction_online',
         'transaction_online_status',
+        'user_time_zone_utc'
 	];
 
 	public function city()

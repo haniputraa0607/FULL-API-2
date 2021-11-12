@@ -734,7 +734,7 @@ class ApiHome extends Controller
                 $it="";
             }
         });
-        $hidden=['password_k','updated_at','provider','phone_verified','email_unsubscribed','level','points','rank','android_device','ios_device','is_suspended','balance','subtotal_transaction','count_transaction','id_membership','relationship'];
+        $hidden=['password_k','updated_at','provider','phone_verified','email_unsubscribed','level','points','rank','android_device','ios_device','is_suspended','balance','subtotal_transaction','count_transaction','id_membership','relationship', 'user_time_zone_utc'];
         foreach ($hidden as $hide) {
             unset($retUser[$hide]);
         }
@@ -746,6 +746,10 @@ class ApiHome extends Controller
         ])->orderBy('transaction_date')->first();
         $rate_popup = $trx?$trx->transaction_receipt_number.','.$trx->id_transaction:null;
         $retUser['membership']=$membership;
+
+        //update last time zone user
+        User::where('id', $user->id)->update(['user_time_zone_utc' => $request->time_zone_utc]);
+
         $result = [
             'status' => 'success',
             'result' => [

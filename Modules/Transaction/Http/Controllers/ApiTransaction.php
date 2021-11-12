@@ -5285,7 +5285,7 @@ class ApiTransaction extends Controller
 			$list->where(function ($q) {
 				$q->whereNull('transaction_outlet_services.completed_at')
 					->orWhere('transactions.show_rate_popup', 1);
-			});
+			})->where('scope','web-apps');
 		}
 
 

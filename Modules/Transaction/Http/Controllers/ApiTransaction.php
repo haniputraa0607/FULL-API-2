@@ -5523,4 +5523,105 @@ class ApiTransaction extends Controller
 		
 		return MyHelper::checkGet($res);
     }
+
+    public function homeServiceList(Request $request) {
+    	$user = $request->user();
+
+    	$list = Transaction::where('transaction_from', 'home-service')
+    			->join('transaction_home_services','transactions.id_transaction', 'transaction_home_services.id_transaction')
+    			->where('id_user', $user->id)
+    			->orderBy('transaction_date', 'desc')
+    			->with('outlet.brands', 'products', 'user_feedbacks');
+
+		switch (strtolower($request->status)) {
+			case 'unpaid':
+				$list->where('transaction_payment_status','Pending');
+				break;
+
+			case 'ongoing':
+				$list->where(function($q) {
+					$q->whereNotIn('transaction_home_services.status', ['Cancelled', 'Completed'])
+					->orWhereNull('transaction_home_services.status');
+				})
+				->where('transaction_payment_status','Completed');
+				break;
+
+			case 'complete':
+				$list->where(function($q) {
+					$q->whereIn('transaction_home_services.status', ['Cancelled', 'Completed'])
+					->orWhere('transaction_payment_status','Cancelled');
+				});
+				break;
+			
+			default:
+				// code...
+				break;
+		}
+
+		$list = $list->paginate(10)->toArray();
+
+		$resData = [];
+		foreach ($list['data'] ?? [] as $val) {
+
+			if (!empty($val['outlet'])) {
+				$outlet = [
+					'id_outlet' => $val['outlet']['id_outlet'],
+					'outlet_code' => $val['outlet']['outlet_code'],
+					'outlet_name' => $val['outlet']['outlet_name'],
+					'outlet_latitude' => $val['outlet']['outlet_latitude'],
+					'outlet_longitude' => $val['outlet']['outlet_longitude']
+				];
+			}
+
+			if (!empty($val['outlet']['brands'])) {
+				$brand = [
+					'id_brand' => $val['outlet']['brands'][0]['id_brand'],
+					'brand_code' => $val['outlet']['brands'][0]['code_brand'],
+					'brand_name' => $val['outlet']['brands'][0]['name_brand'],
+					'brand_logo' => $val['outlet']['brands'][0]['logo_brand'],
+	                'brand_logo_landscape' => $val['outlet']['brands'][0]['logo_landscape_brand']
+				];
+			}
+
+			$orders = [];
+			foreach ($val['products'] as $product) {
+				$orders[] = [
+					'product_name' => $product['product_name'],
+					'transaction_product_qty' => $product['pivot']['transaction_product_qty'],
+					'transaction_product_price' => $product['pivot']['transaction_product_price'],
+					'transaction_product_subtotal' => $product['pivot']['transaction_product_subtotal']
+				];
+			}
+
+			if ($val['transaction_payment_status'] == 'Pending') {
+				$status = 'unpaid';
+			} elseif ($val['transaction_payment_status'] == 'Cancelled') {
+				$status = 'cancelled';
+			} elseif (empty($val['completed_at']) && $val['transaction_payment_status'] == 'Completed') {
+				$status = 'ongoing';
+			} else {
+				$status = 'completed';
+			}
+
+			$resData[] = [
+				'id_transaction' => $val['id_transaction'],
+				'transaction_receipt_number' => $val['transaction_receipt_number'],
+				'qrcode' => 'https://chart.googleapis.com/chart?chl=' . $val['transaction_receipt_number'] . '&chs=250x250&cht=qr&chld=H%7C0',
+				'transaction_date' => MyHelper::dateFormatInd($val['transaction_date'], true, false),
+				'transaction_time' => date('H:i', strtotime($val['transaction_date'])),
+				'customer_name' => null,
+				'color' => $val['outlet']['brands'][0]['color_brand'],
+				'status' => $status,
+				'home_service_status' => $val['status'],
+				'show_rate_popup' => $val['show_rate_popup'],
+				'destination_address' => $val['destination_address'],
+				'outlet' => $outlet ?? null,
+				'brand' => $brand ?? null,
+				'order' => $orders
+			];
+		}
+
+		$list['data'] = $resData;
+		return MyHelper::checkGet($list);
+    }
 }

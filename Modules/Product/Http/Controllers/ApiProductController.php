@@ -2123,7 +2123,10 @@ class ApiProductController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['ID/Code outlet can not be empty']]);
         }
 
-        $outlet = Outlet::with(['outlet_schedules', 'holidays.date_holidays', 'today']);
+        $outlet = Outlet::join('cities', 'cities.id_city', 'outlets.id_city')
+                ->join('provinces', 'provinces.id_province', 'cities.id_province')
+                ->with(['outlet_schedules', 'holidays.date_holidays', 'today'])
+                ->select('outlets.*', 'cities.city_name', 'provinces.time_zone_utc as province_time_zone_utc');
 
         if(!empty($post['id_outlet'])){
             $outlet = $outlet->where('id_outlet', $post['id_outlet'])->first();
@@ -2141,8 +2144,12 @@ class ApiProductController extends Controller
         }
 
         $isClose = false;
-        $currentDate = date('Y-m-d');
-        $currentHour = date('H:i:s');
+        $timeZone = (empty($outlet['province_time_zone_utc']) ? 7:$outlet['province_time_zone_utc']);
+        $diffTimeZone = $timeZone - 7;
+        $date = date('Y-m-d H:i:s');
+        $date = date('Y-m-d H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($date)));
+        $currentDate = date('Y-m-d', strtotime($date));
+        $currentHour = date('H:i:s', strtotime($date));
         $open = date('H:i:s', strtotime($outlet['today']['open']));
         $close = date('H:i:s', strtotime($outlet['today']['close']));
         foreach ($outlet['holidays'] as $holidays){
@@ -2356,7 +2363,10 @@ class ApiProductController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['ID/Code outlet can not be empty']]);
         }
 
-        $outlet = Outlet::with(['outlet_schedules']);
+        $outlet = Outlet::join('cities', 'cities.id_city', 'outlets.id_city')
+            ->join('provinces', 'provinces.id_province', 'cities.id_province')
+            ->with(['outlet_schedules'])
+            ->select('outlets.*', 'cities.city_name', 'provinces.time_zone_utc as province_time_zone_utc');
 
         if(!empty($post['id_outlet'])){
             $outlet = $outlet->where('id_outlet', $post['id_outlet'])->first();
@@ -2430,8 +2440,12 @@ class ApiProductController extends Controller
 
         //total date
         $totalDateShow = Setting::where('key', 'total_show_date_booking_service')->first()->value??1;
-        $today = date('Y-m-d');
-        $currentTime = date('H:i');
+        $timeZone = (empty($outlet['province_time_zone_utc']) ? 7:$outlet['province_time_zone_utc']);
+        $diffTimeZone = $timeZone - 7;
+        $date = date('Y-m-d H:i:s');
+        $date = date('Y-m-d H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($date)));
+        $today = date('Y-m-d', strtotime($date));
+        $currentTime = date('H:i', strtotime($date));
         $processingTime = (int)(empty($product['processing_time_service']) ? 30:$product['processing_time_service']);
         $listDate = [];
 

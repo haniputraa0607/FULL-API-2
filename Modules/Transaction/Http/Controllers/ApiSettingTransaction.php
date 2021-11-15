@@ -299,12 +299,14 @@ class ApiSettingTransaction extends Controller
         $post = $request->json()->all();
 
         if(empty($post)){
+            $outlet = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
             $timeStart = Setting::where('key', 'home_service_time_start')->first()['value']??'07:00';
             $timeEnd = Setting::where('key', 'home_service_time_end')->first()['value']??'22:00';
             $duration = Setting::where('key', 'home_service_processing_time')->first()['value']??60;
             $radius = Setting::where('key', 'home_service_hs_maximum_radius')->first()['value']??25;
 
             $result = [
+                'outlet' => $outlet,
                 'time_start' => $timeStart,
                 'time_end' => $timeEnd,
                 'duration' => $duration,
@@ -313,6 +315,7 @@ class ApiSettingTransaction extends Controller
 
             return response()->json(MyHelper::checkGet($result));
         }else{
+            Setting::updateOrCreate(['key' => 'default_outlet_home_service'], ['value' => $post['outlet']]);
             Setting::updateOrCreate(['key' => 'home_service_time_start'], ['value' => $post['time_start']]);
             Setting::updateOrCreate(['key' => 'home_service_time_end'], ['value' => $post['time_end']]);
             Setting::updateOrCreate(['key' => 'home_service_processing_time'], ['value' => $post['duration']]);

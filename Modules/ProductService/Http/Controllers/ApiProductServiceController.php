@@ -210,8 +210,12 @@ class ApiProductServiceController extends Controller
         }
 
         $totalDateShow = Setting::where('key', 'total_show_date_booking_service')->first()->value??1;
-        $today = date('Y-m-d');
-        $currentTime = date('H:i');
+        $userTimeZone = (empty($request->user()->user_time_zone_utc) ? 7 : $request->user()->user_time_zone_utc);
+        $diffTimeZone = $userTimeZone - 7;
+        $currentDate = date('Y-m-d H:i:s');
+        $currentDate = date('Y-m-d H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($currentDate)));
+        $today = date('Y-m-d', strtotime($currentDate));
+        $currentTime = date('H:i', strtotime($currentDate));
         $listDate = [];
 
         $x = 0;
@@ -262,57 +266,6 @@ class ApiProductServiceController extends Controller
         return response()->json(MyHelper::checkGet($result));
     }
 
-    /**
-     * Return home service available datetime
-     * @param  Request $request 
-     * @return Response
-     */
-    public function availableDateTime(Request $request){
-        $post = $request->json()->all();
-
-        $totalDateShow = Setting::where('key', 'total_show_date_booking_service')->first()->value??1;
-        $today = date('Y-m-d');
-        $currentTime = date('H:i');
-        $listDate = [];
-
-        $x = 0;
-        $count = 1;
-        $processingTime = Setting::where('key', 'home_service_processing_time')->first()['value']??60;
-        $timeStart = Setting::where('key', 'home_service_time_start')->first()['value']??'07:00:00';
-        $timeEnd = Setting::where('key', 'home_service_time_end')->first()['value']??'22:00:00';
-        while($count <= (int)$totalDateShow) {
-            $date = date('Y-m-d', strtotime('+'.$x.' day', strtotime($today)));
-            $open = date('H:i', strtotime($timeStart));
-            $close = date('H:i', strtotime($timeEnd));
-            $times = [];
-            $tmpTime = $open;
-            if(strtotime($date.' '.$open) > strtotime($today.' '.$currentTime)) {
-                $times[] = $open;
-            }elseif($date == $today){
-                $times[] = 'Sekarang';
-            }
-            while(strtotime($tmpTime) < strtotime($close)) {
-                $timeConvert = date('H:i', strtotime("+".$processingTime." minutes", strtotime($tmpTime)));
-                if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime)){
-                    $times[] = $timeConvert;
-                }
-                $tmpTime = $timeConvert;
-            }
-            if(!empty($times)){
-                $listDate[] = [
-                    'date' => $date,
-                    'times' => $times
-                ];
-            }
-            $count++;
-            $x++;
-        }
-
-        $result = $listDate;
-
-        return response()->json(MyHelper::checkGet($result));
-    }
-
     public function homeServiceAvailableHsFavorite(Request $request){
         $post = $request->json()->all();
         $idUser = $request->user()->id??null;
@@ -331,7 +284,10 @@ class ApiProductServiceController extends Controller
         $bookTime = date('H:i:s', strtotime($post['booking_time']));
         $bookTimeStart = date('H:i', strtotime("-30 minutes", strtotime($bookTime)));
         $bookTimeEnd = date('H:i', strtotime("+30 minutes", strtotime($bookTime)));
-        $currentDate =date('Y-m-d H:i:s');
+        $userTimeZone = (empty($request->user()->user_time_zone_utc) ? 7 : $request->user()->user_time_zone_utc);
+        $diffTimeZone = $userTimeZone - 7;
+        $currentDate = date('Y-m-d H:i:s');
+        $currentDate = date('Y-m-d H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($currentDate)));
         $maximumRadius = (int)(Setting::where('key', 'home_service_hs_maximum_radius')->first()['value']??25);
 
         if(strtotime($bookDate.' '.$bookTime) < strtotime($currentDate)){
@@ -390,7 +346,7 @@ class ApiProductServiceController extends Controller
             $distance = (float)app($this->outlet)->distance($post['latitude'], $post['longitude'], $val['latitude'], $val['longitude'], "K");
 
             if($distance > 0 && $distance <= $maximumRadius){
-                $available = true;
+                continue;
             }
 
             if($bookDate == date('Y-m-d') && $val['home_service_status'] == 0){
@@ -402,7 +358,7 @@ class ApiProductServiceController extends Controller
                 'name' => $val['fullname'],
                 'photo' => (empty($val['user_hair_stylist_photo']) ? config('url.storage_url_api').'img/product/item/default.png':$val['user_hair_stylist_photo']),
                 'rating' => $val['total_rating'],
-                'available' => $available,
+                'available_status' => $available,
                 'distance' => $distance
             ];
         }

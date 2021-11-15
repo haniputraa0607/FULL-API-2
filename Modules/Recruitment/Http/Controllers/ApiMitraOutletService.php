@@ -799,7 +799,7 @@ class ApiMitraOutletService extends Controller
  		}
 
 		$res = [
-			'id_outlet_box' => $schedule->id_outlet_box,
+			'id_outlet_box' => $schedule->id_outlet_box ?? null,
 			'outlet' => $outlet,
 			'brand' => $brand,
 			'box' => $box

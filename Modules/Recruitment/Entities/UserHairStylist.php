@@ -13,6 +13,11 @@ class UserHairStylist extends Authenticatable
 	use Notifiable, HasMultiAuthApiTokens;
 
 	public function findForPassport($username) {
+        $username = str_replace('+', '', $username);
+        if(substr($username, 0, 2) == 62){
+            $username = str_replace('62', '0', $username);
+        }
+
         return $this->where('phone_number', $username)->first();
 	}
 

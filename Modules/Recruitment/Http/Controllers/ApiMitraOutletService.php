@@ -799,6 +799,7 @@ class ApiMitraOutletService extends Controller
  		}
 
 		$res = [
+			'id_outlet_box' => $schedule->id_outlet_box,
 			'outlet' => $outlet,
 			'brand' => $brand,
 			'box' => $box
@@ -870,5 +871,95 @@ class ApiMitraOutletService extends Controller
 		});
 
 		return MyHelper::checkGet($tps);
+    }
+
+    public function selectBox(Request $request)
+    {
+    	$user = $request->user();
+		$schedule = HairstylistSchedule::join(
+			'hairstylist_schedule_dates', 
+			'hairstylist_schedules.id_hairstylist_schedule', 
+			'hairstylist_schedule_dates.id_hairstylist_schedule'
+		)
+ 		->where('id_user_hair_stylist', $user->id_user_hair_stylist)
+ 		->whereDate('date', date('Y-m-d'))
+ 		->first();
+
+ 		if (!$schedule) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Jadwal Hairstylist tidak ditemukan']
+			];
+		}
+
+ 		if (isset($schedule->id_outlet_box) && $schedule->id_outlet_box != $request->id_outlet_box) {
+ 			return [
+				'status' => 'fail',
+				'messages' => ['Tidak dapat menggunakan box yang berbeda']
+			];	
+ 		}
+
+		$box = OutletBox::where('id_outlet_box', $request->id_outlet_box)->first();
+
+		if (!$box) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Box tidak ditemukan']
+			];
+		}
+
+		if ($box->outlet_box_status != 'Active') {
+			return [
+				'status' => 'fail',
+				'messages' => ['Box tidak aktif']
+			];
+		}
+
+		if ($box->outlet_box_use_status != 0) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Box sedang digunakan']
+			];
+		}
+
+		$shift = app($this->mitra)->timeToShift(date('H:i:s'));
+		$usedBox = HairstylistSchedule::join(
+			'hairstylist_schedule_dates', 
+			'hairstylist_schedules.id_hairstylist_schedule', 
+			'hairstylist_schedule_dates.id_hairstylist_schedule'
+		)
+ 		->where('id_user_hair_stylist', '!=', $user->id_user_hair_stylist)
+ 		->whereDate('date', date('Y-m-d'))
+ 		->where('shift', $shift)
+ 		->where('id_outlet_box', $request->id_outlet_box)
+ 		->first();
+
+ 		if ($usedBox) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Box sudah dipilih oleh Hairstylist lain']
+			];
+		}
+
+    	DB::beginTransaction();
+    	try {
+
+			HairstylistScheduleDate::where('id_hairstylist_schedule_date', $schedule->id_hairstylist_schedule_date)
+			->update(['id_outlet_box' => $request->id_outlet_box]);
+
+
+			DB::commit();
+    	} catch (\Exception $e) {
+
+    		\Log::error($e->getMessage());
+			DB::rollback();
+    		return [
+				'status' => 'fail',
+				'messages' => ['Gagal memilih box']
+			];	
+    	}
+
+
+		return ['status' => 'success'];	
     }
 }

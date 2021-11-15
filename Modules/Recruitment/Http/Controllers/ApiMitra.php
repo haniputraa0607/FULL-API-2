@@ -349,7 +349,11 @@ class ApiMitra extends Controller
 				'content' => $ann['content']
 			];
 		}
-    	return MyHelper::checkGet($res);
+
+    	return [
+    		'status' => 'success',
+    		'result' => $res
+    	];
     }
 
     public function home(Request $request)

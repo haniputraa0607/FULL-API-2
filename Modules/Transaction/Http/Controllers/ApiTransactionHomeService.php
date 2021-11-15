@@ -116,7 +116,8 @@ class ApiTransactionHomeService extends Controller
         $errAll = array_merge($errAll, $checkHS['error_all']??[]);
 
         $post['item_service'] = $this->mergeService($post['item_service']);
-        $outlet = Outlet::where('outlet_code', '00000')->first();
+        $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
+        $outlet = Outlet::where('id_outlet', $outletHomeService)->first();
         foreach ($post['item_service']??[] as $key=>$item){
             $err = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
@@ -302,7 +303,8 @@ class ApiTransactionHomeService extends Controller
         $errAll = array_merge($errAll, $checkHS['error_all']??[]);
 
         $post['item_service'] = $this->mergeService($post['item_service']);
-        $outlet = Outlet::where('outlet_code', '00000')->first();
+        $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
+        $outlet = Outlet::where('id_outlet', $outletHomeService)->first();
         foreach ($post['item_service']??[] as $key=>$item){
             $err = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
@@ -582,7 +584,8 @@ class ApiTransactionHomeService extends Controller
         $post['item_service'] = $this->mergeService($post['item_service']);
         $errItem = [];
         $post['id_outlet'] = null;
-        $outlet = Outlet::where('outlet_code', '00000')->first();
+        $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
+        $outlet = Outlet::where('id_outlet', $outletHomeService)->first();
         foreach ($post['item_service']??[] as $key=>$item){
             $detailStock = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')

@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Http\Models\Outlet;
 use App\Http\Models\Product;
+use App\Http\Models\Setting;
 use App\Http\Models\TransactionProduct;
 use Illuminate\Bus\Queueable;
 use Illuminate\Queue\SerializesModels;
@@ -57,7 +58,8 @@ class FindingHairStylistHomeService implements ShouldQueue
 
             $trxProduct = TransactionProduct::where('id_transaction', $data['id_transaction'])->get()->toArray();
             $trxHomeService = TransactionHomeService::where('id_transaction_home_service', $data['id_transaction_home_service'])->first();
-            $outlet = Outlet::where('outlet_code', '00000')->first();
+            $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
+            $outlet = Outlet::where('id_outlet', $outletHomeService)->first();
             $getHs = null;
 
             $hsReject = TransactionHomeServiceHairStylistReject::where('id_transaction', $data['id_transaction'])->pluck('id_user_hair_stylist')->toArray();

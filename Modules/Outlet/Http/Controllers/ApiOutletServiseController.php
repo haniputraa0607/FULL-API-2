@@ -90,6 +90,7 @@ class ApiOutletServiseController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Latitude and Longitude can not be empty']]);
         }
         $totalListOutlet = Setting::where('key', 'total_list_nearby_outlet')->first()['value']??5;
+        $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
 
         $day = [
             'Mon' => 'Senin',
@@ -117,11 +118,14 @@ class ApiOutletServiseController extends Controller
             ->whereHas('brands',function($query){
                 $query->where('brands.brand_active',1)->where('brands.brand_visibility',1);
             })
-            ->whereNotIn('outlet_code', ['00000'])
             ->with(['brands', 'holidays.date_holidays', 'today'])
             ->orderBy('distance_in_km', 'asc')
-            ->limit($totalListOutlet)->get()->toArray();
+            ->limit($totalListOutlet);
 
+        if(!empty($outletHomeService)){
+            $outlet = $outlet->whereNotIn('id_outlet', [$outletHomeService]);
+        }
+        $outlet = $outlet->get()->toArray();
         $res = [];
         foreach ($outlet as $val){
             $timeZone = (empty($val['time_zone_utc']) ? 7:$val['time_zone_utc']);

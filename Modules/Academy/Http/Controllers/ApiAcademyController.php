@@ -124,6 +124,7 @@ class ApiAcademyController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Latitude and Longitude can not be empty']]);
         }
         $totalListOutlet = Setting::where('key', 'total_list_nearby_outlet')->first()['value']??5;
+        $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
 
         $day = [
             'Mon' => 'Senin',
@@ -152,10 +153,14 @@ class ApiAcademyController extends Controller
                 $query->where('brands.brand_active',1)->where('brands.brand_visibility',1);
             })
             ->with(['brands', 'holidays.date_holidays', 'today'])
-            ->whereNotIn('outlet_code', ['00000'])
             ->orderBy('distance_in_km', 'asc')
-            ->limit($totalListOutlet)->get()->toArray();
+            ->limit($totalListOutlet);
 
+        if(!empty($outletHomeService)){
+            $outlet = $outlet->whereNotIn('id_outlet', [$outletHomeService]);
+        }
+
+        $outlet = $outlet->get()->toArray();
         $currentDate = date('Y-m-d');
         $currentHour = date('H:i:s');
         $res = [];

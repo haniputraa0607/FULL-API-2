@@ -227,7 +227,8 @@ class ApiPartnerClosePermanentController extends Controller
                     'status'=>'Success'
                     ]);
                     $partner = Partner::where(array('id_partner'=>$value['id_partner']))->update([
-                        'status'=>'Inactive'
+                        'status'=>'Inactive',
+                        'password'=>null    
                     ]);
                     $location = Location::where(array('id_partner'=>$value['id_partner']))->update([
                         'status'=>'Inactive'

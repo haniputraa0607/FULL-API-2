@@ -5697,6 +5697,7 @@ class ApiTransaction extends Controller
 					'schedule_time' => date('H:i', strtotime($detail['schedule_time'])),
 					'product_name' => $product['product']['product_name'],
 					'subtotal' => $product['transaction_product_subtotal'],
+					'qty' => $product['transaction_product_qty'],
 					'show_rate_popup' => $show_rate_popup
 				];
 

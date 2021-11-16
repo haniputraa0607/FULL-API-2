@@ -8,7 +8,9 @@ use Illuminate\Routing\Controller;
 use Modules\BusinessDevelopment\Entities\Partner;
 use Modules\BusinessDevelopment\Entities\PartnersLog;
 use Modules\BusinessDevelopment\Entities\Location;
+use Modules\BusinessDevelopment\Http\Controllers\ApiLocationsController;
 use App\Lib\MyHelper;
+use App\Lib\Icount;
 use DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -224,6 +226,9 @@ class ApiPartnersController extends Controller
             DB::beginTransaction();
             if (isset($post['name'])) {
                 $data_update['name'] = $post['name'];
+            }
+            if (isset($post['contact_person'])) {
+                $data_update['contact_person'] = $post['contact_person'];
             }
             if (isset($post['gender'])) {
                 $data_update['gender'] = $post['gender'];
@@ -568,7 +573,7 @@ class ApiPartnersController extends Controller
     
     public function followUp(Request $request)
     {
-        $post = $request->all();
+        $post = $request['post_follow_up'];
         if(isset($post['id_partner']) && !empty($post['id_partner'])){
             DB::beginTransaction();
             $data_store = [
@@ -595,14 +600,20 @@ class ApiPartnersController extends Controller
                 return response()->json(['status' => 'fail', 'messages' => ['Failed add follow up data']]);
             }
             DB::commit();
+            if(isset($request['form_survey']) && !empty($request['form_survey'])){
+                $survey =  $this->createFormSurvey($request['form_survey']);
+                if($survey['status'] != 'success' && isset($survey['status'])){
+                    return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                }
+            }
             return response()->json(MyHelper::checkCreate($store));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }
     }
     
-    public function createConfirLetter(Request $request){
-        $post = $request->all();
+    public function createConfirLetter($request){
+        $post = $request;
         if(isset($post['id_partner']) && !empty($post['id_partner'])){
             $cek_partner = Partner::where(['id_partner'=>$post['id_partner']])->first();
             if($cek_partner){
@@ -619,8 +630,8 @@ class ApiPartnersController extends Controller
                 $data['city'] = City::where(['id_city'=>$data['location']['id_city']])->first();
                 $waktu = $this->timeTotal(explode('-', $data['partner']['start_date']),explode('-', $data['partner']['end_date']));
                 $send['data'] = [
-                    'pihak_dua' => $this->pihakDua($data['partner']['name'],$data['partner']['gender']),
-                    'ttd_pihak_dua' => $data['partner']['name'],
+                    'pihak_dua' => $this->pihakDua($data['partner']['contact_person'],$data['partner']['gender']),
+                    'ttd_pihak_dua' => $data['partner']['contact_person'],
                     'lokasi_surat' => $data['letter']['location'],
                     'tanggal_surat' => $this->letterDate($data['letter']['date']),
                     'no_surat' => $data['letter']['no_letter'],
@@ -653,16 +664,16 @@ class ApiPartnersController extends Controller
                 $store = ConfirmationLetter::create($creatConf);
                 if(!$store) {
                     DB::rollback();
-                    return response()->json(['status' => 'fail', 'messages' => ['Failed create confirmation letter']]);
+                    return ['status' => 'fail', 'messages' => ['Failed create confirmation letter']];
                 }
             } else{
-                return response()->json(['status' => 'fail', 'messages' => ['Id Partner not found']]);
+                return ['status' => 'fail', 'messages' => ['Id Partner not found']];
             }
             DB::commit();
-            return response()->json(MyHelper::checkCreate($store));
+            return MyHelper::checkCreate($store);
             
         }else{
-            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+            return ['status' => 'fail', 'messages' => ['Incompleted Data']];
         }
     }
 
@@ -889,7 +900,7 @@ class ApiPartnersController extends Controller
         $text = str_replace('%no_surat%',$data['no_surat'],$text);
         $text = str_replace('%pihak_dua%',$data['pihak_dua'],$text);
         $text = str_replace('%location_mall%',$data['location_mall'],$text);
-        $text = str_replace('%location_city%',$data['location_mall'],$text);
+        $text = str_replace('%location_city%',$data['location_city'],$text);
         $text = str_replace('%address%',$data['address'],$text);
         $text = str_replace('%large%',$data['large'],$text);
         $text = str_replace('%partnership_fee%',$data['partnership_fee'],$text);
@@ -924,8 +935,8 @@ class ApiPartnersController extends Controller
         return $form;
     }
 
-    public function createFormSurvey(Request $request){
-        $post = $request->all();
+    public function createFormSurvey($request){
+        $post = $request;
         if(isset($post['id_partner']) && !empty($post['id_partner'])){
             DB::beginTransaction();
             $data_store = [
@@ -939,7 +950,7 @@ class ApiPartnersController extends Controller
             $store = FormSurvey::create($data_store);
             if (!$store) {
                 DB::rollback();
-                return response()->json(['status' => 'fail', 'messages' => ['Failed add form survey data']]);
+                return ['status' => 'fail', 'messages' => ['Failed add form survey data']];
             }
             DB::commit();
             $data_update = [
@@ -947,13 +958,13 @@ class ApiPartnersController extends Controller
             ];
             $update = FormSurvey::where('id_partner', $post['id_partner'])->update($data_update);
             if(!$update){
-                return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                return ['status' => 'fail', 'messages' => ['Incompleted Data']];
             }
             else{
-                return response()->json(['status' => 'success']);
+                return ['status' => 'success'];
             }
         }else{
-            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+            return ['status' => 'fail', 'messages' => ['Incompleted Data']];
         }
     }
 
@@ -1033,4 +1044,72 @@ class ApiPartnersController extends Controller
         }
 
     }
+
+    public function tesIcount(Request $request){
+        $cl = [
+            "BranchName" => "Branch Jakarta Utara",
+            "BranchCode" => "CB009",
+            "Title" => "PT",
+            "BusinessPartnerName" => "IXOBOX NUSANTARA",
+            "BusinessPartnerCode" => "IXNST1",
+            "GroupBusinessPartner" => "2",
+            "Email" => "ridwan_ix@ixobox.com",
+            "PhoneNo" => "(+62)2183838831023",
+            "MobileNo" => "(+62)812138818182",
+            "NPWP" => "23.423.408-0.801.293",
+            "NPWPName" => "IXOBOX Nusantara",
+            "NPWPAddress" => "JL. Prapanca Jawa, No. 51, Kel. Nepal, Kec. Bandung Timur, Kota. Semarang, Nusantara",
+            "Address" => "JL. Prapanca Jawa, No. 51, Kel. Nepal, Kec. Bandung Timur, Kota. Semarang, Nusantara",
+            "IsSuspended" => "false",
+            "IsTax" => "true",
+            "PriceLevel" => "1",
+            "Notes" => "Tempat beli alat-alat cukur",
+            "ItemDetail" => [
+                [
+                    "ItemID" => "100",
+                    "Qty" => "100",
+                    "Unit" => "PCS",
+                    "Ratio" => "1",
+                    "Price" => "100000",
+                    "Disc" => "0",
+                    "DiscRp" => "0",
+                    "Description" => ""
+                ]
+            ]
+        ];
+        $get = [
+            "limit" => "20",
+            "orderBY" => "Code ASC"
+        ];
+        $deliv = [
+            "SalesOrderID" => "011",
+            "VoucherNo" => "[AUTO]",
+            "TransDate" => "2021-01-31 23:59:59",
+            "DueDate" => "2021-02-28 23:59:59",
+            "BusinessPartnerID" => "011",
+            "BranchID" => "011",
+            "DepartmentID" => "011",
+            "ReferenceNo" => null,
+            "TaxNo" => null,
+            "ItemDetail" => [
+                [
+                    "ItemID" => "100",
+                    "Qty" => "20",
+                    "Unit" => "PCS",
+                    "Ratio" => "1",
+                    "Price" => "100000",
+                    "Disc" => "0",
+                    "DiscRp" => "0",
+                    "Description" => ""
+                ]
+            ]
+        ];
+        // return $post;
+        // return $get;
+        $tes = Icount::ApiConfirmationLetter($cl);
+        // $tes = Icount::ApiDeliveryOrderConfirmationLetter($deliv);
+        // $tes = Icount::get($get);
+        return $tes;
+    }
 }
+

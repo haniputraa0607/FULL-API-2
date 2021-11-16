@@ -60,13 +60,6 @@ class ApiTransactionHomeService extends Controller
     public function cart(Request $request){
         $post = $request->json()->all();
 
-        if(empty($post['item_service'])){
-            return response()->json([
-                'status'    => 'fail',
-                'messages'  => ['Item Service can not be empty']
-            ]);
-        }
-
         if(!empty($request->user()->id)){
             $user = User::where('id', $request->user()->id)->first();
             if (empty($user)) {
@@ -187,6 +180,11 @@ class ApiTransactionHomeService extends Controller
         if(!empty($errAll)){
             $continueCheckOut = false;
         }
+
+        if(empty($post['item_service'])){
+            $continueCheckOut = false;
+        }
+
         unset($address['description']);
         $result['id_user_address'] = $address['id_user_address'];
         $result['notes'] = (empty($post['notes']) ? $address['description']:$post['notes']);

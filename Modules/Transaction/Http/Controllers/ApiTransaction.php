@@ -5697,6 +5697,7 @@ class ApiTransaction extends Controller
 					'schedule_time' => date('H:i', strtotime($detail['schedule_time'])),
 					'product_name' => $product['product']['product_name'],
 					'subtotal' => $product['transaction_product_subtotal'],
+					'qty' => $product['transaction_product_qty'],
 					'show_rate_popup' => $show_rate_popup
 				];
 
@@ -5766,6 +5767,7 @@ class ApiTransaction extends Controller
 			'qrcode' => 'https://chart.googleapis.com/chart?chl=' . $detail['transaction_receipt_number'] . '&chs=250x250&cht=qr&chld=H%7C0',
 			'transaction_date' => $detail['transaction_date'],
 			'transaction_date_indo' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($detail['transaction_date'])), 'j F Y'),
+			'transaction_time' => date('H:i', strtotime($detail['transaction_date'])),
 			'transaction_subtotal' => $detail['transaction_subtotal'],
 			'transaction_grandtotal' => $detail['transaction_grandtotal'],
 			'transaction_tax' => $detail['transaction_tax'],

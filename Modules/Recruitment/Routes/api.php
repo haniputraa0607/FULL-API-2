@@ -69,6 +69,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
         	Route::get('box', 'ApiMitraOutletService@availableBox');
             Route::post('payment-cash/detail', 'ApiMitraOutletService@paymentCashDetail');
             Route::post('payment-cash/completed', 'ApiMitraOutletService@paymentCashCompleted');
+            Route::post('box', 'ApiMitraOutletService@selectBox');
     	});
 
     	Route::group(['prefix' => 'shop-service'], function () {

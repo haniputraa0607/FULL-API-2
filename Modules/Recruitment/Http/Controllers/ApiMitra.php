@@ -349,7 +349,11 @@ class ApiMitra extends Controller
 				'content' => $ann['content']
 			];
 		}
-    	return MyHelper::checkGet($res);
+
+    	return [
+    		'status' => 'success',
+    		'result' => $res
+    	];
     }
 
     public function home(Request $request)
@@ -413,7 +417,7 @@ class ApiMitra extends Controller
                 ->whereDate('date', date('Y-m-d', strtotime($today)))
                 ->get();
 
-        if (empty($schedule)) {
+        if (empty($schedule) || $schedule->isEmpty()) {
         	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal layanan outlet hari ini.";
         	return $status;
         }
@@ -455,7 +459,7 @@ class ApiMitra extends Controller
                 ->whereDate('date', date('Y-m-d', strtotime($today)))
                 ->get();
 
-        if (empty($schedule)) {
+        if (empty($schedule) || $schedule->isEmpty()) {
     		$status['is_available'] = 1;
         	return $status;
         }

@@ -3123,4 +3123,21 @@ class MyHelper{
 
     	return true;
     }
+
+    public static function getListDate($month = null, $year = null)
+    {
+    	$thisMonth = $month ?? date('n');
+		$thisYear  = $year  ?? date('Y');
+		$date = $thisYear . '-' . $thisMonth . '-01';
+		$end  = $thisYear . '-' . $thisMonth . '-' . date('t', strtotime($date));
+
+		$listDate = [];
+		while (strtotime($date) <= strtotime($end)) {
+			$listDate[] = date('Y-m-d', strtotime($date));
+
+			$date = date("Y-m-d", strtotime("+1 day", strtotime($date)));
+		}
+
+		return $listDate;
+    }
 }

@@ -5598,10 +5598,10 @@ class ApiTransaction extends Controller
 				$status = 'unpaid';
 			} elseif ($val['transaction_payment_status'] == 'Cancelled') {
 				$status = 'cancelled';
-			} elseif (empty($val['completed_at']) && $val['transaction_payment_status'] == 'Completed') {
-				$status = 'ongoing';
-			} else {
+			} elseif (in_array($val['status'], ['Cancelled', 'Completed']) && $val['transaction_payment_status'] == 'Completed') {
 				$status = 'completed';
+			} else {
+				$status = 'ongoing';
 			}
 
 			$resData[] = [

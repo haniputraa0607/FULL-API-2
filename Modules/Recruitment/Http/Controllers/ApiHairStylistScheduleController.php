@@ -9,6 +9,7 @@ use Illuminate\Routing\Controller;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Recruitment\Entities\HairstylistSchedule;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
+use App\Http\Models\Holiday;
 use DB;
 
 class ApiHairStylistScheduleController extends Controller
@@ -20,8 +21,8 @@ class ApiHairStylistScheduleController extends Controller
 
 	public function outlet(Request $request)
 	{
-		$thisMonth = date('m');
-		$thisYear  = date('Y');
+		$thisMonth = $request->month ?? date('m');
+		$thisYear  = $request->year ?? date('Y');
 		$firstDate = date('Y-m-d', strtotime(date($thisYear . $thisMonth . '01')));
 		$schedules = HairstylistSchedule::join('user_hair_stylist', 'hairstylist_schedules.id_user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist')
 					->join('hairstylist_schedule_dates', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
@@ -225,7 +226,10 @@ class ApiHairStylistScheduleController extends Controller
         		->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'hairstylist_schedules.id_user_hair_stylist')
         		->leftJoin('users as approver', 'approver.id', 'hairstylist_schedules.approve_by')
         		->leftJoin('users as last_update_user', 'last_update_user.id', 'hairstylist_schedules.last_updated_by')
-                ->with('hairstylist_schedule_dates')
+                ->with([
+                	'hairstylist_schedule_dates', 
+                	'outlet.outlet_schedules.time_shift'
+                ])
                 ->where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])
                 ->select(
 		        	'hairstylist_schedules.*',
@@ -237,7 +241,69 @@ class ApiHairStylistScheduleController extends Controller
 		        )
 		        ->first();
 
-        return response()->json(MyHelper::checkGet($detail));
+        if (!$detail) {
+        	return MyHelper::checkGet($detail);
+        }
+
+        $listDate = MyHelper::getListDate($detail->schedule_month, $detail->schedule_year);
+        $outletSchedule = [];
+        foreach ($detail['outlet']['outlet_schedules'] as $s) {
+        	$outletSchedule[$s['day']] = [
+        		'is_closed' => $s['is_closed'],
+        		'shift' => $s['time_shift']->pluck('shift')
+        	];
+        }
+
+        $holidays = Holiday::leftJoin('outlet_holidays', 'holidays.id_holiday', 'outlet_holidays.id_holiday')
+	    			->leftJoin('date_holidays', 'holidays.id_holiday', 'date_holidays.id_holiday')
+	                ->where('id_outlet', $detail['id_outlet'])
+	                ->whereMonth('date_holidays.date', $detail->schedule_month)
+	                ->where(function($q) use ($detail) {
+	                	$q->whereYear('date_holidays.date', $detail->schedule_year)
+	                		->orWhere('yearly', '1');
+	                })
+	                ->get()
+	                ->keyBy('date');
+
+        $request->id_outlet = $detail->id_outlet;
+        $request->month = $detail->schedule_month;
+        $request->year = $detail->schedule_year;
+        $allSchedule = $this->outlet($request)['result'] ?? [];
+
+        $selfSchedule = [];
+        foreach ($detail['hairstylist_schedule_dates'] as $key => $val) {
+        	$date = date('Y-m-d', strtotime($val['date']));
+        	$selfSchedule[$date] = $val['shift'];
+        }
+
+        $resDate = [];
+        foreach ($listDate as $date) {
+        	$day = MyHelper::indonesian_date_v2($date, 'l');
+        	$y = date('Y', strtotime($date));
+        	$m = date('m', strtotime($date));
+        	$d = date('j', strtotime($date));
+
+        	$isClosed = $outletSchedule[$day]['is_closed'] ?? '1';
+        	if (isset($holidays[$date]) && isset($outletSchedule[$day])) {
+        		$isClosed = '1';
+        	}
+
+        	$resDate[] = [
+        		'date' => $date,
+        		'day' => $day,
+        		'outlet_holiday' => $holidays[$date]['holiday_name'] ?? null,
+        		'selected_shift' => $selfSchedule[$date] ?? null,
+        		'is_closed' => $isClosed,
+        		'outlet_shift' => $outletSchedule[$day] ?? [],
+        		'all_hs_schedule' => $allSchedule[$y][$m][$d] ?? []
+        	];
+        }
+
+        $res = [
+        	'detail' => $detail,
+        	'list_date' => $resDate,
+        ];
+        return MyHelper::checkGet($res);
     }
 
     public function update(Request $request) {
@@ -318,6 +384,15 @@ class ApiHairStylistScheduleController extends Controller
 	        		'id_hairstylist_schedule' => $post['id_hairstylist_schedule'],
 	        		'date' => $key,
 	        		'shift' => 'Morning',
+	        		'request_by' => $request_by,
+	        		'created_at' => $created_at,
+	        		'updated_at' => $updated_at
+	        	];
+
+	        	$newData[] = [
+	        		'id_hairstylist_schedule' => $post['id_hairstylist_schedule'],
+	        		'date' => $key,
+	        		'shift' => 'Tengah',
 	        		'request_by' => $request_by,
 	        		'created_at' => $created_at,
 	        		'updated_at' => $updated_at

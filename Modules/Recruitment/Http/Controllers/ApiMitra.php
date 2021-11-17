@@ -8,6 +8,7 @@ use Illuminate\Routing\Controller;
 
 use App\Http\Models\Setting;
 use App\Http\Models\Outlet;
+use App\Http\Models\OutletSchedule;
 
 use Modules\Outlet\Entities\OutletTimeShift;
 
@@ -86,7 +87,11 @@ class ApiMitra extends Controller
 				'day'  => date('l', strtotime($date))
 			];
 
-			$resDate[] = MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($date)), 'D  d/m');
+			$resDate[] = [
+				'date'	=> date('Y-m-d', strtotime($date)),
+				'day'	=> MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($date)), 'l'),
+				'date_string'	=> MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($date)), 'D  d/m')
+			];
 			$date = date("Y-m-d", strtotime("+1 day", strtotime($date)));
 		}
 
@@ -124,7 +129,7 @@ class ApiMitra extends Controller
 				$date = date('d', strtotime($val['date']));
 				$shift = 0;
 				if (!empty($tmpListDate[$val['date']]['shift'])) {
-					$shift = $tmpListDate[$val['date']]['shift'] == 'Morning' ? 1 : 2;
+					$shift = $tmpListDate[$val['date']]['shift'] == 'Morning' ? 1 : ($tmpListDate[$val['date']]['shift'] == 'Middle' ? 2 : 3);
 				}
 				$tmpShift[] = $shift;
 			}
@@ -137,26 +142,21 @@ class ApiMitra extends Controller
 			];
 		}
 
-		$outletShift = OutletTimeShift::where('id_outlet', $user->id_outlet)->get()->keyBy('shift');
+		$outletSchedule = OutletSchedule::where('id_outlet', $user->id_outlet)->with('time_shift')->get();
 		$shiftInfo = [];
-		$timeStart = date('H:i', strtotime($outletShift['Morning']['shift_time_start'] ?? '09:00'));
-		$timeEnd = date('H:i', strtotime($outletShift['Morning']['shift_time_end'] ?? '15:00'));
-		$shiftInfo['shift_1'] = [
-			'name' => 'Shift Pagi',
-			'time' => $timeStart . ' - ' . $timeEnd
-		];
-		$timeStart = date('H:i', strtotime($outletShift['Evening']['shift_time_start'] ?? '15:00'));
-		$timeEnd = date('H:i', strtotime($outletShift['Evening']['shift_time_end'] ?? '21:00'));
-		$shiftInfo['shift_2'] = [
-			'name' => 'Shift Sore',
-			'time' => $timeStart . ' - ' . $timeEnd
-		];
-		$shiftInfo['shift_0'] = [
-			'name' => 'Tidak ada shift',
-			'time' => null,
-		];
+		foreach ($outletSchedule as $sch) {
+			$shiftInfo[$sch['day']] = [];
+			foreach ($sch['time_shift'] as $shift) {
+				$timeStart 	= date('H:i', strtotime($shift['shift_time_start'] ?? '09:00'));
+				$timeEnd 	= date('H:i', strtotime($shift['shift_time_end'] ?? '15:00'));
+				$shiftInfo[$sch['day']][] = [
+					'shift' => $shift['shift'],
+					'time' => $timeStart . ' - ' . $timeEnd
+				];
+			}
+		}
 
-		$month_info = [
+		$monthInfo = [
 			'prev_month' => [
 				'name' => MyHelper::indonesian_date_v2(date('F Y', strtotime('-1 Month ' . $thisYear . '-' . $thisMonth . '-01')), 'F Y'),
 				'month' => date('m', strtotime('-1 Month ' . $thisYear . '-' . $thisMonth . '-01')),
@@ -171,13 +171,26 @@ class ApiMitra extends Controller
 				'name' => MyHelper::indonesian_date_v2(date('F Y', strtotime('+1 Month ' . $thisYear . '-' . $thisMonth . '-01')), 'F Y'),
 				'month' => date('m', strtotime('+1 Month ' . $thisYear . '-' . $thisMonth . '-01')),
 				'year' => date('Y', strtotime('+1 Month ' . $thisYear . '-' . $thisMonth . '-01'))
-			]
+			],
+			'create_schedule' => null
 		];
+
+		if (strtotime($thisYear . '-' . $thisMonth . '-01') == strtotime(date('Y-n-01'))) {
+			$monthInfo['next_month'] = null;
+		}
+
+		if ($user->level == 'Supervisor') {
+			$monthInfo['create_schedule'] = [
+				'name' => MyHelper::indonesian_date_v2(date('F Y', strtotime('+1 Month ' . date('Y-m-01'))), 'F Y'),
+				'month' => date('m', strtotime('+1 Month ' . date('Y-m-01'))),
+				'year' => date('Y', strtotime('+1 Month ' . date('Y-m-01')))
+			];
+		}
 		
 		$res = [
 			'id_outlet' => $outlet['id_outlet'],
 			'outlet_name' => $outlet['outlet_name'],
-			'month' => $month_info,
+			'month' => $monthInfo,
 			'shift_info' => $shiftInfo,
 			'list_date' => $resDate,
 			'list_hairstylist' => $resHairstylist
@@ -289,14 +302,16 @@ class ApiMitra extends Controller
 	    	$created_at = date('Y-m-d H:i:s');
 	    	$updated_at = date('Y-m-d H:i:s');
 
+	    	$arrShift = [1 => 'Morning', 2 => 'Middle', 3 => 'Evening'];
 	    	foreach ($newSchedule as $key => $val) {
-	    		if (empty($val)) {
+	    		if (empty($val) || empty($arrShift[$val]) || empty($listDate[$key]['date'])) {
 	    			continue;
 	    		}
+
 	    		$insertData[] = [
 	    			'id_hairstylist_schedule' => $schedule->id_hairstylist_schedule,
 	        		'date' => $listDate[$key]['date'],
-	        		'shift' => $val == 1 ? 'Morning' : 'Evening',
+	        		'shift' => $arrShift[$val],
 	        		'request_by' => $request_by,
 	        		'created_at' => $created_at,
 	        		'updated_at' => $updated_at

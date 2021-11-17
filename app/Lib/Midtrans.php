@@ -46,7 +46,7 @@ class Midtrans {
         // return 'Basic ' . base64_encode(env('MIDTRANS_SANDBOX_BEARER'));
     }
     
-    static function token($receipt, $grandTotal, $user=null, $shipping=null, $product=null, $type=null, $id=null, $payment_detail = null, $scopeUser = 'apps', $outletCode = null) {
+    static function token($receipt, $grandTotal, $user=null, $shipping=null, $product=null, $type=null, $id=null, $payment_detail = null, $scopeUser = 'apps', $outletCode = null, $transaction_from = null) {
         // $url    = env('MIDTRANS_PRO');
         $url    = env('MIDTRANS_SANDBOX');
 
@@ -88,12 +88,12 @@ class Midtrans {
         }else{
             $dataMidtrans['gopay'] = [
                 'enable_callback' => true,
-                'callback_url' => env('MIDTRANS_CALLBACK_APPS').'?order_id='.urlencode($receipt).(!empty($type)? '&type='.$type: ''),
+                'callback_url' => env('MIDTRANS_CALLBACK_APPS').'?order_id='.urlencode($receipt).(!empty($type)? '&type='.$type: '').(!empty($transaction_from)? '&transaction_from='.$transaction_from: ''),
             ];
             $dataMidtrans['callbacks'] = [
-                'finish' => env('MIDTRANS_CALLBACK_APPS').'?result=success&'.(!empty($type)? 'type='.$type.'&': ''),
-                'unfinish' => env('MIDTRANS_CALLBACK_APPS').'?result=fail&'.(!empty($type)? 'type='.$type.'&': ''),
-                'error' => env('MIDTRANS_CALLBACK_APPS').'?result=fail&'.(!empty($type)? 'type='.$type.'&': '')
+                'finish' => env('MIDTRANS_CALLBACK_APPS').'?result=success&'.(!empty($type)? 'type='.$type.'&': '').(!empty($transaction_from)? '&transaction_from='.$transaction_from: ''),
+                'unfinish' => env('MIDTRANS_CALLBACK_APPS').'?result=fail&'.(!empty($type)? 'type='.$type.'&': '').(!empty($transaction_from)? '&transaction_from='.$transaction_from: ''),
+                'error' => env('MIDTRANS_CALLBACK_APPS').'?result=fail&'.(!empty($type)? 'type='.$type.'&': '').(!empty($transaction_from)? '&transaction_from='.$transaction_from: '')
             ];
         }
 

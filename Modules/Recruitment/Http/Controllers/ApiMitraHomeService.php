@@ -47,4 +47,20 @@ class ApiMitraHomeService extends Controller
     	$update = UserHairStylist::where('id_user_hair_stylist', $user->id_user_hair_stylist)->update(['home_service_status' => $request->status]);
         return response()->json(MyHelper::checkUpdate($update));
     }
+
+    public function setHSLocation(Request $request)
+    {
+        $request->validate([
+            'latitude' => 'required|numeric',
+            'longitude' => 'required|numeric',
+        ]);
+        $hs = $request->user();
+        $location = $hs->location()->updateOrCreate([], [
+            'latitude' => $request->latitude,
+            'longitude' => $request->longitude,
+        ]);
+        return [
+            'status' => 'success'
+        ];
+    }
 }

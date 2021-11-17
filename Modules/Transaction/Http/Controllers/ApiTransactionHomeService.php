@@ -25,6 +25,7 @@ use Modules\Product\Entities\ProductDetail;
 use Modules\Product\Entities\ProductStockLog;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use Modules\Recruitment\Entities\UserHairStylist;
+use Modules\Recruitment\Entities\HairstylistLocation;
 use Modules\ShopeePay\Entities\TransactionPaymentShopeePay;
 use Modules\Transaction\Entities\HairstylistNotAvailable;
 use App\Http\Models\TransactionPayment;
@@ -1328,6 +1329,7 @@ class ApiTransactionHomeService extends Controller
             'destination_short_address'      => $trx['destination_short_address'],
             'destination_address_name'       => $trx['destination_address_name'],
             'destination_note'              => $trx['destination_note'],
+            'id_user_hair_stylist'          => $trx['id_user_hair_stylist'],
             'hair_stylist_status'           => $trx['status'],
             'hair_stylist_name'             => $trx['fullname'],
             'hair_stylist_outlet_name'      => $trx['outlet_name'],
@@ -1711,5 +1713,11 @@ class ApiTransactionHomeService extends Controller
         }
 
         return $paymentDetail;
+    }
+
+    public function getHSLocation(Request $request, HairstylistLocation $hs)
+    {
+        $location = $hs->location()->first();
+        return MyHelper::checkGet($location);
     }
 }

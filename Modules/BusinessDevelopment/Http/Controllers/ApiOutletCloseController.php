@@ -94,9 +94,11 @@ class ApiOutletCloseController extends Controller
                }
                if(isset($cutoff)&&isset($change)&&isset($close)){
                    if($cutoff->status=="Reject"&&$change->status=="Reject"&&$close->status=="Reject"){
-
                    array_push($list,$value);
                    }
+                   
+               }
+               if(isset($close)){
                    if($close->status=="Success"&&$close->jenis=="Active"){
                    array_push($list,$value);
                    }

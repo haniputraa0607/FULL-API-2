@@ -19,6 +19,7 @@ use Modules\ProductService\Entities\ProductServiceUse;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Transaction\Entities\HairstylistNotAvailable;
+use Modules\Favorite\Entities\FavoriteUserHiarStylist;
 
 class ApiProductServiceController extends Controller
 {
@@ -290,6 +291,7 @@ class ApiProductServiceController extends Controller
     public function availableDateTime(Request $request){
         $post = $request->json()->all();
 
+        $user = $request->user();
         $totalDateShow = Setting::where('key', 'total_show_date_booking_service')->first()->value??1;
         $today = date('Y-m-d');
         $currentTime = date('H:i');
@@ -328,7 +330,10 @@ class ApiProductServiceController extends Controller
             $x++;
         }
 
-        $result = $listDate;
+        $result = [
+            'favorite_hs' => FavoriteUserHiarStylist::where('id_user', $user->id)->exists(),
+            'dates' => $listDate
+        ];
 
         return response()->json(MyHelper::checkGet($result));
     }

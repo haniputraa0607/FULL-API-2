@@ -61,7 +61,10 @@ class ApiTransactionHomeService extends Controller
         $post = $request->json()->all();
 
         if(!empty($request->user()->id)){
-            $user = User::where('id', $request->user()->id)->first();
+            $user = User::where('id', $request->user()->id)
+                ->leftJoin('cities', 'cities.id_city', 'users.id_city')
+                ->select('users.*', 'cities.city_name')
+                ->first();
             if (empty($user)) {
                 return response()->json([
                     'status'    => 'fail',
@@ -263,7 +266,10 @@ class ApiTransactionHomeService extends Controller
         }
 
         if(!empty($request->user()->id)){
-            $user = User::where('id', $request->user()->id)->first();
+            $user = User::where('id', $request->user()->id)
+                ->leftJoin('cities', 'cities.id_city', 'users.id_city')
+                ->select('users.*', 'cities.city_name')
+                ->first();
             if (empty($user)) {
                 return response()->json([
                     'status'    => 'fail',
@@ -482,6 +488,7 @@ class ApiTransactionHomeService extends Controller
         $result['customer'] = [
             "name" => $user['name'],
             "email" => $user['email'],
+            "phone" => $user['phone'],
             "domicile" => $user['city_name'],
             "birthdate" => date('Y-m-d', strtotime($user['birthday'])),
             "gender" => $user['gender'],
@@ -537,13 +544,24 @@ class ApiTransactionHomeService extends Controller
         }
 
         if(!empty($request->user()->id)){
-            $user = User::where('id', $request->user()->id)->first();
+            $user = User::where('id', $request->user()->id)
+                ->leftJoin('cities', 'cities.id_city', 'users.id_city')
+                ->select('users.*', 'cities.city_name')
+                ->with('memberships')
+                ->first();
             if (empty($user)) {
                 return response()->json([
                     'status'    => 'fail',
                     'messages'  => ['User Not Found']
                 ]);
             }
+        }
+
+        if($user['complete_profile'] == 0){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Please complete your profile']
+            ]);
         }
 
         if($post['preference_hair_stylist'] == 'favorite' && empty($post['id_user_hair_stylist'])){

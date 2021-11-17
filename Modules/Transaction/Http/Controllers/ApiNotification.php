@@ -52,6 +52,7 @@ use App\Lib\PushNotificationHelper;
 use App\Lib\Midtrans;
 use App\Lib\GoSend;
 use Modules\Transaction\Entities\HairstylistNotAvailable;
+use Modules\Transaction\Entities\TransactionAcademy;
 use Modules\Transaction\Entities\TransactionProductService;
 use Validator;
 use Hash;
@@ -924,7 +925,11 @@ Detail: ".$link['short'],
                 if (!$check) {
                     return false;
                 }
-                DisburseJob::dispatch(['id_transaction' => $trx->id_transaction])->onConnection('disbursequeue');
+
+                //update amount completed transaction academy
+                if($trx->transaction_from == 'academy'){
+                    TransactionAcademy::where('id_transaction', $trx->id_transaction)->update(['amount_completed' => $trx->transaction_grandtotal, 'amount_not_completed' => 0]);
+                }
 
                 $fraud = $this->checkFraud($trx);
                 if (!$fraud) {

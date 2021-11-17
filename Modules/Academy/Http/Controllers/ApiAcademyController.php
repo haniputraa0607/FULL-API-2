@@ -84,14 +84,14 @@ class ApiAcademyController extends Controller
         date_default_timezone_set('Asia/Jakarta');
     }
 
-    public function settingInstalment(){
-        $data = (array)json_decode(Setting::where('key', 'setting_academy_instalment')->first()['value_text']??'');
+    public function settingInstallment(){
+        $data = (array)json_decode(Setting::where('key', 'setting_academy_installment')->first()['value_text']??'');
         return response()->json(MyHelper::checkGet($data));
     }
 
-    public function settingInstalmentSave(Request $request){
+    public function settingInstallmentSave(Request $request){
         $post = $request->json()->all();
-        $save = Setting::updateOrCreate(['key' => 'setting_academy_instalment'], ['value_text' => json_encode(array_values($post['data']))]);
+        $save = Setting::updateOrCreate(['key' => 'setting_academy_installment'], ['value_text' => json_encode(array_values($post['data']))]);
         return response()->json(MyHelper::checkUpdate($save));
     }
 
@@ -383,13 +383,14 @@ class ApiAcademyController extends Controller
         foreach ($products as $product){
             $resProd[] = [
                 'id_product' => $product['id_product'],
+                'id_brand' => $getBrand['id_brand'],
                 'product_code' => $product['product_code'],
                 'product_name' => $product['product_name'],
                 'product_short_description' => $product['product_short_description'],
                 'product_price' => (int)$product['product_price'],
                 'string_product_price' => 'Rp '.number_format((int)$product['product_price'],0,",","."),
-                'duration' => 'Durasi'.$product['product_academy_duration'].' bulan',
-                'total_meeting' => $product['product_academy_total_meeting'].' x Pertemuan @'.$product['product_academy_hours_meeting'].' jam',
+                'duration' => 'Durasi '.$product['product_academy_duration'].' bulan',
+                'total_meeting' => (!empty($product['product_academy_total_meeting'])? $product['product_academy_total_meeting'].' x Pertemuan @'.$product['product_academy_hours_meeting'].' jam':''),
                 'photo' => (empty($product['photos'][0]['product_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$product['photos'][0]['product_photo'])
             ];
         }

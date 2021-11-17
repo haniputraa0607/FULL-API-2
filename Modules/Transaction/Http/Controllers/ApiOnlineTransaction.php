@@ -127,7 +127,8 @@ class ApiOnlineTransaction extends Controller
         $this->subscription  = "Modules\Subscription\Http\Controllers\ApiSubscriptionVoucher";
         $this->bundling      = "Modules\ProductBundling\Http\Controllers\ApiBundlingController";
         $this->product      = "Modules\Product\Http\Controllers\ApiProductController";
-        $this->trx_home_service      = "Modules\Transaction\Http\Controllers\ApiTransactionHomeService";
+        $this->trx_home_service  = "Modules\Transaction\Http\Controllers\ApiTransactionHomeService";
+        $this->trx_academy = "Modules\Transaction\Http\Controllers\ApiTransactionAcademy";
     }
 
     public function newTransaction(NewTransaction $request) {
@@ -142,6 +143,9 @@ class ApiOnlineTransaction extends Controller
         if($post['transaction_from'] == 'home-service'){
             $homeService = app($this->trx_home_service)->newTransactionHomeService($request);
             return $homeService;
+        }elseif($post['transaction_from'] == 'academy'){
+            $academy = app($this->trx_academy)->newTransactionAcademy($request);
+            return $academy;
         }
 
         $bearerToken = $request->bearerToken();
@@ -1737,8 +1741,6 @@ class ApiOnlineTransaction extends Controller
                     }
 
                     DB::commit();
-                    //insert to disburse job for calculation income outlet
-                    DisburseJob::dispatch(['id_transaction' => $insertTransaction['id_transaction']])->onConnection('disbursequeue');
 
                     //remove for result
                     unset($insertTransaction['user']);
@@ -1905,9 +1907,6 @@ class ApiOnlineTransaction extends Controller
 
         DB::commit();
 
-        //insert to disburse job for calculation income outlet
-        DisburseJob::dispatch(['id_transaction' => $insertTransaction['id_transaction']])->onConnection('disbursequeue');
-
         $insertTransaction['cancel_message'] = 'Are you sure you want to cancel this transaction?';
         $insertTransaction['timer_shopeepay'] = (int) MyHelper::setting('shopeepay_validity_period','value', 300);
         $insertTransaction['message_timeout_shopeepay'] = "Sorry, your payment has expired";
@@ -1936,6 +1935,9 @@ class ApiOnlineTransaction extends Controller
         if($post['transaction_from'] == 'home-service'){
             $homeService = app($this->trx_home_service)->check($request);
             return $homeService;
+        }elseif ($post['transaction_from'] == 'academy'){
+            $academy = app($this->trx_academy)->check($request);
+            return $academy;
         }
 
         $bearerToken = $request->bearerToken();
@@ -5036,12 +5038,6 @@ class ApiOnlineTransaction extends Controller
         $getOauth = OauthAccessToken::find($tokenId);
         $scopeUser = str_replace(str_split('[]""'),"",$getOauth['scopes']);
 
-        if(empty($post['item']) && empty($post['item_service'])){
-            return response()->json([
-                'status'    => 'fail',
-                'messages'  => ['Item/Item bundling/Item Service can not be empty']
-            ]);
-        }
         $post['item'] = $this->mergeProducts($post['item']??[]);
         $grandTotal = app($this->setting_trx)->grandTotal();
         if(!empty($request->user()->id)){
@@ -5317,6 +5313,9 @@ class ApiOnlineTransaction extends Controller
         ];
         $result['subtotal_item'] = $subTotalItem;
         $result['subtotal_item_service'] = $subTotalItemService;
+        if(empty($post['item']) && empty($post['item_service'])){
+            $continueCheckOut = false;
+        }
         $result['continue_checkout'] = $continueCheckOut;
         if($scopeUser == 'apps'){
             $result['complete_profile'] = (empty($user->complete_profile) ?false:true);

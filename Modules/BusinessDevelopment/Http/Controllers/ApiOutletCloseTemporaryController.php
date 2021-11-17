@@ -166,7 +166,7 @@ class ApiOutletCloseTemporaryController extends Controller
     }
     public function indexClose(Request $request){
          $store = OutletCloseTemporary::where(array('outlet_close_temporary.id_outlet'=>$request->id_outlet))->orderby('created_at','desc')->get();
-         $outlet = Outlet::where('id_outlet',$request->id_outlet)->first();
+         $outlet = Outlet::where('id_outlet',$request->id_outlet)->join('locations','locations.id_location','outlets.id_location')->first();
          return response()->json(['status' => 'success','result'=>array(
              'outlet'=>$outlet,
              'list'=>$store

@@ -583,7 +583,7 @@ class ApiTransactionAcademy extends Controller
             $allMinimumStep = array_values((array)$dt['step']);
             $sumMinimumStep = array_sum($allMinimumStep);
             $minimumStep = array_count_values($allMinimumStep);
-            $getEmptyMinimum = $minimumStep[0];
+            $getEmptyMinimum = $minimumStep[0]??0;
             if($getEmptyMinimum > 0){
                 $diff = (100 - $sumMinimumStep) / $getEmptyMinimum;
             }
@@ -612,7 +612,7 @@ class ApiTransactionAcademy extends Controller
         return response()->json(MyHelper::checkGet($result));
     }
 
-    public function listHomeService(Request $request)
+    public function listAcademy(Request $request)
     {
         $list = Transaction::where('transaction_from', 'academy')
             ->join('transaction_academy','transactions.id_transaction', 'transaction_academy.id_transaction')

@@ -416,7 +416,7 @@ class ApiProductServiceController extends Controller
             }
             $distance = (float)app($this->outlet)->distance($post['latitude'], $post['longitude'], $val['latitude'], $val['longitude'], "K");
 
-            if($distance > 0 && $distance <= $maximumRadius){
+            if($distance > $maximumRadius){
                 continue;
             }
 

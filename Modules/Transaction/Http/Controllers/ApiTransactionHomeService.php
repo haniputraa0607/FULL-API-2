@@ -893,6 +893,7 @@ class ApiTransactionHomeService extends Controller
                 'id_user'                      => $insertTransaction['id_user'],
                 'transaction_product_qty'      => $itemProduct['qty'],
                 'transaction_product_price'    => $itemProduct['product_price'],
+                'transaction_product_price_base' => $itemProduct['product_price'],
                 'transaction_product_discount'   => 0,
                 'transaction_product_discount_all'   => 0,
                 'transaction_product_base_discount' => 0,

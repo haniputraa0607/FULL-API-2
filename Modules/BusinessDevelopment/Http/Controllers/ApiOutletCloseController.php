@@ -86,7 +86,10 @@ class ApiOutletCloseController extends Controller
                $change = OutletChangeOwnership::where(array('id_outlet'=>$value['id_outlet']))
                         ->orderby('created_at','desc')
                         ->first();
-               if(empty($cutoff)&&empty($change)){
+                $close = OutletCloseTemporary::where(array('id_outlet'=>$value['id_outlet']))
+                        ->orderby('created_at','desc')
+                        ->first();
+               if(empty($cutoff)&&empty($change)&&empty($close)){
                    array_push($list,$value);
                }
                if(isset($cutoff)&&isset($change)&&isset($close)){
@@ -94,12 +97,11 @@ class ApiOutletCloseController extends Controller
 
                    array_push($list,$value);
                    }
-               }
-               if(isset($close)){
                    if($close->status=="Success"&&$close->jenis=="Active"){
                    array_push($list,$value);
                    }
                }
+              
                
            }
             return response()->json(['status' => 'success', 'result' => $list]);

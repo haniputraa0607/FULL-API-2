@@ -471,6 +471,7 @@ class ApiTransactionAcademy extends Controller
             'id_user'                      => $insertTransaction['id_user'],
             'transaction_product_qty'      => $itemAcademy['qty'],
             'transaction_product_price'    => $itemAcademy['product_price'],
+            'transaction_product_price_base' => $itemAcademy['product_price'],
             'transaction_product_discount'   => 0,
             'transaction_product_discount_all'   => 0,
             'transaction_product_base_discount' => 0,

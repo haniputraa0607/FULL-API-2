@@ -347,6 +347,10 @@ class ApiProductServiceController extends Controller
         $post['latitude'] = $address['latitude'];
         $post['longitude'] = $address['longitude'];
 
+        if(strtolower($post['booking_time']) == 'sekarang'){
+            $post['booking_time'] = date('H:i', strtotime("+2 minutes", strtotime($post['booking_time_user'])));
+        }
+
         $bookDate = date('Y-m-d', strtotime($post['booking_date']));
         $bookTime = date('H:i:s', strtotime($post['booking_time']));
         $bookTimeStart = date('H:i', strtotime("-30 minutes", strtotime($bookTime)));

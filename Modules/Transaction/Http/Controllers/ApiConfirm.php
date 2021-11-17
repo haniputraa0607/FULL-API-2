@@ -428,18 +428,7 @@ class ApiConfirm extends Controller
             $dataMidtrans['payment']          = $detailPayment;
             $dataMidtrans['midtrans_product'] = $dataDetailProduct;
 
-             $update = Transaction::where('id_transaction', $post['id'])->update(['trasaction_payment_type' => $post['payment_type']]);
-
-             if (!$update) {
-                 DB::rollback();
-                 return response()->json([
-                     'status'    => 'fail',
-                     'messages'  => [
-                         'Payment Midtrans Invalid.'
-                     ],
-                     'data' => [$connectMidtrans]
-                 ]);
-             }
+            Transaction::where('id_transaction', $post['id'])->update(['trasaction_payment_type' => $post['payment_type']]);
 
             DB::commit();
 

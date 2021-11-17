@@ -151,6 +151,13 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
 	});
 });
 
+Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scopes:apps'], 'prefix' => 'api/academy', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
+
+    Route::group(['prefix' => 'transaction'], function () {
+        Route::post('installment', 'ApiTransactionAcademy@installmentDetail');
+    });
+});
+
 Route::group(['middleware' => ['auth_client', 'user_agent'], 'prefix' => 'api/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
     Route::post('/province', 'ApiTransaction@getProvince');
     Route::post('/city', 'ApiTransaction@getCity');

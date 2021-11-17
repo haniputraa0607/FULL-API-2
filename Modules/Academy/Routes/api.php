@@ -15,8 +15,8 @@ use Illuminate\Http\Request;
 
 Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scopes:be'], 'prefix' => 'academy'], function () {
     Route::any('product', 'ApiProductAcademyController@index');
-    Route::get('setting/instalment', 'ApiAcademyController@settingInstalment');
-    Route::post('setting/instalment/save', 'ApiAcademyController@settingInstalmentSave');
+    Route::get('setting/installment', 'ApiAcademyController@settingInstallment');
+    Route::post('setting/installment/save', 'ApiAcademyController@settingInstallmentSave');
     Route::get('setting/banner', 'ApiAcademyController@settingBanner');
     Route::post('setting/banner/save', 'ApiAcademyController@settingBannerSave');
 });

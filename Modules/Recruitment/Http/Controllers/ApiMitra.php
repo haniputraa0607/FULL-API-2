@@ -414,6 +414,13 @@ class ApiMitra extends Controller
     		'home_service' => $this->homeServiceScheduleStatus($user->id_user_hair_stylist, $today)
     	];
 
+    	if(!empty($request->latitude) && !empty($request->longitude)){
+            UserHairStylist::where('id_user_hair_stylist', $user['id_user_hair_stylist'])->update([
+                'latitude' => $request->latitude,
+                'longitude' => $request->longitude
+            ]);
+        }
+
     	return MyHelper::checkGet($res);
     }
 

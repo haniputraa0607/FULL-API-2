@@ -6,7 +6,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 
-class DetailCustomerQueueRequest extends FormRequest
+class StartOutletServiceRequest extends FormRequest
 {
 
     /**
@@ -17,7 +17,7 @@ class DetailCustomerQueueRequest extends FormRequest
 	public function rules()
 	{
 		return [
-			'transaction_receipt_number' => 'nullable|string',
+			'transaction_receipt_number' => 'required|string',
 			'id_transaction_product_service' => 'required'
         ];
     }

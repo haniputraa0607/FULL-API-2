@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 
+use App\Http\Models\Outlet;
 use App\Http\Models\Setting;
 use App\Http\Models\Transaction;
 use App\Http\Models\TransactionProduct;
@@ -166,6 +167,14 @@ class ApiMitraOutletService extends Controller
 			];
 		}
 
+		$outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
+		if (!$queue) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Outlet tidak ditemukan']
+			];
+		}
+
 		$serviceInProgress = TransactionProductService::where('service_status', 'In Progress')
 							->where('id_user_hair_stylist', $user->id_user_hair_stylist)
 							->first();
@@ -211,6 +220,8 @@ class ApiMitraOutletService extends Controller
     		}
     	}
 
+    	$box = OutletBox::where('id_outlet_box', $schedule->id_outlet_box)->first();
+
 		$res = [
 			'id_transaction_product_service' => $queue['id_transaction_product_service'],
 			'order_id' => $queue['order_id'] ?? null,
@@ -225,7 +236,12 @@ class ApiMitraOutletService extends Controller
 			'disable' => $disable,
 			'id_outlet_box' => $schedule->id_outlet_box ?? null,
 			'flag_update_schedule' => $queue['flag_update_schedule'],
-			'is_conflict' => $queue['is_conflict']
+			'is_conflict' => $queue['is_conflict'],
+			'outlet_name' => $outlet['outlet_name'],
+			'hairstylist_nickname' => $user['nickname'],
+			'hairstylist_fullname' => $user['fullname'],
+			'outlet_box_code' => $box['outlet_box_code'] ?? null,
+			'outlet_box_name' => $box['outlet_box_name'] ?? null
 		];
 		
 		return MyHelper::checkGet($res);

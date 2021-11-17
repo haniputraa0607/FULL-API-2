@@ -10,6 +10,7 @@ use App\Lib\MyHelper;
 use DB;
 use Modules\Brand\Entities\Brand;
 use Modules\BusinessDevelopment\Entities\Partner;
+use Modules\BusinessDevelopment\Http\Controllers\ApiPartnersController;
 
 class ApiLocationsController extends Controller
 {
@@ -196,9 +197,17 @@ class ApiLocationsController extends Controller
      */
     public function update(Request $request)
     {
-        $post = $request->all();
+        if(isset($request['update_data_location'])){
+            $post = $request['update_data_location'];
+        }else{
+            $post = $request->all();
+        }
         if (isset($post['id_location']) && !empty($post['id_location'])) {
             DB::beginTransaction();
+            $data_update = [];
+            if (isset($post['id_location'])) {
+                $data_update['id_location'] = $post['id_location'];
+            }
             if (isset($post['name'])) {
                 $data_update['name'] = $post['name'];
             }
@@ -226,11 +235,19 @@ class ApiLocationsController extends Controller
             if (isset($post['id_partner'])) {
                 $data_update['id_partner'] = $post['id_partner'];
             }
-            if (isset($post['start_date'])) {
+            if (isset($post['end_date'])) {
                 $data_update['start_date'] = $post['start_date'];
+            }elseif(isset($post['status']) && $post['status']=='Active'){
+                $id_loc_start =  Location::select('id_partner')->where('id_location',$post['id_location'])->first()['id_partner'];
+                $start_date_active = Partner::select('start_date')->where('id_partner',$id_loc_start)->first()['start_date'];
+                $data_update['start_date'] = $start_date_active;
             }
             if (isset($post['end_date'])) {
                 $data_update['end_date'] = $post['end_date'];
+            }elseif(isset($post['status']) && $post['status']=='Active'){
+                $id_loc_end =  Location::select('id_partner')->where('id_location',$post['id_location'])->first()['id_partner'];
+                $end_date_active = Partner::select('end_date')->where('id_partner',$id_loc_end)->first()['end_date'];
+                $data_update['end_date'] = $end_date_active;
             }
             if (isset($post['location_large'])) {
                 $data_update['location_large'] = $post['location_large'];
@@ -294,6 +311,13 @@ class ApiLocationsController extends Controller
                             ]);
                         }
                     }
+                }
+            }
+            if(isset($request['data_confir']) && !empty($request['data_confir'])){
+                $confir = new ApiPartnersController;
+                $confir_letter = $confir->createConfirLetter($request['data_confir']);
+                if($confir_letter['status'] != 'success' && isset($confir_letter['status'])){
+                    return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
                 }
             }
             return response()->json(['status' => 'success']);

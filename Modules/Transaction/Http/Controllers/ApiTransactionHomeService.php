@@ -60,13 +60,6 @@ class ApiTransactionHomeService extends Controller
     public function cart(Request $request){
         $post = $request->json()->all();
 
-        if(empty($post['item_service'])){
-            return response()->json([
-                'status'    => 'fail',
-                'messages'  => ['Item Service can not be empty']
-            ]);
-        }
-
         if(!empty($request->user()->id)){
             $user = User::where('id', $request->user()->id)->first();
             if (empty($user)) {
@@ -118,12 +111,24 @@ class ApiTransactionHomeService extends Controller
         $post['item_service'] = $this->mergeService($post['item_service']);
         $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
         $outlet = Outlet::where('id_outlet', $outletHomeService)->first();
+        if(empty($outlet)){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Outlet default not found']
+            ]);
+        }
+
+        $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
+            ->where('id_outlet', $outlet['id_outlet'])->first();
+
+        if(empty($brand)){
+            return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
+        }
         foreach ($post['item_service']??[] as $key=>$item){
             $err = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
-                ->leftJoin('brand_product', 'brand_product.id_product', 'products.id_product')
                 ->where('products.id_product', $item['id_product'])
-                ->select('products.*', 'product_global_price as product_price', 'brand_product.id_brand')
+                ->select('products.*', 'product_global_price as product_price')
                 ->with('product_service_use')
                 ->first();
 
@@ -168,7 +173,7 @@ class ApiTransactionHomeService extends Controller
 
             $itemService[$key] = [
                 "id_custom" => $item['id_custom'],
-                "id_brand" => $service['id_brand'],
+                "id_brand" => $brand['id_brand'],
                 "id_product" => $service['id_product'],
                 "product_code" => $service['product_code'],
                 "product_name" => $service['product_name'],
@@ -187,6 +192,11 @@ class ApiTransactionHomeService extends Controller
         if(!empty($errAll)){
             $continueCheckOut = false;
         }
+
+        if(empty($post['item_service'])){
+            $continueCheckOut = false;
+        }
+
         unset($address['description']);
         $result['id_user_address'] = $address['id_user_address'];
         $result['notes'] = (empty($post['notes']) ? $address['description']:$post['notes']);
@@ -305,12 +315,24 @@ class ApiTransactionHomeService extends Controller
         $post['item_service'] = $this->mergeService($post['item_service']);
         $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
         $outlet = Outlet::where('id_outlet', $outletHomeService)->first();
+        if(empty($outlet)){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Outlet default not found']
+            ]);
+        }
+
+        $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
+            ->where('id_outlet', $outlet['id_outlet'])->first();
+
+        if(empty($brand)){
+            return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
+        }
         foreach ($post['item_service']??[] as $key=>$item){
             $err = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
-                ->leftJoin('brand_product', 'brand_product.id_product', 'products.id_product')
                 ->where('products.id_product', $item['id_product'])
-                ->select('products.*', 'product_global_price as product_price', 'brand_product.id_brand')
+                ->select('products.*', 'product_global_price as product_price')
                 ->with('product_service_use')
                 ->first();
 
@@ -372,7 +394,7 @@ class ApiTransactionHomeService extends Controller
 
             $itemService[$key] = [
                 "id_custom" => $item['id_custom'],
-                "id_brand" => $service['id_brand'],
+                "id_brand" => $brand['id_brand'],
                 "id_product" => $service['id_product'],
                 "product_code" => $service['product_code'],
                 "product_name" => $service['product_name'],
@@ -586,12 +608,24 @@ class ApiTransactionHomeService extends Controller
         $post['id_outlet'] = null;
         $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
         $outlet = Outlet::where('id_outlet', $outletHomeService)->first();
+        if(empty($outlet)){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Outlet default not found']
+            ]);
+        }
+
+        $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
+            ->where('id_outlet', $outlet['id_outlet'])->first();
+
+        if(empty($brand)){
+            return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
+        }
         foreach ($post['item_service']??[] as $key=>$item){
             $detailStock = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
-                ->leftJoin('brand_product', 'brand_product.id_product', 'products.id_product')
                 ->where('products.id_product', $item['id_product'])
-                ->select('products.*', 'product_global_price as product_price', 'brand_product.id_brand')
+                ->select('products.*', 'product_global_price as product_price')
                 ->with('product_service_use')
                 ->first();
 
@@ -642,7 +676,7 @@ class ApiTransactionHomeService extends Controller
 
             $itemService[$key] = [
                 "id_custom" => $item['id_custom'],
-                "id_brand" => $service['id_brand'],
+                "id_brand" => $brand['id_brand'],
                 "id_product" => $service['id_product'],
                 "product_code" => $service['product_code'],
                 "product_name" => $service['product_name'],

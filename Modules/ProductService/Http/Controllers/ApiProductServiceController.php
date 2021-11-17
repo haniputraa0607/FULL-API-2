@@ -2,6 +2,7 @@
 
 namespace Modules\ProductService\Http\Controllers;
 
+use App\Http\Models\Outlet;
 use App\Http\Models\OutletSchedule;
 use App\Http\Models\Product;
 use App\Http\Models\ProductPhoto;
@@ -10,6 +11,7 @@ use App\Http\Models\UserAddress;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
+use Modules\Brand\Entities\Brand;
 use Modules\Product\Entities\ProductDetail;
 use App\Lib\MyHelper;
 use DB;
@@ -136,13 +138,9 @@ class ApiProductServiceController extends Controller
     public function productUseUpdate(Request $request){
         $post = $request->json()->all();
         if(isset($post['id_product_service']) && !empty($post['id_product_service'])){
-            if(empty($post['product_use_data'])){
-                return response()->json(['status' => 'fail', 'messages' => ['Data can not be empty']]);
-            }
-
-            ProductServiceUse::where('id_product_service', $post['id_product_service'])->delete();
+            $delete = ProductServiceUse::where('id_product_service', $post['id_product_service'])->delete();
             $insert = [];
-            foreach ($post['product_use_data'] as $pu){
+            foreach ($post['product_use_data']??[] as $pu){
                 $insert[] = [
                     'id_product_service' => $post['id_product_service'],
                     'id_product' => $pu['id_product'],
@@ -152,19 +150,37 @@ class ApiProductServiceController extends Controller
                 ];
             }
 
-            $save = ProductServiceUse::insert($insert);
-            return response()->json(MyHelper::checkUpdate($save));
+            if(!empty($insert)){
+                $save = ProductServiceUse::insert($insert);
+                return response()->json(MyHelper::checkUpdate($save));
+            }
+            return response()->json(MyHelper::checkDelete($delete));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID product service can not be empty']]);
         }
     }
 
     public function homeServiceListProduct(){
+        $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
+        $outlet = Outlet::where('id_outlet', $outletHomeService)->first();
+        if(empty($outlet)){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Outlet default not found']
+            ]);
+        }
+
+        $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
+            ->where('id_outlet', $outlet['id_outlet'])->first();
+
+        if(empty($brand)){
+            return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
+        }
+
         $productServie = Product::select([
             'products.id_product', 'products.product_name', 'products.product_code', 'products.product_description', 'product_variant_status',
-            'product_global_price.product_global_price as product_price', 'brand_product.id_brand'
+            'product_global_price.product_global_price as product_price'
         ])
-            ->join('brand_product', 'brand_product.id_product', '=', 'products.id_product')
             ->leftJoin('product_global_price', 'product_global_price.id_product', '=', 'products.id_product')
             ->where('product_type', 'service')
             ->where('product_visibility', 'Visible')
@@ -179,7 +195,7 @@ class ApiProductServiceController extends Controller
         foreach ($productServie as $val){
             $resProdService[] = [
                 'id_product' => $val['id_product'],
-                'id_brand' => $val['id_brand'],
+                'id_brand' => $brand['id_brand'],
                 'product_code' => $val['product_code'],
                 'product_name' => $val['product_name'],
                 'product_description' => $val['product_description'],
@@ -262,6 +278,57 @@ class ApiProductServiceController extends Controller
             'photo' => (empty($product['photos'][0]['product_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$product['photos'][0]['product_photo']),
             'list_date' => $listDate
         ];
+
+        return response()->json(MyHelper::checkGet($result));
+    }
+
+    /**
+     * Return home service available datetime
+     * @param  Request $request 
+     * @return Response
+     */
+    public function availableDateTime(Request $request){
+        $post = $request->json()->all();
+
+        $totalDateShow = Setting::where('key', 'total_show_date_booking_service')->first()->value??1;
+        $today = date('Y-m-d');
+        $currentTime = date('H:i');
+        $listDate = [];
+
+        $x = 0;
+        $count = 1;
+        $processingTime = Setting::where('key', 'home_service_processing_time')->first()['value']??60;
+        $timeStart = Setting::where('key', 'home_service_time_start')->first()['value']??'07:00:00';
+        $timeEnd = Setting::where('key', 'home_service_time_end')->first()['value']??'22:00:00';
+        while($count <= (int)$totalDateShow) {
+            $date = date('Y-m-d', strtotime('+'.$x.' day', strtotime($today)));
+            $open = date('H:i', strtotime($timeStart));
+            $close = date('H:i', strtotime($timeEnd));
+            $times = [];
+            $tmpTime = $open;
+            if(strtotime($date.' '.$open) > strtotime($today.' '.$currentTime)) {
+                $times[] = $open;
+            }elseif($date == $today){
+                $times[] = 'Sekarang';
+            }
+            while(strtotime($tmpTime) < strtotime($close)) {
+                $timeConvert = date('H:i', strtotime("+".$processingTime." minutes", strtotime($tmpTime)));
+                if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime)){
+                    $times[] = $timeConvert;
+                }
+                $tmpTime = $timeConvert;
+            }
+            if(!empty($times)){
+                $listDate[] = [
+                    'date' => $date,
+                    'times' => $times
+                ];
+            }
+            $count++;
+            $x++;
+        }
+
+        $result = $listDate;
 
         return response()->json(MyHelper::checkGet($result));
     }

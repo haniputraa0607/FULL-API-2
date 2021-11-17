@@ -748,7 +748,7 @@ class ApiHome extends Controller
         $retUser['membership']=$membership;
 
         //update last time zone user
-        User::where('id', $user->id)->update(['user_time_zone_utc' => $request->time_zone_utc]);
+        User::where('id', $user->id)->update(['user_time_zone_utc' => str_replace('GMT', '', $request->time_zone_utc)]);
 
         $result = [
             'status' => 'success',

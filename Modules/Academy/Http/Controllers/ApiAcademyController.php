@@ -383,7 +383,7 @@ class ApiAcademyController extends Controller
         foreach ($products as $product){
             $resProd[] = [
                 'id_product' => $product['id_product'],
-                'id_brand' => $getBrand['id_brand'],
+                'id_brand' => $getBrand['id_brand']??null,
                 'product_code' => $product['product_code'],
                 'product_name' => $product['product_name'],
                 'product_short_description' => $product['product_short_description'],

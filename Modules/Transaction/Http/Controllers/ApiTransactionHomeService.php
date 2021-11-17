@@ -851,7 +851,7 @@ class ApiTransactionHomeService extends Controller
                 'messages'  => ['Insert Transaction Failed']
             ]);
         }
-
+        $insertTransaction['transaction_receipt_number'] = $receipt;
 
         $createHomeService = TransactionHomeService::create([
             'id_transaction' => $insertTransaction['id_transaction'],

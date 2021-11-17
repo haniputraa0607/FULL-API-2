@@ -160,6 +160,12 @@ class ApiOutletController extends Controller
             $data['outlet_academy_status'] = 0;
         }
 
+        if (isset($post['outlet_service_status'])) {
+            $data['outlet_service_status'] = $post['outlet_service_status'];
+        }else{
+            $data['outlet_service_status'] = 0;
+        }
+
         if (isset($post['plastic_used_status'])) {
             $data['plastic_used_status'] = $post['plastic_used_status'];
         }else{

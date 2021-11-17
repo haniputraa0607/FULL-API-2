@@ -13,6 +13,11 @@ class UserHairStylist extends Authenticatable
 	use Notifiable, HasMultiAuthApiTokens;
 
 	public function findForPassport($username) {
+        $username = str_replace('+', '', $username);
+        if(substr($username, 0, 2) == 62){
+            $username = str_replace('62', '0', $username);
+        }
+
         return $this->where('phone_number', $username)->first();
 	}
 
@@ -83,5 +88,10 @@ class UserHairStylist extends Authenticatable
     public function documents()
     {
         return $this->hasMany(\Modules\Recruitment\Entities\UserHairStylistDocuments::class, 'id_user_hair_stylist');
+    }
+
+    public function location()
+    {
+        return $this->hasOne(HairstylistLocation::class, 'id_user_hair_stylist');
     }
 }

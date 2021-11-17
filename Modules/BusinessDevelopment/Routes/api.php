@@ -25,6 +25,7 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefi
     Route::post('/update', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@update']);
     Route::post('/create-follow-up', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@followUp']);
     Route::post('/pdf', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@pdf']);
+    Route::post('/tesIcount', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@tesIcount']);
     Route::group(['prefix' => '/locations'], function() {
         Route::any('/', ['middleware'=>['feature_control:342','scopes:be'],'uses' => 'ApiLocationsController@index']);
         Route::post('/create', ['middleware'=>'scopes:franchise-user','uses' => 'ApiLocationsController@store']);
@@ -73,6 +74,40 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefi
         Route::post('/lampiran/create', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersCloseController@lampiranCreate']);
         Route::post('/lampiran/delete', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersCloseController@lampiranDelete']);
         Route::post('/lampiran/data', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersCloseController@lampiranData']);
+    });
+    Route::group(['prefix' => '/close-permanent'], function() {
+        Route::post('/', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnerClosePermanentController@index']);
+        Route::post('/create', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnerClosePermanentController@create']);
+        Route::post('/createActive', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnerClosePermanentController@create_active']);
+        Route::post('/closePermanent', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnerClosePermanentController@closePermanent']);
+        Route::post('/detail', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnerClosePermanentController@detail']);
+        Route::post('/reject', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnerClosePermanentController@reject']);
+        Route::post('/permanent', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnerClosePermanentController@permanent']);
+        Route::post('/cronInactive', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnerClosePermanentController@cronInactive']);
+        Route::post('/update', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnerClosePermanentController@update']);
+        Route::post('/updateActive', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnerClosePermanentController@update_active']);
+        Route::post('/success', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnerClosePermanentController@success']);
+        Route::post('/successActive', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnerClosePermanentController@successActive']);
+        Route::post('/lampiran/create', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnerClosePermanentController@lampiranCreate']);
+        Route::post('/lampiran/delete', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnerClosePermanentController@lampiranDelete']);
+        Route::post('/lampiran/data', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnerClosePermanentController@lampiranData']);
+    });
+    Route::group(['prefix' => '/becomes-ixobox'], function() {
+        Route::post('/', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@index']);
+        Route::post('/create', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@create']);
+        Route::post('/createActive', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@create_active']);
+        Route::post('/becomesIxobox', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@becomesIxobox']);
+        Route::post('/detail', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@detail']);
+        Route::post('/reject', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@reject']);
+        Route::post('/becomes', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@becomes']);
+        Route::post('/cronBecomeIxobox', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@cronBecomeIxobox']);
+        Route::post('/update', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@update']);
+        Route::post('/updateActive', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@update_active']);
+        Route::post('/success', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@success']);
+        Route::post('/successActive', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@successActive']);
+        Route::post('/lampiran/create', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@lampiranCreate']);
+        Route::post('/lampiran/delete', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@lampiranDelete']);
+        Route::post('/lampiran/data', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiPartnersBecomesIxoboxController@lampiranData']);
     });
     Route::group(['prefix' => '/outlet'], function() {
         Route::post('/', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseController@index']);

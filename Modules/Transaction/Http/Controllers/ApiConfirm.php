@@ -344,13 +344,13 @@ class ApiConfirm extends Controller
                     'customer_details'    => $dataUser,
                     'shipping_address'    => $dataShipping,
                 );
-                $connectMidtrans = Midtrans::token($check['transaction_receipt_number'], $countGrandTotal, $dataUser, $dataShipping, $dataDetailProduct, 'trx', $check['id_transaction'], $scopeUser, $outletCode);
+                $connectMidtrans = Midtrans::token($check['transaction_receipt_number'], $countGrandTotal, $dataUser, $dataShipping, $dataDetailProduct, 'trx', $check['id_transaction'], $scopeUser, $outletCode, $check['transaction_from']);
             } else {
                 $dataMidtrans = array(
                     'transaction_details' => $transaction_details,
                     'customer_details'    => $dataUser,
                 );
-                $connectMidtrans = Midtrans::token($check['transaction_receipt_number'], $countGrandTotal, $dataUser, $ship=null, $dataDetailProduct, 'trx', $check['id_transaction'], $post['payment_detail'], $scopeUser, $outletCode);
+                $connectMidtrans = Midtrans::token($check['transaction_receipt_number'], $countGrandTotal, $dataUser, $ship=null, $dataDetailProduct, 'trx', $check['id_transaction'], $post['payment_detail'], $scopeUser, $outletCode, $check['transaction_from']);
             }
 
             if (empty($connectMidtrans['token'])) {
@@ -428,18 +428,7 @@ class ApiConfirm extends Controller
             $dataMidtrans['payment']          = $detailPayment;
             $dataMidtrans['midtrans_product'] = $dataDetailProduct;
 
-             $update = Transaction::where('id_transaction', $post['id'])->update(['trasaction_payment_type' => $post['payment_type']]);
-
-             if (!$update) {
-                 DB::rollback();
-                 return response()->json([
-                     'status'    => 'fail',
-                     'messages'  => [
-                         'Payment Midtrans Invalid.'
-                     ],
-                     'data' => [$connectMidtrans]
-                 ]);
-             }
+            Transaction::where('id_transaction', $post['id'])->update(['trasaction_payment_type' => $post['payment_type']]);
 
             DB::commit();
 

@@ -23,7 +23,6 @@ Route::group(['middleware' => ['log_activities','auth:api', 'user_agent', 'scope
 {
     Route::get('list', 'ApiProductServiceController@homeServiceListProduct');
     Route::post('detail-service', 'ApiProductServiceController@homeServiceDetailProductService');
-    Route::post('available-datetime', 'ApiProductServiceController@availableDateTime');
     Route::post('available-hs/favorite', 'ApiProductServiceController@homeServiceAvailableHsFavorite');
 });
 

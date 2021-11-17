@@ -25,6 +25,7 @@ use Modules\Product\Entities\ProductDetail;
 use Modules\Product\Entities\ProductStockLog;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use Modules\Recruitment\Entities\UserHairStylist;
+use Modules\Recruitment\Entities\HairstylistLocation;
 use Modules\ShopeePay\Entities\TransactionPaymentShopeePay;
 use Modules\Transaction\Entities\HairstylistNotAvailable;
 use App\Http\Models\TransactionPayment;
@@ -60,15 +61,11 @@ class ApiTransactionHomeService extends Controller
     public function cart(Request $request){
         $post = $request->json()->all();
 
-        if(empty($post['item_service'])){
-            return response()->json([
-                'status'    => 'fail',
-                'messages'  => ['Item Service can not be empty']
-            ]);
-        }
-
         if(!empty($request->user()->id)){
-            $user = User::where('id', $request->user()->id)->first();
+            $user = User::where('id', $request->user()->id)
+                ->leftJoin('cities', 'cities.id_city', 'users.id_city')
+                ->select('users.*', 'cities.city_name')
+                ->first();
             if (empty($user)) {
                 return response()->json([
                     'status'    => 'fail',
@@ -77,27 +74,28 @@ class ApiTransactionHomeService extends Controller
             }
         }
 
-        $address = UserAddress::where('id_user', $user->id)->where('id_user_address', $post['id_user_address'])->first();
-        if(empty($address)){
+        if($post['preference_hair_stylist'] == 'favorite' && empty($post['id_user_hair_stylist'])){
             return response()->json([
                 'status'    => 'fail',
-                'messages'  => ['Address user not found']
+                'messages'  => ['User hair stylist can not be empty']
             ]);
         }
 
-        $post['latitude'] = $address['latitude'];
-        $post['longitude'] = $address['longitude'];
-
-        if($post['preference_hair_stylist'] == 'favorite' && empty($post['id_user_hair_stylist'])){
-            if (empty($user)) {
-                return response()->json([
-                    'status'    => 'fail',
-                    'messages'  => ['User hair stylist can not be empty']
-                ]);
-            }
+        $bookNow = false;
+        if(strtolower($post['booking_time']) == 'sekarang'){
+            $bookNow = true;
+            $post['booking_time'] = date('H:i', strtotime("+2 minutes", strtotime($post['booking_time_user'])));
         }
 
         $errAll = [];
+        $address = UserAddress::where('id_user', $user->id)->where('id_user_address', $post['id_user_address'])->first();
+        if(empty($address)){
+            $errAll[] = 'Alamat tidak ditemukan';
+        }
+
+        $post['latitude'] = $address['latitude']??null;
+        $post['longitude'] = $address['longitude']??null;
+
         $itemService = [];
         $arrProccessingTime = [];
         $continueCheckOut = true;
@@ -110,17 +108,31 @@ class ApiTransactionHomeService extends Controller
         }
 
         $post['sum_time'] = array_sum($arrProccessingTime);
-        $checkHS = $this->checkAvailableHS($post);
+        $checkHS = $this->checkAvailableHS($post, [], $user);
         $idHs = $checkHS['id_user_hair_stylist']??null;
         $errAll = array_merge($errAll, $checkHS['error_all']??[]);
 
         $post['item_service'] = $this->mergeService($post['item_service']);
+        $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
+        $outlet = Outlet::where('id_outlet', $outletHomeService)->first();
+        if(empty($outlet)){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Outlet default not found']
+            ]);
+        }
+
+        $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
+            ->where('id_outlet', $outlet['id_outlet'])->first();
+
+        if(empty($brand)){
+            return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
+        }
         foreach ($post['item_service']??[] as $key=>$item){
             $err = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
-                ->leftJoin('brand_product', 'brand_product.id_product', 'products.id_product')
                 ->where('products.id_product', $item['id_product'])
-                ->select('products.*', 'product_global_price as product_price', 'brand_product.id_brand')
+                ->select('products.*', 'product_global_price as product_price')
                 ->with('product_service_use')
                 ->first();
 
@@ -130,7 +142,6 @@ class ApiTransactionHomeService extends Controller
 
             if(!empty($idHs) && $post['preference_hair_stylist'] == 'favorite'){
                 $hs = UserHairStylist::where('id_user_hair_stylist', $idHs)->where('user_hair_stylist_status', 'Active')->first();
-                $outlet = Outlet::where('id_outlet', $hs['id_outlet'])->first();
                 if(empty($hs)){
                     $err[] = "Outlet hair stylist not found";
                 }
@@ -166,7 +177,7 @@ class ApiTransactionHomeService extends Controller
 
             $itemService[$key] = [
                 "id_custom" => $item['id_custom'],
-                "id_brand" => $service['id_brand'],
+                "id_brand" => $brand['id_brand'],
                 "id_product" => $service['id_product'],
                 "product_code" => $service['product_code'],
                 "product_name" => $service['product_name'],
@@ -185,6 +196,11 @@ class ApiTransactionHomeService extends Controller
         if(!empty($errAll)){
             $continueCheckOut = false;
         }
+
+        if(empty($post['item_service'])){
+            $continueCheckOut = false;
+        }
+
         unset($address['description']);
         $result['id_user_address'] = $address['id_user_address'];
         $result['notes'] = (empty($post['notes']) ? $address['description']:$post['notes']);
@@ -192,6 +208,10 @@ class ApiTransactionHomeService extends Controller
         $result['id_user_hair_stylist'] = $idHs;
         $result['booking_date'] = $post['booking_date'];
         $result['booking_time'] = $post['booking_time'];
+        if($bookNow){
+            $result['booking_time_user'] = $post['booking_time'];
+            $result['booking_time'] = 'Sekarang';
+        }
         $result['booking_date_display'] = MyHelper::dateFormatInd($post['booking_date'].' '.$post['booking_time'], true, true);
         $result['address'] = $address;
         $result['item_service'] = $itemService;
@@ -247,7 +267,10 @@ class ApiTransactionHomeService extends Controller
         }
 
         if(!empty($request->user()->id)){
-            $user = User::where('id', $request->user()->id)->first();
+            $user = User::where('id', $request->user()->id)
+                ->leftJoin('cities', 'cities.id_city', 'users.id_city')
+                ->select('users.*', 'cities.city_name')
+                ->first();
             if (empty($user)) {
                 return response()->json([
                     'status'    => 'fail',
@@ -257,12 +280,16 @@ class ApiTransactionHomeService extends Controller
         }
 
         if($post['preference_hair_stylist'] == 'favorite' && empty($post['id_user_hair_stylist'])){
-            if (empty($user)) {
-                return response()->json([
-                    'status'    => 'fail',
-                    'messages'  => ['User hair stylist can not be empty']
-                ]);
-            }
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['User hair stylist can not be empty']
+            ]);
+        }
+
+        $bookNow = false;
+        if(strtolower($post['booking_time']) == 'sekarang'){
+            $bookNow = true;
+            $post['booking_time'] = date('H:i', strtotime("+2 minutes", strtotime($post['booking_time_user'])));
         }
 
         $address = UserAddress::where('id_user', $user->id)->where('id_user_address', $post['id_user_address'])->first();
@@ -288,31 +315,46 @@ class ApiTransactionHomeService extends Controller
         }
 
         $post['sum_time'] = array_sum($arrProccessingTime);
-        $checkHS = $this->checkAvailableHS($post);
+        $checkHS = $this->checkAvailableHS($post, [], $user);
         $idHs = $checkHS['id_user_hair_stylist']??null;
         $errAll = array_merge($errAll, $checkHS['error_all']??[]);
 
         $post['item_service'] = $this->mergeService($post['item_service']);
+        $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
+        $outlet = Outlet::where('id_outlet', $outletHomeService)->first();
+        if(empty($outlet)){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Outlet default not found']
+            ]);
+        }
+
+        $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
+            ->where('id_outlet', $outlet['id_outlet'])->first();
+
+        if(empty($brand)){
+            return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
+        }
         foreach ($post['item_service']??[] as $key=>$item){
             $err = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
-                ->leftJoin('brand_product', 'brand_product.id_product', 'products.id_product')
                 ->where('products.id_product', $item['id_product'])
-                ->select('products.*', 'product_global_price as product_price', 'brand_product.id_brand')
+                ->select('products.*', 'product_global_price as product_price')
                 ->with('product_service_use')
                 ->first();
 
             if(empty($service)){
                 $err[] = 'Service tidak tersedia';
+                $errAll[] = 'Service tidak tersedia';
                 unset($item[$key]);
                 continue;
             }
 
             if(!empty($idHs) && $post['preference_hair_stylist'] == 'favorite'){
                 $hs = UserHairStylist::where('id_user_hair_stylist', $idHs)->where('user_hair_stylist_status', 'Active')->first();
-                $outlet = Outlet::where('id_outlet', $hs['id_outlet'])->first();
                 if(empty($hs)){
                     $err[] = "Outlet hair stylist not found";
+                    $errAll[] = 'Outlet hair stylist not found';
                     unset($item[$key]);
                     continue;
                 }
@@ -323,6 +365,7 @@ class ApiTransactionHomeService extends Controller
                         ->where('product_detail.id_outlet', $outlet['id_outlet'])->get()->toArray();
                     if(count($service['product_service_use']) != count($getProductUse)){
                         $err[] = 'Stok habis';
+                        $errAll[] = 'Stok habis';
                         unset($item[$key]);
                         continue;
                     }
@@ -331,6 +374,7 @@ class ApiTransactionHomeService extends Controller
                         $use = $stock['quantity_use'] * $item['qty'];
                         if($use > $stock['product_detail_stock_service']){
                             $err[] = 'Stok habis';
+                            $errAll[] = 'Stok habis';
                             unset($item[$key]);
                             continue;
                         }
@@ -342,12 +386,14 @@ class ApiTransactionHomeService extends Controller
 
                 if($service['visibility_outlet'] == 'Hidden' || (empty($service['visibility_outlet']) && $service['product_visibility'] == 'Hidden')){
                     $err[] = 'Service tidak tersedia';
+                    $errAll[] = 'Service tidak tersedia';
                     unset($item[$key]);
                     continue;
                 }
 
                 if(empty($service['product_price'])){
                     $err[] = 'Service tidak tersedia';
+                    $errAll[] = 'Service tidak tersedia';
                     unset($item[$key]);
                     continue;
                 }
@@ -355,7 +401,7 @@ class ApiTransactionHomeService extends Controller
 
             $itemService[$key] = [
                 "id_custom" => $item['id_custom'],
-                "id_brand" => $service['id_brand'],
+                "id_brand" => $brand['id_brand'],
                 "id_product" => $service['id_product'],
                 "product_code" => $service['product_code'],
                 "product_name" => $service['product_name'],
@@ -443,6 +489,7 @@ class ApiTransactionHomeService extends Controller
         $result['customer'] = [
             "name" => $user['name'],
             "email" => $user['email'],
+            "phone" => $user['phone'],
             "domicile" => $user['city_name'],
             "birthdate" => date('Y-m-d', strtotime($user['birthday'])),
             "gender" => $user['gender'],
@@ -458,8 +505,12 @@ class ApiTransactionHomeService extends Controller
         $result['id_user_hair_stylist'] = $idHs;
         $result['booking_date'] = $post['booking_date'];
         $result['booking_time'] = $post['booking_time'];
+        if($bookNow){
+            $result['booking_time_user'] = $post['booking_time'];
+            $result['booking_time'] = 'Sekarang';
+        }
         $result['booking_date_display'] = MyHelper::dateFormatInd($post['booking_date'].' '.$post['booking_time'], true, true);
-        $result['item_service'] = $itemService;
+        $result['item_service'] = array_values($itemService);
         $result['subtotal'] = $post['subtotal'];
         $result['tax'] = (int) $post['tax'];
         $result['grandtotal'] = (int)$result['subtotal'] + (int)$post['tax'] ;
@@ -494,7 +545,11 @@ class ApiTransactionHomeService extends Controller
         }
 
         if(!empty($request->user()->id)){
-            $user = User::where('id', $request->user()->id)->first();
+            $user = User::where('id', $request->user()->id)
+                ->leftJoin('cities', 'cities.id_city', 'users.id_city')
+                ->select('users.*', 'cities.city_name')
+                ->with('memberships')
+                ->first();
             if (empty($user)) {
                 return response()->json([
                     'status'    => 'fail',
@@ -503,13 +558,18 @@ class ApiTransactionHomeService extends Controller
             }
         }
 
+        if($user['complete_profile'] == 0){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Please complete your profile']
+            ]);
+        }
+
         if($post['preference_hair_stylist'] == 'favorite' && empty($post['id_user_hair_stylist'])){
-            if (empty($user)) {
-                return response()->json([
-                    'status'    => 'fail',
-                    'messages'  => ['User hair stylist can not be empty']
-                ]);
-            }
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['User hair stylist can not be empty']
+            ]);
         }
 
         if(empty($post['transaction_from'])){
@@ -533,6 +593,12 @@ class ApiTransactionHomeService extends Controller
             ]);
         }
 
+        $bookNow = false;
+        if(strtolower($post['booking_time']) == 'sekarang'){
+            $bookNow = true;
+            $post['booking_time'] = date('H:i', strtotime("+2 minutes", strtotime($post['booking_time_user'])));
+        }
+
         $post['latitude'] = $address['latitude'];
         $post['longitude'] = $address['longitude'];
 
@@ -546,7 +612,7 @@ class ApiTransactionHomeService extends Controller
         }
 
         $post['sum_time'] = array_sum($arrProccessingTime);
-        $checkHS = $this->checkAvailableHS($post);
+        $checkHS = $this->checkAvailableHS($post, [], $user);
         if(!empty($checkHS['error_all'])){
             return response()->json([
                 'status'    => 'fail',
@@ -559,12 +625,26 @@ class ApiTransactionHomeService extends Controller
         $post['item_service'] = $this->mergeService($post['item_service']);
         $errItem = [];
         $post['id_outlet'] = null;
+        $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
+        $outlet = Outlet::where('id_outlet', $outletHomeService)->first();
+        if(empty($outlet)){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Outlet default not found']
+            ]);
+        }
+
+        $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
+            ->where('id_outlet', $outlet['id_outlet'])->first();
+
+        if(empty($brand)){
+            return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
+        }
         foreach ($post['item_service']??[] as $key=>$item){
             $detailStock = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
-                ->leftJoin('brand_product', 'brand_product.id_product', 'products.id_product')
                 ->where('products.id_product', $item['id_product'])
-                ->select('products.*', 'product_global_price as product_price', 'brand_product.id_brand')
+                ->select('products.*', 'product_global_price as product_price')
                 ->with('product_service_use')
                 ->first();
 
@@ -574,7 +654,6 @@ class ApiTransactionHomeService extends Controller
 
             if(!empty($idHs) && $post['preference_hair_stylist'] == 'favorite'){
                 $hs = UserHairStylist::where('id_user_hair_stylist', $idHs)->where('user_hair_stylist_status', 'Active')->first();
-                $outlet = Outlet::where('id_outlet', $hs['id_outlet'])->first();
                 if(empty($hs)){
                     $errItem[] = "Outlet hair stylist not found";
                 }
@@ -616,7 +695,7 @@ class ApiTransactionHomeService extends Controller
 
             $itemService[$key] = [
                 "id_custom" => $item['id_custom'],
-                "id_brand" => $service['id_brand'],
+                "id_brand" => $brand['id_brand'],
                 "id_product" => $service['id_product'],
                 "product_code" => $service['product_code'],
                 "product_name" => $service['product_name'],
@@ -773,15 +852,16 @@ class ApiTransactionHomeService extends Controller
                 'messages'  => ['Insert Transaction Failed']
             ]);
         }
-
+        $insertTransaction['transaction_receipt_number'] = $receipt;
 
         $createHomeService = TransactionHomeService::create([
             'id_transaction' => $insertTransaction['id_transaction'],
             'id_user_address' => $address['id_user_address'],
             'id_user_hair_stylist' => $idHs,
             'preference_hair_stylist' => $post['preference_hair_stylist'],
-            'status' => 'Finding Hair Stylist',
+            'status' => null,
             'schedule_date' => date('Y-m-d', strtotime($post['booking_date'])),
+            'schedule_set_time' => ($bookNow? 'right now':'set time'),
             'schedule_time' => date('H:i:s', strtotime($post['booking_time'])),
             'destination_name' => $user['name'],
             'destination_phone' => $user['phone'],
@@ -802,18 +882,6 @@ class ApiTransactionHomeService extends Controller
             ]);
         }
 
-        $insertTrxHMStatusUpdate = TransactionHomeServiceStatusUpdate::create([
-            'id_transaction' => $insertTransaction['id_transaction'],
-            'status' => 'Finding Hair Stylist'
-        ]);
-        if (!$insertTrxHMStatusUpdate) {
-            DB::rollback();
-            return response()->json([
-                'status'    => 'fail',
-                'messages'  => ['Insert Transaction Home Service Status Update Failed']
-            ]);
-        }
-
         $userTrxProduct = [];
         foreach ($post['item_service'] as $itemProduct){
 
@@ -826,6 +894,7 @@ class ApiTransactionHomeService extends Controller
                 'id_user'                      => $insertTransaction['id_user'],
                 'transaction_product_qty'      => $itemProduct['qty'],
                 'transaction_product_price'    => $itemProduct['product_price'],
+                'transaction_product_price_base' => $itemProduct['product_price'],
                 'transaction_product_discount'   => 0,
                 'transaction_product_discount_all'   => 0,
                 'transaction_product_base_discount' => 0,
@@ -903,11 +972,15 @@ class ApiTransactionHomeService extends Controller
         ]);
     }
 
-    function checkAvailableHS($post, $rejectHS = []){
+    function checkAvailableHS($post, $rejectHS = [], $user = []){
+        $userTimeZone = (empty($user['user_time_zone_utc']) ? 7 : $user['user_time_zone_utc']);
+        $diffTimeZone = $userTimeZone - 7;
+        $currentDate = date('Y-m-d H:i:s');
+        $currentDate = date('Y-m-d H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($currentDate)));
         $bookDate = date('Y-m-d', strtotime($post['booking_date']));
         $bookTime = date('H:i:s', strtotime($post['booking_time']));
-        $currentDate = date('Y-m-d H:i:s');
-        $bookDateTime = date('Y-m-d H:i', strtotime($bookDate.' '.$bookTime));
+        $bookDateTime = date('Y-m-d H:i:s', strtotime($bookDate.' '.$bookTime));
+
         if(strtotime($currentDate) > strtotime($bookDateTime)){
             $errAll[] = "Waktu pemesanan Anda tidak valid";
         }
@@ -930,7 +1003,7 @@ class ApiTransactionHomeService extends Controller
                 $errAll[] = "Hair stylist tidak ditemukan";
             }
 
-            if(empty($val['latitude']) && empty($val['longitude'])){
+            if(empty($hs['latitude']) && empty($hs['longitude'])){
                 $errAll[] = "Hair stylist tidak aktif";
             }
             $distance = (float)app($this->outlet)->distance($post['latitude'], $post['longitude'], $hs['latitude'], $hs['longitude'], "K");
@@ -991,7 +1064,7 @@ class ApiTransactionHomeService extends Controller
                 }
 
                 $distance = (float)app($this->outlet)->distance($post['latitude'], $post['longitude'], $val['latitude'], $val['longitude'], "K");
-                if($distance <= 0 || $distance > $maximumRadius){
+                if($distance > $maximumRadius){
                     continue;
                 }
 
@@ -1023,7 +1096,7 @@ class ApiTransactionHomeService extends Controller
             }
 
             if(empty($arrIDHs)){
-                $errAll[] = "Tidak ada hair stylist yang available didekat Anda";
+                $errAll[] = "Tidak ada hair stylist yang available didekat Anda diwaktu yang Anda pilih";
             }else{
                 usort($arrIDHs, function($a, $b) {
                     return $a['distance'] > $b['distance'];
@@ -1104,8 +1177,548 @@ class ApiTransactionHomeService extends Controller
         return $updateDetail??true;
     }
 
-    function cancelBookHS($id_transaction){
-        $del = HairstylistNotAvailable::where('id_transaction', $id_transaction)->delete();
-        return $del;
+    public function listHomeService(Request $request)
+    {
+        $list = Transaction::where('transaction_from', 'home-service')
+            ->join('transaction_home_services','transactions.id_transaction', 'transaction_home_services.id_transaction')
+            ->join('users','transactions.id_user','=','users.id')
+            ->with('user')
+            ->select(
+                'transaction_home_services.*',
+                'users.*',
+                'transactions.*'
+            )
+            ->groupBy('transactions.id_transaction');
+
+        $countTotal = null;
+
+        if ($request->rule) {
+            $countTotal = $list->count();
+            $this->filterList($list, $request->rule, $request->operator ?: 'and');
+        }
+
+        if (is_array($orders = $request->order)) {
+            $columns = [
+                'id_transaction',
+                'transaction_date',
+                'transaction_receipt_number',
+                'name',
+                'phone',
+                'transaction_grandtotal',
+                'transaction_payment_status',
+            ];
+
+            foreach ($orders as $column) {
+                if ($colname = ($columns[$column['column']] ?? false)) {
+                    $list->orderBy($colname, $column['dir']);
+                }
+            }
+        }
+        $list->orderBy('transactions.id_transaction', $column['dir'] ?? 'DESC');
+
+        if ($request->page) {
+            $list = $list->paginate($request->length ?: 15);
+            $list->each(function($item) {
+                $item->images = array_map(function($item) {
+                    return config('url.storage_url_api').$item;
+                }, json_decode($item->images) ?? []);
+            });
+            $list = $list->toArray();
+            if (is_null($countTotal)) {
+                $countTotal = $list['total'];
+            }
+            // needed by datatables
+            $list['recordsTotal'] = $countTotal;
+            $list['recordsFiltered'] = $list['total'];
+        } else {
+            $list = $list->get();
+        }
+        return MyHelper::checkGet($list);
+    }
+
+    public function filterList($model, $rule, $operator = 'and')
+    {
+        $new_rule = [];
+        $where    = $operator == 'and' ? 'where' : 'orWhere';
+        foreach ($rule as $var) {
+            $var1 = ['operator' => $var['operator'] ?? '=', 'parameter' => $var['parameter'] ?? null, 'hide' => $var['hide'] ?? false];
+            if ($var1['operator'] == 'like') {
+                $var1['parameter'] = '%' . $var1['parameter'] . '%';
+            }
+            $new_rule[$var['subject']][] = $var1;
+        }
+        $model->where(function($model2) use ($model, $where, $new_rule){
+            $inner = [
+                'transaction_receipt_number',
+                'transaction_grandtotal',
+                'transaction_payment_status',
+                'status'
+            ];
+            foreach ($inner as $col_name) {
+                if ($rules = $new_rule[$col_name] ?? false) {
+                    foreach ($rules as $rul) {
+                        if($col_name == 'status' && $rul['parameter'] == 'Waiting Complete Payment'){
+                            $model2->whereNull('status');
+                        }else{
+                            $model2->$where($col_name, $rul['operator'], $rul['parameter']);
+                        }
+                    }
+                }
+            }
+
+            $inner = ['name', 'phone', 'email'];
+            foreach ($inner as $col_name) {
+                if ($rules = $new_rule[$col_name] ?? false) {
+                    foreach ($rules as $rul) {
+                        $model2->$where('users.'.$col_name, $rul['operator'], $rul['parameter']);
+                    }
+                }
+            }
+        });
+
+        if ($rules = $new_rule['transaction_date'] ?? false) {
+            foreach ($rules as $rul) {
+                $model->where(\DB::raw('DATE(transaction_date)'), $rul['operator'], $rul['parameter']);
+            }
+        }
+    }
+
+    public function detailTransaction(Request $request)
+    {
+        if ($request->json('transaction_receipt_number') !== null) {
+            $trx = Transaction::where(['transaction_receipt_number' => $request->json('transaction_receipt_number')])->first();
+            if($trx) {
+                $id = $trx->id_transaction;
+            } else {
+                return MyHelper::checkGet([]);
+            }
+        } else {
+            $id = $request->json('id_transaction');
+        }
+
+        $trx = Transaction::where(['transactions.id_transaction' => $id])
+            ->join('transaction_home_services','transaction_home_services.id_transaction','=','transactions.id_transaction')
+            ->leftJoin('user_hair_stylist','user_hair_stylist.id_user_hair_stylist','=','transaction_home_services.id_user_hair_stylist')
+            ->leftJoin('outlets', 'outlets.id_outlet', 'user_hair_stylist.id_outlet')
+            ->first();
+
+        if(!$trx){
+            return MyHelper::checkGet($trx);
+        }
+
+        $trxPayment = $this->transactionPayment($trx);
+        $trx['payment'] = $trxPayment['payment'];
+
+        $trx->load('user');
+        $result = [
+            'id_transaction'                => $trx['id_transaction'],
+            'transaction_receipt_number'    => $trx['transaction_receipt_number'],
+            'receipt_qrcode' 				=> 'https://chart.googleapis.com/chart?chl=' . $trx['transaction_receipt_number'] . '&chs=250x250&cht=qr&chld=H%7C0',
+            'transaction_date'              => date('d M Y H:i', strtotime($trx['transaction_date'])),
+            'transaction_grandtotal'        => MyHelper::requestNumber($trx['transaction_grandtotal'],'_CURRENCY'),
+            'transaction_subtotal'          => MyHelper::requestNumber($trx['transaction_subtotal'],'_CURRENCY'),
+            'transaction_discount'          => MyHelper::requestNumber($trx['transaction_discount'],'_CURRENCY'),
+            'transaction_cashback_earned'   => MyHelper::requestNumber($trx['transaction_cashback_earned'],'_POINT'),
+            'trasaction_payment_type'       => $trx['trasaction_payment_type'],
+            'trasaction_type'               => $trx['trasaction_type'],
+            'transaction_payment_status'    => $trx['transaction_payment_status'],
+            'booking_date'                  => $trx['schedule_date'],
+            'booking_time'                  => $trx['schedule_time'],
+            'destination_name'              => $trx['destination_name'],
+            'destination_phone'              => $trx['destination_phone'],
+            'destination_address'            => $trx['destination_address'],
+            'destination_short_address'      => $trx['destination_short_address'],
+            'destination_address_name'       => $trx['destination_address_name'],
+            'destination_note'              => $trx['destination_note'],
+            'id_user_hair_stylist'          => $trx['id_user_hair_stylist'],
+            'hair_stylist_status'           => $trx['status'],
+            'hair_stylist_name'             => $trx['fullname'],
+            'hair_stylist_outlet_name'      => $trx['outlet_name'],
+            'continue_payment'              => $trxPayment['continue_payment'],
+            'payment_gateway'               => $trxPayment['payment_gateway'],
+            'payment_type'                  => $trxPayment['payment_type'],
+            'payment_redirect_url'          => $trxPayment['payment_redirect_url'],
+            'payment_redirect_url_app'      => $trxPayment['payment_redirect_url_app'],
+            'payment_token'                 => $trxPayment['payment_token'],
+            'total_payment'                 => (int) $trxPayment['total_payment'],
+            'timer_shopeepay'               => $trxPayment['timer_shopeepay'],
+            'message_timeout_shopeepay'     => $trxPayment['message_timeout_shopeepay'],
+            'user'							=> [
+                'phone' => $trx['user']['phone'],
+                'name' 	=> $trx['user']['name'],
+                'email' => $trx['user']['email']
+            ],
+
+        ];
+
+        $trxServices = TransactionProduct::where('id_transaction', $trx['id_transaction'])
+            ->with(['product'])->get()->toArray();
+        $totalItem = 0;
+        foreach ($trxServices as $ts){
+            $totalItem += $ts['transaction_product_qty'];
+        }
+        $result['product_service'] = $trxServices;
+        $trx['transaction_item_service_total'] = $totalItem;
+
+        $lastLog = LogInvalidTransaction::where('id_transaction', $trx['id_transaction'])->orderBy('updated_at', 'desc')->first();
+
+        $result['image_invalid_flag'] = NULL;
+        if(!empty($trx['image_invalid_flag'])){
+            $result['image_invalid_flag'] =  config('url.storage_url_api').$trx['image_invalid_flag'];
+        }
+
+        $result['transaction_flag_invalid'] =  $trx['transaction_flag_invalid'];
+        $result['flag_reason'] =  $lastLog['reason'] ?? '';
+        $result['payment_detail'] = $this->transactionPaymentDetail($trx);
+
+        if(!isset($trx['payment'])){
+            $result['transaction_payment'] = null;
+        }else{
+            foreach ($trx['payment'] as $key => $value) {
+                if ($value['name'] == 'Balance') {
+                    $result['transaction_payment'][$key] = [
+                        'name'      => (env('POINT_NAME')) ? env('POINT_NAME') : $value['name'],
+                        'is_balance'=> 1,
+                        'amount'    => MyHelper::requestNumber($value['amount'],'_POINT')
+                    ];
+                } else {
+                    $result['transaction_payment'][$key] = [
+                        'name'      => $value['name'],
+                        'amount'    => MyHelper::requestNumber($value['amount'],'_CURRENCY')
+                    ];
+                }
+            }
+        }
+
+        return MyHelper::checkGet($result);
+    }
+
+    public function transactionPayment(Transaction $trx)
+    {
+        $trx = clone $trx;
+        $trx = $trx->toArray();
+        $redirectUrlApp = "";
+        $redirectUrl = "";
+        $tokenPayment = "";
+        $continuePayment = false;
+        $totalPayment = 0;
+        $shopeeTimer = 0;
+        $shopeeMessage = "";
+        $paymentType = "";
+        $paymentGateway = "";
+        switch ($trx['trasaction_payment_type']) {
+            case 'Balance':
+                $multiPayment = TransactionMultiplePayment::where('id_transaction', $trx['id_transaction'])->get()->toArray();
+                if ($multiPayment) {
+                    foreach ($multiPayment as $keyMP => $mp) {
+                        switch ($mp['type']) {
+                            case 'Balance':
+                                $log = LogBalance::where('id_reference', $mp['id_transaction'])->where('source', 'Online Transaction')->first();
+                                if ($log['balance'] < 0) {
+                                    $trx['balance'] = $log['balance'];
+                                    $trx['check'] = 'tidak topup';
+                                } else {
+                                    $trx['balance'] = $trx['transaction_grandtotal'] - $log['balance'];
+                                    $trx['check'] = 'topup';
+                                }
+                                $trx['payment'][] = [
+                                    'name'      => 'Balance',
+                                    'amount'    => $trx['balance']
+                                ];
+                                break;
+                            case 'Manual':
+                                $payment = TransactionPaymentManual::with('manual_payment_method.manual_payment')->where('id_transaction', $trx['id_transaction'])->first();
+                                $trx['payment'] = $payment;
+                                $trx['payment'][] = [
+                                    'name'      => 'Cash',
+                                    'amount'    => $payment['payment_nominal']
+                                ];
+                                break;
+                            case 'Midtrans':
+                                $payMidtrans = TransactionPaymentMidtran::find($mp['id_payment']);
+                                $payment['name']      = strtoupper(str_replace('_', ' ', $payMidtrans->payment_type)).' '.strtoupper($payMidtrans->bank);
+                                $payment['amount']    = $payMidtrans->gross_amount;
+                                $trx['payment'][] = $payment;
+                                if($trx['transaction_payment_status'] == 'Pending' && !empty($payMidtrans->token)) {
+                                    $redirectUrl = $payMidtrans->redirect_url;
+                                    $tokenPayment = $payMidtrans->token;
+                                    $continuePayment =  true;
+                                    $totalPayment = $payMidtrans->gross_amount;
+                                    $paymentType = strtoupper($payMidtrans->payment_type);
+                                    $paymentGateway = 'Midtrans';
+                                }
+                                break;
+                            case 'Ovo':
+                                $payment = TransactionPaymentOvo::find($mp['id_payment']);
+                                $payment['name']    = 'OVO';
+                                $trx['payment'][] = $payment;
+                                break;
+                            case 'IPay88':
+                                $PayIpay = TransactionPaymentIpay88::find($mp['id_payment']);
+                                $payment['name']    = $PayIpay->payment_method;
+                                $payment['amount']    = $PayIpay->amount / 100;
+                                $trx['payment'][] = $payment;
+                                if($trx['transaction_payment_status'] == 'Pending'){
+                                    $redirectUrl = config('url.api_url').'/api/ipay88/pay?type=trx&id_reference='.$trx['id_transaction'].'&payment_id='.$PayIpay->payment_id;
+                                    $continuePayment =  true;
+                                    $totalPayment = $PayIpay->amount / 100;
+                                    $paymentType = strtoupper($PayIpay->payment_method);
+                                    $paymentGateway = 'IPay88';
+                                }
+                                break;
+                            case 'Shopeepay':
+                                $shopeePay = TransactionPaymentShopeePay::find($mp['id_payment']);
+                                $payment['name']    = 'ShopeePay';
+                                $payment['amount']  = $shopeePay->amount / 100;
+                                $payment['reject']  = $shopeePay->err_reason?:'payment expired';
+                                $trx['payment'][]  = $payment;
+                                if($trx['transaction_payment_status'] == 'Pending'){
+                                    $redirectUrl = $shopeePay->redirect_url_http;
+                                    $redirectUrlApp = $shopeePay->redirect_url_app;
+                                    $continuePayment =  true;
+                                    $totalPayment = $shopeePay->amount / 100;
+                                    $shopeeTimer = (int) MyHelper::setting('shopeepay_validity_period', 'value', 300);
+                                    $shopeeMessage ='Sorry, your payment has expired';
+                                    $paymentGateway = 'Shopeepay';
+                                }
+                                break;
+                            case 'Offline':
+                                $payment = TransactionPaymentOffline::where('id_transaction', $trx['id_transaction'])->get();
+                                foreach ($payment as $key => $value) {
+                                    $trx['payment'][$key] = [
+                                        'name'      => $value['payment_bank'],
+                                        'amount'    => $value['payment_amount']
+                                    ];
+                                }
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                } else {
+                    $log = LogBalance::where('id_reference', $trx['id_transaction'])->first();
+                    if ($log['balance'] < 0) {
+                        $trx['balance'] = $log['balance'];
+                        $trx['check'] = 'tidak topup';
+                    } else {
+                        $trx['balance'] = $trx['transaction_grandtotal'] - $log['balance'];
+                        $trx['check'] = 'topup';
+                    }
+                    $trx['payment'][] = [
+                        'name'      => 'Balance',
+                        'amount'    => $trx['balance']
+                    ];
+                }
+                break;
+            case 'Manual':
+                $payment = TransactionPaymentManual::with('manual_payment_method.manual_payment')->where('id_transaction', $trx['id_transaction'])->first();
+                $trx['payment'] = $payment;
+                $trx['payment'][] = [
+                    'name'      => 'Cash',
+                    'amount'    => $payment['payment_nominal']
+                ];
+                break;
+            case 'Midtrans':
+                $multiPayment = TransactionMultiplePayment::where('id_transaction', $trx['id_transaction'])->get();
+                $payment = [];
+                foreach($multiPayment as $dataKey => $dataPay){
+                    if($dataPay['type'] == 'Midtrans'){
+                        $payMidtrans = TransactionPaymentMidtran::find($dataPay['id_payment']);
+                        $payment[$dataKey]['name']      = strtoupper(str_replace('_', ' ', $payMidtrans->payment_type)).' '.strtoupper($payMidtrans->bank);
+                        $payment[$dataKey]['amount']    = $payMidtrans->gross_amount;
+                        if($trx['transaction_payment_status'] == 'Pending' && !empty($payMidtrans->token)){
+                            $redirectUrl = $payMidtrans->redirect_url;
+                            $tokenPayment = $payMidtrans->token;
+                            $continuePayment =  true;
+                            $totalPayment = $payMidtrans->gross_amount;
+                            $paymentType = strtoupper($payMidtrans->payment_type);
+                            $paymentGateway = 'Midtrans';
+                        }
+
+                    }else{
+                        $dataPay = TransactionPaymentBalance::find($dataPay['id_payment']);
+                        $payment[$dataKey] = $dataPay;
+                        $trx['balance'] = $dataPay['balance_nominal'];
+                        $payment[$dataKey]['name']          = 'Balance';
+                        $payment[$dataKey]['amount']        = $dataPay['balance_nominal'];
+                    }
+                }
+                $trx['payment'] = $payment;
+                break;
+            case 'Ovo':
+                $multiPayment = TransactionMultiplePayment::where('id_transaction', $trx['id_transaction'])->get();
+                $payment = [];
+                foreach($multiPayment as $dataKey => $dataPay){
+                    if($dataPay['type'] == 'Ovo'){
+                        $payment[$dataKey] = TransactionPaymentOvo::find($dataPay['id_payment']);
+                        $payment[$dataKey]['name']    = 'OVO';
+                    }else{
+                        $dataPay = TransactionPaymentBalance::find($dataPay['id_payment']);
+                        $payment[$dataKey] = $dataPay;
+                        $trx['balance'] = $dataPay['balance_nominal'];
+                        $payment[$dataKey]['name']          = 'Balance';
+                        $payment[$dataKey]['amount']        = $dataPay['balance_nominal'];
+                    }
+                }
+                $trx['payment'] = $payment;
+                break;
+            case 'Ipay88':
+                $multiPayment = TransactionMultiplePayment::where('id_transaction', $trx['id_transaction'])->get();
+                $payment = [];
+                foreach($multiPayment as $dataKey => $dataPay){
+                    if($dataPay['type'] == 'IPay88'){
+                        $PayIpay = TransactionPaymentIpay88::find($dataPay['id_payment']);
+                        $payment[$dataKey]['name']    = $PayIpay->payment_method;
+                        $payment[$dataKey]['amount']    = $PayIpay->amount / 100;
+
+                        if($trx['transaction_payment_status'] == 'Pending'){
+                            $redirectUrl = config('url.api_url').'/api/ipay88/pay?type=trx&id_reference='.$trx['id_transaction'].'&payment_id='.$PayIpay->payment_id;
+                            $continuePayment =  true;
+                            $totalPayment = $PayIpay->amount / 100;
+                            $paymentType = strtoupper($PayIpay->payment_method);
+                            $paymentGateway = 'Ipay88';
+                        }
+                    }else{
+                        $dataPay = TransactionPaymentBalance::find($dataPay['id_payment']);
+                        $payment[$dataKey] = $dataPay;
+                        $trx['balance'] = $dataPay['balance_nominal'];
+                        $payment[$dataKey]['name']          = 'Balance';
+                        $payment[$dataKey]['amount']        = $dataPay['balance_nominal'];
+                    }
+                }
+                $trx['payment'] = $payment;
+                break;
+            case 'Shopeepay':
+                $multiPayment = TransactionMultiplePayment::where('id_transaction', $trx['id_transaction'])->get();
+                $payment = [];
+                foreach($multiPayment as $dataKey => $dataPay){
+                    if($dataPay['type'] == 'Shopeepay'){
+                        $payShopee = TransactionPaymentShopeePay::find($dataPay['id_payment']);
+                        $payment[$dataKey]['name']      = 'ShopeePay';
+                        $payment[$dataKey]['amount']    = $payShopee->amount / 100;
+                        $payment[$dataKey]['reject']    = $payShopee->err_reason?:'payment expired';
+                        if($trx['transaction_payment_status'] == 'Pending') {
+                            $redirectUrl = $payShopee->redirect_url_http;
+                            $redirectUrlApp = $payShopee->redirect_url_app;
+                            $continuePayment =  true;
+                            $totalPayment = $payShopee->amount / 100;
+                            $shopeeTimer = (int) MyHelper::setting('shopeepay_validity_period', 'value', 300);
+                            $shopeeMessage ='Sorry, your payment has expired';
+                            $paymentGateway = 'Shopeepay';
+                        }
+                    }else{
+                        $dataPay = TransactionPaymentBalance::find($dataPay['id_payment']);
+                        $payment[$dataKey]              = $dataPay;
+                        $trx['balance']                = $dataPay['balance_nominal'];
+                        $payment[$dataKey]['name']      = 'Balance';
+                        $payment[$dataKey]['amount']    = $dataPay['balance_nominal'];
+                    }
+                }
+                $trx['payment'] = $payment;
+                break;
+            case 'Offline':
+                $payment = TransactionPaymentOffline::where('id_transaction', $trx['id_transaction'])->get();
+                foreach ($payment as $key => $value) {
+                    $trx['payment'][$key] = [
+                        'name'      => $value['payment_bank'],
+                        'amount'    => $value['payment_amount']
+                    ];
+                }
+                break;
+
+            case 'Cash':
+                $payment = TransactionPaymentCash::where('id_transaction', $trx['id_transaction'])->first();
+                $trx['payment'] = [];
+                $trx['payment'][] = [
+                    'name'      => 'Cash',
+                    'amount'    => $payment['cash_nominal']
+                ];
+                break;
+
+            default:
+                break;
+        }
+
+        $res = [
+            'payment' 					=> $trx['payment'] ?? [],
+            'continue_payment'          => $continuePayment,
+            'payment_gateway'           => $paymentGateway,
+            'payment_type'              => $paymentType,
+            'payment_redirect_url'      => $redirectUrl,
+            'payment_redirect_url_app'  => $redirectUrlApp,
+            'payment_token'             => $tokenPayment,
+            'total_payment'             => (int)$totalPayment,
+            'timer_shopeepay'           => $shopeeTimer,
+            'message_timeout_shopeepay' => $shopeeMessage,
+        ];
+
+        return $res;
+    }
+
+    public function transactionPaymentDetail(Transaction $trx)
+    {
+        $trx = clone $trx;
+        $trx->load(
+            'transaction_vouchers.deals_voucher.deal',
+            'promo_campaign_promo_code.promo_campaign',
+            'transaction_payment_subscription.subscription_user_voucher',
+            'subscription_user_voucher'
+    	);
+
+        $paymentDetail = [];
+        $totalItem = $trx['transaction_item_service_total'];
+        $paymentDetail[] = [
+            'name'      => 'Subtotal',
+            'desc'      => $totalItem . ' items',
+            'amount'    => MyHelper::requestNumber($trx['transaction_subtotal'],'_CURRENCY')
+        ];
+        $paymentDetail[] = [
+            'name'      => 'Tax',
+            'desc'      => '10%',
+            'amount'    => MyHelper::requestNumber($trx['transaction_tax'],'_CURRENCY')
+        ];
+
+        if ($trx['transaction_discount']) {
+            $discount = abs($trx['transaction_discount']);
+            $p = 0;
+            if (!empty($trx['transaction_vouchers'])) {
+                foreach ($trx['transaction_vouchers'] as $valueVoc) {
+                    $result['promo']['code'][$p++]   = $valueVoc['deals_voucher']['voucher_code'];
+                    $paymentDetail[] = [
+                        'name'          => 'Diskon',
+                        'desc'          => 'Promo',
+                        "is_discount"   => 1,
+                        'amount'        => '- '.MyHelper::requestNumber($discount,'_CURRENCY')
+                    ];
+                }
+            }
+
+            if (!empty($trx['promo_campaign_promo_code'])) {
+                $result['promo']['code'][$p++]   = $trx['promo_campaign_promo_code']['promo_code'];
+                $paymentDetail[] = [
+                    'name'          => 'Diskon',
+                    'desc'          => 'Promo',
+                    "is_discount"   => 1,
+                    'amount'        => '- '.MyHelper::requestNumber($discount,'_CURRENCY')
+                ];
+            }
+
+            if (!empty($trx['id_subscription_user_voucher']) && !empty($trx['transaction_discount'])) {
+                $paymentDetail[] = [
+                    'name'          => 'Subscription',
+                    'desc'          => 'Diskon',
+                    "is_discount"   => 1,
+                    'amount'        => '- '.MyHelper::requestNumber($discount,'_CURRENCY')
+                ];
+            }
+        }
+
+        return $paymentDetail;
+    }
+
+    public function getHSLocation(Request $request)
+    {
+        $location = HairstylistLocation::find($request->id_hair_stylist);
+        return MyHelper::checkGet($location);
     }
 }

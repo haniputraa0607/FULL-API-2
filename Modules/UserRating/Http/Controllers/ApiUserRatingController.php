@@ -22,6 +22,7 @@ use Modules\UserRating\Entities\UserRatingLog;
 use Modules\OutletApp\Http\Controllers\ApiOutletApp;
 
 use Modules\Recruitment\Entities\UserHairStylist;
+use Modules\Favorite\Entities\FavoriteUserHiarStylist;
 
 class ApiUserRatingController extends Controller
 {
@@ -173,20 +174,32 @@ class ApiUserRatingController extends Controller
         $id_user_hair_stylist = null;
         $id_transaction_product_service = null;
         if (isset($post['id_user_hair_stylist'])) {
-			$trxService = TransactionProductService::where('id_transaction', $id)
-						->where('id_user_hair_stylist', $post['id_user_hair_stylist'])
-						->where('id_transaction_product_service', $post['id_transaction_product_service'])
-						->first();
 
-			if (!$trxService) {
-				return [
-	                'status'=>'fail',
-	                'messages'=>['Hairstylist not found']
-	            ];
-			}
+        	if (isset($post['id_transaction_product_service'])) {
+				$trxService = TransactionProductService::where('id_transaction', $id)
+							->where('id_user_hair_stylist', $post['id_user_hair_stylist'])
+							->where('id_transaction_product_service', $post['id_transaction_product_service'])
+							->first();
 
-			$id_user_hair_stylist = $trxService->id_user_hair_stylist;
-			$id_transaction_product_service = $trxService->id_transaction_product_service;
+				if (!$trxService) {
+					return [
+		                'status'=>'fail',
+		                'messages'=>['Hairstylist not found']
+		            ];
+				}
+
+				$id_user_hair_stylist = $trxService->id_user_hair_stylist;
+				$id_transaction_product_service = $trxService->id_transaction_product_service;
+        	} else {
+        		$hs = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->first();
+        		if (!$hs) {
+					return [
+		                'status'=>'fail',
+		                'messages'=>['Hairstylist not found']
+		            ];
+				}
+				$id_user_hair_stylist = $hs->id_user_hair_stylist;
+        	}
 			$id_outlet = null;
         }
         if ($id_user_hair_stylist) {
@@ -467,6 +480,7 @@ class ApiUserRatingController extends Controller
 			$rating['detail_hairstylist'] = null;
 	        $rating['transaction_receipt_number'] = $log['transaction']['transaction_receipt_number'];
 	        $rating['transaction_date'] = date('d M Y H:i',strtotime($log['transaction']['transaction_date']));
+	        $rating['transaction_from'] = $log['transaction']['transaction_from'];
 
 	        $trxDate = MyHelper::dateFormatInd($log['transaction']['transaction_date'], true, false, true);
 	        $outletName = $log['transaction']['outlet']['outlet_name'];
@@ -493,18 +507,30 @@ class ApiUserRatingController extends Controller
 			$rating['options'] = null;
 			
         	if (!empty($log['id_user_hair_stylist'])) {
+
         		$rating['id_user_hair_stylist'] = $log['id_user_hair_stylist'];
 	        	$rating['options'] = $optionHs;
-	        	$service = TransactionProductService::with('user_hair_stylist')
-	        	->where('id_transaction', $log['id_transaction'])
-	        	->where('id_user_hair_stylist', $log['id_user_hair_stylist'])
-	        	->first();
+
+        		if (!empty($log['id_transaction_product_service'])) {
+		        	$service = TransactionProductService::with('user_hair_stylist')
+					        	->where('id_transaction', $log['id_transaction'])
+					        	->where('id_user_hair_stylist', $log['id_user_hair_stylist'])
+					        	->where('id_transaction_product_service', $log['id_transaction_product_service'])
+					        	->first();
+		        	$hs = $service->user_hair_stylist;
+        		} else {
+		        	$hs = UserHairStylist::where('id_user_hair_stylist', $log['id_user_hair_stylist'])->first();
+        		}
+
+	        	$isFavorite = FavoriteUserHiarStylist::where('id_user_hair_stylist',$log['id_user_hair_stylist'])
+	        					->where('id_user', $log['id_user'])
+	        					->first();
 
 				$rating['detail_hairstylist'] = [
-					'nickname' => $service->user_hair_stylist->nickname ?? null,
-					'fullname' => $service->user_hair_stylist->fullname ?? null,
-					'user_hair_stylist_photo' => $service->user_hair_stylist->user_hair_stylist_photo ?? null,
-					'is_favorite' => 0
+					'nickname' => $hs->nickname ?? null,
+					'fullname' => $hs->fullname ?? null,
+					'user_hair_stylist_photo' => $hs->user_hair_stylist_photo ?? null,
+					'is_favorite' => $isFavorite ? 1 : 0
 				];
         	} else {
 	        	$rating['options'] = $optionOutlet;
@@ -882,40 +908,62 @@ class ApiUserRatingController extends Controller
     		$rating['id_user_hair_stylist'] = $log['id_user_hair_stylist'];
 	        $rating['transaction_receipt_number'] = $log['transaction']['transaction_receipt_number'];
 	        $rating['transaction_date'] = date('d M Y H:i',strtotime($log['transaction']['transaction_date']));
+	        $rating['transaction_from'] = $log['transaction']['transaction_from'];
 	        $rating['outlet_rating'] = null;
 	        $rating['hairstylist_rating'] = null;
 
 	        $trxDate = MyHelper::dateFormatInd($log['transaction']['transaction_date'], true, false, true);
 	        $outletName = $log['transaction']['outlet']['outlet_name'];
 	        $rating['title'] = $title;
-	        $rating['messages'] = "Dapatkan loyalty points dengan memberikan penilaian atas transaksi Anda pada hari:  \n <b>" . $trxDate . " di " . $outletName . "</b>";
+	        $rating['messages'] = "Dapatkan loyalty points dengan memberikan penilaian atas transaksi Anda pada hari:  \n <b>" . $trxDate;
+	        if ($outletName) {
+	        	$rating['messages'] = $rating['messages'] . " di " . $outletName . "</b>";
+	        }
 
-	        $rating['outlet'] = [
-				'id_outlet' => $log['transaction']['outlet']['id_outlet'],
-				'outlet_code' => $log['transaction']['outlet']['outlet_code'],
-				'outlet_name' => $log['transaction']['outlet']['outlet_name'],
-				'outlet_address' => $log['transaction']['outlet']['outlet_address'],
-				'outlet_latitude' => $log['transaction']['outlet']['outlet_latitude'],
-				'outlet_longitude' => $log['transaction']['outlet']['outlet_longitude']
-			];
-			$rating['brand'] = [
-				'id_brand' => $log['transaction']['outlet']['brands'][0]['id_brand'],
-				'brand_code' => $log['transaction']['outlet']['brands'][0]['code_brand'],
-				'brand_name' => $log['transaction']['outlet']['brands'][0]['name_brand'],
-				'brand_logo' => $log['transaction']['outlet']['brands'][0]['logo_brand'],
-				'brand_logo_landscape' => $log['transaction']['outlet']['brands'][0]['logo_landscape_brand']
-			];
+	        $rating['outlet'] = null;
+	        if (!empty($log['transaction']['outlet'])) {
+		        $rating['outlet'] = [
+					'id_outlet' => $log['transaction']['outlet']['id_outlet'],
+					'outlet_code' => $log['transaction']['outlet']['outlet_code'],
+					'outlet_name' => $log['transaction']['outlet']['outlet_name'],
+					'outlet_address' => $log['transaction']['outlet']['outlet_address'],
+					'outlet_latitude' => $log['transaction']['outlet']['outlet_latitude'],
+					'outlet_longitude' => $log['transaction']['outlet']['outlet_longitude']
+				];
+	        }
+
+			$rating['brand'] = null;
+	        if (!empty($log['transaction']['outlet']['brands'])) {
+				$rating['brand'] = [
+					'id_brand' => $log['transaction']['outlet']['brands'][0]['id_brand'],
+					'brand_code' => $log['transaction']['outlet']['brands'][0]['code_brand'],
+					'brand_name' => $log['transaction']['outlet']['brands'][0]['name_brand'],
+					'brand_logo' => $log['transaction']['outlet']['brands'][0]['logo_brand'],
+					'brand_logo_landscape' => $log['transaction']['outlet']['brands'][0]['logo_landscape_brand']
+				];
+			}
 			
-        	$service = TransactionProductService::with('user_hair_stylist')
-			        	->where('id_transaction', $log['id_transaction'])
-			        	->where('id_user_hair_stylist', $log['id_user_hair_stylist'])
-			        	->first();
+			if (!empty($log['id_transaction_product_service'])) {
+	        	$service = TransactionProductService::with('user_hair_stylist')
+				        	->where('id_transaction', $log['id_transaction'])
+				        	->where('id_user_hair_stylist', $log['id_user_hair_stylist'])
+				        	->where('id_transaction_product_service', $log['id_transaction_product_service'])
+				        	->first();
+
+	        	$hs = $service->user_hair_stylist;
+			} else {
+	        	$hs = UserHairStylist::where('id_user_hair_stylist', $log['id_user_hair_stylist'])->first();
+			}
+
+        	$isFavorite = FavoriteUserHiarStylist::where('id_user_hair_stylist',$log['id_user_hair_stylist'])
+	        					->where('id_user', $log['id_user'])
+	        					->first();
 
 			$rating['detail_hairstylist'] = [
-				'nickname' => $service->user_hair_stylist->nickname ?? null,
-				'fullname' => $service->user_hair_stylist->fullname ?? null,
-				'user_hair_stylist_photo' => $service->user_hair_stylist->user_hair_stylist_photo ?? null,
-				'is_favorite' => 0
+				'nickname' => $hs->nickname ?? null,
+				'fullname' => $hs->fullname ?? null,
+				'user_hair_stylist_photo' => $hs->user_hair_stylist_photo ?? null,
+				'is_favorite' => $isFavorite ? 1 : 0
 			];
 
         	$currentRatingHs = UserRating::where([
@@ -934,7 +982,7 @@ class ApiUserRatingController extends Controller
 	        $currentRatingOutlet = UserRating::where([
         		'id_transaction' => $log['id_transaction'],
         		'id_user' => $log['id_user'],
-        		'id_outlet' => $log['transaction']['outlet']['id_outlet'],
+        		'id_outlet' => $log['transaction']['outlet']['id_outlet'] ?? null,
         		'id_user_hair_stylist' => null
         	])
         	->first();
@@ -986,39 +1034,58 @@ class ApiUserRatingController extends Controller
 			$rating['detail_hairstylist'] = null;
 	        $rating['transaction_receipt_number'] = $log['transaction']['transaction_receipt_number'];
 	        $rating['transaction_date'] = date('d M Y H:i',strtotime($log['transaction']['transaction_date']));
+	        $rating['transaction_from'] = $log['transaction']['transaction_from'];
 
 	        $trxDate = MyHelper::dateFormatInd($log['transaction']['transaction_date'], true, false, true);
 	        $outletName = $log['transaction']['outlet']['outlet_name'];
 
-	        $rating['outlet'] = [
-				'id_outlet' => $log['transaction']['outlet']['id_outlet'],
-				'outlet_code' => $log['transaction']['outlet']['outlet_code'],
-				'outlet_name' => $log['transaction']['outlet']['outlet_name'],
-				'outlet_address' => $log['transaction']['outlet']['outlet_address'],
-				'outlet_latitude' => $log['transaction']['outlet']['outlet_latitude'],
-				'outlet_longitude' => $log['transaction']['outlet']['outlet_longitude']
-			];
-			$rating['brand'] = [
-				'id_brand' => $log['transaction']['outlet']['brands'][0]['id_brand'],
-				'brand_code' => $log['transaction']['outlet']['brands'][0]['code_brand'],
-				'brand_name' => $log['transaction']['outlet']['brands'][0]['name_brand'],
-				'brand_logo' => $log['transaction']['outlet']['brands'][0]['logo_brand'],
-				'brand_logo_landscape' => $log['transaction']['outlet']['brands'][0]['logo_landscape_brand']
-			];
+	        $rating['outlet'] = null;
+	        if (!empty($log['transaction']['outlet'])) {
+		        $rating['outlet'] = [
+					'id_outlet' => $log['transaction']['outlet']['id_outlet'],
+					'outlet_code' => $log['transaction']['outlet']['outlet_code'],
+					'outlet_name' => $log['transaction']['outlet']['outlet_name'],
+					'outlet_address' => $log['transaction']['outlet']['outlet_address'],
+					'outlet_latitude' => $log['transaction']['outlet']['outlet_latitude'],
+					'outlet_longitude' => $log['transaction']['outlet']['outlet_longitude']
+				];
+	        }
+	        $rating['brand'] = null;
+	        if (!empty($log['transaction']['outlet']['brands'])) {
+				$rating['brand'] = [
+					'id_brand' => $log['transaction']['outlet']['brands'][0]['id_brand'],
+					'brand_code' => $log['transaction']['outlet']['brands'][0]['code_brand'],
+					'brand_name' => $log['transaction']['outlet']['brands'][0]['name_brand'],
+					'brand_logo' => $log['transaction']['outlet']['brands'][0]['logo_brand'],
+					'brand_logo_landscape' => $log['transaction']['outlet']['brands'][0]['logo_landscape_brand']
+				];
+	        }
 			$rating['rating'] = null;
 			
         	if (!empty($log['id_user_hair_stylist'])) {
+
         		$rating['id_user_hair_stylist'] = $log['id_user_hair_stylist'];
-	        	$service = TransactionProductService::with('user_hair_stylist')
-	        	->where('id_transaction', $log['id_transaction'])
-	        	->where('id_user_hair_stylist', $log['id_user_hair_stylist'])
-	        	->first();
+
+        		if (!empty($log['id_transaction_product_service'])) {
+		        	$service = TransactionProductService::with('user_hair_stylist')
+					        	->where('id_transaction', $log['id_transaction'])
+					        	->where('id_user_hair_stylist', $log['id_user_hair_stylist'])
+					        	->where('id_transaction_product_service', $log['id_transaction_product_service'])
+					        	->first();
+		        	$hs = $service->user_hair_stylist;
+        		} else {
+        			$hs = UserHairStylist::where('id_user_hair_stylist', $log['id_user_hair_stylist'])->first();
+        		}
+
+	        	$isFavorite = FavoriteUserHiarStylist::where('id_user_hair_stylist',$log['id_user_hair_stylist'])
+	        					->where('id_user', $log['id_user'])
+	        					->first();
 
 				$rating['detail_hairstylist'] = [
-					'nickname' => $service->user_hair_stylist->nickname ?? null,
-					'fullname' => $service->user_hair_stylist->fullname ?? null,
-					'user_hair_stylist_photo' => $service->user_hair_stylist->user_hair_stylist_photo ?? null,
-					'is_favorite' => 0
+					'nickname' => $hs->nickname ?? null,
+					'fullname' => $hs->fullname ?? null,
+					'user_hair_stylist_photo' => $hs->user_hair_stylist_photo ?? null,
+					'is_favorite' => $isFavorite ? 1 : 0
 				];
         	}
 

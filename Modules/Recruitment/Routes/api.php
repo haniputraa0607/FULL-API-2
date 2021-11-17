@@ -50,7 +50,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
 
     Route::group(['middleware' => ['auth:mitra', 'scopes:mitra-apps']], function () {
     	Route::get('announcement','ApiMitra@announcementList');
-    	Route::get('home','ApiMitra@home');
+    	Route::any('home','ApiMitra@home');
 
     	Route::group(['prefix' => 'schedule'], function () {
         	Route::post('/', 'ApiMitra@schedule');
@@ -59,6 +59,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
 
 		Route::group(['prefix' => 'outlet-service'], function () {
         	Route::get('detail', 'ApiMitraOutletService@outletServiceDetail');
+            Route::post('customer/history', 'ApiMitraOutletService@customerHistory');
         	Route::post('customer/queue', 'ApiMitraOutletService@customerQueue');
         	Route::post('customer/detail', 'ApiMitraOutletService@customerQueueDetail');
         	Route::post('start', 'ApiMitraOutletService@startService');
@@ -68,6 +69,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
         	Route::get('box', 'ApiMitraOutletService@availableBox');
             Route::post('payment-cash/detail', 'ApiMitraOutletService@paymentCashDetail');
             Route::post('payment-cash/completed', 'ApiMitraOutletService@paymentCashCompleted');
+            Route::post('box', 'ApiMitraOutletService@selectBox');
     	});
 
     	Route::group(['prefix' => 'shop-service'], function () {
@@ -104,4 +106,8 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
     });
 
 
+});
+
+Route::group(['middleware' => ['log_activities', 'user_agent', 'auth:mitra', 'scopes:mitra-apps'], 'prefix' => 'mitra'], function () {
+    Route::post('home-service/update-location', 'ApiMitraHomeService@setHSLocation');
 });

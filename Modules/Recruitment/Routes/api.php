@@ -107,3 +107,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
 
 
 });
+
+Route::group(['middleware' => ['log_activities', 'user_agent', 'auth:mitra', 'scopes:mitra-apps'], 'prefix' => 'mitra'], function () {
+    Route::post('home-service/update-location', 'ApiMitraHomeService@setHSLocation');
+});

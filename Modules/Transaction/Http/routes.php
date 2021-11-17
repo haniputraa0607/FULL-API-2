@@ -1,5 +1,6 @@
 <?php
 Route::group(['middleware' => ['auth:api'],'prefix' => 'api/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
+    Route::any('hs-location', 'ApiTransactionHomeService@getHSLocation');
     Route::any('available-payment', 'ApiOnlineTransaction@availablePayment');
     Route::any('available-payment/update', 'ApiOnlineTransaction@availablePaymentUpdate')->middleware('scopes:be');
     Route::any('be/available-delivery', 'ApiOnlineTransaction@listAvailableDelivery')->middleware('scopes:be');

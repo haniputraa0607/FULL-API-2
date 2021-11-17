@@ -1715,9 +1715,9 @@ class ApiTransactionHomeService extends Controller
         return $paymentDetail;
     }
 
-    public function getHSLocation(Request $request, HairstylistLocation $hs)
+    public function getHSLocation(Request $request)
     {
-        $location = $hs->location()->first();
+        $location = HairstylistLocation::find($request->id_hair_stylist);
         return MyHelper::checkGet($location);
     }
 }

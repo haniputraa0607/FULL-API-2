@@ -90,6 +90,9 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
 
     Route::post('home-service', 'ApiTransactionHomeService@listHomeService');
     Route::post('home-service/detail', 'ApiTransactionHomeService@detailTransaction');
+
+    Route::post('academy', 'ApiTransactionAcademy@listHomeService');
+    Route::post('academy/detail', 'ApiTransactionAcademy@detailTransaction');
 });
 
 Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scopes:apps'], 'prefix' => 'api/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {

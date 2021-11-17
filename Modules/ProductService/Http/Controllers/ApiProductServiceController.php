@@ -330,10 +330,7 @@ class ApiProductServiceController extends Controller
             $x++;
         }
 
-        $result = [
-            'favorite_hs' => FavoriteUserHiarStylist::where('id_user', $user->id)->exists(),
-            'dates' => $listDate
-        ];
+        $result = $listDate;
 
         return response()->json(MyHelper::checkGet($result));
     }

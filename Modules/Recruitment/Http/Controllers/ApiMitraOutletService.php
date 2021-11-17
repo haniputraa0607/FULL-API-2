@@ -25,6 +25,7 @@ use Modules\Transaction\Entities\TransactionProductServiceLog;
 
 use Modules\Recruitment\Http\Requests\ScheduleCreateRequest;
 use Modules\Recruitment\Http\Requests\DetailCustomerQueueRequest;
+use Modules\Recruitment\Http\Requests\StartOutletServiceRequest;
 
 use Modules\Outlet\Entities\OutletBox;
 
@@ -148,33 +149,6 @@ class ApiMitraOutletService extends Controller
     public function customerQueueDetail(DetailCustomerQueueRequest $request)
     {
     	$user = $request->user();
-    	$checkQr = Transaction::where('transaction_receipt_number',$request->transaction_receipt_number)
-    				->with('transaction_product_services')
-    				->first();
-
-    	if (!$checkQr) {
-    		return [
-				'status' => 'fail',
-				'title' => 'QR code tidak terdaftar',
-				'messages' => ['Tidak dapat memulai layanan menggunakan QR code ini.']
-			];
-    	}
-
-    	$isNotValidQr = true;
-    	foreach ($checkQr['transaction_product_services'] as $val) {
-    		if ($val['id_transaction_product_service'] == $request->id_transaction_product_service) {
-    			$isNotValidQr = false;
-    			break;
-    		}
-    	}
-
-    	if ($isNotValidQr) {
-    		return [
-				'status' => 'fail',
-				'title' => 'QR code tidak sesuai',
-				'messages' => ['Tidak dapat memulai layanan menggunakan QR code ini.']
-			];
-    	}
 
     	$queue = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
 				->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
@@ -227,7 +201,7 @@ class ApiMitraOutletService extends Controller
 
 		$timerText .= (strtotime(date('Y-m-d H:i:s')) < strtotime($queue['schedule_date'] . ' ' .$queue['schedule_time'])) ? ' lagi' : ' lalu';
 
-		$trx = Transaction::where('id_transaction', $val['id_transaction'])->first();
+		$trx = Transaction::where('id_transaction', $queue['id_transaction'])->first();
 		$trxPayment = app($this->trx_outlet_service)->transactionPayment($trx);
     	$paymentMethod = null;
     	foreach ($trxPayment['payment'] as $p) {
@@ -268,9 +242,38 @@ class ApiMitraOutletService extends Controller
     	return MyHelper::checkGet($box);
     }
 
-    public function startService(Request $request)
+    public function startService(StartOutletServiceRequest $request)
     {
     	$user = $request->user();
+
+    	$checkQr = Transaction::where('transaction_receipt_number',$request->transaction_receipt_number)
+    				->with('transaction_product_services')
+    				->first();
+
+    	if (!$checkQr) {
+    		return [
+				'status' => 'fail',
+				'title' => 'QR code tidak terdaftar',
+				'messages' => ['Tidak dapat memulai layanan menggunakan QR code ini.']
+			];
+    	}
+
+    	$isNotValidQr = true;
+    	foreach ($checkQr['transaction_product_services'] as $val) {
+    		if ($val['id_transaction_product_service'] == $request->id_transaction_product_service) {
+    			$isNotValidQr = false;
+    			break;
+    		}
+    	}
+
+    	if ($isNotValidQr) {
+    		return [
+				'status' => 'fail',
+				'title' => 'QR code tidak sesuai',
+				'messages' => ['Tidak dapat memulai layanan menggunakan QR code ini.']
+			];
+    	}
+
     	$service = TransactionProductService::where('id_user_hair_stylist', $user->id_user_hair_stylist)
 					->where('id_transaction_product_service', $request->id_transaction_product_service)
 					->first();

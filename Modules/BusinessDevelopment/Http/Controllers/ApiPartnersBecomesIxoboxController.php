@@ -11,11 +11,11 @@ use Modules\BusinessDevelopment\Entities\PartnersBecomesIxobox;
 use Modules\BusinessDevelopment\Entities\PartnersBecomesIxoboxDocument;
 use Modules\BusinessDevelopment\Entities\PartnersBecomesIxoboxOutlet;
 use App\Http\Models\Outlet;
-use Modules\BusinessDevelopment\Http\Requests\becomes\CreateBecomesIxoboxRequest;
-use Modules\BusinessDevelopment\Http\Requests\becomes\CreateBecomesIxoboxActiveRequest;
-use Modules\BusinessDevelopment\Http\Requests\becomes\UpdateBecomesIxoboxRequest;
-use Modules\BusinessDevelopment\Http\Requests\becomes\UpdateBecomesIxoboxActiveRequest;
-use Modules\BusinessDevelopment\Http\Requests\becomes\CreateLampiranBecomesIxoboxRequest;
+use Modules\BusinessDevelopment\Http\Requests\Becomes\CreateBecomesIxoboxRequest;
+use Modules\BusinessDevelopment\Http\Requests\Becomes\CreateBecomesIxoboxActiveRequest;
+use Modules\BusinessDevelopment\Http\Requests\Becomes\UpdateBecomesIxoboxRequest;
+use Modules\BusinessDevelopment\Http\Requests\Becomes\UpdateBecomesIxoboxActiveRequest;
+use Modules\BusinessDevelopment\Http\Requests\Becomes\CreateLampiranBecomesIxoboxRequest;
 use DB;
  
 class ApiPartnersBecomesIxoboxController extends Controller

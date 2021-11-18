@@ -220,11 +220,12 @@ class ApiMitraOutletService extends Controller
     		}
     	}
 
-    	$box = OutletBox::where('id_outlet_box', $schedule->id_outlet_box)->first();
+    	$box = OutletBox::where('id_outlet_box', $schedule['id_outlet_box'] ?? null)->first();
 
 		$res = [
 			'id_transaction_product_service' => $queue['id_transaction_product_service'],
 			'order_id' => $queue['order_id'] ?? null,
+			'transaction_receipt_number' => $queue['transaction_receipt_number'] ?? null,
 			'customer_name' => $queue['customer_name'],
 			'schedule_date' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($queue['schedule_date'])), 'j F Y'),
 			'schedule_time' => date('H:i', strtotime($queue['schedule_time'])),

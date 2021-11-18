@@ -104,6 +104,7 @@ class ApiMitraOutletService extends Controller
 			}
 
 			$timerText .= (strtotime(date('Y-m-d H:i:s')) < strtotime($val['schedule_date'] . ' ' .$val['schedule_time'])) ? ' lagi' : ' lalu';
+			$timerTextColor = (strtotime(date('Y-m-d')) == strtotime($val['schedule_date'])) ? '#FF2424' : '#121212';
 
 			$trx = Transaction::where('id_transaction', $val['id_transaction'])->first();
 			$trxPayment = app($this->trx_outlet_service)->transactionPayment($trx);
@@ -133,6 +134,7 @@ class ApiMitraOutletService extends Controller
 				'product_name' => $val['product_name'],
 				'price' => $val['transaction_product_net'],
 				'timer_text' => $timerText,
+				'timer_text_color' => $timerTextColor,
 				'button_text' => $buttonText,
 				'disable' => $disable,
 				'id_outlet_box' => $schedule->id_outlet_box ?? null,
@@ -222,6 +224,10 @@ class ApiMitraOutletService extends Controller
 
     	$box = OutletBox::where('id_outlet_box', $schedule['id_outlet_box'] ?? null)->first();
 
+    	// convert processing time and extend popup time from minutes to second
+    	$processingTime = ($queue['processing_time_service'] ?? 30) * 60;
+    	$extendPopup = (Setting::where('key', 'outlet_service_extend_popup_time')->first()['value'] ?? 5) * 60;
+
 		$res = [
 			'id_transaction_product_service' => $queue['id_transaction_product_service'],
 			'order_id' => $queue['order_id'] ?? null,
@@ -242,7 +248,9 @@ class ApiMitraOutletService extends Controller
 			'hairstylist_nickname' => $user['nickname'],
 			'hairstylist_fullname' => $user['fullname'],
 			'outlet_box_code' => $box['outlet_box_code'] ?? null,
-			'outlet_box_name' => $box['outlet_box_name'] ?? null
+			'outlet_box_name' => $box['outlet_box_name'] ?? null,
+			'processing_time_service' => $processingTime,
+			'extend_popup_time' => $extendPopup
 		];
 		
 		return MyHelper::checkGet($res);
@@ -485,13 +493,11 @@ class ApiMitraOutletService extends Controller
     public function extendService(Request $request)
     {
     	$user = $request->user();
-    	$service = TransactionProductService::where('id_user_hair_stylist', $user->id_user_hair_stylist)
+    	$service = TransactionProductService::where('transaction_product_services.id_user_hair_stylist', $user->id_user_hair_stylist)
 					->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
 					->join('products', 'transaction_products.id_product', 'products.id_product')
 					->where('id_transaction_product_service', $request->id_transaction_product_service)
 					->first();
-
-
 
 		if (!$service) {
 			return [
@@ -521,8 +527,21 @@ class ApiMitraOutletService extends Controller
 			];
 		}
 
-		$processingTime = $service->processing_time_service;
+		$processingTime = $service->processing_time_service ?? 30;
+		$startTime = TransactionProductServiceLog::where('action', 'Start')
+					->where('id_transaction_product_service', $request->id_transaction_product_service)
+					->first();
 
+		if (!$startTime) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Waktu layanan dimulai tidak ditemukan']
+			];
+		}
+
+		$timeLeft = ($processingTime * 60) -  (strtotime(date('Y-m-d H:i:s')) - strtotime($startTime->created_at));
+		$newTime = ($processingTime * 60) + $timeLeft;
+		
 		$extended = new DateTime('now +'. $processingTime .' minutes');
 		$extendedTime = $extended->format('H:i:s');
 
@@ -541,7 +560,7 @@ class ApiMitraOutletService extends Controller
 					->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
 					->join('products', 'transaction_products.id_product', 'products.id_product')
 	    			->whereNull('service_status')
-	    			->where('id_user_hair_stylist', $user->id_user_hair_stylist)
+	    			->where('transaction_product_services.id_user_hair_stylist', $user->id_user_hair_stylist)
 	    			->where('transaction_payment_status' ,'Completed')
 	    			->whereDate('schedule_date', date('Y-m-d'))
 	    			->where('schedule_time', '<', $extendedTime)
@@ -564,7 +583,12 @@ class ApiMitraOutletService extends Controller
 			];	
     	}
 
-		return ['status' => 'success'];
+		return [
+			'status' => 'success',
+			'result' =>[
+				'extended_time' => $newTime
+			]
+		];
     }
 
     public function completeService(Request $request)

@@ -580,6 +580,15 @@ class ApiPartnersController extends Controller
     public function followUp(Request $request)
     {
         $post = $request['post_follow_up'];
+        if(isset($post['follow_up']) && $post['follow_up'] == 'Payment'){
+            $data_send = [
+                "partner" => Partner::where('id_partner',$post["id_partner"])->first(),
+                "location" => Location::where('id_partner',$post["id_partner"])->first(),
+                "confir" => ConfirmationLetter::where('id_partner',$post["id_partner"])->first(),
+            ];
+            $initBranch = Icount::ApiConfirmationLetter($data_send);
+            return $initBranch;
+        }
         if(isset($post['id_partner']) && !empty($post['id_partner'])){
             DB::beginTransaction();
             $data_store = [

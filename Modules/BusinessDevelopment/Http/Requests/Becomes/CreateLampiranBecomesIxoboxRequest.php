@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\BusinessDevelopment\Http\Requests\becomes;
+namespace Modules\BusinessDevelopment\Http\Requests\Becomes;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;

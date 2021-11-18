@@ -275,6 +275,12 @@ class ApiPartnersController extends Controller
             if (isset($post['npwp_address'])) {
                 $data_update['npwp_address'] = $post['npwp_address'];
             }
+            if (isset($post['trans_date'])) {
+                $data_update['trans_date'] = $post['trans_date'];
+            }
+            if (isset($post['due_date'])) {
+                $data_update['due_date'] = $post['due_date'];
+            }
             if(isset($data_update['start_date']) && isset($data_update['end_date'])){
                 $start = explode('-', $data_update['start_date']);
                 $end = explode('-', $data_update['end_date']);
@@ -605,6 +611,9 @@ class ApiPartnersController extends Controller
                 if($survey['status'] != 'success' && isset($survey['status'])){
                     return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
                 }
+            }
+            if(isset($post['follow_up']) && $post['follow_up'] == 'Payment'){
+                return $post;
             }
             return response()->json(MyHelper::checkCreate($store));
         }else{
@@ -1043,73 +1052,6 @@ class ApiPartnersController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }
 
-    }
-
-    public function tesIcount(Request $request){
-        $cl = [
-            "BranchName" => "Branch Jakarta Utara",
-            "BranchCode" => "CB009",
-            "Title" => "PT",
-            "BusinessPartnerName" => "IXOBOX NUSANTARA",
-            "BusinessPartnerCode" => "IXNST1",
-            "GroupBusinessPartner" => "2",
-            "Email" => "ridwan_ix@ixobox.com",
-            "PhoneNo" => "(+62)2183838831023",
-            "MobileNo" => "(+62)812138818182",
-            "NPWP" => "23.423.408-0.801.293",
-            "NPWPName" => "IXOBOX Nusantara",
-            "NPWPAddress" => "JL. Prapanca Jawa, No. 51, Kel. Nepal, Kec. Bandung Timur, Kota. Semarang, Nusantara",
-            "Address" => "JL. Prapanca Jawa, No. 51, Kel. Nepal, Kec. Bandung Timur, Kota. Semarang, Nusantara",
-            "IsSuspended" => "false",
-            "IsTax" => "true",
-            "PriceLevel" => "1",
-            "Notes" => "Tempat beli alat-alat cukur",
-            "ItemDetail" => [
-                [
-                    "ItemID" => "100",
-                    "Qty" => "100",
-                    "Unit" => "PCS",
-                    "Ratio" => "1",
-                    "Price" => "100000",
-                    "Disc" => "0",
-                    "DiscRp" => "0",
-                    "Description" => ""
-                ]
-            ]
-        ];
-        $get = [
-            "limit" => "20",
-            "orderBY" => "Code ASC"
-        ];
-        $deliv = [
-            "SalesOrderID" => "011",
-            "VoucherNo" => "[AUTO]",
-            "TransDate" => "2021-01-31 23:59:59",
-            "DueDate" => "2021-02-28 23:59:59",
-            "BusinessPartnerID" => "011",
-            "BranchID" => "011",
-            "DepartmentID" => "011",
-            "ReferenceNo" => null,
-            "TaxNo" => null,
-            "ItemDetail" => [
-                [
-                    "ItemID" => "100",
-                    "Qty" => "20",
-                    "Unit" => "PCS",
-                    "Ratio" => "1",
-                    "Price" => "100000",
-                    "Disc" => "0",
-                    "DiscRp" => "0",
-                    "Description" => ""
-                ]
-            ]
-        ];
-        // return $post;
-        // return $get;
-        $tes = Icount::ApiConfirmationLetter($cl);
-        // $tes = Icount::ApiDeliveryOrderConfirmationLetter($deliv);
-        // $tes = Icount::get($get);
-        return $tes;
     }
 }
 

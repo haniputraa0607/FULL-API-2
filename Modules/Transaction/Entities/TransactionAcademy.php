@@ -15,6 +15,9 @@ class TransactionAcademy extends Model
         'payment_method',
         'total_installment',
         'amount_completed',
-        'amount_not_completed'
+        'amount_not_completed',
+        'transaction_academy_duration',
+        'transaction_academy_total_meeting',
+        'transaction_academy_hours_meeting'
     ];
 }

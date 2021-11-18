@@ -143,14 +143,16 @@ class ApiMitra extends Controller
 		}
 
 		$outletSchedule = OutletSchedule::where('id_outlet', $user->id_outlet)->with('time_shift')->get();
+		$arrShift = ['Morning' => 1, 'Middle' => 2, 'Evening' => 3];
 		$shiftInfo = [];
 		foreach ($outletSchedule as $sch) {
 			$shiftInfo[$sch['day']] = [];
 			foreach ($sch['time_shift'] as $shift) {
-				$timeStart 	= date('H:i', strtotime($shift['shift_time_start'] ?? '09:00'));
-				$timeEnd 	= date('H:i', strtotime($shift['shift_time_end'] ?? '15:00'));
+				$timeStart 	= date('H:i', strtotime($shift['shift_time_start']));
+				$timeEnd 	= date('H:i', strtotime($shift['shift_time_end']));
 				$shiftInfo[$sch['day']][] = [
 					'shift' => $shift['shift'],
+					'value' => $arrShift[$shift['shift']],
 					'time' => $timeStart . ' - ' . $timeEnd
 				];
 			}

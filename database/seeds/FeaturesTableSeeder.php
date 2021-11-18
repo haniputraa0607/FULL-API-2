@@ -3899,6 +3899,26 @@ class FeaturesTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00')
                 ),
+            389 =>
+                array (
+                    'feature_module' => 'Academy Transaction',
+                    'feature_type' => 'Detail',
+                    'id_feature' => 390,
+                    'order' => 140,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            390 =>
+                array (
+                    'feature_module' => 'Academy Transaction',
+                    'feature_type' => 'Update',
+                    'id_feature' => 391,
+                    'order' => 140,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                )
         ));
         
         

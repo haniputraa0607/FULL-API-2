@@ -72,11 +72,6 @@ class ApiMitraOutletService extends Controller
 							->where('id_user_hair_stylist', $user->id_user_hair_stylist)
 							->first();
 
-		$disable = 0;
-		if ($serviceInProgress) {
-			$disable = 1;
-		}
-
  		$schedule = HairstylistSchedule::join(
 			'hairstylist_schedule_dates', 
 			'hairstylist_schedules.id_hairstylist_schedule', 
@@ -122,6 +117,11 @@ class ApiMitraOutletService extends Controller
 	    		$buttonText = 'Pembayaran';
 	    		$paymentCash = 1;
 	    	}
+
+			$disable = 0;
+			if ($serviceInProgress && $serviceInProgress['id_transaction_product_service'] != $val['id_transaction_product_service']) {
+				$disable = 1;
+			}
 
 			$resData[] = [
 				'id_transaction_product_service' => $val['id_transaction_product_service'],

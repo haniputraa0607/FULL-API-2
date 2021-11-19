@@ -11,6 +11,9 @@ class CreatePartnersTable extends Migration
      *
      * @return void
      */
+    public function __construct() {
+        DB::getDoctrineSchemaManager()->getDatabasePlatform()->registerDoctrineTypeMapping('enum', 'string');
+    }
     public function up()
     {
         Schema::create('partners', function (Blueprint $table) {

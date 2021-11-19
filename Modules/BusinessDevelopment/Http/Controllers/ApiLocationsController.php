@@ -211,6 +211,9 @@ class ApiLocationsController extends Controller
             if (isset($post['name'])) {
                 $data_update['name'] = $post['name'];
             }
+            if (isset($post['code'])) {
+                $data_update['code'] = $post['code'];
+            }
             if (isset($post['address'])) {
                 $data_update['address'] = $post['address'];
             }
@@ -278,6 +281,9 @@ class ApiLocationsController extends Controller
             }
             if (isset($post['notes'])) {
                 $data_update['notes'] = $post['notes'];
+            }
+            if (isset($post['total_payment'])) {
+                $data_update['total_payment'] = $post['total_payment'];
             }
             $old_status = Location::where('id_location', $post['id_location'])->get('status')[0]['status'];
             $update = Location::where('id_location', $post['id_location'])->update($data_update);

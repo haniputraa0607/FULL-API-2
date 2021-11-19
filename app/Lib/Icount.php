@@ -81,22 +81,43 @@ class Icount
             "ReferenceNo" => $request['confir']['no_letter'],
             "Detail" => [
                 [
-                    "ItemID" => "100",
                     "Qty" => "100",
                     "Unit" => "PCS",
                     "Ratio" => "1",
-                    "Price" => "100000",
+                    "Price" => $request['location']['total_payment']/100,
                     "Disc" => "0",
                     "DiscRp" => "0",
                     "Description" => ""
                 ]
             ]
         ];
-        // return $data;
         return self::sendRequest('POST', '/partner_initiation/init_branch_code_order', $data, $logType, $orderId);
     }
-    public static function ApiDeliveryOrderConfirmationLetter($request, $logType = null, $orderId = null){
-        return self::sendRequest('POST', '/partner_initiation/delivery_order_cl', $request, $logType, $orderId);
+    public static function ApiInvoiceConfirmationLetter($request, $logType = null, $orderId = null){
+        $data = [
+            "SalesOrderID" => $request['partner']['id_sales_order'],
+            "VoucherNo" => $request['partner']['voucher_no'],
+            "TransDate" => $request['partner']['trans_date'],
+            "DueDate" => $request['partner']['due_date'],
+            "BusinessPartnerID" => $request['partner']['id_business_partner'],
+            "BranchID" => $request['location']['id_branch'],
+            "TermOfPaymentID" => $request['partner']['id_term_payment'],
+            "ReferenceNo" => $request['confir']['no_letter'],
+            "TaxNo" => '',
+            "Notes" => $request['partner']['notes'],
+            "Detail" => [
+                [
+                    "Qty" => "20",
+                    "Unit" => "PCS",
+                    "Ratio" => "1",
+                    "Price" => $request['location']['total_payment']/100,
+                    "Disc" => "0",
+                    "DiscRp" => "0",
+                    "Description" => ""
+                ]
+            ]
+        ];
+        return self::sendRequest('POST', '/partner_initiation/do_invoice_cl', $data, $logType, $orderId);
     }
     public static function get($request, $logType = null, $orderId = null){
         return self::sendRequest('GET', '/branch/list', $request, $logType, $orderId);

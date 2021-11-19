@@ -141,6 +141,8 @@ class ApiProjectController extends Controller
                     'note' =>$note,
                 ]);
         $outlet = Outlet::create([
+            'id_branch' => $location->id_branch,
+            'branch_code' => $location->code,
             'outlet_code' => $this->outlet_code(),
             'id_location' => $location->id_location,
             'outlet_name' => $location->name,

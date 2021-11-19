@@ -68,6 +68,8 @@ class Outlet extends Authenticatable
 	// ];
 
 	protected $fillable = [
+		'id_branch',
+		'branch_code',
 		'id_outlet_seed',
 		'outlet_code',
 		'outlet_pin',

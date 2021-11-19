@@ -226,8 +226,16 @@ class ApiMitraOutletService extends Controller
 
     	$box = OutletBox::where('id_outlet_box', $schedule['id_outlet_box'] ?? null)->first();
 
-    	// convert processing time and extend popup time from minutes to second
-    	$processingTime = ($queue['processing_time_service'] ?? 30) * 60;
+		$startTime = TransactionProductServiceLog::where('action', 'Start')
+					->where('id_transaction_product_service', $queue['id_transaction_product_service'])
+					->first();
+
+    	$timeLeft = ($queue['processing_time_service'] ?? 30) * 60;
+		if ($startTime) {
+			$timeLeft = $timeLeft - (strtotime(date('Y-m-d H:i:s')) - strtotime($startTime->created_at));
+		}
+		$timeLeft = ($timeLeft >= 1) ? $timeLeft : 0;
+
     	$extendPopup = (Setting::where('key', 'outlet_service_extend_popup_time')->first()['value'] ?? 5) * 60;
 
 		$res = [
@@ -251,7 +259,7 @@ class ApiMitraOutletService extends Controller
 			'hairstylist_fullname' => $user['fullname'],
 			'outlet_box_code' => $box['outlet_box_code'] ?? null,
 			'outlet_box_name' => $box['outlet_box_name'] ?? null,
-			'processing_time_service' => $processingTime,
+			'processing_time_service' => $timeLeft,
 			'extend_popup_time' => $extendPopup
 		];
 		

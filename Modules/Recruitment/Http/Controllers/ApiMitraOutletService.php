@@ -40,7 +40,6 @@ use DateTime;
 class ApiMitraOutletService extends Controller
 {
     public function __construct() {
-        date_default_timezone_set('Asia/Jakarta');
         $this->mitra = "Modules\Recruitment\Http\Controllers\ApiMitra";
         $this->trx = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
         $this->trx_outlet_service = "Modules\Transaction\Http\Controllers\ApiTransactionOutletService";
@@ -49,6 +48,8 @@ class ApiMitraOutletService extends Controller
     public function customerQueue(Request $request)
     {
     	$user = $request->user();
+    	app($this->mitra)->setTimezone();
+
     	$queue = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
 				->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
 				->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
@@ -152,6 +153,7 @@ class ApiMitraOutletService extends Controller
     public function customerQueueDetail(DetailCustomerQueueRequest $request)
     {
     	$user = $request->user();
+    	app($this->mitra)->setTimezone();
 
     	$queue = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
 				->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
@@ -270,6 +272,7 @@ class ApiMitraOutletService extends Controller
     public function startService(StartOutletServiceRequest $request)
     {
     	$user = $request->user();
+    	app($this->mitra)->setTimezone();
 
     	$checkQr = Transaction::where('transaction_receipt_number',$request->transaction_receipt_number)
     				->with('transaction_product_services')
@@ -370,7 +373,14 @@ class ApiMitraOutletService extends Controller
 			];
 		}
 
-		$shift = app($this->mitra)->timeToShift(date('H:i:s'));
+		$shift = app($this->mitra)->getOutletShift($user->id_outlet);
+		if (!$shift) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Shift outlet tidak ditemukan']
+			];
+		}
+
 		$usedBox = HairstylistSchedule::join(
 			'hairstylist_schedule_dates', 
 			'hairstylist_schedules.id_hairstylist_schedule', 
@@ -493,6 +503,8 @@ class ApiMitraOutletService extends Controller
     public function extendService(Request $request)
     {
     	$user = $request->user();
+    	app($this->mitra)->setTimezone();
+
     	$service = TransactionProductService::where('transaction_product_services.id_user_hair_stylist', $user->id_user_hair_stylist)
 					->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
 					->join('products', 'transaction_products.id_product', 'products.id_product')
@@ -594,6 +606,7 @@ class ApiMitraOutletService extends Controller
     public function completeService(Request $request)
     {
     	$user = $request->user();
+    	app($this->mitra)->setTimezone();
     	$service = TransactionProductService::where('id_user_hair_stylist', $user->id_user_hair_stylist)
 					->where('id_transaction_product_service', $request->id_transaction_product_service)
 					->first();
@@ -809,8 +822,7 @@ class ApiMitraOutletService extends Controller
             'brand_logo_landscape' => $user['outlet']['brands'][0]['logo_landscape_brand']
 		];
 
-		$timeNow = date('H:i:s');
-		$shift = app($this->mitra)->timeToShift($timeNow);
+		$shift = app($this->mitra)->getOutletShift($user->id_outlet);
 
 		$schedule = HairstylistSchedule::join(
 			'hairstylist_schedule_dates', 
@@ -966,7 +978,14 @@ class ApiMitraOutletService extends Controller
 			];
 		}
 
-		$shift = app($this->mitra)->timeToShift(date('H:i:s'));
+		$shift = app($this->mitra)->getOutletShift($user->id_outlet);
+		if (!$shift) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Shift outlet tidak ditemukan']
+			];
+		}
+
 		$usedBox = HairstylistSchedule::join(
 			'hairstylist_schedule_dates', 
 			'hairstylist_schedules.id_hairstylist_schedule', 

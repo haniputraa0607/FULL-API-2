@@ -15,6 +15,7 @@ use DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Http\Models\City;
+use App\Http\Models\Outlet;
 use App\Http\Models\Setting;
 use Illuminate\Support\Facades\App;
 use Modules\Brand\Entities\Brand;
@@ -23,6 +24,18 @@ use Storage;
 use Modules\BusinessDevelopment\Entities\StepsLog;
 use Modules\BusinessDevelopment\Entities\ConfirmationLetter;
 use Modules\BusinessDevelopment\Entities\FormSurvey;
+use Modules\BusinessDevelopment\Entities\TermPayment;
+use Modules\BusinessDevelopment\Entities\PartnersClosePermanent;
+use Modules\BusinessDevelopment\Entities\PartnersClosePermanentDocument;
+use Modules\BusinessDevelopment\Entities\PartnersClosePermanentOutlet;
+use Modules\BusinessDevelopment\Entities\PartnersCloseTemporary;
+use Modules\BusinessDevelopment\Entities\PartnersCloseTemporaryDocument;
+use Modules\BusinessDevelopment\Entities\PartnersCloseTemporaryOutlet;
+use Modules\BusinessDevelopment\Entities\PartnersBecomesIxobox;
+use Modules\BusinessDevelopment\Entities\PartnersBecomesIxoboxDocument;
+use Modules\BusinessDevelopment\Entities\PartnersBecomesIxoboxOutlet;
+use Modules\Project\Entities\Project;
+use App\Http\Models\Product;
 
 use function GuzzleHttp\json_decode;
 
@@ -275,6 +288,12 @@ class ApiPartnersController extends Controller
             if (isset($post['npwp_address'])) {
                 $data_update['npwp_address'] = $post['npwp_address'];
             }
+            if (isset($post['id_term_payment'])) {
+                $data_update['id_term_payment'] = $post['id_term_payment'];
+            }
+            if (isset($post['notes'])) {
+                $data_update['notes'] = $post['notes'];
+            }
             if (isset($post['trans_date'])) {
                 $data_update['trans_date'] = $post['trans_date'];
             }
@@ -392,10 +411,21 @@ class ApiPartnersController extends Controller
         $id_partner  = $request->json('id_partner');
         $partner = Partner::where('id_partner', $id_partner)->get();
         if($partner){
+            $delete = $this->deleteClosePermanent($id_partner);
+            $delete = $this->deleteCloseTemporary($id_partner);
+            $delete = $this->deleteBecomeIxobox($id_partner);
+            $delete = $this->deleteOutlet($id_partner);
+            $delete = $this->deleteProject($id_partner);
             $delete = $this->deleteLocations($id_partner);
+            $delete = $this->deleteConfir($id_partner);
+            $delete = $this->deleteFormSurvey($id_partner);
         }
-        $delete = Partner::where('id_partner', $id_partner)->delete();
-        return MyHelper::checkDelete($delete);
+        if($delete){
+            $delete = Partner::where('id_partner', $id_partner)->delete();
+            return MyHelper::checkDelete($delete);
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
     }
 
     public function deleteLocations($id_partner){
@@ -403,6 +433,180 @@ class ApiPartnersController extends Controller
         if($get){
             $delete = Location::where('id_partner', $id_partner)->delete();
             $this->deleteLocations($id_partner);
+            return $delete;
+        }else{
+            return true;
+        }
+    }
+
+    public function deleteConfir($id){
+        $get = ConfirmationLetter::where('id_partner', $id)->first();
+        if($get){
+            $delete = ConfirmationLetter::where('id_partner', $id)->delete();
+            $this->deleteConfir($id);
+            return $delete;
+        }else{
+            return true;
+        }
+    }
+
+    public function deleteFormSurvey($id){
+        $get = FormSurvey::where('id_partner', $id)->first();
+        if($get){
+            $delete = FormSurvey::where('id_partner', $id)->delete();
+            $this->deleteFormSurvey($id);
+            return $delete;
+        }else{
+            return true;
+        }
+    }
+
+    public function deleteProject($id){
+        $get = Project::where('id_partner', $id)->first();
+        if($get){
+            $delete = Project::where('id_partner', $id)->delete();
+            $this->deleteProject($id);
+            return $delete;
+        }else{
+            return true;
+        }
+    }
+
+    public function deleteOutlet($id_partner){
+        $get_code = Location::where('id_partner',$id_partner)->get('code')[0]['code'];
+        $delete = $this->deleteOutletbyCode($get_code);
+        return true;
+    }
+
+    public function deleteOutletbyCode($code){
+        $get = Outlet::where('branch_code', $code)->first();
+        if($get){
+            $delete = Outlet::where('branch_code', $code)->delete();
+            $this->deleteOutletbyCode($code);
+            return $delete;
+        }else{
+            return true;
+        }
+    }
+
+    public function deleteClosePermanent($id_partner){
+        $permanent = PartnersClosePermanent::where('id_partner', $id_partner)->first();
+        if($permanent){
+            $delete = true;
+            $id_permanent = $permanent['id_partners_close_permanent'];
+            $delete = $this->deletePermanentDocument($id_permanent);
+            $delete = $this->deletePermanentOutlet($id_permanent);
+        }else{
+            $delete = false;
+        }
+        if($delete){
+            $delete = PartnersClosePermanent::where('id_partners_close_permanent', $id_permanent)->delete();
+            $this->deleteClosePermanent($id_partner);
+            return $delete;
+        }else{
+            return true;
+        }
+    }
+
+    public function deletePermanentDocument($id){
+        $get = PartnersClosePermanentDocument::where('id_partners_close_permanent', $id)->first();
+        if($get){
+            $delete = PartnersClosePermanentDocument::where('id_partners_close_permanent', $id)->delete();
+            $this->deletePermanentDocument($id);
+            return $delete;
+        }else{
+            return true;
+        }
+    }
+
+    public function deletePermanentOutlet($id){
+        $get = PartnersClosePermanentOutlet::where('id_partners_close_permanent', $id)->first();
+        if($get){
+            $delete = PartnersClosePermanentOutlet::where('id_partners_close_permanent', $id)->delete();
+            $this->deletePermanentOutlet($id);
+            return $delete;
+        }else{
+            return true;
+        }
+    }
+
+
+    public function deleteBecomeIxobox($id_partner){
+        $becomes = PartnersBecomesIxobox::where('id_partner', $id_partner)->first();
+        if($becomes){
+            $delete = true;
+            $id_becomes = $becomes['id_partners_becomes_ixobox'];
+            $delete = $this->deleteBecomeDocument($id_becomes);
+            $delete = $this->deleteBecomeOutlet($id_becomes);
+        }else{
+            $delete = false;
+        }
+        if($delete){
+            $delete = PartnersBecomesIxobox::where('id_partners_becomes_ixobox', $id_becomes)->delete();
+            $this->deleteBecomeIxobox($id_partner);
+            return $delete;
+        }else{
+            return true;
+        }
+    }
+
+    public function deleteBecomeDocument($id){
+        $get = PartnersBecomesIxoboxDocument::where('id_partners_becomes_ixobox', $id)->first();
+        if($get){
+            $delete = PartnersBecomesIxoboxDocument::where('id_partners_becomes_ixobox', $id)->delete();
+            $this->deleteBecomeDocument($id);
+            return $delete;
+        }else{
+            return true;
+        }
+    }
+
+    public function deleteBecomeOutlet($id){
+        $get = PartnersBecomesIxoboxOutlet::where('id_partners_becomes_ixobox', $id)->first();
+        if($get){
+            $delete = PartnersBecomesIxoboxOutlet::where('id_partners_becomes_ixobox', $id)->delete();
+            $this->deleteBecomeOutlet($id);
+            return $delete;
+        }else{
+            return true;
+        }
+    }
+
+    public function deleteCloseTemporary($id_partner){
+        $temporary = PartnersCloseTemporary::where('id_partner', $id_partner)->first();
+        if($temporary){
+            $delete = true;
+            $id_temporary = $temporary['id_partners_close_temporary'];
+            $delete = $this->deleteTemporaryDocument($id_temporary);
+            $delete = $this->deleteTemporaryOutlet($id_temporary);
+        }else{
+            $delete = false;
+        }
+        if($delete){
+            $delete = PartnersCloseTemporary::where('id_partners_close_temporary', $id_temporary)->delete();
+            $this->deleteCloseTemporary($id_partner);
+            return $delete;
+        }else{
+            return true;
+        }
+    }
+
+    public function deleteTemporaryDocument($id){
+        $get = PartnersCloseTemporaryDocument::where('id_partners_close_temporary', $id)->first();
+        if($get){
+            $delete = PartnersCloseTemporaryDocument::where('id_partners_close_temporary', $id)->delete();
+            $this->deleteTemporaryDocument($id);
+            return $delete;
+        }else{
+            return true;
+        }
+    }
+
+    public function deleteTemporaryOutlet($id){
+        $get = PartnersCloseTemporaryOutlet::where('id_partners_close_temporary', $id)->first();
+        if($get){
+            $delete = PartnersCloseTemporaryOutlet::where('id_partners_close_temporary', $id)->delete();
+            $this->deleteTemporaryOutlet($id);
             return $delete;
         }else{
             return true;
@@ -580,15 +784,6 @@ class ApiPartnersController extends Controller
     public function followUp(Request $request)
     {
         $post = $request['post_follow_up'];
-        if(isset($post['follow_up']) && $post['follow_up'] == 'Payment'){
-            $data_send = [
-                "partner" => Partner::where('id_partner',$post["id_partner"])->first(),
-                "location" => Location::where('id_partner',$post["id_partner"])->first(),
-                "confir" => ConfirmationLetter::where('id_partner',$post["id_partner"])->first(),
-            ];
-            $initBranch = Icount::ApiConfirmationLetter($data_send);
-            return $initBranch;
-        }
         if(isset($post['id_partner']) && !empty($post['id_partner'])){
             DB::beginTransaction();
             $data_store = [
@@ -622,7 +817,82 @@ class ApiPartnersController extends Controller
                 }
             }
             if(isset($post['follow_up']) && $post['follow_up'] == 'Payment'){
-                return $post;
+                $data_send = [
+                    "partner" => Partner::where('id_partner',$post["id_partner"])->first(),
+                    "location" => Location::where('id_partner',$post["id_partner"])->first(),
+                    "confir" => ConfirmationLetter::where('id_partner',$post["id_partner"])->first(),
+                    "detail" => Product::where('product_name','Inisiasi Partner')->first(),
+                ];
+                $initBranch = Icount::ApiConfirmationLetter($data_send);
+                if($initBranch['response']['Status']=='1' && $initBranch['response']['Message']=='success'){
+                    $data_init = $initBranch['response']['Data'][0];
+                    $partner_init = [
+                        "id_business_partner" => $data_init['BusinessPartner']['BusinessPartnerID'],
+                        "id_company" => $data_init['BusinessPartner']['CompanyID'],
+                        "id_sales_order" => $data_init['SalesOrderID'],
+                        "voucher_no" => $data_init['VoucherNo'],
+                        "id_sales_order_detail" => $data_init['Detail'][0]['SalesOrderDetailID'],
+                    ];
+                    $location_init = [
+                        "id_branch" => $data_init['Branch']['BranchID'],
+                    ];
+                    $value_detail[$data_init['Detail'][0]['Name']] = [
+                        "name" => $data_init['Detail'][0]['Name'],
+                        "amount" => $data_init['Amount'],
+                        "tax_value" => $data_init['TaxValue'],
+                        "netto" => $data_init['Netto'],
+                    ];
+                    $location_init['value_detail'] = json_encode($value_detail);
+                    DB::beginTransaction();
+                    $update_partner_init = Partner::where('id_partner', $post['id_partner'])->update($partner_init);
+                    if($update_partner_init){
+                        $update_location_init = Location::where('id_partner', $post['id_partner'])->update($location_init);
+                        if(!$update_location_init){
+                            DB::rollback();
+                            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                        }
+                        DB::commit();
+                        $data_send_2 = [
+                            "partner" => Partner::where('id_partner',$post["id_partner"])->first(),
+                            "location" => Location::where('id_partner',$post["id_partner"])->first(),
+                            "confir" => ConfirmationLetter::where('id_partner',$post["id_partner"])->first(),
+                        ];
+                        $invoiceCL = Icount::ApiInvoiceConfirmationLetter($data_send_2);
+                        if($invoiceCL['response']['Status']=='1' && $invoiceCL['response']['Message']=='success'){
+                            $data_invoCL = $invoiceCL['response']['Data'][0];
+                            $val = Location::where('id_partner',$post["id_partner"])->get('value_detail')[0]['value_detail'];
+                            $val = json_decode($val, true);
+                            $val[$data_invoCL['Detail'][0]['Name']] = [
+                                "name" => $data_invoCL['Detail'][0]['Name'],
+                                "amount" => $data_invoCL['Amount'],
+                                "tax_value" => $data_invoCL['TaxValue'],
+                                "netto" => $data_invoCL['Netto'],
+                            ];
+                            $location_invoCL['value_detail'] = json_encode($val);
+                            $partner_invoCL = [
+                                "id_sales_invoice" => $data_invoCL['SalesInvoiceID'],
+                                "id_sales_invoice_detail" => $data_invoCL['Detail'][0]['SalesInvoiceDetailID'],
+                                "id_delivery_order_detail" => $data_invoCL['Detail'][0]['DeliveryOrderDetailID'],
+                            ];
+                            DB::beginTransaction();
+                            $update_partner_invoCL = Partner::where('id_partner', $post['id_partner'])->update($partner_invoCL);
+                            if($update_partner_invoCL){
+                                $update_location_invoCL = Location::where('id_partner', $post['id_partner'])->update($location_invoCL);
+                                if(!$update_location_invoCL){
+                                    DB::rollback();
+                                    return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                                }
+                                DB::commit();
+                            }
+                        }else{
+                            return response()->json(['status' => 'fail', 'messages' => [$invoiceCL['response']['Message']]]);
+                        }
+                    }else{
+                        return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                    }
+                }else{
+                    return response()->json(['status' => 'fail', 'messages' => [$initBranch['response']['Message']]]);
+                }
             }
             return response()->json(MyHelper::checkCreate($store));
         }else{
@@ -1061,6 +1331,12 @@ class ApiPartnersController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }
 
+    }
+
+    public function term(Request $request){
+        $post = $request->json()->all();
+        $term = TermPayment::select('id_term_of_payment', 'name', 'duration')->get()->toArray();
+        return response()->json(MyHelper::checkGet($term));
     }
 }
 

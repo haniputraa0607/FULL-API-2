@@ -20,4 +20,8 @@ class TransactionAcademy extends Model
         'transaction_academy_total_meeting',
         'transaction_academy_hours_meeting'
     ];
+
+    public function user_schedule(){
+        return $this->hasMany(TransactionAcademySchedule::class, 'id_transaction_academy', 'id_transaction_academy');
+    }
 }

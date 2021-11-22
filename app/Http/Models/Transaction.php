@@ -321,4 +321,8 @@ class Transaction extends Model
     {
     	return $this->hasMany(TransactionProduct::class, 'id_transaction', 'id_transaction');
 	}
+
+	public function transaction_academy(){
+        return $this->hasOne(\Modules\Transaction\Entities\TransactionAcademy::class, 'id_transaction');
+    }
 }

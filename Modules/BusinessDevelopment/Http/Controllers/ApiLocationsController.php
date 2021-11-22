@@ -31,10 +31,11 @@ class ApiLocationsController extends Controller
         if (isset($post['status']) && $post['status'] == 'Candidate') {
             $locations = Location::with(['location_partner','location_city'])->where('status',$post['status']);
         }elseif(isset($post['status']) && $post['status'] == 'Active'){
-            $locations = Location::with(['location_partner','location_city'])->where('status','Active')->orWhere('status','Inactive');
+            $locations = Location::with(['location_partner','location_city'])->where('status','Active');
         }else {
             $locations = Location::with(['location_partner','location_city']);
         }
+        return $locations->where('name','adnan')->get()->toArray();
         if(isset($post['conditions']) && !empty($post['conditions'])){
             $rule = 'and';
             if(isset($post['rule'])){
@@ -61,9 +62,11 @@ class ApiLocationsController extends Controller
                             }   
                         }else{
                             if($condition['operator'] == '='){
-                                $locations = $locations->where($condition['subject'], $condition['parameter']);
+                                $locations = $locations->where($condition['subject'], $condition['parameter'])->get()->toArray();
+                                return $locations;
                             }else{
-                                $locations = $locations->where($condition['subject'], 'like', '%'.$condition['parameter'].'%');
+                                $locations = $locations->where($condition['subject'], 'like', '%'.$condition['parameter'].'%')->get()->toArray();
+                                return $locations;
                             }
                         }                
                     }
@@ -100,6 +103,9 @@ class ApiLocationsController extends Controller
                 });
             }
         }
+        if(isset($post['status']) && $post['status'] == 'Active') {
+            $locations = $locations->orWhere('status','Inactive');
+        }
         if(isset($post['order']) && isset($post['order_type'])){
             if(isset($post['page'])){
                 $locations = $locations->orderBy($post['order'], $post['order_type'])->paginate($request->length ?: 10);
@@ -113,6 +119,7 @@ class ApiLocationsController extends Controller
                 $locations = $locations->orderBy('created_at', 'desc')->get()->toArray();
             }
         } 
+        return $locations;
         return MyHelper::checkGet($locations);
     }
 

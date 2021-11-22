@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\BusinessDevelopment\Http\Requests\Outlet_Close;
+namespace Modules\BusinessDevelopment\Http\Requests\OutletCLose;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;

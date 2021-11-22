@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\BusinessDevelopment\Http\Requests\Outlet_Close;
+namespace Modules\BusinessDevelopment\Http\Requests\OutletClose;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
@@ -8,34 +8,26 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 use App\Http\Models\Outlet;
 use Modules\Project\Entities\Project;
 use Modules\BusinessDevelopment\Entities\Location;
+use Modules\BusinessDevelopment\Entities\PartnersCloseTemporary;
 use Modules\BusinessDevelopment\Entities\OutletCutOff;
 use Modules\BusinessDevelopment\Entities\OutletCloseTemporary;
-use Modules\BusinessDevelopment\Entities\Partner;
-use Modules\BusinessDevelopment\Entities\PartnersCloseTemporary;
 
-class UpdateOutletCloseTemporaryRequest extends FormRequest
+class CreateLampiranCloseTemporaryRequest extends FormRequest
 {
     public function rules()
     {
         return [
-            'id_outlet_close_temporary' => 'required|outlet',
-            'date'              => 'required|today',
-            'title'              => 'required',
+            'title'             => 'required',
+            'id_outlet_close_temporary'        => 'required|outlet',
+            'attachment'        => 'required'
            ]; 
     }
     public function withValidator($validator)
     {
-        $validator->addExtension('outlet', function ($attribute, $value, $parameters, $validator) {
-         $survey = OutletCloseTemporary::where(array('id_outlet_close_temporary'=>$value,'status'=>"Process"))->first();
+         $validator->addExtension('outlet', function ($attribute, $value, $parameters, $validator) {
+         $survey = OutletCloseTemporary::where(array('id_outlet_close_temporary'=>$value,'status'=>"Process"))->orwhere(array('status'=>"Waiting"))->first();
          if($survey){
              return true;
-         } return false;
-        });
-        $validator->addExtension('today', function ($attribute, $value, $parameters, $validator) {
-            $data = strtotime($value);
-            $now = strtotime(date('Y-m-d'));
-         if($data>=$now){
-             return true; 
          } return false;
         }); 
     }
@@ -43,8 +35,7 @@ class UpdateOutletCloseTemporaryRequest extends FormRequest
     {
         return [
             'required' => ':attribute harus diisi',
-            'outlet' => 'Data Close Temporary tidak sedang dalam proses',
-            'today' => "Minimal hari ini",
+            'outlet' => 'Cek data status',
         ];
     }
     public function authorize()

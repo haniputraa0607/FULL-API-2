@@ -48,7 +48,6 @@ class ApiMitraOutletService extends Controller
     public function customerQueue(Request $request)
     {
     	$user = $request->user();
-    	app($this->mitra)->setTimezone();
 
     	$queue = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
 				->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
@@ -124,12 +123,17 @@ class ApiMitraOutletService extends Controller
 				$disable = 1;
 			}
 
+			$scheduleDate = app($this->mitra)->convertTimezoneMitra($val['schedule_date']);
+			$scheduleDate = MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($scheduleDate)), 'j F Y');
+			$scheduleTime = app($this->mitra)->convertTimezoneMitra($val['schedule_time']);
+			$scheduleTime = date('H:i', strtotime($scheduleTime));
+
 			$resData[] = [
 				'id_transaction_product_service' => $val['id_transaction_product_service'],
 				'order_id' => $val['order_id'] ?? null,
 				'customer_name' => $val['customer_name'],
-				'schedule_date' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($val['schedule_date'])), 'j F Y'),
-				'schedule_time' => date('H:i', strtotime($val['schedule_time'])),
+				'schedule_date' => $scheduleDate,
+				'schedule_time' => $scheduleTime,
 				'service_status' => $val['service_status'],
 				'payment_method' => $paymentMethod,
 				'product_name' => $val['product_name'],
@@ -153,7 +157,6 @@ class ApiMitraOutletService extends Controller
     public function customerQueueDetail(DetailCustomerQueueRequest $request)
     {
     	$user = $request->user();
-    	app($this->mitra)->setTimezone();
 
     	$queue = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
 				->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
@@ -226,25 +229,40 @@ class ApiMitraOutletService extends Controller
 
     	$box = OutletBox::where('id_outlet_box', $schedule['id_outlet_box'] ?? null)->first();
 
-		$startTime = TransactionProductServiceLog::where('action', 'Start')
+		$logService = TransactionProductServiceLog::whereIn('action', ['Start', 'Extend'])
 					->where('id_transaction_product_service', $queue['id_transaction_product_service'])
-					->first();
+					->get()->keyBy('action');
 
-    	$timeLeft = ($queue['processing_time_service'] ?? 30) * 60;
+		$startTime = !empty($logService['Start']['created_at'])  ? date('Y-m-d H:i:s', strtotime($logService['Start']['created_at'])) : null;
+		$extendTime = !empty($logService['Extend']['created_at'])  ? date('Y-m-d H:i:s', strtotime($logService['Extend']['created_at'])) : null;
+		
+    	$processingTime = ($queue['processing_time_service'] ?? 30) * 60; //second
+
+    	$timeLeft = 0;
 		if ($startTime) {
-			$timeLeft = $timeLeft - (strtotime(date('Y-m-d H:i:s')) - strtotime(date('Y-m-d H:i:s', strtotime($startTime->created_at))));
+			$timeLeft = $processingTime - (strtotime(date('Y-m-d H:i:s')) - strtotime($startTime));
 		}
+
+		if ($extendTime) {
+			$timeLeft = $timeLeft + $processingTime;
+		}
+
 		$timeLeft = ($timeLeft >= 1) ? $timeLeft : 0;
 
     	$extendPopup = (Setting::where('key', 'outlet_service_extend_popup_time')->first()['value'] ?? 5) * 60;
+
+    	$scheduleDate = app($this->mitra)->convertTimezoneMitra($queue['schedule_date']);
+		$scheduleDate = MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($scheduleDate)), 'j F Y');
+		$scheduleTime = app($this->mitra)->convertTimezoneMitra($queue['schedule_time']);
+		$scheduleTime = date('H:i', strtotime($scheduleTime));
 
 		$res = [
 			'id_transaction_product_service' => $queue['id_transaction_product_service'],
 			'order_id' => $queue['order_id'] ?? null,
 			'transaction_receipt_number' => $queue['transaction_receipt_number'] ?? null,
 			'customer_name' => $queue['customer_name'],
-			'schedule_date' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($queue['schedule_date'])), 'j F Y'),
-			'schedule_time' => date('H:i', strtotime($queue['schedule_time'])),
+			'schedule_date' => $scheduleDate,
+			'schedule_time' => $scheduleTime,
 			'service_status' => $queue['service_status'],
 			'payment_method' => $paymentMethod,
 			'product_name' => $queue['product_name'],
@@ -280,7 +298,6 @@ class ApiMitraOutletService extends Controller
     public function startService(StartOutletServiceRequest $request)
     {
     	$user = $request->user();
-    	app($this->mitra)->setTimezone();
 
     	$checkQr = Transaction::where('transaction_receipt_number',$request->transaction_receipt_number)
     				->with('transaction_product_services')
@@ -511,7 +528,6 @@ class ApiMitraOutletService extends Controller
     public function extendService(Request $request)
     {
     	$user = $request->user();
-    	app($this->mitra)->setTimezone();
 
     	$service = TransactionProductService::where('transaction_product_services.id_user_hair_stylist', $user->id_user_hair_stylist)
 					->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
@@ -560,12 +576,12 @@ class ApiMitraOutletService extends Controller
 		}
 
 		$timeLeft = ($processingTime * 60) -  (strtotime(date('Y-m-d H:i:s')) - strtotime(date('Y-m-d H:i:s', strtotime($startTime->created_at))));
-		$timeLeft = ($timeLeft >= 1) ? $timeLeft : 0;
 		$newTime = ($processingTime * 60) + $timeLeft;
+		$newTime = ($newTime >= 1) ? $newTime : 0;
 		
-		$extended = new DateTime('now +'. $processingTime .' minutes');
+		$extended = new DateTime("+".  $newTime ." seconds");
 		$extendedTime = $extended->format('H:i:s');
-
+		
     	DB::beginTransaction();
     	try {
 
@@ -615,7 +631,6 @@ class ApiMitraOutletService extends Controller
     public function completeService(Request $request)
     {
     	$user = $request->user();
-    	app($this->mitra)->setTimezone();
     	$service = TransactionProductService::where('id_user_hair_stylist', $user->id_user_hair_stylist)
 					->where('id_transaction_product_service', $request->id_transaction_product_service)
 					->first();

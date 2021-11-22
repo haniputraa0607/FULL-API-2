@@ -232,7 +232,7 @@ class ApiMitraOutletService extends Controller
 
     	$timeLeft = ($queue['processing_time_service'] ?? 30) * 60;
 		if ($startTime) {
-			$timeLeft = $timeLeft - (strtotime(date('Y-m-d H:i:s')) - strtotime($startTime->created_at));
+			$timeLeft = $timeLeft - (strtotime(date('Y-m-d H:i:s')) - strtotime(date('Y-m-d H:i:s', strtotime($startTime->created_at))));
 		}
 		$timeLeft = ($timeLeft >= 1) ? $timeLeft : 0;
 
@@ -559,7 +559,8 @@ class ApiMitraOutletService extends Controller
 			];
 		}
 
-		$timeLeft = ($processingTime * 60) -  (strtotime(date('Y-m-d H:i:s')) - strtotime($startTime->created_at));
+		$timeLeft = ($processingTime * 60) -  (strtotime(date('Y-m-d H:i:s')) - strtotime(date('Y-m-d H:i:s', strtotime($startTime->created_at))));
+		$timeLeft = ($timeLeft >= 1) ? $timeLeft : 0;
 		$newTime = ($processingTime * 60) + $timeLeft;
 		
 		$extended = new DateTime('now +'. $processingTime .' minutes');

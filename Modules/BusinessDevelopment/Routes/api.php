@@ -153,6 +153,8 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefi
             Route::post('/cronActive', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseTemporaryController@cronActive']);
             Route::post('/cronChangeLocation', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseTemporaryController@cronChangeLocation']);
             //active steps
+            Route::post('/updatestepstatus', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseTemporaryController@update_step_status']);
+            Route::post('/updatesteplog', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseTemporaryController@update_step_log']);
             Route::post('/updateStatus', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseTemporaryController@updateStatus']);
             Route::post('/create-follow-up', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseTemporaryController@createFollowUp']);
             Route::post('/form-survey', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseTemporaryController@createFormSurvey']);

@@ -219,7 +219,11 @@ class ApiRequestHairStylistController extends Controller
 
     public function listOutlet(Request $request){
         $outlet = Outlet::where('outlet_status','active')->get()->toArray();
-        return response()->json(MyHelper::checkCreate($outlet));
+        if($outlet){
+            return response()->json(MyHelper::checkCreate($outlet));
+        }else{
+            return [];
+        }
     }
 
     public function listHairStylistsOutlet(Request $request){

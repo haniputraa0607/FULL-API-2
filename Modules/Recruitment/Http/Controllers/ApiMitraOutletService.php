@@ -123,12 +123,17 @@ class ApiMitraOutletService extends Controller
 				$disable = 1;
 			}
 
+			$scheduleDate = app($this->mitra)->convertTimezoneMitra($val['schedule_date']);
+			$scheduleDate = MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($scheduleDate)), 'j F Y');
+			$scheduleTime = app($this->mitra)->convertTimezoneMitra($val['schedule_time']);
+			$scheduleTime = date('H:i', strtotime($scheduleTime));
+
 			$resData[] = [
 				'id_transaction_product_service' => $val['id_transaction_product_service'],
 				'order_id' => $val['order_id'] ?? null,
 				'customer_name' => $val['customer_name'],
-				'schedule_date' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($val['schedule_date'])), 'j F Y'),
-				'schedule_time' => date('H:i', strtotime($val['schedule_time'])),
+				'schedule_date' => $scheduleDate,
+				'schedule_time' => $scheduleTime,
 				'service_status' => $val['service_status'],
 				'payment_method' => $paymentMethod,
 				'product_name' => $val['product_name'],
@@ -246,13 +251,18 @@ class ApiMitraOutletService extends Controller
 
     	$extendPopup = (Setting::where('key', 'outlet_service_extend_popup_time')->first()['value'] ?? 5) * 60;
 
+    	$scheduleDate = app($this->mitra)->convertTimezoneMitra($queue['schedule_date']);
+		$scheduleDate = MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($scheduleDate)), 'j F Y');
+		$scheduleTime = app($this->mitra)->convertTimezoneMitra($queue['schedule_time']);
+		$scheduleTime = date('H:i', strtotime($scheduleTime));
+
 		$res = [
 			'id_transaction_product_service' => $queue['id_transaction_product_service'],
 			'order_id' => $queue['order_id'] ?? null,
 			'transaction_receipt_number' => $queue['transaction_receipt_number'] ?? null,
 			'customer_name' => $queue['customer_name'],
-			'schedule_date' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($queue['schedule_date'])), 'j F Y'),
-			'schedule_time' => date('H:i', strtotime($queue['schedule_time'])),
+			'schedule_date' => $scheduleDate,
+			'schedule_time' => $scheduleTime,
 			'service_status' => $queue['service_status'],
 			'payment_method' => $paymentMethod,
 			'product_name' => $queue['product_name'],

@@ -27,6 +27,8 @@ use Modules\Recruitment\Http\Requests\ScheduleCreateRequest;
 
 use App\Lib\MyHelper;
 use DB;
+use DateTime;
+use DateTimeZone;
 
 class ApiMitra extends Controller
 {
@@ -661,5 +663,21 @@ class ApiMitra extends Controller
     public function setTimezone()
     {
     	return MyHelper::setTimezone(request()->user()->outlet->city->province->time_zone_utc);
+    }
+
+    public function convertTimezoneMitra($date = null, $format = 'Y-m-d H:i:s')
+    {
+    	$timestamp = $date ? strtotime($date) : time();
+    	$arrTz = [7 => 'Asia/Jakarta', 8 => 'Asia/Ujung_Pandang', 9 => 'Asia/Jayapura'];
+
+    	$utc = request()->user()->outlet->city->province->time_zone_utc;
+    	$tz = $arrTz[$utc] ?? 'Asia/Jakarta';
+
+    	$dt = new DateTime();
+		$dt->setTimezone(new DateTimeZone($tz));
+		$dt->setTimestamp($timestamp);
+		
+		return $dt->format($format);
+
     }
 }

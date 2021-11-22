@@ -35,7 +35,6 @@ class ApiLocationsController extends Controller
         }else {
             $locations = Location::with(['location_partner','location_city']);
         }
-        return $locations->where('name','adnan')->get()->toArray();
         if(isset($post['conditions']) && !empty($post['conditions'])){
             $rule = 'and';
             if(isset($post['rule'])){
@@ -62,11 +61,9 @@ class ApiLocationsController extends Controller
                             }   
                         }else{
                             if($condition['operator'] == '='){
-                                $locations = $locations->where($condition['subject'], $condition['parameter'])->get()->toArray();
-                                return $locations;
+                                $locations = $locations->where($condition['subject'], $condition['parameter']);
                             }else{
-                                $locations = $locations->where($condition['subject'], 'like', '%'.$condition['parameter'].'%')->get()->toArray();
-                                return $locations;
+                                $locations = $locations->where($condition['subject'], 'like', '%'.$condition['parameter'].'%');
                             }
                         }                
                     }
@@ -119,7 +116,6 @@ class ApiLocationsController extends Controller
                 $locations = $locations->orderBy('created_at', 'desc')->get()->toArray();
             }
         } 
-        return $locations;
         return MyHelper::checkGet($locations);
     }
 

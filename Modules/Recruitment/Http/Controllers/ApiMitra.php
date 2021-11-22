@@ -31,9 +31,9 @@ use DB;
 class ApiMitra extends Controller
 {
     public function __construct() {
-        date_default_timezone_set('Asia/Jakarta');
         $this->product = "Modules\Product\Http\Controllers\ApiProductController";
         $this->announcement = "Modules\Recruitment\Http\Controllers\ApiAnnouncement";
+        $this->outlet = "Modules\Outlet\Http\Controllers\ApiOutletController";
     }
 
     public function splash(Request $request){
@@ -376,6 +376,7 @@ class ApiMitra extends Controller
     public function home(Request $request)
     {
     	$user = $request->user();
+    	$this->setTimezone();
     	$today = date('Y-m-d H:i:s');
 
     	$user->load('outlet.brands');
@@ -426,32 +427,67 @@ class ApiMitra extends Controller
     	return MyHelper::checkGet($res);
     }
 
-    public function outletServiceScheduleStatus($id_user_hair_stylist)
+    public function outletServiceScheduleStatus($id_user_hair_stylist, $date = null)
     {
-    	$today = date('Y-m-d H:i:s');
-        $todayTime = date('H:i:s', strtotime($today));
+    	$today = $date ?? date('Y-m-d H:i:s');
+        $curTime = date('H:i:s', strtotime($today));
+    	$day = MyHelper::indonesian_date_v2($date, 'l');
     	$status = [
     		'is_available' => 0,
     		'is_active' => 0,
     		'messages' => []
     	];
 
-    	$schedule = HairstylistScheduleDate::join('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
+    	$hs = UserHairStylist::find($id_user_hair_stylist);
+    	$outletSchedule = OutletSchedule::where('id_outlet', $hs->id_outlet)->where('day', $day)->first();
+    	if (!$outletSchedule) {
+        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Outlet tidak memiliki jadwal buka hari ini.";
+        	return $status;
+        }
+
+        if ($outletSchedule->is_closed) {
+        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Outlet tutup.";
+        	return $status;
+        }
+
+        $isHoliday = app($this->outlet)->isHoliday($hs->id_outlet);
+        if ($isHoliday['status']) {
+        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Outlet libur \" " . $isHoliday['holiday'] . "\".";
+        	return $status;
+        }
+
+        $outletShift = OutletTimeShift::where('id_outlet_schedule', $outletSchedule->id_outlet_schedule)
+        				->where(function($q) use ($curTime) {
+        					$q->where(function($q2) use ($curTime) {
+        						$q2->whereColumn('shift_time_start', '<', 'shift_time_end')
+        							->where('shift_time_start', '<', $curTime)
+        							->where('shift_time_end', '>', $curTime);
+        					})->orWhere(function($q2) use ($curTime) {
+        						$q2->whereColumn('shift_time_start', '>', 'shift_time_end')
+        							->where(function($q3) use ($curTime) {
+        								$q3->where('shift_time_start', '<', $curTime)
+        									->orWhere('shift_time_end', '>', $curTime);	
+        							});
+        					});
+        				})->first()['shift'] ?? null;
+
+		if (!$outletShift) {
+        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Outlet tidak memiliki jadwal shift pada jam ini.";
+        	return $status;
+        }
+
+    	$mitraSchedule = HairstylistScheduleDate::join('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
                 ->whereNotNull('approve_at')->where('id_user_hair_stylist', $id_user_hair_stylist)
                 ->whereDate('date', date('Y-m-d', strtotime($today)))
-                ->get();
+                ->first();
 
-        if (empty($schedule) || $schedule->isEmpty()) {
+        if (!$mitraSchedule) {
         	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal layanan outlet hari ini.";
         	return $status;
         }
 
-        $shift = $this->getNearestShift($schedule);
-        $outlet = Outlet::where('id_outlet', $shift->id_outlet)->with(['today'])->first();
-		$getTimeShift = app($this->product)->getTimeShift(strtolower($shift['shift']), $shift->id_outlet, $outlet['today']['id_outlet_schedule']);
-
-		if (empty($getTimeShift)) {
-        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Jadwal layanan outlet tidak ditemukan.";
+        if ($mitraSchedule->shift != $outletShift) {
+        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal layanan outlet pada jam ini.";
         	return $status;
         }
 
@@ -467,77 +503,26 @@ class ApiMitra extends Controller
         return $status;
     }
 
-    public function homeServiceScheduleStatus($id_user_hair_stylist, $date)
+    public function homeServiceScheduleStatus($id_user_hair_stylist, $date = null)
     {
-        $today = date('Y-m-d H:i:s');
-        $todayTime = date('H:i:s', strtotime($today));
-        $isHomeServiceStart = 0;
+
+        $isHomeServiceStart = UserHairStylist::find($id_user_hair_stylist)->home_service_status;
     	$status = [
     		'is_available' => 0,
     		'is_active' => $isHomeServiceStart,
     		'messages' => []
     	];
 
-    	$schedule = HairstylistScheduleDate::join('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
-                ->whereNotNull('approve_at')->where('id_user_hair_stylist', $id_user_hair_stylist)
-                ->whereDate('date', date('Y-m-d', strtotime($today)))
-                ->get();
+    	$outletService = $this->outletServiceScheduleStatus($id_user_hair_stylist, $date);
 
-        if (empty($schedule) || $schedule->isEmpty()) {
-    		$status['is_available'] = 1;
-        	return $status;
-        }
-
-        $shift = $this->getNearestShift($schedule);
-        $outlet = Outlet::where('id_outlet', $shift->id_outlet)->with(['today'])->first();
-		$getTimeShift = app($this->product)->getTimeShift(strtolower($shift['shift']), $shift->id_outlet, $outlet['today']['id_outlet_schedule']);
-
-		if (empty($getTimeShift)) {
-    		$status['is_available'] = 1;
-        	return $status;
-        }
-
-        $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
-        $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
-        if (strtotime($todayTime) > strtotime($shiftTimeStart) && strtotime($todayTime) < strtotime($shiftTimeEnd)) {
-        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n karena layanan outlet Anda sedang aktif.";
+    	if ($outletService['is_available']) {
+    		$status['messages'][] = "Layanan tidak bisa diaktifkan.\n karena layanan outlet Anda sedang aktif.";
     		$status['is_active'] = 0;
             return $status;
-        }
-
+    	}
+    	
     	$status['is_available'] = 1;
         return $status;
-    }
-
-    public function getNearestShift($schedule)
-    {
-    	$res = null;
-    	$shiftNow = $this->timeToShift(date('H:i:s'));
-    	foreach ($schedule ?? [] as $val) {
-    		if ($val['shift'] == $shiftNow) {
-    			$res = $val;
-    			break;
-    		}
-    	}
-
-    	return $res ?? $schedule[0] ?? [];
-    }
-
-    public function timeToShift($time)
-    {
-        $time = date('H:i:s', strtotime($time));
-        $morningShiftStart = date('H:i:s', strtotime('09:00'));
-        $morningShiftEnd = date('H:i:s', strtotime('15:00'));
-        $eveningShiftStart = date('H:i:s', strtotime('15:00'));
-        $eveningShiftEnd = date('H:i:s', strtotime('21:00'));
-
-    	if ( strtotime($time) >= strtotime($morningShiftStart) && strtotime($time) < strtotime($morningShiftEnd) ) {
-            return 'Morning';
-        } elseif ( strtotime($time) >= strtotime($eveningShiftStart) && strtotime($time) < strtotime($eveningShiftEnd) ) {
-            return 'Evening';
-        }
-
-        return null;
     }
 
     public function ratingSummary(Request $request)
@@ -629,5 +614,52 @@ class ApiMitra extends Controller
 		$comment['data'] = $resData;
 
 		return MyHelper::checkGet($comment);
+    }
+
+    public function getOutletShift($id_outlet, $dateTime = null)
+    {
+    	$outlet = Outlet::find($id_outlet);
+    	$timezone = $outlet->city->province->time_zone_utc;
+    	$dateTime = $dateTime ?? date('Y-m-d H:i:s');
+        $curTime = date('H:i:s', strtotime($dateTime));
+    	$day = MyHelper::indonesian_date_v2($dateTime, 'l');
+
+    	$res = null;
+    	$outletSchedule = OutletSchedule::where('id_outlet', $id_outlet)->where('day', $day)->first();
+    	if (!$outletSchedule || $outletSchedule->is_closed) {
+        	return $res;
+        }
+
+        $isHoliday = app($this->outlet)->isHoliday($id_outlet);
+        if ($isHoliday['status']) {
+        	return $res;
+        }
+
+    	$outletShift = OutletTimeShift::where('id_outlet_schedule', $outletSchedule->id_outlet_schedule)
+        				->where(function($q) use ($curTime) {
+        					$q->where(function($q2) use ($curTime) {
+        						$q2->whereColumn('shift_time_start', '<', 'shift_time_end')
+        							->where('shift_time_start', '<', $curTime)
+        							->where('shift_time_end', '>', $curTime);
+        					})->orWhere(function($q2) use ($curTime) {
+        						$q2->whereColumn('shift_time_start', '>', 'shift_time_end')
+        							->where(function($q3) use ($curTime) {
+        								$q3->where('shift_time_start', '<', $curTime)
+        									->orWhere('shift_time_end', '>', $curTime);	
+        							});
+        					});
+        				})
+        				->first();
+
+		if (!$outletShift) {
+			return $res;
+		}
+
+		return $outletShift['shift'] ?? $res;
+    }
+
+    public function setTimezone()
+    {
+    	return MyHelper::setTimezone(request()->user()->outlet->city->province->time_zone_utc);
     }
 }

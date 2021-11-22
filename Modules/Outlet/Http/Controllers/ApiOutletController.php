@@ -3808,4 +3808,45 @@ class ApiOutletController extends Controller
 
         return response()->json(MyHelper::checkUpdate($save));
     }
+
+    function isHoliday($id_outlet)
+    {
+    	$now = date('Y-m-d H:i:s');
+    	$curDate = date('d', strtotime($now));
+    	$curMonth = date('m', strtotime($now));
+
+    	$holiday 	= Holiday::join('outlet_holidays', 'holidays.id_holiday', 'outlet_holidays.id_holiday')
+					->join('date_holidays', 'holidays.id_holiday', 'date_holidays.id_holiday')
+	                ->select('outlet_holidays.id_outlet', 'holidays.id_holiday', 'holidays.yearly', 'date_holidays.date', 'holidays.holiday_name')
+	                ->whereDay('date_holidays.date', $curDate)
+	                ->whereMonth('date_holidays.date', $curMonth)
+	                ->where('id_outlet', $id_outlet)
+	                ->get()
+	                ->toArray();
+		
+		$res = [
+			'status' 	=> false,
+			'holiday' 	=> null
+		];
+
+		if ($holiday) {
+            foreach ($holiday as $key => $holi) {
+                if ($holi['yearly'] == '0') {
+                    if ($holi['date'] == $now) {
+                        $res = [
+							'status' 	=> true,
+							'holiday' 	=> $holi['holiday_name']
+						];
+                    }
+                } else {
+                    $res = [
+						'status' 	=> true,
+						'holiday' 	=> $holi['holiday_name']
+					];
+                }
+            }
+		}
+
+		return $res;
+    }
 }

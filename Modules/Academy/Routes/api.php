@@ -19,6 +19,13 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
     Route::post('setting/installment/save', 'ApiAcademyController@settingInstallmentSave');
     Route::get('setting/banner', 'ApiAcademyController@settingBanner');
     Route::post('setting/banner/save', 'ApiAcademyController@settingBannerSave');
+
+    Route::post('transaction/user/schedule', 'ApiAcademyScheduleController@listUserAcademy');
+    Route::post('transaction/user/schedule/detail', 'ApiAcademyScheduleController@detailScheduleUserAcademy');
+    Route::post('transaction/user/schedule/update', 'ApiAcademyScheduleController@updateScheduleUserAcademy');
+
+    Route::post('transaction/user/schedule/day-off', 'ApiAcademyScheduleController@listDayOffUserAcademy');
+    Route::post('transaction/user/schedule/day-off/action', 'ApiAcademyScheduleController@actionDayOffUserAcademy');
 });
 
 Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scopes:apps'], 'prefix' => 'academy'], function () {
@@ -27,4 +34,11 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
     Route::get('banner', 'ApiAcademyController@academyBanner');
     Route::post('product/list', 'ApiAcademyController@academyListProduct');
     Route::post('product/detail', 'ApiAcademyController@academyDetailProduct');
+
+    Route::any('my-course', 'ApiAcademyController@listMyCourse');
+    Route::post('my-course/detail', 'ApiAcademyController@detailMyCourse');
+    Route::post('my-course/schedule', 'ApiAcademyController@scheduleMyCourse');
+    Route::post('my-course/schedule/detail', 'ApiAcademyController@scheduleDetailMyCourse');
+    Route::post('my-course/create/day-off', 'ApiAcademyController@createDayOff');
+    Route::post('my-course/installment/detail', 'ApiAcademyController@installmentDetail');
 });

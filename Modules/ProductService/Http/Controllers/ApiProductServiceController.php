@@ -352,10 +352,6 @@ class ApiProductServiceController extends Controller
         $post['latitude'] = $address['latitude'];
         $post['longitude'] = $address['longitude'];
 
-        if(strtolower($post['booking_time']) == 'sekarang'){
-            $post['booking_time'] = date('H:i', strtotime("+2 minutes", strtotime($post['booking_time_user'])));
-        }
-
         $bookDate = date('Y-m-d', strtotime($post['booking_date']));
         $bookTime = date('H:i:s', strtotime($post['booking_time']));
         $bookTimeStart = date('H:i', strtotime("-30 minutes", strtotime($bookTime)));
@@ -377,10 +373,10 @@ class ApiProductServiceController extends Controller
 
         $listHs = UserHairStylist::where('user_hair_stylist_status', 'Active')
             ->whereIn('id_user_hair_stylist', function($query) use($idUser){
-            $query->select('id_user_hair_stylist')
-                ->from('favorite_user_hair_stylist')
-                ->where('id_user', $idUser);
-        })->get()->toArray();
+                $query->select('id_user_hair_stylist')
+                    ->from('favorite_user_hair_stylist')
+                    ->where('id_user', $idUser);
+            })->get()->toArray();
 
         $day = [
             'Mon' => 'Senin',
@@ -394,7 +390,7 @@ class ApiProductServiceController extends Controller
         $bookDay = $day[date('D', strtotime($bookDate))];
         $res = [];
         foreach ($listHs as $val){
-            $available = false;
+            $available = true;
             //check schedule hs
             $shift = HairstylistScheduleDate::leftJoin('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
                     ->whereNotNull('approve_at')->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
@@ -406,14 +402,14 @@ class ApiProductServiceController extends Controller
                 $getTimeShift = app($this->product)->getTimeShift(strtolower($shift),$val['id_outlet'], $idOutletSchedule);
                 if(!empty($getTimeShift['end'])){
                     $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
-                    if((strtotime($shiftTimeEnd) > strtotime($bookTime)) === false){
-                        $available = true;
+                    if((strtotime($shiftTimeEnd) > strtotime($bookTime)) !== false){
+                        $available = false;
                     }
                 }
             }
 
-            if(array_search($val['id_user_hair_stylist'], $hsNotAvailable) === false){
-                $available = true;
+            if(array_search($val['id_user_hair_stylist'], $hsNotAvailable) !== false){
+                $available = false;
             }
 
             if(empty($val['latitude']) && empty($val['longitude'])){
@@ -421,7 +417,7 @@ class ApiProductServiceController extends Controller
             }
             $distance = (float)app($this->outlet)->distance($post['latitude'], $post['longitude'], $val['latitude'], $val['longitude'], "K");
 
-            if($distance > $maximumRadius){
+            if($distance > 0 && $distance <= $maximumRadius){
                 continue;
             }
 

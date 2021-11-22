@@ -3140,4 +3140,13 @@ class MyHelper{
 
 		return $listDate;
     }
+
+    public static function setTimezone(int $utc)
+    {
+    	$arr = [7 => 'Asia/Jakarta', 8 => 'Asia/Ujung_Pandang', 9 => 'Asia/Jayapura'];
+    	$timezone = $arr[$utc] ?? 'Asia/Jakarta';
+    	config(['app.timezone' => $timezone]);
+    	date_default_timezone_set($timezone);
+    	return true;
+    }
 }

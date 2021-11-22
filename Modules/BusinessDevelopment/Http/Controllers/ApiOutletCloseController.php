@@ -66,10 +66,44 @@ class ApiOutletCloseController extends Controller
                         ->first();
                $value['close'] = $close;
            }
-            return response()->json(['status' => 'success', 'result' => $project]);
+            return response()->json(['status' => 'success', 'result' => $project,'id_partner'=>$request->id_partner]);
         }
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
     }
+    public function cek_outlet($id_outlet=null){
+            $cutoff = OutletCutOff::where(array('id_outlet'=>$id_outlet))
+                        ->orderby('created_at','desc')
+                        ->first();
+            if($cutoff){
+                if($cutoff->status == 'Process' ||$cutoff->status == 'Success'||$cutoff->status == 'Waiting'){
+                    return 0;
+                }
+            }
+            $change = OutletChangeOwnership::where(array('id_outlet'=>$id_outlet))
+                     ->orderby('created_at','desc')
+                     ->first();
+            if($change){
+                if($change->status == 'Process' ||$change->status == 'Success'||$change->status == 'Waiting'){
+                    return 0;
+                }
+            }
+            $close = OutletCloseTemporary::where(array('id_outlet'=>$id_outlet))
+                     ->orderby('created_at','desc')
+                     ->first();
+            if($close){
+                if($close=="Close"){
+                    if($close->status == 'Process' ||$close->status == 'Success'||$close->status == 'Waiting'){
+                        return 0;
+                    }
+                }else{
+                    if($close->status == 'Process' ||$close->status == 'Reject'||$close->status == 'Waiting'){
+                        return 0;
+                    }
+                }
+            }
+            return 1;
+    }
+
     public function ready(Request $request){
          if($request->id_partner){
              $list = array();
@@ -77,45 +111,13 @@ class ApiOutletCloseController extends Controller
                             ->join('cities','cities.id_city','outlets.id_city')
                             ->join('locations','locations.id_city','cities.id_city')
                             ->where('locations.id_partner',$request->id_partner)
-                            ->select(['outlets.outlet_name','outlets.id_outlet'])
+                            ->select(['outlets.outlet_name','outlets.id_outlet','outlets.outlet_code'])
                            ->orderby('outlets.created_at','asc')->get();
            foreach ($project as $value) {
-               $cutoff = OutletCutOff::where(array('id_outlet'=>$value['id_outlet']))
-                        ->orderby('created_at','desc')
-                        ->first();
-               $change = OutletChangeOwnership::where(array('id_outlet'=>$value['id_outlet']))
-                        ->orderby('created_at','desc')
-                        ->first();
-                $close = OutletCloseTemporary::where(array('id_outlet'=>$value['id_outlet']))
-                        ->orderby('created_at','desc')
-                        ->where('jenis','Close')
-                        ->first();
-                if(isset($cutoff)){
-                    if($cutoff->status =='Process'||$cutoff->status=='Waiting'||$cutoff->status=='Success'){
-                    }else{
-                        array_push($list,$value);
-                    }
-                }elseif(isset($change)){
-                    if($change->status=='Process'||$change->status=='Waiting'||$cutoff->status=='Success'){
-                    }else{
-                        array_push($list,$value);
-                    }
-                }elseif(isset($close)){
-                    if($close->jenis =='Close'){
-                    if($close->status=='Process'||$close->status=='Waiting'||$close->status=='Success'){
-                    }else{
-                        array_push($list,$value);
-                    }
-                    }else{
-                        if($close->status=='Process'||$close->status=='Waiting'){
-                    }else{
-                        array_push($list,$value);
-                    }
-                    }
-                }else{
+                $cek_outlet = $this->cek_outlet($value['id_outlet']);
+                if($cek_outlet==1){
                     array_push($list,$value);
                 }
-                   
            }
             return response()->json(['status' => 'success', 'result' => $list]);
         }

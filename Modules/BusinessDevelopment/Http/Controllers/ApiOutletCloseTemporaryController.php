@@ -32,11 +32,11 @@ use Modules\BusinessDevelopment\Entities\OutletCloseTemporaryStep;
 use Modules\BusinessDevelopment\Entities\OutletCloseTemporaryFormSurvey;
 use Modules\BusinessDevelopment\Entities\OutletCloseTemporaryConfirmationLetter;
 use App\Http\Models\Outlet;
-use Modules\BusinessDevelopment\Http\Requests\Outlet_CLose\CreateOutletCloseTemporaryRequest;
-use Modules\BusinessDevelopment\Http\Requests\Outlet_CLose\CreateOutletActiveRequest;
-use Modules\BusinessDevelopment\Http\Requests\Outlet_CLose\UpdateOutletCloseTemporaryRequest;
-use Modules\BusinessDevelopment\Http\Requests\Outlet_CLose\CreateLampiranCloseTemporaryRequest;
-use Modules\BusinessDevelopment\Http\Requests\Outlet_CLose\UpdateOutletCloseTemporaryActiveRequest;
+use Modules\BusinessDevelopment\Http\Requests\OutletCLose\CreateOutletCloseTemporaryRequest;
+use Modules\BusinessDevelopment\Http\Requests\OutletCLose\CreateOutletActiveRequest;
+use Modules\BusinessDevelopment\Http\Requests\OutletCLose\UpdateOutletCloseTemporaryRequest;
+use Modules\BusinessDevelopment\Http\Requests\OutletCLose\CreateLampiranCloseTemporaryRequest;
+use Modules\BusinessDevelopment\Http\Requests\OutletCLose\UpdateOutletCloseTemporaryActiveRequest;
 
 class ApiOutletCloseTemporaryController extends Controller
 {
@@ -760,5 +760,32 @@ class ApiOutletCloseTemporaryController extends Controller
         
         return $text;
     }
-
+    public function update_step_status() {
+        $i = 0;
+        $data = OutletCloseTemporaryStep::where(array('follow_up'=>""))->get();
+        foreach ($data as $value) {
+            $update = OutletCloseTemporaryStep::where(array('id_outlet_close_temporary_steps'=>$value['id_outlet_close_temporary_steps']))
+                      ->update([
+                          'follow_up'=>"Follow Up"
+                      ]);
+            if($update){
+                $i++;
+            }
+        }
+        return $i;
+    }
+    public function update_step_log() {
+        $i = 0;
+        $data = StepsLog::where(array('follow_up'=>""))->get();
+        foreach ($data as $value) {
+            $update = StepsLog::where(array('id_steps_log'=>$value['id_steps_log']))
+                      ->update([
+                          'follow_up'=>"Follow Up"
+                      ]);
+            if($update){
+                $i++;
+            }
+        }
+        return $i;
+    }
 }

@@ -31,7 +31,7 @@ class ApiLocationsController extends Controller
         if (isset($post['status']) && $post['status'] == 'Candidate') {
             $locations = Location::with(['location_partner','location_city'])->where('status',$post['status']);
         }elseif(isset($post['status']) && $post['status'] == 'Active'){
-            $locations = Location::with(['location_partner','location_city'])->where('status','Active')->orWhere('status','Inactive');
+            $locations = Location::with(['location_partner','location_city'])->where('status','Active');
         }else {
             $locations = Location::with(['location_partner','location_city']);
         }
@@ -99,6 +99,9 @@ class ApiLocationsController extends Controller
                     }
                 });
             }
+        }
+        if(isset($post['status']) && $post['status'] == 'Active') {
+            $locations = $locations->orWhere('status','Inactive');
         }
         if(isset($post['order']) && isset($post['order_type'])){
             if(isset($post['page'])){

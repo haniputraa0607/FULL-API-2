@@ -3123,4 +3123,45 @@ class MyHelper{
 
     	return true;
     }
+
+    public static function getListDate($month = null, $year = null)
+    {
+    	$thisMonth = $month ?? date('n');
+		$thisYear  = $year  ?? date('Y');
+		$date = $thisYear . '-' . $thisMonth . '-01';
+		$end  = $thisYear . '-' . $thisMonth . '-' . date('t', strtotime($date));
+
+		$listDate = [];
+		while (strtotime($date) <= strtotime($end)) {
+			$listDate[] = date('Y-m-d', strtotime($date));
+
+			$date = date("Y-m-d", strtotime("+1 day", strtotime($date)));
+		}
+
+		return $listDate;
+    }
+
+    public static function setTimezone(int $utc)
+    {
+    	$arr = [7 => 'Asia/Jakarta', 8 => 'Asia/Ujung_Pandang', 9 => 'Asia/Jayapura'];
+    	$timezone = $arr[$utc] ?? 'Asia/Jakarta';
+    	config(['app.timezone' => $timezone]);
+    	date_default_timezone_set($timezone);
+    	return true;
+    }
+
+    public static function numberToRomanRepresentation($number) {
+        $map = array('M' => 1000, 'CM' => 900, 'D' => 500, 'CD' => 400, 'C' => 100, 'XC' => 90, 'L' => 50, 'XL' => 40, 'X' => 10, 'IX' => 9, 'V' => 5, 'IV' => 4, 'I' => 1);
+        $returnValue = '';
+        while ($number > 0) {
+            foreach ($map as $roman => $int) {
+                if($number >= $int) {
+                    $number -= $int;
+                    $returnValue .= $roman;
+                    break;
+                }
+            }
+        }
+        return $returnValue;
+    }
 }

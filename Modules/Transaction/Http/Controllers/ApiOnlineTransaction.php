@@ -127,7 +127,8 @@ class ApiOnlineTransaction extends Controller
         $this->subscription  = "Modules\Subscription\Http\Controllers\ApiSubscriptionVoucher";
         $this->bundling      = "Modules\ProductBundling\Http\Controllers\ApiBundlingController";
         $this->product      = "Modules\Product\Http\Controllers\ApiProductController";
-        $this->trx_home_service      = "Modules\Transaction\Http\Controllers\ApiTransactionHomeService";
+        $this->trx_home_service  = "Modules\Transaction\Http\Controllers\ApiTransactionHomeService";
+        $this->trx_academy = "Modules\Transaction\Http\Controllers\ApiTransactionAcademy";
     }
 
     public function newTransaction(NewTransaction $request) {
@@ -142,6 +143,9 @@ class ApiOnlineTransaction extends Controller
         if($post['transaction_from'] == 'home-service'){
             $homeService = app($this->trx_home_service)->newTransactionHomeService($request);
             return $homeService;
+        }elseif($post['transaction_from'] == 'academy'){
+            $academy = app($this->trx_academy)->newTransactionAcademy($request);
+            return $academy;
         }
 
         $bearerToken = $request->bearerToken();
@@ -202,7 +206,11 @@ class ApiOnlineTransaction extends Controller
         $userTrxProduct = [];
 
         if(!empty($post['outlet_code'])){
-            $outlet = Outlet::where('outlet_code', $post['outlet_code'])->with('today')->where('outlet_status', 'Active')->first();
+            $outlet = Outlet::join('cities', 'cities.id_city', 'outlets.id_city')
+                ->join('provinces', 'provinces.id_province', 'cities.id_province')
+                ->where('outlet_code', $post['outlet_code'])
+                ->with('today')->where('outlet_status', 'Active')
+                ->select('outlets.*', 'cities.city_name', 'provinces.time_zone_utc as province_time_zone_utc')->first();
             $post['id_outlet'] = $outlet['id_outlet']??null;
             if (empty($outlet)) {
                 DB::rollback();
@@ -212,7 +220,10 @@ class ApiOnlineTransaction extends Controller
                 ]);
             }
         }elseif(isset($post['id_outlet'])){
-            $outlet = Outlet::where('id_outlet', $post['id_outlet'])->with('today')->where('outlet_status', 'Active')->first();
+            $outlet = Outlet::where('id_outlet', $post['id_outlet'])->with('today')->where('outlet_status', 'Active')
+                ->join('cities', 'cities.id_city', 'outlets.id_city')
+                ->join('provinces', 'provinces.id_province', 'cities.id_province')
+                ->select('outlets.*', 'cities.city_name', 'provinces.time_zone_utc as province_time_zone_utc')->first();
             if (empty($outlet)) {
                 DB::rollback();
                 return response()->json([
@@ -1362,7 +1373,7 @@ class ApiOnlineTransaction extends Controller
                 'id_user'                      => $insertTransaction['id_user'],
                 'transaction_product_qty'      => $valueProduct['qty'],
                 'transaction_product_price'    => $valueProduct['transaction_product_price'],
-                'transaction_product_price_base' => NULL,
+                'transaction_product_price_base' => $valueProduct['transaction_product_price'],
                 'transaction_product_price_tax'  => NULL,
                 'transaction_product_discount'   => $this_discount,
                 'transaction_product_discount_all'   => $this_discount,
@@ -1730,8 +1741,6 @@ class ApiOnlineTransaction extends Controller
                     }
 
                     DB::commit();
-                    //insert to disburse job for calculation income outlet
-                    DisburseJob::dispatch(['id_transaction' => $insertTransaction['id_transaction']])->onConnection('disbursequeue');
 
                     //remove for result
                     unset($insertTransaction['user']);
@@ -1898,9 +1907,6 @@ class ApiOnlineTransaction extends Controller
 
         DB::commit();
 
-        //insert to disburse job for calculation income outlet
-        DisburseJob::dispatch(['id_transaction' => $insertTransaction['id_transaction']])->onConnection('disbursequeue');
-
         $insertTransaction['cancel_message'] = 'Are you sure you want to cancel this transaction?';
         $insertTransaction['timer_shopeepay'] = (int) MyHelper::setting('shopeepay_validity_period','value', 300);
         $insertTransaction['message_timeout_shopeepay'] = "Sorry, your payment has expired";
@@ -1929,6 +1935,9 @@ class ApiOnlineTransaction extends Controller
         if($post['transaction_from'] == 'home-service'){
             $homeService = app($this->trx_home_service)->check($request);
             return $homeService;
+        }elseif ($post['transaction_from'] == 'academy'){
+            $academy = app($this->trx_academy)->check($request);
+            return $academy;
         }
 
         $bearerToken = $request->bearerToken();
@@ -1963,10 +1972,18 @@ class ApiOnlineTransaction extends Controller
 
         //Check Outlet
         if(!empty($post['outlet_code'])){
-            $outlet = Outlet::where('outlet_code', $post['outlet_code'])->with('today')->where('outlet_status', 'Active')->first();
+            $outlet = Outlet::where('outlet_code', $post['outlet_code'])->with('today')->where('outlet_status', 'Active')
+                ->join('cities', 'cities.id_city', 'outlets.id_city')
+                ->join('provinces', 'provinces.id_province', 'cities.id_province')
+                ->select('outlets.*', 'cities.city_name', 'provinces.time_zone_utc as province_time_zone_utc')
+                ->first();
             $post['id_outlet'] = $outlet['id_outlet']??null;
         }else{
-            $outlet = Outlet::where('id_outlet', $post['id_outlet'])->with('today')->where('outlet_status', 'Active')->first();
+            $outlet = Outlet::where('id_outlet', $post['id_outlet'])->with('today')->where('outlet_status', 'Active')
+                ->join('cities', 'cities.id_city', 'outlets.id_city')
+                ->join('provinces', 'provinces.id_province', 'cities.id_province')
+                ->select('outlets.*', 'cities.city_name', 'provinces.time_zone_utc as province_time_zone_utc')
+                ->first();
         }
         $id_outlet = $post['id_outlet'];
         if (empty($outlet)) {
@@ -3184,46 +3201,32 @@ class ApiOnlineTransaction extends Controller
         $error_msg = [];
         $subTotalService = 0;
         $itemService = [];
+        $errorOutlet = [];
         $errorServiceName = [];
         $errorHsNotAvailable = [];
         $errorBookTime = [];
-        $currentDate = date('Y-m-d H:i');
+        $timeZone = (empty($outlet['province_time_zone_utc']) ? 7:$outlet['province_time_zone_utc']);
+        $diffTimeZone = $timeZone - 7;
+        $date = date('Y-m-d H:i:s');
+        $currentDate = date('Y-m-d H:i', strtotime("+".$diffTimeZone." hour", strtotime($date)));
+
         $idOutletSchedule = $outlet['today']['id_outlet_schedule']??null;
-        $day = [
-            'Mon' => 'Senin',
-            'Tue' => 'Selasa',
-            'Wed' => 'Rabu',
-            'Thu' => 'Kamis',
-            'Fri' => 'Jumat',
-            'Sat' => 'Sabtu',
-            'Sun' => 'Minggu'
-        ];
 
         $tempStock = [];
         foreach ($post['item_service']??[] as $key=>$item){
             //check outlet
-            $outletSchedule = OutletSchedule::where('id_outlet', $outlet['id_outlet'])->where('day', $day[date('D', strtotime($item['booking_date']))])->first();
-            $open = date('H:i:s', strtotime($outletSchedule['open']));
-            $close = date('H:i:s', strtotime($outletSchedule['close']));
-            $currentHour = date('H:i:s', strtotime($item['booking_time']));
-            if(strtotime($currentHour) < strtotime($open) || strtotime($currentHour) > strtotime($close) || $outletSchedule['is_closed'] == 1){
-                $errorServiceName[] = 'Outlet tutup pada '.MyHelper::dateFormatInd($item['booking_date']);
-                unset($post['item_service'][$key]);
-                continue;
-            }
-
             $holiday = Holiday::join('outlet_holidays', 'holidays.id_holiday', 'outlet_holidays.id_holiday')->join('date_holidays', 'holidays.id_holiday', 'date_holidays.id_holiday')
                 ->where('id_outlet', $outlet['id_outlet'])->whereDay('date_holidays.date', date('d', strtotime($item['booking_date'])))->whereMonth('date_holidays.date', date('m', strtotime($item['booking_date'])))->get();
             if(count($holiday) > 0){
                 foreach($holiday as $i => $holi){
                     if($holi['yearly'] == '0'){
                         if($holi['date'] == date('Y-m-d')){
-                            $errorServiceName[] = 'Outlet tutup pada '.MyHelper::dateFormatInd($item['booking_date']);
+                            $errorOutlet[] = 'Outlet tutup pada '.MyHelper::dateFormatInd($item['booking_date']);
                             unset($post['item_service'][$key]);
                             continue;
                         }
                     }else{
-                        $errorServiceName[] = 'Outlet tutup pada '.MyHelper::dateFormatInd($item['booking_date']);
+                        $errorOutlet[] = 'Outlet tutup pada '.MyHelper::dateFormatInd($item['booking_date']);
                         unset($post['item_service'][$key]);
                         continue;
                     }
@@ -3377,6 +3380,10 @@ class ApiOnlineTransaction extends Controller
         }
 
         $mergeService = $this->mergeService($itemService);
+        if(!empty($errorOutlet)){
+            $error_msg[] = implode(',', array_unique($errorOutlet));
+        }
+
         if(!empty($errorServiceName)){
             $error_msg[] = 'Service '.implode(',', array_unique($errorServiceName)). ' tidak tersedia dan akan terhapus dari cart.';
         }
@@ -4652,6 +4659,7 @@ class ApiOnlineTransaction extends Controller
                 'id_user'                      => $trx['id_user'],
                 'transaction_product_qty'      => 1,
                 'transaction_product_price'    => $price,
+                'transaction_product_price_base'    => $price,
                 'transaction_product_discount'   => 0,
                 'transaction_product_discount_all'   => 0,
                 'transaction_product_base_discount' => 0,
@@ -5031,12 +5039,6 @@ class ApiOnlineTransaction extends Controller
         $getOauth = OauthAccessToken::find($tokenId);
         $scopeUser = str_replace(str_split('[]""'),"",$getOauth['scopes']);
 
-        if(empty($post['item']) && empty($post['item_service'])){
-            return response()->json([
-                'status'    => 'fail',
-                'messages'  => ['Item/Item bundling/Item Service can not be empty']
-            ]);
-        }
         $post['item'] = $this->mergeProducts($post['item']??[]);
         $grandTotal = app($this->setting_trx)->grandTotal();
         if(!empty($request->user()->id)){
@@ -5049,13 +5051,16 @@ class ApiOnlineTransaction extends Controller
             }
         }
 
+        $outlet = Outlet::join('cities', 'cities.id_city', 'outlets.id_city')
+            ->join('provinces', 'provinces.id_province', 'cities.id_province')
+            ->with('today')->select('outlets.*', 'provinces.time_zone_utc as province_time_zone_utc');
         //Check Outlet
         if(!empty($post['outlet_code'])){
-            $outlet = Outlet::where('outlet_code', $post['outlet_code'])->with('today')->first();
+            $outlet = $outlet->where('outlet_code', $post['outlet_code'])->first();
             $post['id_outlet'] = $outlet['id_outlet']??null;
         }else{
             $id_outlet = $post['id_outlet'];
-            $outlet = Outlet::where('id_outlet', $id_outlet)->with('today')->first();
+            $outlet = $outlet->where('id_outlet', $id_outlet)->first();
         }
 
         if (empty($outlet)) {
@@ -5309,6 +5314,9 @@ class ApiOnlineTransaction extends Controller
         ];
         $result['subtotal_item'] = $subTotalItem;
         $result['subtotal_item_service'] = $subTotalItemService;
+        if(empty($post['item']) && empty($post['item_service'])){
+            $continueCheckOut = false;
+        }
         $result['continue_checkout'] = $continueCheckOut;
         if($scopeUser == 'apps'){
             $result['complete_profile'] = (empty($user->complete_profile) ?false:true);
@@ -5320,7 +5328,11 @@ class ApiOnlineTransaction extends Controller
     public function cartServiceProduct($post, $outlet){
         $subTotalService = 0;
         $itemService = [];
-        $currentDate = date('Y-m-d H:i');
+        $timeZone = (empty($outlet['province_time_zone_utc']) ? 7:$outlet['province_time_zone_utc']);
+        $diffTimeZone = $timeZone - 7;
+        $date = date('Y-m-d H:i:s');
+        $date = date('Y-m-d H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($date)));
+        $currentDate = date('Y-m-d H:i', strtotime($date));
         $continueCheckOut = true;
         $idOutletSchedule = $outlet['today']['id_outlet_schedule']??null;
         $day = [
@@ -5517,6 +5529,7 @@ class ApiOnlineTransaction extends Controller
                 $insert[] = [
                     'id_outlet' => $dt['id_outlet'],
                     'id_user_hair_stylist' => $dt['id_user_hair_stylist'],
+                    'id_transaction' => $id_transaction,
                     'id_transaction_product_service' => $dt['id_transaction_product_service'],
                     'booking_date' => date('Y-m-d', strtotime($dt['schedule_date'])),
                     'booking_time' => date('H:i:s', strtotime($dt['schedule_time'])),
@@ -5533,6 +5546,11 @@ class ApiOnlineTransaction extends Controller
         return $save??true;
     }
 
+    function cancelBookHS($id_transaction){
+        $del = HairstylistNotAvailable::where('id_transaction', $id_transaction)->delete();
+        return $del;
+    }
+
     function bookProductStock($id_transaction){
         $data = TransactionProduct::where('transactions.id_transaction', $id_transaction)
             ->join('transactions', 'transactions.id_transaction', 'transaction_products.id_transaction')
@@ -5541,36 +5559,45 @@ class ApiOnlineTransaction extends Controller
             ->get()->toArray();
 
         foreach ($data as $dt){
-            if(!empty($dt['id_product_variant_group'])){
-                $stock = ProductVariantGroupDetail::where(['id_product' => $dt['id_product'], 'id_outlet' => $dt['id_outlet']])->first();
+            $stock = ProductDetail::where(['id_product' => $dt['id_product'], 'id_outlet' => $dt['id_outlet']])->first();
+            ProductStockLog::create([
+                'id_product' => $dt['id_product'],
+                'id_transaction' => $dt['id_transaction'],
+                'stock_item' => -$dt['transaction_product_qty'],
+                'stock_item_before' => $stock['product_detail_stock_item'],
+                'stock_service_before' => (empty($stock['product_detail_stock_service']) ? 0 :$stock['product_detail_stock_service']),
+                'stock_item_after' => $stock['product_detail_stock_item'] - $dt['transaction_product_qty'],
+                'stock_service_after' => (empty($stock['product_detail_stock_service']) ? 0 :$stock['product_detail_stock_service'])
+            ]);
 
-                ProductStockLog::create([
-                    'id_product' => $dt['id_product'],
-                    'id_transaction' => $dt['id_transaction'],
-                    'stock_item' => -$dt['transaction_product_qty'],
-                    'stock_item_before' => (empty($stock['product_variant_group_detail_stock_item']) ? 0 :$stock['product_variant_group_detail_stock_item']),
-                    'stock_service_before' => $stock['product_variant_group_detail_stock_service'],
-                    'stock_item_after' => $stock['product_variant_group_detail_stock_item'] - $dt['transaction_product_qty'],
-                    'stock_service_after' => (empty($stock['product_variant_group_detail_stock_service']) ? 0 :$stock['product_variant_group_detail_stock_service'])
-                ]);
+            $stock->product_detail_stock_item = $stock['product_detail_stock_item'] - $dt['transaction_product_qty'];
+            $stock->save();
+        }
 
-                $stock->product_variant_group_detail_stock_item = $stock['product_variant_group_detail_stock_item'] - $dt['qty'];
-                $stock->save();
-            }else{
-                $stock = ProductDetail::where(['id_product' => $dt['id_product'], 'id_outlet' => $dt['id_outlet']])->first();
-                ProductStockLog::create([
-                    'id_product' => $dt['id_product'],
-                    'id_transaction' => $dt['id_transaction'],
-                    'stock_item' => -$dt['transaction_product_qty'],
-                    'stock_item_before' => $stock['product_detail_stock_item'],
-                    'stock_service_before' => (empty($stock['product_detail_stock_service']) ? 0 :$stock['product_detail_stock_service']),
-                    'stock_item_after' => $stock['product_detail_stock_item'] - $dt['transaction_product_qty'],
-                    'stock_service_after' => (empty($stock['product_detail_stock_service']) ? 0 :$stock['product_detail_stock_service'])
-                ]);
+        return $update??true;
+    }
 
-                $stock->product_detail_stock_item = $stock['product_detail_stock_item'] - $dt['transaction_product_qty'];
-                $stock->save();
-            }
+    function cancelBookProductStock($id_transaction){
+        $data = TransactionProduct::where('transactions.id_transaction', $id_transaction)
+            ->join('transactions', 'transactions.id_transaction', 'transaction_products.id_transaction')
+            ->select('transaction_products.*', 'transactions.id_outlet')
+            ->where('type', 'Product')
+            ->get()->toArray();
+
+        foreach ($data as $dt){
+            $stock = ProductDetail::where(['id_product' => $dt['id_product'], 'id_outlet' => $dt['id_outlet']])->first();
+            ProductStockLog::create([
+                'id_product' => $dt['id_product'],
+                'id_transaction' => $dt['id_transaction'],
+                'stock_item' => $dt['transaction_product_qty'],
+                'stock_item_before' => $stock['product_detail_stock_item'],
+                'stock_service_before' => (empty($stock['product_detail_stock_service']) ? 0 :$stock['product_detail_stock_service']),
+                'stock_item_after' => $stock['product_detail_stock_item'] + $dt['transaction_product_qty'],
+                'stock_service_after' => (empty($stock['product_detail_stock_service']) ? 0 :$stock['product_detail_stock_service'])
+            ]);
+
+            $stock->product_detail_stock_item = $stock['product_detail_stock_item'] + $dt['transaction_product_qty'];
+            $stock->save();
         }
 
         return $update??true;

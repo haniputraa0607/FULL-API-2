@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 
+use App\Http\Models\Outlet;
 use App\Http\Models\Setting;
 use App\Http\Models\Transaction;
 use App\Http\Models\TransactionProduct;
@@ -25,6 +26,7 @@ use Modules\Transaction\Entities\TransactionProductServiceLog;
 
 use Modules\Recruitment\Http\Requests\ScheduleCreateRequest;
 use Modules\Recruitment\Http\Requests\DetailCustomerQueueRequest;
+use Modules\Recruitment\Http\Requests\StartOutletServiceRequest;
 
 use Modules\Outlet\Entities\OutletBox;
 
@@ -38,7 +40,6 @@ use DateTime;
 class ApiMitraOutletService extends Controller
 {
     public function __construct() {
-        date_default_timezone_set('Asia/Jakarta');
         $this->mitra = "Modules\Recruitment\Http\Controllers\ApiMitra";
         $this->trx = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
         $this->trx_outlet_service = "Modules\Transaction\Http\Controllers\ApiTransactionOutletService";
@@ -47,6 +48,7 @@ class ApiMitraOutletService extends Controller
     public function customerQueue(Request $request)
     {
     	$user = $request->user();
+
     	$queue = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
 				->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
 				->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
@@ -69,11 +71,6 @@ class ApiMitraOutletService extends Controller
 		$serviceInProgress = TransactionProductService::where('service_status', 'In Progress')
 							->where('id_user_hair_stylist', $user->id_user_hair_stylist)
 							->first();
-
-		$disable = 0;
-		if ($serviceInProgress) {
-			$disable = 1;
-		}
 
  		$schedule = HairstylistSchedule::join(
 			'hairstylist_schedule_dates', 
@@ -102,6 +99,7 @@ class ApiMitraOutletService extends Controller
 			}
 
 			$timerText .= (strtotime(date('Y-m-d H:i:s')) < strtotime($val['schedule_date'] . ' ' .$val['schedule_time'])) ? ' lagi' : ' lalu';
+			$timerTextColor = (strtotime(date('Y-m-d')) == strtotime($val['schedule_date'])) ? '#FF2424' : '#121212';
 
 			$trx = Transaction::where('id_transaction', $val['id_transaction'])->first();
 			$trxPayment = app($this->trx_outlet_service)->transactionPayment($trx);
@@ -120,17 +118,28 @@ class ApiMitraOutletService extends Controller
 	    		$paymentCash = 1;
 	    	}
 
+			$disable = 0;
+			if ($serviceInProgress && $serviceInProgress['id_transaction_product_service'] != $val['id_transaction_product_service']) {
+				$disable = 1;
+			}
+
+			$scheduleDate = app($this->mitra)->convertTimezoneMitra($val['schedule_date']);
+			$scheduleDate = MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($scheduleDate)), 'j F Y');
+			$scheduleTime = app($this->mitra)->convertTimezoneMitra($val['schedule_time']);
+			$scheduleTime = date('H:i', strtotime($scheduleTime));
+
 			$resData[] = [
 				'id_transaction_product_service' => $val['id_transaction_product_service'],
 				'order_id' => $val['order_id'] ?? null,
 				'customer_name' => $val['customer_name'],
-				'schedule_date' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($val['schedule_date'])), 'j F Y'),
-				'schedule_time' => date('H:i', strtotime($val['schedule_time'])),
+				'schedule_date' => $scheduleDate,
+				'schedule_time' => $scheduleTime,
 				'service_status' => $val['service_status'],
 				'payment_method' => $paymentMethod,
 				'product_name' => $val['product_name'],
 				'price' => $val['transaction_product_net'],
 				'timer_text' => $timerText,
+				'timer_text_color' => $timerTextColor,
 				'button_text' => $buttonText,
 				'disable' => $disable,
 				'id_outlet_box' => $schedule->id_outlet_box ?? null,
@@ -148,33 +157,6 @@ class ApiMitraOutletService extends Controller
     public function customerQueueDetail(DetailCustomerQueueRequest $request)
     {
     	$user = $request->user();
-    	$checkQr = Transaction::where('transaction_receipt_number',$request->transaction_receipt_number)
-    				->with('transaction_product_services')
-    				->first();
-
-    	if (!$checkQr) {
-    		return [
-				'status' => 'fail',
-				'title' => 'QR code tidak terdaftar',
-				'messages' => ['Tidak dapat memulai layanan menggunakan QR code ini.']
-			];
-    	}
-
-    	$isNotValidQr = true;
-    	foreach ($checkQr['transaction_product_services'] as $val) {
-    		if ($val['id_transaction_product_service'] == $request->id_transaction_product_service) {
-    			$isNotValidQr = false;
-    			break;
-    		}
-    	}
-
-    	if ($isNotValidQr) {
-    		return [
-				'status' => 'fail',
-				'title' => 'QR code tidak sesuai',
-				'messages' => ['Tidak dapat memulai layanan menggunakan QR code ini.']
-			];
-    	}
 
     	$queue = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
 				->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
@@ -189,6 +171,14 @@ class ApiMitraOutletService extends Controller
 			return [
 				'status' => 'fail',
 				'messages' => ['Layanan tidak ditemukan']
+			];
+		}
+
+		$outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
+		if (!$queue) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Outlet tidak ditemukan']
 			];
 		}
 
@@ -227,7 +217,7 @@ class ApiMitraOutletService extends Controller
 
 		$timerText .= (strtotime(date('Y-m-d H:i:s')) < strtotime($queue['schedule_date'] . ' ' .$queue['schedule_time'])) ? ' lagi' : ' lalu';
 
-		$trx = Transaction::where('id_transaction', $val['id_transaction'])->first();
+		$trx = Transaction::where('id_transaction', $queue['id_transaction'])->first();
 		$trxPayment = app($this->trx_outlet_service)->transactionPayment($trx);
     	$paymentMethod = null;
     	foreach ($trxPayment['payment'] as $p) {
@@ -237,12 +227,42 @@ class ApiMitraOutletService extends Controller
     		}
     	}
 
+    	$box = OutletBox::where('id_outlet_box', $schedule['id_outlet_box'] ?? null)->first();
+
+		$logService = TransactionProductServiceLog::whereIn('action', ['Start', 'Extend'])
+					->where('id_transaction_product_service', $queue['id_transaction_product_service'])
+					->get()->keyBy('action');
+
+		$startTime = !empty($logService['Start']['created_at'])  ? date('Y-m-d H:i:s', strtotime($logService['Start']['created_at'])) : null;
+		$extendTime = !empty($logService['Extend']['created_at'])  ? date('Y-m-d H:i:s', strtotime($logService['Extend']['created_at'])) : null;
+		
+    	$processingTime = ($queue['processing_time_service'] ?? 30) * 60; //second
+
+    	$timeLeft = 0;
+		if ($startTime) {
+			$timeLeft = $processingTime - (strtotime(date('Y-m-d H:i:s')) - strtotime($startTime));
+		}
+
+		if ($extendTime) {
+			$timeLeft = $timeLeft + $processingTime;
+		}
+
+		$timeLeft = ($timeLeft >= 1) ? $timeLeft : 0;
+
+    	$extendPopup = (Setting::where('key', 'outlet_service_extend_popup_time')->first()['value'] ?? 5) * 60;
+
+    	$scheduleDate = app($this->mitra)->convertTimezoneMitra($queue['schedule_date']);
+		$scheduleDate = MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($scheduleDate)), 'j F Y');
+		$scheduleTime = app($this->mitra)->convertTimezoneMitra($queue['schedule_time']);
+		$scheduleTime = date('H:i', strtotime($scheduleTime));
+
 		$res = [
 			'id_transaction_product_service' => $queue['id_transaction_product_service'],
 			'order_id' => $queue['order_id'] ?? null,
+			'transaction_receipt_number' => $queue['transaction_receipt_number'] ?? null,
 			'customer_name' => $queue['customer_name'],
-			'schedule_date' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($queue['schedule_date'])), 'j F Y'),
-			'schedule_time' => date('H:i', strtotime($queue['schedule_time'])),
+			'schedule_date' => $scheduleDate,
+			'schedule_time' => $scheduleTime,
 			'service_status' => $queue['service_status'],
 			'payment_method' => $paymentMethod,
 			'product_name' => $queue['product_name'],
@@ -251,7 +271,14 @@ class ApiMitraOutletService extends Controller
 			'disable' => $disable,
 			'id_outlet_box' => $schedule->id_outlet_box ?? null,
 			'flag_update_schedule' => $queue['flag_update_schedule'],
-			'is_conflict' => $queue['is_conflict']
+			'is_conflict' => $queue['is_conflict'],
+			'outlet_name' => $outlet['outlet_name'],
+			'hairstylist_nickname' => $user['nickname'],
+			'hairstylist_fullname' => $user['fullname'],
+			'outlet_box_code' => $box['outlet_box_code'] ?? null,
+			'outlet_box_name' => $box['outlet_box_name'] ?? null,
+			'processing_time_service' => $timeLeft,
+			'extend_popup_time' => $extendPopup
 		];
 		
 		return MyHelper::checkGet($res);
@@ -268,9 +295,38 @@ class ApiMitraOutletService extends Controller
     	return MyHelper::checkGet($box);
     }
 
-    public function startService(Request $request)
+    public function startService(StartOutletServiceRequest $request)
     {
     	$user = $request->user();
+
+    	$checkQr = Transaction::where('transaction_receipt_number',$request->transaction_receipt_number)
+    				->with('transaction_product_services')
+    				->first();
+
+    	if (!$checkQr) {
+    		return [
+				'status' => 'fail',
+				'title' => 'QR code tidak terdaftar',
+				'messages' => ['Tidak dapat memulai layanan menggunakan QR code ini.']
+			];
+    	}
+
+    	$isNotValidQr = true;
+    	foreach ($checkQr['transaction_product_services'] as $val) {
+    		if ($val['id_transaction_product_service'] == $request->id_transaction_product_service) {
+    			$isNotValidQr = false;
+    			break;
+    		}
+    	}
+
+    	if ($isNotValidQr) {
+    		return [
+				'status' => 'fail',
+				'title' => 'QR code tidak sesuai',
+				'messages' => ['Tidak dapat memulai layanan menggunakan QR code ini.']
+			];
+    	}
+
     	$service = TransactionProductService::where('id_user_hair_stylist', $user->id_user_hair_stylist)
 					->where('id_transaction_product_service', $request->id_transaction_product_service)
 					->first();
@@ -342,7 +398,14 @@ class ApiMitraOutletService extends Controller
 			];
 		}
 
-		$shift = app($this->mitra)->timeToShift(date('H:i:s'));
+		$shift = app($this->mitra)->getOutletShift($user->id_outlet);
+		if (!$shift) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Shift outlet tidak ditemukan']
+			];
+		}
+
 		$usedBox = HairstylistSchedule::join(
 			'hairstylist_schedule_dates', 
 			'hairstylist_schedules.id_hairstylist_schedule', 
@@ -465,13 +528,12 @@ class ApiMitraOutletService extends Controller
     public function extendService(Request $request)
     {
     	$user = $request->user();
-    	$service = TransactionProductService::where('id_user_hair_stylist', $user->id_user_hair_stylist)
+
+    	$service = TransactionProductService::where('transaction_product_services.id_user_hair_stylist', $user->id_user_hair_stylist)
 					->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
 					->join('products', 'transaction_products.id_product', 'products.id_product')
 					->where('id_transaction_product_service', $request->id_transaction_product_service)
 					->first();
-
-
 
 		if (!$service) {
 			return [
@@ -501,11 +563,25 @@ class ApiMitraOutletService extends Controller
 			];
 		}
 
-		$processingTime = $service->processing_time_service;
+		$processingTime = $service->processing_time_service ?? 30;
+		$startTime = TransactionProductServiceLog::where('action', 'Start')
+					->where('id_transaction_product_service', $request->id_transaction_product_service)
+					->first();
 
-		$extended = new DateTime('now +'. $processingTime .' minutes');
+		if (!$startTime) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Waktu layanan dimulai tidak ditemukan']
+			];
+		}
+
+		$timeLeft = ($processingTime * 60) -  (strtotime(date('Y-m-d H:i:s')) - strtotime(date('Y-m-d H:i:s', strtotime($startTime->created_at))));
+		$newTime = ($processingTime * 60) + $timeLeft;
+		$newTime = ($newTime >= 1) ? $newTime : 0;
+		
+		$extended = new DateTime("+".  $newTime ." seconds");
 		$extendedTime = $extended->format('H:i:s');
-
+		
     	DB::beginTransaction();
     	try {
 
@@ -521,7 +597,7 @@ class ApiMitraOutletService extends Controller
 					->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
 					->join('products', 'transaction_products.id_product', 'products.id_product')
 	    			->whereNull('service_status')
-	    			->where('id_user_hair_stylist', $user->id_user_hair_stylist)
+	    			->where('transaction_product_services.id_user_hair_stylist', $user->id_user_hair_stylist)
 	    			->where('transaction_payment_status' ,'Completed')
 	    			->whereDate('schedule_date', date('Y-m-d'))
 	    			->where('schedule_time', '<', $extendedTime)
@@ -544,7 +620,12 @@ class ApiMitraOutletService extends Controller
 			];	
     	}
 
-		return ['status' => 'success'];
+		return [
+			'status' => 'success',
+			'result' =>[
+				'extended_time' => $newTime
+			]
+		];
     }
 
     public function completeService(Request $request)
@@ -765,8 +846,7 @@ class ApiMitraOutletService extends Controller
             'brand_logo_landscape' => $user['outlet']['brands'][0]['logo_landscape_brand']
 		];
 
-		$timeNow = date('H:i:s');
-		$shift = app($this->mitra)->timeToShift($timeNow);
+		$shift = app($this->mitra)->getOutletShift($user->id_outlet);
 
 		$schedule = HairstylistSchedule::join(
 			'hairstylist_schedule_dates', 
@@ -799,6 +879,7 @@ class ApiMitraOutletService extends Controller
  		}
 
 		$res = [
+			'id_outlet_box' => $schedule->id_outlet_box ?? null,
 			'outlet' => $outlet,
 			'brand' => $brand,
 			'box' => $box
@@ -870,5 +951,102 @@ class ApiMitraOutletService extends Controller
 		});
 
 		return MyHelper::checkGet($tps);
+    }
+
+    public function selectBox(Request $request)
+    {
+    	$user = $request->user();
+		$schedule = HairstylistSchedule::join(
+			'hairstylist_schedule_dates', 
+			'hairstylist_schedules.id_hairstylist_schedule', 
+			'hairstylist_schedule_dates.id_hairstylist_schedule'
+		)
+ 		->where('id_user_hair_stylist', $user->id_user_hair_stylist)
+ 		->whereDate('date', date('Y-m-d'))
+ 		->first();
+
+ 		if (!$schedule) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Jadwal Hairstylist tidak ditemukan']
+			];
+		}
+
+ 		if (isset($schedule->id_outlet_box) && $schedule->id_outlet_box != $request->id_outlet_box) {
+ 			return [
+				'status' => 'fail',
+				'messages' => ['Tidak dapat menggunakan box yang berbeda']
+			];	
+ 		}
+
+		$box = OutletBox::where('id_outlet_box', $request->id_outlet_box)->first();
+
+		if (!$box) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Box tidak ditemukan']
+			];
+		}
+
+		if ($box->outlet_box_status != 'Active') {
+			return [
+				'status' => 'fail',
+				'messages' => ['Box tidak aktif']
+			];
+		}
+
+		if ($box->outlet_box_use_status != 0) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Box sedang digunakan']
+			];
+		}
+
+		$shift = app($this->mitra)->getOutletShift($user->id_outlet);
+		if (!$shift) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Shift outlet tidak ditemukan']
+			];
+		}
+
+		$usedBox = HairstylistSchedule::join(
+			'hairstylist_schedule_dates', 
+			'hairstylist_schedules.id_hairstylist_schedule', 
+			'hairstylist_schedule_dates.id_hairstylist_schedule'
+		)
+ 		->where('id_user_hair_stylist', '!=', $user->id_user_hair_stylist)
+ 		->whereDate('date', date('Y-m-d'))
+ 		->where('shift', $shift)
+ 		->where('id_outlet_box', $request->id_outlet_box)
+ 		->first();
+
+ 		if ($usedBox) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Box sudah dipilih oleh Hairstylist lain']
+			];
+		}
+
+    	DB::beginTransaction();
+    	try {
+
+			HairstylistScheduleDate::where('id_hairstylist_schedule_date', $schedule->id_hairstylist_schedule_date)
+			->update(['id_outlet_box' => $request->id_outlet_box]);
+
+
+			DB::commit();
+    	} catch (\Exception $e) {
+
+    		\Log::error($e->getMessage());
+			DB::rollback();
+    		return [
+				'status' => 'fail',
+				'messages' => ['Gagal memilih box']
+			];	
+    	}
+
+
+		return ['status' => 'success'];	
     }
 }

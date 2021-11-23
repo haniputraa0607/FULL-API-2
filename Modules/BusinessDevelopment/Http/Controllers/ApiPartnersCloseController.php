@@ -202,7 +202,9 @@ class ApiPartnersCloseController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
     }
     public function cronInactive(){
-        $project = PartnersCloseTemporary::where(array('status'=>"Waiting",'start_date'=>null))->get();
+        $log = MyHelper::logCron('Cron Partner Close Temporary');
+        try {
+        $project = PartnersCloseTemporary::where(array('status'=>"Waiting",'start_date'=>null))->wheredate('close_date','<=',date('Y-m-d H:i:s'))->get();
         foreach ($project as $value) {
             $closeoutletall = Partner::join('locations','locations.id_partner','partners.id_partner')
                 ->where('locations.id_partner', $value->id_partner)
@@ -231,12 +233,18 @@ class ApiPartnersCloseController extends Controller
                         ]);
             }
         }
-        return response()->json(['status' => 'success']);
-            
+           $log->success('success');
+            return response()->json(['success']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $log->fail($e->getMessage());
+        }   
            
     }
     public function cronActive(){
-        $project = PartnersCloseTemporary::where(array('status'=>"Waiting",'close_date'=>null))->get();
+        $log = MyHelper::logCron('Cron Active Partner Close Temporary');
+        try {
+        $project = PartnersCloseTemporary::where(array('status'=>"Waiting",'close_date'=>null))->wheredate('start_date','<=',date('Y-m-d H:i:s'))->get();
         foreach ($project as $value) {
             $store = PartnersCloseTemporary::where(array('id_partners_close_temporary'=>$value['id_partners_close_temporary']))
                     ->update([
@@ -253,8 +261,12 @@ class ApiPartnersCloseController extends Controller
                         ]);
             }
         }
-        return response()->json(['status' => 'success']);
-            
+           $log->success('success');
+            return response()->json(['success']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $log->fail($e->getMessage());
+        }   
            
     }
-}
+} 

@@ -10,6 +10,7 @@ use Modules\Project\Entities\Project;
 use Modules\BusinessDevelopment\Entities\Location;
 use Modules\BusinessDevelopment\Entities\OutletCutOff;
 use Modules\BusinessDevelopment\Entities\OutletChangeOwnership;
+use Modules\BusinessDevelopment\Entities\OutletCloseTemporary;
 use Modules\BusinessDevelopment\Entities\Partner;
 use Modules\BusinessDevelopment\Entities\PartnersCloseTemporary;
 
@@ -27,9 +28,10 @@ class CreateOutletCutOffRequest extends FormRequest
     public function withValidator($validator)
     {
         $validator->addExtension('outlet', function ($attribute, $value, $parameters, $validator) {
-         $survey = OutletChangeOwnership::where(array('id_outlet'=>$value,'status'=>"Process",'status'=>"Waiting"))->first();
+          $survey = OutletChangeOwnership::where(array('id_outlet'=>$value,'status'=>"Process",'status'=>"Waiting"))->first();
          $surveycutoff = OutletCutOff::where(array('id_outlet'=>$value,'status'=>"Process",'status'=>"Waiting"))->first();
-         if($survey&&$surveycutoff){
+         $surveyclose = OutletCloseTemporary::where(array('id_outlet'=>$value,'status'=>"Process",'status'=>"Waiting"))->first();
+         if($survey&&$surveycutoff&&$surveyclose){
              return false;
          } return true;
         });

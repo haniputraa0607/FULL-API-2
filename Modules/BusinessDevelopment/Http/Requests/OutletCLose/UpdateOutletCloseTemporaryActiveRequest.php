@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\BusinessDevelopment\Http\Requests\Outlet_Close;
+namespace Modules\BusinessDevelopment\Http\Requests\OutletCLose;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
@@ -13,14 +13,20 @@ use Modules\BusinessDevelopment\Entities\OutletCloseTemporary;
 use Modules\BusinessDevelopment\Entities\Partner;
 use Modules\BusinessDevelopment\Entities\PartnersCloseTemporary;
 
-class UpdateOutletCloseTemporaryRequest extends FormRequest
+class UpdateOutletCloseTemporaryActiveRequest extends FormRequest
 {
     public function rules()
     {
         return [
-            'id_outlet_close_temporary' => 'required|outlet',
-            'date'              => 'required|today',
-            'title'              => 'required',
+            'id_outlet_close_temporary'                 => 'required|outlet',
+            'date'                                      => 'required|today',
+            'title'                                     => 'required',
+            'id_outlet_close_temporary_location'        => 'required',
+            'nameLocation'                              => 'required',
+            'addressLocation'                           => 'required',
+            'latitudeLocation'                          => 'required',
+            'longitudeLocation'                         => 'required',
+            'id_cityLocation'                           => 'required',
            ]; 
     }
     public function withValidator($validator)

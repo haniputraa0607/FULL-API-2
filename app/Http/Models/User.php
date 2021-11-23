@@ -19,15 +19,10 @@ class User extends Authenticatable
     use HasApiTokens, Notifiable;
 	
 	public function findForPassport($username) {
-		if(substr($username, 0, 2) == '62'){
-			$username = substr($username,2);
-		}elseif(substr($username, 0, 3) == '+62'){
-			$username = substr($username,3);
-		}
-
-		if(substr($username, 0, 1) != '0'){
-			$username = '0'.$username;
-		}
+        $username = str_replace('+', '', $username);
+        if(substr($username, 0, 2) == 62){
+            $username = str_replace('62', '0', $username);
+        }
 
         return $this->where('phone', $username)->first();
     }
@@ -99,6 +94,7 @@ class User extends Authenticatable
         'otp_increment',
         'transaction_online',
         'transaction_online_status',
+        'user_time_zone_utc'
 	];
 
 	public function city()

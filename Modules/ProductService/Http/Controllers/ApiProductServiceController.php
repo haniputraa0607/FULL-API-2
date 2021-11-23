@@ -2,6 +2,7 @@
 
 namespace Modules\ProductService\Http\Controllers;
 
+use App\Http\Models\Outlet;
 use App\Http\Models\OutletSchedule;
 use App\Http\Models\Product;
 use App\Http\Models\ProductPhoto;
@@ -10,6 +11,7 @@ use App\Http\Models\UserAddress;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
+use Modules\Brand\Entities\Brand;
 use Modules\Product\Entities\ProductDetail;
 use App\Lib\MyHelper;
 use DB;
@@ -17,6 +19,7 @@ use Modules\ProductService\Entities\ProductServiceUse;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Transaction\Entities\HairstylistNotAvailable;
+use Modules\Favorite\Entities\FavoriteUserHiarStylist;
 
 class ApiProductServiceController extends Controller
 {
@@ -136,13 +139,9 @@ class ApiProductServiceController extends Controller
     public function productUseUpdate(Request $request){
         $post = $request->json()->all();
         if(isset($post['id_product_service']) && !empty($post['id_product_service'])){
-            if(empty($post['product_use_data'])){
-                return response()->json(['status' => 'fail', 'messages' => ['Data can not be empty']]);
-            }
-
-            ProductServiceUse::where('id_product_service', $post['id_product_service'])->delete();
+            $delete = ProductServiceUse::where('id_product_service', $post['id_product_service'])->delete();
             $insert = [];
-            foreach ($post['product_use_data'] as $pu){
+            foreach ($post['product_use_data']??[] as $pu){
                 $insert[] = [
                     'id_product_service' => $post['id_product_service'],
                     'id_product' => $pu['id_product'],
@@ -152,19 +151,37 @@ class ApiProductServiceController extends Controller
                 ];
             }
 
-            $save = ProductServiceUse::insert($insert);
-            return response()->json(MyHelper::checkUpdate($save));
+            if(!empty($insert)){
+                $save = ProductServiceUse::insert($insert);
+                return response()->json(MyHelper::checkUpdate($save));
+            }
+            return response()->json(MyHelper::checkDelete($delete));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID product service can not be empty']]);
         }
     }
 
     public function homeServiceListProduct(){
+        $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
+        $outlet = Outlet::where('id_outlet', $outletHomeService)->first();
+        if(empty($outlet)){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Outlet default not found']
+            ]);
+        }
+
+        $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
+            ->where('id_outlet', $outlet['id_outlet'])->first();
+
+        if(empty($brand)){
+            return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
+        }
+
         $productServie = Product::select([
             'products.id_product', 'products.product_name', 'products.product_code', 'products.product_description', 'product_variant_status',
-            'product_global_price.product_global_price as product_price', 'brand_product.id_brand'
+            'product_global_price.product_global_price as product_price'
         ])
-            ->join('brand_product', 'brand_product.id_product', '=', 'products.id_product')
             ->leftJoin('product_global_price', 'product_global_price.id_product', '=', 'products.id_product')
             ->where('product_type', 'service')
             ->where('product_visibility', 'Visible')
@@ -179,7 +196,7 @@ class ApiProductServiceController extends Controller
         foreach ($productServie as $val){
             $resProdService[] = [
                 'id_product' => $val['id_product'],
-                'id_brand' => $val['id_brand'],
+                'id_brand' => $brand['id_brand'],
                 'product_code' => $val['product_code'],
                 'product_name' => $val['product_name'],
                 'product_description' => $val['product_description'],
@@ -210,8 +227,12 @@ class ApiProductServiceController extends Controller
         }
 
         $totalDateShow = Setting::where('key', 'total_show_date_booking_service')->first()->value??1;
-        $today = date('Y-m-d');
-        $currentTime = date('H:i');
+        $userTimeZone = (empty($request->user()->user_time_zone_utc) ? 7 : $request->user()->user_time_zone_utc);
+        $diffTimeZone = $userTimeZone - 7;
+        $currentDate = date('Y-m-d H:i:s');
+        $currentDate = date('Y-m-d H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($currentDate)));
+        $today = date('Y-m-d', strtotime($currentDate));
+        $currentTime = date('H:i', strtotime($currentDate));
         $listDate = [];
 
         $x = 0;
@@ -270,6 +291,7 @@ class ApiProductServiceController extends Controller
     public function availableDateTime(Request $request){
         $post = $request->json()->all();
 
+        $user = $request->user();
         $totalDateShow = Setting::where('key', 'total_show_date_booking_service')->first()->value??1;
         $today = date('Y-m-d');
         $currentTime = date('H:i');
@@ -308,7 +330,10 @@ class ApiProductServiceController extends Controller
             $x++;
         }
 
-        $result = $listDate;
+        $result = [
+            'favorite_hs' => FavoriteUserHiarStylist::where('id_user', $user->id)->exists(),
+            'dates' => $listDate
+        ];
 
         return response()->json(MyHelper::checkGet($result));
     }
@@ -331,7 +356,10 @@ class ApiProductServiceController extends Controller
         $bookTime = date('H:i:s', strtotime($post['booking_time']));
         $bookTimeStart = date('H:i', strtotime("-30 minutes", strtotime($bookTime)));
         $bookTimeEnd = date('H:i', strtotime("+30 minutes", strtotime($bookTime)));
-        $currentDate =date('Y-m-d H:i:s');
+        $userTimeZone = (empty($request->user()->user_time_zone_utc) ? 7 : $request->user()->user_time_zone_utc);
+        $diffTimeZone = $userTimeZone - 7;
+        $currentDate = date('Y-m-d H:i:s');
+        $currentDate = date('Y-m-d H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($currentDate)));
         $maximumRadius = (int)(Setting::where('key', 'home_service_hs_maximum_radius')->first()['value']??25);
 
         if(strtotime($bookDate.' '.$bookTime) < strtotime($currentDate)){
@@ -345,10 +373,10 @@ class ApiProductServiceController extends Controller
 
         $listHs = UserHairStylist::where('user_hair_stylist_status', 'Active')
             ->whereIn('id_user_hair_stylist', function($query) use($idUser){
-            $query->select('id_user_hair_stylist')
-                ->from('favorite_user_hair_stylist')
-                ->where('id_user', $idUser);
-        })->get()->toArray();
+                $query->select('id_user_hair_stylist')
+                    ->from('favorite_user_hair_stylist')
+                    ->where('id_user', $idUser);
+            })->get()->toArray();
 
         $day = [
             'Mon' => 'Senin',
@@ -362,7 +390,7 @@ class ApiProductServiceController extends Controller
         $bookDay = $day[date('D', strtotime($bookDate))];
         $res = [];
         foreach ($listHs as $val){
-            $available = false;
+            $available = true;
             //check schedule hs
             $shift = HairstylistScheduleDate::leftJoin('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
                     ->whereNotNull('approve_at')->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
@@ -374,14 +402,14 @@ class ApiProductServiceController extends Controller
                 $getTimeShift = app($this->product)->getTimeShift(strtolower($shift),$val['id_outlet'], $idOutletSchedule);
                 if(!empty($getTimeShift['end'])){
                     $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
-                    if((strtotime($shiftTimeEnd) > strtotime($bookTime)) === false){
-                        $available = true;
+                    if((strtotime($shiftTimeEnd) > strtotime($bookTime)) !== false){
+                        $available = false;
                     }
                 }
             }
 
-            if(array_search($val['id_user_hair_stylist'], $hsNotAvailable) === false){
-                $available = true;
+            if(array_search($val['id_user_hair_stylist'], $hsNotAvailable) !== false){
+                $available = false;
             }
 
             if(empty($val['latitude']) && empty($val['longitude'])){
@@ -390,7 +418,7 @@ class ApiProductServiceController extends Controller
             $distance = (float)app($this->outlet)->distance($post['latitude'], $post['longitude'], $val['latitude'], $val['longitude'], "K");
 
             if($distance > 0 && $distance <= $maximumRadius){
-                $available = true;
+                continue;
             }
 
             if($bookDate == date('Y-m-d') && $val['home_service_status'] == 0){
@@ -402,7 +430,7 @@ class ApiProductServiceController extends Controller
                 'name' => $val['fullname'],
                 'photo' => (empty($val['user_hair_stylist_photo']) ? config('url.storage_url_api').'img/product/item/default.png':$val['user_hair_stylist_photo']),
                 'rating' => $val['total_rating'],
-                'available' => $available,
+                'available_status' => $available,
                 'distance' => $distance
             ];
         }

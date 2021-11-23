@@ -90,6 +90,7 @@ class ApiOutletServiseController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Latitude and Longitude can not be empty']]);
         }
         $totalListOutlet = Setting::where('key', 'total_list_nearby_outlet')->first()['value']??5;
+        $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
 
         $day = [
             'Mon' => 'Senin',
@@ -102,7 +103,8 @@ class ApiOutletServiseController extends Controller
         ];
 
         $outlet = Outlet::join('cities', 'cities.id_city', 'outlets.id_city')
-            ->selectRaw('cities.city_name, outlets.id_outlet, outlets.outlet_name, outlets.outlet_code,
+            ->join('provinces', 'provinces.id_province', 'cities.id_province')
+            ->selectRaw('cities.city_name, provinces.time_zone_utc, outlets.id_outlet, outlets.outlet_name, outlets.outlet_code,
                     outlets.outlet_latitude, outlets.outlet_longitude, outlets.outlet_address, 
                     outlets.outlet_description, outlets.outlet_image,
                     (111.111 * DEGREES(ACOS(LEAST(1.0, COS(RADIANS(outlets.outlet_latitude))
@@ -118,12 +120,20 @@ class ApiOutletServiseController extends Controller
             })
             ->with(['brands', 'holidays.date_holidays', 'today'])
             ->orderBy('distance_in_km', 'asc')
-            ->limit($totalListOutlet)->get()->toArray();
+            ->limit($totalListOutlet);
 
-        $currentDate = date('Y-m-d');
-        $currentHour = date('H:i:s');
+        if(!empty($outletHomeService)){
+            $outlet = $outlet->whereNotIn('id_outlet', [$outletHomeService]);
+        }
+        $outlet = $outlet->get()->toArray();
         $res = [];
         foreach ($outlet as $val){
+            $timeZone = (empty($val['time_zone_utc']) ? 7:$val['time_zone_utc']);
+            $diffTimeZone = $timeZone - 7;
+            $date = date('Y-m-d H:i:s');
+            $date = date('Y-m-d H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($date)));
+            $currentDate = date('Y-m-d', strtotime($date));
+            $currentHour = date('H:i:s', strtotime($date));
             $isClose = false;
             $open = date('H:i:s', strtotime($val['today']['open']));
             $close = date('H:i:s', strtotime($val['today']['close']));
@@ -184,9 +194,10 @@ class ApiOutletServiseController extends Controller
         }
 
         $detail = Outlet::join('cities', 'cities.id_city', 'outlets.id_city')
+                    ->join('provinces', 'provinces.id_province', 'cities.id_province')
                     ->where('outlets.outlet_status', 'Active')
                     ->with(['outlet_schedules','brands', 'today', 'holidays', 'holidays.date_holidays'])
-                    ->select('outlets.*', 'cities.city_name');
+                    ->select('outlets.*', 'cities.city_name', 'provinces.time_zone_utc as province_time_zone_utc');
 
         if(!empty($post['id_outlet'])){
             $detail = $detail->where('id_outlet', $post['id_outlet'])->first();
@@ -223,8 +234,12 @@ class ApiOutletServiseController extends Controller
         }
 
         $isClose = false;
-        $currentDate = date('Y-m-d');
-        $currentHour = date('H:i:s');
+        $timeZone = (empty($detail['province_time_zone_utc']) ? 7:$detail['province_time_zone_utc']);
+        $diffTimeZone = $timeZone - 7;
+        $date = date('Y-m-d H:i:s');
+        $date = date('Y-m-d H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($date)));
+        $currentDate = date('Y-m-d', strtotime($date));
+        $currentHour = date('H:i:s', strtotime($date));
         $open = date('H:i:s', strtotime($detail['today']['open']));
         $close = date('H:i:s', strtotime($detail['today']['close']));
         foreach ($detail['holidays'] as $holidays){

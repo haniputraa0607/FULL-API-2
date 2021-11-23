@@ -17,7 +17,7 @@ class DetailCustomerQueueRequest extends FormRequest
 	public function rules()
 	{
 		return [
-			'transaction_receipt_number' => 'required|string',
+			'transaction_receipt_number' => 'nullable|string',
 			'id_transaction_product_service' => 'required'
         ];
     }

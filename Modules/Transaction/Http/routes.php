@@ -1,5 +1,6 @@
 <?php
 Route::group(['middleware' => ['auth:api'],'prefix' => 'api/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
+    Route::any('hs-location', 'ApiTransactionHomeService@getHSLocation');
     Route::any('available-payment', 'ApiOnlineTransaction@availablePayment');
     Route::any('available-payment/update', 'ApiOnlineTransaction@availablePaymentUpdate')->middleware('scopes:be');
     Route::any('be/available-delivery', 'ApiOnlineTransaction@listAvailableDelivery')->middleware('scopes:be');
@@ -90,6 +91,9 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
 
     Route::post('home-service', 'ApiTransactionHomeService@listHomeService');
     Route::post('home-service/detail', 'ApiTransactionHomeService@detailTransaction');
+
+    Route::post('academy', 'ApiTransactionAcademy@listAcademy');
+    Route::post('academy/detail', 'ApiTransactionAcademy@detailTransaction');
 });
 
 Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scopes:apps'], 'prefix' => 'api/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
@@ -141,6 +145,21 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     	Route::post('detail', 'ApiTransaction@outletServiceDetail');
         Route::post('cancel', 'ApiOnlineTransaction@cancelTransaction');
 	});
+});
+
+Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scopes:apps'], 'prefix' => 'api/home-service', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
+
+    Route::group(['prefix' => 'transaction'], function () {
+    	Route::post('list', 'ApiTransaction@homeServiceList');
+    	Route::post('detail', 'ApiTransaction@homeServiceDetail');
+	});
+});
+
+Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scopes:apps'], 'prefix' => 'api/academy', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
+
+    Route::group(['prefix' => 'transaction'], function () {
+        Route::post('installment', 'ApiTransactionAcademy@installmentDetail');
+    });
 });
 
 Route::group(['middleware' => ['auth_client', 'user_agent'], 'prefix' => 'api/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {

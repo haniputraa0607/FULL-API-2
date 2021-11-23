@@ -25,6 +25,7 @@ use Modules\Product\Entities\ProductDetail;
 use Modules\Product\Entities\ProductStockLog;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use Modules\Recruitment\Entities\UserHairStylist;
+use Modules\Recruitment\Entities\HairstylistLocation;
 use Modules\ShopeePay\Entities\TransactionPaymentShopeePay;
 use Modules\Transaction\Entities\HairstylistNotAvailable;
 use App\Http\Models\TransactionPayment;
@@ -60,15 +61,11 @@ class ApiTransactionHomeService extends Controller
     public function cart(Request $request){
         $post = $request->json()->all();
 
-        if(empty($post['item_service'])){
-            return response()->json([
-                'status'    => 'fail',
-                'messages'  => ['Item Service can not be empty']
-            ]);
-        }
-
         if(!empty($request->user()->id)){
-            $user = User::where('id', $request->user()->id)->first();
+            $user = User::where('id', $request->user()->id)
+                ->leftJoin('cities', 'cities.id_city', 'users.id_city')
+                ->select('users.*', 'cities.city_name')
+                ->first();
             if (empty($user)) {
                 return response()->json([
                     'status'    => 'fail',
@@ -78,12 +75,16 @@ class ApiTransactionHomeService extends Controller
         }
 
         if($post['preference_hair_stylist'] == 'favorite' && empty($post['id_user_hair_stylist'])){
-            if (empty($user)) {
-                return response()->json([
-                    'status'    => 'fail',
-                    'messages'  => ['User hair stylist can not be empty']
-                ]);
-            }
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['User hair stylist can not be empty']
+            ]);
+        }
+
+        $bookNow = false;
+        if(strtolower($post['booking_time']) == 'sekarang'){
+            $bookNow = true;
+            $post['booking_time'] = date('H:i', strtotime("+2 minutes", strtotime($post['booking_time_user'])));
         }
 
         $errAll = [];
@@ -107,17 +108,31 @@ class ApiTransactionHomeService extends Controller
         }
 
         $post['sum_time'] = array_sum($arrProccessingTime);
-        $checkHS = $this->checkAvailableHS($post);
+        $checkHS = $this->checkAvailableHS($post, [], $user);
         $idHs = $checkHS['id_user_hair_stylist']??null;
         $errAll = array_merge($errAll, $checkHS['error_all']??[]);
 
         $post['item_service'] = $this->mergeService($post['item_service']);
+        $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
+        $outlet = Outlet::where('id_outlet', $outletHomeService)->first();
+        if(empty($outlet)){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Outlet default not found']
+            ]);
+        }
+
+        $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
+            ->where('id_outlet', $outlet['id_outlet'])->first();
+
+        if(empty($brand)){
+            return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
+        }
         foreach ($post['item_service']??[] as $key=>$item){
             $err = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
-                ->leftJoin('brand_product', 'brand_product.id_product', 'products.id_product')
                 ->where('products.id_product', $item['id_product'])
-                ->select('products.*', 'product_global_price as product_price', 'brand_product.id_brand')
+                ->select('products.*', 'product_global_price as product_price')
                 ->with('product_service_use')
                 ->first();
 
@@ -127,7 +142,6 @@ class ApiTransactionHomeService extends Controller
 
             if(!empty($idHs) && $post['preference_hair_stylist'] == 'favorite'){
                 $hs = UserHairStylist::where('id_user_hair_stylist', $idHs)->where('user_hair_stylist_status', 'Active')->first();
-                $outlet = Outlet::where('id_outlet', $hs['id_outlet'])->first();
                 if(empty($hs)){
                     $err[] = "Outlet hair stylist not found";
                 }
@@ -163,7 +177,7 @@ class ApiTransactionHomeService extends Controller
 
             $itemService[$key] = [
                 "id_custom" => $item['id_custom'],
-                "id_brand" => $service['id_brand'],
+                "id_brand" => $brand['id_brand'],
                 "id_product" => $service['id_product'],
                 "product_code" => $service['product_code'],
                 "product_name" => $service['product_name'],
@@ -182,6 +196,11 @@ class ApiTransactionHomeService extends Controller
         if(!empty($errAll)){
             $continueCheckOut = false;
         }
+
+        if(empty($post['item_service'])){
+            $continueCheckOut = false;
+        }
+
         unset($address['description']);
         $result['id_user_address'] = $address['id_user_address'];
         $result['notes'] = (empty($post['notes']) ? $address['description']:$post['notes']);
@@ -189,6 +208,10 @@ class ApiTransactionHomeService extends Controller
         $result['id_user_hair_stylist'] = $idHs;
         $result['booking_date'] = $post['booking_date'];
         $result['booking_time'] = $post['booking_time'];
+        if($bookNow){
+            $result['booking_time_user'] = $post['booking_time'];
+            $result['booking_time'] = 'Sekarang';
+        }
         $result['booking_date_display'] = MyHelper::dateFormatInd($post['booking_date'].' '.$post['booking_time'], true, true);
         $result['address'] = $address;
         $result['item_service'] = $itemService;
@@ -244,7 +267,10 @@ class ApiTransactionHomeService extends Controller
         }
 
         if(!empty($request->user()->id)){
-            $user = User::where('id', $request->user()->id)->first();
+            $user = User::where('id', $request->user()->id)
+                ->leftJoin('cities', 'cities.id_city', 'users.id_city')
+                ->select('users.*', 'cities.city_name')
+                ->first();
             if (empty($user)) {
                 return response()->json([
                     'status'    => 'fail',
@@ -254,12 +280,16 @@ class ApiTransactionHomeService extends Controller
         }
 
         if($post['preference_hair_stylist'] == 'favorite' && empty($post['id_user_hair_stylist'])){
-            if (empty($user)) {
-                return response()->json([
-                    'status'    => 'fail',
-                    'messages'  => ['User hair stylist can not be empty']
-                ]);
-            }
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['User hair stylist can not be empty']
+            ]);
+        }
+
+        $bookNow = false;
+        if(strtolower($post['booking_time']) == 'sekarang'){
+            $bookNow = true;
+            $post['booking_time'] = date('H:i', strtotime("+2 minutes", strtotime($post['booking_time_user'])));
         }
 
         $address = UserAddress::where('id_user', $user->id)->where('id_user_address', $post['id_user_address'])->first();
@@ -285,31 +315,46 @@ class ApiTransactionHomeService extends Controller
         }
 
         $post['sum_time'] = array_sum($arrProccessingTime);
-        $checkHS = $this->checkAvailableHS($post);
+        $checkHS = $this->checkAvailableHS($post, [], $user);
         $idHs = $checkHS['id_user_hair_stylist']??null;
         $errAll = array_merge($errAll, $checkHS['error_all']??[]);
 
         $post['item_service'] = $this->mergeService($post['item_service']);
+        $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
+        $outlet = Outlet::where('id_outlet', $outletHomeService)->first();
+        if(empty($outlet)){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Outlet default not found']
+            ]);
+        }
+
+        $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
+            ->where('id_outlet', $outlet['id_outlet'])->first();
+
+        if(empty($brand)){
+            return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
+        }
         foreach ($post['item_service']??[] as $key=>$item){
             $err = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
-                ->leftJoin('brand_product', 'brand_product.id_product', 'products.id_product')
                 ->where('products.id_product', $item['id_product'])
-                ->select('products.*', 'product_global_price as product_price', 'brand_product.id_brand')
+                ->select('products.*', 'product_global_price as product_price')
                 ->with('product_service_use')
                 ->first();
 
             if(empty($service)){
                 $err[] = 'Service tidak tersedia';
+                $errAll[] = 'Service tidak tersedia';
                 unset($item[$key]);
                 continue;
             }
 
             if(!empty($idHs) && $post['preference_hair_stylist'] == 'favorite'){
                 $hs = UserHairStylist::where('id_user_hair_stylist', $idHs)->where('user_hair_stylist_status', 'Active')->first();
-                $outlet = Outlet::where('id_outlet', $hs['id_outlet'])->first();
                 if(empty($hs)){
                     $err[] = "Outlet hair stylist not found";
+                    $errAll[] = 'Outlet hair stylist not found';
                     unset($item[$key]);
                     continue;
                 }
@@ -320,6 +365,7 @@ class ApiTransactionHomeService extends Controller
                         ->where('product_detail.id_outlet', $outlet['id_outlet'])->get()->toArray();
                     if(count($service['product_service_use']) != count($getProductUse)){
                         $err[] = 'Stok habis';
+                        $errAll[] = 'Stok habis';
                         unset($item[$key]);
                         continue;
                     }
@@ -328,6 +374,7 @@ class ApiTransactionHomeService extends Controller
                         $use = $stock['quantity_use'] * $item['qty'];
                         if($use > $stock['product_detail_stock_service']){
                             $err[] = 'Stok habis';
+                            $errAll[] = 'Stok habis';
                             unset($item[$key]);
                             continue;
                         }
@@ -339,12 +386,14 @@ class ApiTransactionHomeService extends Controller
 
                 if($service['visibility_outlet'] == 'Hidden' || (empty($service['visibility_outlet']) && $service['product_visibility'] == 'Hidden')){
                     $err[] = 'Service tidak tersedia';
+                    $errAll[] = 'Service tidak tersedia';
                     unset($item[$key]);
                     continue;
                 }
 
                 if(empty($service['product_price'])){
                     $err[] = 'Service tidak tersedia';
+                    $errAll[] = 'Service tidak tersedia';
                     unset($item[$key]);
                     continue;
                 }
@@ -352,7 +401,7 @@ class ApiTransactionHomeService extends Controller
 
             $itemService[$key] = [
                 "id_custom" => $item['id_custom'],
-                "id_brand" => $service['id_brand'],
+                "id_brand" => $brand['id_brand'],
                 "id_product" => $service['id_product'],
                 "product_code" => $service['product_code'],
                 "product_name" => $service['product_name'],
@@ -440,6 +489,7 @@ class ApiTransactionHomeService extends Controller
         $result['customer'] = [
             "name" => $user['name'],
             "email" => $user['email'],
+            "phone" => $user['phone'],
             "domicile" => $user['city_name'],
             "birthdate" => date('Y-m-d', strtotime($user['birthday'])),
             "gender" => $user['gender'],
@@ -455,8 +505,12 @@ class ApiTransactionHomeService extends Controller
         $result['id_user_hair_stylist'] = $idHs;
         $result['booking_date'] = $post['booking_date'];
         $result['booking_time'] = $post['booking_time'];
+        if($bookNow){
+            $result['booking_time_user'] = $post['booking_time'];
+            $result['booking_time'] = 'Sekarang';
+        }
         $result['booking_date_display'] = MyHelper::dateFormatInd($post['booking_date'].' '.$post['booking_time'], true, true);
-        $result['item_service'] = $itemService;
+        $result['item_service'] = array_values($itemService);
         $result['subtotal'] = $post['subtotal'];
         $result['tax'] = (int) $post['tax'];
         $result['grandtotal'] = (int)$result['subtotal'] + (int)$post['tax'] ;
@@ -491,7 +545,11 @@ class ApiTransactionHomeService extends Controller
         }
 
         if(!empty($request->user()->id)){
-            $user = User::where('id', $request->user()->id)->first();
+            $user = User::where('id', $request->user()->id)
+                ->leftJoin('cities', 'cities.id_city', 'users.id_city')
+                ->select('users.*', 'cities.city_name')
+                ->with('memberships')
+                ->first();
             if (empty($user)) {
                 return response()->json([
                     'status'    => 'fail',
@@ -500,13 +558,18 @@ class ApiTransactionHomeService extends Controller
             }
         }
 
+        if($user['complete_profile'] == 0){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Please complete your profile']
+            ]);
+        }
+
         if($post['preference_hair_stylist'] == 'favorite' && empty($post['id_user_hair_stylist'])){
-            if (empty($user)) {
-                return response()->json([
-                    'status'    => 'fail',
-                    'messages'  => ['User hair stylist can not be empty']
-                ]);
-            }
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['User hair stylist can not be empty']
+            ]);
         }
 
         if(empty($post['transaction_from'])){
@@ -530,6 +593,12 @@ class ApiTransactionHomeService extends Controller
             ]);
         }
 
+        $bookNow = false;
+        if(strtolower($post['booking_time']) == 'sekarang'){
+            $bookNow = true;
+            $post['booking_time'] = date('H:i', strtotime("+2 minutes", strtotime($post['booking_time_user'])));
+        }
+
         $post['latitude'] = $address['latitude'];
         $post['longitude'] = $address['longitude'];
 
@@ -543,7 +612,7 @@ class ApiTransactionHomeService extends Controller
         }
 
         $post['sum_time'] = array_sum($arrProccessingTime);
-        $checkHS = $this->checkAvailableHS($post);
+        $checkHS = $this->checkAvailableHS($post, [], $user);
         if(!empty($checkHS['error_all'])){
             return response()->json([
                 'status'    => 'fail',
@@ -556,12 +625,26 @@ class ApiTransactionHomeService extends Controller
         $post['item_service'] = $this->mergeService($post['item_service']);
         $errItem = [];
         $post['id_outlet'] = null;
+        $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
+        $outlet = Outlet::where('id_outlet', $outletHomeService)->first();
+        if(empty($outlet)){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Outlet default not found']
+            ]);
+        }
+
+        $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
+            ->where('id_outlet', $outlet['id_outlet'])->first();
+
+        if(empty($brand)){
+            return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
+        }
         foreach ($post['item_service']??[] as $key=>$item){
             $detailStock = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
-                ->leftJoin('brand_product', 'brand_product.id_product', 'products.id_product')
                 ->where('products.id_product', $item['id_product'])
-                ->select('products.*', 'product_global_price as product_price', 'brand_product.id_brand')
+                ->select('products.*', 'product_global_price as product_price')
                 ->with('product_service_use')
                 ->first();
 
@@ -571,7 +654,6 @@ class ApiTransactionHomeService extends Controller
 
             if(!empty($idHs) && $post['preference_hair_stylist'] == 'favorite'){
                 $hs = UserHairStylist::where('id_user_hair_stylist', $idHs)->where('user_hair_stylist_status', 'Active')->first();
-                $outlet = Outlet::where('id_outlet', $hs['id_outlet'])->first();
                 if(empty($hs)){
                     $errItem[] = "Outlet hair stylist not found";
                 }
@@ -613,7 +695,7 @@ class ApiTransactionHomeService extends Controller
 
             $itemService[$key] = [
                 "id_custom" => $item['id_custom'],
-                "id_brand" => $service['id_brand'],
+                "id_brand" => $brand['id_brand'],
                 "id_product" => $service['id_product'],
                 "product_code" => $service['product_code'],
                 "product_name" => $service['product_name'],
@@ -770,7 +852,7 @@ class ApiTransactionHomeService extends Controller
                 'messages'  => ['Insert Transaction Failed']
             ]);
         }
-
+        $insertTransaction['transaction_receipt_number'] = $receipt;
 
         $createHomeService = TransactionHomeService::create([
             'id_transaction' => $insertTransaction['id_transaction'],
@@ -779,6 +861,7 @@ class ApiTransactionHomeService extends Controller
             'preference_hair_stylist' => $post['preference_hair_stylist'],
             'status' => null,
             'schedule_date' => date('Y-m-d', strtotime($post['booking_date'])),
+            'schedule_set_time' => ($bookNow? 'right now':'set time'),
             'schedule_time' => date('H:i:s', strtotime($post['booking_time'])),
             'destination_name' => $user['name'],
             'destination_phone' => $user['phone'],
@@ -799,18 +882,6 @@ class ApiTransactionHomeService extends Controller
             ]);
         }
 
-        $insertTrxHMStatusUpdate = TransactionHomeServiceStatusUpdate::create([
-            'id_transaction' => $insertTransaction['id_transaction'],
-            'status' => 'Finding Hair Stylist'
-        ]);
-        if (!$insertTrxHMStatusUpdate) {
-            DB::rollback();
-            return response()->json([
-                'status'    => 'fail',
-                'messages'  => ['Insert Transaction Home Service Status Update Failed']
-            ]);
-        }
-
         $userTrxProduct = [];
         foreach ($post['item_service'] as $itemProduct){
 
@@ -823,6 +894,7 @@ class ApiTransactionHomeService extends Controller
                 'id_user'                      => $insertTransaction['id_user'],
                 'transaction_product_qty'      => $itemProduct['qty'],
                 'transaction_product_price'    => $itemProduct['product_price'],
+                'transaction_product_price_base' => $itemProduct['product_price'],
                 'transaction_product_discount'   => 0,
                 'transaction_product_discount_all'   => 0,
                 'transaction_product_base_discount' => 0,
@@ -900,11 +972,15 @@ class ApiTransactionHomeService extends Controller
         ]);
     }
 
-    function checkAvailableHS($post, $rejectHS = []){
+    function checkAvailableHS($post, $rejectHS = [], $user = []){
+        $userTimeZone = (empty($user['user_time_zone_utc']) ? 7 : $user['user_time_zone_utc']);
+        $diffTimeZone = $userTimeZone - 7;
+        $currentDate = date('Y-m-d H:i:s');
+        $currentDate = date('Y-m-d H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($currentDate)));
         $bookDate = date('Y-m-d', strtotime($post['booking_date']));
         $bookTime = date('H:i:s', strtotime($post['booking_time']));
-        $currentDate = date('Y-m-d H:i:s');
-        $bookDateTime = date('Y-m-d H:i', strtotime($bookDate.' '.$bookTime));
+        $bookDateTime = date('Y-m-d H:i:s', strtotime($bookDate.' '.$bookTime));
+
         if(strtotime($currentDate) > strtotime($bookDateTime)){
             $errAll[] = "Waktu pemesanan Anda tidak valid";
         }
@@ -927,7 +1003,7 @@ class ApiTransactionHomeService extends Controller
                 $errAll[] = "Hair stylist tidak ditemukan";
             }
 
-            if(empty($val['latitude']) && empty($val['longitude'])){
+            if(empty($hs['latitude']) && empty($hs['longitude'])){
                 $errAll[] = "Hair stylist tidak aktif";
             }
             $distance = (float)app($this->outlet)->distance($post['latitude'], $post['longitude'], $hs['latitude'], $hs['longitude'], "K");
@@ -988,7 +1064,7 @@ class ApiTransactionHomeService extends Controller
                 }
 
                 $distance = (float)app($this->outlet)->distance($post['latitude'], $post['longitude'], $val['latitude'], $val['longitude'], "K");
-                if($distance <= 0 || $distance > $maximumRadius){
+                if($distance > $maximumRadius){
                     continue;
                 }
 
@@ -1099,11 +1175,6 @@ class ApiTransactionHomeService extends Controller
         }
 
         return $updateDetail??true;
-    }
-
-    function cancelBookHS($id_transaction){
-        $del = HairstylistNotAvailable::where('id_transaction', $id_transaction)->delete();
-        return $del;
     }
 
     public function listHomeService(Request $request)
@@ -1259,6 +1330,7 @@ class ApiTransactionHomeService extends Controller
             'destination_short_address'      => $trx['destination_short_address'],
             'destination_address_name'       => $trx['destination_address_name'],
             'destination_note'              => $trx['destination_note'],
+            'id_user_hair_stylist'          => $trx['id_user_hair_stylist'],
             'hair_stylist_status'           => $trx['status'],
             'hair_stylist_name'             => $trx['fullname'],
             'hair_stylist_outlet_name'      => $trx['outlet_name'],
@@ -1642,5 +1714,11 @@ class ApiTransactionHomeService extends Controller
         }
 
         return $paymentDetail;
+    }
+
+    public function getHSLocation(Request $request)
+    {
+        $location = HairstylistLocation::find($request->id_hair_stylist);
+        return MyHelper::checkGet($location);
     }
 }

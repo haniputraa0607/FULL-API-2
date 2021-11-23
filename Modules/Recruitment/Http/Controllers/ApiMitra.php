@@ -566,7 +566,10 @@ class ApiMitra extends Controller
         $options = array_keys(array_flip($options));
         $resOption = [];
         foreach ($options as $val) {
-        	$resOption[$val] = $summaryOption[$val] ?? 0;
+        	$resOption[] = [
+        		"name" => $val,
+        		"value" => $summaryOption[$val] ?? 0
+        	];
         }
 
         $level = $ratingHs['level'] ?? null;

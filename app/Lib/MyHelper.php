@@ -3184,9 +3184,16 @@ class MyHelper{
     		}
     	}
 
-		$time = strtotime($timeserver) + (($timezone - 7) * 3600);
+    	if (!is_numeric($timeserver)) {
+    		$timeserver = strtotime($timeserver);
+    	}
+
+		$time = $timeserver + (($timezone - 7) * 3600);
 
     	if ($format) {
+    		if ($indo) {
+    			return self::indonesian_date_v2($time, $format);
+    		}
     		return date($format, $time);
     	}
     	return $time;
@@ -3211,7 +3218,11 @@ class MyHelper{
     		}
     	}
 
-		$time = strtotime($timeserver) - (($timezone - 7) * 3600);
+    	if (!is_numeric($timeserver)) {
+    		$timeserver = strtotime($timeserver);
+    	}
+
+		$time = $timeserver - (($timezone - 7) * 3600);
 
     	if ($format) {
     		if ($indo) {

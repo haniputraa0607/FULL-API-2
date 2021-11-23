@@ -835,7 +835,6 @@ class ApiPartnersController extends Controller
                     "partner" => Partner::where('id_partner',$post["id_partner"])->first(),
                     "location" => Location::where('id_partner',$post["id_partner"])->first(),
                     "confir" => ConfirmationLetter::where('id_partner',$post["id_partner"])->first(),
-                    "detail" => Product::where('product_name','Inisiasi Partner')->first(),
                 ];
                 $initBranch = Icount::ApiConfirmationLetter($data_send);
                 if($initBranch['response']['Status']=='1' && $initBranch['response']['Message']=='success'){

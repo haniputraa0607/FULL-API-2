@@ -7,16 +7,16 @@ use Illuminate\Database\Eloquent\Model;
 use Modules\BusinessDevelopment\Entities\Location;
 use Modules\BusinessDevelopment\Entities\Partner;
 
-class ProjectContract extends Model
+class PurchaseSpk extends Model
 {
-    protected $primaryKey = 'id_projects_contract';
-    protected $table = 'projects_contract';
+    protected $primaryKey = 'id_purchase_spk';
+    protected $table = 'purchase_spk';
     protected $fillable = [ 
         'id_project',
-        'first_party',
-        'second_party',
-        'note',
-        'attachment',
+        'id_request_purchase',
+        'id_business_partner',
+        'id_branch',
+        'value_detail',
         'created_at',
         'updated_at'
     ];

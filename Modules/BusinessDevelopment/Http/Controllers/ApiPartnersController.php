@@ -246,6 +246,14 @@ class ApiPartnersController extends Controller
             if (isset($post['name'])) {
                 $data_update['name'] = $post['name'];
             }
+            if (isset($post['code'])) {
+                $data_update['code'] = $post['code'];
+            }
+            if (isset($post['mobile']) && $post['mobile'] == 'default') {
+                $data_update['mobile'] = Partner::where('id_partner', $post['id_partner'])->get('phone')[0]['phone'];
+            }elseif(isset($post['mobile'])){
+                $data_update['mobile'] = $post['mobile'];
+            }
             if (isset($post['contact_person'])) {
                 $data_update['contact_person'] = $post['contact_person'];
             }

@@ -578,7 +578,7 @@ class ApiMitra extends Controller
         	'phone_number' => $ratingHs['phone_number'] ?? null,
         	'level' => $ratingHs['level'] ?? null,
         	'total_customer' => (int) ($ratingHs['total_customer'] ?? null),
-        	'total_rating' => (int) ($ratingHs['total_rating'] ?? null),
+        	'total_rating' => (float) ($ratingHs['total_rating'] ?? null),
         	'rating_value' => [
         		'5' => (int) ($summaryRating['5'] ?? null),
         		'4' => (int) ($summaryRating['4'] ?? null),

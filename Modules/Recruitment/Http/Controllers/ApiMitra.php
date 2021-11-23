@@ -598,6 +598,7 @@ class ApiMitra extends Controller
     	$comment = UserRating::where('user_ratings.id_user_hair_stylist', $user->id_user_hair_stylist)
     				->leftJoin('transaction_product_services','user_ratings.id_transaction_product_service','transaction_product_services.id_transaction_product_service')
     				->whereNotNull('suggestion')
+    				->where('suggestion', '!=', "")
     				->select(
     					'transaction_product_services.order_id',
     					'user_ratings.id_user_rating',

@@ -14,7 +14,6 @@ class AddXenditToEnumTransactionsTable extends Migration
     public function up()
     {
         \DB::statement("ALTER TABLE `transactions` CHANGE COLUMN `trasaction_payment_type` `trasaction_payment_type` ENUM('Manual', 'Midtrans', 'Offline', 'Balance', 'Ovo', 'Cimb', 'Ipay88', 'Shopeepay', 'Xendit') COLLATE 'utf8mb4_unicode_ci' NULL DEFAULT NULL");
-        \DB::statement("ALTER TABLE `transaction_groups` CHANGE COLUMN `transaction_payment_type` `transaction_payment_type` ENUM('Manual', 'Midtrans', 'Offline', 'Balance', 'Ovo', 'Cimb', 'Ipay88', 'Shopeepay', 'Xendit') COLLATE 'utf8mb4_unicode_ci' NULL DEFAULT NULL");
         \DB::statement("ALTER TABLE `deals_users` CHANGE COLUMN `payment_method` `payment_method` ENUM('Manual', 'Midtrans', 'Offline', 'Balance', 'Ovo', 'Cimb', 'Ipay88', 'Shopeepay', 'Xendit') COLLATE 'utf8mb4_unicode_ci' NULL DEFAULT NULL");
         \DB::statement("ALTER TABLE `subscription_users` CHANGE COLUMN `payment_method` `payment_method` ENUM('Manual', 'Midtrans', 'Offline', 'Balance', 'Ovo', 'Cimb', 'Ipay88', 'Shopeepay', 'Xendit') COLLATE 'utf8mb4_unicode_ci' NULL DEFAULT NULL");
     }
@@ -27,7 +26,6 @@ class AddXenditToEnumTransactionsTable extends Migration
     public function down()
     {
         \DB::statement("ALTER TABLE `transactions` CHANGE COLUMN `trasaction_payment_type` `trasaction_payment_type` ENUM('Manual', 'Midtrans', 'Offline', 'Balance', 'Ovo', 'Cimb', 'Ipay88', 'Shopeepay') COLLATE 'utf8mb4_unicode_ci' NULL DEFAULT NULL");
-        \DB::statement("ALTER TABLE `transaction_groups` CHANGE COLUMN `transaction_payment_type` `transaction_payment_type` ENUM('Manual', 'Midtrans', 'Offline', 'Balance', 'Ovo', 'Cimb', 'Ipay88', 'Shopeepay') COLLATE 'utf8mb4_unicode_ci' NULL DEFAULT NULL");
         \DB::statement("ALTER TABLE `deals_users` CHANGE COLUMN `payment_method` `payment_method` ENUM('Manual', 'Midtrans', 'Offline', 'Balance', 'Ovo', 'Cimb', 'Ipay88', 'Shopeepay') COLLATE 'utf8mb4_unicode_ci' NULL DEFAULT NULL");
         \DB::statement("ALTER TABLE `subscription_users` CHANGE COLUMN `payment_method` `payment_method` ENUM('Manual', 'Midtrans', 'Offline', 'Balance', 'Ovo', 'Cimb', 'Ipay88', 'Shopeepay') COLLATE 'utf8mb4_unicode_ci' NULL DEFAULT NULL");
     }

@@ -18,7 +18,7 @@ return [
     'midtrans_cc'    => [
         'payment_gateway' => 'Midtrans',
         'payment_method'  => 'Credit Card',
-        'status'          => 'credit_card_payment_gateway:Midtrans',
+        'status'          => 1,
         'logo'            => env('STORAGE_URL_API').'default_image/payment_method/ic_creditcard.png',
         'text'            => 'Debit/Credit Card'
     ],
@@ -33,7 +33,7 @@ return [
         'payment_gateway' => 'Ipay88',
         'payment_method'  => 'Credit Card',
         'status'          => 'credit_card_payment_gateway:Ipay88',
-        'logo'            => env('STORAGE_URL_API').'default_image/payment_method/ic_creditcard.png',
+        'logo'            => 0,
         'text'            => 'Debit/Credit Card',
         'available_time'    => [
             'start' => '00:00',
@@ -43,7 +43,7 @@ return [
     'ipay88_ovo'     => [
         'payment_gateway' => 'Ipay88',
         'payment_method'  => 'Ovo',
-        'status'          => 1,
+        'status'          => 0,
         'logo'            => env('STORAGE_URL_API').'default_image/payment_method/ic_ovo_pay.png',
         'text'            => 'OVO',
         'available_time'    => [
@@ -61,7 +61,7 @@ return [
     'shopeepay'      => [
         'payment_gateway' => 'Shopeepay',
         'payment_method'  => 'Shopeepay',
-        'status'          => 1,
+        'status'          => 0,
         'logo'            => env('STORAGE_URL_API').'default_image/payment_method/ic_shopee_pay.png',
         'text'            => 'ShopeePay',
         'available_time'    => [
@@ -75,5 +75,26 @@ return [
         'status'          => 1,
         'logo'            => env('STORAGE_URL_API').'default_image/payment_method/ic_online_payment.png',
         'text'            => 'Online Payment'
+    ],
+    'xendit_ovo'          => [
+        'payment_gateway' => 'Xendit',
+        'payment_method'  => 'Ovo',
+        'status'          => 1,
+        'logo'            => env('STORAGE_URL_API').'default_image/payment_method/ic_ovo_pay.png',
+        'text'            => 'OVO'
+    ],
+    'xendit_dana'         => [
+        'payment_gateway' => 'Xendit',
+        'payment_method'  => 'Dana',
+        'status'          => 1,
+        'logo'            => env('STORAGE_URL_API').'default_image/payment_method/ic_dana.png',
+        'text'            => 'DANA'
+    ],
+    'xendit_linkaja'      => [
+        'payment_gateway' => 'Xendit',
+        'payment_method'  => 'Linkaja',
+        'status'          => 1,
+        'logo'            => env('STORAGE_URL_API').'default_image/payment_method/ic_linkaja.png',
+        'text'            => 'LinkAJa'
     ],
 ];

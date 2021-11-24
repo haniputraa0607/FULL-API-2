@@ -402,6 +402,7 @@ class ApiMitra extends Controller
 
     	$res = [
     		'id_user_hair_stylist' => $user['id_user_hair_stylist'],
+    		'user_hair_stylist_code' => $user['user_hair_stylist_code'],
     		'nickname' => $user['nickname'],
     		'fullname' => $user['fullname'],
     		'name' => $level . ' ' . $user['fullname'],

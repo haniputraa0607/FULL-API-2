@@ -15,7 +15,7 @@ class CreateTransactionPaymentXenditsTable extends Migration
     {
         Schema::create('transaction_payment_xendits', function (Blueprint $table) {
             $table->increments('id_transaction_payment_xendit');
-            $table->unsignedInteger('id_transaction_group');
+            $table->unsignedInteger('id_transaction');
             $table->string('xendit_id')->nullable();
             $table->string('external_id')->nullable();
             $table->string('business_id')->nullable();
@@ -28,7 +28,7 @@ class CreateTransactionPaymentXenditsTable extends Migration
             $table->text('checkout_url')->nullable();
             $table->timestamps();
 
-            $table->foreign('id_transaction_group')->references('id_transaction_group')->on('transaction_groups')->onDelete('cascade');
+            $table->foreign('id_transaction')->references('id_transaction')->on('transactions')->onDelete('cascade');
         });
     }
 

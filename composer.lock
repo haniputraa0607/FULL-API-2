@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "67e7c4229b786d8578c31b9ab6b68163",
+    "content-hash": "d85ca3b18ac40c586dffc89d25467747",
     "packages": [
         {
             "name": "aliyuncs/oss-sdk-php",
@@ -9453,6 +9453,51 @@
                 "source": "https://github.com/ventoviro/windwalker-structure/tree/3.5.21"
             },
             "time": "2020-07-04T09:50:33+00:00"
+        },
+        {
+            "name": "xendit/xendit-php",
+            "version": "2.16.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/xendit/xendit-php.git",
+                "reference": "92afb65dac7443cc32b1fb8df32c49b1aad8ac11"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/xendit/xendit-php/zipball/92afb65dac7443cc32b1fb8df32c49b1aad8ac11",
+                "reference": "92afb65dac7443cc32b1fb8df32c49b1aad8ac11",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "guzzlehttp/guzzle": ">=6.0",
+                "php": ">=7.2.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^8.5.13",
+                "squizlabs/php_codesniffer": "~3.5",
+                "vlucas/phpdotenv": "^4.1"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Xendit\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "PHP clients for Xendit API",
+            "homepage": "https://github.com/xendit/xendit-php",
+            "keywords": [
+                "xendit"
+            ],
+            "support": {
+                "issues": "https://github.com/xendit/xendit-php/issues",
+                "source": "https://github.com/xendit/xendit-php/tree/2.16.0"
+            },
+            "time": "2021-10-27T02:55:37+00:00"
         },
         {
             "name": "yajra/laravel-datatables-oracle",

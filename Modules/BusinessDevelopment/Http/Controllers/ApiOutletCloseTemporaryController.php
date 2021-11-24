@@ -32,11 +32,11 @@ use Modules\BusinessDevelopment\Entities\OutletCloseTemporaryStep;
 use Modules\BusinessDevelopment\Entities\OutletCloseTemporaryFormSurvey;
 use Modules\BusinessDevelopment\Entities\OutletCloseTemporaryConfirmationLetter;
 use App\Http\Models\Outlet;
-use Modules\BusinessDevelopment\Http\Requests\OutletCLose\CreateOutletCloseTemporaryRequest;
-use Modules\BusinessDevelopment\Http\Requests\OutletCLose\CreateOutletActiveRequest;
-use Modules\BusinessDevelopment\Http\Requests\OutletCLose\UpdateOutletCloseTemporaryRequest;
-use Modules\BusinessDevelopment\Http\Requests\OutletCLose\CreateLampiranCloseTemporaryRequest;
-use Modules\BusinessDevelopment\Http\Requests\OutletCLose\UpdateOutletCloseTemporaryActiveRequest;
+use Modules\BusinessDevelopment\Http\Requests\OutletClose\CreateOutletCloseTemporaryRequest;
+use Modules\BusinessDevelopment\Http\Requests\OutletClose\CreateOutletActiveRequest;
+use Modules\BusinessDevelopment\Http\Requests\OutletClose\UpdateOutletCloseTemporaryRequest;
+use Modules\BusinessDevelopment\Http\Requests\OutletClose\CreateLampiranCloseTemporaryRequest;
+use Modules\BusinessDevelopment\Http\Requests\OutletClose\UpdateOutletCloseTemporaryActiveRequest;
 
 class ApiOutletCloseTemporaryController extends Controller
 {

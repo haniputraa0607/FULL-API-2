@@ -586,13 +586,8 @@ class ApiTransactionAcademy extends Controller
         }
 
         $listinstallment = [];
-        $resinstallment = [];
         foreach ($data as $dt){
             $dt = (array)$dt;
-            $listinstallment[] = [
-                'key' => $dt['total_installment'],
-                'text' => $dt['total_installment'].' x'
-            ];
             $step = [];
             $allMinimumStep = array_values((array)$dt['step']);
             $sumMinimumStep = array_sum($allMinimumStep);
@@ -611,7 +606,8 @@ class ApiTransactionAcademy extends Controller
                 ];
             }
 
-            $resinstallment[$dt['total_installment']] = [
+            $listinstallment[] = [
+                'text' => $dt['total_installment'].' x',
                 'description' => $dt['description'],
                 'step' => $step
             ];
@@ -619,8 +615,7 @@ class ApiTransactionAcademy extends Controller
 
         $result = [
             'total_amount' => $post['grandtotal'],
-            'list_installment' => $listinstallment,
-            'detail_installment' => $resinstallment
+            'list_installment' => $listinstallment
         ];
 
         return response()->json(MyHelper::checkGet($result));

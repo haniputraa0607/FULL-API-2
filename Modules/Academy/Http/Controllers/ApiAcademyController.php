@@ -450,6 +450,7 @@ class ApiAcademyController extends Controller
             }
 
             $resDetail = [
+                'complete_profile' => (empty($request->user()->complete_profile) ?false:true),
                 'brand' => (empty($brand) ? null : $brand),
                 'outlet' => (empty($outlet) ? null : $outlet),
                 'detail' => [

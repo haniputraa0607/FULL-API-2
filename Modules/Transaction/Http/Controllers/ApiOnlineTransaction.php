@@ -3940,12 +3940,12 @@ class ApiOnlineTransaction extends Controller
                 }
             }
             $payments[] = [
-                'code'            => $value['code'],
-                'payment_gateway' => $payment['payment_gateway'],
-                'payment_method'  => $payment['payment_method'],
-                'logo'            => $payment['logo'],
-                'text'            => $payment['text'],
-                'description'     => $value['description'],
+                'code'            => $value['code'] ?? '',
+                'payment_gateway' => $payment['payment_gateway'] ?? '',
+                'payment_method'  => $payment['payment_method'] ?? '',
+                'logo'            => $payment['logo'] ?? '',
+                'text'            => $payment['text'] ?? '',
+                'description'     => $value['description'] ?? '',
                 'status'          => (int) $value['status'] ? 1 : 0
             ];
             unset($availablePayment[$value['code']]);
@@ -3962,11 +3962,11 @@ class ApiOnlineTransaction extends Controller
             if($request->show_all || $status) {
                 $payments[] = [
                     'code'            => $code,
-                    'payment_gateway' => $payment['payment_gateway'],
-                    'payment_method'  => $payment['payment_method'],
-                    'logo'            => $payment['logo'],
-                    'text'            => $payment['text'],
-                    'description'     => $payment['description'],
+                    'payment_gateway' => $payment['payment_gateway'] ?? '',
+                    'payment_method'  => $payment['payment_method'] ?? '',
+                    'logo'            => $payment['logo'] ?? '',
+                    'text'            => $payment['text'] ?? '',
+                    'description'     => $payment['description'] ?? '',
                     'status'          => $status
                 ];
             }

@@ -37,7 +37,7 @@ use Illuminate\Http\Request;
     Route::post('/delete/contract', ['middleware'=>'scopes:be', 'uses' => 'ApiContractController@destroy']);
     Route::post('/next/contract', ['middleware'=>'scopes:be', 'uses' => 'ApiContractController@nextStep']);
     Route::post('/detail/contract', ['middleware'=>'scopes:be', 'uses' => 'ApiContractController@detail']);
-    Route::post('/invoicespk', ['middleware'=>'scopes:be', 'uses' => 'ApiContractController@invoicespk']);
+    Route::post('/excel/contract', ['middleware'=>'scopes:be', 'uses' => 'ApiContractController@excel']);
     //fitout
      Route::post('/create/fitout', ['middleware'=>'scopes:be', 'uses' => 'ApiFitOutController@create']);
      Route::post('/delete/fitout', ['middleware'=>'scopes:be', 'uses' => 'ApiFitOutController@destroy']);

@@ -16,6 +16,13 @@ class ProjectContract extends Model
         'first_party',
         'second_party',
         'note',
+        'nomor_loi',
+        'tanggal_loi',
+        'tanggal_serah_terima',
+        'tanggal_buka_loi',
+        'nama_pic',
+        'kontak_pic',
+        'lokasi_pic',
         'attachment',
         'created_at',
         'updated_at'

@@ -203,12 +203,12 @@ class ApiTransactionAcademy extends Controller
             'id_outlet' => $outlet['id_outlet'],
             'outlet_code' => $outlet['outlet_code'],
             'outlet_name' => $outlet['outlet_name'],
-            'outlet_address' => $outlet['outlet_address']
+            'outlet_address' => $outlet['outlet_address'],
+            'color' => $brand['color_brand']??''
         ];
 
         $result['item_academy'] = $itemAcademy;
         $result['subtotal'] = $post['subtotal'];
-        $result['tax'] = (int) $post['tax'];
         $result['grandtotal'] = (int)$result['subtotal'] + (int)$post['tax'] ;
         $balance = app($this->balance)->balanceNow($user->id);
         $result['points'] = (int) $balance;
@@ -226,6 +226,18 @@ class ApiTransactionAcademy extends Controller
                 ];
             }
         }
+
+        $result['payment_detail'][] = [
+            'name'          => 'Subtotal',
+            "is_discount"   => 0,
+            'amount'        => MyHelper::requestNumber($result['subtotal'],'_CURRENCY')
+        ];
+
+        $result['payment_detail'][] = [
+            'name'          => 'Tax',
+            "is_discount"   => 0,
+            'amount'        => MyHelper::requestNumber((int) $post['tax'],'_CURRENCY')
+        ];
 
         $result['currency'] = 'Rp';
         $result['complete_profile'] = (empty($user->complete_profile) ?false:true);

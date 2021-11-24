@@ -1958,7 +1958,6 @@ class ApiOnlineTransaction extends Controller
             ]);
         }
 
-        $post['item'] = $this->mergeProducts($post['item']??[]);
         $grandTotal = app($this->setting_trx)->grandTotal();
         $user = $request->user();
         if($user->complete_profile == 0){
@@ -2010,72 +2009,10 @@ class ApiOnlineTransaction extends Controller
         }
 
         $shippingGoSend = 0;
-        $shippingGoSendPrice = 0;
-        $listDelivery = [];
         $error_msg=[];
 
         if(empty($post['type'])){
             $post['type'] = null;
-        }
-
-        if($post['type'] == 'Delivery' && !$outlet->delivery_order) {
-            $error_msg[] = 'Maaf, Outlet ini tidak support untuk delivery order';
-        }
-
-        if($post['type'] == 'Delivery Order' || $post['type'] == 'GO-SEND'){
-            $delivery_outlet = DeliveryOutlet::where('id_outlet', $outlet->id_outlet)->pluck('code')->toArray();
-            if (!($outlet['outlet_latitude'] 
-            	&& $outlet['outlet_longitude'] 
-            	&& $outlet['outlet_phone'] 
-            	&& $outlet['outlet_address'])
-            	&& MyHelper::validatePhoneGoSend($outlet['outlet_phone'])
-            	&& MyHelper::validatePhoneWehelpyou($outlet['outlet_phone'])
-        	){
-                app($this->outlet)->sendNotifIncompleteOutlet($outlet['id_outlet']);
-                $outlet->notify_admin = 1;
-                $outlet->save();
-                return [
-                    'status' => 'fail',
-                    'messages' => ['Outlet tidak dapat melakukan pengiriman']
-                ];
-            }
-
-        	if ($post['type'] == 'GO-SEND' || in_array('gosend', $delivery_outlet)) {
-	            $coor_origin = [
-	                'latitude' => number_format($outlet['outlet_latitude'],8),
-	                'longitude' => number_format($outlet['outlet_longitude'],8)
-	            ];
-	            $coor_destination = [
-	                'latitude' => number_format($post['destination']['latitude'],8),
-	                'longitude' => number_format($post['destination']['longitude'],8)
-	            ];
-	            $type = 'Pickup Order';
-	            $shippingGoSendx = GoSend::getPrice($coor_origin,$coor_destination);
-	            $shippingGoSend = $shippingGoSendx[GoSend::getShipmentMethod()]['price']['total_price']??null;
-	            if($shippingGoSend === null){
-	                $errorGosend = array_column($shippingGoSendx[GoSend::getShipmentMethod()]['errors']??[],'message');
-	                if(isset($errorGosend[0])){
-	                    if($errorGosend[0] == 'Booking distance exceeds 40 kilometres'){
-	                        $errorGosend[0] = 'Lokasi tujuan melebihi jarak maksimum pengantaran';
-	                    }elseif($errorGosend[0] == 'Origin and destination cannot be same'){
-	                        $errorGosend[0] = 'Lokasi outlet dan tujuan tidak boleh di lokasi yang sama';
-	                    }elseif($errorGosend[0] == 'Origin and destination cannot be same'){
-	                        $errorGosend[0] = 'Lokasi outlet dan tujuan tidak boleh di lokasi yang sama';
-	                    }elseif($errorGosend[0] == 'The service is not yet available in this region'){
-	                        $errorGosend[0] = 'Pengiriman tidak tersedia di lokasi Anda';
-	                    }elseif($errorGosend[0] == "Sender's location is not serviceable"){
-	                        $errorGosend[0] = 'Pengiriman tidak tersedia di lokasi Anda';
-	                    }
-	                }
-	                $error_msg += $errorGosend?:['Gagal menghitung biaya pengantaran. Silakan coba kembali'];
-	            }
-	            
-	            if ($post['type'] == 'Delivery Order') {
-		            $shippingGoSendPrice = $shippingGoSend;
-		            $shippingGoSend = 0;
-	            }
-        	}
-            $isFree = 0;
         }
 
         if (!isset($post['subtotal'])) {
@@ -2094,152 +2031,24 @@ class ApiOnlineTransaction extends Controller
             $post['tax'] = 0;
         }
 
-        if (!isset($post['discount_delivery'])) {
-            $post['discount_delivery'] = 0;
+        // check service product
+        $result['item_service'] = [];
+        $totalItem = 0;
+        $totalDisProduct = 0;
+        if(!empty($post['item_service'])){
+            $itemServices = $this->checkServiceProduct($post, $outlet);
+            $result['item_service'] = $itemServices['item_service']??[];
+            $post['item_service'] = $itemServices['item_service']??[];
+            $totalItem = $totalItem + $itemServices['total_item_service']??0;
+            if(!isset($post['from_new']) || (isset($post['from_new']) && $post['from_new'] === false)){
+                $error_msg = array_merge($error_msg, $itemServices['error_message']??[]);
+            }
         }
 
         $post['discount'] = -$post['discount'];
-        $post['discount_delivery'] = -$post['discount_delivery'];
-        $totalDisProduct = 0;
-
-        if($scopeUser == 'apps'){
-            // hitung product discount
-            $productDis = app($this->setting_trx)->discountProduct($post);
-            if (is_numeric($productDis)) {
-                $totalDisProduct = $productDis;
-            }else{
-                return $productDis;
-            }
-
-            // remove bonus item
-            $pct = new PromoCampaignTools();
-            $post['item'] = $pct->removeBonusItem($post['item']);
-        }
-
-        // check promo code & voucher
-        $promo_error=null;
-        $promo_source = null;
-        $promo_valid = false;
-        $subs_valid = false;
-        $promo_discount = 0;
-        $promo_type = null;
-        $use_referral = false;
-        $request_promo = $request;
-        unset($request_promo['type']);
-
-        if($scopeUser == 'apps'){
-            if($request->promo_code && !$request->id_subscription_user && !$request->id_deals_user){
-                $code = app($this->promo_campaign)->checkPromoCode($request->promo_code, 1, 1);
-
-                if ($code)
-                {
-                    if ($code['promo_campaign']['date_end'] < date('Y-m-d H:i:s')) {
-                        $error = ['Promo campaign is ended'];
-                        $promo_error = app($this->promo_campaign)->promoError('transaction', $error);
-                    }
-                    else
-                    {
-                        $promo_type = $code->promo_type;
-                        if ($promo_type != 'Discount bill' && $promo_type != 'Discount delivery') {
-                            if($code->promo_type == "Referral"){
-                                $use_referral = true;
-                            }
-                            $validate_user = $pct->validateUser($code->id_promo_campaign, $request->user()->id, $request->user()->phone, $request->device_type, $request->device_id, $errore,$code->id_promo_campaign_promo_code);
-
-                            if ($validate_user) {
-                                $discount_promo=$pct->validatePromo($request_promo, $code->id_promo_campaign, $request->id_outlet, $post['item'], $errors, 'promo_campaign', $errorProduct, $post['shipping']+$shippingGoSend);
-
-                                $promo_source = 'promo_code';
-                                if ( !empty($errore) || !empty($errors) ) {
-                                    $promo_error = app($this->promo_campaign)->promoError('transaction', $errore, $errors, $errorProduct);
-                                    if ($errorProduct) {
-                                        $promo_error['product_label'] = app($this->promo_campaign)->getProduct('promo_campaign', $code['promo_campaign'])['product']??'';
-                                        $promo_error['product'] = $pct->getRequiredProduct($code->id_promo_campaign)??null;
-                                    }
-                                    $promo_source = null;
-                                }
-                                else{
-                                    $promo_valid = true;
-                                }
-                                $promo_discount=$discount_promo['discount'];
-                            }
-                            else
-                            {
-                                $promo_error = app($this->promo_campaign)->promoError('transaction', $errore);
-                            }
-                        }else{
-                            $promo_source 	= 'promo_code';
-                            $promo_valid 	= true;
-                        }
-                    }
-                }
-                else
-                {
-                    $error = ['Promo code invalid'];
-                    $promo_error = app($this->promo_campaign)->promoError('transaction', $error);
-                }
-            }
-            elseif(!$request->promo_code && !$request->id_subscription_user && $request->id_deals_user)
-            {
-                $deals = app($this->promo_campaign)->checkVoucher($request->id_deals_user, 1, 1);
-
-                if($deals)
-                {
-                    $promo_type = $deals->dealVoucher->deals->promo_type;
-                    if ($promo_type != 'Discount bill' && $promo_type != 'Discount delivery') {
-                        $discount_promo = $pct->validatePromo($request_promo, $deals->dealVoucher->id_deals, $request->id_outlet, $post['item'], $errors, 'deals', $errorProduct, $post['shipping']+$shippingGoSend);
-
-                        $promo_source = 'voucher_online';
-                        if ( !empty($errors) ) {
-                            $code = $deals->toArray();
-                            $promo_error = app($this->promo_campaign)->promoError('transaction', null, $errors, $errorProduct);
-                            if ($errorProduct) {
-                                $promo_error['product_label'] = app($this->promo_campaign)->getProduct('deals', $code['deal_voucher']['deals'])['product']??'';
-                                $promo_error['product'] = $pct->getRequiredProduct($deals->dealVoucher->id_deals, 'deals')??null;
-                            }
-                            $promo_source = null;
-                        }
-                        else{
-                            $promo_valid = true;
-                        }
-                        $promo_discount=$discount_promo['discount'];
-                    }else{
-                        $promo_source 	= 'voucher_online';
-                        $promo_valid 	= true;
-                    }
-                }
-                else
-                {
-                    $error = ['Voucher is not valid'];
-                    $promo_error = app($this->promo_campaign)->promoError('transaction', $error);
-                }
-            } elseif (!$request->promo_code && $request->id_subscription_user && !$request->id_deals_user) {
-                $subs = app($this->subscription_use)->checkSubscription($request->id_subscription_user, "outlet", "product", "product_detail", null, null, "brand");
-                $promo_source = 'subscription';
-                if ($subs) {
-                    $subs_valid = true;
-                }
-            }
-        }
-        // end check promo code & voucher
-
-        $tree = [];
-        // check and group product
         $subtotal = 0;
-        $missing_product = 0;
-        // return [$discount_promo['item'],$errors];
-        $is_advance = 0;
-
-        $tree_promo = []; 
-        $subtotal_promo = 0;
-
-        $global_max_order = Outlet::select('max_order')->where('id_outlet',$post['id_outlet'])->pluck('max_order')->first();
-        if($global_max_order == null){
-            $global_max_order = Setting::select('value')->where('key','max_order')->pluck('value')->first();
-            if($global_max_order == null){
-                $global_max_order = 100;
-            }
-        }
+        $items = [];
+        $post['item'] = $this->mergeProducts($post['item']);
 
         foreach ($grandTotal as $keyTotal => $valueTotal) {
             if ($valueTotal == 'subtotal') {
@@ -2264,7 +2073,6 @@ class ApiOnlineTransaction extends Controller
                         }
                     }
 
-                    DB::rollback();
                     return response()->json([
                         'status'    => 'fail',
                         'messages'  => $mes
@@ -2274,7 +2082,7 @@ class ApiOnlineTransaction extends Controller
                 // $post['subtotal'] = array_sum($post['sub']);
                 $post['subtotal'] = array_sum($post['sub']['subtotal']);
                 $post['subtotal'] = $post['subtotal'] - $totalDisProduct??0;
-            } elseif ($valueTotal == 'discount') {
+            }elseif ($valueTotal == 'discount') {
                 // $post['dis'] = $this->countTransaction($valueTotal, $post);
                 $post['dis'] = app($this->setting_trx)->countTransaction($valueTotal, $post, $discount_promo);
                 $mes = ['Data Not Valid'];
@@ -2288,7 +2096,6 @@ class ApiOnlineTransaction extends Controller
                         }
                     }
 
-                    DB::rollback();
                     return response()->json([
                         'status'    => 'fail',
                         'messages'  => $mes
@@ -2297,42 +2104,12 @@ class ApiOnlineTransaction extends Controller
 
                 // $post['discount'] = $post['dis'] + $totalDisProduct;
                 $post['discount'] = $totalDisProduct??0;
-            }elseif($valueTotal == 'tax'){
-                $post['tax'] = app($this->setting_trx)->countTransaction($valueTotal, $post);
-                $mes = ['Data Not Valid'];
-
-                    if (isset($post['tax']->original['messages'])) {
-                        $mes = $post['tax']->original['messages'];
-
-                        if ($post['tax']->original['messages'] == ['Price Product Not Found']) {
-                            if (isset($post['tax']->original['product'])) {
-                                $mes = ['Price Product Not Found with product '.$post['tax']->original['product'].' at outlet '.$outlet['outlet_name']];
-                            }
-                        }
-
-                        if ($post['sub']->original['messages'] == ['Price Product Not Valid']) {
-                            if (isset($post['tax']->original['product'])) {
-                                $mes = ['Price Product Not Valid with product '.$post['tax']->original['product'].' at outlet '.$outlet['outlet_name']];
-                            }
-                        }
-
-                        DB::rollback();
-                        return response()->json([
-                            'status'    => 'fail',
-                            'messages'  => $mes
-                        ]);
-                    }
-            }
-            else {
+            }else {
                 $post[$valueTotal] = app($this->setting_trx)->countTransaction($valueTotal, $post);
             }
         }
 
-        $promo_missing_product 	= false;
-        $missing_bonus_product 	= false;
-        $subtotal_per_brand 	= [];
-        $totalItem = 0;
-        $items = [];
+        $subtotalProduct = 0;
         foreach ($discount_promo['item']??$post['item'] as &$item) {
             // get detail product
             $product = Product::select([
@@ -2343,16 +2120,10 @@ class ApiOnlineTransaction extends Controller
                             ELSE product_global_price.product_global_price
                         END) as product_price'),
                     DB::raw('(select product_detail.product_detail_stock_item from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . ' order by id_product_detail desc limit 1) as product_stock_status'),
-                    DB::raw('(CASE
-                            WHEN (select product_detail.max_order from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = '.$post['id_outlet'].' ) 
-                            is NULL THEN NULL
-                            ELSE (select product_detail.max_order from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = '.$post['id_outlet'].' )
-                        END) as max_order'),
                     'brand_product.id_brand', 'products.product_variant_status'
                 ])
                 ->join('brand_product','brand_product.id_product','=','products.id_product')
                 ->leftJoin('product_global_price','product_global_price.id_product','=','products.id_product')
-                // brand produk ada di outlet
                 ->where('brand_outlet.id_outlet','=',$post['id_outlet'])
                 ->join('brand_outlet','brand_outlet.id_brand','=','brand_product.id_brand')
                 ->whereRaw('products.id_product in (CASE
@@ -2383,31 +2154,6 @@ class ApiOnlineTransaction extends Controller
             ->groupBy('products.id_product')
             ->orderBy('products.position')
             ->find($item['id_product']);
-            $max_order = $product['max_order'];
-            if($max_order==null){
-                $max_order = $global_max_order;
-            }
-            if($max_order&&($item['qty']>$max_order)){
-                $is_advance = 1;
-                $error_msg[] = MyHelper::simpleReplace(
-                    Setting::select('value_text')->where('key','transaction_exceeds_limit_text')->pluck('value_text')->first()?:'Transaksi anda melebihi batas! Maksimal transaksi untuk %product_name% : %max_order%',
-                    [
-                        'product_name' => $product['product_name'],
-                        'max_order' => $max_order
-                    ]
-                );
-                continue;
-            }
-            if(!$product){
-                $missing_product++;
-                if (isset($item['bonus']) && $item['bonus'] == 1) {
-        			$missing_bonus_product 	= true;
-        		}
-                if ($item['is_promo'] ?? false) {
-                	$promo_missing_product = true;
-                }
-                continue;
-            }
             $product->append('photo');
             $product = $product->toArray();
 
@@ -2418,13 +2164,6 @@ class ApiOnlineTransaction extends Controller
             }
 
             if($item['qty'] > $product['product_stock_status']){
-            	if ((isset($item['bonus']) && $item['bonus'] == 1) || (isset($item['is_promo']) && $item['is_promo'] == 1)) {
-            		if (isset($item['bonus']) && $item['bonus'] == 1) {
-            			$missing_bonus_product 	= true;
-            		}
-            		$promo_missing_product = true;
-            		continue;
-            	}
                 $error_msg[] = MyHelper::simpleReplace(
                     'Produk %product_name% tidak tersedia',
                     [
@@ -2436,99 +2175,50 @@ class ApiOnlineTransaction extends Controller
             unset($product['photos']);
             $product['id_custom'] = $item['id_custom']??null;
             $product['qty'] = $item['qty'];
-            $product['note'] = $item['note']??'';
-            $product['promo_discount'] = 0;
-            isset($item['new_price']) ? $product['new_price']=$item['new_price'] : '';
-            $product['is_promo'] = 0;
-            $product['is_free'] = $item['is_free']??0;
-            $product['bonus'] = $item['bonus']??0;
-
-            $product['id_product_variant_group'] = $item['id_product_variant_group'] ?? null;
-            if ($product['id_product_variant_group']) {
-                $product['product_price'] = $item['transaction_product_price'];
-                $product['selected_variant'] = Product::getVariantParentId($item['id_product_variant_group'], Product::getVariantTree($item['id_product'], $outlet)['variants_tree'], array_column($product['extra_modifiers']??[], 'id_product_variant'));
-            } elseif ($product['extra_modifiers']??[]) {
-                $product['selected_variant'] = array_column($product['extra_modifiers']??[], 'id_product_variant');
-            } else {
-                $product['selected_variant'] = [];
-            }
-
-            $order = array_flip($product['selected_variant']);
-            $variants = array_merge(ProductVariant::select('id_product_variant', 'product_variant_name')->whereIn('id_product_variant', array_keys($item['variants']))->get()->toArray(), $product['extra_modifiers']??[]);
-            $product['extra_modifiers'] = array_column($product['extra_modifiers']??[], 'id_product_variant');
-            $filtered = array_filter($variants, function($i) use ($product) {return in_array($i['id_product_variant'], $product['selected_variant']);});
-            if(count($variants) != count($filtered)){
-                $variantsss = ProductVariant::join('product_variant_pivot', 'product_variant_pivot.id_product_variant', 'product_variants.id_product_variant')->select('product_variant_name')->where('id_product_variant_group', $product['id_product_variant_group'])->pluck('product_variant_name')->toArray();
-                $modifiersss = ProductModifier::whereIn('id_product_modifier', array_column($item['modifiers'], 'id_product_modifier'))->where('modifier_type', 'Modifier Group')->pluck('text')->toArray();
-                $error_msg[] = MyHelper::simpleReplace(
-                    'Varian %variants% untuk %product_name% tidak tersedia',
-                    [
-                        'variants' => implode(', ', array_merge($variantsss, $modifiersss)),
-                        'product_name' => $product['product_name']
-                    ]
-                );
-                continue;
-            }
-            usort($variants, function ($a, $b) use ($order) {
-                return $order[$a['id_product_variant']] <=> $order[$b['id_product_variant']];
-            });
-            $product['variants'] = $variants;
-
-            if($product['id_product_variant_group']){
-                $productVariantGroup = ProductVariantGroup::where('id_product_variant_group', $product['id_product_variant_group'])->first();
-                if($productVariantGroup['product_variant_group_visibility'] == 'Hidden'){
-                    $error_msg[] = MyHelper::simpleReplace(
-                        'Product %product_name% tidak tersedia',
-                        [
-                            'product_name' => $product['product_name']
-                        ]
-                    );
-                    continue;
-                }else{
-                    if($outlet['outlet_different_price']){
-                        $product_variant_group_price = ProductVariantGroupSpecialPrice::where('id_product_variant_group', $product['id_product_variant_group'])->where('id_outlet', $outlet['id_outlet'])->first()['product_variant_group_price']??0;
-                    }else{
-                        $product_variant_group_price = $productVariantGroup['product_variant_group_price']??0;
-                    }
-                }
-            }else{
-                $product_variant_group_price = (int) $product['product_price'];
-            }
-
-            $product['product_variant_group_price'] = (int)$product_variant_group_price;
 
             $product['product_price_total'] = $item['transaction_product_subtotal'];
             $product['product_price_raw'] = (int) $product['product_price'];
             $product['product_price_raw_total'] = (int) $product['product_price'];
             $product['qty_stock'] = (int)$product['product_stock_status'];
-            // $product['product_price'] = MyHelper::requestNumber($product['product_price']+$mod_price, '_CURRENCY');
             $product['product_price'] = (int) $product['product_price'];
-
-            if (!$product['bonus']) {
-            	$tree[$product['id_brand']]['products'][]=$product;
-            	$subtotal += $product['product_price_total'];
-            }
-
-            $product['is_promo'] 		= $item['is_promo']??0;
-            $product['promo_discount'] 	= $item['discount']??0;
-            $tree_promo[$product['id_brand']]['products'][] = $product;
-            $subtotal_promo += $product['product_price_total'];
-
-            if (isset($subtotal_per_brand[$item['id_brand']])) {
-            	$subtotal_per_brand[$item['id_brand']] += $product['product_price_total'];
-            }else{
-            	$subtotal_per_brand[$item['id_brand']] = $product['product_price_total'];
-            }
+            $subtotalProduct = $subtotalProduct + $item['transaction_product_subtotal'];
 
             //calculate total item
             $totalItem += $product['qty'];
-            // return $product;
             if(!empty($product['product_stock_status'])){
                 $product['product_stock_status'] = 'Available';
             }else{
                 $product['product_stock_status'] = 'Sold Out';
             }
             $items[] = $product;
+        }
+
+        foreach ($grandTotal as $keyTotal => $valueTotal) {
+            if($valueTotal == 'tax'){
+                $post['subtotal'] = $subtotalProduct + ($itemServices['subtotal_service']??0);
+                $post['tax'] = app($this->setting_trx)->countTransaction($valueTotal, $post);
+
+                if (isset($post['tax']->original['messages'])) {
+                    $mes = $post['tax']->original['messages'];
+
+                    if ($post['tax']->original['messages'] == ['Price Product Not Found']) {
+                        if (isset($post['tax']->original['product'])) {
+                            $mes = ['Price Product Not Found with product '.$post['tax']->original['product'].' at outlet '.$outlet['outlet_name']];
+                        }
+                    }
+
+                    if ($post['sub']->original['messages'] == ['Price Product Not Valid']) {
+                        if (isset($post['tax']->original['product'])) {
+                            $mes = ['Price Product Not Valid with product '.$post['tax']->original['product'].' at outlet '.$outlet['outlet_name']];
+                        }
+                    }
+
+                    return response()->json([
+                        'status'    => 'fail',
+                        'messages'  => $mes
+                    ]);
+                }
+            }
         }
 
         if(empty($post['customer']) || empty($post['customer']['name'])){
@@ -2561,39 +2251,6 @@ class ApiOnlineTransaction extends Controller
             ];
         }
 
-        // check service product
-        $result['item_service'] = [];
-        if(!empty($post['item_service'])){
-            $itemServices = $this->checkServiceProduct($post, $outlet);
-            $result['item_service'] = $itemServices['item_service']??[];
-            $totalItem = $totalItem + $itemServices['total_item_service']??0;
-            if(!isset($post['from_new']) || (isset($post['from_new']) && $post['from_new'] === false)){
-                $error_msg = array_merge($error_msg, $itemServices['error_message']??[]);
-            }
-        }
-
-        if($scopeUser == 'apps') {
-            if ($promo_missing_product) {
-                $promo_valid = false;
-                $promo_discount = 0;
-                $promo_source = null;
-                $discount_promo['discount_delivery'] = 0;
-                $error = ['Promo tidak berlaku karena product tidak tersedia'];
-                $promo_error_product = $missing_bonus_product ? 0 : 'all';
-                $promo_error = app($this->promo_campaign)->promoError('transaction', $error, null, $promo_error_product);
-            } elseif ($missing_product) {
-                $error_msg[] = MyHelper::simpleReplace(
-                    '%missing_product% products not found',
-                    [
-                        'missing_product' => $missing_product
-                    ]
-                );
-            }
-
-            $post['discount'] = $post['discount'] + $promo_discount;
-            $post['discount_delivery'] = $post['discount_delivery'] + ($discount_promo['discount_delivery']??0);
-        }
-
         $result['outlet'] = [
             'id_outlet' => $outlet['id_outlet'],
             'outlet_code' => $outlet['outlet_code'],
@@ -2604,120 +2261,28 @@ class ApiOnlineTransaction extends Controller
         ];
         $result['item'] = $items;
         $result['subtotal_product_service'] = $itemServices['subtotal_service']??0;
-        $result['subtotal_product'] = $subtotal;
-        $subtotal += $itemServices['subtotal_service']??0;
+        $result['subtotal_product'] = $subtotalProduct;
+        $subtotal = $post['subtotal'];
 
         $earnedPoint = $this->countTranscationPoint($post, $user);
+        $cashback = $earnedPoint['cashback'] ?? 0;
+        if ($cashback) {
+            $result['point_earned'] = [
+                'value' => MyHelper::requestNumber($cashback, '_CURRENCY'),
+                'text' => MyHelper::setting('cashback_earned_text', 'value', 'Point yang akan didapatkan')
+            ];
+        }
 
         $result['subtotal'] = $subtotal;
         $result['shipping'] = $post['shipping']+$shippingGoSend;
         $result['discount'] = $post['discount'];
-        $result['discount_delivery'] = $post['discount_delivery'];
-        $result['service'] = (int) $post['service'];
-        $result['tax'] = (int) $post['tax'];
-        $result['grandtotal'] = (int)$result['subtotal'] + (int)(-$post['discount']) + (int)$post['service'] + (int)$post['tax'] + (int)$post['shipping'] + $shippingGoSend + (int)(-$post['discount_delivery']);
+        $result['grandtotal'] = (int)$result['subtotal'] + (int)(-$post['discount']) + (int)$post['service'] + (int)$post['tax'];
         $result['subscription'] = 0;
         $result['used_point'] = 0;
         $balance = app($this->balance)->balanceNow($user->id);
         $result['points'] = (int) $balance;
-        $result['total_promo'] = app($this->promo)->availablePromo();
-        $result['pickup_type'] = 1;
-        $result['delivery_type'] = $outlet['delivery_order'];
-        $result['available_payment'] = null;
-        $result['point_earned'] = null;
-
-        if($scopeUser == 'apps') {
-            if ($request->id_subscription_user && !$request->promo_code && !$request->id_deals_user) {
-                $promo_source = 'subscription';
-                $check_subs = app($this->subscription_use)->calculate($request_promo, $request->id_subscription_user, $result['subtotal'], $subtotal_per_brand, $post['item'], $post['id_outlet'], $subs_error, $errorProduct, $subs_product, $subs_applied_product, $result['shipping']);
-
-                if (!empty($subs_error)) {
-                    $error = $subs_error;
-                    $promo_error = app($this->promo_campaign)->promoError('transaction', $error, null, $errorProduct);
-                    $promo_error['product'] = $subs_applied_product ?? null;
-                    $promo_error['product_label'] = $subs_product ?? '';
-                    $result['subscription'] = 0;
-                } else {
-                    $promo_valid = true;
-                    if ($check_subs['type'] == 'discount_delivery') {
-                        $result['grandtotal'] -= $check_subs['value'];
-                        $result['discount_delivery'] += $check_subs['value'];
-                    } elseif ($check_subs['type'] == 'discount') {
-                        $result['grandtotal'] -= $check_subs['value'];
-                        $result['discount'] += $check_subs['value'];
-                    } else {
-                        $result['subscription'] = $check_subs['value'];
-                    }
-                }
-            }
-
-            $result['get_point'] = ($post['payment_type'] != 'Balance') ? $this->checkPromoGetPoint($promo_source) : 0;
-
-            $cashback = $post['cashback'] ?? 0;
-            if ($result['get_point'] && $earnedPoint['cashback']) {
-                $cashback = $earnedPoint['cashback'];
-            }
-
-            if ($use_referral) {
-                $referralCashback = $pct->countReferralCashback($code->id_promo_campaign, $subtotal);
-                if ($referralCashback['status'] == 'fail') {
-                    $promo_error = app($this->promo_campaign)->promoError('transaction', $referralCashback['messages'] ?? ['Gagal menghitung referral cashback']);
-                }
-                $cashback = $referralCashback['result'] ?? $post['cashback'];
-            }
-
-            if ($cashback) {
-                $result['point_earned'] = [
-                    'value' => MyHelper::requestNumber($cashback, '_CURRENCY'),
-                    'text' => MyHelper::setting('cashback_earned_text', 'value', 'Point yang akan didapatkan')
-                ];
-            }
-
-            if (isset($post['payment_type']) && $post['payment_type'] == 'Balance') {
-                if($balance >= ($result['grandtotal']-$result['subscription'])){
-                    $result['used_point'] = $result['grandtotal'];
-
-                    if ($result['subscription'] >= $result['used_point']) {
-                        $result['used_point'] = 0;
-                    }else{
-                        $result['used_point'] = $result['used_point'] - $result['subscription'];
-                    }
-                }else{
-                    $result['used_point'] = $balance;
-                }
-
-                $result['points'] -= $result['used_point'];
-            }
-
-            if (!empty($result['subscription']))
-            {
-                if ($result['subscription'] >= $result['grandtotal']) {
-                    $result['grandtotal'] = 0;
-                }else{
-                    $result['grandtotal'] = $result['grandtotal'] - $result['subscription'];
-                }
-            }
-        }
-
         $result['total_payment'] = $result['grandtotal'] - $result['used_point'];
-
-
-        $result['subscription'] = (int) $result['subscription'];
         $result['discount'] = (int) $result['discount'];
-
-        $result['available_delivery'] = $listDelivery;
-
-        if ($post['type'] == 'Delivery Order') {
-        	$result['delivery_type'] = $this->showListDelivery($result['delivery_type'], $result['available_delivery']);
-        } else {
-        	$result['delivery_type'] = $this->showListDeliveryPickup($result['delivery_type'], $post['id_outlet']);
-        }
-
-        if ($promo_valid) {
-        	// check available shipment, payment
-        	$result = app($this->promo)->getTransactionCheckPromoRule($result, $promo_source, $code ?? $deals ?? $request, $post['type']);
-        }
-
         $result['payment_detail'] = [];
         
         //subtotal
@@ -2727,68 +2292,11 @@ class ApiOnlineTransaction extends Controller
             'amount'        => MyHelper::requestNumber($result['subtotal'],'_CURRENCY')
         ];
 
-        //discount product / bill
-        if($result['discount'] > 0){
-            if($request->id_subscription_user){
-                $result['payment_detail'][] = [
-                    'name'          => 'Subscription (Diskon)',
-                    "is_discount"   => 1,
-                    'amount'        => '- '.MyHelper::requestNumber($result['discount'],'_CURRENCY')
-                ];
-            }else{
-                $result['payment_detail'][] = [
-                    'name'          => 'Diskon (Promo)',
-                    "is_discount"   => 1,
-                    'amount'        => '- '.MyHelper::requestNumber($result['discount'],'_CURRENCY')
-                ];
-            }
-        }
-
-        if ($post['type'] == 'GO-SEND') {
-	        //delivery gosend
-	        if($result['shipping'] > 0){
-	            $result['payment_detail'][] = [
-	                'name'          => 'Delivery (GO-SEND)',
-	                "is_discount"   => 0,
-	                'amount'        => MyHelper::requestNumber($result['shipping'],'_CURRENCY')
-	            ];
-	        }
-        }
-
-        if (isset($delivery['delivery_name'])) {
-        	$result['payment_detail'][] = [
-
-	    		'name'          => 'Delivery' . ($delivery['delivery_name'] ? ' (' . $delivery['delivery_name'] . ')' : null),
-	            "is_discount"   => 0,
-	            'amount'        => MyHelper::requestNumber($delivery['price'],'_CURRENCY')
-	    	];
-        }
-
-        //discount delivery
-        if($result['discount_delivery'] > 0){
-            if($request->id_subscription_user){
-                $result['payment_detail'][] = [
-                    'name'          => 'Subscription (Delivery)',
-                    "is_discount"   => 1,
-                    'amount'        => '- '.MyHelper::requestNumber($result['discount_delivery'],'_CURRENCY')
-                ];
-            }else{
-                $result['payment_detail'][] = [
-                    'name'          => 'Diskon (Delivery)',
-                    "is_discount"   => 1,
-                    'amount'        => '- '.MyHelper::requestNumber($result['discount_delivery'],'_CURRENCY')
-                ];
-            }
-        }
-
-        //add subscription to payment detail
-        if($request->id_subscription_user && $result['subscription'] > 0){
-            $result['payment_detail'][] = [
-                'name'          => 'Subscription',
-                "is_discount"   => 1,
-                'amount'        => '- '.MyHelper::requestNumber($result['subscription'],'_CURRENCY')
-            ];
-        }
+        $result['payment_detail'][] = [
+            'name'          => 'Tax',
+            "is_discount"   => 0,
+            'amount'        => MyHelper::requestNumber((int) $post['tax'],'_CURRENCY')
+        ];
 
         if (count($error_msg) > 1 && (!empty($post['item']) || !empty($post['item_service']))) {
             $error_msg = ['Produk atau Service yang anda pilih tidak tersedia. Silakan cek kembali pesanan anda'];
@@ -2796,7 +2304,7 @@ class ApiOnlineTransaction extends Controller
 
         $result['currency'] = 'Rp';
         $result['complete_profile'] = true;
-        return MyHelper::checkGet($result)+['messages'=>$error_msg,'promo_error'=>$promo_error];
+        return MyHelper::checkGet($result)+['messages'=>$error_msg];
     }
 
     public function checkBundlingProduct($post, $outlet, $subtotal_per_brand = []){

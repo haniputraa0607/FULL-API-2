@@ -197,6 +197,7 @@ class ApiAcademyScheduleController extends Controller
                         'id_transaction_academy' => $post['id_transaction_academy'],
                         'id_user' => $post['id_user'],
                         'schedule_date' => date('Y-m-d H:i:s', strtotime($value['date'])),
+                        'transaction_academy_schedule_status' => $value['transaction_academy_schedule_status']??'Not Started',
                         'meeting' => $key
                     ]);
                 }

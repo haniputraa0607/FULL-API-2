@@ -335,6 +335,7 @@ class ApiTransactionHomeService extends Controller
         if(empty($brand)){
             return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
         }
+        $totalItem = 0;
         foreach ($post['item_service']??[] as $key=>$item){
             $err = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
@@ -410,6 +411,8 @@ class ApiTransactionHomeService extends Controller
                 "qty" => $item['qty'],
                 "error_msg" => (empty($err)? null:implode(".", array_unique($err)))
             ];
+
+            $totalItem = $totalItem + $item['qty'];
 
             if(!empty($err)){
                 $continueCheckOut = false;
@@ -512,7 +515,6 @@ class ApiTransactionHomeService extends Controller
         $result['booking_date_display'] = MyHelper::dateFormatInd($post['booking_date'].' '.$post['booking_time'], true, true);
         $result['item_service'] = array_values($itemService);
         $result['subtotal'] = $post['subtotal'];
-        $result['tax'] = (int) $post['tax'];
         $result['grandtotal'] = (int)$result['subtotal'] + (int)$post['tax'] ;
         $balance = app($this->balance)->balanceNow($user->id);
         $result['points'] = (int) $balance;
@@ -526,6 +528,19 @@ class ApiTransactionHomeService extends Controller
                 'text' => MyHelper::setting('cashback_earned_text', 'value', 'Point yang akan didapatkan')
             ];
         }
+
+        $result['payment_detail'][] = [
+            'name'          => 'Subtotal ('.$totalItem.' item)',
+            "is_discount"   => 0,
+            'amount'        => MyHelper::requestNumber($result['subtotal'],'_CURRENCY')
+        ];
+
+
+        $result['payment_detail'][] = [
+            'name'          => 'Tax',
+            "is_discount"   => 0,
+            'amount'        => MyHelper::requestNumber((int) $post['tax'],'_CURRENCY')
+        ];
 
         $result['currency'] = 'Rp';
         $result['complete_profile'] = (empty($user->complete_profile) ?false:true);

@@ -8,7 +8,7 @@
         "php": "^7.1.3",
         "aliyuncs/oss-sdk-php": "~2.0",
         "arcanedev/log-viewer": "~4.7.0",
-        "barryvdh/laravel-dompdf": "^0.9.0", 
+        "barryvdh/laravel-dompdf": "^0.9.0",
         "bogardo/mailgun": "^5.1",
         "brozot/laravel-fcm": "^1.2",
         "cmdisp/monolog-microsoft-teams": "^1.2",
@@ -34,6 +34,7 @@
         "spatie/laravel-backup": "^6.7",
         "stephenlake/php-google-holidays": "^1.0",
         "superbalist/laravel-google-cloud-storage": "^2.2",
+        "xendit/xendit-php": "^2.16",
         "yajra/laravel-datatables-oracle": "~9.0"
     },
     "require-dev": {

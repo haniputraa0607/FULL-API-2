@@ -232,7 +232,7 @@ class ApiReportSalesController extends Controller
 
     	$list = Transaction::where('transactions.id_outlet', $request->id_outlet)
     				->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
-    				->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+    				// ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
     				->where('transactions.transaction_payment_status', 'Completed')
                     ->where('transactions.transaction_from', 'outlet-service')
 					// ->whereNull('reject_at')
@@ -247,7 +247,9 @@ class ApiReportSalesController extends Controller
 							+ CASE WHEN transactions.transaction_discount_delivery IS NOT NULL THEN ABS(transactions.transaction_discount_delivery) ELSE 0 END
 							+ CASE WHEN transactions.transaction_discount_bill IS NOT NULL THEN ABS(transactions.transaction_discount_bill) ELSE 0 END
 						) as total_discount,
-                        SUM(CASE WHEN transactions.transaction_grandtotal IS NOT NULL THEN transactions.transaction_grandtotal ELSE 0 END) as total_grandtotal
+                        SUM(CASE WHEN transactions.transaction_grandtotal IS NOT NULL THEN transactions.transaction_grandtotal ELSE 0 END) as total_grandtotal,
+                        COUNT(CASE WHEN Date(transactions.transaction_date) = Date(transaction_outlet_services.pickup_at) AND Date(transaction_outlet_services.pickup_at) = Date(transaction_outlet_services.completed_at) THEN 1 ELSE NULL END) as transaction_in_date,
+                        COUNT(CASE WHEN Date(transactions.transaction_date) = Date(transaction_outlet_services.pickup_at) AND Date(transaction_outlet_services.pickup_at) = Date(transaction_outlet_services.completed_at) THEN NULL ELSE 1 END) as transaction_out_date
 					'))
     				->groupBy(DB::raw('Date(transactions.transaction_date)'));
 

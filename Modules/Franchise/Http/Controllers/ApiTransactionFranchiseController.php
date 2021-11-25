@@ -85,10 +85,10 @@ class ApiTransactionFranchiseController extends Controller
             $delivery = true;
         }
 
-        $query = Transaction::join('transaction_pickups','transaction_pickups.id_transaction','=','transactions.id_transaction')->select('transactions.*',
-            'transaction_pickups.*',
-            'transaction_pickup_go_sends.*',
-            'transaction_pickup_wehelpyous.*',
+        $query = Transaction::join('transaction_outlet_services','transaction_outlet_services.id_transaction','=','transactions.id_transaction')->select('transactions.*',
+            'transaction_outlet_services.*',
+            // 'transaction_pickup_go_sends.*',
+            // 'transaction_pickup_wehelpyous.*',
             'transaction_products.*',
             'users.*',
             'products.*',
@@ -96,8 +96,8 @@ class ApiTransactionFranchiseController extends Controller
             'outlets.outlet_code', 'outlets.outlet_name')
         	->join('disburse_outlet_transactions', 'transactions.id_transaction', 'disburse_outlet_transactions.id_transaction')
             ->leftJoin('outlets','outlets.id_outlet','=','transactions.id_outlet')
-            ->leftJoin('transaction_pickup_go_sends','transaction_pickups.id_transaction_pickup','=','transaction_pickup_go_sends.id_transaction_pickup')
-            ->leftJoin('transaction_pickup_wehelpyous','transaction_pickups.id_transaction_pickup','=','transaction_pickup_wehelpyous.id_transaction_pickup')
+            // ->leftJoin('transaction_pickup_go_sends','transaction_pickups.id_transaction_pickup','=','transaction_pickup_go_sends.id_transaction_pickup')
+            // ->leftJoin('transaction_pickup_wehelpyous','transaction_pickups.id_transaction_pickup','=','transaction_pickup_wehelpyous.id_transaction_pickup')
             ->leftJoin('transaction_products','transactions.id_transaction','=','transaction_products.id_transaction')
             ->leftJoin('users','transactions.id_user','=','users.id')
             ->leftJoin('products','products.id_product','=','transaction_products.id_product')

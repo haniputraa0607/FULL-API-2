@@ -84,11 +84,6 @@ Route::group(['prefix' => 'franchise'], function () {
             Route::get('list-bank', 'ApiReportDisburseController@listBank');
         });
 
-        Route::group(['prefix' => 'report-sales'], function() {
-            Route::post('summary', 'ApiReportSalesController@summary');
-            Route::post('list', 'ApiReportSalesController@listDaily');
-        });
-
         Route::group(['prefix' => 'report-promo'], function() {
             Route::post('detail', 'ApiReportPromoController@detailPromo');
             Route::post('{promo}', 'ApiReportPromoController@listPromoV2');
@@ -122,6 +117,15 @@ Route::group(['prefix' => 'franchise'], function () {
                 Route::post('export','ApiReportTransactionController@newModifierExport');
                 Route::delete('export/{export_queue}','ApiReportTransactionController@destroyModifierExport');
                 Route::any('export/action', 'ApiReportTransactionController@actionModifierExport');
+            });
+        });
+    });
+
+    Route::group(['middleware' => ['auth:partners', 'scopes:partners']], function () {
+        Route::group(['prefix' => 'report-sales'], function() {
+            Route::group(['prefix' => 'outlet'], function() {
+                Route::post('summary', 'ApiReportSalesController@outletSummary');
+                Route::post('list', 'ApiReportSalesController@outletListDaily');
             });
         });
     });

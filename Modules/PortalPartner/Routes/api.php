@@ -21,6 +21,7 @@ Route::group(['prefix' => 'partner'], function () {
         Route::group(['prefix' => 'user'], function() {
             Route::post('update-first-pin', 'ApiUserPartnerController@updateFirstPin');
             Route::post('detail/for-login', 'ApiUserPartnerController@detail');
+            Route::post('detail/for-login-outlet', 'ApiUserPartnerController@idOutlet');
         });
         Route::group(['prefix' => 'promo'], function() {
             Route::post('detail/deals', 'ApiDeals@detail');

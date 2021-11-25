@@ -12,6 +12,7 @@ use Modules\BusinessDevelopment\Entities\Partner;
 use App\Lib\MyHelper;
 use App\Jobs\SendEmailUserFranchiseJob;
 use Illuminate\Support\Facades\Auth;
+use Modules\BusinessDevelopment\Entities\Location;
 
 class ApiUserPartnerController extends Controller
 {
@@ -80,6 +81,26 @@ class ApiUserPartnerController extends Controller
             $data = Partner::where('id_partner', $post['id_partner'])->first();
         }
         return response()->json(MyHelper::checkGet($data));
+    }
+
+    public function idOutlet(Request $request){
+        $post = $request->json()->all();
+        if(isset($post['id_partner']) && !empty($post['id_partner'])){
+            $id_branch = Location::where('id_partner',$post['id_partner'])->get();
+            $id_branch = $id_branch[0]['id_branch'];
+            if($id_branch){
+                $data_outlet = Outlet::where('id_branch',$id_branch)->get();
+                if(count($data_outlet)>0){
+                    return response()->json(['status' => 'success', 'result' => $data_outlet[0]['id_outlet']]);    
+                }else{
+                    return response()->json(['status' => 'fail', 'messages' => ['Incomplete data']]);
+                }
+            }else{
+                return response()->json(['status' => 'fail', 'messages' => ['Incomplete data']]);
+            }
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incomplete data']]);
+        }
     }
 } 
  

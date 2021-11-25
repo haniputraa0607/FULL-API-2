@@ -223,7 +223,7 @@ class ApiReportSalesController extends Controller
         return MyHelper::checkGet($result);
     }
 
- 	public function listDaily(Request $request)
+ 	public function outletListDaily(Request $request)
     {
     	$post = $request->json()->all();
         if(!$request->id_outlet){
@@ -231,81 +231,44 @@ class ApiReportSalesController extends Controller
         }
 
     	$list = Transaction::where('transactions.id_outlet', $request->id_outlet)
-    				->join('transaction_pickups', 'transaction_pickups.id_transaction', 'transactions.id_transaction')
+    				->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
     				->where('transactions.transaction_payment_status', 'Completed')
 					// ->whereNull('reject_at')
 					->select(DB::raw('
 						Date(transactions.transaction_date) as transaction_date,
-						COUNT(CASE WHEN transactions.id_transaction AND transaction_pickups.reject_at IS NULL THEN 1 ELSE NULL END) AS total_transaction, 
-						COUNT(CASE WHEN transaction_pickups.pickup_by = "Customer" AND transaction_pickups.reject_at IS NULL THEN 1 ELSE NULL END) as total_transaction_pickup,
-						COUNT(CASE WHEN transaction_pickups.pickup_by != "Customer" AND transaction_pickups.reject_at IS NULL THEN 1 ELSE NULL END) as total_transaction_delivery,
-						SUM(CASE WHEN transactions.transaction_gross IS NOT NULL AND transaction_pickups.reject_at IS NULL THEN transactions.transaction_gross ELSE 0 END) as total_subtotal,
-						SUM(
-							CASE WHEN transactions.transaction_discount_item IS NOT NULL AND transaction_pickups.reject_at IS NULL THEN ABS(transactions.transaction_discount_item) 
-								WHEN transactions.transaction_discount IS NOT NULL AND transaction_pickups.reject_at IS NULL THEN ABS(transactions.transaction_discount)
+                        COUNT(CASE WHEN transactions.id_transaction IS NULL THEN NULL ELSE 1 END) AS total_transaction,
+                        SUM(CASE WHEN transactions.transaction_gross IS NOT NULL THEN transactions.transaction_gross ELSE 0 END) as total_subtotal,
+                        SUM(
+							CASE WHEN transactions.transaction_discount_item IS NOT NULL THEN ABS(transactions.transaction_discount_item) 
+								WHEN transactions.transaction_discount IS NOT NULL THEN ABS(transactions.transaction_discount)
 								ELSE 0 END
-							+ CASE WHEN transactions.transaction_discount_delivery IS NOT NULL AND transaction_pickups.reject_at IS NULL THEN ABS(transactions.transaction_discount_delivery) ELSE 0 END
-							+ CASE WHEN transactions.transaction_discount_bill IS NOT NULL AND transaction_pickups.reject_at IS NULL THEN ABS(transactions.transaction_discount_bill) ELSE 0 END
-						) as total_discount,
-						SUM(CASE WHEN transaction_pickups.reject_at IS NULL THEN transactions.transaction_shipment_go_send + transactions.transaction_shipment ELSE 0 END) as total_delivery,
-						SUM(CASE WHEN transaction_pickups.reject_at IS NULL THEN transactions.transaction_grandtotal ELSE 0 END) as total_grandtotal,
-						COUNT(CASE WHEN transaction_pickups.receive_at IS NOT NULL THEN 1 ELSE NULL END) as total_accept,
-						COUNT(CASE WHEN transaction_pickups.reject_at IS NOT NULL THEN 1 ELSE NULL END) as total_reject,
-						FLOOR(
-							(
-								COUNT(CASE WHEN transaction_pickups.receive_at IS NOT NULL THEN 1 ELSE NULL END) 
-								/ COUNT(CASE WHEN transactions.transaction_payment_status = "Completed" THEN 1 ELSE NULL END)
-							)
-							* 100
-						) as acceptance_rate,
-						COUNT(
-							CASE WHEN transaction_pickups.receive_at IS NOT NULL THEN 1
-								 WHEN transaction_pickups.reject_reason NOT LIKE "auto reject order by system%" THEN 1
-							ELSE NULL END
-						) as total_response,
-						COUNT(
-							CASE WHEN transaction_pickups.reject_reason = "auto reject order by system" THEN 1
-							ELSE NULL END
-						) as total_auto_reject,
-						COUNT(
-							CASE WHEN transaction_pickups.receive_at IS NULL AND transaction_pickups.reject_reason NOT LIKE "auto reject order by system%" THEN 1
-							ELSE NULL END
-						) as total_manual_reject,
-						FLOOR(
-							(
-								COUNT(
-									CASE WHEN transaction_pickups.receive_at IS NOT NULL THEN 1
-										 WHEN transaction_pickups.reject_reason NOT LIKE "auto reject order by system%" THEN 1
-									ELSE NULL END
-								)/ COUNT(CASE WHEN transactions.transaction_payment_status = "Completed" THEN 1 ELSE NULL END)
-							)
-							* 100
-						) as response_rate,
-						COUNT(CASE WHEN transactions.transaction_payment_status = "Completed" THEN 1 ELSE NULL END) as total_complete_payment
+							+ CASE WHEN transactions.transaction_discount_delivery IS NOT NULL THEN ABS(transactions.transaction_discount_delivery) ELSE 0 END
+							+ CASE WHEN transactions.transaction_discount_bill IS NOT NULL THEN ABS(transactions.transaction_discount_bill) ELSE 0 END
+						) as total_discount
 					'))
     				->groupBy(DB::raw('Date(transactions.transaction_date)'));
 
-        if(isset($post['filter_type']) && $post['filter_type'] == 'range_date'){
-            $dateStart = date('Y-m-d', strtotime($post['date_start']));
-            $dateEnd = date('Y-m-d', strtotime($post['date_end']));
-            $list = $list->whereDate('transactions.transaction_date', '>=', $dateStart)->whereDate('transactions.transaction_date', '<=', $dateEnd);
-        }elseif (isset($post['filter_type']) && $post['filter_type'] == 'today'){
-            $currentDate = date('Y-m-d');
-            $list = $list->whereDate('transactions.transaction_date', $currentDate);
-        }else{
-            $list = $list->whereDate('transactions.transaction_date', date('Y-m-d'));
-        }
+        // if(isset($post['filter_type']) && $post['filter_type'] == 'range_date'){
+        //     $dateStart = date('Y-m-d', strtotime($post['date_start']));
+        //     $dateEnd = date('Y-m-d', strtotime($post['date_end']));
+        //     $list = $list->whereDate('transactions.transaction_date', '>=', $dateStart)->whereDate('transactions.transaction_date', '<=', $dateEnd);
+        // }elseif (isset($post['filter_type']) && $post['filter_type'] == 'today'){
+        //     $currentDate = date('Y-m-d');
+        //     $list = $list->whereDate('transactions.transaction_date', $currentDate);
+        // }else{
+        //     $list = $list->whereDate('transactions.transaction_date', date('Y-m-d'));
+        // }
 
-    	$order = $post['order']??'transaction_date';
-        $orderType = $post['order_type']??'desc';
-        $list = $list->orderBy($order, $orderType);
+    	// $order = $post['order']??'transaction_date';
+        // $orderType = $post['order_type']??'desc';
+        // $list = $list->orderBy($order, $orderType);
 
         $sub = $list;
 
         $query = DB::table(DB::raw('('.$sub->toSql().') as report_sales'))
 		        ->mergeBindings($sub->getQuery());
 
-		$this->filterSalesReport($query, $post);
+		// $this->filterSalesReport($query, $post);
 
         if($post['export'] == 1){
             $query = $query->get();
@@ -313,9 +276,9 @@ class ApiReportSalesController extends Controller
             $query = $query->paginate(30);
         }
 
-        if (!$query) {
-        	return response()->json(['status' => 'fail', 'messages' => ['Empty']]);
-        }
+        // if (!$query) {
+        // 	return response()->json(['status' => 'fail', 'messages' => ['Empty']]);
+        // }
 
         $result = $query->toArray();
 

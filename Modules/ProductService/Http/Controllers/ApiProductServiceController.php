@@ -331,7 +331,10 @@ class ApiProductServiceController extends Controller
         }
 
         $result = [
-            'favorite_hs' => FavoriteUserHiarStylist::where('id_user', $user->id)->exists(),
+            'favorite_hs' => FavoriteUserHiarStylist::join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'favorite_user_hair_stylist.id_user_hair_stylist')
+                ->where('user_hair_stylist.user_hair_stylist_status', 'Active')
+                ->where('id_user', $user->id)
+                ->exists(),
             'dates' => $listDate
         ];
 
@@ -413,12 +416,12 @@ class ApiProductServiceController extends Controller
             }
 
             if(empty($val['latitude']) && empty($val['longitude'])){
-                continue;
+                $available = false;
             }
             $distance = (float)app($this->outlet)->distance($post['latitude'], $post['longitude'], $val['latitude'], $val['longitude'], "K");
 
             if($distance > 0 && $distance <= $maximumRadius){
-                continue;
+                $available = false;
             }
 
             if($bookDate == date('Y-m-d') && $val['home_service_status'] == 0){

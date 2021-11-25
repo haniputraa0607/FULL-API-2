@@ -1939,6 +1939,9 @@ class ApiOnlineTransaction extends Controller
         }elseif ($post['transaction_from'] == 'academy'){
             $academy = app($this->trx_academy)->check($request);
             return $academy;
+        }elseif ($post['transaction_from'] == 'shop'){
+            $shop = app($this->trx_shop)->check($request);
+            return $shop;
         }
 
         $bearerToken = $request->bearerToken();

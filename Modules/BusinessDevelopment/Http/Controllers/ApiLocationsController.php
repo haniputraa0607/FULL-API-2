@@ -11,7 +11,7 @@ use DB;
 use Modules\Brand\Entities\Brand;
 use Modules\BusinessDevelopment\Entities\Partner;
 use Modules\BusinessDevelopment\Http\Controllers\ApiPartnersController;
-
+use Modules\Project\Entities\Project;
 class ApiLocationsController extends Controller
 {
     public function __construct()
@@ -341,11 +341,29 @@ class ApiLocationsController extends Controller
     public function destroy(Request $request)
     {
         $id_location  = $request->json('id_location');
-        $delete = Location::where('id_location', $id_location)->delete();
-        return MyHelper::checkDelete($delete);
+        $location = Location::where('id_location', $id_location)->get();
+        if($location){
+            $delete = $this->deleteProject($id_location);
+        }
+        if($delete){
+            $delete = Location::where('id_location', $id_location)->delete();
+            return MyHelper::checkDelete($delete);
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
     }
 
-
+    public function deleteProject($id){
+        $get = Project::where('id_location', $id)->first();
+        if($get){
+            $delete = Project::where('id_location', $id)->delete();
+            $this->deleteProject($id);
+            return $delete;
+        }else{
+            return true;
+        }
+    }
+    
     public function brandsList(Request $request)
     {
         $post = $request->json()->all();

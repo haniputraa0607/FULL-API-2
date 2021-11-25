@@ -232,11 +232,13 @@ class ApiReportSalesController extends Controller
 
     	$list = Transaction::where('transactions.id_outlet', $request->id_outlet)
     				->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
+    				->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
     				->where('transactions.transaction_payment_status', 'Completed')
+                    ->where('transactions.transaction_from', 'outlet-service')
 					// ->whereNull('reject_at')
 					->select(DB::raw('
 						Date(transactions.transaction_date) as transaction_date,
-                        COUNT(CASE WHEN transactions.id_transaction IS NULL THEN NULL ELSE 1 END) AS total_transaction,
+                        COUNT(CASE WHEN transactions.transaction_payment_status = "Completed" THEN 1 ELSE NULL END) as total_complete_payment,
                         SUM(CASE WHEN transactions.transaction_gross IS NOT NULL THEN transactions.transaction_gross ELSE 0 END) as total_subtotal,
                         SUM(
 							CASE WHEN transactions.transaction_discount_item IS NOT NULL THEN ABS(transactions.transaction_discount_item) 
@@ -244,31 +246,32 @@ class ApiReportSalesController extends Controller
 								ELSE 0 END
 							+ CASE WHEN transactions.transaction_discount_delivery IS NOT NULL THEN ABS(transactions.transaction_discount_delivery) ELSE 0 END
 							+ CASE WHEN transactions.transaction_discount_bill IS NOT NULL THEN ABS(transactions.transaction_discount_bill) ELSE 0 END
-						) as total_discount
+						) as total_discount,
+                        SUM(CASE WHEN transactions.transaction_grandtotal IS NOT NULL THEN transactions.transaction_grandtotal ELSE 0 END) as total_grandtotal
 					'))
     				->groupBy(DB::raw('Date(transactions.transaction_date)'));
 
-        // if(isset($post['filter_type']) && $post['filter_type'] == 'range_date'){
-        //     $dateStart = date('Y-m-d', strtotime($post['date_start']));
-        //     $dateEnd = date('Y-m-d', strtotime($post['date_end']));
-        //     $list = $list->whereDate('transactions.transaction_date', '>=', $dateStart)->whereDate('transactions.transaction_date', '<=', $dateEnd);
-        // }elseif (isset($post['filter_type']) && $post['filter_type'] == 'today'){
-        //     $currentDate = date('Y-m-d');
-        //     $list = $list->whereDate('transactions.transaction_date', $currentDate);
-        // }else{
-        //     $list = $list->whereDate('transactions.transaction_date', date('Y-m-d'));
-        // }
+        if(isset($post['filter_type']) && $post['filter_type'] == 'range_date'){
+            $dateStart = date('Y-m-d', strtotime($post['date_start']));
+            $dateEnd = date('Y-m-d', strtotime($post['date_end']));
+            $list = $list->whereDate('transactions.transaction_date', '>=', $dateStart)->whereDate('transactions.transaction_date', '<=', $dateEnd);
+        }elseif (isset($post['filter_type']) && $post['filter_type'] == 'today'){
+            $currentDate = date('Y-m-d');
+            $list = $list->whereDate('transactions.transaction_date', $currentDate);
+        }else{
+            $list = $list->whereDate('transactions.transaction_date', date('Y-m-d'));
+        }
 
-    	// $order = $post['order']??'transaction_date';
-        // $orderType = $post['order_type']??'desc';
-        // $list = $list->orderBy($order, $orderType);
+    	$order = $post['order']??'transaction_date';
+        $orderType = $post['order_type']??'desc';
+        $list = $list->orderBy($order, $orderType);
 
         $sub = $list;
 
         $query = DB::table(DB::raw('('.$sub->toSql().') as report_sales'))
 		        ->mergeBindings($sub->getQuery());
 
-		// $this->filterSalesReport($query, $post);
+		$this->filterSalesReport($query, $post);
 
         if($post['export'] == 1){
             $query = $query->get();
@@ -276,9 +279,9 @@ class ApiReportSalesController extends Controller
             $query = $query->paginate(30);
         }
 
-        // if (!$query) {
-        // 	return response()->json(['status' => 'fail', 'messages' => ['Empty']]);
-        // }
+        if (!$query) {
+        	return response()->json(['status' => 'fail', 'messages' => ['Empty']]);
+        }
 
         $result = $query->toArray();
 

@@ -288,6 +288,9 @@ class ApiPartnersController extends Controller
             if (isset($post['status_steps'])) {
                 $data_update['status_steps'] = $post['status_steps'];
             }
+            if (isset($post['title'])) {
+                $data_update['title'] = $post['title'];
+            }
             if (isset($post['npwp'])) {
                 $data_update['npwp'] = $post['npwp'];
             }

@@ -25,7 +25,6 @@ class TransactionShop extends Model
 
 	protected $fillable = [
 		'id_transaction',
-		'order_id',
 		'id_admin_taken',
 		'id_admin_ready',
 		'shop_status',

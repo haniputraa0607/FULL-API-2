@@ -485,8 +485,10 @@ class ApiPartnersController extends Controller
     }
 
     public function deleteOutlet($id_partner){
-        $get_code = Location::where('id_partner',$id_partner)->get('code')[0]['code'];
-        $delete = $this->deleteOutletbyCode($get_code);
+        $get_code = Location::where('id_partner',$id_partner)->get('code')[0]['code']??null;
+        if($get_code!=null){
+            $delete = $this->deleteOutletbyCode($get_code);
+        }
         return true;
     }
 

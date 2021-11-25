@@ -29,6 +29,6 @@ class Department extends Model
 
     public function department_child()
     {
-        return $this->hasMany(Department::class, 'id_parent', 'id_department');
+        return $this->hasMany(Department::class, 'id_parent', 'id_department')->orderBy('department_name');
     }
 }

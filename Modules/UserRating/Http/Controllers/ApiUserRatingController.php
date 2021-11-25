@@ -190,6 +190,7 @@ class ApiUserRatingController extends Controller
 
 				$id_user_hair_stylist = $trxService->id_user_hair_stylist;
 				$id_transaction_product_service = $trxService->id_transaction_product_service;
+				$hs = $trxService->user_hair_stylist;
         	} else {
         		$hs = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->first();
         		if (!$hs) {
@@ -206,7 +207,6 @@ class ApiUserRatingController extends Controller
         	$max_rating_value = Setting::select('value')->where('key','response_max_rating_value_hairstylist')->pluck('value')->first()?:2;
 	        if($post['rating_value'] <= $max_rating_value){
 	            $trx->load('outlet_name');
-	            $trxService->load('user_hair_stylist');
 	            $variables = [
 	                'receipt_number' => $trx->transaction_receipt_number,
 	                'outlet_name' => $trx->outlet_name->outlet_name,
@@ -214,8 +214,8 @@ class ApiUserRatingController extends Controller
 	                'rating_value' => (string) $post['rating_value'],
 	                'suggestion' => $post['suggestion']??'',
 	                'question' => $post['option_question'],
-	                'nickname' => $trxService['user_hair_stylist']['nickname'],
-	                'fullname' => $trxService['user_hair_stylist']['fullname'],
+	                'nickname' => $hs['nickname'],
+	                'fullname' => $hs['fullname'],
 	                'selected_option' => implode(',',array_map(function($var){return trim($var,'"');},$post['option_value']??[]))
 	            ];
 	            app("Modules\Autocrm\Http\Controllers\ApiAutoCrm")->SendAutoCRM('User Rating Hairstylist', $user->phone, $variables,null,true);

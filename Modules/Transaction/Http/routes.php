@@ -166,6 +166,7 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
 
     Route::group(['prefix' => 'transaction'], function () {
     	Route::post('list', 'ApiTransactionShop@shopList');
+    	Route::post('detail', 'ApiTransactionShop@shopDetail');
 	});
 });
 

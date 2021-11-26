@@ -46,6 +46,7 @@ class ApiTransactionShop extends Controller
         $this->autocrm       = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
         $this->transaction   = "Modules\Transaction\Http\Controllers\ApiTransaction";
         $this->outlet       = "Modules\Outlet\Http\Controllers\ApiOutletController";
+        $this->trx_outlet_service = "Modules\Transaction\Http\Controllers\ApiTransactionOutletService";
     }
 
     public function cart(Request $request){
@@ -395,7 +396,6 @@ class ApiTransactionShop extends Controller
             $post['shipping'] = 0;
         }
 
-        $shippingGoSend = 0;
         $error_msg = [];
 
         if (!isset($post['subtotal'])) {
@@ -638,7 +638,7 @@ class ApiTransactionShop extends Controller
 
         $result['id_user_address'] = $address['id_user_address'];
         $result['subtotal'] = $subtotal;
-        $result['shipping'] = $post['shipping']+$shippingGoSend;
+        $result['shipping'] = $post['shipping'];
         $result['discount'] = $post['discount'];
         $result['grandtotal'] = (int)$result['subtotal'] + (int)(-$post['discount']) + (int)$post['service'] + (int)$post['tax'];
         $result['subscription'] = 0;
@@ -656,10 +656,18 @@ class ApiTransactionShop extends Controller
         ];
 
         $result['payment_detail'][] = [
-            'name'          => 'Tax',
+            'name'          => 'Pengiriman',
             "is_discount"   => 0,
-            'amount'        => (int) $post['tax']
+            'amount'        => $result['shipping']
         ];
+
+        if (!empty($post['tax'])) {
+	        $result['payment_detail'][] = [
+	            'name'          => 'Tax',
+	            "is_discount"   => 0,
+	            'amount'        => (int) $post['tax']
+	        ];
+        }
 
         if (count($error_msg) > 1 && (!empty($post['item']) || !empty($post['item_service']))) {
             $error_msg = ['Produk yang anda pilih tidak tersedia. Silakan cek kembali pesanan anda'];
@@ -1130,9 +1138,10 @@ class ApiTransactionShop extends Controller
 			foreach ($val['products'] as $product) {
 				$orders[] = [
 					'product_name' => $product['product_group']['product_group_name'] . ' ' . $product['variant_name'],
-					'transaction_product_qty' => $product['pivot']['transaction_product_qty'],
-					'transaction_product_price' => $product['pivot']['transaction_product_price'],
-					'transaction_product_subtotal' => $product['pivot']['transaction_product_subtotal'],
+					'product_qty' => $product['pivot']['transaction_product_qty'],
+					'product_price' => $product['pivot']['transaction_product_price'],
+					'product_subtotal' => $product['pivot']['transaction_product_subtotal'],
+					'product_subtotal_pretty' => MyHelper::requestNumber((int) $product['pivot']['transaction_product_subtotal'],'_CURRENCY'),
 					'photo' => $product['photos'][0]['url_product_photo']
 				];
 			}
@@ -1153,8 +1162,7 @@ class ApiTransactionShop extends Controller
 			$resData[] = [
 				'id_transaction' => $val['id_transaction'],
 				'transaction_receipt_number' => $val['transaction_receipt_number'],
-				'transaction_date' => MyHelper::dateFormatInd($val['transaction_date'], true, false),
-				'transaction_time' => date('H:i', strtotime($val['transaction_date'])),
+				'transaction_date' => $val['transaction_date'],
 				'customer_name' => $val['destination_name'],
 				'status' => $status,
 				'shop_status' => $shopStatus,
@@ -1164,6 +1172,133 @@ class ApiTransactionShop extends Controller
 
 		$list['data'] = $resData;
 		return MyHelper::checkGet($list);
+    }
+
+    public function shopDetail(Request $request) {
+
+    	$user = $request->user();
+    	$detail = Transaction::where('transaction_from', 'shop')
+    			->join('transaction_shops','transactions.id_transaction', 'transaction_shops.id_transaction')
+    			->where('id_user', $user->id)
+    			->where(function ($q) use ($request) {
+    				$q->where('transactions.id_transaction', $request->id_transaction);
+    				$q->orWhere('transactions.transaction_receipt_number', $request->transaction_receipt_number);
+    			})
+    			->orderBy('transaction_date', 'desc')
+    			->with(
+    				'outlet.brands', 
+    				'transaction_products.product.photos',
+    				'transaction_products.product.product_group'
+    			)
+    			->first();
+
+		if (!$detail) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Transaction not found']
+			];
+		}
+
+		$products = [];
+		$subtotalProduct = 0;
+		$totalProductQty = 0;
+		foreach ($detail['transaction_products'] as $product) {
+			if ($product['type'] == 'Product') {
+				$products[] = [
+					'product_name' => $product['product']['product_name'],
+					'product_qty' => $product['transaction_product_qty'],
+					'product_price' => $product['transaction_product_price'],
+					'product_price_pretty' => MyHelper::requestNumber((int) $product['transaction_product_price'],'_CURRENCY'),
+					'product_subtotal' => $product['transaction_product_subtotal'],
+					'product_subtotal_pretty' => MyHelper::requestNumber((int) $product['transaction_product_subtotal'],'_CURRENCY'),
+					'photo' => $product['product']['photos'][0]['url_product_photo']
+				];
+				$subtotalProduct += abs($product['transaction_product_subtotal']);
+				$totalProductQty += abs($product['transaction_product_qty']);
+			}
+		}
+
+		$shopStatus = $this->shopStatus($detail['shop_status']);
+		if ($detail['transaction_payment_status'] == 'Pending') {
+			$status = 'unpaid';
+			$shopStatus = 'Menunggu Pembayaran';
+		} elseif ($detail['transaction_payment_status'] == 'Cancelled') {
+			$status = 'cancelled';
+			$shopStatus = 'Dibatalkan';
+		} elseif (in_array($detail['shop_status'], ['Rejected by Admin', 'Rejected by Customer', 'Completed']) && $detail['transaction_payment_status'] == 'Completed') {
+			$status = 'completed';
+		} else {
+			$status = 'ongoing';
+		}
+
+		$paymentDetail = [];
+        $paymentDetail[] = [
+            'name'          => 'Subtotal Order (' . $totalProductQty . ' item)',
+            "is_discount"   => 0,
+            'amount'        => $detail['transaction_subtotal']
+        ];
+
+        $paymentDetail[] = [
+            'name'          => 'Pengiriman',
+            "is_discount"   => 0,
+            'amount'        => $detail['transaction_shipment']
+        ];
+
+        if (!empty($detail['transaction_tax'])) {
+	        $paymentDetail[] = [
+	            'name'          => 'Tax',
+	            "is_discount"   => 0,
+	            'amount'        => $detail['transaction_tax']
+	        ];
+        }
+
+
+        $trx = Transaction::where('id_transaction', $detail['id_transaction'])->first();
+		$trxPayment = app($this->trx_outlet_service)->transactionPayment($trx);
+    	$paymentMethod = null;
+    	foreach ($trxPayment['payment'] as $p) {
+    		$paymentMethod = $p['name'];
+    		if (strtolower($p['name']) != 'balance') {
+    			break;
+    		}
+    	}
+
+    	$paymentMethodDetail = [];
+        $paymentMethodDetail[] = [
+            'text'          => 'Metode Pembayaran',
+            'value'        => $paymentMethod
+        ];
+
+    	$custDetail = [
+    		'name' => $detail['destination_name'],
+    		'phone' => $detail['destination_phone'],
+    		'destination_address' => $detail['destination_address'],
+    		'destination_short_address' => $detail['destination_short_address'],
+    		'destination_address_name' => $detail['destination_address_name'],
+    		'destination_note' => $detail['destination_note'],
+    		'destination_latitude' => $detail['destination_latitude'],
+    		'destination_longitude' => $detail['destination_longitude'],
+    	];
+
+		$res = [
+			'id_transaction' => $detail['id_transaction'],
+			'transaction_receipt_number' => $detail['transaction_receipt_number'],
+			'transaction_date' => $detail['transaction_date'],
+			'transaction_subtotal' => $detail['transaction_subtotal'],
+			'transaction_grandtotal' => $detail['transaction_grandtotal'],
+			'transaction_product_subtotal' => $subtotalProduct,
+			'transaction_tax' => $detail['transaction_tax'],
+			'currency' => 'Rp',
+			'status' => $status,
+			'shop_status' => $shopStatus,
+			'transaction_payment_status' => $detail['transaction_payment_status'],
+			'customer_detail' => $custDetail,
+			'product' => $products,
+			'payment_detail' => $paymentDetail,
+			'payment_method' => $paymentMethodDetail
+		];
+		
+		return MyHelper::checkGet($res);
     }
 
     public function shopStatus($status)

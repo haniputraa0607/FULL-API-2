@@ -685,11 +685,13 @@ class ApiAcademyController extends Controller
             if(empty($check)){
                 return response()->json(['status' => 'fail', 'messages' => ['Schedule old not found']]);
             }
+            $newDate = date('Y-m-d', strtotime($post['schedule_date_new']));
+            $newTime = date('H:i:s', strtotime($check['schedule_date']));
             $create = TransactionAcademyScheduleDayOff::create([
                             'id_transaction_academy_schedule' => $post['id_transaction_academy_schedule'],
                             'id_transaction_academy' => $check['id_transaction_academy'],
                             'schedule_date_old' => date('Y-m-d H:i:s', strtotime($check['schedule_date'])),
-                            'schedule_date_new' => date('Y-m-d H:i:s', strtotime($post['schedule_date_new'])),
+                            'schedule_date_new' => date('Y-m-d H:i:s', strtotime($newDate.' '.$newTime)),
                             'description' => $post['description']
                         ]);
             return response()->json(MyHelper::checkCreate($create));

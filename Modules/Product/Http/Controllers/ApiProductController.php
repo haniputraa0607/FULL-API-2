@@ -2588,8 +2588,7 @@ class ApiProductController extends Controller
                           ->where('day', $bookDay)->first()['id_outlet_schedule']??null;
 
         $hsNotAvailable = HairstylistNotAvailable::where('id_outlet', $post['id_outlet'])
-                            ->where('booking_date', $bookDate)
-                            ->where('booking_time', $bookTime)
+                            ->where('booking_start', $bookDate.' '.$bookTime)
                             ->pluck('id_user_hair_stylist')->toArray();
 
         $listHs = UserHairStylist::where('id_outlet', $post['id_outlet'])

@@ -184,7 +184,7 @@ class ApiOutletServiseController extends Controller
             ];
         }
 
-        return response()->json(MyHelper::checkGet($res));
+        return response()->json(['status' => 'success', 'result' => $res]);
     }
 
     public function detailOutlet(Request $request){

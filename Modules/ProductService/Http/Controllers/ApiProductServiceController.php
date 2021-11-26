@@ -180,7 +180,7 @@ class ApiProductServiceController extends Controller
 
         $productServie = Product::select([
             'products.id_product', 'products.product_name', 'products.product_code', 'products.product_description', 'product_variant_status',
-            'product_global_price.product_global_price as product_price'
+            'product_global_price.product_global_price as product_price', 'processing_time_service'
         ])
             ->leftJoin('product_global_price', 'product_global_price.id_product', '=', 'products.id_product')
             ->where('product_type', 'service')
@@ -202,10 +202,37 @@ class ApiProductServiceController extends Controller
                 'product_description' => $val['product_description'],
                 'product_price' => (int)$val['product_price'],
                 'string_product_price' => 'Rp '.number_format((int)$val['product_price'],0,",","."),
+                'processing_time' => (int)$val['processing_time_service'],
                 'photo' => (empty($val['photos'][0]['product_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$val['photos'][0]['product_photo'])
             ];
         }
-        return response()->json(MyHelper::checkGet($resProdService));
+
+        $totalAvailableTime = null;
+        if(!empty($post['id_user_hair_stylist'])){
+            if($post['booking_time'] == 'Sekarang'){
+                $post['booking_time'] = date('H:i:s', strtotime("+2 minutes", strtotime($post['booking_time_user'])));
+            }
+
+            $bookDate = date('Y-m-d H:i:s', strtotime($post['booking_date'].' '.$post['booking_time']));
+            //total available time
+            $nextSchedule = HairstylistNotAvailable::where('booking_start', '>', $bookDate)->where('id_user_hair_stylist', $post['id_user_hair_stylist'])
+                    ->orderBy('booking_start', 'asc')->first()['booking_start']??'';
+
+            if(!empty($nextSchedule) && strtotime(date('Y-m-d', strtotime($nextSchedule))) <= strtotime(date('Y-m-d', strtotime($bookDate)))){
+                $to_time = strtotime($nextSchedule);
+                $from_time = strtotime($bookDate);
+                $totalAvailableTime = round(abs($to_time - $from_time) / 60,2);
+            }
+        }
+
+        $res = [];
+        if(!empty($resProdService)){
+            $res = [
+                'total_available_time' => $totalAvailableTime,
+                'list_service' => $resProdService
+            ];
+        }
+        return response()->json(MyHelper::checkGet($res));
     }
 
     public function homeServiceDetailProductService(Request $request){
@@ -285,7 +312,7 @@ class ApiProductServiceController extends Controller
 
     /**
      * Return home service available datetime
-     * @param  Request $request 
+     * @param  Request $request
      * @return Response
      */
     public function availableDateTime(Request $request){
@@ -331,10 +358,7 @@ class ApiProductServiceController extends Controller
         }
 
         $result = [
-            'favorite_hs' => FavoriteUserHiarStylist::join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'favorite_user_hair_stylist.id_user_hair_stylist')
-                ->where('user_hair_stylist.user_hair_stylist_status', 'Active')
-                ->where('id_user', $user->id)
-                ->exists(),
+            'favorite_hs' => FavoriteUserHiarStylist::where('id_user', $user->id)->exists(),
             'dates' => $listDate
         ];
 
@@ -355,10 +379,14 @@ class ApiProductServiceController extends Controller
         $post['latitude'] = $address['latitude'];
         $post['longitude'] = $address['longitude'];
 
+        if($post['booking_time'] == 'Sekarang'){
+            $post['booking_time'] = date('H:i', strtotime("+2 minutes", strtotime($post['booking_time_user'])));
+        }
+
         $bookDate = date('Y-m-d', strtotime($post['booking_date']));
         $bookTime = date('H:i:s', strtotime($post['booking_time']));
-        $bookTimeStart = date('H:i', strtotime("-30 minutes", strtotime($bookTime)));
-        $bookTimeEnd = date('H:i', strtotime("+30 minutes", strtotime($bookTime)));
+        $bookTimeStart = date('Y-m-d H:i:s', strtotime("-30 minutes", strtotime($bookDate.' '.$bookTime)));
+        $bookTimeEnd = date('Y-m-d H:i:s', strtotime("+30 minutes", strtotime($bookDate.' '.$bookTime)));
         $userTimeZone = (empty($request->user()->user_time_zone_utc) ? 7 : $request->user()->user_time_zone_utc);
         $diffTimeZone = $userTimeZone - 7;
         $currentDate = date('Y-m-d H:i:s');
@@ -369,10 +397,10 @@ class ApiProductServiceController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Book time is invalid']]);
         }
 
-        $hsNotAvailable = HairstylistNotAvailable::where('booking_date', $bookDate)
-            ->where('booking_time', '>=',$bookTimeStart)
-            ->where('booking_time', '<=',$bookTimeEnd)
+        $hsNotAvailable = HairstylistNotAvailable::whereRaw('((booking_start >= "'.$bookTimeStart.'" AND booking_start <= "'.$bookTimeEnd.'") 
+                            OR (booking_end > "'.$bookTimeStart.'" AND booking_end < "'.$bookTimeEnd.'"))')
             ->pluck('id_user_hair_stylist')->toArray();
+        $hsNotAvailable = array_unique($hsNotAvailable);
 
         $listHs = UserHairStylist::where('user_hair_stylist_status', 'Active')
             ->whereIn('id_user_hair_stylist', function($query) use($idUser){
@@ -394,6 +422,7 @@ class ApiProductServiceController extends Controller
         $res = [];
         foreach ($listHs as $val){
             $available = true;
+            $availableText = 'Tersedia';
             //check schedule hs
             $shift = HairstylistScheduleDate::leftJoin('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
                     ->whereNotNull('approve_at')->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
@@ -416,16 +445,26 @@ class ApiProductServiceController extends Controller
             }
 
             if(empty($val['latitude']) && empty($val['longitude'])){
-                $available = false;
+                continue;
             }
             $distance = (float)app($this->outlet)->distance($post['latitude'], $post['longitude'], $val['latitude'], $val['longitude'], "K");
 
-            if($distance > 0 && $distance <= $maximumRadius){
-                $available = false;
+            if($distance > $maximumRadius){
+                continue;
             }
 
             if($bookDate == date('Y-m-d') && $val['home_service_status'] == 0){
                 $available = false;
+            }
+
+            if($available == true){
+                $nextSchedule = HairstylistNotAvailable::where('booking_start', '>', $bookDate.' '.$bookTime)->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
+                        ->orderBy('booking_start', 'asc')->first()['booking_start']??'';
+                if(!empty($nextSchedule) && strtotime(date('Y-m-d', strtotime($nextSchedule))) <= strtotime($bookDate)){
+                    $availableText = 'Tersedia sampai pukul '.date('H:i', strtotime($nextSchedule));
+                }
+            }else{
+                $availableText = '';
             }
 
             $res[] = [
@@ -434,6 +473,7 @@ class ApiProductServiceController extends Controller
                 'photo' => (empty($val['user_hair_stylist_photo']) ? config('url.storage_url_api').'img/product/item/default.png':$val['user_hair_stylist_photo']),
                 'rating' => $val['total_rating'],
                 'available_status' => $available,
+                'available_text' => $availableText,
                 'distance' => $distance
             ];
         }

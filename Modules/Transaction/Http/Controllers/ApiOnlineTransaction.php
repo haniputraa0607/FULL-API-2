@@ -1017,7 +1017,6 @@ class ApiOnlineTransaction extends Controller
         }
 
         DB::beginTransaction();
-        UserFeedbackLog::where('id_user',$request->user()->id)->delete();
         $transaction = [
             'id_outlet'                   => $post['id_outlet'],
             'id_user'                     => $id,
@@ -2847,12 +2846,11 @@ class ApiOnlineTransaction extends Controller
             }
 
             $processingTime = $service['processing_time_service'];
-            $bookTimeStart = date("H:i:s", strtotime('-'.$processingTime.' minutes', strtotime($item['booking_time'])));
-            $bookTimeEnd = date("H:i:s", strtotime('+'.$processingTime.' minutes', strtotime($item['booking_time'])));
+            $bookTimeStart = date("Y-m-d H:i:s", strtotime($item['booking_date'].' '.$item['booking_time']));
+            $bookTimeEnd = date('Y-m-d H:i:s', strtotime("+".$processingTime." minutes", strtotime($bookTimeStart)));
             $hsNotAvailable = HairstylistNotAvailable::where('id_outlet', $post['id_outlet'])
-                ->where('booking_date', date('Y-m-d', strtotime($item['booking_date'])))
-                ->where('booking_time', '>=', $bookTimeStart)
-                ->where('booking_time', '<=', $bookTimeEnd)
+                ->whereRaw('((booking_start >= "'.$bookTimeStart.'" AND booking_start <= "'.$bookTimeEnd.'") 
+                            OR (booking_end > "'.$bookTimeStart.'" AND booking_end < "'.$bookTimeEnd.'"))')
                 ->where('id_user_hair_stylist', $item['id_user_hair_stylist'])
                 ->first();
 
@@ -4861,7 +4859,7 @@ class ApiOnlineTransaction extends Controller
             $close = date('H:i:s', strtotime($outletSchedule['close']));
             $currentHour = date('H:i:s', strtotime($item['booking_time']));
             if(strtotime($currentHour) < strtotime($open) || strtotime($currentHour) > strtotime($close) || $outletSchedule['is_closed'] == 1){
-                $err[] = 'Outlet tutup pada '.MyHelper::dateFormatInd($item['booking_date']);
+                $err[] = 'Outlet tutup pada '.MyHelper::dateFormatInd($item['booking_date'].' '.$item['booking_time']);
             }
 
             $holiday = Holiday::join('outlet_holidays', 'holidays.id_holiday', 'outlet_holidays.id_holiday')->join('date_holidays', 'holidays.id_holiday', 'date_holidays.id_holiday')
@@ -4962,12 +4960,11 @@ class ApiOnlineTransaction extends Controller
             }
 
             $processingTime = $service['processing_time_service'];
-            $bookTimeStart = date("H:i:s", strtotime('-'.$processingTime.' minutes', strtotime($item['booking_time'])));
-            $bookTimeEnd = date("H:i:s", strtotime('+'.$processingTime.' minutes', strtotime($item['booking_time'])));
+            $bookTimeStart = date("Y-m-d H:i:s", strtotime($item['booking_date'].' '.$item['booking_time']));
+            $bookTimeEnd = date('Y-m-d H:i:s', strtotime("+".$processingTime." minutes", strtotime($bookTimeStart)));
             $hsNotAvailable = HairstylistNotAvailable::where('id_outlet', $post['id_outlet'])
-                ->where('booking_date', date('Y-m-d', strtotime($item['booking_date'])))
-                ->where('booking_time', '>=', $bookTimeStart)
-                ->where('booking_time', '<=', $bookTimeEnd)
+                ->whereRaw('((booking_start >= "'.$bookTimeStart.'" AND booking_start <= "'.$bookTimeEnd.'") 
+                            OR (booking_end > "'.$bookTimeStart.'" AND booking_end < "'.$bookTimeEnd.'"))')
                 ->where('id_user_hair_stylist', $item['id_user_hair_stylist'])
                 ->first();
 
@@ -5016,31 +5013,42 @@ class ApiOnlineTransaction extends Controller
 
         if($trx['transaction_from'] == 'home-service'){
             $trxHomeService = TransactionHomeService::where('id_transaction', $id_transaction)->first();
+            $totalProcessingTime = TransactionProduct::where('id_transaction', $id_transaction)
+                                ->join('products', 'products.id_product', 'transaction_products.id_product')
+                                ->sum(\DB::raw('processing_time_service * transaction_product_qty'));
+
+            $scheduleStart = date('Y-m-d H:i:s', strtotime($trxHomeService['schedule_date'].' '.$trxHomeService['schedule_time']));
+            $scheduleEnd = date('Y-m-d H:i:s', strtotime("+".$totalProcessingTime." minutes", strtotime($scheduleStart)));
 
             if(!empty($trxHomeService['id_user_hair_stylist'])){
                 $save = HairstylistNotAvailable::create([
                     'id_outlet' => $trx['id_outlet'],
                     'id_user_hair_stylist' => $trxHomeService['id_user_hair_stylist'],
                     'id_transaction' => $trx['id_transaction'],
-                    'booking_date' => date('Y-m-d', strtotime($trxHomeService['schedule_date'])),
-                    'booking_time' => date('H:i:s', strtotime($trxHomeService['schedule_time']))
+                    'booking_start' => $scheduleStart,
+                    'booking_end' => $scheduleEnd
                 ]);
             }
         }elseif($trx['transaction_from'] == 'outlet-service'){
             $data = TransactionProductService::where('transactions.id_transaction', $id_transaction)
                 ->join('transactions', 'transactions.id_transaction', 'transaction_product_services.id_transaction')
-                ->select('transaction_product_services.*', 'transactions.id_outlet')
+                ->join('transaction_products', 'transactions.id_transaction', 'transaction_products.id_transaction')
+                ->join('products', 'products.id_product', 'transaction_products.id_product')
+                ->select('transaction_product_services.*', 'transactions.id_outlet', 'products.processing_time_service')
                 ->get()->toArray();
 
             $insert = [];
             foreach ($data as $dt){
+                $scheduleStart = date('Y-m-d H:i:s', strtotime($dt['schedule_date'].' '.$dt['schedule_time']));
+                $scheduleEnd = date('Y-m-d H:i:s', strtotime("+".(empty($dt['processing_time_service']) ? 30 : $dt['processing_time_service'])." minutes", strtotime($scheduleStart)));
+
                 $insert[] = [
                     'id_outlet' => $dt['id_outlet'],
                     'id_user_hair_stylist' => $dt['id_user_hair_stylist'],
                     'id_transaction' => $id_transaction,
                     'id_transaction_product_service' => $dt['id_transaction_product_service'],
-                    'booking_date' => date('Y-m-d', strtotime($dt['schedule_date'])),
-                    'booking_time' => date('H:i:s', strtotime($dt['schedule_time'])),
+                    'booking_start' => $scheduleStart,
+                    'booking_end' => $scheduleEnd,
                     'updated_at' => date('Y-m-d H:i:s'),
                     'created_at' => date('Y-m-d H:i:s')
                 ];

@@ -15,8 +15,8 @@ class HairstylistNotAvailable extends Model
         'id_user_hair_stylist',
         'id_transaction',
         'id_transaction_product_service',
-        'booking_date',
-        'booking_time'
+        'booking_start',
+        'booking_end'
     ];
 
 }

@@ -22,6 +22,7 @@ class TransactionHomeService extends Model
         'destination_name',
         'destination_phone',
         'destination_address',
+        'destination_id_subdistrict',
         'destination_short_address',
         'destination_address_name',
         'destination_note',

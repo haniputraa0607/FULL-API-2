@@ -72,7 +72,7 @@ class ApiCronTrxController extends Controller
             $now       = date('Y-m-d H:i:s');
             $expired   = date('Y-m-d H:i:s',strtotime('- 5minutes'));
 
-            $getTrx = Transaction::where('transaction_payment_status', 'Pending')->where('transaction_date', '<=', $expired)->get();
+            $getTrx = Transaction::where('transaction_payment_status', 'Pending')->whereNotIn('trasaction_payment_type', ['Installment'])->where('transaction_date', '<=', $expired)->get();
 
             if (empty($getTrx)) {
                 $log->success('empty');

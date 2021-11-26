@@ -119,6 +119,90 @@ class Icount
         ];
         return self::sendRequest('POST', '/partner_initiation/do_invoice_cl', $data, $logType, $orderId);
     }
+    public static function ApiInvoiceSPK($request, $logType = null, $orderId = null){
+        $data = [
+            "SalesOrderID" => $request['partner']['id_sales_order'],
+            "VoucherNo" => $request['partner']['voucher_no'],
+            "TransDate" => $request['partner']['trans_date'],
+            "DueDate" => $request['partner']['due_date'],
+            "BusinessPartnerID" => $request['partner']['id_business_partner'],
+            "BranchID" => $request['location']['id_branch'],
+            "TermOfPaymentID" => $request['partner']['id_term_payment'],
+            "ReferenceNo" => $request['confir']['no_letter'],
+            "TaxNo" => '',
+            "Notes" => $request['partner']['notes'],
+            "Detail" => [
+                [
+                    "Qty" => 30,
+                    "Unit" => "PCS",
+                    "Ratio" => "1",
+                    "Price" => $request['location']['total_payment']/100,
+                    "Disc" => "0",
+                    "DiscRp" => "0",
+                    "Description" => ""
+                ]
+            ]
+        ];
+        return self::sendRequest('POST', '/partner_initiation/do_invoice_spk', $data, $logType, $orderId);
+    }
+    public static function ApiInvoiceBAP($request, $logType = null, $orderId = null){
+        $data = [
+            "SalesOrderID" => $request['partner']['id_sales_order'],
+            "VoucherNo" => $request['partner']['voucher_no'],
+            "TransDate" => $request['partner']['trans_date'],
+            "DueDate" => $request['partner']['due_date'],
+            "BusinessPartnerID" => $request['partner']['id_business_partner'],
+            "BranchID" => $request['location']['id_branch'],
+            "TermOfPaymentID" => $request['partner']['id_term_payment'],
+            "ReferenceNo" => $request['confir']['no_letter'],
+            "TaxNo" => '',
+            "Notes" => $request['partner']['notes'],
+            "Detail" => [
+                [
+                    "Qty" => 50,
+                    "Unit" => "PCS",
+                    "Ratio" => "1",
+                    "Price" => $request['location']['total_payment']/100,
+                    "Disc" => "0",
+                    "DiscRp" => "0",
+                    "Description" => ""
+                ]
+            ]
+        ];
+        return self::sendRequest('POST', '/partner_initiation/do_invoice_bap', $data, $logType, $orderId);
+    }
+    public static function ApiPurchaseSPK($request, $logType = null, $orderId = null){
+        $data = [
+            "VoucherNo" => $request['partner']['voucher_no'],
+            "TransDate" => $request['partner']['trans_date'],
+            "DueDate" => $request['partner']['due_date'],
+            "BusinessPartnerID" => $request['partner']['id_business_partner'],
+            "BranchID" => $request['location']['id_branch'],
+            "ReferenceNo" => $request['confir']['no_letter'],
+            "Notes" => $request['partner']['notes'],
+            "Detail" => [
+                [
+                    "ItemID" => "015",
+                    "BudgetCode" => "Invoice",
+                    "Qty" => 10,
+                    "Unit" =>"PCS",
+                    "Ratio" => 1,
+                    "UnitRatio" => 2,
+                    "Description" => ""
+                ],
+                [
+                    "ItemID" => "016",
+                    "BudgetCode" => "Beban",
+                    "Qty" => 3,
+                    "Unit" =>"PCS",
+                    "Ratio" => 1,
+                    "UnitRatio" => 3,
+                    "Description" => ""
+                ],
+            ]
+        ];
+        return self::sendRequest('POST', '/partner_initiation/purchase_request_spk', $data, $logType, $orderId);
+    }
     public static function get($request, $logType = null, $orderId = null){
         return self::sendRequest('GET', '/branch/list', $request, $logType, $orderId);
     }

@@ -16,10 +16,13 @@ class CreateContractRequest extends FormRequest
         return [
             'first_party'       => 'required',
             'second_party'      => 'required',
-//            'attachment'        => 'required',
-            'nominal'    	=> 'required',
+            'nomor_loi'      => 'required',
+            'tanggal_loi'      => 'required',
+            'tanggal_buka_loi'      => 'required',
+            'nama_pic'      => 'required',
+            'kontak_pic'      => 'required',
+            'lokasi_pic'      => 'required',
             'id_project'        => 'required|project',
-//            'note'              => 'required',
            ]; 
     }
     public function withValidator($validator)

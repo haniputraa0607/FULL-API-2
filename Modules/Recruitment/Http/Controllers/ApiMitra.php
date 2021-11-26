@@ -402,6 +402,7 @@ class ApiMitra extends Controller
 
     	$res = [
     		'id_user_hair_stylist' => $user['id_user_hair_stylist'],
+    		'user_hair_stylist_code' => $user['user_hair_stylist_code'],
     		'nickname' => $user['nickname'],
     		'fullname' => $user['fullname'],
     		'name' => $level . ' ' . $user['fullname'],
@@ -566,7 +567,10 @@ class ApiMitra extends Controller
         $options = array_keys(array_flip($options));
         $resOption = [];
         foreach ($options as $val) {
-        	$resOption[$val] = $summaryOption[$val] ?? 0;
+        	$resOption[] = [
+        		"name" => $val,
+        		"value" => $summaryOption[$val] ?? 0
+        	];
         }
 
         $level = $ratingHs['level'] ?? null;
@@ -578,7 +582,7 @@ class ApiMitra extends Controller
         	'phone_number' => $ratingHs['phone_number'] ?? null,
         	'level' => $ratingHs['level'] ?? null,
         	'total_customer' => (int) ($ratingHs['total_customer'] ?? null),
-        	'total_rating' => (int) ($ratingHs['total_rating'] ?? null),
+        	'total_rating' => (float) ($ratingHs['total_rating'] ?? null),
         	'rating_value' => [
         		'5' => (int) ($summaryRating['5'] ?? null),
         		'4' => (int) ($summaryRating['4'] ?? null),
@@ -598,6 +602,7 @@ class ApiMitra extends Controller
     	$comment = UserRating::where('user_ratings.id_user_hair_stylist', $user->id_user_hair_stylist)
     				->leftJoin('transaction_product_services','user_ratings.id_transaction_product_service','transaction_product_services.id_transaction_product_service')
     				->whereNotNull('suggestion')
+    				->where('suggestion', '!=', "")
     				->select(
     					'transaction_product_services.order_id',
     					'user_ratings.id_user_rating',

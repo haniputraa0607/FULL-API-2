@@ -450,6 +450,7 @@ class ApiAcademyController extends Controller
             }
 
             $resDetail = [
+                'complete_profile' => (empty($request->user()->complete_profile) ?false:true),
                 'brand' => (empty($brand) ? null : $brand),
                 'outlet' => (empty($outlet) ? null : $outlet),
                 'detail' => [
@@ -483,6 +484,7 @@ class ApiAcademyController extends Controller
 
         $list = Transaction::join('transaction_academy', 'transactions.id_transaction', 'transaction_academy.id_transaction')
             ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+            ->leftJoin('brands', 'brands.id_brand', 'transaction_products.id_brand')
             ->leftJoin('products', 'products.id_product', 'transaction_products.id_product')
             ->where('transactions.id_user', $idUser)
             ->groupBy('transactions.id_transaction')
@@ -531,7 +533,8 @@ class ApiAcademyController extends Controller
                 'next_schedule_date_display' => (empty($nextTimeStart)? '' : MyHelper::dateFormatInd($nextTimeStart, true, false)),
                 'next_schedule_date' => (empty($nextTimeStart)? '' : date('Y-m-d', strtotime($nextTimeStart))),
                 'next_schedule_time' => (empty($nextTimeStart)? '' : date('H:i', strtotime($nextTimeStart)) .' - '. date('H:i', strtotime($nextTimeEnd))),
-                'location' => $value['outlet']['outlet_name']
+                'location' => $value['outlet']['outlet_name'],
+                'color' => $value['color_brand']??''
             ];
         }
 

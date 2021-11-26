@@ -2512,7 +2512,7 @@ class FeaturesTableSeeder extends Seeder
                 'id_feature' => 250,
                 'feature_type' => 'Update',
                 'feature_module' => 'Setting Payment Method',
-                'show_hide' => 0,
+                'show_hide' => 1,
                 'order' => 103,
                 'created_at' => '2018-05-10 08:00:00',
                 'updated_at' => '2018-05-10 08:00:00',
@@ -3674,231 +3674,229 @@ class FeaturesTableSeeder extends Seeder
                 'feature_module' => 'Privacy Policy',
                 'show_hide' => 1,
                 'order' => 133,
-                'created_at' => date('Y-m-d H:00:00'),
-                'updated_at' => date('Y-m-d H:00:00'),
+                'created_at' => '2021-11-10 11:00:00',
+                'updated_at' => '2021-11-10 11:00:00',
             ),
             366 => 
             array (
                 'id_feature' => 368,
-                'created_at' => '2018-05-10 08:00:00',
-                'feature_module' => 'Announcement',
                 'feature_type' => 'List',
-                'order' => 134,
+                'feature_module' => 'Announcement',
                 'show_hide' => 1,
+                'order' => 134,
+                'created_at' => '2018-05-10 08:00:00',
                 'updated_at' => '2018-05-10 08:00:00',
             ),
             367 => 
             array (
                 'id_feature' => 369,
-                'created_at' => '2018-05-10 08:00:00',
-                'feature_module' => 'Announcement',
                 'feature_type' => 'Detail',
-                'order' => 134,
+                'feature_module' => 'Announcement',
                 'show_hide' => 1,
+                'order' => 134,
+                'created_at' => '2018-05-10 08:00:00',
                 'updated_at' => '2018-05-10 08:00:00',
             ),
             368 => 
             array (
                 'id_feature' => 370,
-                'created_at' => '2018-05-10 08:00:00',
-                'feature_module' => 'Announcement',
                 'feature_type' => 'Create',
-                'order' => 134,
+                'feature_module' => 'Announcement',
                 'show_hide' => 1,
+                'order' => 134,
+                'created_at' => '2018-05-10 08:00:00',
                 'updated_at' => '2018-05-10 08:00:00',
             ),
             369 => 
             array (
                 'id_feature' => 371,
-                'created_at' => '2018-05-10 08:00:00',
-                'feature_module' => 'Announcement',
                 'feature_type' => 'Update',
-                'order' => 134,
+                'feature_module' => 'Announcement',
                 'show_hide' => 1,
-                'updated_at' => '2018-05-10 08:00:00',
+                'order' => 134,
                 'created_at' => NULL,
                 'updated_at' => NULL,
             ),
             370 => 
             array (
                 'id_feature' => 372,
-                'created_at' => '2018-05-10 08:00:00',
-                'feature_module' => 'Announcement',
                 'feature_type' => 'Delete',
-                'order' => 134,
+                'feature_module' => 'Announcement',
                 'show_hide' => 1,
+                'order' => 134,
+                'created_at' => '2018-05-10 08:00:00',
                 'updated_at' => '2018-05-10 08:00:00',
             ),
-            371 =>
-                array (
-                    'feature_module' => 'Product Academy',
-                    'feature_type' => 'List',
-                    'id_feature' => 373,
-                    'order' => 135,
-                    'show_hide' => 1,
-                    'created_at' => date('Y-m-d H:00:00'),
-                    'updated_at' => date('Y-m-d H:00:00')
-                ),
-            372 =>
-                array (
-                    'feature_module' => 'Product Academy',
-                    'feature_type' => 'Detail',
-                    'id_feature' => 374,
-                    'order' => 135,
-                    'show_hide' => 1,
-                    'created_at' => date('Y-m-d H:00:00'),
-                    'updated_at' => date('Y-m-d H:00:00')
-                ),
-            373 =>
-                array (
-                    'feature_module' => 'Product Academy',
-                    'feature_type' => 'Create',
-                    'id_feature' => 375,
-                    'order' => 135,
-                    'show_hide' => 1,
-                    'created_at' => date('Y-m-d H:00:00'),
-                    'updated_at' => date('Y-m-d H:00:00')
-                ),
-            374 =>
-                array (
-                    'feature_module' => 'Product Academy',
-                    'feature_type' => 'Update',
-                    'id_feature' => 376,
-                    'order' => 135,
-                    'show_hide' => 1,
-                    'created_at' => date('Y-m-d H:00:00'),
-                    'updated_at' => date('Y-m-d H:00:00')
-                ),
-            375 =>
-                array (
-                    'feature_module' => 'Product Academy',
-                    'feature_type' => 'Delete',
-                    'id_feature' => 377,
-                    'order' => 135,
-                    'show_hide' => 1,
-                    'created_at' => date('Y-m-d H:00:00'),
-                    'updated_at' => date('Y-m-d H:00:00')
-                ),
-            376 =>
-                array (
-                    'feature_module' => 'Request Hair Stylist',
-                    'feature_type' => 'Create',
-                    'id_feature' => 378,
-                    'order' => 136,
-                    'show_hide' => 1,
-                    'created_at' => date('Y-m-d H:00:00'),
-                    'updated_at' => date('Y-m-d H:00:00')
-                ),
-            377 =>
-                array (
-                    'feature_module' => 'Request Hair Stylist',
-                    'feature_type' => 'List',
-                    'id_feature' => 379,
-                    'order' => 136,
-                    'show_hide' => 1,
-                    'created_at' => date('Y-m-d H:00:00'),
-                    'updated_at' => date('Y-m-d H:00:00')
-                ),
-            378 =>
-                array (
-                    'feature_module' => 'Request Hair Stylist',
-                    'feature_type' => 'Detail',
-                    'id_feature' => 380,
-                    'order' => 136,
-                    'show_hide' => 1,
-                    'created_at' => date('Y-m-d H:00:00'),
-                    'updated_at' => date('Y-m-d H:00:00')
-                ),
-            379 =>
-                array (
-                    'feature_module' => 'Request Hair Stylist',
-                    'feature_type' => 'Update',
-                    'id_feature' => 381,
-                    'order' => 136,
-                    'show_hide' => 1,
-                    'created_at' => date('Y-m-d H:00:00'),
-                    'updated_at' => date('Y-m-d H:00:00')
-                ),
-            380 =>
-                array (
-                    'feature_module' => 'Request Hair Stylist',
-                    'feature_type' => 'Delete',
-                    'id_feature' => 382,
-                    'order' => 136,
-                    'show_hide' => 1,
-                    'created_at' => date('Y-m-d H:00:00'),
-                    'updated_at' => date('Y-m-d H:00:00')
-                ),
-            381 =>
-                array (
-                    'feature_module' => 'Approve Request Hair Stylist',
-                    'feature_type' => 'Update',
-                    'id_feature' => 383,
-                    'order' => 137,
-                    'show_hide' => 1,
-                    'created_at' => date('Y-m-d H:00:00'),
-                    'updated_at' => date('Y-m-d H:00:00')
-                ),
-            382 =>
-                array (
-                    'feature_module' => 'Product Group',
-                    'feature_type' => 'Create',
-                    'id_feature' => 384,
-                    'order' => 138,
-                    'show_hide' => 1,
-                    'created_at' => date('Y-m-d H:00:00'),
-                    'updated_at' => date('Y-m-d H:00:00')
-                ),
-            383 =>
-                array (
-                    'feature_module' => 'Product Group',
-                    'feature_type' => 'List',
-                    'id_feature' => 385,
-                    'order' => 138,
-                    'show_hide' => 1,
-                    'created_at' => date('Y-m-d H:00:00'),
-                    'updated_at' => date('Y-m-d H:00:00')
-                ),
-            384 =>
-                array (
-                    'feature_module' => 'Product Group',
-                    'feature_type' => 'Detail',
-                    'id_feature' => 386,
-                    'order' => 138,
-                    'show_hide' => 1,
-                    'created_at' => date('Y-m-d H:00:00'),
-                    'updated_at' => date('Y-m-d H:00:00')
-                ),
-            385 =>
-                array (
-                    'feature_module' => 'Product Group',
-                    'feature_type' => 'Update',
-                    'id_feature' => 387,
-                    'order' => 138,
-                    'show_hide' => 1,
-                    'created_at' => date('Y-m-d H:00:00'),
-                    'updated_at' => date('Y-m-d H:00:00')
-                ),
-            386 =>
-                array (
-                    'feature_module' => 'Product Group',
-                    'feature_type' => 'Delete',
-                    'id_feature' => 388,
-                    'order' => 138,
-                    'show_hide' => 1,
-                    'created_at' => date('Y-m-d H:00:00'),
-                    'updated_at' => date('Y-m-d H:00:00')
-                ),
-            387 =>
-                array (
-                    'feature_module' => 'Home Service Setting',
-                    'feature_type' => 'Update',
-                    'id_feature' => 389,
-                    'order' => 139,
-                    'show_hide' => 1,
-                    'created_at' => date('Y-m-d H:00:00'),
-                    'updated_at' => date('Y-m-d H:00:00')
-                ),
+            371 => 
+            array (
+                'id_feature' => 373,
+                'feature_type' => 'List',
+                'feature_module' => 'Product Academy',
+                'show_hide' => 1,
+                'order' => 135,
+                'created_at' => '2021-11-10 11:00:00',
+                'updated_at' => '2021-11-10 11:00:00',
+            ),
+            372 => 
+            array (
+                'id_feature' => 374,
+                'feature_type' => 'Detail',
+                'feature_module' => 'Product Academy',
+                'show_hide' => 1,
+                'order' => 135,
+                'created_at' => '2021-11-10 11:00:00',
+                'updated_at' => '2021-11-10 11:00:00',
+            ),
+            373 => 
+            array (
+                'id_feature' => 375,
+                'feature_type' => 'Create',
+                'feature_module' => 'Product Academy',
+                'show_hide' => 1,
+                'order' => 135,
+                'created_at' => '2021-11-10 11:00:00',
+                'updated_at' => '2021-11-10 11:00:00',
+            ),
+            374 => 
+            array (
+                'id_feature' => 376,
+                'feature_type' => 'Update',
+                'feature_module' => 'Product Academy',
+                'show_hide' => 1,
+                'order' => 135,
+                'created_at' => '2021-11-10 11:00:00',
+                'updated_at' => '2021-11-10 11:00:00',
+            ),
+            375 => 
+            array (
+                'id_feature' => 377,
+                'feature_type' => 'Delete',
+                'feature_module' => 'Product Academy',
+                'show_hide' => 1,
+                'order' => 135,
+                'created_at' => '2021-11-10 11:00:00',
+                'updated_at' => '2021-11-10 11:00:00',
+            ),
+            376 => 
+            array (
+                'id_feature' => 378,
+                'feature_type' => 'Create',
+                'feature_module' => 'Request Hair Stylist',
+                'show_hide' => 1,
+                'order' => 136,
+                'created_at' => '2021-11-10 11:00:00',
+                'updated_at' => '2021-11-10 11:00:00',
+            ),
+            377 => 
+            array (
+                'id_feature' => 379,
+                'feature_type' => 'List',
+                'feature_module' => 'Request Hair Stylist',
+                'show_hide' => 1,
+                'order' => 136,
+                'created_at' => '2021-11-10 11:00:00',
+                'updated_at' => '2021-11-10 11:00:00',
+            ),
+            378 => 
+            array (
+                'id_feature' => 380,
+                'feature_type' => 'Detail',
+                'feature_module' => 'Request Hair Stylist',
+                'show_hide' => 1,
+                'order' => 136,
+                'created_at' => '2021-11-10 11:00:00',
+                'updated_at' => '2021-11-10 11:00:00',
+            ),
+            379 => 
+            array (
+                'id_feature' => 381,
+                'feature_type' => 'Update',
+                'feature_module' => 'Request Hair Stylist',
+                'show_hide' => 1,
+                'order' => 136,
+                'created_at' => '2021-11-10 11:00:00',
+                'updated_at' => '2021-11-10 11:00:00',
+            ),
+            380 => 
+            array (
+                'id_feature' => 382,
+                'feature_type' => 'Delete',
+                'feature_module' => 'Request Hair Stylist',
+                'show_hide' => 1,
+                'order' => 136,
+                'created_at' => '2021-11-10 11:00:00',
+                'updated_at' => '2021-11-10 11:00:00',
+            ),
+            381 => 
+            array (
+                'id_feature' => 383,
+                'feature_type' => 'Update',
+                'feature_module' => 'Approve Request Hair Stylist',
+                'show_hide' => 1,
+                'order' => 137,
+                'created_at' => '2021-11-10 11:00:00',
+                'updated_at' => '2021-11-10 11:00:00',
+            ),
+            382 => 
+            array (
+                'id_feature' => 384,
+                'feature_type' => 'Create',
+                'feature_module' => 'Product Group',
+                'show_hide' => 1,
+                'order' => 138,
+                'created_at' => '2021-11-10 11:00:00',
+                'updated_at' => '2021-11-10 11:00:00',
+            ),
+            383 => 
+            array (
+                'id_feature' => 385,
+                'feature_type' => 'List',
+                'feature_module' => 'Product Group',
+                'show_hide' => 1,
+                'order' => 138,
+                'created_at' => '2021-11-10 11:00:00',
+                'updated_at' => '2021-11-10 11:00:00',
+            ),
+            384 => 
+            array (
+                'id_feature' => 386,
+                'feature_type' => 'Detail',
+                'feature_module' => 'Product Group',
+                'show_hide' => 1,
+                'order' => 138,
+                'created_at' => '2021-11-10 11:00:00',
+                'updated_at' => '2021-11-10 11:00:00',
+            ),
+            385 => 
+            array (
+                'id_feature' => 387,
+                'feature_type' => 'Update',
+                'feature_module' => 'Product Group',
+                'show_hide' => 1,
+                'order' => 138,
+                'created_at' => '2021-11-10 11:00:00',
+                'updated_at' => '2021-11-10 11:00:00',
+            ),
+            386 => 
+            array (
+                'id_feature' => 388,
+                'feature_type' => 'Delete',
+                'feature_module' => 'Product Group',
+                'show_hide' => 1,
+                'order' => 138,
+                'created_at' => '2021-11-10 11:00:00',
+                'updated_at' => '2021-11-10 11:00:00',
+            ),
+            387 => 
+            array (
+                'id_feature' => 389,
+                'feature_type' => 'Update',
+                'feature_module' => 'Home Service Setting',
+                'show_hide' => 1,
+                'order' => 139,
+                'created_at' => '2021-11-10 11:00:00',
+                'updated_at' => '2021-11-10 11:00:00',
+            ),
             389 =>
                 array (
                     'feature_module' => 'Academy Transaction',

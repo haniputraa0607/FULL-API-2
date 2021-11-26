@@ -1263,11 +1263,13 @@ class ApiTransactionShop extends Controller
     		}
     	}
 
-    	$paymentMethodDetail = [];
-        $paymentMethodDetail[] = [
-            'text'          => 'Metode Pembayaran',
-            'value'        => $paymentMethod
-        ];
+    	$paymentMethodDetail = null;
+    	if ($paymentMethod) {
+	    	$paymentMethodDetail = [
+	            'text'  => 'Metode Pembayaran',
+	            'value' => $paymentMethod
+	        ];
+    	}
 
     	$custDetail = [
     		'name' => $detail['destination_name'],

@@ -60,9 +60,9 @@ class ApiPartnersController extends Controller
         $post = $request->all();
         $partner = Partner::with(['partner_bank_account','partner_locations','partner_step']);
         if (isset($post['status']) && $post['status'] == 'Candidate') {
-            $partner = Partner::with(['partner_bank_account','partner_locations','partner_step'])->where('status',$post['status']);
+            $partner = Partner::with(['partner_bank_account','partner_locations','partner_step'])->where(function($query){$query->where('status', 'Candidate')->orWhere('status', 'Rejected');});
         } elseif(isset($post['status']) && $post['status'] == 'Active') {
-            $partner = Partner::with(['partner_bank_account','partner_locations','partner_step'])->where('status','Active');
+            $partner = Partner::with(['partner_bank_account','partner_locations','partner_step'])->where(function($query){$query->where('status', 'Active')->orWhere('status', 'Inactive');});
         } else {
             $partner = Partner::with(['partner_bank_account','partner_locations','partner_step']);
         }
@@ -94,11 +94,6 @@ class ApiPartnersController extends Controller
                     }
                 });
             }
-        }
-        if (isset($post['status']) && $post['status'] == 'Candidate') {
-            $partner = $partner->orWhere('status','Rejected');
-        } elseif(isset($post['status']) && $post['status'] == 'Active') {
-            $partner = $partner->orWhere('status','Inactive');
         }
         if(isset($post['order']) && isset($post['order_type'])){
             if(isset($post['page'])){

@@ -24,3 +24,8 @@ Route::middleware(['auth:api', 'scopes:apps','log_activities'])->prefix('favorit
     Route::post('create', 'ApiFavoriteController@storeFavoriteHS');
     Route::post('delete', 'ApiFavoriteController@destroyFavoriteHS');
 });
+
+Route::middleware(['auth:api', 'scopes:web-apps','log_activities'])->prefix('webapp/favorite-hs')->group(function () {
+    Route::post('create', 'ApiFavoriteController@storeFavoriteHS');
+    Route::post('delete', 'ApiFavoriteController@destroyFavoriteHS');
+});

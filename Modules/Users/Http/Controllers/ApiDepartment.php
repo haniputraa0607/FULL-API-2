@@ -33,9 +33,9 @@ class ApiDepartment extends Controller
         }
 
         if(isset($post['page'])){
-            $department = $department->orderBy('updated_at', 'desc')->paginate($request->length ?: 10);
+            $department = $department->orderBy('department_name')->paginate($request->length ?: 10);
         }else{
-            $department = $department->orderBy('updated_at', 'desc')->get()->toArray();
+            $department = $department->orderBy('department_name')->get()->toArray();
         }
 
         return MyHelper::checkGet($department);

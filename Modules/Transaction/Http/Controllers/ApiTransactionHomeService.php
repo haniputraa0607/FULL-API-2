@@ -20,6 +20,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use App\Lib\MyHelper;
 use Modules\Brand\Entities\Brand;
+use Modules\Favorite\Entities\FavoriteUserHiarStylist;
 use Modules\IPay88\Entities\TransactionPaymentIpay88;
 use Modules\Product\Entities\ProductDetail;
 use Modules\Product\Entities\ProductStockLog;
@@ -815,7 +816,6 @@ class ApiTransactionHomeService extends Controller
         $cashback = $earnedPoint['cashback'] ?? 0;
 
         DB::beginTransaction();
-        UserFeedbackLog::where('id_user',$request->user()->id)->delete();
         $id=$request->user()->id;
         $transaction = [
             'id_outlet'                   => $post['id_outlet'],
@@ -881,6 +881,7 @@ class ApiTransactionHomeService extends Controller
             'destination_name' => $user['name'],
             'destination_phone' => $user['phone'],
             'destination_address' => $address['address'],
+            'destination_id_subdistrict' => $address['id_subdistrict'],
             'destination_short_address' => $address['short_address'],
             'destination_address_name' => $address['name'],
             'destination_note' => (empty($post['notes']) ? $address['description']:$post['notes']),
@@ -971,12 +972,11 @@ class ApiTransactionHomeService extends Controller
             ]);
         }
 
+        DB::commit();
         if($post['preference_hair_stylist'] == 'favorite'){
             app($this->online_trx)->bookHS($insertTransaction['id_transaction']);
             $this->bookProductServiceStockHM($insertTransaction['id_transaction']);
         }
-
-        DB::commit();
         if(!empty($arrHs)){
             FindingHairStylistHomeService::dispatch(['id_transaction' => $insertTransaction['id_transaction'], 'id_transaction_home_service' => $createHomeService['id_transaction_home_service'],'arr_id_hs' => $arrHs])->allOnConnection('findinghairstylistqueue');
         }
@@ -999,8 +999,8 @@ class ApiTransactionHomeService extends Controller
         if(strtotime($currentDate) > strtotime($bookDateTime)){
             $errAll[] = "Waktu pemesanan Anda tidak valid";
         }
-        $startTime = $bookTime;
-        $endTime = date('H:i', strtotime("+".$post['sum_time']." minutes", strtotime($startTime)));
+        $startTime = date('Y-m-d H:i:s', strtotime($bookDate.' '.$bookTime));
+        $endTime = date('Y-m-d H:i', strtotime("+".$post['sum_time']." minutes", strtotime($startTime)));
         $day = [
             'Mon' => 'Senin',
             'Tue' => 'Selasa',
@@ -1013,6 +1013,11 @@ class ApiTransactionHomeService extends Controller
         $bookDay = $day[date('D', strtotime($bookDate))];
         $maximumRadius = (int)(Setting::where('key', 'home_service_hs_maximum_radius')->first()['value']??25);
         if($post['preference_hair_stylist'] == 'favorite'){
+            $check = FavoriteUserHiarStylist::where('id_user', $user['id'])->where('id_user_hair_stylist', $post['id_user_hair_stylist'])->first();
+            if(empty($check)){
+                $errAll[] = "Hair stylist favorite tidak ditemukan";
+            }
+
             $hs = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->where('user_hair_stylist_status', 'Active')->first();
             if(empty($hs)){
                 $errAll[] = "Hair stylist tidak ditemukan";
@@ -1042,28 +1047,26 @@ class ApiTransactionHomeService extends Controller
                 if(!empty($getTimeShift['end'])){
                     $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
                     if(strtotime($shiftTimeEnd) > strtotime($bookTime)){
-                        $errAll[] = "Hair stylist tidak tersedian silahkan ubah tanggal pemesanan";
+                        $errAll[] = "Hair stylist tidak tersedia silahkan ubah tanggal pemesanan";
                     }
                 }
             }
 
-            $hsNotAvailable = HairstylistNotAvailable::where('booking_date', $bookDate)
-                ->where('booking_time', '>=',$startTime)
-                ->where('booking_time', '<=',$endTime)
-                ->where('id_user_hair_stylist', $post['id_user_hair_stylist'])
+            $hsNotAvailable = HairstylistNotAvailable::where('id_user_hair_stylist', $post['id_user_hair_stylist'])
+                ->whereRaw('((booking_start >= "'.$startTime.'" AND booking_start <= "'.$endTime.'") 
+                            OR (booking_end > "'.$startTime.'" AND booking_end < "'.$endTime.'"))')
                 ->first();
 
             if(!empty($hsNotAvailable)){
-                $errAll[] = "Hair stylist tidak tersedian silahkan ubah tanggal pemesanan";
+                $errAll[] = "Hair stylist tidak tersedia silahkan ubah tanggal pemesanan";
             }
 
             $idHs = $post['id_user_hair_stylist'];
         }else{
             $arrIDHs = [];
-            $hsNotAvailable = HairstylistNotAvailable::where('booking_date', $bookDate)
-                ->where('booking_time', '>=',$startTime)
-                ->where('booking_time', '<=',$endTime)
-                ->pluck('id_user_hair_stylist')->toArray();
+            $hsNotAvailable = HairstylistNotAvailable::whereRaw('((booking_start >= "'.$startTime.'" AND booking_start <= "'.$endTime.'") 
+                            OR (booking_end > "'.$startTime.'" AND booking_end < "'.$endTime.'"))')
+                            ->pluck('id_user_hair_stylist')->toArray();
 
             $listHs = UserHairStylist::where('user_hair_stylist_status', 'Active');
 

@@ -433,7 +433,6 @@ class ApiTransactionAcademy extends Controller
         $cashback = $earnedPoint['cashback'] ?? 0;
 
         DB::beginTransaction();
-        UserFeedbackLog::where('id_user',$request->user()->id)->delete();
         $id=$request->user()->id;
         $transaction = [
             'id_outlet'                   => $post['id_outlet'],
@@ -447,6 +446,7 @@ class ApiTransactionAcademy extends Controller
             'transaction_payment_status'  => $post['transaction_payment_status'],
             'membership_level'            => $post['membership_level'],
             'membership_promo_id'         => $post['membership_promo_id'],
+            'trasaction_payment_type'     => ($post['payment_method'] == 'installment'? 'Installment': null),
             'void_date'                   => null,
             'transaction_from'            => $post['transaction_from'],
             'scope'                       => 'apps'
@@ -613,7 +613,7 @@ class ApiTransactionAcademy extends Controller
                 $percent = (empty($value) ? $diff:$value);
                 $step[] = [
                     'text' => 'Tahap '.$key,
-                    'minimum' => $percent,
+                    'minimum' => (int)$percent,
                     'amount' => ($percent/100) * $post['grandtotal']
                 ];
             }

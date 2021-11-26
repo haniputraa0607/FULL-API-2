@@ -116,16 +116,6 @@ class ApiAcademyController extends Controller
         $totalListOutlet = Setting::where('key', 'total_list_nearby_outlet')->first()['value']??5;
         $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
 
-        $day = [
-            'Mon' => 'Senin',
-            'Tue' => 'Selasa',
-            'Wed' => 'Rabu',
-            'Thu' => 'Kamis',
-            'Fri' => 'Jumat',
-            'Sat' => 'Sabtu',
-            'Sun' => 'Minggu'
-        ];
-
         $outlet = Outlet::join('cities', 'cities.id_city', 'outlets.id_city')
             ->selectRaw('cities.city_name, outlets.id_outlet, outlets.outlet_name, outlets.outlet_code,
                     outlets.outlet_latitude, outlets.outlet_longitude, outlets.outlet_address, 
@@ -145,6 +135,14 @@ class ApiAcademyController extends Controller
             ->with(['brands', 'holidays.date_holidays', 'today'])
             ->orderBy('distance_in_km', 'asc')
             ->limit($totalListOutlet);
+
+        if(!empty($post['id_product'])){
+            $listOutletAvailable = ProductDetail::where('id_product', $post['id_product'])->where('product_detail_visibility', 'Hidden')->pluck('id_outlet')->toArray();
+            $listOutletAvailable = array_unique($listOutletAvailable);
+            if(!empty($listOutletAvailable)){
+                $outlet = $outlet->whereNotIn('id_outlet', $listOutletAvailable);
+            }
+        }
 
         if(!empty($outletHomeService)){
             $outlet = $outlet->whereNotIn('id_outlet', [$outletHomeService]);
@@ -205,7 +203,7 @@ class ApiAcademyController extends Controller
             ];
         }
 
-        return response()->json(MyHelper::checkGet($res));
+        return response()->json(['status' => 'success', 'result' => $res]);
     }
 
     public function detailOutlet(Request $request){
@@ -487,19 +485,21 @@ class ApiAcademyController extends Controller
             ->leftJoin('brands', 'brands.id_brand', 'transaction_products.id_brand')
             ->leftJoin('products', 'products.id_product', 'transaction_products.id_product')
             ->where('transactions.id_user', $idUser)
+            ->whereNotIn('transaction_payment_status', ['Cancelled'])
             ->groupBy('transactions.id_transaction')
+            ->orderBy('transactions.id_transaction', 'desc')
             ->with('outlet');
 
         $post['status'] = $post['status']??'';
 
-        if($post['status'] == 'on_going'){
+        if($post['status'] == 'ongoing'){
             $idTransactionOnGoing = Transaction::join('transaction_academy', 'transactions.id_transaction', 'transaction_academy.id_transaction')
                 ->leftJoin('transaction_academy_schedules', 'transaction_academy_schedules.id_transaction_academy', 'transaction_academy.id_transaction_academy')
                 ->where('transactions.id_user', $idUser)
                 ->where(function ($q) use($currentDate){
-                    $q->where('transaction_academy_schedule_status', '>=', $currentDate)->orWhereNull('schedule_date');
+                    $q->where('schedule_date', '>=', $currentDate)->orWhereNull('schedule_date');
                 })->pluck('transaction_academy.id_transaction_academy')->toArray();
-
+            $idTransactionOnGoing = array_unique($idTransactionOnGoing);
             $list = $list->whereIn('transaction_academy.id_transaction_academy', $idTransactionOnGoing);
         }elseif($post['status'] == 'completed'){
             $idTransactionOnGoing = Transaction::join('transaction_academy', 'transactions.id_transaction', 'transaction_academy.id_transaction')
@@ -508,6 +508,7 @@ class ApiAcademyController extends Controller
                 ->where(function ($q) use($currentDate){
                     $q->where('schedule_date', '>=', $currentDate)->orWhereNull('schedule_date');
                 })->pluck('transaction_academy.id_transaction_academy')->toArray();
+            $idTransactionOnGoing = array_unique($idTransactionOnGoing);
 
             $list = $list->whereNotIn('transaction_academy.id_transaction_academy', $idTransactionOnGoing);
         }
@@ -516,7 +517,7 @@ class ApiAcademyController extends Controller
         $res = [];
         foreach ($list as $value){
             $nextTimeStart = '';
-            if($post['status'] == 'on_going'){
+            if($post['status'] == 'ongoing'){
                 $getNextTime = TransactionAcademySchedule::where('schedule_date', '>=', $currentDate)
                     ->where('id_transaction_academy', $value['id_transaction_academy'])
                     ->orderBy('schedule_date', 'asc')->first()['schedule_date']??'';
@@ -529,6 +530,7 @@ class ApiAcademyController extends Controller
             $res[] = [
                 'id_transaction' => $value['id_transaction'],
                 'id_transaction_academy' => $value['id_transaction_academy'],
+                'receipt_number' => $value['transaction_receipt_number'],
                 'course_name' => $value['product_name'],
                 'next_schedule_date_display' => (empty($nextTimeStart)? '' : MyHelper::dateFormatInd($nextTimeStart, true, false)),
                 'next_schedule_date' => (empty($nextTimeStart)? '' : date('Y-m-d', strtotime($nextTimeStart))),
@@ -538,7 +540,7 @@ class ApiAcademyController extends Controller
             ];
         }
 
-        return response()->json(MyHelper::checkGet($res));
+        return response()->json(['status' => 'success', 'result' => $res]);
     }
 
     public function detailMyCourse(Request $request){
@@ -555,14 +557,12 @@ class ApiAcademyController extends Controller
                         ->where('transactions.id_transaction', $post['id_transaction'])->with('outlet')->first();
 
             if(!empty($detail)){
-                $nextTimeStart = '';
-                $getNextTime = TransactionAcademySchedule::where('schedule_date', '>=', $currentDate)
-                        ->where('id_transaction_academy', $detail['id_transaction_academy'])
-                        ->orderBy('schedule_date', 'asc')->first()['schedule_date']??'';
-                if(!empty($getNextTime)){
-                    $nextTimeStart = date('Y-m-d H:i:s', strtotime($getNextTime));
-                    $nextTimeEnd = date('Y-m-d H:i:s', strtotime("+".(int)$detail['transaction_academy_hours_meeting']." hour", strtotime($nextTimeStart)));
-                }
+                $ongoingCheck = Transaction::join('transaction_academy', 'transactions.id_transaction', 'transaction_academy.id_transaction')
+                    ->leftJoin('transaction_academy_schedules', 'transaction_academy_schedules.id_transaction_academy', 'transaction_academy.id_transaction_academy')
+                    ->where('transaction_academy.id_transaction_academy', $detail['id_transaction_academy'])
+                    ->where(function ($q) use($currentDate){
+                        $q->where('schedule_date', '>=', $currentDate)->orWhereNull('schedule_date');
+                    })->first();
 
                 $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
                     ->where('id_outlet', $detail['id_outlet'])->first();
@@ -571,10 +571,24 @@ class ApiAcademyController extends Controller
                     return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
                 }
 
+                $status = 'completed';
+                $nextTimeStart = '';
+                if(!empty($ongoingCheck)){
+                    $status = 'ongoing';
+                    $getNextTime = TransactionAcademySchedule::where('schedule_date', '>=', $currentDate)
+                            ->where('id_transaction_academy', $detail['id_transaction_academy'])
+                            ->orderBy('schedule_date', 'asc')->first()['schedule_date']??'';
+                    if(!empty($getNextTime)){
+                        $nextTimeStart = date('Y-m-d H:i:s', strtotime($getNextTime));
+                        $nextTimeEnd = date('Y-m-d H:i:s', strtotime("+".(int)$detail['transaction_academy_hours_meeting']." hour", strtotime($nextTimeStart)));
+                    }
+                }
+
                 $detail = [
                     'id_transaction' => $detail['id_transaction'],
                     'id_transaction_academy' => $detail['id_transaction_academy'],
                     'course_name' => $detail['product_name'],
+                    'status' => $status,
                     'next_schedule_date_display' => (empty($nextTimeStart)? '' : MyHelper::dateFormatInd($nextTimeStart, true, false)),
                     'next_schedule_date' => (empty($nextTimeStart)? '' : date('Y-m-d', strtotime($nextTimeStart))),
                     'next_schedule_time' => (empty($nextTimeStart)? '' : date('H:i', strtotime($nextTimeStart)) .' - '. date('H:i', strtotime($nextTimeEnd))),
@@ -603,15 +617,31 @@ class ApiAcademyController extends Controller
         $post = $request->json()->all();
         if(!empty($post['id_transaction_academy'])){
             $totalCompleted = TransactionAcademySchedule::where('id_transaction_academy', $post['id_transaction_academy'])->where('transaction_academy_schedule_status', 'Attend')->count();
-            $listSchedule = TransactionAcademySchedule::where('id_transaction_academy', $post['id_transaction_academy'])->paginate(10)->toArray();
 
-            foreach ($listSchedule['data'] as $key=>$value){
-                $listSchedule['data'][$key] = [
-                    'meeting' => 'Pertemuan '.MyHelper::numberToRomanRepresentation($value['meeting']),
-                    'status' => $value['transaction_academy_schedule_status'],
-                    'date' => MyHelper::dateFormatInd($value['schedule_date'], true, false),
-                    'time' => date('H:i', strtotime($value['schedule_date']))
-                ];
+            $nextMeeting = TransactionAcademySchedule::where('id_transaction_academy', $post['id_transaction_academy'])
+                        ->where('transaction_academy_schedule_status', 'Not Started')->orderBy('meeting', 'asc')->first()['meeting']??null;
+            if(!isset($post['page'])){
+                $listSchedule = TransactionAcademySchedule::where('id_transaction_academy', $post['id_transaction_academy'])->get()->toArray();
+
+                foreach ($listSchedule as $key=>$value){
+                    $listSchedule[$key] = [
+                        'meeting' => 'Pertemuan '.MyHelper::numberToRomanRepresentation($value['meeting']),
+                        'status' => ($nextMeeting == $value['meeting'] ? 'Next':$value['transaction_academy_schedule_status']),
+                        'date' => MyHelper::dateFormatInd($value['schedule_date'], true, false),
+                        'time' => date('H:i', strtotime($value['schedule_date']))
+                    ];
+                }
+            }else{
+                $listSchedule = TransactionAcademySchedule::where('id_transaction_academy', $post['id_transaction_academy'])->paginate(15)->toArray();
+
+                foreach ($listSchedule['data'] as $key=>$value){
+                    $listSchedule['data'][$key] = [
+                        'meeting' => 'Pertemuan '.MyHelper::numberToRomanRepresentation($value['meeting']),
+                        'status' => ($nextMeeting == $value['meeting'] ? 'Next':$value['transaction_academy_schedule_status']),
+                        'date' => MyHelper::dateFormatInd($value['schedule_date'], true, false),
+                        'time' => date('H:i', strtotime($value['schedule_date']))
+                    ];
+                }
             }
 
             $res = [

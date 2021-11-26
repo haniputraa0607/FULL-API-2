@@ -1089,4 +1089,96 @@ class ApiTransactionShop extends Controller
 
         return $product;
     }
+
+    public function shopList(Request $request) {
+    	$user = $request->user();
+
+    	$list = Transaction::where('transaction_from', 'shop')
+    			->join('transaction_shops','transactions.id_transaction', 'transaction_shops.id_transaction')
+    			->where('id_user', $user->id)
+    			->orderBy('transaction_date', 'desc')
+    			->with(['outlet.brands', 'products.product_group', 'products.photos']);
+
+		switch (strtolower($request->status)) {
+			case 'unpaid':
+				$list->where('transaction_payment_status','Pending');
+				break;
+
+			case 'ongoing':
+				$list->whereNotIn('transaction_shops.shop_status', ['Rejected by Admin', 'Rejected by Customer', 'Completed'])
+				->where('transaction_payment_status','Completed');
+				break;
+
+			case 'complete':
+				$list->where(function($q) {
+					$q->whereIn('transaction_shops.shop_status', ['Rejected by Admin', 'Rejected by Customer', 'Completed'])
+					->orWhere('transaction_payment_status','Cancelled');
+				});
+				break;
+			
+			default:
+				// code...
+				break;
+		}
+
+		$list = $list->paginate(10)->toArray();
+
+		$resData = [];
+		foreach ($list['data'] ?? [] as $val) {
+
+			$orders = [];
+			foreach ($val['products'] as $product) {
+				$orders[] = [
+					'product_name' => $product['product_group']['product_group_name'] . ' ' . $product['variant_name'],
+					'transaction_product_qty' => $product['pivot']['transaction_product_qty'],
+					'transaction_product_price' => $product['pivot']['transaction_product_price'],
+					'transaction_product_subtotal' => $product['pivot']['transaction_product_subtotal'],
+					'photo' => $product['photos'][0]['url_product_photo']
+				];
+			}
+
+			$shopStatus = $this->shopStatus($val['shop_status']);
+			if ($val['transaction_payment_status'] == 'Pending') {
+				$status = 'unpaid';
+				$shopStatus = 'Menunggu Pembayaran';
+			} elseif ($val['transaction_payment_status'] == 'Cancelled') {
+				$status = 'cancelled';
+				$shopStatus = 'Dibatalkan';
+			} elseif (in_array($val['shop_status'], ['Rejected by Admin', 'Rejected by Customer', 'Completed']) && $val['transaction_payment_status'] == 'Completed') {
+				$status = 'completed';
+			} else {
+				$status = 'ongoing';
+			}
+
+			$resData[] = [
+				'id_transaction' => $val['id_transaction'],
+				'transaction_receipt_number' => $val['transaction_receipt_number'],
+				'transaction_date' => MyHelper::dateFormatInd($val['transaction_date'], true, false),
+				'transaction_time' => date('H:i', strtotime($val['transaction_date'])),
+				'customer_name' => $val['destination_name'],
+				'status' => $status,
+				'shop_status' => $shopStatus,
+				'order' => $orders
+			];
+		}
+
+		$list['data'] = $resData;
+		return MyHelper::checkGet($list);
+    }
+
+    public function shopStatus($status)
+    {
+    	$arr = [
+    		'Pending' => 'Menunggu Konfirmasi',
+	    	'Received' => 'Pesanan Diproses',
+	    	'Ready' => 'Pesanan Siap Dikirim',
+	    	'Delivery' => 'Pesanan Telah Dikirim',
+	    	'Arrived' => 'Pesanan Telah Sampai',
+	    	'Completed' => 'Selesai',
+	    	'Rejected by Admin' => 'Dibatalkan',
+	    	'Rejected by Customer' => 'Pesanan Ditolak'
+	    ];
+
+	    return $arr[$status] ?? $status;
+    }
 }

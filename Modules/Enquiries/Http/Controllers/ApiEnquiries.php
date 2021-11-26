@@ -202,6 +202,7 @@ class ApiEnquiries extends Controller
 			$data['brand'] = $brand;
 			$goCrm = $this->sendCrm($data);
 			$data['id_enquiry'] = $save->id_enquiry;
+			$data['message'] = 'Berhasil mengirimkan pesan';
 		}
         return response()->json(MyHelper::checkCreate($data));
     }

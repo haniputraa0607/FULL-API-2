@@ -49,16 +49,6 @@ Route::group(['prefix' => 'franchise'], function () {
         });
         Route::post('profile-admin', 'ApiUserFranchiseController@updateProfile');
 
-        Route::group(['prefix' => 'transaction'], function () {
-		    Route::any('filter', 'ApiTransactionFranchiseController@transactionFilter');
-		    Route::post('detail', ['uses' => '\Modules\Transaction\Http\Controllers\ApiTransaction@transactionDetail']);
-
-		    Route::get('export','ApiTransactionFranchiseController@listExport');
-	        Route::post('export','ApiTransactionFranchiseController@newExport');
-	        Route::delete('export/{export_queue}','ApiTransactionFranchiseController@destroyExport');
-	        Route::any('export/action', 'ApiTransactionFranchiseController@actionExport');
-		});
-
 		Route::group(['prefix' => 'product'], function() {
             Route::post('list','ApiTransactionFranchiseController@listProduct');
 		    Route::post('category/list','ApiTransactionFranchiseController@listProductCategory');
@@ -128,5 +118,16 @@ Route::group(['prefix' => 'franchise'], function () {
                 Route::post('list', 'ApiReportSalesController@outletListDaily');
             });
         });
+        
+        Route::group(['prefix' => 'transaction'], function () {
+		    Route::any('filter', 'ApiTransactionFranchiseController@transactionFilter');
+		    Route::post('detail', ['uses' => '\Modules\Transaction\Http\Controllers\ApiTransaction@transactionDetail']);
+
+		    Route::get('export','ApiTransactionFranchiseController@listExport');
+	        Route::post('export','ApiTransactionFranchiseController@newExport');
+	        Route::delete('export/{export_queue}','ApiTransactionFranchiseController@destroyExport');
+	        Route::any('export/action', 'ApiTransactionFranchiseController@actionExport');
+		});
+
     });
 });

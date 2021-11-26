@@ -80,25 +80,17 @@ class ApiTransactionFranchiseController extends Controller
         $start = date('Y-m-d', strtotime($post['date_start']));
         $end = date('Y-m-d', strtotime($post['date_end']));
         $delivery = false;
-        if(strtolower($post['key']) == 'delivery'){
-            $post['key'] = 'pickup order';
-            $delivery = true;
-        }
+        // if(strtolower($post['key']) == 'delivery'){
+        //     $post['key'] = 'pickup order';
+        //     $delivery = true;
+        // }
 
-        $query = Transaction::join('transaction_pickups','transaction_pickups.id_transaction','=','transactions.id_transaction')->select('transactions.*',
-            'transaction_pickups.*',
-            'transaction_pickup_go_sends.*',
-            'transaction_pickup_wehelpyous.*',
-            'transaction_products.*',
-            'users.*',
-            'products.*',
-            'product_categories.*',
-            'outlets.outlet_code', 'outlets.outlet_name')
-        	->join('disburse_outlet_transactions', 'transactions.id_transaction', 'disburse_outlet_transactions.id_transaction')
+        $query = Transaction::join('transaction_outlet_services','transaction_outlet_services.id_transaction','=','transactions.id_transaction')
+        	// ->join('disburse_outlet_transactions', 'transactions.id_transaction', 'disburse_outlet_transactions.id_transaction')
             ->leftJoin('outlets','outlets.id_outlet','=','transactions.id_outlet')
-            ->leftJoin('transaction_pickup_go_sends','transaction_pickups.id_transaction_pickup','=','transaction_pickup_go_sends.id_transaction_pickup')
-            ->leftJoin('transaction_pickup_wehelpyous','transaction_pickups.id_transaction_pickup','=','transaction_pickup_wehelpyous.id_transaction_pickup')
-            ->leftJoin('transaction_products','transactions.id_transaction','=','transaction_products.id_transaction')
+            // ->leftJoin('transaction_pickup_go_sends','transaction_pickups.id_transaction_pickup','=','transaction_pickup_go_sends.id_transaction_pickup')
+            // ->leftJoin('transaction_pickup_wehelpyous','transaction_pickups.id_transaction_pickup','=','transaction_pickup_wehelpyous.id_transaction_pickup')
+            ->leftJoin('transaction_products','transaction_products.id_transaction','transactions.id_transaction')
             ->leftJoin('users','transactions.id_user','=','users.id')
             ->leftJoin('products','products.id_product','=','transaction_products.id_product')
             // ->leftJoin('brand_product','brand_product.id_product','=','transaction_products.id_product')
@@ -109,20 +101,29 @@ class ApiTransactionFranchiseController extends Controller
             // ->whereNull('transaction_pickups.reject_at')
             ->with('user')
             // ->orderBy('transactions.id_transaction', 'DESC')
+            ->select('transactions.*',
+            'transaction_outlet_services.*',
+            // 'transaction_pickup_go_sends.*',
+            // 'transaction_pickup_wehelpyous.*',
+            'transaction_products.*',
+            'products.*',
+            'product_categories.*',
+            'outlets.outlet_code', 'outlets.outlet_name'
+            )
             ->groupBy('transactions.id_transaction');
 
         if (isset($post['id_outlet'])) {
         	$query->where('transactions.id_outlet', $post['id_outlet']);
         }
 
-        if (strtolower($post['key']) !== 'all') {
-            $query->where('trasaction_type', $post['key']);
-            if($delivery){
-                $query->where('pickup_by','<>','Customer');
-            }else{
-                $query->where('pickup_by','Customer');
-            }
-        }
+        // if (strtolower($post['key']) !== 'all') {
+        //     $query->where('trasaction_type', $post['key']);
+        //     if($delivery){
+        //         $query->where('pickup_by','<>','Customer');
+        //     }else{
+        //         $query->where('pickup_by','Customer');
+        //     }
+        // }
 
        	$query = $this->filterTransaction($query, $post);
 
@@ -176,6 +177,7 @@ class ApiTransactionFranchiseController extends Controller
 
         return response()->json($result);
     }
+
 
     /**
      * Create a new export queue

@@ -2495,7 +2495,8 @@ class ApiUser extends Controller
                         'job' => $datauser[0]['job'],
                         'address' => $datauser[0]['address'],
                         'id_card_image' => $urlIdCard,
-                        'city' => $datauser[0]['city']
+                        'city' => $datauser[0]['city'],
+                        'message'    => 'Data telah berhasil diubah'
                     ],
                     'message'    => 'Data telah berhasil diubah'
                 ];

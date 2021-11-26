@@ -129,6 +129,7 @@ class ApiOnlineTransaction extends Controller
         $this->product      = "Modules\Product\Http\Controllers\ApiProductController";
         $this->trx_home_service  = "Modules\Transaction\Http\Controllers\ApiTransactionHomeService";
         $this->trx_academy = "Modules\Transaction\Http\Controllers\ApiTransactionAcademy";
+        $this->trx_shop = "Modules\Transaction\Http\Controllers\ApiTransactionShop";
     }
 
     public function newTransaction(NewTransaction $request) {
@@ -146,6 +147,9 @@ class ApiOnlineTransaction extends Controller
         }elseif($post['transaction_from'] == 'academy'){
             $academy = app($this->trx_academy)->newTransactionAcademy($request);
             return $academy;
+        }elseif($post['transaction_from'] == 'shop'){
+            $shop = app($this->trx_shop)->newTransactionShop($request);
+            return $shop;
         }
 
         $bearerToken = $request->bearerToken();
@@ -1937,6 +1941,9 @@ class ApiOnlineTransaction extends Controller
         }elseif ($post['transaction_from'] == 'academy'){
             $academy = app($this->trx_academy)->check($request);
             return $academy;
+        }elseif ($post['transaction_from'] == 'shop'){
+            $shop = app($this->trx_shop)->check($request);
+            return $shop;
         }
 
         $bearerToken = $request->bearerToken();
@@ -4538,6 +4545,9 @@ class ApiOnlineTransaction extends Controller
         if($post['transaction_from'] == 'home-service'){
             $homeService = app($this->trx_home_service)->cart($request);
             return $homeService;
+        }elseif($post['transaction_from'] == 'shop'){
+            $shop = app($this->trx_shop)->cart($request);
+            return $shop;
         }
 
         $bearerToken = $request->bearerToken();

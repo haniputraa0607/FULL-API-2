@@ -14,13 +14,21 @@ use App\Http\Models\Transaction;
 use App\Http\Models\TransactionProduct;
 use App\Http\Models\TransactionSetting;
 use App\Http\Models\UserAddress;
+use App\Http\Models\Configs;
 
 use Modules\Brand\Entities\Brand;
 
 use Modules\Product\Entities\ProductDetail;
 use Modules\Product\Entities\ProductStockLog;
+use Modules\Product\Entities\ProductSpecialPrice;
+use Modules\Product\Entities\ProductGlobalPrice;
+
+use Modules\Transaction\Entities\TransactionShop;
+
+use Modules\Transaction\Http\Requests\Transaction\NewTransaction;
 
 use App\Lib\MyHelper;
+use Modules\PromoCampaign\Lib\PromoCampaignTools;
 use DB;
 use DateTime;
 
@@ -678,6 +686,357 @@ class ApiTransactionShop extends Controller
         ];
 
         return MyHelper::checkGet($finalRes)+['messages'=>$error_msg];
+    }
+
+    public function newTransactionShop(NewTransaction $request) {
+        $post = $request->json()->all();
+
+        if(empty($post['item'])){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Item can not be empty']
+            ]);
+        }
+
+        if(!empty($request->user()->id)){
+            $user = User::where('id', $request->user()->id)
+                ->leftJoin('cities', 'cities.id_city', 'users.id_city')
+                ->select('users.*', 'cities.city_name')
+                ->with('memberships')
+                ->first();
+            if (empty($user)) {
+                return response()->json([
+                    'status'    => 'fail',
+                    'messages'  => ['User Not Found']
+                ]);
+            }
+        }
+
+        if($user['complete_profile'] == 0){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Please complete your profile']
+            ]);
+        }
+
+        if(empty($post['transaction_from'])){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Parameter transaction_from can not be empty']
+            ]);
+        }
+
+        if(empty($post['id_user_address'])){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['ID user address can not be empty']
+            ]);
+        }
+        $address = UserAddress::where('id_user', $user->id)->where('id_user_address', $post['id_user_address'])->first();
+        if(empty($address)){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Address user not found']
+            ]);
+        }
+
+        $post['latitude'] = $address['latitude']??null;
+        $post['longitude'] = $address['longitude']??null;
+
+        $outletShop = Setting::where('key', 'default_outlet')->first()['value'] ?? null;
+        $outlet = Outlet::where('id_outlet', $outletShop)->first();
+        if(empty($outlet)){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Outlet default not found']
+            ]);
+        }
+        $post['id_outlet'] = $outlet['id_outlet'];
+
+        $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
+            ->where('id_outlet', $outlet['id_outlet'])->first();
+
+        if(empty($brand)){
+            return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
+        }
+
+        $dataItem = [];
+        $post['item'] = app($this->online_trx)->mergeProducts($post['item'] ?? []);
+
+        foreach ($post['item'] as $keyProduct => $valueProduct) {
+            $this_discount = $valueProduct['discount'] ?? 0;
+            $checkProduct = Product::where('id_product', $valueProduct['id_product'])->first();
+            if (empty($checkProduct)) {
+                return [
+                    'status'    => 'fail',
+                    'messages'  => ['Product Not Found']
+                ];
+            }
+
+            if (!$checkProduct['product_variant_status']) {
+                $checkDetailProduct = ProductDetail::where(['id_product' => $checkProduct['id_product'], 'id_outlet' => $post['id_outlet']])->first();
+                $currentProductStock = $checkDetailProduct['product_detail_stock_item'] ?? 0;
+                $currentProductServiceStock = $checkDetailProduct['product_detail_stock_service'] ?? 0;
+                $stockItem = 1;
+                if ($valueProduct['qty'] > $currentProductStock) {
+                    return [
+                        'status'    => 'fail',
+                        'product_sold_out_status' => true,
+                        'messages'  => ['Product '.$checkProduct['product_name'].' tidak tersedia dan akan terhapus dari cart.']
+                    ];
+                }
+
+                if ($checkDetailProduct['product_detail_visibility'] == 'Hidden' || (empty($checkDetailProduct) && $checkProduct['product_visibility'] == 'Hidden')) {
+                    return [
+                        'status'    => 'fail',
+                        'product_sold_out_status' => true,
+                        'messages'  => ['Product '.$checkProduct['product_name'].' tidak tersedia dan akan terhapus dari cart.']
+                    ];
+                }
+            }
+
+            if(!isset($valueProduct['note'])){
+                $valueProduct['note'] = null;
+            }
+
+            $productPrice = 0;
+
+            if ($outlet['outlet_different_price']) {
+                $checkPriceProduct = ProductSpecialPrice::where(['id_product' => $checkProduct['id_product'], 'id_outlet' => $post['id_outlet']])->first();
+                if(!isset($checkPriceProduct['product_special_price'])){
+                    return [
+                        'status'    => 'fail',
+                        'messages'  => ['Product Price Not Valid']
+                    ];
+                }
+                $productPrice = $checkPriceProduct['product_special_price'];
+            } else {
+                $checkPriceProduct = ProductGlobalPrice::where(['id_product' => $checkProduct['id_product']])->first();
+
+                if(isset($checkPriceProduct['product_global_price'])){
+                    $productPrice = $checkPriceProduct['product_global_price'];
+                }else{
+                    return [
+                        'status'    => 'fail',
+                        'messages'  => ['Product Price Not Valid']
+                    ];
+                }
+            }
+
+            $dataItem[] = [
+                "id_custom" => $valueProduct['id_custom'],
+                "id_brand" => $brand['id_brand'],
+                "id_product" => $checkProduct['id_product'],
+                "product_code" => $checkProduct['product_code'],
+                "product_name" => $checkProduct['product_name'],
+                "product_price" => (int) $productPrice,
+                "subtotal" => (int) $productPrice * $valueProduct['qty'],
+                "qty" => $valueProduct['qty']
+            ];
+        }
+
+        $post['item'] = $dataItem;
+        $grandTotal = app($this->setting_trx)->grandTotal();
+        foreach ($grandTotal as $keyTotal => $valueTotal) {
+            if ($valueTotal == 'subtotal') {
+                $post['sub'] = app($this->setting_trx)->countTransaction($valueTotal, $post);
+
+                if (gettype($post['sub']) != 'array') {
+                    $mes = ['Data Not Valid'];
+
+                    if (isset($post['sub']->original['messages'])) {
+                        $mes = $post['sub']->original['messages'];
+
+                        if ($post['sub']->original['messages'] == ['Price Product not found']) {
+                            if (isset($post['sub']->original['product'])) {
+                                $mes = ['Price Not Found with product '.$post['sub']->original['product']];
+                            }
+                        }
+
+                        if ($post['sub']->original['messages'] == ['Price Product Not Valid']) {
+                            if (isset($post['sub']->original['product'])) {
+                                $mes = ['Price Product Not Valid with product '.$post['sub']->original['product']];
+                            }
+                        }
+                    }
+
+                    return response()->json([
+                        'status'    => 'fail',
+                        'messages'  => $mes
+                    ]);
+                }
+
+                $post['subtotal'] = array_sum($post['sub']['subtotal']);
+            } elseif($valueTotal == 'tax'){
+                $post['tax'] = app($this->setting_trx)->countTransaction($valueTotal, $post);
+
+                if (isset($post['tax']->original['messages'])) {
+                    $mes = $post['tax']->original['messages'];
+
+                    DB::rollback();
+                    return response()->json([
+                        'status'    => 'fail',
+                        'messages'  => $mes
+                    ]);
+                }
+            }
+            else {
+                $post[$valueTotal] = app($this->setting_trx)->countTransaction($valueTotal, $post);
+            }
+        }
+
+        $address = UserAddress::where('id_user', $user->id)->where('id_user_address', $post['id_user_address'])->first();
+        if(empty($address)){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Address user not found']
+            ]);
+        }
+
+        if (isset($post['transaction_payment_status'])) {
+            $post['transaction_payment_status'] = $post['transaction_payment_status'];
+        } else {
+            $post['transaction_payment_status'] = 'Pending';
+        }
+
+        if (count($user['memberships']) > 0) {
+            $post['membership_level']    = $user['memberships'][0]['membership_name'];
+            $post['membership_promo_id'] = $user['memberships'][0]['benefit_promo_id'];
+        } else {
+            $post['membership_level']    = null;
+            $post['membership_promo_id'] = null;
+        }
+
+        $earnedPoint = app($this->online_trx)->countTranscationPoint($post, $user);
+        $cashback = $earnedPoint['cashback'] ?? 0;
+
+        $receipt = config('configs.PREFIX_TRANSACTION_NUMBER').'-'.MyHelper::createrandom(4,'Angka').time().substr($post['id_outlet'], 0, 4);
+        $grandTotal = (int)$post['subtotal'] + (int)$post['tax'];
+        DB::beginTransaction();
+
+
+        $transaction = [
+            'id_outlet'                   => $post['id_outlet'],
+            'id_user'                     => $request->user()->id,
+            'transaction_receipt_number'  => $receipt,
+            'transaction_date'            => date('Y-m-d H:i:s'),
+            'transaction_shipment'        => $post['shipping'] ?? 0,
+            'transaction_service'         => $post['service'] ?? 0,
+            'transaction_discount'        => $post['discount'] ?? 0,
+            'transaction_discount_delivery' => $post['discount_delivery'] ?? 0,
+            'transaction_discount_item' 	=> $discountItem ?? 0,
+            'transaction_discount_bill' 	=> $discountBill ?? 0,
+            'transaction_subtotal'        => $post['subtotal'],
+            'transaction_gross'  		  => $post['subtotal'],
+            'transaction_tax'             => $post['tax'],
+            'transaction_grandtotal'      => $grandTotal,
+            'transaction_cashback_earned' => $cashback,
+            'transaction_payment_status'  => $post['transaction_payment_status'],
+            'membership_level'            => $post['membership_level'],
+            'membership_promo_id'         => $post['membership_promo_id'],
+            'latitude'                    => $post['latitude'],
+            'longitude'                   => $post['longitude'],
+            'void_date'                   => null,
+            'transaction_from'            => $post['transaction_from'],
+            'scope'                       => 'apps'
+        ];
+
+        $useragent = $_SERVER['HTTP_USER_AGENT'];
+        if(stristr($useragent,'iOS')) $useragent = 'IOS';
+        elseif(stristr($useragent,'okhttp')) $useragent = 'Android';
+        else $useragent = null;
+
+        if($useragent){
+            $transaction['transaction_device_type'] = $useragent;
+        }
+
+        $insertTransaction = Transaction::create($transaction);
+
+        if (!$insertTransaction) {
+            DB::rollback();
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Insert Transaction Failed']
+            ]);
+        }
+
+        $createTransactionShop = TransactionShop::create([
+        	'id_transaction' => $insertTransaction['id_transaction'],
+			'destination_name' => $user['name'],
+			'destination_phone' => $user['phone'],
+			'destination_address' => $address['address'],
+			'destination_short_address' => $address['short_address'],
+			'destination_address_name' => $address['name'],
+			'destination_note' => (empty($post['notes']) ? $address['description']:$post['notes']),
+			'destination_latitude' => $address['latitude'],
+			'destination_longitude' => $address['longitude'],
+        ]);
+
+        if (!$createTransactionShop) {
+            DB::rollback();
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Insert Transaction Shop Failed']
+            ]);
+        }
+
+        $userTrxProduct = [];
+        foreach ($post['item'] as $itemProduct){
+
+            $dataProduct = [
+                'id_transaction'               => $insertTransaction['id_transaction'],
+                'id_product'                   => $itemProduct['id_product'],
+                'type'                         => 'Product',
+                'id_outlet'                    => $insertTransaction['id_outlet'],
+                'id_brand'                     => $itemProduct['id_brand'],
+                'id_user'                      => $insertTransaction['id_user'],
+                'transaction_product_qty'      => $itemProduct['qty'],
+                'transaction_product_price'    => $itemProduct['product_price'],
+                'transaction_product_price_base' => $itemProduct['product_price'],
+                'transaction_product_discount'   => 0,
+                'transaction_product_discount_all'   => 0,
+                'transaction_product_base_discount' => 0,
+                'transaction_product_qty_discount'  => 0,
+                'transaction_product_subtotal' => $itemProduct['subtotal'],
+                'transaction_product_net' => $itemProduct['subtotal'],
+                'transaction_product_note'     => null,
+                'created_at'                   => date('Y-m-d', strtotime($insertTransaction['transaction_date'])).' '.date('H:i:s'),
+                'updated_at'                   => date('Y-m-d H:i:s')
+            ];
+
+            $trxProduct = TransactionProduct::create($dataProduct);
+            if (!$trxProduct) {
+                DB::rollback();
+                return [
+                    'status'    => 'fail',
+                    'messages'  => ['Insert Product Transaction Failed']
+                ];
+            }
+
+            $dataUserTrxProduct = [
+                'id_user'       => $insertTransaction['id_user'],
+                'id_product'    => $itemProduct['id_product'],
+                'product_qty'   => $itemProduct['qty'],
+                'last_trx_date' => $insertTransaction['transaction_date']
+            ];
+            array_push($userTrxProduct, $dataUserTrxProduct);
+        }
+
+        $insertUserTrxProduct = app($this->transaction)->insertUserTrxProduct($userTrxProduct);
+        if ($insertUserTrxProduct == 'fail') {
+            DB::rollback();
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Insert Product Transaction Failed']
+            ]);
+        }
+
+        DB::commit();
+
+        return response()->json([
+            'status'   => 'success',
+            'result'   => $insertTransaction
+        ]);
     }
 
     public function getDetailProduct($id_product, $id_outlet)

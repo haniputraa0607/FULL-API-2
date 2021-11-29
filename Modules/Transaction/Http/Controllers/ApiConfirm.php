@@ -666,6 +666,7 @@ class ApiConfirm extends Controller
                 ],
             ];
         } elseif ($post['payment_type'] == 'Xendit') {
+            $payment_id = $request->payment_id ?? $request->payment_detail;
             $paymentXendit = TransactionPaymentXendit::where('id_transaction', $check['id_transaction'])->first();
             if(!$paymentXendit) {
                 $paymentXendit = new TransactionPaymentXendit([

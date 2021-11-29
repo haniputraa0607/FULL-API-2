@@ -8,7 +8,7 @@ use Illuminate\Routing\Controller;
 use Modules\Xendit\Lib\CustomHttpClient;
 use Xendit\Xendit;
 use DateTime;
-use Modules\Transaction\Entities\TransactionGroup;
+use App\Http\Models\Transaction;
 use DB;
 use App\Http\Models\User;
 use App\Http\Models\Configs;
@@ -99,8 +99,8 @@ class XenditController extends Controller
 
         DB::beginTransaction();
 
-        if (stristr($post['external_id'], TransactionGroup::RECEIPT_NUMBER_PREFIX)) {
-            $trx = TransactionGroup::where('transaction_receipt_number', $post['external_id'])->join('transaction_payment_xendits', 'transaction_groups.id_transaction_group', '=', 'transaction_payment_xendits.id_transaction_group')->first();
+        if (stristr($post['external_id'], config('configs.PREFIX_TRANSACTION_NUMBER'))) {
+            $trx = Transaction::where('transaction_receipt_number', $post['external_id'])->join('transaction_payment_xendits', 'transaction_groups.id_transaction_group', '=', 'transaction_payment_xendits.id_transaction_group')->first();
             if (!$trx) {
                 $status_code = 404;
                 $response    = ['status' => 'fail', 'messages' => ['Transaction not found']];
@@ -279,7 +279,7 @@ class XenditController extends Controller
         ];
         try {
             $expired = date('Y-m-d H:i:s', time() - 1200);
-            $transactions = TransactionGroup::join('transaction_payment_xendits', 'transaction_payment_xendits.id_transaction_group', 'transaction_groups.id_transaction_group')
+            $transactions = Transaction::join('transaction_payment_xendits', 'transaction_payment_xendits.id_transaction_group', 'transaction_groups.id_transaction_group')
                 ->where('transaction_date', '<=', $expired)
                 ->where('transaction_payment_status', 'Pending')
                 ->get();

@@ -97,7 +97,7 @@ class ApiTransactionFranchiseController extends Controller
             ->leftJoin('product_categories','products.id_product_category','=','product_categories.id_product_category')
             ->whereDate('transactions.transaction_date', '>=', $start)
             ->whereDate('transactions.transaction_date', '<=', $end)
-            ->where('transactions.transaction_payment_status', 'Completed')
+            // ->where('transactions.transaction_payment_status', 'Completed')
             // ->whereNull('transaction_pickups.reject_at')
             ->with('user')
             // ->orderBy('transactions.id_transaction', 'DESC')
@@ -810,6 +810,46 @@ class ApiTransactionFranchiseController extends Controller
 	                            $query = $query->where($var, $op, 'Customer');
 	                        } else {
 	                            $query = $query->orWhere($var, $op, 'Customer');
+	                        }
+	                    }
+
+	                    if ($con['subject'] == 'type') {
+	                    	$var = 'transaction_products.type';
+
+	                        if ($filter['rule'] == 'and') {
+	                            $query = $query->where($var, $con['parameter']);
+	                        } else {
+	                            $query = $query->orWhere($var, $con['parameter']);
+	                        }
+	                    }
+	                    if ($con['subject'] == 'payment_status') {
+	                    	$var = 'transactions.transaction_payment_status';
+
+                            if($con['operator'] == '='){
+                                $op = '=';
+                            }else{
+                                $op = '!=';
+                            }
+	                        if ($filter['rule'] == 'and') {
+	                            $query = $query->where($var, $op, $con['parameter']);
+	                        } else {
+	                            $query = $query->orWhere($var, $op, $con['parameter']);
+	                        }
+	                    }
+
+                        if ($con['subject'] == 'date_status') {
+	                    	$var = 'transaction_outlet_services.completed_at';
+                            $date_now = date('Y-m-d H:i:s');
+                            $hour_now = date('H:i:s');
+                            if($con['parameter'] == 'pending'){
+                                $op = '>';
+                            }elseif($con['parameter'] == 'completed'){
+                                $op = '<=';
+                            }  
+	                        if ($filter['rule'] == 'and') {
+	                            $query = $query->whereDate($var, $op, $date_now)->whereTime($var, $op, $hour_now);
+	                        } else {
+	                            $query = $query->orWhereDate($var, $op, $date_now);
 	                        }
 	                    }
 	                }

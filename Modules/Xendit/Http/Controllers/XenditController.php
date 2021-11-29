@@ -67,12 +67,13 @@ class XenditController extends Controller
         $header         = $request->header();
         $validToken     = $this->callback_token;
         $update         = 0;
+        $cat            = $header['x-callback-token'][0] ?? null;
 
         if ($request->ewallet_type == 'OVO') {
             $validToken = null;
         }
 
-        if ($request->callback_authentication_token != $validToken) {
+        if ($cat != $validToken) {
             $status_code = 401;
             $response    = [
                 'status'   => 'fail',

@@ -834,7 +834,7 @@ class ApiConfirm extends Controller
                             'messages' => ['Empty checkout_url']
                         ];
                     }
-                    $result['checkout_url'] = $paymentXendit->checkout_url;
+                    $result['redirect_url'] = $paymentXendit->checkout_url;
                 }
 
                 return [

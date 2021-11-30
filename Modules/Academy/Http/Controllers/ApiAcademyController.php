@@ -662,7 +662,7 @@ class ApiAcademyController extends Controller
                 ];
             }
 
-            return response()->json(MyHelper::checkGet($res));
+            return response()->json(['status' => 'success', 'result' => $res]);
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID transaction academy can not be empty']]);
         }

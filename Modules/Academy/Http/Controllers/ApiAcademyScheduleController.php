@@ -285,13 +285,14 @@ class ApiAcademyScheduleController extends Controller
                 }
 
                 $save = TransactionAcademyScheduleDayOff::where('id_transaction_academy_schedule_day_off', $post['id_transaction_academy_schedule_day_off'])->update([
+                    'schedule_date_new' => date('Y-m-d H:i:s', strtotime($post['new_date'])),
                     'approve_by' => $request->user()->id,
                     'approve_date' => date('Y-m-d H:i:s'),
                 ]);
 
                 if($save){
                     $save = TransactionAcademySchedule::where('id_transaction_academy_schedule', $check['id_transaction_academy_schedule'])->update([
-                        'schedule_date' => date('Y-m-d H:i:s', strtotime($check['schedule_date_new'])),
+                        'schedule_date' => date('Y-m-d H:i:s', strtotime($post['new_date'])),
                         'change_schedule' => 1,
                         'count_change_schedule' => $check['count_change_schedule']+1
                     ]);
@@ -303,7 +304,7 @@ class ApiAcademyScheduleController extends Controller
                             [
                                 'id_transaction' => $check['id_transaction'],
                                 'schedule_old' => $check['schedule_date_old'],
-                                'schedule_new' => $check['schedule_date_new']
+                                'schedule_new' => $post['new_date']
                             ]
                         );
                     }

@@ -4,7 +4,7 @@ namespace Modules\Transaction\Entities;
 
 use Illuminate\Database\Eloquent\Model;
 
-class TransactionHomeService extends Model
+class TransactionHomeService extends \App\Http\Models\Template\TransactionService
 {
     protected $table = 'transaction_home_services';
 

@@ -4,7 +4,7 @@ namespace Modules\Transaction\Entities;
 
 use Illuminate\Database\Eloquent\Model;
 
-class TransactionOutletService extends Model
+class TransactionOutletService extends \App\Http\Models\Template\TransactionService
 {
     protected $table = 'transaction_outlet_services';
 

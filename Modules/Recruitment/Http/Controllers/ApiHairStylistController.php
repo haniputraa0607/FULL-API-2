@@ -191,7 +191,7 @@ class ApiHairStylistController extends Controller
         $post = $request->json()->all();
 
         $data = UserHairStylist::leftJoin('users as approver', 'approver.id', 'user_hair_stylist.approve_by')
-                ->whereIn('user_hair_stylist_status', ['Active', 'Inactive'])->orderBy('join_date', 'desc');
+                ->whereIn('user_hair_stylist_status', ['Active', 'Inactive'])->with('outlet')->orderBy('join_date', 'desc');
 
         if(isset($post['date_start']) && !empty($post['date_start']) &&
             isset($post['date_end']) && !empty($post['date_end'])){

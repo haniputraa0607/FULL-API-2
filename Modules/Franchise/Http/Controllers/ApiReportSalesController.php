@@ -32,25 +32,25 @@ class ApiReportSalesController extends Controller
 						COUNT(CASE WHEN transactions.id_transaction IS NOT NULL THEN 1 ELSE NULL END) AS total_transaction, 
 
 						# subtotal
-						SUM(CASE WHEN transactions.transaction_gross IS NOT NULL THEN transactions.transaction_gross ELSE 0 END) as total_subtotal,
+						SUM(CASE WHEN transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN transactions.transaction_gross ELSE 0 END) as total_subtotal,
 
 						# diskon
 						SUM(
-							CASE WHEN transactions.transaction_discount_item IS NOT NULL THEN ABS(transactions.transaction_discount_item) 
-								WHEN transactions.transaction_discount IS NOT NULL THEN ABS(transactions.transaction_discount)
+							CASE WHEN transactions.transaction_discount_item IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_item) 
+								WHEN transactions.transaction_discount IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount)
 								ELSE 0 END
-							+ CASE WHEN transactions.transaction_discount_delivery IS NOT NULL THEN ABS(transactions.transaction_discount_delivery) ELSE 0 END
-							+ CASE WHEN transactions.transaction_discount_bill IS NOT NULL THEN ABS(transactions.transaction_discount_bill) ELSE 0 END
+							+ CASE WHEN transactions.transaction_discount_delivery IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_delivery) ELSE 0 END
+							+ CASE WHEN transactions.transaction_discount_bill IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_bill) ELSE 0 END
 						) as total_discount,
 
 						# grandtotal
-						SUM(CASE WHEN transactions.transaction_grandtotal IS NOT NULL THEN transactions.transaction_grandtotal ELSE 0 END) as total_grandtotal,
+						SUM(CASE WHEN transactions.transaction_grandtotal IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN transactions.transaction_grandtotal ELSE 0 END) as total_grandtotal,
 
 						# payment complete
 						COUNT(CASE WHEN transactions.transaction_payment_status = "Completed" THEN 1 ELSE NULL END) as total_complete_payment,
 
                         #accept
-                        COUNT(CASE WHEN transaction_outlet_services.pickup_at IS NOT NULL AND transaction_outlet_services.completed_at IS NOT NULL THEN 1 ELSE 0 END) as total_accept
+                        COUNT(CASE WHEN transactions.id_transaction AND transaction_outlet_services.reject_at IS NULL THEN 1 ELSE NULL END) as total_accept
 					'));
 
         if(isset($post['filter_type']) && $post['filter_type'] == 'range_date'){
@@ -137,17 +137,18 @@ class ApiReportSalesController extends Controller
 					->select(DB::raw('
 						Date(transactions.transaction_date) as transaction_date,
                         COUNT(CASE WHEN transactions.transaction_payment_status = "Completed" THEN 1 ELSE NULL END) as total_complete_payment,
-                        SUM(CASE WHEN transactions.transaction_gross IS NOT NULL THEN transactions.transaction_gross ELSE 0 END) as total_subtotal,
+                        COUNT(CASE WHEN transactions.id_transaction AND transaction_outlet_services.reject_at IS NULL THEN 1 ELSE NULL END) AS total_transaction,
+                        SUM(CASE WHEN transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN transactions.transaction_gross ELSE 0 END) as total_subtotal,
                         SUM(
-							CASE WHEN transactions.transaction_discount_item IS NOT NULL THEN ABS(transactions.transaction_discount_item) 
-								WHEN transactions.transaction_discount IS NOT NULL THEN ABS(transactions.transaction_discount)
+							CASE WHEN transactions.transaction_discount_item IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_item) 
+								WHEN transactions.transaction_discount IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount)
 								ELSE 0 END
-							+ CASE WHEN transactions.transaction_discount_delivery IS NOT NULL THEN ABS(transactions.transaction_discount_delivery) ELSE 0 END
-							+ CASE WHEN transactions.transaction_discount_bill IS NOT NULL THEN ABS(transactions.transaction_discount_bill) ELSE 0 END
+							+ CASE WHEN transactions.transaction_discount_delivery IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_delivery) ELSE 0 END
+							+ CASE WHEN transactions.transaction_discount_bill IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_bill) ELSE 0 END
 						) as total_discount,
-                        SUM(CASE WHEN transactions.transaction_grandtotal IS NOT NULL THEN transactions.transaction_grandtotal ELSE 0 END) as total_grandtotal,
-                        COUNT(CASE WHEN Date(transactions.transaction_date) = Date(transaction_outlet_services.pickup_at) AND Date(transaction_outlet_services.pickup_at) = Date(transaction_outlet_services.completed_at) THEN 1 ELSE NULL END) as transaction_in_date,
-                        COUNT(CASE WHEN Date(transactions.transaction_date) = Date(transaction_outlet_services.pickup_at) AND Date(transaction_outlet_services.pickup_at) = Date(transaction_outlet_services.completed_at) THEN NULL ELSE 1 END) as transaction_out_date
+                        SUM(CASE WHEN transactions.transaction_grandtotal IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN transactions.transaction_grandtotal ELSE 0 END) as total_grandtotal,
+                        COUNT(CASE WHEN Date(transactions.transaction_date) = Date(transaction_outlet_services.pickup_at) AND Date(transaction_outlet_services.pickup_at) = Date(transaction_outlet_services.completed_at) AND transaction_outlet_services.reject_at IS NULL THEN 1 ELSE NULL END) as transaction_in_date,
+                        COUNT(CASE WHEN Date(transactions.transaction_date) = Date(transaction_outlet_services.pickup_at) AND Date(transaction_outlet_services.pickup_at) = Date(transaction_outlet_services.completed_at) AND transaction_outlet_services.reject_at IS NULL THEN NULL ELSE 1 END) as transaction_out_date
 					'))
     				->groupBy(DB::raw('Date(transactions.transaction_date)'));
 

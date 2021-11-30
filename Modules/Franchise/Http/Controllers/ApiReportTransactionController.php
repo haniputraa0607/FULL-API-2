@@ -44,24 +44,19 @@ class ApiReportTransactionController extends Controller
                         INNER JOIN
                     `transactions` ON `transactions`.`id_transaction` = `transaction_products`.`id_transaction`
                         INNER JOIN
-                    `transaction_pickups` ON `transactions`.`id_transaction` = `transaction_pickups`.`id_transaction`
-                        INNER JOIN
                     `products` ON `products`.`id_product` = `transaction_products`.`id_product`
                 WHERE
                     `transaction_payment_status` = 'Completed'
-                        AND (`taken_at` IS NOT NULL
-                        OR `taken_by_system_at` IS NOT NULL)
+                    AND `product_type` = 'product'
+                    AND `type` = 'Product'
                         AND DATE(transaction_date) = '$date'
-                GROUP BY DATE(transaction_date) , transaction_products.id_product , transaction_products.id_product_variant_group) as daily_report_trx_menu
+                GROUP BY DATE(transaction_date) , transaction_products.id_product) as daily_report_trx_menu
             "))
-                ->select('trx_date', 'product_name', 'total_qty', 'total_nominal', 'total_product_discount', 'id_report_trx_menu', \DB::raw('GROUP_CONCAT(product_variants.product_variant_name) as variant_name, name_brand, product_category_name'));
+                ->select('trx_date', 'product_name', 'total_qty', 'total_nominal', 'total_product_discount', 'id_report_trx_menu');
         } else {
-            $result = DailyReportTrxMenu::select('trx_date', 'product_name', 'total_qty', 'total_nominal', 'total_product_discount', 'id_report_trx_menu', \DB::raw('GROUP_CONCAT(product_variants.product_variant_name) as variant_name, name_brand, product_category_name'));
+            $result = DailyReportTrxMenu::select('trx_date', 'product_name', 'total_qty', 'total_nominal', 'total_product_discount', 'id_report_trx_menu')->where('type','product');
         }
-        $result->leftJoin('product_variant_pivot', 'product_variant_pivot.id_product_variant_group', 'daily_report_trx_menu.id_product_variant_group')
-            ->leftJoin('product_variants', 'product_variants.id_product_variant', 'product_variant_pivot.id_product_variant')
-            ->leftJoin('product_categories', 'product_categories.id_product_category', 'daily_report_trx_menu.id_product_category')
-            ->leftJoin('brands', 'brands.id_brand', 'daily_report_trx_menu.id_brand');
+        
 
         $countTotal = null;
 
@@ -133,56 +128,40 @@ class ApiReportTransactionController extends Controller
                         INNER JOIN
                     `transactions` ON `transactions`.`id_transaction` = `transaction_products`.`id_transaction`
                         INNER JOIN
-                    `transaction_pickups` ON `transactions`.`id_transaction` = `transaction_pickups`.`id_transaction`
-                        INNER JOIN
                     `products` ON `products`.`id_product` = `transaction_products`.`id_product`
                 WHERE
                     `transaction_payment_status` = 'Completed'
-                        AND (`taken_at` IS NOT NULL
-                        OR `taken_by_system_at` IS NOT NULL)
+                    AND `product_type` = 'product'
+                    AND `type` = 'Product'
                         AND DATE(transaction_date) = '$date'
-                GROUP BY DATE(transaction_date) , transaction_products.id_product , transaction_products.id_product_variant_group) as daily_report_trx_menu
+                GROUP BY DATE(transaction_date) , transaction_products.id_product) as daily_report_trx_menu
             "));
         } else {
             $result = new DailyReportTrxMenu;
+            $result = $result->where('type','product');
         }
 
         $result = $result->select(
-        	'product_name', 
-        	\DB::raw('
-        		COUNT(DISTINCT product_variants.product_variant_name) as total_variant, 
-        		SUM(total_qty) / CASE WHEN COUNT(DISTINCT product_variants.product_variant_name) != 0 
-        			THEN COUNT(DISTINCT product_variants.product_variant_name) 
-        			ELSE 1 END as total_qty, 
-        		SUM(total_nominal) / CASE WHEN COUNT(DISTINCT product_variants.product_variant_name) != 0 
-        			THEN COUNT(DISTINCT product_variants.product_variant_name) 
-        			ELSE 1 END as total_nominal, 
-        		SUM(total_product_discount) / CASE WHEN COUNT(DISTINCT product_variants.product_variant_name) != 0 
-        			THEN COUNT(DISTINCT product_variants.product_variant_name) 
-        			ELSE 1 END as total_product_discount, 
-        		GROUP_CONCAT(DISTINCT(product_variants.product_variant_name)) as variant_name, 
-        		name_brand, product_category_name
+        	'product_name',
+            \DB::raw('
+        		SUM(total_qty) as total_qty, 
+        		SUM(total_nominal) as total_nominal, 
+        		SUM(total_product_discount) as total_product_discount
         	')
         );
 
-        $result->leftJoin('product_variant_pivot', 'product_variant_pivot.id_product_variant_group', 'daily_report_trx_menu.id_product_variant_group')
-            ->leftJoin('product_variants', 'product_variants.id_product_variant', 'product_variant_pivot.id_product_variant')
-            ->leftJoin('product_categories', 'product_categories.id_product_category', 'daily_report_trx_menu.id_product_category')
-            ->leftJoin('brands', 'brands.id_brand', 'daily_report_trx_menu.id_brand');
-
         $countTotal = null;
+
 
         if ($request->rule) {
             $countTotal = $result->count();
             $this->filterList($result, $request->rule, $request->operator ?: 'and');
         }
 
+
         if (is_array($orders = $request->order)) {
             $columns = [
                 'product_name', 
-                'variant_name', 
-                'name_brand',
-                'product_category_name',
                 'total_qty', 
                 'total_nominal', 
                 'total_product_discount', 
@@ -196,7 +175,7 @@ class ApiReportTransactionController extends Controller
             }
         }
 
-        $result->groupBy('product_name','daily_report_trx_menu.id_product_variant_group');
+        $result->groupBy('product_name');
         $result->orderBy('id_report_trx_menu', 'DESC');
 
         if ($request->return_builder) {
@@ -274,7 +253,8 @@ class ApiReportTransactionController extends Controller
 
         if ($rules = $new_rule['transaction_date'] ?? false) {
             foreach ($rules as $rul) {
-                $model->where(\DB::raw('DATE(trx_date)'), $rul['operator'], $rul['parameter']);
+                return $rul;
+                $model->whereDate('trx_date', $rul['operator'], $rul['parameter']);
             }
         }
     }
@@ -498,7 +478,7 @@ class ApiReportTransactionController extends Controller
         unset($post['filter']['_token']);
 
         $insertToQueue = [
-            'id_user_franchise' => $request->user()->id_user_franchise,
+            'id_user_franchise' => $request->user()->id_partner,
             'id_outlet' => $post['id_outlet'],
             'filter' => json_encode($post['filter']),
             'report_type' => ExportFranchiseQueue::REPORT_TYPE_REPORT_TRANSACTION_PRODUCT,
@@ -519,7 +499,7 @@ class ApiReportTransactionController extends Controller
      */
     public function listProductExport(Request $request) {
         // return $request->all();
-        $result = ExportFranchiseQueue::where('report_type', ExportFranchiseQueue::REPORT_TYPE_REPORT_TRANSACTION_PRODUCT)->where('id_user_franchise', $request->user()->id_user_franchise);
+        $result = ExportFranchiseQueue::where('report_type', ExportFranchiseQueue::REPORT_TYPE_REPORT_TRANSACTION_PRODUCT)->where('id_user_franchise', $request->user()->id_partner);
         if ($request->id_outlet) {
             $result->where('id_outlet', $request->id_outlet);
         }
@@ -588,7 +568,7 @@ class ApiReportTransactionController extends Controller
             $data[] = [
                 'Transaction Date' => \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel($add['trx_date']),
                 'Product Name' => $add['product_name'],
-                'Variant' => $add['variant_name'],
+                // 'Variant' => $add['variant_name'],
                 'Total Sold' => $add['total_qty'],
                 'Nominal Sold' => $add['total_nominal'],
                 'Total Discount' => $add['total_product_discount'] ?: '0',
@@ -603,7 +583,7 @@ class ApiReportTransactionController extends Controller
         $store  = (new FilterResultExport($data, $filter, 'Product Transaction'))->store($directory);
 
         if ($store) {
-            $path = storage_path('app/'.$directory);
+            $path = storage_path('app/public/'.$directory);
             $contents = File::get($path);
             if (config('configs.STORAGE') != 'local') {
                 $store = Storage::disk(config('configs.STORAGE'))->put($directory, $contents, 'public');
@@ -743,7 +723,11 @@ class ApiReportTransactionController extends Controller
         $result = [];
         switch ($table) {
             case 'products':
-                $result = Product::showAllProduct()->select('id_product', 'product_name')->get();
+                $result = Product::where('product_type','product')->select('id_product', 'product_name')->get();
+                break;
+
+            case 'service':
+                $result = Product::where('product_type','service')->select('id_product', 'product_name')->get();
                 break;
             
             case 'brands':
@@ -785,5 +769,291 @@ class ApiReportTransactionController extends Controller
             
         }
         return MyHelper::checkGet($result);
+    }
+
+    public function productService(Request $request)
+    {
+        if (($request->rule['9998']['parameter']??false) == ($request->rule['9999']['parameter']??false) && ($request->rule['9998']['parameter']??false) == date('Y-m-d')) {
+            $date = date('Y-m-d');
+            $result = \DB::table(\DB::raw("
+                (SELECT 
+                    DATE(MIN(transaction_date)) AS trx_date,
+                    product_name,
+                    transaction_products.id_product,
+                    transaction_products.id_brand,
+                    transactions.id_outlet,
+                    transaction_products.id_product_variant_group,
+                    products.id_product_category,
+                    SUM(transaction_product_qty) AS total_qty,
+                    SUM((transaction_product_price + transaction_variant_subtotal) * transaction_product_qty) AS total_nominal,
+                    SUM(transaction_product_discount) AS total_product_discount,
+                    0 AS id_report_trx_menu
+                FROM
+                    `transaction_products`
+                        INNER JOIN
+                    `transactions` ON `transactions`.`id_transaction` = `transaction_products`.`id_transaction`
+                        INNER JOIN
+                    `transaction_product_services` ON `transaction_product_services`.`id_transaction_product` = `transaction_products`.`id_transaction_product`
+                        INNER JOIN
+                    `products` ON `products`.`id_product` = `transaction_products`.`id_product`
+                WHERE
+                    `transaction_payment_status` = 'Completed'
+                    AND `product_type` = 'service'
+                    AND `type` = 'Service'
+                        AND DATE(transaction_date) = '$date'
+                GROUP BY DATE(transaction_date) , transaction_products.id_product) as daily_report_trx_menu
+            "))
+                ->select('trx_date', 'product_name', 'total_qty', 'total_nominal', 'total_product_discount', 'id_report_trx_menu');
+        } else {
+            $result = DailyReportTrxMenu::select('trx_date', 'product_name', 'total_qty', 'total_nominal', 'total_product_discount', 'id_report_trx_menu')->where('type','service');
+        }
+        
+
+        $countTotal = null;
+
+        if ($request->rule) {
+            $countTotal = $result->count();
+            $this->filterList($result, $request->rule, $request->operator ?: 'and');
+        }
+
+        if (is_array($orders = $request->order)) {
+            $columns = [
+                'trx_date', 
+                'product_name', 
+                'variant_name', 
+                'name_brand',
+                'product_category_name',
+                'total_qty', 
+                'total_nominal', 
+                'total_product_discount', 
+                'id_report_trx_menu',
+            ];
+
+            foreach ($orders as $column) {
+                if ($colname = ($columns[$column['column']] ?? false)) {
+                    $result->orderBy($colname, $column['dir']);
+                }
+            }
+        }
+
+        $result->groupBy('trx_date', 'product_name', 'total_qty', 'total_nominal', 'total_product_discount', 'id_report_trx_menu');
+        $result->orderBy('id_report_trx_menu', 'DESC');
+
+        if ($request->return_builder) {
+            return $result;
+        }
+
+        if ($request->page) {
+            $result = $result->paginate($request->length ?: 15)->toArray();
+            if (is_null($countTotal)) {
+                $countTotal = $result['total'];
+            }
+            // needed by datatables
+            $result['recordsTotal'] = $countTotal;
+        } else {
+            $result = $result->get();
+        }
+
+        return MyHelper::checkGet($result);
+    }
+
+    public function productSummaryService(Request $request)
+    {
+        if (($request->rule['9998']['parameter']??false) == ($request->rule['9999']['parameter']??false) && ($request->rule['9998']['parameter']??false) == date('Y-m-d')) {
+            $date = date('Y-m-d');
+            $result = \DB::table(\DB::raw("
+                (SELECT 
+                    DATE(MIN(transaction_date)) AS trx_date,
+                    product_name,
+                    transaction_products.id_product,
+                    transaction_products.id_brand,
+                    transactions.id_outlet,
+                    transaction_products.id_product_variant_group,
+                    products.id_product_category,
+                    SUM(transaction_product_qty) AS total_qty,
+                    SUM((transaction_product_price + transaction_variant_subtotal) * transaction_product_qty) AS total_nominal,
+                    SUM(transaction_product_discount) AS total_product_discount,
+                    0 AS id_report_trx_menu
+                FROM
+                    `transaction_products`
+                        INNER JOIN
+                    `transactions` ON `transactions`.`id_transaction` = `transaction_products`.`id_transaction`
+                        INNER JOIN
+                    `transaction_product_services` ON `transaction_product_services`.`id_transaction_product` = `transaction_products`.`id_transaction_product`
+                        INNER JOIN
+                    `products` ON `products`.`id_product` = `transaction_products`.`id_product`
+                WHERE
+                    `transaction_payment_status` = 'Completed'
+                    AND `product_type` = 'service'
+                    AND `type` = 'Service'
+                        AND DATE(transaction_date) = '$date'
+                GROUP BY DATE(transaction_date) , transaction_products.id_product) as daily_report_trx_menu
+            "));
+        } else {
+            $result = new DailyReportTrxMenu;
+            $result = $result->where('type','service');
+        }
+
+        $result = $result->select(
+        	'product_name',
+            \DB::raw('
+        		SUM(total_qty) as total_qty, 
+        		SUM(total_nominal) as total_nominal, 
+        		SUM(total_product_discount) as total_product_discount
+        	')
+        );
+
+        $countTotal = null;
+
+
+        if ($request->rule) {
+            $countTotal = $result->count();
+            $this->filterList($result, $request->rule, $request->operator ?: 'and');
+        }
+
+
+        if (is_array($orders = $request->order)) {
+            $columns = [
+                'product_name', 
+                'total_qty', 
+                'total_nominal', 
+                'total_product_discount', 
+                'id_report_trx_menu',
+            ];
+
+            foreach ($orders as $column) {
+                if ($colname = ($columns[$column['column']] ?? false)) {
+                    $result->orderBy($colname, $column['dir']);
+                }
+            }
+        }
+
+        $result->groupBy('product_name');
+        $result->orderBy('id_report_trx_menu', 'DESC');
+
+        if ($request->return_builder) {
+            return $result;
+        }
+
+        if ($request->page) {
+            // to support return all rows
+            $request_length = $request->length ?: 15;
+            if ($request_length == -1) {
+                $results = $result->get();
+                $result = (new \Illuminate\Pagination\LengthAwarePaginator($results, $results->count(), -1))->toArray();
+            } else {
+                $result = $result->paginate($request_length)->toArray();
+            }
+
+            if (is_null($countTotal)) {
+                $countTotal = $result['total'];
+            }
+            // needed by datatables
+            $result['recordsTotal'] = $countTotal;
+        } else {
+            $result = $result->get();
+        }
+
+        return MyHelper::checkGet($result);
+    }
+
+    public function listProductExportService(Request $request) {
+        // return $request->all();
+        $result = ExportFranchiseQueue::where('report_type', ExportFranchiseQueue::REPORT_TYPE_REPORT_TRANSACTION_SERVICE)->where('id_user_franchise', $request->user()->id_partner);
+        if ($request->id_outlet) {
+            $result->where('id_outlet', $request->id_outlet);
+        }
+
+        if (is_array($orders = $request->order)) {
+            $columns = [
+                'created_at',
+                 null,
+                'status_export',
+            ];
+            foreach ($orders as $column) {
+                if ($colname = ($columns[$column['column']] ?? false)) {
+                    $result->orderBy($colname, $column['dir']);
+                }
+            }
+        }
+
+        $result->orderBy('id_export_franchise_queue', 'DESC');
+
+        if ($request->page) {
+            $result = $result->paginate($request->length ?: 15)->toArray();
+            $countTotal = $result['total'];
+            // needed for datatables
+            $result['recordsTotal'] = $countTotal;
+        } else {
+            $result = $result->get();
+        }
+
+        return MyHelper::checkGet($result);
+    }
+
+    public function newProductExportService(Request $request)
+    {
+        $post = $request->json()->all();
+        unset($post['filter']['_token']);
+
+        $insertToQueue = [
+            'id_user_franchise' => $request->user()->id_partner,
+            'id_outlet' => $post['id_outlet'],
+            'filter' => json_encode($post['filter']),
+            'report_type' => ExportFranchiseQueue::REPORT_TYPE_REPORT_TRANSACTION_SERVICE,
+            'status_export' => ExportFranchiseQueue::STATUS_EXPORT_RUNNING
+        ];
+
+        $create = ExportFranchiseQueue::create($insertToQueue);
+        if ($create) {
+            ExportFranchiseJob::dispatch($create)->allOnConnection('export_franchise_queue');
+        }
+        return response()->json(MyHelper::checkCreate($create));
+    }
+
+    public function exportServiceExcel($queue){
+        $filter = (array)json_decode($queue['filter'], true);
+
+        $filter['rule'][] = [
+            'subject' => 'id_outlet',
+            'operator' => '=',
+            'parameter' => $queue->id_outlet,
+            'hide' => '1'
+        ];
+
+        $list = $this->productService(new Request(array_merge($filter, ['return_builder' => true])));
+        $data = [];
+        foreach ($list->cursor() as $cursor) {
+            if (get_class($cursor) == 'stdClass') { // today
+                $add = (array) $cursor;
+            } else {
+                $add = $cursor->toArray();
+            }
+            $data[] = [
+                'Transaction Date' => \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel($add['trx_date']),
+                'Service Name' => $add['product_name'],
+                // 'Variant' => $add['variant_name'],
+                'Total Sold' => $add['total_qty'],
+                'Nominal Sold' => $add['total_nominal'],
+                'Total Discount' => $add['total_product_discount'] ?: '0',
+            ];
+        }
+
+        $rand_string = MyHelper::createrandom(5);
+
+        $excelFile = "Report_Transaction_Service_{$queue->id_export_franchise_queue}_{$rand_string}.xlsx";
+        $directory = 'franchise/report/transaction/'.$excelFile;
+
+        $store  = (new FilterResultExport($data, $filter, 'Service Transaction'))->store($directory);
+
+        if ($store) {
+            $path = storage_path('app/public/'.$directory);
+            $contents = File::get($path);
+            if (config('configs.STORAGE') != 'local') {
+                $store = Storage::disk(config('configs.STORAGE'))->put($directory, $contents, 'public');
+            }
+            $delete = File::delete($path);
+            ExportFranchiseQueue::where('id_export_franchise_queue', $queue['id_export_franchise_queue'])->update(['url_export' => $directory, 'status_export' => 'Ready']);
+        }
     }
 }

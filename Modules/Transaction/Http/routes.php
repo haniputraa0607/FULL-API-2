@@ -1,4 +1,7 @@
 <?php
+Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefix' => 'api/cobaexport', 'namespace' => 'Modules\Transaction\Http\Controllers'], function() {
+    Route::post('/', ['middleware'=>['scopes:be'],'uses' => 'ApiTransaction@exportTransaction']);
+});
 Route::group(['middleware' => ['auth:api'],'prefix' => 'api/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
     Route::any('hs-location', 'ApiTransactionHomeService@getHSLocation');
     Route::any('available-payment', 'ApiOnlineTransaction@availablePayment');

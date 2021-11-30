@@ -89,26 +89,6 @@ Route::group(['prefix' => 'franchise'], function () {
             Route::any('bank', ['uses' => '\Modules\Disburse\Http\Controllers\ApiDisburseSettingController@getBank']);
         });
 
-        Route::get('select-list/{table}','ApiReportTransactionController@listForSelect');
-
-        Route::group(['prefix' => 'report-transaction'], function() {
-            Route::prefix('product')->group(function(){
-                Route::post('/', 'ApiReportTransactionController@product');
-                Route::post('summary', 'ApiReportTransactionController@productSummary');
-                Route::get('export','ApiReportTransactionController@listProductExport');
-                Route::post('export','ApiReportTransactionController@newProductExport');
-                Route::delete('export/{export_queue}','ApiReportTransactionController@destroyProductExport');
-                Route::any('export/action', 'ApiReportTransactionController@actionProductExport');
-            });
-            Route::prefix('modifier')->group(function(){
-                Route::post('/', 'ApiReportTransactionController@modifier');
-                Route::post('summary', 'ApiReportTransactionController@modifierSummary');
-                Route::get('export','ApiReportTransactionController@listModifierExport');
-                Route::post('export','ApiReportTransactionController@newModifierExport');
-                Route::delete('export/{export_queue}','ApiReportTransactionController@destroyModifierExport');
-                Route::any('export/action', 'ApiReportTransactionController@actionModifierExport');
-            });
-        });
     });
 
     Route::group(['middleware' => ['auth:partners', 'scopes:partners']], function () {
@@ -128,6 +108,35 @@ Route::group(['prefix' => 'franchise'], function () {
 	        Route::delete('export/{export_queue}','ApiTransactionFranchiseController@destroyExport');
 	        Route::any('export/action', 'ApiTransactionFranchiseController@actionExport');
 		});
+
+        Route::group(['prefix' => 'report-transaction'], function() {
+            Route::prefix('product')->group(function(){
+                Route::post('/', 'ApiReportTransactionController@product');
+                Route::post('summary', 'ApiReportTransactionController@productSummary');
+                Route::get('export','ApiReportTransactionController@listProductExport');
+                Route::post('export','ApiReportTransactionController@newProductExport');
+                Route::delete('export/{export_queue}','ApiReportTransactionController@destroyProductExport');
+                Route::any('export/action', 'ApiReportTransactionController@actionProductExport');
+            });
+            Route::prefix('service')->group(function(){
+                Route::post('/', 'ApiReportTransactionController@productService');
+                Route::post('summary', 'ApiReportTransactionController@productSummaryService');
+                Route::get('export','ApiReportTransactionController@listProductExportService');
+                Route::post('export','ApiReportTransactionController@newProductExportService');
+                Route::delete('export/{export_queue}','ApiReportTransactionController@destroyProductExportService');
+                Route::any('export/action', 'ApiReportTransactionController@actionProductExportService');
+            });
+            Route::prefix('modifier')->group(function(){
+                Route::post('/', 'ApiReportTransactionController@modifier');
+                Route::post('summary', 'ApiReportTransactionController@modifierSummary');
+                Route::get('export','ApiReportTransactionController@listModifierExport');
+                Route::post('export','ApiReportTransactionController@newModifierExport');
+                Route::delete('export/{export_queue}','ApiReportTransactionController@destroyModifierExport');
+                Route::any('export/action', 'ApiReportTransactionController@actionModifierExport');
+            });
+        });
+
+        Route::get('select-list/{table}','ApiReportTransactionController@listForSelect');
 
     });
 });

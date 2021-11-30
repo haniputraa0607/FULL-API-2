@@ -4,7 +4,7 @@ namespace Modules\Transaction\Entities;
 
 use Illuminate\Database\Eloquent\Model;
 
-class TransactionShop extends Model
+class TransactionShop extends \App\Http\Models\Template\TransactionService
 {
 	protected $primaryKey = 'id_transaction_shop';
 

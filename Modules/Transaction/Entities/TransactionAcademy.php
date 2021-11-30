@@ -4,7 +4,7 @@ namespace Modules\Transaction\Entities;
 
 use Illuminate\Database\Eloquent\Model;
 
-class TransactionAcademy extends Model
+class TransactionAcademy extends \App\Http\Models\Template\TransactionService
 {
     protected $table = 'transaction_academy';
 

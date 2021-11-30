@@ -161,7 +161,8 @@ class ApiProductServiceController extends Controller
         }
     }
 
-    public function homeServiceListProduct(){
+    public function homeServiceListProduct(Request $request){
+        $post = $request->json()->all();
         $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
         $outlet = Outlet::where('id_outlet', $outletHomeService)->first();
         if(empty($outlet)){

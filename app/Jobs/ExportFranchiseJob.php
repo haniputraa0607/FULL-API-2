@@ -53,6 +53,8 @@ class ExportFranchiseJob implements ShouldQueue
                 app('Modules\Franchise\Http\Controllers\ApiReportTransactionController')->exportProductExcel($queue);
             } elseif ( $queue['report_type'] == ExportFranchiseQueue::REPORT_TYPE_REPORT_TRANSACTION_MODIFIER ) {
                 app('Modules\Franchise\Http\Controllers\ApiReportTransactionController')->exportModifierExcel($queue);
+            } elseif ( $queue['report_type'] == ExportFranchiseQueue::REPORT_TYPE_REPORT_TRANSACTION_SERVICE ) {
+                app('Modules\Franchise\Http\Controllers\ApiReportTransactionController')->exportServiceExcel($queue);
             }
         }
 

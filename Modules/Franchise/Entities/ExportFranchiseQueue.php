@@ -25,6 +25,7 @@ class ExportFranchiseQueue extends Eloquent
 {
 	CONST REPORT_TYPE_REPORT_TRANSACTION_PRODUCT = 'Report Transaction Product';
 	CONST REPORT_TYPE_REPORT_TRANSACTION_MODIFIER = 'Report Transaction Modifier';
+	CONST REPORT_TYPE_REPORT_TRANSACTION_SERVICE = 'Report Transaction Service';
 
 	CONST STATUS_EXPORT_RUNNING = 'Running';
 	CONST STATUS_EXPORT_READY = 'Ready';

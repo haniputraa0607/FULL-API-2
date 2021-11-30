@@ -97,7 +97,7 @@ class ApiTransactionFranchiseController extends Controller
             ->leftJoin('product_categories','products.id_product_category','=','product_categories.id_product_category')
             ->whereDate('transactions.transaction_date', '>=', $start)
             ->whereDate('transactions.transaction_date', '<=', $end)
-            ->where('transactions.transaction_payment_status', 'Completed')
+            // ->where('transactions.transaction_payment_status', 'Completed')
             // ->whereNull('transaction_pickups.reject_at')
             ->with('user')
             // ->orderBy('transactions.id_transaction', 'DESC')
@@ -190,7 +190,7 @@ class ApiTransactionFranchiseController extends Controller
         unset($post['filter']['_token']);
 
         $insertToQueue = [
-            'id_user_franchise' => $request->user()->id_user_franchise,
+            'id_user_franchise' => $request->user()->id_partner,
             'id_outlet' => $post['id_outlet'],
             'filter' => json_encode($post['filter']),
             'report_type' => 'Transaction',
@@ -285,13 +285,13 @@ class ApiTransactionFranchiseController extends Controller
     	}
 
     	$post = $data;
-
+        
         $start = date('Y-m-d', strtotime($post['date_start']));
         $end = date('Y-m-d', strtotime($post['date_end']));
         
         $getOutlet = OutletConnection3::where('id_outlet', $queue['id_outlet'])->first();
 
-        if($getOutlet && !empty($getOutlet['outlet_email'])){
+        if($getOutlet){
             $filter['date_start'] = $start;
             $filter['date_end'] = $end;
             $filter['detail'] = 1;
@@ -315,11 +315,9 @@ class ApiTransactionFranchiseController extends Controller
             $summary = app('Modules\Disburse\Http\Controllers\ApiDisburseController')->summaryCalculationFee(null,$start, $end, $getOutlet['id_outlet'], 0, $post);
             $generateTrx = app('Modules\Transaction\Http\Controllers\ApiTransaction')->exportTransaction($filter, 1, 'franchise');
             $dataDisburse = app('Modules\Disburse\Http\Controllers\ApiDisburseController')->summaryDisburse(null,$start, $end, $getOutlet['id_outlet'], 0, $post);
-
             if(!empty($generateTrx['list'])){
                 $excelFile = 'Transaction_['.$start.'_'.$end.']['.$getOutlet['outlet_code'].']_'.mt_rand(0, 1000).time().'.xlsx';
                 $directory = 'franchise/report/transaction/'.$excelFile;
-
                 $store  = (new MultipleSheetExport([
                     "Summary" => $summary,
                     "Calculation Fee" => $dataDisburse,
@@ -328,7 +326,7 @@ class ApiTransactionFranchiseController extends Controller
 
 
                 if ($store) {
-                	$path = storage_path('app/'.$directory);
+                	$path = storage_path('app/public/'.$directory);
                     $contents = File::get($path);
 	                if(config('configs.STORAGE') != 'local'){
 	                    $store = Storage::disk(config('configs.STORAGE'))->put($directory, $contents, 'public');
@@ -811,6 +809,56 @@ class ApiTransactionFranchiseController extends Controller
 	                        } else {
 	                            $query = $query->orWhere($var, $op, 'Customer');
 	                        }
+	                    }
+
+	                    if ($con['subject'] == 'type') {
+	                    	$var = 'transaction_products.type';
+
+	                        if ($filter['rule'] == 'and') {
+	                            $query = $query->where($var, $con['parameter']);
+	                        } else {
+	                            $query = $query->orWhere($var, $con['parameter']);
+	                        }
+	                    }
+	                    if ($con['subject'] == 'payment_status') {
+	                    	$var = 'transactions.transaction_payment_status';
+
+                            if($con['operator'] == '='){
+                                $op = '=';
+                            }else{
+                                $op = '!=';
+                            }
+	                        if ($filter['rule'] == 'and') {
+	                            $query = $query->where($var, $op, $con['parameter']);
+	                        } else {
+	                            $query = $query->orWhere($var, $op, $con['parameter']);
+	                        }
+	                    }
+
+                        if ($con['subject'] == 'date_status') {
+                            $var = 'transaction_outlet_services.completed_at';
+                            $reject = 'whereNull';
+                            $reject_field = 'transaction_outlet_services.reject_at';
+                            if($con['parameter'] == 'cancelled'){
+                                $reject = 'whereNotNull';
+                                if ($filter['rule'] == 'and') {
+                                    $query = $query->$reject($reject_field);
+                                }else{
+                                    $query = $query->orWhere(function($q) use ($reject,$reject_field){$q->$reject($reject_field);});
+                                }
+                            }else{
+                                if($con['parameter'] == 'wait'){
+                                    $where = 'whereNull';
+                                }elseif($con['parameter'] == 'completed'){
+                                    $where = 'whereNotNull';
+                                }
+                                if ($filter['rule'] == 'and') {
+                                    $query = $query->$where($var)->$reject($reject_field);
+                                } else {
+                                    $query = $query->orWhere(function($q) use ($where,$var,$reject,$reject_field){$q->$where($var)->$reject($reject_field);});
+                                }
+                            }
+
 	                    }
 	                }
 	            }

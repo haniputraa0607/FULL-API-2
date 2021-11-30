@@ -192,9 +192,8 @@ class FilterResultExport implements FromArray,  ShouldAutoSize, WithEvents, With
             'A' => NumberFormat::FORMAT_DATE_DDMMYYYY,
             'B' => NumberFormat::FORMAT_TEXT,
             'C' => NumberFormat::FORMAT_TEXT,
-            'D' => '#,##0',
+            'D' => '"Rp "#,##0',
             'E' => '"Rp "#,##0',
-            'F' => '"Rp "#,##0',
         ];
     }
 

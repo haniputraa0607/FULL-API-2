@@ -82,7 +82,7 @@ class Midtrans {
 
         if ($scopeUser == 'web-apps'){
             $baseCallback = env('MIDTRANS_CALLBACK').$outletCode.'/payment-finish'.'?id_transaction='.$id;
-            if ($payment_detail && $payment_detail == 'gopay') {
+            if (!$payment_detail || $payment_detail == 'gopay') {
                 $dataMidtrans['gopay'] = [
                     'enable_callback' => true,
                     'callback_url' => $baseCallback.'&result=success',

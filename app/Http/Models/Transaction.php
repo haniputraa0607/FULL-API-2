@@ -343,6 +343,7 @@ class Transaction extends Model
      */
     public function triggerPaymentCompleted()
     {
+    	\DB::beginTransaction();
     	// check complete allowed
     	if ($this->transaction_payment_status != 'Pending') {
     		return $this->transaction_payment_status == 'Completed';
@@ -381,6 +382,7 @@ class Transaction extends Model
         $trx->load('productTransaction');
         app('\Modules\Transaction\Http\Controllers\ApiNotification')->notification($mid, $trx);
 
+        \DB::commit();
     	return true;
     }
 
@@ -388,7 +390,7 @@ class Transaction extends Model
      * Called when payment completed
      * @return [type] [description]
      */
-    public function paymentCancelled()
+    public function triggerPaymentCancelled()
     {
     	\DB::beginTransaction();
     	// check complete allowed
@@ -462,6 +464,7 @@ class Transaction extends Model
     	// send notification
     	// TODO write notification logic here
 
+    	\DB::commit();
     	return true;
     }
 

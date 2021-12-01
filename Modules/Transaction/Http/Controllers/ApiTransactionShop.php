@@ -243,7 +243,6 @@ class ApiTransactionShop extends Controller
             $product['product_price'] = (int)($product_variant_group_price??$product['product_price']);
             unset($product['product_variant_status']);
             $subTotalItem = $subTotalItem + $product['product_price_total'];
-            $product['error_msg'] = (empty($err)? null:implode(".", array_unique($err)));
             $product['qty_stock'] = (int)$product['product_stock_status'];
             unset($product['product_stock_status']);
 
@@ -274,6 +273,11 @@ class ApiTransactionShop extends Controller
                         'max_order' => $max_order
                     ]
                 );
+
+        	if($item['qty'] > $max_order){
+                $err[] = $max_order_alert;
+            }
+            $product['error_msg'] = (empty($err)? null:implode(".", array_unique($err)));
 
             $item = [
             	'id_custom' => $product['id_custom'],

@@ -161,7 +161,8 @@ class ApiProductServiceController extends Controller
         }
     }
 
-    public function homeServiceListProduct(){
+    public function homeServiceListProduct(Request $request){
+        $post = $request->json()->all();
         $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
         $outlet = Outlet::where('id_outlet', $outletHomeService)->first();
         if(empty($outlet)){
@@ -366,6 +367,7 @@ class ApiProductServiceController extends Controller
     }
 
     public function homeServiceAvailableHsFavorite(Request $request){
+
         $post = $request->json()->all();
         $idUser = $request->user()->id??null;
         $address = UserAddress::where('id_user', $idUser)->where('id_user_address', $post['id_user_address'])->first();

@@ -15,7 +15,7 @@ class ApiReportSalesController extends Controller
         date_default_timezone_set('Asia/Jakarta');
     }
 
-    public function summary(Request $request)
+    public function outletSummary(Request $request)
     {
     	$post = $request->json()->all();
         if(!$request->id_outlet){
@@ -23,89 +23,34 @@ class ApiReportSalesController extends Controller
         }
 
     	$report = Transaction::where('transactions.id_outlet', $request->id_outlet)
-    				->join('transaction_pickups', 'transaction_pickups.id_transaction', 'transactions.id_transaction')
-    				->join('disburse_outlet_transactions', 'transactions.id_transaction', 'disburse_outlet_transactions.id_transaction')
-    				->where('transactions.transaction_payment_status', 'Completed')
-					// ->whereNull('reject_at')
+    				->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
 					->select(DB::raw('
 						# tanggal transaksi
 						Date(transactions.transaction_date) as transaction_date,
 
 						# total transaksi
-						COUNT(CASE WHEN transactions.id_transaction AND transaction_pickups.reject_at IS NULL THEN 1 ELSE NULL END) AS total_transaction, 
-
-						# pickup
-						COUNT(CASE WHEN transaction_pickups.pickup_by = "Customer" AND transaction_pickups.reject_at IS NULL THEN 1 ELSE NULL END) as total_transaction_pickup,
-
-						# delivery
-						COUNT(CASE WHEN transaction_pickups.pickup_by != "Customer" AND transaction_pickups.reject_at IS NULL THEN 1 ELSE NULL END) as total_transaction_delivery,
+						COUNT(CASE WHEN transactions.id_transaction IS NOT NULL THEN 1 ELSE NULL END) AS total_transaction, 
 
 						# subtotal
-						SUM(CASE WHEN transactions.transaction_gross IS NOT NULL AND transaction_pickups.reject_at IS NULL THEN transactions.transaction_gross ELSE 0 END) as total_subtotal,
+						SUM(CASE WHEN transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN transactions.transaction_gross ELSE 0 END) as total_subtotal,
 
 						# diskon
 						SUM(
-							CASE WHEN transactions.transaction_discount_item IS NOT NULL AND transaction_pickups.reject_at IS NULL THEN ABS(transactions.transaction_discount_item) 
-								WHEN transactions.transaction_discount IS NOT NULL AND transaction_pickups.reject_at IS NULL THEN ABS(transactions.transaction_discount)
+							CASE WHEN transactions.transaction_discount_item IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_item) 
+								WHEN transactions.transaction_discount IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount)
 								ELSE 0 END
-							+ CASE WHEN transactions.transaction_discount_delivery IS NOT NULL AND transaction_pickups.reject_at IS NULL THEN ABS(transactions.transaction_discount_delivery) ELSE 0 END
-							+ CASE WHEN transactions.transaction_discount_bill IS NOT NULL AND transaction_pickups.reject_at IS NULL THEN ABS(transactions.transaction_discount_bill) ELSE 0 END
+							+ CASE WHEN transactions.transaction_discount_delivery IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_delivery) ELSE 0 END
+							+ CASE WHEN transactions.transaction_discount_bill IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_bill) ELSE 0 END
 						) as total_discount,
 
-						# delivery
-						SUM(CASE WHEN transaction_pickups.reject_at IS NULL THEN transactions.transaction_shipment_go_send + transactions.transaction_shipment ELSE 0 END) as total_delivery,
-
 						# grandtotal
-						SUM(CASE WHEN transaction_pickups.reject_at IS NULL THEN transactions.transaction_grandtotal ELSE 0 END) as total_grandtotal,
-
-						# accept
-						COUNT(CASE WHEN transaction_pickups.receive_at IS NOT NULL THEN 1 ELSE NULL END) as total_accept,
-
-						# reject
-						COUNT(CASE WHEN transaction_pickups.reject_at IS NOT NULL THEN 1 ELSE NULL END) as total_reject,
-
-						# rate accept
-						FLOOR(
-							(
-								COUNT(CASE WHEN transaction_pickups.receive_at IS NOT NULL THEN 1 ELSE NULL END) 
-								/ COUNT(CASE WHEN transactions.transaction_payment_status = "Completed" THEN 1 ELSE NULL END)
-							)
-							* 100
-						) as acceptance_rate,
-
-						# response
-						COUNT(
-							CASE WHEN transaction_pickups.receive_at IS NOT NULL THEN 1
-								 WHEN transaction_pickups.reject_reason NOT LIKE "auto reject order by system%" THEN 1
-							ELSE NULL END
-						) as total_response,
-
-						# auto reject response
-						COUNT(
-							CASE WHEN transaction_pickups.reject_reason = "auto reject order by system" THEN 1
-							ELSE NULL END
-						) as total_auto_reject,
-
-						# manual reject response
-						COUNT(
-							CASE WHEN transaction_pickups.receive_at IS NULL AND transaction_pickups.reject_reason NOT LIKE "auto reject order by system%" THEN 1
-							ELSE NULL END
-						) as total_manual_reject,
-
-						# rate response
-						FLOOR(
-							(
-								COUNT(
-									CASE WHEN transaction_pickups.receive_at IS NOT NULL THEN 1
-										 WHEN transaction_pickups.reject_reason NOT LIKE "auto reject order by system%" THEN 1
-									ELSE NULL END
-								)/ COUNT(CASE WHEN transactions.transaction_payment_status = "Completed" THEN 1 ELSE NULL END)
-							)
-							* 100
-						) as response_rate,
+						SUM(CASE WHEN transactions.transaction_grandtotal IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN transactions.transaction_grandtotal ELSE 0 END) as total_grandtotal,
 
 						# payment complete
-						COUNT(CASE WHEN transactions.transaction_payment_status = "Completed" THEN 1 ELSE NULL END) as total_complete_payment
+						COUNT(CASE WHEN transactions.transaction_payment_status = "Completed" THEN 1 ELSE NULL END) as total_complete_payment,
+
+                        #accept
+                        COUNT(CASE WHEN transactions.id_transaction AND transaction_outlet_services.reject_at IS NULL THEN 1 ELSE NULL END) as total_accept
 					'));
 
         if(isset($post['filter_type']) && $post['filter_type'] == 'range_date'){
@@ -138,86 +83,39 @@ class ApiReportSalesController extends Controller
             'total_subtotal' => [
                 'title' => 'Penjualan Kotor',
                 'amount' => 'Rp. '.number_format($report['total_subtotal']??0,0,",","."),
-                "tooltip" => 'Total nominal transaksi sebelum dipotong diskon dan ditambah biaya pengiriman',
+                "tooltip" => 'Total nominal transaksi sebelum dipotong diskon',
                 "show" => 1
             ],
             'total_discount' => [
                 'title' => 'Total Diskon',
                 'amount' => 'Rp. '.number_format($report['total_discount']??0,0,",","."),
-                "tooltip" => 'Total diskon transaksi (diskon produk, diskon biaya pengiriman dan diskon bill)',
-                "show" => 1
-            ],
-            'total_delivery' => [
-                'title' => 'Biaya Pengiriman',
-                'amount' => 'Rp. '.number_format($report['total_delivery']??0,0,",","."),
-                "tooltip" => 'Total biaya pengiriman',
+                "tooltip" => 'Total diskon transaksi (diskon produk dan diskon bill)',
                 "show" => 1
             ],
             'total_grandtotal' => [
                 'title' => 'Penjualan Bersih',
                 'amount' => 'Rp. '.number_format($report['total_grandtotal']??0,0,",","."),
-                "tooltip" => 'Total nominal transaksi setelah dipotong diskon dan ditambah biaya pengiriman',
+                "tooltip" => 'Total nominal transaksi setelah dipotong diskon dan ditambah pajak',
                 "show" => 1
             ],
             'total_complete_payment' => [
                 'title' => 'Pembayaran Sukses',
                 'amount' => number_format($report['total_complete_payment']??0,0,",","."),
-                "tooltip" => 'jumlah transaksi dengan status pembyaran sukses (mengabaikan status reject order)'
-            ],
-            'total_transaction_pickup' => [
-                'title' => 'Pickup Order',
-                'amount' => number_format($report['total_transaction_pickup']??0,0,",","."),
-                "tooltip" => 'jumlah transaksi sukses dengan tipe pickup'
-            ],
-            'total_transaction_delivery' => [
-                'title' => 'Delivery Order',
-                'amount' => number_format($report['total_transaction_delivery']??0,0,",","."),
-                "tooltip" => 'jumlah transaksi sukses dengan tipe delivery'
+                "tooltip" => 'jumlah transaksi dengan status pembayaran sukses (mengabaikan status reject order)',
+                "show" => 1
             ],
     		'total_transaction' => [
                 'title' => 'Total Order',
                 'amount' => number_format($report['total_transaction']??0,0,",","."),
-                "tooltip" => 'Jumlah order sukses dan order ditolak',
+                "tooltip" => 'Jumlah semua transaksi',
                 "show" => 1
-            ],
-            'total_response' => [
-                'title' => 'Order Direspons',
-                'amount' => number_format($report['total_response']??0,0,",","."),
-                "tooltip" => 'Jumlah transaksi yang di respons oleh outlet (diterima atau ditolak)',
-                "show" => 1
-            ],
-            'response_rate' => [
-                'title' => 'Response Rate Order',
-                'amount' => number_format($report['response_rate']??0,0,",",".")."%",
-                "tooltip" => 'persentase jumlah order yang di response oleh outlet dibandingkan dengan jumlah transaksi dengan status pembayaran suskes (transaksi yang masuk)'
             ],
             'total_accept' => [
                 'title' => 'Order Diterima',
                 'amount' => number_format($report['total_accept']??0,0,",","."),
                 "tooltip" => 'Jumlah transaksi yang diterima oleh outlet',
                 "show" => 1
-            ],
-            'acceptance_rate' => [
-                'title' => 'Acceptance Rate Order',
-                'amount' => number_format($report['acceptance_rate']??0,0,",",".")."%",
-                "tooltip" => 'persentase jumlah transaksi yang diterima oleh outlet dibandingkan dengan jumlah transaksi dengan status pembayaran suskes (transaksi yang masuk)'
-            ],
-            'total_manual_reject' => [
-                'title' => 'Manual Rejected Order',
-                'amount' => number_format($report['total_manual_reject']??0,0,",","."),
-                "tooltip" => 'jumlah transaksi yang di reject oleh outlet saat transaksi masuk ke jilid+	'
-            ],
-            'total_auto_reject' => [
-                'title' => 'Auto Rejected Order',
-                'amount' => number_format($report['total_auto_reject']??0,0,",","."),
-                "tooltip" => 'jumlah transaksi yang tidak di response oleh outlet dan terproses auto reject oleh sistem'
-            ],
-            'total_reject' => [
-                'title' => 'Total Order Ditolak',
-                'amount' => number_format($report['total_reject']??0,0,",","."),
-                "tooltip" => 'Jumlah transaksi ditolak (secara manual maupun otomatis oleh sistem)',
-                "show" => 1
-            ],
+            ]
     	];
 
         return MyHelper::checkGet($result);
@@ -239,17 +137,18 @@ class ApiReportSalesController extends Controller
 					->select(DB::raw('
 						Date(transactions.transaction_date) as transaction_date,
                         COUNT(CASE WHEN transactions.transaction_payment_status = "Completed" THEN 1 ELSE NULL END) as total_complete_payment,
-                        SUM(CASE WHEN transactions.transaction_gross IS NOT NULL THEN transactions.transaction_gross ELSE 0 END) as total_subtotal,
+                        COUNT(CASE WHEN transactions.id_transaction AND transaction_outlet_services.reject_at IS NULL THEN 1 ELSE NULL END) AS total_transaction,
+                        SUM(CASE WHEN transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN transactions.transaction_gross ELSE 0 END) as total_subtotal,
                         SUM(
-							CASE WHEN transactions.transaction_discount_item IS NOT NULL THEN ABS(transactions.transaction_discount_item) 
-								WHEN transactions.transaction_discount IS NOT NULL THEN ABS(transactions.transaction_discount)
+							CASE WHEN transactions.transaction_discount_item IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_item) 
+								WHEN transactions.transaction_discount IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount)
 								ELSE 0 END
-							+ CASE WHEN transactions.transaction_discount_delivery IS NOT NULL THEN ABS(transactions.transaction_discount_delivery) ELSE 0 END
-							+ CASE WHEN transactions.transaction_discount_bill IS NOT NULL THEN ABS(transactions.transaction_discount_bill) ELSE 0 END
+							+ CASE WHEN transactions.transaction_discount_delivery IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_delivery) ELSE 0 END
+							+ CASE WHEN transactions.transaction_discount_bill IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_bill) ELSE 0 END
 						) as total_discount,
-                        SUM(CASE WHEN transactions.transaction_grandtotal IS NOT NULL THEN transactions.transaction_grandtotal ELSE 0 END) as total_grandtotal,
-                        COUNT(CASE WHEN Date(transactions.transaction_date) = Date(transaction_outlet_services.pickup_at) AND Date(transaction_outlet_services.pickup_at) = Date(transaction_outlet_services.completed_at) THEN 1 ELSE NULL END) as transaction_in_date,
-                        COUNT(CASE WHEN Date(transactions.transaction_date) = Date(transaction_outlet_services.pickup_at) AND Date(transaction_outlet_services.pickup_at) = Date(transaction_outlet_services.completed_at) THEN NULL ELSE 1 END) as transaction_out_date
+                        SUM(CASE WHEN transactions.transaction_grandtotal IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN transactions.transaction_grandtotal ELSE 0 END) as total_grandtotal,
+                        COUNT(CASE WHEN Date(transactions.transaction_date) = Date(transaction_outlet_services.pickup_at) AND Date(transaction_outlet_services.pickup_at) = Date(transaction_outlet_services.completed_at) AND transaction_outlet_services.reject_at IS NULL THEN 1 ELSE NULL END) as transaction_in_date,
+                        COUNT(CASE WHEN Date(transactions.transaction_date) = Date(transaction_outlet_services.pickup_at) AND Date(transaction_outlet_services.pickup_at) = Date(transaction_outlet_services.completed_at) AND transaction_outlet_services.reject_at IS NULL THEN NULL ELSE 1 END) as transaction_out_date
 					'))
     				->groupBy(DB::raw('Date(transactions.transaction_date)'));
 

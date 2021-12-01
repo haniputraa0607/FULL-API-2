@@ -73,10 +73,12 @@ class ApiHome extends Controller
 
     public function getBanner()
     {
+        $request = request();
         // banner
         $banners = Banner::orderBy('position')
             ->where('banner_start', '<=', date('Y-m-d H:i:s'))
             ->where('banner_end', '>=', date('Y-m-d H:i:s'))
+            ->where('type', $request->type ?: 'general')
             ->where(function($query) {
                 $query->where('time_start', "<=", date("H:i:s"))
                     ->where('time_end', ">=", date("H:i:s"))

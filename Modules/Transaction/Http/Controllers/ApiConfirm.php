@@ -684,6 +684,8 @@ class ApiConfirm extends Controller
                 ],
             ];
         } elseif ($post['payment_type'] == 'Xendit') {
+            $post['phone'] = $post['phone'] ?? $user['phone'];
+            $payment_id = $request->payment_id ?? $request->payment_detail;
             $paymentXendit = TransactionPaymentXendit::where('id_transaction', $check['id_transaction'])->first();
             if(!$paymentXendit) {
                 $paymentXendit = new TransactionPaymentXendit([
@@ -851,7 +853,7 @@ class ApiConfirm extends Controller
                             'messages' => ['Empty checkout_url']
                         ];
                     }
-                    $result['checkout_url'] = $paymentXendit->checkout_url;
+                    $result['redirect_url'] = $paymentXendit->checkout_url;
                 }
 
                 return [

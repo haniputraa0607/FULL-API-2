@@ -8,7 +8,7 @@ class TransactionPaymentXendit extends Model
 {
     public $primaryKey  = 'id_transaction_payment_xendit';
     protected $fillable = [
-        'id_transaction_group',
+        'id_transaction',
         'xendit_id',
         'external_id',
         'business_id',

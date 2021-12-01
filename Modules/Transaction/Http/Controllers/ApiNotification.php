@@ -884,7 +884,7 @@ Detail: ".$link['short'],
                         [
                             'completed_date'=> $currentDate,
                             'installment_step' => MyHelper::numberToRomanRepresentation($data['installment_step']),
-                            'total_amont'      => $data['amount']
+                            'total_amount'      => $data['amount']
                         ]
                     );
 

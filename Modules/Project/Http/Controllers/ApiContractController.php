@@ -16,6 +16,7 @@ use Modules\Project\Entities\ProjectSurveyLocation;
 use Modules\BusinessDevelopment\Entities\Partner;
 use Modules\BusinessDevelopment\Entities\Location;
 use Modules\BusinessDevelopment\Entities\ConfirmationLetter;
+use App\Http\Models\Outlet;
 use Modules\Project\Entities\InvoiceSpk;
 use Modules\Project\Entities\PurchaseSpk;
 
@@ -97,12 +98,14 @@ class ApiContractController extends Controller
                     "second_party"   =>  $request->second_party,
                     "attachment"   =>  $attachment,
                     "nomor_loi"   =>   $request->nomor_loi,
+                    "nomor_spk"   =>   $request->nomor_spk,
                     "tanggal_loi"   =>  date_format(date_create($request->tanggal_loi),"Y-m-d"),
-                    "tanggal_serah_terima"   =>  date_format(date_create($request->tanggal_serah_terima),"Y-m-d"),
+                    "tanggal_spk"   =>  date_format(date_create($request->tanggal_spk),"Y-m-d"),
                     "tanggal_buka_loi"   =>  date_format(date_create($request->tanggal_buka_loi),"Y-m-d"),
                     "nama_pic"   =>   $request->nama_pic,
                     "kontak_pic"   =>   $request->kontak_pic,
                     "lokasi_pic"   =>   $request->lokasi_pic,
+                    "lampiran"   =>   $request->lampiran,
                     "status"=>'Success',
                     "note"   =>  $note
                 ]);
@@ -184,23 +187,6 @@ class ApiContractController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         
     }
-    public function excel(Request $request){
-        if(isset($request->id_project)){
-         $project = Project::where('id_project', $request->id_project)
-                ->first();
-         if($project){
-             $data_send = [
-                            "project" => $project,
-                            "partner" => Partner::where('id_partner',$project->id_partner)->first(),
-                            "location" => Location::where('id_partner',$project->id_partner)->first(),
-                            "confir" => ConfirmationLetter::where('id_partner',$project->id_partner)->first(),
-                            "contract" => ProjectContract::where('id_project',$request->id_project)->first(),
-                            "survey" => ProjectSurveyLocation::where('id_project',$request->id_project)->first(),
-                        ];
-             return response()->json(['status' => 'success','result'=>$data_send]); 
-            }
-         }
-         return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
-    }
+   
     
 }

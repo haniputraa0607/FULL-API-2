@@ -14,6 +14,8 @@ class ProjectDesain extends Model
     protected $fillable = [ 
         'id_project',
         'note',
+        'nama_designer',
+        'cp_designer',
         'desain',
         'attachment',
         'status',

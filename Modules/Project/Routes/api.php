@@ -19,6 +19,7 @@ use Illuminate\Http\Request;
     Route::any('/initProject/{partner}/{location}', ['middleware'=>'scopes:be', 'uses' => 'ApiProjectController@initProject']);
     Route::any('/list', ['middleware'=>'scopes:be', 'uses' => 'ApiProjectController@index']);
     Route::post('/create', ['middleware'=>'scopes:be', 'uses' => 'ApiProjectController@create']);
+    Route::post('/excel', ['middleware'=>'scopes:be', 'uses' => 'ApiProjectController@excel']);
     Route::any('/detail', ['middleware'=>'scopes:be', 'uses' => 'ApiProjectController@detail']);
     Route::any('/update', ['middleware'=>'scopes:be', 'uses' => 'ApiProjectController@update']);
     Route::any('/delete', ['middleware'=>'scopes:be', 'uses' => 'ApiProjectController@destroy']);
@@ -37,7 +38,7 @@ use Illuminate\Http\Request;
     Route::post('/delete/contract', ['middleware'=>'scopes:be', 'uses' => 'ApiContractController@destroy']);
     Route::post('/next/contract', ['middleware'=>'scopes:be', 'uses' => 'ApiContractController@nextStep']);
     Route::post('/detail/contract', ['middleware'=>'scopes:be', 'uses' => 'ApiContractController@detail']);
-    Route::post('/excel/contract', ['middleware'=>'scopes:be', 'uses' => 'ApiContractController@excel']);
+    
     //fitout
      Route::post('/create/fitout', ['middleware'=>'scopes:be', 'uses' => 'ApiFitOutController@create']);
      Route::post('/delete/fitout', ['middleware'=>'scopes:be', 'uses' => 'ApiFitOutController@destroy']);

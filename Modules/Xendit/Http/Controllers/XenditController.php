@@ -114,7 +114,9 @@ class XenditController extends Controller
             }
 
             if ($universalStatus == 'COMPLETED') {
-                $update                 = $trx->complete();
+                $update                 = $trx->triggerPaymentCompleted([
+                    'amount' => $post['amount'] / 100,
+                ]);
                 $userData               = User::where('id', $trx['id_user'])->first();
                 $config_fraud_use_queue = Configs::where('config_name', 'fraud use queue')->first()->is_active;
 
@@ -124,7 +126,7 @@ class XenditController extends Controller
                     $checkFraud = app($this->setting_fraud_v2)->checkFraudTrxOnline($userData, $trx);
                 }
             } elseif ($universalStatus == 'FAILED') {
-                $update                 = $trx->cancel();
+                $update                 = $trx->triggerPaymentCancelled();
             }
 
             if (!$update) {

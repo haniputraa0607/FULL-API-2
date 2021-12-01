@@ -9,6 +9,7 @@ namespace App\Http\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Lib\MyHelper;
+use App\Jobs\FraudJob;
 
 /**
  * Class Transaction
@@ -341,7 +342,7 @@ class Transaction extends Model
      * Called when payment completed
      * @return [type] [description]
      */
-    public function triggerPaymentCompleted()
+    public function triggerPaymentCompleted($data = [])
     {
     	\DB::beginTransaction();
     	// check complete allowed
@@ -349,10 +350,13 @@ class Transaction extends Model
     		return $this->transaction_payment_status == 'Completed';
     	}
     	// update transaction status
-    	$this->update([
-    		'transaction_payment_status' => 'Completed', 
-    		'completed_at' => date('Y-m-d H:i:s')
-    	]);
+    	if ($this->transaction_from != 'academy') {
+	    	$this->update([
+	    		'transaction_payment_status' => 'Completed', 
+	    		'completed_at' => date('Y-m-d H:i:s')
+	    	]);
+    	}
+
     	// trigger payment complete -> service
     	switch ($this->transaction_from) {
     		case 'outlet-service':
@@ -369,7 +373,29 @@ class Transaction extends Model
 
     		case 'academy':
     			$this->transaction_academy->triggerPaymentCompleted();
+    			if ($this->transaction_academy->amount_not_completed == 0) {
+			    	$this->update([
+			    		'transaction_payment_status' => 'Completed', 
+			    		'completed_at' => date('Y-m-d H:i:s')
+			    	]);
+    			}
     			break;
+    	}
+
+    	// check fraud
+    	if ($this->user) {
+	    	$this->user->update([
+	            'count_transaction_day' => $this->user->count_transaction_day + 1,
+	            'count_transaction_week' => $this->user->count_transaction_week + 1,
+	    	]);
+
+	    	$config_fraud_use_queue = Configs::where('config_name', 'fraud use queue')->value('is_active');
+
+	        if($config_fraud_use_queue == 1){
+	            FraudJob::dispatch($transaction->user, $this, 'transaction')->onConnection('fraudqueue');
+	        }else {
+	            $checkFraud = app('\Modules\SettingFraud\Http\Controllers\ApiFraud')->checkFraudTrxOnline($this->user, $this);
+	        }
     	}
 
     	// send notification
@@ -390,7 +416,7 @@ class Transaction extends Model
      * Called when payment completed
      * @return [type] [description]
      */
-    public function triggerPaymentCancelled()
+    public function triggerPaymentCancelled($data = [])
     {
     	\DB::beginTransaction();
     	// check complete allowed

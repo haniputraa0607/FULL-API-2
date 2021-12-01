@@ -554,11 +554,25 @@ class ApiTransactionAcademy extends Controller
                 ]);
             }
 
-            foreach ($post['installment'] as $value){
+            $settingDeadline = Setting::where('key', 'transaction_academy_installment_deadline_date')->first()['value']??null;
+            if(empty($settingDeadline)){
+                DB::rollback();
+                return response()->json([
+                    'status'    => 'fail',
+                    'messages'  => ['Deadline date is empty']
+                ]);
+            }
+
+            $startDeadline = date('Y-m-d', strtotime(date('Y-m').'-'.$settingDeadline));
+            $startDeadline = date('Y-m-d', strtotime("+1 month", strtotime($startDeadline)));
+            foreach ($post['installment'] as $key=>$value){
                 $installment[] = [
+                    'installment_step' => $key+1,
                     'id_transaction_academy' => $createTransactionAcademy['id_transaction_academy'],
+                    'installment_receipt_number' => 'INS-'.MyHelper::createrandom(4,'Angka').time().substr($createTransactionAcademy['id_transaction_academy'], 0, 4),
                     'percent' => $value['percent'],
                     'amount' => $value['amount'],
+                    'deadline' => date('Y-m-d', strtotime("+".$key." month", strtotime($startDeadline))),
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s')
                 ];

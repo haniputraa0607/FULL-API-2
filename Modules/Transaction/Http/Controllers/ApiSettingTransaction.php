@@ -304,12 +304,14 @@ class ApiSettingTransaction extends Controller
             $timeEnd = Setting::where('key', 'home_service_time_end')->first()['value']??'22:00';
             $duration = Setting::where('key', 'home_service_processing_time')->first()['value']??60;
             $radius = Setting::where('key', 'home_service_hs_maximum_radius')->first()['value']??25;
+            $installmentDeadline = Setting::where('key', 'transaction_academy_installment_deadline_date')->first()['value']??null;
 
             $result = [
                 'outlet' => $outlet,
                 'time_start' => $timeStart,
                 'time_end' => $timeEnd,
                 'duration' => $duration,
+                'installment_deadline' => $installmentDeadline,
                 'radius' => $radius
             ];
 
@@ -320,6 +322,7 @@ class ApiSettingTransaction extends Controller
             Setting::updateOrCreate(['key' => 'home_service_time_end'], ['value' => $post['time_end']]);
             Setting::updateOrCreate(['key' => 'home_service_processing_time'], ['value' => $post['duration']]);
             Setting::updateOrCreate(['key' => 'home_service_hs_maximum_radius'], ['value' => $post['radius']]);
+            Setting::updateOrCreate(['key' => 'transaction_academy_installment_deadline_date'], ['value' => $post['installment_deadline']]);
 
             return response()->json(MyHelper::checkUpdate(true));
         }

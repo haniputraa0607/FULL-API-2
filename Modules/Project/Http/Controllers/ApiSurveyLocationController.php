@@ -23,46 +23,11 @@ class ApiSurveyLocationController extends Controller
     public function create(CreateSurveyLocationRequest $request)
     {
         
-        $store = ProjectSurveyLocation::where(array('id_project'=>$request->id_project))->first();
         $attachment = null;
         $note = null;
         if(isset($request->note)){
             $note = $request->note;
         }
-        if($store){
-            $attachment = $store->attachment;
-            $note = $store->note;
-            if(isset($request->note)){
-                $note = $request->note;
-            }
-           if(isset($request->attachment)){
-                    $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, 'pdf');
-                     if (isset($upload['status']) && $upload['status'] == "success") {
-                             $attachment = $upload['path'];
-                         } else {
-                             $result = [
-                                 'status'   => 'fail',
-                                 'messages' => ['fail upload file']
-                             ];
-                             return $result;
-                         }
-                 }
-            $store = ProjectSurveyLocation::where(array('id_project'=>$request->id_project))->update([
-                    "location_length"   =>  $request->location_length,
-                    "location_width"   =>  $request->location_width,
-                    "location_large"   =>  $request->location_large,
-                    "surveyor"   =>  $request->surveyor,
-                    "survey_date"   =>  date_format(date_create($request->survey_date),"Y-m-d H:i:s"),
-                    "note"   =>  $note,
-                    "status"=>'Success',
-                    "attachment"   =>  $attachment,
-                ]);
-            $project = Project::where(array('id_project'=>$request->id_project,'progres'=>'Survey Location'))->update([
-             'progres'=>'Desain Location'
-         ]);
-            $store = ProjectSurveyLocation::where(array('id_project'=>$request->id_project))->first();
-        }else{
-            
             if(isset($request->attachment)){
                     $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, 'pdf');
                      if (isset($upload['status']) && $upload['status'] == "success") {
@@ -84,12 +49,34 @@ class ApiSurveyLocationController extends Controller
                     "location_width"   =>  $request->location_width,
                     "location_large"   =>  $request->location_large,
                     "surveyor"   =>  $request->surveyor, 
+                    "kondisi"   =>  $request->kondisi,
+                    "keterangan_kondisi"   =>  $request->keterangan_kondisi,
+                    "listrik"   =>  $request->listrik,
+                    "keterangan_listrik"   =>  $request->keterangan_listrik,
+                    "ac"   =>  $request->ac, 
+                    "keterangan_ac"   =>  $request->keterangan_ac,
+                    "air"   =>  $request->air,
+                    "keterangan_air"   =>  $request->keterangan_air,
+                    "internet"   =>  $request->internet,
+                    "keterangan_internet"   =>  $request->keterangan_internet, 
+                    "line_telepon"   =>  $request->line_telepon,
+                    "keterangan_line_telepon"   =>  $request->keterangan_line_telepon,
+                    "nama_pic_mall"   =>  $request->nama_pic_mall,
+                    "cp_pic_mall"   =>  $request->cp_pic_mall,
+                    "nama_kontraktor"   =>  $request->nama_kontraktor, 
+                    "cp_kontraktor"   =>  $request->cp_kontraktor,
+                    "area_lokasi"   =>  $request->area_lokasi,
+                    "tanggal_mulai_pekerjaan"   => date_format(date_create($request->tanggal_mulai_pekerjaan),"Y-m-d"),
+                    "tanggal_selesai_pekerjaan"   => date_format(date_create($request->tanggal_selesai_pekerjaan),"Y-m-d"),
+                    "tanggal_loading_barang"   => date_format(date_create($request->tanggal_loading_barang),"Y-m-d"),
+                    "tanggal_pengiriman_barang"   => date_format(date_create($request->tanggal_pengiriman_barang),"Y-m-d"),
+                    "estimasi_tiba"   => date_format(date_create($request->estimasi_tiba),"Y-m-d"),
                     "survey_date"   => date_format(date_create($request->survey_date),"Y-m-d H:i:s"),
                     "attachment"   =>  $attachment,
-                     'status'=>'Success',
+                    'status'=>'Success',
                     "note"   =>  $note
                 ]);
-        }
+        
             return response()->json(MyHelper::checkCreate($store));
     }
    public function index(Request $request)

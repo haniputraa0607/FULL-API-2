@@ -11,6 +11,9 @@ use Modules\Project\Entities\ProjectDesain;
 use Modules\Project\Entities\ProjectContract;
 use Modules\Project\Entities\ProjectFitOut;
 use Modules\Project\Entities\ProjectHandover;
+use Modules\Project\Entities\InvoiceSpk;
+use Modules\Project\Entities\InvoiceBap;
+use Modules\Project\Entities\PurchaseSpk;
 
 class Project extends Model
 {
@@ -46,5 +49,14 @@ class Project extends Model
     }
     public function project_handover(){
         return $this->hasOne(ProjectHandover::class, 'id_project');
+    }
+    public function invoice_spk(){
+        return $this->hasOne(InvoiceSpk::class, 'id_project');
+    }
+    public function invoice_bap(){
+        return $this->hasOne(InvoiceBap::class, 'id_project');
+    }
+    public function purchase_spk(){
+        return $this->hasOne(PurchaseSpk::class, 'id_project');
     }
 }

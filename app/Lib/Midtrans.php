@@ -58,8 +58,11 @@ class Midtrans {
         $payment_detail = str_replace(' ', '-', (strtolower($payment_detail)));
         $dataMidtrans = array(
             'transaction_details' => $transaction_details,
-            'enabled_payments' => [$payment_detail],
         );
+
+        if ($payment_detail) {
+            $dataMidtrans['enabled_payments'] = [$payment_detail];
+        }
 
         if (!is_null($user)) {
             $dataMidtrans['customer_details'] = $user;
@@ -79,7 +82,7 @@ class Midtrans {
 
         if ($scopeUser == 'web-apps'){
             $baseCallback = env('MIDTRANS_CALLBACK').$outletCode.'/payment-finish'.'?id_transaction='.$id;
-            if ($payment_detail == 'gopay') {
+            if ($payment_detail && $payment_detail == 'gopay') {
                 $dataMidtrans['gopay'] = [
                     'enable_callback' => true,
                     'callback_url' => $baseCallback.'&result=success',
@@ -91,7 +94,7 @@ class Midtrans {
                 'error' => $baseCallback.'&result=fail'
             ];
         }else{
-            if ($payment_detail == 'gopay') {
+            if ($payment_detail && $payment_detail == 'gopay') {
                 $dataMidtrans['gopay'] = [
                     'enable_callback' => true,
                     'callback_url' => env('MIDTRANS_CALLBACK_APPS').'?order_id='.urlencode($receipt).(!empty($type)? '&type='.$type: '').(!empty($transaction_from)? '&transaction_from='.$transaction_from: ''),

@@ -72,7 +72,7 @@ return [
     'online_payment' => [
         'payment_gateway' => 'Midtrans',
         'payment_method'  => 'Midtrans',
-        'status'          => 1,
+        'status'          => 0,
         'logo'            => env('STORAGE_URL_API').'default_image/payment_method/ic_online_payment.png',
         'text'            => 'Online Payment'
     ],

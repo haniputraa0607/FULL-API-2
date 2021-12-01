@@ -12,7 +12,6 @@ use App\Http\Models\Transaction;
 use DB;
 use App\Http\Models\User;
 use App\Http\Models\Configs;
-use App\Jobs\FraudJobV2;
 use Modules\Xendit\Entities\TransactionPaymentXendit;
 use Modules\Xendit\Entities\DealsPaymentXendit;
 use Modules\Xendit\Entities\SubscriptionPaymentXendit;
@@ -26,7 +25,6 @@ class XenditController extends Controller
     public function __construct()
     {
         $this->callback_url = env('XENDIT_CALLBACK_URL', route('notif_xendit'));
-        $this->setting_fraud_v2 = "Modules\SettingFraud\Http\Controllers\ApiFraudV2";
         $this->autocrm             = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
 
         Xendit::setApiKey($this->key);
@@ -117,14 +115,6 @@ class XenditController extends Controller
                 $update                 = $trx->triggerPaymentCompleted([
                     'amount' => $post['amount'] / 100,
                 ]);
-                $userData               = User::where('id', $trx['id_user'])->first();
-                $config_fraud_use_queue = Configs::where('config_name', 'fraud use queue')->first()->is_active;
-
-                if ($config_fraud_use_queue == 1) {
-                    FraudJobV2::dispatch($userData, $trx, 'transaction')->onConnection('fraudqueue');
-                } else {
-                    $checkFraud = app($this->setting_fraud_v2)->checkFraudTrxOnline($userData, $trx);
-                }
             } elseif ($universalStatus == 'FAILED') {
                 $update                 = $trx->triggerPaymentCancelled();
             }

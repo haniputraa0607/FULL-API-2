@@ -392,7 +392,7 @@ class Transaction extends Model
 	    	$config_fraud_use_queue = Configs::where('config_name', 'fraud use queue')->value('is_active');
 
 	        if($config_fraud_use_queue == 1){
-	            FraudJob::dispatch($transaction->user, $this, 'transaction')->onConnection('fraudqueue');
+	            FraudJob::dispatch($this->user, $this, 'transaction')->onConnection('fraudqueue');
 	        }else {
 	            $checkFraud = app('\Modules\SettingFraud\Http\Controllers\ApiFraud')->checkFraudTrxOnline($this->user, $this);
 	        }

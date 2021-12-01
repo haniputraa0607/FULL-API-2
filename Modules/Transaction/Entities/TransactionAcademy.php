@@ -24,4 +24,12 @@ class TransactionAcademy extends \App\Http\Models\Template\TransactionService
     public function user_schedule(){
         return $this->hasMany(TransactionAcademySchedule::class, 'id_transaction_academy', 'id_transaction_academy');
     }
+
+    public function triggerPaymentCompleted($data = [])
+    {
+        $this->update([
+            'amount_completed' => $this->amount_completed + $data['amount'], 
+            'amount_not_completed' => $this->amount_not_completed - $data['amount']
+        ]);
+    }
 }

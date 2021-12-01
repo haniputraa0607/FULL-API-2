@@ -247,11 +247,38 @@ class ApiTransactionShop extends Controller
             $product['qty_stock'] = (int)$product['product_stock_status'];
             unset($product['product_stock_status']);
 
+            $product['product_detail'] = ProductDetail::where(['id_product' => $item['id_product'], 'id_outlet' => $outlet['id_outlet']])->first();
+            $max_order = null;
+
+	        if(isset($product['product_detail']['max_order'])){
+	            $max_order = $product['product_detail']['max_order'];
+	        }
+	        if($max_order==null){
+	            $max_order = Outlet::select('max_order')->where('id_outlet',$outlet['id_outlet'])->pluck('max_order')->first();
+	            if($max_order == null){
+	                $max_order = Setting::select('value')->where('key','max_order')->pluck('value')->first();
+	                if($max_order == null){
+	                    $max_order = 100;
+	                }
+	            }
+	        }
+
+	        $product_name = $product['product_group']['product_group_name'] . ' ' . $product['variant_name'];
+	        $max_order = (int) $max_order;
+        	$max_order_alert = MyHelper::simpleReplace(Setting::select('value_text')
+				->where('key','transaction_exceeds_limit_text')
+				->pluck('value_text')
+				->first()?:'Transaksi anda melebihi batas! Maksimal transaksi untuk %product_name% : %max_order%',
+                    [
+                        'product_name' => $product_name,
+                        'max_order' => $max_order
+                    ]
+                );
 
             $item = [
             	'id_custom' => $product['id_custom'],
             	'id_product' => $product['id_product'],
-            	'product_name' => $product['product_group']['product_group_name'] . ' ' . $product['variant_name'],
+            	'product_name' => $product_name,
             	'product_code' => $product['product_code'],
             	'variant_name' => $product['variant_name'],
             	'product_description' => $product['product_description'],
@@ -265,7 +292,9 @@ class ApiTransactionShop extends Controller
             	'qty' => $product['qty'],
             	'product_price_total' => $product['product_price_total'],
             	'error_msg' => $product['error_msg'],
-            	'qty_stock' => $product['qty_stock']
+            	'qty_stock' => $product['qty_stock'],
+            	'max_order' => $max_order,
+            	'max_order_alert' => $max_order_alert
             ];
 
             if(!empty($err)){

@@ -699,16 +699,12 @@ Detail: ".$link['short'],
                     $check = LogTopup::where('id_log_topup', $trx['logTopup']['id_log_topup'])->update(['topup_payment_status' => 'Completed', 'payment_type' => 'Midtrans']);
 
                     if ($check) {
-                        $upTrx = Transaction::where('id_transaction', $trx['id_transaction'])->first()->triggerPaymentCompleted();
+                        $upTrx = Transaction::where('id_transaction', $trx['id_transaction'])->first()->triggerPaymentCompleted([
+                            'amount' => $midtrans['gross_amount'],
+                        ]);
                         if (!$upTrx) {
                             return false;
                         }
-
-                        $fraud = $this->checkFraud($trx);
-                        if ($fraud == false) {
-                            return false;
-                        }
-
 
                         return app($this->balance)->addTopupToBalance($trx['logTopup']['id_log_topup']);
                     }
@@ -921,20 +917,13 @@ Detail: ".$link['short'],
             if ($midtrans['transaction_status'] == 'refund' ) {
                 return true;
             }elseif ($midtrans['transaction_status'] == 'capture' || $midtrans['transaction_status'] == 'settlement') {
-                $check = Transaction::where('id_transaction', $trx['id_transaction'])->first()->triggerPaymentCompleted();
+                $check = Transaction::where('id_transaction', $trx['id_transaction'])->first()->triggerPaymentCompleted([
+                    'amount' => $midtrans['gross_amount'],
+                ]);
                 if (!$check) {
                     return false;
                 }
 
-                //update amount completed transaction academy
-                if($trx->transaction_from == 'academy'){
-                    TransactionAcademy::where('id_transaction', $trx->id_transaction)->update(['amount_completed' => $trx->transaction_grandtotal, 'amount_not_completed' => 0]);
-                }
-
-                $fraud = $this->checkFraud($trx);
-                if (!$fraud) {
-                    return false;
-                }
             } else {
                 $check = Transaction::where('id_transaction', $trx->id_transaction)->update(['transaction_payment_status' => ucwords($midtrans['transaction_status'])]);
 

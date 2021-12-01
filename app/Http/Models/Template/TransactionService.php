@@ -10,7 +10,7 @@ class TransactionService extends Model
      * Called when payment completed
      * @return [type] [description]
      */
-    public function triggerPaymentCompleted()
+    public function triggerPaymentCompleted($data = [])
     {
         return true;
     }
@@ -19,7 +19,7 @@ class TransactionService extends Model
      * Called when payment completed
      * @return [type] [description]
      */
-    public function triggerPaymentCancelled()
+    public function triggerPaymentCancelled($data = [])
     {
         return true;
     }

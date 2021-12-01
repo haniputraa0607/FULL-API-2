@@ -22,6 +22,9 @@ class CreateContractRequest extends FormRequest
             'nama_pic'      => 'required',
             'kontak_pic'      => 'required',
             'lokasi_pic'      => 'required',
+            'nomor_spk'      => 'required',
+            'tanggal_spk'      => 'required',
+            'lampiran'      => 'required',
             'id_project'        => 'required|project',
            ]; 
     }

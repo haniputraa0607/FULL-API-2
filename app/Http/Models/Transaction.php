@@ -429,7 +429,7 @@ class Transaction extends Model
     		'transaction_payment_status' => 'Cancelled', 
     		'void_date' => date('Y-m-d H:i:s')
     	]);
-		MyHelper::updateFlagTransactionOnline($this, 'cancel', $user);
+		MyHelper::updateFlagTransactionOnline($this, 'cancel', $this->user);
 
         //reversal balance
         $logBalance = LogBalance::where('id_reference', $this->id_transaction)->whereIn('source', ['Online Transaction', 'Transaction'])->where('balance', '<', 0)->get();
@@ -440,7 +440,7 @@ class Transaction extends Model
             	return false;
             }
             $user = User::where('id', $this->id_user)->first();
-            $send = app('\Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM('Transaction Failed Point Refund', $user->phone,
+            $send = app('\Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM('Transaction Failed Point Refund', $this->user->phone,
                 [
                     "outlet_name"       => $this->outlet_name->outlet_name,
                     "transaction_date"  => $this->transaction_date,

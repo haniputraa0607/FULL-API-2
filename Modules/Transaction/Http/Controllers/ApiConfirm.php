@@ -363,7 +363,7 @@ class ApiConfirm extends Controller
                     'customer_details'    => $dataUser,
                     'shipping_address'    => $dataShipping,
                 );
-                $connectMidtrans = Midtrans::token($check['transaction_receipt_number'], $countGrandTotal, $dataUser, $dataShipping, $dataDetailProduct, 'trx', $check['id_transaction'], $scopeUser, $outletCode, $check['transaction_from']);
+                $connectMidtrans = Midtrans::token($check['transaction_receipt_number'], $countGrandTotal, $dataUser, $dataShipping, $dataDetailProduct, 'trx', $check['id_transaction'], $post['payment_detail'], $scopeUser, $outletCode, $check['transaction_from']);
             } else {
                 $dataMidtrans = array(
                     'transaction_details' => $transaction_details,

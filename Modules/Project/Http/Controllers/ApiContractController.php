@@ -41,8 +41,6 @@ class ApiContractController extends Controller
          $project = Project::where('id_project', $request->id_project)->where(array('status'=>'Process','progres'=>"Contract"))
                 ->first();
          if($project){
-             $project->progres = 'Fit Out';
-             $project->save();
              $data_send = [
                             "partner" => Partner::where('id_partner',$project->id_partner)->first(),
                             "location" => Location::where('id_partner',$project->id_partner)->first(),
@@ -92,6 +90,8 @@ class ApiContractController extends Controller
                              return $result;
                          }
                  }
+                 $project->progres = 'Fit Out';
+                $project->save();
                 $store = ProjectContract::create([
                     "id_project"   =>  $request->id_project,
                     "first_party"   =>  $request->first_party,

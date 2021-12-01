@@ -123,68 +123,7 @@ class ApiCronTrxController extends Controller
                 //     continue;
                 // }
 
-                DB::beginTransaction();
-
-                MyHelper::updateFlagTransactionOnline($singleTrx, 'cancel', $user);
-
-                $singleTrx->transaction_payment_status = 'Cancelled';
-                $singleTrx->void_date = $now;
-                $singleTrx->save();
-
-                if (!$singleTrx) {
-                    continue;
-                }
-
-                //reversal balance
-                $logBalance = LogBalance::where('id_reference', $singleTrx->id_transaction)->whereIn('source', ['Online Transaction', 'Transaction'])->where('balance', '<', 0)->get();
-                foreach($logBalance as $logB){
-                    $reversal = app($this->balance)->addLogBalance( $singleTrx->id_user, abs($logB['balance']), $singleTrx->id_transaction, 'Reversal', $singleTrx->transaction_grandtotal);
-    	            if (!$reversal) {
-    	            	DB::rollback();
-    	            	continue;
-    	            }
-                    $order_id = TransactionPickup::select('order_id')->where('id_transaction', $singleTrx->id_transaction)->pluck('order_id')->first();
-                    $usere= User::where('id',$singleTrx->id_user)->first();
-                    $send = app($this->autocrm)->SendAutoCRM('Transaction Failed Point Refund', $usere->phone,
-                        [
-                            "outlet_name"       => $singleTrx->outlet_name->outlet_name,
-                            "transaction_date"  => $singleTrx->transaction_date,
-                            'id_transaction'    => $singleTrx->id_transaction,
-                            'receipt_number'    => $singleTrx->transaction_receipt_number,
-                            'received_point'    => (string) abs($logB['balance']),
-                            'order_id'          => $order_id,
-                        ]
-                    );
-                }
-
-                // delete promo campaign report
-                if ($singleTrx->id_promo_campaign_promo_code) {
-                	$update_promo_report = app($this->promo_campaign)->deleteReport($singleTrx->id_transaction, $singleTrx->id_promo_campaign_promo_code);
-                	if (!$update_promo_report) {
-    	            	DB::rollBack();
-    	            	continue;
-    	            }	
-                }
-
-                // return voucher
-                $update_voucher = app($this->voucher)->returnVoucher($singleTrx->id_transaction);
-
-                // return subscription
-                $update_subscription = app($this->subscription)->returnSubscription($singleTrx->id_transaction);
-
-                if (!$update_voucher) {
-                	DB::rollback();
-                	continue;
-                }
-
-                //remove hs from table not available
-                $idTrxProductService = TransactionProductService::where('id_transaction', $singleTrx->id_transaction)->pluck('id_transaction_product_service')->toArray();
-                if(!empty($idTrxProductService)){
-                    HairstylistNotAvailable::whereIn('id_transaction_product_service', $idTrxProductService)->delete();
-                }
-
-                DB::commit();
-
+                $singleTrx->triggerPaymentCancelled();
             }
 
             $log->success('success');

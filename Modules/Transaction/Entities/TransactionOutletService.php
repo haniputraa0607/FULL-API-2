@@ -27,4 +27,12 @@ class TransactionOutletService extends \App\Http\Models\Template\TransactionServ
 		return $this->belongsTo(\App\Http\Models\Transaction::class, 'id_transaction');
 	}
 
+    public function triggerCancelledPayment()
+    {
+        //remove hs from table not available
+        $idTrxProductService = TransactionProductService::where('id_transaction', $this->id_transaction)->pluck('id_transaction_product_service')->toArray();
+        if(!empty($idTrxProductService)){
+            HairstylistNotAvailable::whereIn('id_transaction_product_service', $idTrxProductService)->delete();
+        }
+    }
 }

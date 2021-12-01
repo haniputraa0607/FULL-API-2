@@ -101,7 +101,7 @@ class XenditController extends Controller
         DB::beginTransaction();
 
         if (stristr($post['external_id'], config('configs.PREFIX_TRANSACTION_NUMBER'))) {
-            $trx = Transaction::where('transaction_receipt_number', $post['external_id'])->join('transaction_payment_xendits', 'transaction_groups.id_transaction_group', '=', 'transaction_payment_xendits.id_transaction_group')->first();
+            $trx = Transaction::where('transaction_receipt_number', $post['external_id'])->join('transaction_payment_xendits', 'transactions.id_transaction', '=', 'transaction_payment_xendits.id_transaction')->first();
             if (!$trx) {
                 $status_code = 404;
                 $response    = ['status' => 'fail', 'messages' => ['Transaction not found']];
@@ -137,7 +137,7 @@ class XenditController extends Controller
                 goto end;
             }
 
-            TransactionPaymentXendit::where('id_transaction_group', $trx->id_transaction_group)->update([
+            TransactionPaymentXendit::where('id_transaction', $trx->id_transaction)->update([
                 'status'         => $universalStatus,
                 'xendit_id'      => $post['id'] ?? null,
                 'expiration_date'=> $post['expiration_date'] ?? null,
@@ -280,7 +280,7 @@ class XenditController extends Controller
         ];
         try {
             $expired = date('Y-m-d H:i:s', time() - 1200);
-            $transactions = Transaction::join('transaction_payment_xendits', 'transaction_payment_xendits.id_transaction_group', 'transaction_groups.id_transaction_group')
+            $transactions = Transaction::join('transaction_payment_xendits', 'transaction_payment_xendits.id_transaction', 'transactions.id_transaction')
                 ->where('transaction_date', '<=', $expired)
                 ->where('transaction_payment_status', 'Pending')
                 ->get();
@@ -305,7 +305,7 @@ class XenditController extends Controller
                         $result['pending']++;
                         continue;
                     }
-                    TransactionPaymentXendit::where('id_transaction_group', $transaction->id_transaction_group)->update([
+                    TransactionPaymentXendit::where('id_transaction', $transaction->id_transaction)->update([
                         'status'         => $universalStatus,
                         'xendit_id'      => $status['id'] ?? $transaction->xendit_id,
                         'expiration_date'=> $status['expiration_date'] ?? $transaction->expiration_date,

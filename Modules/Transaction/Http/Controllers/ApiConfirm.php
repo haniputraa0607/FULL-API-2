@@ -848,6 +848,7 @@ class ApiConfirm extends Controller
                     $result['message_timeout'] = 'Sorry, your payment has expired';
                 } else {
                     if (!$paymentXendit->checkout_url) {
+                        DB::commit();
                         return [
                             'status' => 'fail',
                             'messages' => ['Empty checkout_url']
@@ -856,6 +857,7 @@ class ApiConfirm extends Controller
                     $result['redirect_url'] = $paymentXendit->checkout_url;
                 }
 
+                DB::commit();
                 return [
                     'status' => 'success',
                     'result' => $result
@@ -873,6 +875,7 @@ class ApiConfirm extends Controller
                 'type'           => 'Xendit',
             ], $dataMultiple);
 
+            DB::commit();
             return [
                 'status' => 'fail',
                 'messages' => $errors ?: ['Something went wrong']

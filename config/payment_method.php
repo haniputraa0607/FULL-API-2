@@ -32,7 +32,7 @@ return [
     'ipay88_cc'      => [
         'payment_gateway' => 'Ipay88',
         'payment_method'  => 'Credit Card',
-        'status'          => 'credit_card_payment_gateway:Ipay88',
+        'status'          => 0, //'credit_card_payment_gateway:Ipay88',
         'logo'            => 0,
         'text'            => 'Debit/Credit Card',
         'available_time'    => [

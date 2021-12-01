@@ -202,8 +202,8 @@ class ApiProjectController extends Controller
                             "survey" => ProjectSurveyLocation::where('id_project',$request->id_project)->first(),
                             "desain" => ProjectDesain::where('id_project',$request->id_project)->where(array('status'=>'Success'))->orderby('created_at','DESC')->first(),
                             "handover" => ProjectHandover::where('id_project',$request->id_project)->first(),
-                            'hs'     => UserHairStylist::join('outlets','outlets.id_outlet','user_hair_stylist.id_outlet')->where(array('level'=>'Hairstylist','user_hair_stylist_status'=>'Active'))->select('user_hair_stylist.*')->get(),
-                            'spv'     => UserHairStylist::join('outlets','outlets.id_outlet','user_hair_stylist.id_outlet')->where(array('level'=>'Supervisor','user_hair_stylist_status'=>'Active'))->select('user_hair_stylist.*')->get(),
+                            'hs'     => UserHairStylist::join('outlets','outlets.id_outlet','user_hair_stylist.id_outlet')->where('id_location',$project->id_location)->where(array('level'=>'Hairstylist','user_hair_stylist_status'=>'Active'))->select('user_hair_stylist.*')->get(),
+                            'spv'     => UserHairStylist::join('outlets','outlets.id_outlet','user_hair_stylist.id_outlet')->where('id_location',$project->id_location)->where(array('level'=>'Supervisor','user_hair_stylist_status'=>'Active'))->select('user_hair_stylist.*')->get(),
                         ];
              return response()->json(['status' => 'success','result'=>$data_send]); 
             }

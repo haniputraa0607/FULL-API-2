@@ -242,7 +242,12 @@ class ApiPartnersController extends Controller
                 $data_update['name'] = $post['name'];
             }
             if (isset($post['code'])) {
-                $data_update['code'] = $post['code'];
+                $cek_code = Partner::where('code', $post['code'])->first();
+                if($cek_code){
+                    return response()->json(['status' => 'duplicate_code', 'messages' => ['Partner code must be different']]);
+                }else{
+                    $data_update['code'] = $post['code'];
+                }
             }
             if (isset($post['mobile']) && $post['mobile'] == 'default') {
                 $data_update['mobile'] = Partner::where('id_partner', $post['id_partner'])->get('phone')[0]['phone'];
@@ -408,6 +413,24 @@ class ApiPartnersController extends Controller
                 }
             }
             return response()->json(['status' => 'success']);
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
+    }
+
+    public function cekDuplikat(Request $request){
+        $post = $request->all();
+        if (isset($post['id_partner']) && !empty($post['id_partner'])) {
+            //cek code partner
+            $cek_code_partner = Partner::where('code', $post['partner_code'])->first();
+            if($cek_code_partner){
+                return response()->json(['status' => 'duplicate_code', 'messages' => ['Partner code must be different']]);
+            }else{
+                $cek_code_location = Location::where('code', $post['location_code'])->first();
+                if($cek_code_location){
+                    return response()->json(['status' => 'duplicate_code', 'messages' => ['Location code must be different']]);
+                }
+            }
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }

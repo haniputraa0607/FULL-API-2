@@ -212,7 +212,12 @@ class ApiLocationsController extends Controller
                 $data_update['name'] = $post['name'];
             }
             if (isset($post['code'])) {
-                $data_update['code'] = $post['code'];
+                $cek_code = Location::where('code', $post['code'])->first();
+                if($cek_code){
+                    return response()->json(['status' => 'duplicate_code', 'messages' => ['Location code must be different']]);
+                }else{
+                    $data_update['code'] = $post['code'];
+                }
             }
             if (isset($post['address'])) {
                 $data_update['address'] = $post['address'];

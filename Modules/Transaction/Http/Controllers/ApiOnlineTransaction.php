@@ -3356,58 +3356,7 @@ class ApiOnlineTransaction extends Controller
                 ];
             case 'midtrans':
                 Midtrans::expire($trx->transaction_receipt_number);
-                $singleTrx = $trx;
-                $singleTrx->load('outlet_name');
-                $now = date('Y-m-d H:i:s');
-                DB::beginTransaction();
-
-                MyHelper::updateFlagTransactionOnline($singleTrx, 'cancel', $user);
-
-                $singleTrx->transaction_payment_status = 'Cancelled';
-                $singleTrx->void_date = $now;
-                $singleTrx->save();
-
-                //reversal balance
-                $logBalance = LogBalance::where('id_reference', $singleTrx->id_transaction)->whereIn('source', ['Online Transaction', 'Transaction'])->where('balance', '<', 0)->get();
-                foreach($logBalance as $logB){
-                    $reversal = app($this->balance)->addLogBalance( $singleTrx->id_user, abs($logB['balance']), $singleTrx->id_transaction, 'Reversal', $singleTrx->transaction_grandtotal);
-                    if (!$reversal) {
-                        DB::rollback();
-                        continue;
-                    }
-                    $order_id = TransactionPickup::select('order_id')->where('id_transaction', $singleTrx->id_transaction)->pluck('order_id')->first();
-                    $send = app($this->autocrm)->SendAutoCRM('Transaction Failed Point Refund', $user->phone,
-                        [
-                            "outlet_name"       => $singleTrx->outlet_name->outlet_name,
-                            "transaction_date"  => $singleTrx->transaction_date,
-                            'id_transaction'    => $singleTrx->id_transaction,
-                            'receipt_number'    => $singleTrx->transaction_receipt_number,
-                            'received_point'    => (string) abs($logB['balance']),
-                            'order_id'          => $order_id,
-                        ]
-                    );
-                }
-
-                // delete promo campaign report
-                if ($singleTrx->id_promo_campaign_promo_code) {
-                    $update_promo_report = app($this->promo_campaign)->deleteReport($singleTrx->id_transaction, $singleTrx->id_promo_campaign_promo_code);
-                    if (!$update_promo_report) {
-                        DB::rollBack();
-                        return ['status'=>'fail', 'messages' => ['Failed revert promo']];
-                    }   
-                }
-
-                // return voucher
-                $update_voucher = app($this->voucher)->returnVoucher($singleTrx->id_transaction);
-
-                // return subscription
-                $update_subscription = app($this->subscription)->returnSubscription($singleTrx->id_transaction);
-
-                if (!$update_voucher) {
-                    DB::rollback();
-                    return ['status'=>'fail', 'messages' => ['Failed return voucher']];
-                }
-                DB::commit();
+                $trx->triggerPaymentCancelled();
                 return ['status'=>'success'];
         }
         return ['status' => 'fail', 'messages' => ["Cancel $payment_type transaction is not supported yet"]];

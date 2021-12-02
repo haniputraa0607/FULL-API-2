@@ -2310,6 +2310,10 @@ class ApiOnlineTransaction extends Controller
 
         $result['currency'] = 'Rp';
         $result['complete_profile'] = true;
+
+        $fake_request = new Request(['show_all' => 1]);
+        $result['available_payment'] = $this->availablePayment($fake_request)['result'] ?? [];
+
         return MyHelper::checkGet($result)+['messages'=>$error_msg];
     }
 

@@ -547,6 +547,10 @@ class ApiTransactionHomeService extends Controller
         $result['complete_profile'] = (empty($user->complete_profile) ?false:true);
         $result['continue_checkout'] = $continueCheckOut;
         $result['messages_all'] = (empty($errAll)? null:implode(".", array_unique($errAll)));
+
+        $fake_request = new Request(['show_all' => 1]);
+        $result['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
+
         return MyHelper::checkGet($result);
     }
 

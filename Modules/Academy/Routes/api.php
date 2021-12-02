@@ -41,4 +41,5 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
     Route::post('my-course/schedule/detail', 'ApiAcademyController@scheduleDetailMyCourse');
     Route::post('my-course/create/day-off', 'ApiAcademyController@createDayOff');
     Route::post('my-course/installment/detail', 'ApiAcademyController@installmentDetail');
+    Route::post('my-course/installment/pay', 'ApiAcademyController@installmentPay');
 });

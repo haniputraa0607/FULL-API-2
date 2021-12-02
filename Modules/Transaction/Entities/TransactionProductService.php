@@ -34,4 +34,9 @@ class TransactionProductService extends Model
 		return $this->belongsTo(\Modules\Recruitment\Entities\UserHairStylist::class, 'id_user_hair_stylist');
 	}
 
+	public function transaction_product()
+	{
+		return $this->belongsTo(\App\Http\Models\TransactionProduct::class, 'id_transaction_product');
+	}
+
 }

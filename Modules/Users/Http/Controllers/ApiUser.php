@@ -2393,6 +2393,15 @@ class ApiUser extends Controller
 
                 $datauser = User::where('id', '=', $data[0]['id'])->with(['city','city.province'])->get()->toArray();
 
+                if ($request->id_user_address) {
+                    $user = User::find($data[0]);
+                    $user_address = $user->addresses()->where('id_user_address', $request->id_user_address)->first();
+                    if ($user_address) {
+                        $user->addresses()->update(['favorite' => 0]);
+                        $user_address->update(['favorite' => 1]);
+                    }
+                }
+
                 //cek complete profile ?
                 if ($datauser[0]['complete_profile'] != "1") {
                     if ($datauser[0]['name'] != "" 

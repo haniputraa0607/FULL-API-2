@@ -2,7 +2,7 @@
 
 namespace Modules\Academy\Http\Controllers;
 
-use App\Jobs\SyncronPlasticTypeOutlet;
+use App\Lib\Midtrans;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
@@ -10,36 +10,16 @@ use Illuminate\Routing\Controller;
 use App\Http\Models\Outlet;
 use App\Http\Models\OutletDoctor;
 use App\Http\Models\OutletDoctorSchedule;
-use App\Http\Models\OutletHoliday;
-use App\Http\Models\UserOutletApp;
-use App\Http\Models\Holiday;
-use App\Http\Models\DateHoliday;
-use App\Http\Models\OutletPhoto;
-use App\Http\Models\City;
-use App\Http\Models\User;
-use App\Http\Models\UserOutlet;
-use App\Http\Models\Configs;
-use App\Http\Models\OutletSchedule;
 use App\Http\Models\Setting;
 use App\Http\Models\OauthAccessToken;
 use App\Http\Models\Product;
-use App\Http\Models\ProductPrice;
-use Modules\Outlet\Entities\DeliveryOutlet;
-use Modules\Outlet\Entities\OutletBox;
-use Modules\POS\Http\Requests\reqMember;
+use Modules\Academy\Http\Requests\Pay;
 use Modules\Product\Entities\ProductDetail;
-use Modules\Product\Entities\ProductGlobalPrice;
 use Modules\Product\Entities\ProductSpecialPrice;
-use Modules\Franchise\Entities\UserFranchise;
-use Modules\Franchise\Entities\UserFranchiseOultet;
-use Modules\Outlet\Entities\OutletScheduleUpdate;
-
-use App\Imports\ExcelImport;
-use App\Imports\FirstSheetOnlyImport;
-
 use App\Lib\MyHelper;
 use Modules\Transaction\Entities\TransactionAcademy;
 use Modules\Transaction\Entities\TransactionAcademyInstallment;
+use Modules\Transaction\Entities\TransactionAcademyInstallmentPaymentMidtrans;
 use Modules\Transaction\Entities\TransactionAcademySchedule;
 use Modules\Transaction\Entities\TransactionAcademyScheduleDayOff;
 use Validator;
@@ -49,22 +29,12 @@ use Mail;
 use Excel;
 use Storage;
 
-use Modules\Brand\Entities\BrandOutlet;
 use Modules\Brand\Entities\Brand;
 
 use Modules\Outlet\Http\Requests\Outlet\Upload;
 
-use Modules\Outlet\Http\Requests\Holiday\HolidayStore;
 use Modules\Outlet\Http\Requests\Holiday\HolidayEdit;
-use Modules\Outlet\Http\Requests\Holiday\HolidayUpdate;
-use Modules\Outlet\Http\Requests\Holiday\HolidayDelete;
-
-use Modules\PromoCampaign\Entities\PromoCampaignPromoCode;
-use Modules\PromoCampaign\Lib\PromoCampaignTools;
 use App\Http\Models\Transaction;
-
-use App\Jobs\SendOutletJob;
-use function Clue\StreamFilter\fun;
 
 class ApiAcademyController extends Controller
 {
@@ -699,13 +669,14 @@ class ApiAcademyController extends Controller
                 return response()->json(['status' => 'fail', 'messages' => ['Transaction not found']]);
             }
 
-            $listInstallment = TransactionAcademyInstallment::where('id_transaction_academy', $trx['id_transaction_academy'])->get()->toArray();
+            $listInstallment = TransactionAcademyInstallment::where('id_transaction_academy', $trx['id_transaction_academy'])->orderBy('id_transaction_academy_installment', 'asc')->get()->toArray();
             $listNextBill = [];
             foreach ($listInstallment as $key=>$value){
                 if(empty($value['completed_installment_at'])){
                     $listNextBill[] = [
+                        'id_transaction_academy_installment' => $value['id_transaction_academy_installment'],
                         'text' => 'Pembayaran Tahap '.($key+1),
-                        'deadline' => (empty($value['deadline'])? '':MyHelper::dateFormatInd($value['deadline'], true, true)),
+                        'deadline' => (empty($value['deadline'])? '':MyHelper::dateFormatInd($value['deadline'], true, false)),
                         'amount' => $value['amount']
                     ];
                 }
@@ -726,5 +697,53 @@ class ApiAcademyController extends Controller
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID transaction can not be empty']]);
         }
+    }
+
+    public function installmentPay(Pay $request){
+        $post = $request->json()->all();
+        $dataInstallment = TransactionAcademyInstallment::join('transaction_academy', 'transaction_academy.id_transaction_academy', 'transaction_academy_installment.id_transaction_academy')
+                            ->where('id_transaction_academy_installment', $post['id_transaction_academy_installment'])
+                            ->select('transaction_academy_installment.*', 'transaction_academy.id_transaction')->first();
+
+        if(empty($dataInstallment)){
+            return response()->json(['status' => 'fail', 'messages' => ['Data installment not found']]);
+        }
+
+        if(!empty($dataInstallment['completed_installment_at'])){
+            return response()->json(['status' => 'fail', 'messages' => ['Installment already paid']]);
+        }
+
+        /* MIDTRANS */
+        if ($request->json('payment_type') && $request->json('payment_type') == "Midtrans") {
+            $pay = $this->midtrans($dataInstallment, $post);
+        }
+
+        return response()->json(MyHelper::checkGet($pay??[]));
+    }
+
+    function midtrans($data)
+    {
+        $data['gross_amount'] = $data['amount'];
+        $requestToMidtrans = Midtrans::token($data['installment_receipt_number'], $data['gross_amount'], null, null, null, 'transaction', $data['id_transaction']);
+        $requestToMidtrans['order_id'] = $data['installment_receipt_number'];
+        $requestToMidtrans['gross_amount'] = $data['amount'];
+
+        if (isset($requestToMidtrans['token'])) {
+            TransactionAcademyInstallment::where('id_transaction_academy_installment', $data['id_transaction_academy_installment'])->update(['paid_status' => 'Pending']);
+            $insert = [
+                'id_transaction_academy' => $data['id_transaction_academy'],
+                'id_transaction_academy_installment' => $data['id_transaction_academy_installment'],
+                'gross_amount' => $data['gross_amount'],
+                'order_id' => $data['installment_receipt_number']
+            ];
+            if (TransactionAcademyInstallmentPaymentMidtrans::create($insert)) {
+                return [
+                    'midtrans'      => $requestToMidtrans,
+                    'data'          => $data
+                ];
+            }
+        }
+
+        return false;
     }
 }

@@ -53,6 +53,8 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::any('/setting/image-delivery', 'ApiSettingTransaction@imageDelivery');
     Route::get('/setting/home-service', 'ApiSettingTransaction@homeServiceSetting');
     Route::post('/setting/home-service', 'ApiSettingTransaction@homeServiceSetting');
+    Route::get('/setting/academy', 'ApiSettingTransaction@academySetting');
+    Route::post('/setting/academy', 'ApiSettingTransaction@academySetting');
 
     Route::post('retry-void-payment/retry', 'ApiTransaction@retry');
 
@@ -89,8 +91,13 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::post('failed-void-payment', 'ApiManualRefundController@listFailedVoidPayment');
     Route::post('failed-void-payment/confirm', 'ApiManualRefundController@confirmManualRefund');
 
-    Route::post('outlet-service', 'ApiTransactionOutletService@listOutletService');
-    Route::post('outlet-service/detail', 'ApiTransactionOutletService@detailTransaction');
+    Route::group(['prefix' => 'outlet-service'], function () {
+	    Route::post('/', 'ApiTransactionOutletService@listOutletService');
+	    Route::post('detail', 'ApiTransactionOutletService@detailTransaction');
+	    Route::post('manage', 'ApiTransactionOutletService@manageList');
+	    Route::get('manage/detail/{id_transaction}', 'ApiTransactionOutletService@manageDetail');
+	    Route::post('manage/detail/{id_transaction}', 'ApiTransactionOutletService@manageDetailUpdate');
+    });
 
     Route::post('home-service', 'ApiTransactionHomeService@listHomeService');
     Route::post('home-service/detail', 'ApiTransactionHomeService@detailTransaction');

@@ -27,7 +27,8 @@ class Location extends Model
         'renovation_costs',
         'partnership_fee',
         'income',
-        'notes'
+        'notes',
+        'step_loc'
 
     ];
     public function location_partner(){
@@ -35,6 +36,15 @@ class Location extends Model
     }
     public function location_city(){
         return $this->belongsTo(City::class, 'id_city');
+    }
+    public function location_step(){
+        return $this->hasMany(StepLocationsLog::class, 'id_location');
+    }
+    public function location_survey(){
+        return $this->hasMany(FormSurvey::class, 'id_location');
+    }
+    public function location_confirmation(){
+        return $this->hasMany(ConfirmationLetter::class, 'id_location');
     }
 
 }

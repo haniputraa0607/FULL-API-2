@@ -76,8 +76,8 @@ class Icount
             "VoucherNo" => "[AUTO]",
             "DepartmentID" => "011",
             "TermOfPaymentID" => $request['partner']['id_term_payment'],
-            "TransDate" => $request['partner']['trans_date'],
-            "DueDate" => $request['partner']['due_date'],
+            "TransDate" => $request['location']['trans_date'],
+            "DueDate" => $request['location']['due_date'],
             "ReferenceNo" => $request['confir']['no_letter'],
             "Detail" => [
                 [
@@ -97,8 +97,8 @@ class Icount
         $data = [
             "SalesOrderID" => $request['partner']['id_sales_order'],
             "VoucherNo" => $request['partner']['voucher_no'],
-            "TransDate" => $request['partner']['trans_date'],
-            "DueDate" => $request['partner']['due_date'],
+            "TransDate" => $request['location']['trans_date'],
+            "DueDate" => $request['location']['due_date'],
             "BusinessPartnerID" => $request['partner']['id_business_partner'],
             "BranchID" => $request['location']['id_branch'],
             "TermOfPaymentID" => $request['partner']['id_term_payment'],
@@ -123,8 +123,8 @@ class Icount
         $data = [
             "SalesOrderID" => $request['partner']['id_sales_order'],
             "VoucherNo" => $request['partner']['voucher_no'],
-            "TransDate" => $request['partner']['trans_date'],
-            "DueDate" => $request['partner']['due_date'],
+            "TransDate" => $request['location']['trans_date'],
+            "DueDate" => $request['location']['due_date'],
             "BusinessPartnerID" => $request['partner']['id_business_partner'],
             "BranchID" => $request['location']['id_branch'],
             "TermOfPaymentID" => $request['partner']['id_term_payment'],
@@ -149,8 +149,8 @@ class Icount
         $data = [
             "SalesOrderID" => $request['partner']['id_sales_order'],
             "VoucherNo" => $request['partner']['voucher_no'],
-            "TransDate" => $request['partner']['trans_date'],
-            "DueDate" => $request['partner']['due_date'],
+            "TransDate" => $request['location']['trans_date'],
+            "DueDate" => $request['location']['due_date'],
             "BusinessPartnerID" => $request['partner']['id_business_partner'],
             "BranchID" => $request['location']['id_branch'],
             "TermOfPaymentID" => $request['partner']['id_term_payment'],
@@ -174,8 +174,8 @@ class Icount
     public static function ApiPurchaseSPK($request, $logType = null, $orderId = null){
         $data = [
             "VoucherNo" => $request['partner']['voucher_no'],
-            "TransDate" => $request['partner']['trans_date'],
-            "DueDate" => $request['partner']['due_date'],
+            "TransDate" => $request['location']['trans_date'],
+            "DueDate" => $request['location']['due_date'],
             "BusinessPartnerID" => $request['partner']['id_business_partner'],
             "BranchID" => $request['location']['id_branch'],
             "ReferenceNo" => $request['confir']['no_letter'],

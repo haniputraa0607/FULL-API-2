@@ -40,5 +40,11 @@ class Location extends Model
     public function location_step(){
         return $this->hasMany(StepLocationsLog::class, 'id_location');
     }
+    public function location_survey(){
+        return $this->hasMany(FormSurvey::class, 'id_location');
+    }
+    public function location_confirmation(){
+        return $this->hasMany(ConfirmationLetter::class, 'id_location');
+    }
 
 }

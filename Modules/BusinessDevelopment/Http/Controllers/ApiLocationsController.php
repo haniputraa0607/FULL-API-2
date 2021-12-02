@@ -181,11 +181,30 @@ class ApiLocationsController extends Controller
     {
         $post = $request->all();
         if(isset($post['id_location']) && !empty($post['id_location'])){
-            $location = Location::where('id_location', $post['id_location'])->with(['location_partner','location_city','location_step'])->first();
+            $location = Location::where('id_location', $post['id_location'])->with(['location_partner','location_city','location_step','location_survey','location_confirmation'])->first();
             if(($location['location_step'])){
                 foreach($location['location_step'] as $step){
                     if(isset($step['attachment']) && !empty($step['attachment'])){
                         $step['attachment'] = env('STORAGE_URL_API').$step['attachment'];
+                    }
+                }
+            } 
+            if(($location['location_survey'])){
+                foreach($location['location_survey'] as $survey){
+                    if(isset($survey['attachment']) && !empty($survey['attachment'])){
+                        $survey['attachment'] = env('STORAGE_URL_API').$survey['attachment'];
+                    }
+                    if($survey['potential']==1){
+                        $survey['potential'] = 'OK';
+                    }else{
+                        $survey['potential'] = 'Not OK';
+                    }
+                }
+            } 
+            if(($location['location_confirmation'])){
+                foreach($location['location_confirmation'] as $confir){
+                    if(isset($confir['attachment']) && !empty($confir['attachment'])){
+                        $confir['attachment'] = env('STORAGE_URL_API').$confir['attachment'];
                     }
                 }
             } 
@@ -306,6 +325,12 @@ class ApiLocationsController extends Controller
             }
             if (isset($post['step_loc'])) {
                 $data_update['step_loc'] = $post['step_loc'];
+            }
+            if (isset($post['trans_date'])) {
+                $data_update['trans_date'] = $post['trans_date'];
+            }
+            if (isset($post['due_date'])) {
+                $data_update['due_date'] = $post['due_date'];
             }
             if(isset($data_update['start_date']) && isset($data_update['end_date'])){
                 $start = explode('-', $data_update['start_date']);
@@ -431,6 +456,12 @@ class ApiLocationsController extends Controller
                 return response()->json(['status' => 'fail', 'messages' => ['Failed add follow up data']]);
             }
             DB::commit();
+            if(isset($request['form_survey']) && !empty($request['form_survey'])){
+                $survey =  app('Modules\BusinessDevelopment\Http\Controllers\ApiPartnersController')->createFormSurvey($request['form_survey']);
+                if($survey['status'] != 'success' && isset($survey['status'])){
+                    return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                }
+            }
             return response()->json(MyHelper::checkCreate($store));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);

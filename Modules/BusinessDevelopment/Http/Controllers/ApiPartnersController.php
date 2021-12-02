@@ -856,7 +856,7 @@ class ApiPartnersController extends Controller
             if(isset($post['follow_up']) && $post['follow_up'] == 'Payment'){
                 $data_send = [
                     "partner" => Partner::where('id_partner',$post["id_partner"])->first(),
-                    "location" => Location::where('id_partner',$post["id_partner"])->first(),
+                    "location" => Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->first(),
                     "confir" => ConfirmationLetter::where('id_partner',$post["id_partner"])->first(),
                 ];
                 $initBranch = Icount::ApiConfirmationLetter($data_send);
@@ -882,7 +882,7 @@ class ApiPartnersController extends Controller
                     DB::beginTransaction();
                     $update_partner_init = Partner::where('id_partner', $post['id_partner'])->update($partner_init);
                     if($update_partner_init){
-                        $update_location_init = Location::where('id_partner', $post['id_partner'])->update($location_init);
+                        $update_location_init = Location::where('id_partner', $post['id_partner'])->where('id_location',$post["id_location"])->update($location_init);
                         if(!$update_location_init){
                             DB::rollback();
                             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
@@ -890,13 +890,13 @@ class ApiPartnersController extends Controller
                         DB::commit();
                         $data_send_2 = [
                             "partner" => Partner::where('id_partner',$post["id_partner"])->first(),
-                            "location" => Location::where('id_partner',$post["id_partner"])->first(),
+                            "location" => Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->first(),
                             "confir" => ConfirmationLetter::where('id_partner',$post["id_partner"])->first(),
                         ];
                         $invoiceCL = Icount::ApiInvoiceConfirmationLetter($data_send_2);
                         if($invoiceCL['response']['Status']=='1' && $invoiceCL['response']['Message']=='success'){
                             $data_invoCL = $invoiceCL['response']['Data'][0];
-                            $val = Location::where('id_partner',$post["id_partner"])->get('value_detail')[0]['value_detail'];
+                            $val = Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->get('value_detail')[0]['value_detail'];
                             $val = json_decode($val, true);
                             $val[$data_invoCL['Detail'][0]['Name']] = [
                                 "name" => $data_invoCL['Detail'][0]['Name'],
@@ -913,7 +913,7 @@ class ApiPartnersController extends Controller
                             DB::beginTransaction();
                             $update_partner_invoCL = Partner::where('id_partner', $post['id_partner'])->update($partner_invoCL);
                             if($update_partner_invoCL){
-                                $update_location_invoCL = Location::where('id_partner', $post['id_partner'])->update($location_invoCL);
+                                $update_location_invoCL = Location::where('id_partner', $post['id_partner'])->where('id_location',$post["id_location"])->update($location_invoCL);
                                 if(!$update_location_invoCL){
                                     DB::rollback();
                                     return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
@@ -944,13 +944,14 @@ class ApiPartnersController extends Controller
                 DB::beginTransaction();
                 $creatConf = [
                     "id_partner"   => $post['id_partner'],
+                    "id_location"   => $post['id_location'],
                     "no_letter"   => $post['no_letter'],
                     "location"   => $post['location'],
                     "date"   => date("Y-m-d"),
                 ];
                 $data['partner'] = $cek_partner;
                 $data['letter'] = $creatConf;
-                $data['location'] = Location::where(['id_partner'=>$post['id_partner']])->first();
+                $data['location'] = Location::where(['id_partner'=>$post['id_partner']])->where(['id_location'=>$post['id_location']])->first();
                 $data['city'] = City::where(['id_city'=>$data['location']['id_city']])->first();
                 $waktu = $this->timeTotal(explode('-', $data['partner']['start_date']),explode('-', $data['partner']['end_date']));
                 $send['data'] = [
@@ -1265,6 +1266,7 @@ class ApiPartnersController extends Controller
             DB::beginTransaction();
             $data_store = [
                 "id_partner" => $post["id_partner"],
+                "id_location" => $post["id_location"],
                 "survey" => $post["value"],
                 "surveyor" => $post["surveyor"],
                 "potential" => $post["potential"],
@@ -1278,7 +1280,7 @@ class ApiPartnersController extends Controller
             }
             DB::commit();
             $data_update = [
-                'attachment' => $this->pdfSurvey($post["id_partner"]),
+                'attachment' => $this->pdfSurvey($post["id_partner"],$post["id_location"]),
             ];
             $update = FormSurvey::where('id_partner', $post['id_partner'])->update($data_update);
             if(!$update){
@@ -1292,8 +1294,8 @@ class ApiPartnersController extends Controller
         }
     }
 
-    public function pdfSurvey($id){
-        $form_survey = FormSurvey::where('id_partner', $id)->first();
+    public function pdfSurvey($id_partner,$id_location){
+        $form_survey = FormSurvey::where('id_partner', $id_partner)->where('id_location',$id_location)->first();
         $value = json_decode($form_survey['survey']??'' , true);
         $a = 0;
         $b = 0;
@@ -1314,9 +1316,9 @@ class ApiPartnersController extends Controller
         }
         $alphas = range('A', 'Z');
         $total = ($a*4) + ($b*3) + ($c*2) + ($d*1);
-        $location = Location::where('id_partner', $id)->first();
+        $location = Location::where('id_partner', $id_partner)->where('id_location',$id_location)->first();
         $brand = Brand::where('id_brand', $location['id_brand'])->first();
-        $partner = Partner::where('id_partner', $id)->first();
+        $partner = Partner::where('id_partner', $id_partner)->first();
         $data = [
             'logo' => $brand['logo_brand'],
             'location' => $location['name'],
@@ -1337,7 +1339,8 @@ class ApiPartnersController extends Controller
         ];
         // return view('businessdevelopment::form_survey', $data);
         $name = strtolower(str_replace(' ', '_', $partner['name']));
-        $path = $this->form_survey.'form_survey_'.$name.'.pdf';
+        $name_loc = strtolower(str_replace(' ', '_', $location['name']));
+        $path = $this->form_survey.'form_survey_'.$name.'_'.$name_loc.'.pdf';
         $pdf = PDF::loadView('businessdevelopment::form_survey', $data );
         Storage::put($path, $pdf->output(),'public');
         return $path;

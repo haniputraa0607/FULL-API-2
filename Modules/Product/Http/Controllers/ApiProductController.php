@@ -2738,7 +2738,7 @@ class ApiProductController extends Controller
             ->join('product_detail', 'product_detail.id_product', '=', 'products.id_product')
             ->where('brand_outlet.id_outlet', '=', $outlet['id_outlet'])
             ->where('product_detail.id_outlet', '=', $outlet['id_outlet'])
-            ->where('brand_product.id_brand', '=', $brand['id_brand'])
+            // ->where('brand_product.id_brand', '=', $brand['id_brand'])
             ->where('product_type', 'product')
             ->whereRaw('
             	products.id_product in (
@@ -3050,7 +3050,7 @@ class ApiProductController extends Controller
     		return ['status' => 'fail', 'messages' => ['Produk tidak ditemukan']];
         }
 
-        if (count($variants) <= 1) {
+        if (!count($variants)) {
         	$variants = [];
         }
 
@@ -3060,7 +3060,8 @@ class ApiProductController extends Controller
         	'detail' => $selectedProduct,
         	// 'outlet' => Outlet::select('id_outlet','outlet_code','outlet_address','outlet_name')->find($id_outlet),
         	'variants' => $variants,
-        	'popup_message' => $selectedProduct['disable'] ? 'Produk yang dipilih tidak tersedia' : ''
+        	'popup_message' => $selectedProduct['disable'] ? 'Produk yang dipilih tidak tersedia' : '',
+            'complete_profile' => $request->user()->complete_profile,
         ];
 
         return MyHelper::checkGet($res);

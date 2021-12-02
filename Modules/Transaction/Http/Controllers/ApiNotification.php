@@ -22,6 +22,7 @@ use App\Http\Models\User;
 use App\Http\Models\Outlet;
 use App\Http\Models\LogBalance;
 use App\Http\Models\LogTopup;
+use App\Http\Models\LogMidtrans;
 use App\Http\Models\UsersMembership;
 use App\Http\Models\Setting;
 use App\Http\Models\UserOutlet;
@@ -81,6 +82,16 @@ class ApiNotification extends Controller {
     public function receiveNotification(Request $request) {
         $midtrans = $request->json()->all();
 
+        LogMidtrans::create([
+            'type' => 'webhook',
+            'id_reference' => $midtrans['order_id'],
+            'request' => json_encode($midtrans),
+            'request_url' => url()->current(),
+            'request_header' => getallheaders(),
+            'response' => '',
+            'response_header' => '',
+            'response_status_code' => ''
+        ]);
         DB::beginTransaction();
 
         try{

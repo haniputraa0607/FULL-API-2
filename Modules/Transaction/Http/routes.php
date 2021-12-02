@@ -53,6 +53,8 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::any('/setting/image-delivery', 'ApiSettingTransaction@imageDelivery');
     Route::get('/setting/home-service', 'ApiSettingTransaction@homeServiceSetting');
     Route::post('/setting/home-service', 'ApiSettingTransaction@homeServiceSetting');
+    Route::get('/setting/academy', 'ApiSettingTransaction@academySetting');
+    Route::post('/setting/academy', 'ApiSettingTransaction@academySetting');
 
     Route::post('retry-void-payment/retry', 'ApiTransaction@retry');
 

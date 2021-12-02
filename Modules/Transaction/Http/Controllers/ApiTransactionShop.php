@@ -606,7 +606,7 @@ class ApiTransactionShop extends Controller
             }
         }
 
-        if ($post['id_user_address']) {
+        if ($post['id_user_address'] ?? null) {
             $address = UserAddress::where('id_user', $user->id)->where('id_user_address', $post['id_user_address'])->first();
         } else {
             $address = UserAddress::where('id_user', $user->id)->where('favorite', 1)->first();

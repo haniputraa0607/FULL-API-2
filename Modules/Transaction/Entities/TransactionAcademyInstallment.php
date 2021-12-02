@@ -12,9 +12,13 @@ class TransactionAcademyInstallment extends Model
 
     protected $fillable   = [
         'id_transaction_academy',
+        'installment_receipt_number',
+        'installment_step',
         'percent',
         'amount',
         'deadline',
-        'completed_installment_at'
+        'paid_status',
+        'completed_installment_at',
+        'void_date'
     ];
 }

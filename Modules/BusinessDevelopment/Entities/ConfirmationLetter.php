@@ -11,6 +11,7 @@ class ConfirmationLetter extends Model
 
 	protected $fillable = [
         'id_partner',
+        'id_location',
 		'no_letter',
 		'location',
         'date',

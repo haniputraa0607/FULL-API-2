@@ -707,6 +707,9 @@ class ApiTransactionShop extends Controller
         $result['currency'] = 'Rp';
         $result['complete_profile'] = true;
 
+        $fake_request = new Request(['show_all' => 1]);
+        $result['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
+
         $finalRes = [
         	'customer' => $result['customer'],
         	'item' => $result['item'],
@@ -721,7 +724,8 @@ class ApiTransactionShop extends Controller
         	'total_payment' => $result['total_payment'],
         	'currency' => $result['currency'],
         	'complete_profile' => $result['complete_profile'],
-        	'payment_detail' => $result['payment_detail']
+        	'payment_detail' => $result['payment_detail'],
+            'available_payment' => $result['available_payment']
         ];
 
         return MyHelper::checkGet($finalRes)+['messages'=>$error_msg];

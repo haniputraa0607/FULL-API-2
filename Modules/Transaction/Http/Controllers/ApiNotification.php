@@ -87,7 +87,7 @@ class ApiNotification extends Controller {
             'id_reference' => $midtrans['order_id'],
             'request' => json_encode($midtrans),
             'request_url' => url()->current(),
-            'request_header' => getallheaders(),
+            'request_header' => json_encode(getallheaders()),
             'response' => '',
             'response_header' => '',
             'response_status_code' => ''

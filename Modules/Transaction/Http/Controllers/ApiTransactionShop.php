@@ -606,12 +606,10 @@ class ApiTransactionShop extends Controller
             }
         }
 
-        $address = UserAddress::where('id_user', $user->id)->where('id_user_address', $post['id_user_address'])->first();
-        if(empty($address)){
-            return response()->json([
-                'status'    => 'fail',
-                'messages'  => ['Address user not found']
-            ]);
+        if ($post['id_user_address']) {
+            $address = UserAddress::where('id_user', $user->id)->where('id_user_address', $post['id_user_address'])->first();
+        } else {
+            $address = UserAddress::where('id_user', $user->id)->where('favorite', 1)->first();
         }
 
         if(empty($post['customer']) || empty($post['customer']['name'])){
@@ -669,7 +667,7 @@ class ApiTransactionShop extends Controller
             ];
         }
 
-        $result['id_user_address'] = $address['id_user_address'];
+        $result['id_user_address'] = $address['id_user_address'] ?? null;
         $result['subtotal'] = $subtotal;
         $result['shipping'] = $post['shipping'];
         $result['discount'] = $post['discount'];

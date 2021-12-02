@@ -91,7 +91,6 @@ class ApiNotification extends Controller {
             'request_url' => url()->current(),
             'request_header' => json_encode(getallheaders()),
             'response' => '',
-            'response_header' => '',
             'response_status_code' => ''
         ]);
         DB::beginTransaction();

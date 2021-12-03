@@ -122,7 +122,7 @@ class ApiVersion extends Controller
                     'button_url' => $setting['version_outletstore']
                 ]);
             }
-            if ($device == 'mitra') {
+            if (strpos($device, 'mitra') !== false) {
                 foreach ($setting['Device'] as $value) {
                     if (in_array('MitraApp', $value)) {
                         $value['app_type'] = strtolower($value['app_type']);

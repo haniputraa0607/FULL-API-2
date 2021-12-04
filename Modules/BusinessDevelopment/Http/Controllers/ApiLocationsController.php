@@ -13,6 +13,8 @@ use Modules\BusinessDevelopment\Entities\Partner;
 use Modules\BusinessDevelopment\Entities\StepLocationsLog;
 use Modules\BusinessDevelopment\Http\Controllers\ApiPartnersController;
 use Modules\Project\Entities\Project;
+use Modules\BusinessDevelopment\Entities\ConfirmationLetter;
+use App\Lib\Icount;
 class ApiLocationsController extends Controller
 {
     public function __construct()
@@ -460,6 +462,81 @@ class ApiLocationsController extends Controller
                 $survey =  app('Modules\BusinessDevelopment\Http\Controllers\ApiPartnersController')->createFormSurvey($request['form_survey']);
                 if($survey['status'] != 'success' && isset($survey['status'])){
                     return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                }
+            }
+            if(isset($post['follow_up']) && $post['follow_up'] == 'Payment'){
+                $data_send = [
+                    "partner" => Partner::where('id_partner',$post["id_partner"])->first(),
+                    "location" => Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->first(),
+                    "confir" => ConfirmationLetter::where('id_partner',$post["id_partner"])->first(),
+                ];
+                $initBranch = Icount::ApiConfirmationLetter($data_send);
+                if($initBranch['response']['Status']=='1' && $initBranch['response']['Message']=='success'){
+                    $data_init = $initBranch['response']['Data'][0];
+                    $partner_init = [
+                        "id_sales_order" => $data_init['SalesOrderID'],
+                        "voucher_no" => $data_init['VoucherNo'],
+                        "id_sales_order_detail" => $data_init['Detail'][0]['SalesOrderDetailID'],
+                    ];
+                    $location_init = [
+                        "id_branch" => $data_init['Branch']['BranchID'],
+                    ];
+                    $value_detail[$data_init['Detail'][0]['Name']] = [
+                        "name" => $data_init['Detail'][0]['Name'],
+                        "amount" => $data_init['Amount'],
+                        "tax_value" => $data_init['TaxValue'],
+                        "netto" => $data_init['Netto'],
+                    ];
+                    $location_init['value_detail'] = json_encode($value_detail);
+                    DB::beginTransaction();
+                    $update_partner_init = Partner::where('id_partner', $post['id_partner'])->update($partner_init);
+                    if($update_partner_init){
+                        $update_location_init = Location::where('id_partner', $post['id_partner'])->where('id_location',$post["id_location"])->update($location_init);
+                        if(!$update_location_init){
+                            DB::rollback();
+                            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                        }
+                        DB::commit();
+                        $data_send_2 = [
+                            "partner" => Partner::where('id_partner',$post["id_partner"])->first(),
+                            "location" => Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->first(),
+                            "confir" => ConfirmationLetter::where('id_partner',$post["id_partner"])->first(),
+                        ];
+                        $invoiceCL = Icount::ApiInvoiceConfirmationLetter($data_send_2);
+                        if($invoiceCL['response']['Status']=='1' && $invoiceCL['response']['Message']=='success'){
+                            $data_invoCL = $invoiceCL['response']['Data'][0];
+                            $val = Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->get('value_detail')[0]['value_detail'];
+                            $val = json_decode($val, true);
+                            $val[$data_invoCL['Detail'][0]['Name']] = [
+                                "name" => $data_invoCL['Detail'][0]['Name'],
+                                "amount" => $data_invoCL['Amount'],
+                                "tax_value" => $data_invoCL['TaxValue'],
+                                "netto" => $data_invoCL['Netto'],
+                            ];
+                            $location_invoCL['value_detail'] = json_encode($val);
+                            $partner_invoCL = [
+                                "id_sales_invoice" => $data_invoCL['SalesInvoiceID'],
+                                "id_sales_invoice_detail" => $data_invoCL['Detail'][0]['SalesInvoiceDetailID'],
+                                "id_delivery_order_detail" => $data_invoCL['Detail'][0]['DeliveryOrderDetailID'],
+                            ];
+                            DB::beginTransaction();
+                            $update_partner_invoCL = Partner::where('id_partner', $post['id_partner'])->update($partner_invoCL);
+                            if($update_partner_invoCL){
+                                $update_location_invoCL = Location::where('id_partner', $post['id_partner'])->where('id_location',$post["id_location"])->update($location_invoCL);
+                                if(!$update_location_invoCL){
+                                    DB::rollback();
+                                    return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                                }
+                                DB::commit();
+                            }
+                        }else{
+                            return response()->json(['status' => 'fail', 'messages' => [$invoiceCL['response']['Message']]]);
+                        }
+                    }else{
+                        return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                    }
+                }else{
+                    return response()->json(['status' => 'fail', 'messages' => [$initBranch['response']['Message']]]);
                 }
             }
             return response()->json(MyHelper::checkCreate($store));

@@ -3809,9 +3809,9 @@ class ApiOutletController extends Controller
         return response()->json(MyHelper::checkUpdate($save));
     }
 
-    function isHoliday($id_outlet)
+    function isHoliday($id_outlet, $dateNow = null)
     {
-    	$now = date('Y-m-d H:i:s');
+    	$now = $dateNow ?? date('Y-m-d H:i:s');
     	$curDate = date('d', strtotime($now));
     	$curMonth = date('m', strtotime($now));
 
@@ -3823,7 +3823,6 @@ class ApiOutletController extends Controller
 	                ->where('id_outlet', $id_outlet)
 	                ->get()
 	                ->toArray();
-		
 		$res = [
 			'status' 	=> false,
 			'holiday' 	=> null
@@ -3832,6 +3831,7 @@ class ApiOutletController extends Controller
 		if ($holiday) {
             foreach ($holiday as $key => $holi) {
                 if ($holi['yearly'] == '0') {
+                	$now = date('Y-m-d', strtotime($now));
                     if ($holi['date'] == $now) {
                         $res = [
 							'status' 	=> true,

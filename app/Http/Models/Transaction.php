@@ -311,12 +311,12 @@ class Transaction extends Model
 
     public function transaction_home_service()
 	{
-		return $this->hasMany(\Modules\Transaction\Entities\TransactionHomeService::class, 'id_transaction');
+		return $this->hasOne(\Modules\Transaction\Entities\TransactionHomeService::class, 'id_transaction');
 	}
 
     public function transaction_shop()
 	{
-		return $this->hasMany(\Modules\Transaction\Entities\TransactionShop::class, 'id_transaction');
+		return $this->hasOne(\Modules\Transaction\Entities\TransactionShop::class, 'id_transaction');
 	}
 
 	public function transaction_academy(){

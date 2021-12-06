@@ -669,7 +669,11 @@ class ApiTransactionShop extends Controller
         }
 
         $listDelivery = $this->listDelivery();
-        $deliv = $this->findDelivery($listDelivery, $request->delivery_name, $request->delivery_method);
+        if (!$request->delivery_name && !$request->delivery_method) {
+        	$deliv = $listDelivery[0] ?? null;
+        } else {
+        	$deliv = $this->findDelivery($listDelivery, $request->delivery_name, $request->delivery_method);
+        }
         if (empty($deliv) && $request->delivery_name && $request->delivery_method) {
         	$error_msg[] = 'Pengiriman tidak ditemukan';
         }

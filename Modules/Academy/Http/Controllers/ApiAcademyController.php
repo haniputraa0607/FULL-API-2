@@ -22,6 +22,7 @@ use Modules\Transaction\Entities\TransactionAcademyInstallment;
 use Modules\Transaction\Entities\TransactionAcademyInstallmentPaymentMidtrans;
 use Modules\Transaction\Entities\TransactionAcademySchedule;
 use Modules\Transaction\Entities\TransactionAcademyScheduleDayOff;
+use Modules\Xendit\Entities\TransactionAcademyInstallmentPaymentXendit;
 use Validator;
 use Hash;
 use DB;
@@ -713,18 +714,21 @@ class ApiAcademyController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Installment already paid']]);
         }
 
+        $dataInstallment->update(['installment_payment_type' => $request->payment_type]);
         /* MIDTRANS */
         if ($request->json('payment_type') && $request->json('payment_type') == "Midtrans") {
             $pay = $this->midtrans($dataInstallment, $post);
+        } elseif ($request->payment_type == 'Xendit') {
+            $pay = $this->xendit($dataInstallment, $post);
         }
 
         return response()->json(MyHelper::checkGet($pay??[]));
     }
 
-    function midtrans($data)
+    function midtrans($data, $post)
     {
         $data['gross_amount'] = $data['amount'];
-        $requestToMidtrans = Midtrans::token($data['installment_receipt_number'], $data['gross_amount'], null, null, null, 'transaction', $data['id_transaction']);
+        $requestToMidtrans = Midtrans::token($data['installment_receipt_number'], $data['gross_amount'], null, null, null, 'transaction', $data['id_transaction'], $post['payment_detail'] ?? null);
         $requestToMidtrans['order_id'] = $data['installment_receipt_number'];
         $requestToMidtrans['gross_amount'] = $data['amount'];
 
@@ -739,11 +743,80 @@ class ApiAcademyController extends Controller
             if (TransactionAcademyInstallmentPaymentMidtrans::create($insert)) {
                 return [
                     'midtrans'      => $requestToMidtrans,
-                    'data'          => $data
+                    'data'          => $data,
+                    'redirect_url'  => $requestToMidtrans['redirect_url'] ?? null,
+                    'redirect'      => true,
                 ];
             }
         }
 
         return false;
+    }
+
+    public function xendit($data, $post)
+    {
+        $paymentXendit = TransactionAcademyInstallmentPaymentXendit::where('id_subscription_user', $voucher['id_subscription_user'])->first();
+        $post['payment_detail'] = request()->payment_detail;
+        if (!($post['phone'] ?? false)) {
+            $post['phone'] = request()->user()->phone;
+        }
+        $grossAmount = $data['amount'];
+        if (!$paymentXendit) {
+            $paymentXendit = new TransactionAcademyInstallmentPaymentXendit([
+                'id_transaction_academy' => $data['id_transaction_academy'],
+                'id_transaction_academy_installment' => $data['id_transaction_academy_installment'],
+                'order_id' => $data['installment_receipt_number'],
+                'xendit_id' => null,
+                'external_id' => $data['installment_receipt_number'],
+                'business_id' => null,
+                'phone' => $post['phone'],
+                'type' => $post['payment_detail'],
+                'amount' => $grossAmount,
+                'expiration_date' => null,
+                'failure_code' => null,
+                'status' => null,
+                'checkout_url' => null,
+            ]);
+        }
+
+        if ($this->payment_id == 'LINKAJA') {
+            $paymentXendit->items = [
+                [
+                    'id'       => (string) $data['id_transaction_academy'],
+                    'price'    => $grossAmount,
+                    'name'     => $data['installment_receipt_number'],
+                    'quantity' => 1,
+                ]
+            ];
+        }
+
+        if ($paymentXendit->pay($errors)) {
+            $result = [
+                'redirect' => true,
+                'payment_type' => 'Xendit',
+                'payment_detail' => $post['payment_detail'],
+                'data' => $data,
+            ];
+
+            if ($paymentXendit->type == 'OVO') {
+                $result['timer']  = (int) MyHelper::setting('setting_timer_ovo', 'value', 60);
+                $result['message_timeout'] = 'Sorry, your payment has expired';
+            } else {
+                if (!$paymentXendit->checkout_url) {
+                    $this->updateInfoDealUsers($voucher->id_subscription_user, ['payment_method' => 'Xendit', 'paid_status' => 'Cancelled']);
+                    \DB::commit();
+                    return false;
+                }
+                $result['redirect_url'] = $paymentXendit->checkout_url;
+            }
+
+            return $result;
+        }
+        return [
+            'redirect' => true,
+            'payment_type' => 'Xendit',
+            'payment_detail' => $post['payment_detail'],
+            'data' => $data,
+        ];
     }
 }

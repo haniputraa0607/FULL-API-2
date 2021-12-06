@@ -965,9 +965,20 @@ class ApiTransactionShop extends Controller
         $cashback = $earnedPoint['cashback'] ?? 0;
 
         $receipt = config('configs.PREFIX_TRANSACTION_NUMBER').'-'.MyHelper::createrandom(4,'Angka').time().substr($post['id_outlet'], 0, 4);
-        $grandTotal = (int)$post['subtotal'] + (int)$post['tax'];
-        DB::beginTransaction();
 
+        $listDelivery = $this->listDelivery();
+        $deliv = $this->findDelivery($listDelivery, $request->delivery_name, $request->delivery_method);
+        if (empty($deliv)) {
+        	return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Pengiriman tidak ditemukan']
+            ]);
+        }
+        $post['shipping'] = $deliv['price'];
+        
+        $grandTotal = (int)$post['subtotal'] + (int)$post['tax'] + (int)$post['shipping'];
+
+        DB::beginTransaction();
 
         $transaction = [
             'id_outlet'                   => $post['id_outlet'],

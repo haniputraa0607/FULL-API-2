@@ -43,6 +43,7 @@ class ApiMitraOutletService extends Controller
         $this->mitra = "Modules\Recruitment\Http\Controllers\ApiMitra";
         $this->trx = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
         $this->trx_outlet_service = "Modules\Transaction\Http\Controllers\ApiTransactionOutletService";
+        $this->mitra_log_balance = "Modules\Recruitment\Http\Controllers\MitraLogBalance";
     }
 
     public function customerQueue(Request $request)
@@ -739,6 +740,7 @@ class ApiMitraOutletService extends Controller
 
     public function paymentCashDetail(Request $request){
         $post = $request->json()->all();
+        $user = $request->user();
         if(empty($post['order_id']) && empty($post['payment_code'])){
             return ['status' => 'fail', 'messages' => ['Order ID and Payment code can not be empty']];
         }
@@ -784,10 +786,11 @@ class ApiMitraOutletService extends Controller
         }
 
         $result = [
+            'current_balance' => $user->balance??0,
             'order_id' => $trx['transaction_receipt_number'],
             'transaction_subtotal' => $trx['transaction_subtotal'],
             'transaction_tax' => $trx['transaction_tax'],
-            'transaction_grandtotal' => $trx['transaction_subtotal'],
+            'transaction_grandtotal' => $trx['transaction_grandtotal'],
             'transaction_date' => MyHelper::dateFormatInd($trx['transaction_date']),
             'customer_name' => $trx['customer_name'],
             'customer_email' => $trx['customer_email'],
@@ -818,7 +821,18 @@ class ApiMitraOutletService extends Controller
                 ->update(['cash_received_by' => $user->id_user_hair_stylist]);
 
         if($update){
-            $update = Transaction::where('id_transaction', $trx['id_transaction'])->update(['transaction_payment_status' => 'Completed']);
+            $update = Transaction::where('id_transaction', $trx['id_transaction'])
+                ->update(['transaction_payment_status' => 'Completed', 'completed_at' => date('Y-m-d H:i:s')]);
+
+            if($update){
+                $dt = [
+                    'id_user_hair_stylist'    => $user->id_user_hair_stylist,
+                    'balance'                 => $trx['transaction_grandtotal'],
+                    'id_reference'            => $trx['id_transaction'],
+                    'source'                  => 'Receive Payment'
+                ];
+                app($this->mitra_log_balance)->insertLogBalance($dt);
+            }
         }
 
         return response()->json(MyHelper::checkUpdate($update));

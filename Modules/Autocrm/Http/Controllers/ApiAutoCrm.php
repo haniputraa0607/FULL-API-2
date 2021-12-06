@@ -778,7 +778,7 @@ class ApiAutoCrm extends Controller
 						$inbox['inboxes_id_reference'] = (int)$crm['autocrm_inbox_id_reference'];
 					}
 
-                    if (isset($variables['id_transaction']) && !empty($variables['id_transaction'])) {
+                    if (empty($recipient_type) && isset($variables['id_transaction']) && !empty($variables['id_transaction'])) {
                         $inboxFrom = Transaction::where('transactions.id_transaction', $variables['id_transaction'])->pluck('transaction_from')->first();
                         $inbox['inboxes_from'] = $inboxFrom;
                     }

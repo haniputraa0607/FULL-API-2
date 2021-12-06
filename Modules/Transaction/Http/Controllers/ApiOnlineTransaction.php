@@ -1046,7 +1046,7 @@ class ApiOnlineTransaction extends Controller
             'transaction_point_earned'    => $post['point'],
             'transaction_cashback_earned' => $post['cashback'],
             'trasaction_payment_type'     => $post['payment_type'],
-            'transaction_payment_status'  => ($post['payment_type'] == 'Cash' ? 'Completed':$post['transaction_payment_status']),
+            'transaction_payment_status'  => $post['transaction_payment_status'],
             'membership_level'            => $post['membership_level'],
             'membership_promo_id'         => $post['membership_promo_id'],
             'latitude'                    => $post['latitude'],

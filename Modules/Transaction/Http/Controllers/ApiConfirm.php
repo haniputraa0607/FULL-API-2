@@ -687,6 +687,12 @@ class ApiConfirm extends Controller
             $post['phone'] = $post['phone'] ?? $user['phone'];
             $payment_id = $request->payment_id ?? $request->payment_detail;
             $paymentXendit = TransactionPaymentXendit::where('id_transaction', $check['id_transaction'])->first();
+            $transactionData = [
+                'transaction_details' => [
+                    'id_transaction' => $check['id_transaction'],
+                    'order_id' => $check['transaction_receipt_number'],
+                ],
+            ];
             if(!$paymentXendit) {
                 $paymentXendit = new TransactionPaymentXendit([
                     'id_transaction' => $check['id_transaction'],
@@ -855,6 +861,7 @@ class ApiConfirm extends Controller
                         ];
                     }
                     $result['redirect_url'] = $paymentXendit->checkout_url;
+                    $result['transaction_data'] = $transactionData;
                 }
 
                 DB::commit();

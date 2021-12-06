@@ -49,8 +49,8 @@ class ApiOutletCloseController extends Controller
     public function index(Request $request){
          if($request->id_partner){
                 $project = Outlet::where('locations.id_partner',$request->id_partner)
-                            ->join('cities','cities.id_city','outlets.id_city')
-                            ->join('locations','locations.id_city','cities.id_city')
+                            ->join('locations','locations.id_location','outlets.id_location')
+                            ->join('cities','cities.id_city','locations.id_city')
                            ->orderby('outlets.created_at','desc')->get();
            foreach ($project as $value) {
                $cutoff = OutletCutOff::where(array('id_outlet'=>$value['id_outlet']))
@@ -109,7 +109,7 @@ class ApiOutletCloseController extends Controller
              $list = array();
                 $project = Outlet::where('outlets.outlet_status',"Active")
                             ->join('cities','cities.id_city','outlets.id_city')
-                            ->join('locations','locations.id_city','cities.id_city')
+                            ->join('locations','locations.id_location','outlets.id_location')
                             ->where('locations.id_partner',$request->id_partner)
                             ->select(['outlets.outlet_name','outlets.id_outlet','outlets.outlet_code'])
                            ->orderby('outlets.created_at','asc')->get();
@@ -223,8 +223,7 @@ class ApiOutletCloseController extends Controller
         try {
         $outlet = OutletCutOff::where(array('status'=>"Waiting"))->wheredate('date','<=',date('Y-m-d H:i:s'))->get();
         foreach ($outlet as $value) {
-            $location = Location::join('cities','cities.id_city','locations.id_city')
-                        ->join('outlets','outlets.id_city','cities.id_city')
+            $location = Location::join('outlets','outlets.id_location','locations.id_location')
                         ->where('outlets.id_outlet',$value['id_outlet'])
                         ->update(['locations.status'=>'Inactive','outlets.outlet_status'=>'Inactive']);
             $store = OutletCutOff::where(array('id_outlet_cut_off'=>$value['id_outlet_cut_off']))

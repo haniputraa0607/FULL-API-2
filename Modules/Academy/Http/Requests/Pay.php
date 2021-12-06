@@ -19,8 +19,8 @@ class Pay extends FormRequest
     public function rules()
     {
         return [
-        'id_transaction_academy_installment' => 'required|integer',
-        'payment_type'         => 'required|in:Midtrans,Manual,Balance,Ovo,Ipay88,Shopeepay,Xendit'
+            'id_transaction_academy_installment' => 'required|integer',
+            'payment_type'         => 'required|in:Midtrans,Xendit',
         ];
     }
 

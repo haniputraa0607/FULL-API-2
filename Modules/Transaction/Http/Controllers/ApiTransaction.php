@@ -2592,9 +2592,123 @@ class ApiTransaction extends Controller
             return $this->getParentVariant($arr, $arr[$key]['id_parent']);
         }
     }
-
-
     public function transactionDetail(TransactionDetail $request){
+        $trans_outlet_service = new ApiTransactionOutletService;
+        if ($request->json('transaction_receipt_number') !== null) {
+            $trx = Transaction::where(['transaction_receipt_number' => $request->json('transaction_receipt_number')])->first();
+            if($trx) {
+                $id = $trx->id_transaction;
+            } else {
+                return MyHelper::checkGet([]);
+            }
+        } else {
+            $id = $request->json('id_transaction');
+        }
+
+        $trx = Transaction::where(['transactions.id_transaction' => $id])
+        		->leftJoin('transaction_outlet_services','transaction_outlet_services.id_transaction','=','transactions.id_transaction')
+        		->first();
+
+        if(!$trx){
+            return MyHelper::checkGet($trx);
+        }
+
+        $trxProducts = $trans_outlet_service->transactionProduct($trx);
+        $trx['product_transaction'] = $trxProducts['product'];
+        $productCount = $trxProducts['count'];
+
+        $trxProductServices = $trans_outlet_service->transactionProductService($trx);
+        $trx['product_service_transaction'] = $trxProductServices['product_service'];
+        $productServiceCount = $trxProductServices['count'];
+
+    	$cart = $trx['transaction_subtotal'] + $trx['transaction_shipment'] + $trx['transaction_service'] + $trx['transaction_tax'] - $trx['transaction_discount'];
+    	$trx['transaction_carttotal'] = $cart;
+        $trx['transaction_item_total'] = $productCount;
+        $trx['transaction_item_service_total'] = $productServiceCount;
+
+        $trxPayment = $trans_outlet_service->transactionPayment($trx);
+        $trx['payment'] = $trxPayment['payment'];
+
+        $trx->load('user','outlet');
+        $result = [
+            'id_transaction'                => $trx['id_transaction'],
+            'transaction_receipt_number'    => $trx['transaction_receipt_number'],
+            'receipt_qrcode' 						=> 'https://chart.googleapis.com/chart?chl=' . $trx['transaction_receipt_number'] . '&chs=250x250&cht=qr&chld=H%7C0',
+            'transaction_date'              => date('d M Y H:i', strtotime($trx['transaction_date'])),
+            'trasaction_type'               => $trx['trasaction_type'],
+            'transaction_grandtotal'        => MyHelper::requestNumber($trx['transaction_grandtotal'],'_CURRENCY'),
+            'transaction_subtotal'          => MyHelper::requestNumber($trx['transaction_subtotal'],'_CURRENCY'),
+            'transaction_discount'          => MyHelper::requestNumber($trx['transaction_discount'],'_CURRENCY'),
+            'transaction_cashback_earned'   => MyHelper::requestNumber($trx['transaction_cashback_earned'],'_POINT'),
+            'trasaction_payment_type'       => $trx['trasaction_payment_type'],
+            'transaction_payment_status'    => $trx['transaction_payment_status'],
+            'pickup_at'                     => $trx['pickup_at'],
+            'completed_at'                  => $trx['completed_at'],
+            'reject_at'                     => $trx['reject_at'],
+            'continue_payment'              => $trxPayment['continue_payment'],
+            'payment_gateway'               => $trxPayment['payment_gateway'],
+            'payment_type'                  => $trxPayment['payment_type'],
+            'payment_redirect_url'          => $trxPayment['payment_redirect_url'],
+            'payment_redirect_url_app'      => $trxPayment['payment_redirect_url_app'],
+            'payment_token'                 => $trxPayment['payment_token'],
+            'total_payment'                 => (int) $trxPayment['total_payment'],
+            'timer_shopeepay'               => $trxPayment['timer_shopeepay'],
+            'message_timeout_shopeepay'     => $trxPayment['message_timeout_shopeepay'],
+            'outlet'                        => [
+                'outlet_name'    => $trx['outlet']['outlet_name'],
+                'outlet_address' => $trx['outlet']['outlet_address']
+            ],
+            'user'							=> [
+                'phone' => $trx['user']['phone'],
+	            'name' 	=> $trx['user']['name'],
+	            'email' => $trx['user']['email']
+            ],
+
+        ];
+
+        $lastLog = LogInvalidTransaction::where('id_transaction', $trx['id_transaction'])->orderBy('updated_at', 'desc')->first();
+
+        $result['image_invalid_flag'] = NULL;
+        if(!empty($trx['image_invalid_flag'])){
+            $result['image_invalid_flag'] =  config('url.storage_url_api').$trx['image_invalid_flag'];
+        }
+
+        $result['transaction_flag_invalid'] =  $trx['transaction_flag_invalid'];
+        $result['flag_reason'] =  $lastLog['reason'] ?? '';
+
+        $formatedTrxProduct = $trans_outlet_service->formatTransactionProduct($trx);
+        $trx['total_product_qty'] = $formatedTrxProduct['qty'];
+        $result['product_transaction'] = $formatedTrxProduct['result'] ?? [];
+
+        $formatedTrxProductService = $trans_outlet_service->formatTransactionProductService($trx);
+        $trx['total_product_service_qty'] = $formatedTrxProductService['qty'];
+        $result['product_service_transaction'] = $formatedTrxProductService['result'] ?? [];
+
+        $result['payment_detail'] = $trans_outlet_service->transactionPaymentDetail($trx);
+
+        if(!isset($trx['payment'])){
+            $result['transaction_payment'] = null;
+        }else{
+            foreach ($trx['payment'] as $key => $value) {
+                if ($value['name'] == 'Balance') {
+                    $result['transaction_payment'][$key] = [
+                        'name'      => (env('POINT_NAME')) ? env('POINT_NAME') : $value['name'],
+                        'is_balance'=> 1,
+                        'amount'    => MyHelper::requestNumber($value['amount'],'_POINT')
+                    ];
+                } else {
+                    $result['transaction_payment'][$key] = [
+                        'name'      => $value['name'],
+                        'amount'    => MyHelper::requestNumber($value['amount'],'_CURRENCY')
+                    ];
+                }
+            }
+        }
+        
+        return MyHelper::checkGet($result);
+    }
+
+    public function transactionDetailOld(TransactionDetail $request){
         if ($request->json('transaction_receipt_number') !== null) {
             $trx = Transaction::where(['transaction_receipt_number' => $request->json('transaction_receipt_number')])->first();
             if($trx) {

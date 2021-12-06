@@ -91,7 +91,12 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
     	});
 
         Route::group(['prefix' => 'home-service'], function () {
+            Route::post('update-location', 'ApiMitraHomeService@setHSLocation');
             Route::post('update-status', 'ApiMitraHomeService@activeInactiveHomeService');
+            Route::post('list-order', 'ApiMitraHomeService@listOrder');
+            Route::post('detail-order', 'ApiMitraHomeService@detailOrder');
+            Route::post('detail-service', 'ApiMitraHomeService@detailOrderService');
+            Route::post('action', 'ApiMitraHomeService@action');
         });
 	});
 
@@ -106,8 +111,4 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
     });
 
 
-});
-
-Route::group(['middleware' => ['log_activities', 'user_agent', 'auth:mitra', 'scopes:mitra-apps'], 'prefix' => 'mitra'], function () {
-    Route::post('home-service/update-location', 'ApiMitraHomeService@setHSLocation');
 });

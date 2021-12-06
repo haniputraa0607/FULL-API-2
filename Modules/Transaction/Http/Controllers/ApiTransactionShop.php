@@ -31,6 +31,7 @@ use App\Lib\MyHelper;
 use Modules\PromoCampaign\Lib\PromoCampaignTools;
 use DB;
 use DateTime;
+use App\Lib\WeHelpYou;
 
 class ApiTransactionShop extends Controller
 {
@@ -667,11 +668,18 @@ class ApiTransactionShop extends Controller
             ];
         }
 
+        $listDelivery = $this->listDelivery();
+        $deliv = $this->findDelivery($listDelivery, $request->delivery_name, $request->delivery_method);
+        if (empty($deliv) && $request->delivery_name && $request->delivery_method) {
+        	$error_msg[] = 'Pengiriman tidak ditemukan';
+        }
+        $post['shipping'] = $deliv['price'] ?? 0;
+
         $result['id_user_address'] = $address['id_user_address'] ?? null;
         $result['subtotal'] = $subtotal;
         $result['shipping'] = $post['shipping'];
         $result['discount'] = $post['discount'];
-        $result['grandtotal'] = (int)$result['subtotal'] + (int)(-$post['discount']) + (int)$post['service'] + (int)$post['tax'];
+        $result['grandtotal'] = (int)$result['subtotal'] + (int)(-$post['discount']) + (int)$post['service'] + (int)$post['tax'] + $post['shipping'];
         $result['subscription'] = 0;
         $result['used_point'] = 0;
         $balance = app($this->balance)->balanceNow($user->id);
@@ -716,6 +724,7 @@ class ApiTransactionShop extends Controller
         	'id_user_address' => $result['id_user_address'],
         	'subtotal' => $result['subtotal'],
         	'shipping' => $result['shipping'],
+        	'tax' => $post['tax'],
         	'discount' => $result['discount'],
         	'grandtotal' => $result['grandtotal'],
         	'subscription' => $result['subscription'],
@@ -725,7 +734,9 @@ class ApiTransactionShop extends Controller
         	'currency' => $result['currency'],
         	'complete_profile' => $result['complete_profile'],
         	'payment_detail' => $result['payment_detail'],
-            'available_payment' => $result['available_payment']
+            'available_payment' => $result['available_payment'],
+            'available_delivery' => $listDelivery,
+            'selected_delivery' => $deliv
         ];
 
         return MyHelper::checkGet($finalRes)+['messages'=>$error_msg];
@@ -1352,5 +1363,33 @@ class ApiTransactionShop extends Controller
 	    ];
 
 	    return $arr[$status] ?? $status;
+    }
+
+    public function listDelivery()
+    {
+    	$deliveries = app($this->online_trx)->listAvailableDelivery(WeHelpYou::listDeliveryRequest())['result']['delivery'] ?? [];
+    	foreach ($deliveries as &$d) {
+    		$d['text'] = $d['delivery_name'] . ' (1 -2 hari)';
+    		$d['est'] = MyHelper::adjustTimezone(date("Y-m-d", strtotime("+2 day")), null, 'j F Y', true);
+    		$d['price'] = 10000;
+    	}
+
+    	return $deliveries;
+    }
+
+    public function findDelivery(array $listDeliv, $delivName = null, $delivMethod = null)
+    {
+    	if (!$delivName || !$delivMethod) {
+    		return null;
+    	}
+
+    	$res = null;
+    	foreach ($listDeliv as $d) {
+    		if ($delivName == $d['delivery_name'] && $delivMethod == $d['delivery_method']) {
+    			$res = $d;
+    		}
+    	}
+
+    	return $res;
     }
 }

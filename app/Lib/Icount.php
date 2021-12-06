@@ -91,6 +91,9 @@ class Icount
                 ]
             ]
         ];
+        if(isset($request['partner']['id_business_partner']) && !empty($request['partner']['id_business_partner'])){
+            $data['BusinessPartnerID'] = $request['partner']['id_business_partner'];
+        }
         return self::sendRequest('POST', '/partner_initiation/init_branch_code_order', $data, $logType, $orderId);
     }
     public static function ApiInvoiceConfirmationLetter($request, $logType = null, $orderId = null){

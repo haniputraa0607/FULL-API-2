@@ -206,7 +206,38 @@ class Icount
         ];
         return self::sendRequest('POST', '/partner_initiation/purchase_request_spk', $data, $logType, $orderId);
     }
+    public static function SharingManagementFee($request, $logType = null, $orderId = null){
+        $data = [
+            "VoucherNo" => $request['partner']['voucher_no'],
+            "TransDate" => $request['location']['trans_date'],
+            "DueDate" => $request['location']['due_date'],
+            "BusinessPartnerID" => $request['partner']['id_business_partner'],
+            "BranchID" => $request['location']['id_branch'],
+            "ReferenceNo" => '',
+            'Tax'=>10,
+            'TaxN0'=>'',
+            "Notes" => $request['partner']['notes'],
+            "AddressInvoice" => '',
+            "Detail" => [
+                [
+                    "Name" => "Management Fee",
+                    "ItemID" => "013",
+                    "Qty" => 1,
+                    "Unit" =>"PCS",
+                    "Ratio" => 1,
+                    'Price'=>1000000,
+                    'Disc'=>0,
+                    'DiscRp'=>10000,
+                    "Description" => "Beli lampu"
+                ],
+            ]
+        ];
+        return self::sendRequest('POST', '/sales/sharing_management_fee', $data, $logType, $orderId);
+    }
     public static function get($request, $logType = null, $orderId = null){
         return self::sendRequest('GET', '/branch/list', $request, $logType, $orderId);
+    }
+    public static function ItemList($request = null, $logType = null, $orderId = null){
+        return self::sendRequest('GET', '/item/list', $request, $logType, $orderId);
     }
 }

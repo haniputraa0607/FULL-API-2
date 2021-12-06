@@ -52,8 +52,7 @@ class ApiOutletCloseTemporaryController extends Controller
         $this->form_survey = "file/outlet_close_temporary/form_survey/";
     }
     public function index(Request $request){
-        $project = Outlet::join('cities','cities.id_city','outlets.id_city')
-                    ->join('locations','locations.id_city','cities.id_city')
+        $project = Outlet::join('locations','locations.id_location','outlets.id_location')
                     ->orderby('outlets.created_at','desc')->select('outlets.id_outlet','locations.id_location')->get();
                
         foreach ($project as $value) {
@@ -166,7 +165,7 @@ class ApiOutletCloseTemporaryController extends Controller
     }
     public function indexClose(Request $request){
          $store = OutletCloseTemporary::where(array('outlet_close_temporary.id_outlet'=>$request->id_outlet))->orderby('created_at','desc')->get();
-         $outlet = Outlet::where('id_outlet',$request->id_outlet)->join('locations','locations.id_location','outlets.id_location')->first();
+         $outlet = Outlet::where('id_outlet',$request->id_outlet)->join('cities','cities.id_city','outlets.id_city')->join('locations','locations.id_location','outlets.id_location')->first();
          return response()->json(['status' => 'success','result'=>array(
              'outlet'=>$outlet,
              'list'=>$store
@@ -175,6 +174,7 @@ class ApiOutletCloseTemporaryController extends Controller
     public function detailClose(Request $request){
          $store = OutletCloseTemporary::where(array('id_outlet_close_temporary'=>$request->id_outlet_close_temporary))
                  ->join('outlets','outlets.id_outlet','outlet_close_temporary.id_outlet')
+                 ->join('cities','cities.id_city','outlets.id_city')
                  ->join('locations','locations.id_location','outlets.id_location')
                  ->join('partners','partners.id_partner','locations.id_partner')
                  ->select('outlet_close_temporary.*','outlets.*','locations.id_location','locations.id_brand','partners.gender','partners.name as name_partner')

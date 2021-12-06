@@ -787,7 +787,7 @@ class ApiMitraOutletService extends Controller
             'order_id' => $trx['transaction_receipt_number'],
             'transaction_subtotal' => $trx['transaction_subtotal'],
             'transaction_tax' => $trx['transaction_tax'],
-            'transaction_grandtotal' => $trx['transaction_subtotal'],
+            'transaction_grandtotal' => $trx['transaction_grandtotal'],
             'transaction_date' => MyHelper::dateFormatInd($trx['transaction_date']),
             'customer_name' => $trx['customer_name'],
             'customer_email' => $trx['customer_email'],
@@ -818,7 +818,8 @@ class ApiMitraOutletService extends Controller
                 ->update(['cash_received_by' => $user->id_user_hair_stylist]);
 
         if($update){
-            $update = Transaction::where('id_transaction', $trx['id_transaction'])->update(['transaction_payment_status' => 'Completed']);
+            $update = Transaction::where('id_transaction', $trx['id_transaction'])
+                ->update(['transaction_payment_status' => 'Completed', 'completed_at' => date('Y-m-d H:i:s')]);
         }
 
         return response()->json(MyHelper::checkUpdate($update));

@@ -246,6 +246,9 @@ class ApiTransactionAcademy extends Controller
             ['type' => 'one_time_payment', 'text' => 'One-time Payment'],
             ['type' => 'installment', 'text' => 'Cicilan Bertahap']
         ];
+
+        $fake_request = new Request(['show_all' => 1]);
+        $result['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
         $result['messages_all'] = (empty($errAll)? null:implode(".", array_unique($errAll)));
         return MyHelper::checkGet($result);
     }

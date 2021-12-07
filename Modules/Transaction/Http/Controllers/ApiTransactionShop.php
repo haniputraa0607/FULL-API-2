@@ -1031,6 +1031,8 @@ class ApiTransactionShop extends Controller
 
         $createTransactionShop = TransactionShop::create([
         	'id_transaction' => $insertTransaction['id_transaction'],
+			'delivery_method' =>  $request->delivery_method,
+			'delivery_name' =>  $request->delivery_name,
 			'destination_name' => $user['name'],
 			'destination_phone' => $user['phone'],
 			'destination_address' => $address['address'],
@@ -1313,7 +1315,6 @@ class ApiTransactionShop extends Controller
 	        ];
         }
 
-
         $trx = Transaction::where('id_transaction', $detail['id_transaction'])->first();
 		$trxPayment = app($this->trx_outlet_service)->transactionPayment($trx);
     	$paymentMethod = null;
@@ -1343,6 +1344,15 @@ class ApiTransactionShop extends Controller
     		'destination_longitude' => $detail['destination_longitude'],
     	];
 
+    	$listDelivery = $this->listDelivery();
+    	$delivDetail = null;
+    	foreach ($listDelivery as $d) {
+    		if ($d['delivery_method'] == $detail['delivery_method'] && $d['delivery_name'] == $detail['delivery_name']) {
+    			$delivDetail = $d;
+    			$delivDetail['price'] = $detail['transaction_shipment'];
+    		}
+    	}
+
 		$res = [
 			'id_transaction' => $detail['id_transaction'],
 			'transaction_receipt_number' => $detail['transaction_receipt_number'],
@@ -1356,6 +1366,7 @@ class ApiTransactionShop extends Controller
 			'shop_status' => $shopStatus,
 			'transaction_payment_status' => $detail['transaction_payment_status'],
 			'customer_detail' => $custDetail,
+			'delivery_detail' => $delivDetail,
 			'product' => $products,
 			'payment_detail' => $paymentDetail,
 			'payment_method' => $paymentMethodDetail

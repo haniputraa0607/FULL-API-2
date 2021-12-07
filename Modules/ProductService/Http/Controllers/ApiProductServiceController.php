@@ -209,6 +209,7 @@ class ApiProductServiceController extends Controller
         }
 
         $totalAvailableTime = null;
+        $timeEnd = Setting::where('key', 'home_service_time_end')->first()['value']??'22:00:00';
         if(!empty($post['id_user_hair_stylist'])){
             if($post['booking_time'] == 'Sekarang'){
                 $post['booking_time'] = date('H:i:s', strtotime("+2 minutes", strtotime($post['booking_time_user'])));
@@ -221,6 +222,11 @@ class ApiProductServiceController extends Controller
 
             if(!empty($nextSchedule) && strtotime(date('Y-m-d', strtotime($nextSchedule))) <= strtotime(date('Y-m-d', strtotime($bookDate)))){
                 $to_time = strtotime($nextSchedule);
+                $from_time = strtotime($bookDate);
+                $totalAvailableTime = round(abs($to_time - $from_time) / 60,2);
+            }else{
+                $endWork = date('Y-m-d H:i:s', strtotime($post['booking_date'].' '.$timeEnd));
+                $to_time = strtotime($endWork);
                 $from_time = strtotime($bookDate);
                 $totalAvailableTime = round(abs($to_time - $from_time) / 60,2);
             }
@@ -330,6 +336,8 @@ class ApiProductServiceController extends Controller
         $processingTime = Setting::where('key', 'home_service_processing_time')->first()['value']??60;
         $timeStart = Setting::where('key', 'home_service_time_start')->first()['value']??'07:00:00';
         $timeEnd = Setting::where('key', 'home_service_time_end')->first()['value']??'22:00:00';
+        $timeEnd = date('H:i:s', strtotime('-15 minute', strtotime($timeEnd)));
+
         while($count <= (int)$totalDateShow) {
             $date = date('Y-m-d', strtotime('+'.$x.' day', strtotime($today)));
             $open = date('H:i', strtotime($timeStart));
@@ -343,7 +351,7 @@ class ApiProductServiceController extends Controller
             }
             while(strtotime($tmpTime) < strtotime($close)) {
                 $timeConvert = date('H:i', strtotime("+".$processingTime." minutes", strtotime($tmpTime)));
-                if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime)){
+                if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime) && strtotime($date.' '.$timeConvert) <= strtotime($date.' '.$close)){
                     $times[] = $timeConvert;
                 }
                 $tmpTime = $timeConvert;
@@ -387,7 +395,7 @@ class ApiProductServiceController extends Controller
 
         $bookDate = date('Y-m-d', strtotime($post['booking_date']));
         $bookTime = date('H:i:s', strtotime($post['booking_time']));
-        $bookTimeStart = date('Y-m-d H:i:s', strtotime("-30 minutes", strtotime($bookDate.' '.$bookTime)));
+        $bookTimeStart = date('Y-m-d H:i:s', strtotime($bookDate.' '.$bookTime));
         $bookTimeEnd = date('Y-m-d H:i:s', strtotime("+30 minutes", strtotime($bookDate.' '.$bookTime)));
         $userTimeZone = (empty($request->user()->user_time_zone_utc) ? 7 : $request->user()->user_time_zone_utc);
         $diffTimeZone = $userTimeZone - 7;
@@ -399,8 +407,8 @@ class ApiProductServiceController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Book time is invalid']]);
         }
 
-        $hsNotAvailable = HairstylistNotAvailable::whereRaw('((booking_start >= "'.$bookTimeStart.'" AND booking_start <= "'.$bookTimeEnd.'") 
-                            OR (booking_end > "'.$bookTimeStart.'" AND booking_end < "'.$bookTimeEnd.'"))')
+        $hsNotAvailable = HairstylistNotAvailable::whereRaw('((booking_start >= "'.$bookTimeStart.'" AND booking_end <= "'.$bookTimeEnd.'") 
+                            OR (booking_start <= "'.$bookTimeStart.'" AND booking_end >= "'.$bookTimeEnd.'"))')
             ->pluck('id_user_hair_stylist')->toArray();
         $hsNotAvailable = array_unique($hsNotAvailable);
 
@@ -421,6 +429,8 @@ class ApiProductServiceController extends Controller
             'Sun' => 'Minggu'
         ];
         $bookDay = $day[date('D', strtotime($bookDate))];
+        $timeEnd = Setting::where('key', 'home_service_time_end')->first()['value']??'22:00:00';
+        $timeEnd = date('H:i:s', strtotime('-15 minute', strtotime($timeEnd)));
         $res = [];
         foreach ($listHs as $val){
             $available = true;
@@ -464,6 +474,8 @@ class ApiProductServiceController extends Controller
                         ->orderBy('booking_start', 'asc')->first()['booking_start']??'';
                 if(!empty($nextSchedule) && strtotime(date('Y-m-d', strtotime($nextSchedule))) <= strtotime($bookDate)){
                     $availableText = 'Tersedia sampai pukul '.date('H:i', strtotime($nextSchedule));
+                }else{
+                    $availableText = 'Tersedia sampai pukul '.date('H:i', strtotime($timeEnd));
                 }
             }else{
                 $availableText = '';

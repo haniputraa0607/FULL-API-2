@@ -994,7 +994,6 @@ class ApiTransactionHomeService extends Controller
             }
 
             TransactionHomeServiceHairStylistFinding::insert($insertTmpHS);
-            FindingHairStylistHomeService::dispatch(['id_transaction' => $insertTransaction['id_transaction'], 'id_transaction_home_service' => $createHomeService['id_transaction_home_service']])->allOnConnection('findinghairstylistqueue');
         }
 
         return response()->json([

@@ -1117,13 +1117,13 @@ class ApiTransactionOutletService extends Controller
 		}
 
 		$newBookDateTime = date('Y-m-d H:i:s', strtotime($post['schedule_date'] . ' ' . $post['schedule_time']));
+		$newBookDateTime = $bookStart = MyHelper::reverseAdjustTimezone($newBookDateTime, $outlet['province_time_zone_utc'], 'Y-m-d H:i:s');
 		$checkSchedule = $this->checkOutletServiceSchedule($post['id_user_hair_stylist'], $newBookDateTime, $tps['transaction_product']['id_product']);
 		if ($checkSchedule['status'] == 'fail') {
 			return $checkSchedule;
 		}
 
 		$processingTime = Product::find($tps['transaction_product']['id_product'])['processing_time_service'] ?? null;
-		$bookStart = MyHelper::reverseAdjustTimezone($newBookDateTime, $outlet['province_time_zone_utc'], 'Y-m-d H:i:s');
     	$bookEnd = date('Y-m-d H:i:s', strtotime("+".(empty($processingTime) ? 30 : $processingTime)." minutes", strtotime($bookStart)));
 
 		DB::beginTransaction();
@@ -1178,10 +1178,11 @@ class ApiTransactionOutletService extends Controller
     		];
     	}
 
-        $timeZone = $outlet['province_time_zone_utc'] ?? 7;
+        $timeZone = 7; // all datetime use utc+7 timezone
         $currentDate = MyHelper::adjustTimezone(date('Y-m-d H:i'), $timeZone);
         $bookingDate = date('Y-m-d', strtotime($bookDateTime));
         $bookingTime = date('H:i', strtotime($bookDateTime));
+        $bookDateIndo = MyHelper::adjustTimezone($bookDateTime, $outlet['province_time_zone_utc'] ?? 7, 'l, d F Y H:i', true);
 
         $idOutletSchedule = $outlet['today']['id_outlet_schedule'] ?? null;
 
@@ -1206,7 +1207,7 @@ class ApiTransactionOutletService extends Controller
         if (strtotime($currentHour) < strtotime($open) || strtotime($currentHour) > strtotime($close) || $outletSchedule['is_closed'] == 1) {
         	return [
     			'status' => 'fail',
-    			'messages' => ['Outlet closed on ' . MyHelper::dateFormatInd($bookDateTime)]
+    			'messages' => ['Outlet closed on ' . $bookDateIndo]
     		];
         }
 
@@ -1214,7 +1215,7 @@ class ApiTransactionOutletService extends Controller
         if ($isHoliday['status']) {
         	return [
     			'status' => 'fail',
-    			'messages' => ['Outlet closed on ' . MyHelper::dateFormatInd($bookDateTime)]
+    			'messages' => ['Outlet closed on ' . $bookDateIndo]
     		];
         }
 
@@ -1235,7 +1236,7 @@ class ApiTransactionOutletService extends Controller
         if (empty($shift)) {
         	return [
     			'status' => 'fail',
-    			'messages' => ["Hair stylist not available on ".MyHelper::dateFormatInd($bookTime)]
+    			'messages' => ["Hair stylist " . $hs->nickname . " - " . $hs->fullname . " not available on ".$bookDateIndo]
     		];
         }
 
@@ -1243,7 +1244,7 @@ class ApiTransactionOutletService extends Controller
         if (empty($getTimeShift['start']) && empty($getTimeShift['end'])) {
         	return [
     			'status' => 'fail',
-    			'messages' => ["Hair stylist not available on ".MyHelper::dateFormatInd($bookTime)]
+    			'messages' => ["Hair stylist " . $hs->nickname . " - " . $hs->fullname . " not available on ".$bookDateIndo]
     		];
         } else {
             $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
@@ -1252,7 +1253,7 @@ class ApiTransactionOutletService extends Controller
             if ((strtotime($time) >= strtotime($shiftTimeStart) && strtotime($time) < strtotime($shiftTimeEnd)) === false) {
             	return [
 	    			'status' => 'fail',
-	    			'messages' => ["Hair stylist not available on ".MyHelper::dateFormatInd($bookTime)]
+	    			'messages' => ["Hair stylist " . $hs->nickname . " - " . $hs->fullname . " not available on ".$bookDateIndo]
 	    		];
             }
         }
@@ -1277,7 +1278,7 @@ class ApiTransactionOutletService extends Controller
         if(!empty($hsNotAvailable)){
             return [
     			'status' => 'fail',
-    			'messages' => ["Hair stylist not available on ".MyHelper::dateFormatInd($bookTime)]
+    			'messages' => ["Hair stylist " . $hs->nickname . " - " . $hs->fullname . " not available on ".$bookDateIndo]
     		];
         }
 

@@ -26,7 +26,6 @@ Route::group(['prefix' => 'api/product','middleware' => ['log_activities','auth:
 Route::group(['prefix' => 'api/product','middleware' => ['log_activities','auth:api', 'scopes:be'], 'namespace' => 'Modules\Product\Http\Controllers'], function()
 {
     Route::any('be/list', 'ApiProductController@listProduct');
-    Route::any('be/list/icount', 'ApiProductController@item_icount');
     Route::any('be/list/image', 'ApiProductController@listProductImage');
     Route::any('be/list/image/detail', 'ApiProductController@listProductImageDetail');
     Route::any('be/imageOverride', 'ApiProductController@imageOverride');

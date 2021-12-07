@@ -15,6 +15,7 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::any('celebrate_list', 'ApiSetting@celebrateList');
     Route::post('webview', 'ApiSetting@settingWebview');
 
+
     // complete profile
     Route::group(['prefix' => 'complete-profile'], function()
     {
@@ -184,6 +185,10 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
         Route::post('reorder', 'ApiFeaturedPromoCampaign@reorder');
         Route::post('delete', 'ApiFeaturedPromoCampaign@destroy');
     });
+    
+    //icount
+    Route::get('icount_setting', 'ApiSetting@icount_setting');
+    Route::post('icount_setting_create', 'ApiSetting@icount_setting_create');
 });
 
 Route::group(['prefix' => 'api/timesetting', 'namespace' => 'Modules\Setting\Http\Controllers'], function()

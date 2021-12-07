@@ -5940,14 +5940,17 @@ class ApiTransaction extends Controller
     }
 
     public function CronICountPOO(Request $request) {
-        $log = MyHelper::logCron('Create Order POO Icount');
-        try{
+        // $log = MyHelper::logCron('Create Order POO Icount');
+        // try{
             $outlets = Outlet::join('locations','locations.id_branch','=','outlets.id_branch')
+                        ->join('transactions','transactions.id_outlet','=','outlets.id_outlet')
                         ->leftJoin('partners','partners.id_partner','=','locations.id_partner')
-                        ->select('outlets.*','partners.*','locations.*',)
+                        ->select('outlets.*','partners.*','locations.*','transactions.trasaction_payment_type')
                         ->groupBy('outlets.id_outlet')
+                        ->groupBy('transactions.trasaction_payment_type')
                         ->orderBy('outlets.id_outlet', 'DESC');
             $outlets =  $outlets->get()->toArray();
+            $i = 0;
             foreach($outlets as $key => $outlet){
                 $date_now = date('Y-m-d');
                 $date_trans = date('Y-m-d', strtotime('-1 days', strtotime($date_now)));
@@ -5958,6 +5961,7 @@ class ApiTransaction extends Controller
                                 ->leftJoin('products','products.id_product','=','transaction_products.id_product')
                                 ->whereDate('transactions.transaction_date', '=', $date_trans)
                                 ->where('outlets.id_outlet', '=', $outlet['id_outlet'])
+                                ->where('transactions.trasaction_payment_type', '=', $outlet['trasaction_payment_type'])
                                 ->select('transactions.*','transaction_outlet_services.*','transaction_products.*',
                                     'products.*','outlets.outlet_code', 'outlets.outlet_name',
                                     DB::raw('
@@ -5967,21 +5971,26 @@ class ApiTransaction extends Controller
                                         ELSE 0 END
                                     ) as discRp
                                     '))
-                                ->groupBy('transactions.id_transaction');    
+                                ->groupBy('transactions.id_transaction',);    
                 
                 $outlets[$key]['trans_date'] = $date_trans;
                 $outlets[$key]['due_date'] = $date_trans;
                 $transaction->orderBy('transactions.id_transaction', 'DESC');
                 $transaction = $transaction->get()->toArray();
-                $outlets[$key]['transaction'] = $transaction;
-                $create_order_poo[$key] = Icount::ApiCreateOrderPOO($outlets[$key]);
+                if($transaction){
+                    $outlets[$key]['transaction'] = $transaction;
+                    $create_order_poo[$i] = Icount::ApiCreateOrderPOO($outlets[$key]);
+                }else{
+                    unset($outlets[$key]);
+                }
+                $i++;
             }
-            $log->success('success');
+            // $log->success('success');
             return response()->json(['status' => 'success','data' => $create_order_poo]);
 
-        } catch (\Exception $e) {
-            DB::rollBack();
-            $log->fail($e->getMessage());
-        }      
+        // } catch (\Exception $e) {
+        //     DB::rollBack();
+        //     $log->fail($e->getMessage());
+        // }      
     }
 }

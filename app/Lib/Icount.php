@@ -214,16 +214,16 @@ class Icount
                 "BranchID" => $request['id_branch'],
                 "BusinessPartnerID" => $request['id_branch'],
                 "VoucherNo" => "[AUTO]",
-                "TermOfPaymentID" => $request['id_term_payment'],
+                "TermOfPaymentID" => '11',
                 "TransDate" => $request['trans_date'],
                 "DueDate" => $request['due_date'],
-                "ChartOfAccountID" => "016",
-                "SalesmanID" => $request['id_salesman'] ?? '',
-                "Tax" => '10',
+                "ChartOfAccountID" => $request['trasaction_payment_type'],
+                "SalesmanID" => '',
+                "Tax" => 0,
                 "TaxNo" => '',
                 "AddressInvoice" => '',
                 "Notes" => '',
-                "ReferenceNo" => "EDC",
+                "ReferenceNo" => '',
             ];
             foreach($request['transaction'] as $key => $transaction){
                 $data['Detail'][$key] = [
@@ -237,7 +237,11 @@ class Icount
                     "DiscRp" => $transaction['discRp'],
                     "Description" => ""
                 ];
+                if(isset($transaction['transaction_tax']) && !empty($transaction['transaction_tax'])){
+                    $data['Tax'] = 10;
+                }
             }
+            return $data;
             return self::sendRequest('POST', '/sales/create_order_poo', $data, $logType, $orderId);
         }else{
             $data = [];

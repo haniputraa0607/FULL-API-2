@@ -3916,7 +3916,37 @@ class FeaturesTableSeeder extends Seeder
                     'show_hide' => 1,
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00')
-                )
+                ),
+            391 => 
+            array (
+                'id_feature' => 392,
+                'feature_type' => 'List',
+                'feature_module' => 'Manage Outlet Service',
+                'show_hide' => 1,
+                'order' => 141,
+                'created_at' => '2021-11-10 11:00:00',
+                'updated_at' => '2021-11-10 11:00:00',
+            ),
+            392 => 
+            array (
+                'id_feature' => 393,
+                'feature_type' => 'Detail',
+                'feature_module' => 'Manage Outlet Service',
+                'show_hide' => 1,
+                'order' => 141,
+                'created_at' => '2021-11-10 11:00:00',
+                'updated_at' => '2021-11-10 11:00:00',
+            ),
+            393 => 
+            array (
+                'id_feature' => 394,
+                'feature_type' => 'Update',
+                'feature_module' => 'Manage Outlet Service',
+                'show_hide' => 1,
+                'order' => 141,
+                'created_at' => '2021-11-10 11:00:00',
+                'updated_at' => '2021-11-10 11:00:00',
+            )
         ));
         
         

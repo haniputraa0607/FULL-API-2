@@ -7,7 +7,7 @@ use App\Http\Requests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
 use App\Http\Models\LogApiIcount;
-
+use App\Http\Models\Setting;
 use App\Lib\MyHelper;
 
 class Icount
@@ -205,6 +205,43 @@ class Icount
             ]
         ];
         return self::sendRequest('POST', '/partner_initiation/purchase_request_spk', $data, $logType, $orderId);
+    }
+    public static function ApiCreateOrderPOO($request, $logType = null, $orderId = null){
+        if(isset($request['transaction']) && !empty($request['transaction'])){
+            $penjulana_outlet = Setting::where('key','penjualan_outlet')->first();
+            $data = [
+                "BranchID" => $request['id_branch'],
+                "BusinessPartnerID" => $request['id_branch'],
+                "VoucherNo" => "[AUTO]",
+                "TermOfPaymentID" => $request['id_term_payment'],
+                "TransDate" => $request['trans_date'],
+                "DueDate" => $request['due_date'],
+                "ChartOfAccountID" => "016",
+                "SalesmanID" => $request['id_salesman'] ?? '',
+                "Tax" => '10',
+                "TaxNo" => '',
+                "AddressInvoice" => '',
+                "Notes" => '',
+                "ReferenceNo" => "EDC",
+            ];
+            foreach($request['transaction'] as $key => $transaction){
+                $data['Detail'][$key] = [
+                    "ItemID" => $penjulana_outlet['value'],
+                    "Name" => $transaction['product_name'],
+                    "Qty" => $transaction['transaction_product_qty'],
+                    "Unit" => "PCS",
+                    "Ratio" => "1",
+                    "Price" => $transaction['transaction_product_price'],
+                    "Disc" => ($transaction['discRp']*100)/($transaction['discRp']+$transaction['transaction_grandtotal']),
+                    "DiscRp" => $transaction['discRp'],
+                    "Description" => ""
+                ];
+            }
+            return self::sendRequest('POST', '/sales/create_order_poo', $data, $logType, $orderId);
+        }else{
+            $data = [];
+            return $data;
+        }
     }
     public static function get($request, $logType = null, $orderId = null){
         return self::sendRequest('GET', '/branch/list', $request, $logType, $orderId);

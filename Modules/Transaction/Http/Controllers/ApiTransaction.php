@@ -96,10 +96,12 @@ use Hash;
 use DB;
 use Mail;
 use Image;
+use App\Lib\Icount;
 use Illuminate\Support\Facades\Log;
 use Modules\Quest\Entities\Quest;
 use Lcobucci\JWT\Parser;
 use App\Http\Models\OauthAccessToken;
+use Modules\BusinessDevelopment\Entities\Location;
 
 class ApiTransaction extends Controller
 {
@@ -5821,5 +5823,51 @@ class ApiTransaction extends Controller
 		];
 		
 		return MyHelper::checkGet($res);
+    }
+
+    public function CronICountPOO(Request $request) {
+        $log = MyHelper::logCron('Create Order POO Icount');
+        try{
+            $outlets = Outlet::join('locations','locations.id_branch','=','outlets.id_branch')
+                        ->leftJoin('partners','partners.id_partner','=','locations.id_partner')
+                        ->select('outlets.*','partners.*','locations.*',)
+                        ->groupBy('outlets.id_outlet')
+                        ->orderBy('outlets.id_outlet', 'DESC');
+            $outlets =  $outlets->get()->toArray();
+            foreach($outlets as $key => $outlet){
+                $date_now = date('Y-m-d');
+                $date_trans = date('Y-m-d', strtotime('-1 days', strtotime($date_now)));
+                $transaction = Transaction::join('transaction_outlet_services','transaction_outlet_services.id_transaction','=','transactions.id_transaction')
+                                ->leftJoin('outlets','outlets.id_outlet','=','transactions.id_outlet')
+                                ->leftJoin('transaction_products','transaction_products.id_transaction','transactions.id_transaction')
+                                ->leftJoin('users','transactions.id_user','=','users.id')
+                                ->leftJoin('products','products.id_product','=','transaction_products.id_product')
+                                ->whereDate('transactions.transaction_date', '=', $date_trans)
+                                ->where('outlets.id_outlet', '=', $outlet['id_outlet'])
+                                ->select('transactions.*','transaction_outlet_services.*','transaction_products.*',
+                                    'products.*','outlets.outlet_code', 'outlets.outlet_name',
+                                    DB::raw('
+                                    SUM(
+                                        CASE WHEN transactions.transaction_discount_item IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_item) 
+                                        WHEN transactions.transaction_discount IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount)
+                                        ELSE 0 END
+                                    ) as discRp
+                                    '))
+                                ->groupBy('transactions.id_transaction');    
+                
+                $outlets[$key]['trans_date'] = $date_trans;
+                $outlets[$key]['due_date'] = $date_trans;
+                $transaction->orderBy('transactions.id_transaction', 'DESC');
+                $transaction = $transaction->get()->toArray();
+                $outlets[$key]['transaction'] = $transaction;
+                $create_order_poo[$key] = Icount::ApiCreateOrderPOO($outlets[$key]);
+            }
+            $log->success('success');
+            return response()->json(['status' => 'success','data' => $create_order_poo]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $log->fail($e->getMessage());
+        }      
     }
 }

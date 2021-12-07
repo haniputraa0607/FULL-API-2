@@ -14,7 +14,8 @@ class TransactionPaymentCash extends Model
         'id_transaction',
         'payment_code',
         'cash_nominal',
-        'cash_received_by'
+        'cash_received_by',
+        'id_hairstylist_transfer_payment'
     ];
 
 }

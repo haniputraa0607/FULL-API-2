@@ -98,6 +98,12 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
             Route::post('detail-service', 'ApiMitraHomeService@detailOrderService');
             Route::post('action', 'ApiMitraHomeService@action');
         });
+
+        Route::get('balance-detail', 'ApiMitra@balanceDetail');
+        Route::get('balance-history', 'ApiMitra@balanceHistory');
+        Route::get('cash/transfer/detail', 'ApiMitra@transferCashDetail');
+        Route::post('cash/transfer/create', 'ApiMitra@transferCashCreate');
+        Route::post('cash/transfer/history', 'ApiMitra@transferCashHistory');
 	});
 
     Route::group(['middleware' => ['auth:api'],'prefix' => 'request'], function () {

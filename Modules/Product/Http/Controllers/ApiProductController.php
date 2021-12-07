@@ -103,12 +103,7 @@ class ApiProductController extends Controller
     	if (isset($post['product_name'])) {
     		$data['product_name'] = $post['product_name'];
     	}
-    	if (isset($post['name_item'])) {
-    		$data['name_item'] = $post['name_item'];
-    	}
-    	if (isset($post['ItemID'])) {
-    		$data['ItemID'] = $post['ItemID'];
-    	}
+    	
         if (isset($post['product_name_pos'])) {
             $data['product_name_pos'] = $post['product_name_pos'];
         }
@@ -3072,24 +3067,5 @@ class ApiProductController extends Controller
 
         return MyHelper::checkGet($res);
     }
-    public function item_icount(){
-        $icount = new Icount();
-        $data = $icount->ItemList();
-        if(isset($data)){
-        if($data['response']['Message']=='Success'){
-            $list = array();
-            foreach ($data['response']['Data'] as $value) {
-                if($value['Name']=='Penjualan Outlet'||$value['Name']=='Revenue Sharing'||$value['Name']=='Management Fee'){
-                    $dat = array(
-                      'ItemID'=>$value['ItemID'], 
-                      'Name'=>$value['Name'], 
-                    );
-                    array_push($list,$dat);
-                }
-            }
-            return response()->json($list);
-        }
-        }
-        return ['status' => 'fail', 'messages' => ['Produk tidak ditemukan']];
-    }
+    
 }

@@ -19,6 +19,7 @@ use Illuminate\Http\Request;
 use Modules\Xendit\Entities\LogXendit;
 use Modules\Subscription\Entities\SubscriptionUser;
 use App\Http\Models\DealsUser;
+use App\Http\Models\Outlet;
 
 class XenditController extends Controller
 {
@@ -26,6 +27,7 @@ class XenditController extends Controller
     {
         $this->callback_url = env('XENDIT_CALLBACK_URL', route('notif_xendit'));
         $this->autocrm             = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
+        $this->redirect_url = env(optional(request()->user())->tokenCan('apps') ? 'XENDIT_REDIRECT_URL_NATIVE' : 'XENDIT_REDIRECT_URL');
 
         Xendit::setApiKey($this->key);
         Xendit::setHttpClient(
@@ -437,9 +439,10 @@ class XenditController extends Controller
         CustomHttpClient::setIdReference($external_id);
         $method = strtoupper($method);
 
+        $outlet_code = Outlet::join('transactions', 'transactions.id_outlet', 'outlets.id_outlet')->value('outlet_code');
         $redirect_url = str_replace(
-            ['%order_id%', '%type%'],
-            [urlencode($options['order_id'] ?? $external_id), $options['type'] ?? 'trx'],
+            ['%order_id%', '%type%', '%outlet_code%'],
+            [urlencode($options['order_id'] ?? $external_id), $options['type'] ?? 'trx', $outlet_code],
             $this->redirect_url
         );
 

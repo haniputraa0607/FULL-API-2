@@ -27,9 +27,16 @@ class TransactionAcademy extends \App\Http\Models\Template\TransactionService
 
     public function triggerPaymentCompleted($data = [])
     {
-        $this->update([
-            'amount_completed' => $this->amount_completed + $data['amount'], 
-            'amount_not_completed' => $this->amount_not_completed - $data['amount']
-        ]);
+        if($this->payment_method == 'one_time_payment'){
+            $this->update([
+                'amount_completed' => $this->amount_not_completed,
+                'amount_not_completed' => 0
+            ]);
+        }else{
+            $this->update([
+                'amount_completed' => $this->amount_completed + $data['amount'],
+                'amount_not_completed' => $this->amount_not_completed - $data['amount']
+            ]);
+        }
     }
 }

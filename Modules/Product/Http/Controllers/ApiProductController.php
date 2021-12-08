@@ -113,6 +113,9 @@ class ApiProductController extends Controller
     	if (isset($post['product_video'])) {
     		$data['product_video'] = $post['product_video'];
     	}
+    	if (isset($post['product_type'])) {
+    		$data['product_type'] = $post['product_type'];
+    	}
     	if (isset($post['product_price'])) {
     		$data['product_price'] = $post['product_price'];
     	}
@@ -929,7 +932,7 @@ class ApiProductController extends Controller
 									->where('product_detail.id_outlet','=',$post['id_outlet'])
 									->where('product_detail.product_detail_visibility','=','Visible')
                                     ->where('product_detail.product_detail_status','=','Active')
-                                    ->where('products.product_type', 'product')
+                                    
                                     ->with(['category', 'discount']);
 
             if (isset($post['visibility'])) {
@@ -938,25 +941,25 @@ class ApiProductController extends Controller
                     $product = Product::join('product_detail','product_detail.id_product','=','products.id_product')
                         ->where('product_detail.id_outlet','=',$post['id_outlet'])
                         ->where('product_detail.product_detail_visibility','=','Hidden')
-                        ->where('products.product_type', 'product')->with(['category', 'discount']);
+                        ->with(['category', 'discount']);
                 }else{
                     $ids = Product::join('product_detail','product_detail.id_product','=','products.id_product')
                         ->where('product_detail.id_outlet','=',$post['id_outlet'])
                         ->where('product_detail.product_detail_visibility','=','Hidden')
-                        ->where('products.product_type', 'product')->pluck('products.id_product')->toArray();
+                        ->pluck('products.id_product')->toArray();
                     $product = Product::whereNotIn('id_product', $ids)
-                        ->where('products.product_type', 'product')->with(['category', 'discount']);
+                        ->with(['category', 'discount']);
                 }
 
                 unset($post['id_outlet']);
             }
 		} else {
 		    if(isset($post['product_setting_type']) && $post['product_setting_type'] == 'product_price'){
-                $product = Product::with(['category', 'discount', 'product_special_price', 'global_price'])->where('products.product_type', 'product');
+                $product = Product::with(['category', 'discount', 'product_special_price', 'global_price']);
             }elseif(isset($post['product_setting_type']) && $post['product_setting_type'] == 'outlet_product_detail'){
-                $product = Product::with(['category', 'discount', 'product_detail'])->where('products.product_type', 'product');
+                $product = Product::with(['category', 'discount', 'product_detail']);
             }else{
-                $product = Product::with(['category', 'discount'])->where('products.product_type', 'product');
+                $product = Product::with(['category', 'discount']);
             }
 		}
 
@@ -1008,8 +1011,7 @@ class ApiProductController extends Controller
         }
 
         if(isset($post['admin_list'])){
-            $product = $product->where('product_type', 'product')
-                ->withCount('product_detail')->withCount('product_detail_hiddens')->with(['brands']);
+            $product = $product->withCount('product_detail')->withCount('product_detail_hiddens')->with(['brands']);
         }
 
         if(isset($post['pagination'])){
@@ -1152,7 +1154,6 @@ class ApiProductController extends Controller
      */
     function update(Update $request) {
     	$post = $request->json()->all();
-
     	// check data
         DB::beginTransaction();
         if(!empty($post['product_brands'])){
@@ -3067,5 +3068,147 @@ class ApiProductController extends Controller
 
         return MyHelper::checkGet($res);
     }
-    
+
+    public function item_icount(){
+        $icount = new Icount();
+        $data = $icount->ItemList();
+        if(isset($data)){
+            if($data['response']['Message']=='Success'){
+                $list = array();
+                foreach ($data['response']['Data'] as $value) {
+                    if($value['Name']=='Penjualan Outlet'||$value['Name']=='Revenue Sharing'||$value['Name']=='Management Fee'){
+                        $dat = array(
+                        'ItemID'=>$value['ItemID'], 
+                        'Name'=>$value['Name'], 
+                        );
+                        array_push($list,$dat);
+                    }
+                }
+                return response()->json($list);
+            }
+        }
+        return ['status' => 'fail', 'messages' => ['Produk tidak ditemukan']];
+    }
+    public function syncIcount(){
+        $icount = new Icount();
+        $data = $icount->ItemList();
+        if(isset($data)){
+            if($data['response']['Message']=='Success'){
+                
+            }else{
+                return ['status' => 'fail', 'messages' => ['Failed to sync with ICount']];    
+            }
+        }else{
+            return ['status' => 'fail', 'messages' => ['Failed to sync with ICount']];
+        }
+    }
+
+    function listProductIcount(Request $request) {
+        $post = $request->json()->all();
+
+		if (isset($post['id_outlet'])) {
+            $product = Product::join('product_detail','product_detail.id_product','=','products.id_product')
+                                ->leftJoin('product_special_price','product_special_price.id_product','=','products.id_product')
+									->where('product_detail.id_outlet','=',$post['id_outlet'])
+									->where('product_detail.product_detail_visibility','=','Visible')
+                                    ->where('product_detail.product_detail_status','=','Active')
+                                    
+                                    ->with(['category', 'discount']);
+
+            if (isset($post['visibility'])) {
+
+                if($post['visibility'] == 'Hidden'){
+                    $product = Product::join('product_detail','product_detail.id_product','=','products.id_product')
+                        ->where('product_detail.id_outlet','=',$post['id_outlet'])
+                        ->where('product_detail.product_detail_visibility','=','Hidden')
+                        ->with(['category', 'discount']);
+                }else{
+                    $ids = Product::join('product_detail','product_detail.id_product','=','products.id_product')
+                        ->where('product_detail.id_outlet','=',$post['id_outlet'])
+                        ->where('product_detail.product_detail_visibility','=','Hidden')
+                        ->pluck('products.id_product')->toArray();
+                    $product = Product::whereNotIn('id_product', $ids)
+                        ->with(['category', 'discount']);
+                }
+
+                unset($post['id_outlet']);
+            }
+		} else {
+		    if(isset($post['product_setting_type']) && $post['product_setting_type'] == 'product_price'){
+                $product = Product::with(['category', 'discount', 'product_special_price', 'global_price']);
+            }elseif(isset($post['product_setting_type']) && $post['product_setting_type'] == 'outlet_product_detail'){
+                $product = Product::with(['category', 'discount', 'product_detail']);
+            }else{
+                $product = Product::with(['category', 'discount']);
+            }
+		}
+
+		if(isset($post['rule'])){
+            foreach ($post['rule'] as $rule){
+                if($rule[0] !== 'all_product'){
+                	if ($rule[1] == 'like' && isset($rule[2])) {
+                		$rule[2] = '%' . $rule[2] . '%';
+                	}
+
+                    if($post['operator'] == 'or'){
+                        if(isset($rule[2])){
+                            $product->orWhere('products.'.$rule[0], $rule[1],$rule[2]);
+                        }else{
+                            $product->orWhere('products.'.$rule[0], $rule[1]);
+                        }
+                    }else{
+                        if(isset($rule[2])){
+                            $product->where('products.'.$rule[0], $rule[1],$rule[2]);
+                        }else{
+                            $product->where('products.'.$rule[0], $rule[1]);
+                        }
+                    }
+                }
+            }
+        }
+
+        if (isset($post['id_product'])) {
+            $product->with('category')->where('products.id_product', $post['id_product'])->with(['brands']);
+        }
+
+        if (isset($post['product_code'])) {
+            $product->with(['global_price','product_special_price','product_tags','brands','product_promo_categories'=>function($q){$q->select('product_promo_categories.id_product_promo_category');}])->where('products.product_code', $post['product_code']);
+        }
+
+        if (isset($post['update_price']) && $post['update_price'] == 1) {
+            $product->where('product_variant_status', 0);
+        }
+
+        if (isset($post['product_name'])) {
+            $product->where('products.product_name', 'LIKE', '%'.$post['product_name'].'%');
+        }
+
+        if(isset($post['orderBy'])){
+            $product = $product->orderBy($post['orderBy']);
+        }
+        else{
+            $product = $product->orderBy('position');
+        }
+
+        if(isset($post['admin_list'])){
+            $product = $product->withCount('product_detail')->withCount('product_detail_hiddens')->with(['brands']);
+        }
+
+        if(isset($post['pagination'])){
+            $product = $product->paginate(10);
+        }else{
+            $product = $product->get();
+        }
+
+        if (!empty($product)) {
+            foreach ($product as $key => $value) {
+                $product[$key]['photos'] = ProductPhoto::select('*', DB::raw('if(product_photo is not null, (select concat("'.config('url.storage_url_api').'", product_photo)), "'.config('url.storage_url_api').'img/default.jpg") as url_product_photo'))->where('id_product', $value['id_product'])->orderBy('product_photo_order', 'ASC')->get()->toArray();
+            }
+        }
+
+        $product = $product->toArray();
+
+        return response()->json(MyHelper::checkGet($product));
+    }
+
 }

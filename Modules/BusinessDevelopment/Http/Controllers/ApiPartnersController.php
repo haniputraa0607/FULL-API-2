@@ -871,6 +871,7 @@ class ApiPartnersController extends Controller
                     ];
                     $location_init = [
                         "id_branch" => $data_init['Branch']['BranchID'],
+                        "id_chart_account" => $data_init['Branch']['ChartOfAccountID'],
                     ];
                     $value_detail[$data_init['Detail'][0]['Name']] = [
                         "name" => $data_init['Detail'][0]['Name'],

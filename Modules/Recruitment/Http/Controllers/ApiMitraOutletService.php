@@ -1049,4 +1049,17 @@ class ApiMitraOutletService extends Controller
 
 		return ['status' => 'success'];	
     }
+
+    public function shiftBox($id_outlet)
+    {
+    	$shift = app($this->mitra)->getOutletShift($id_outlet);
+    	$box = OutletBox::where('id_outlet', $id_outlet)->with([
+    		'hairstylist_schedule_dates.hairstylist_schedule.user_hair_stylist',
+    		'hairstylist_schedule_dates' => function($q) use ($shift) {
+    			$q->where('date', date('Y-m-d'))->where('shift', $shift);
+    		}
+    	])->get();
+
+    	return $box;
+    }
 }

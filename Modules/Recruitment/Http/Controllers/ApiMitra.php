@@ -625,13 +625,17 @@ class ApiMitra extends Controller
 
     public function getOutletShift($id_outlet, $dateTime = null)
     {
+    	$res = null;
     	$outlet = Outlet::find($id_outlet);
+    	if (!$outlet) {
+    		return $res;
+    	}
+
     	$timezone = $outlet->city->province->time_zone_utc;
     	$dateTime = $dateTime ?? date('Y-m-d H:i:s');
         $curTime = date('H:i:s', strtotime($dateTime));
     	$day = MyHelper::indonesian_date_v2($dateTime, 'l');
 
-    	$res = null;
     	$outletSchedule = OutletSchedule::where('id_outlet', $id_outlet)->where('day', $day)->first();
     	if (!$outletSchedule || $outletSchedule->is_closed) {
         	return $res;
@@ -684,5 +688,29 @@ class ApiMitra extends Controller
 		
 		return $dt->format($format);
 
+    }
+
+    public function getTodayShift($id_user_hair_stylist)
+    {
+    	$todayShift = null;
+    	$hs = UserHairStylist::find($id_user_hair_stylist);
+
+    	if (!$hs) {
+    		return  $todayShift;
+    	}
+
+    	$shift = $this->getOutletShift($hs->id_outlet);
+
+		$todayShift = HairstylistSchedule::join(
+					'hairstylist_schedule_dates', 
+					'hairstylist_schedules.id_hairstylist_schedule', 
+					'hairstylist_schedule_dates.id_hairstylist_schedule'
+				)
+		 		->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+		 		->where('date', date('Y-m-d'))
+		 		->where('shift', $shift)
+		 		->first();
+
+		return $todayShift;
     }
 }

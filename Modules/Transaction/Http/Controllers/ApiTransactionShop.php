@@ -695,20 +695,21 @@ class ApiTransactionShop extends Controller
         $result['payment_detail'][] = [
             'name'          => 'Subtotal Order ('.$totalItem.' item)',
             "is_discount"   => 0,
-            'amount'        => (int) $result['subtotal']
+            'amount'        => number_format(((int) $result['subtotal']),0,',','.')
         ];
 
         $result['payment_detail'][] = [
             'name'          => 'Pengiriman',
             "is_discount"   => 0,
-            'amount'        => $result['shipping']
+            'amount'        => number_format(((int) $result['shipping']),0,',','.')
         ];
 
         if (!empty($post['tax'])) {
 	        $result['payment_detail'][] = [
 	            'name'          => 'Tax',
 	            "is_discount"   => 0,
-	            'amount'        => (int) $post['tax']
+	            'amount'        => number_format(((int) $post['tax']),0,',','.')
+
 	        ];
         }
 
@@ -1298,20 +1299,21 @@ class ApiTransactionShop extends Controller
         $paymentDetail[] = [
             'name'          => 'Subtotal Order (' . $totalProductQty . ' item)',
             "is_discount"   => 0,
-            'amount'        => $detail['transaction_subtotal']
+            'amount'        => number_format(((int) $detail['transaction_subtotal']),0,',','.')
         ];
 
         $paymentDetail[] = [
             'name'          => 'Pengiriman',
             "is_discount"   => 0,
-            'amount'        => $detail['transaction_shipment']
+            'amount'        => number_format(((int) $detail['transaction_shipment']),0,',','.')
         ];
 
         if (!empty($detail['transaction_tax'])) {
 	        $paymentDetail[] = [
 	            'name'          => 'Tax',
 	            "is_discount"   => 0,
-	            'amount'        => $detail['transaction_tax']
+	            'amount'        => number_format(((int) $detail['transaction_tax']),0,',','.')
+
 	        ];
         }
 

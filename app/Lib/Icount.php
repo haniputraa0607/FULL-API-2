@@ -210,6 +210,12 @@ class Icount
     public static function ApiCreateOrderPOO($request, $logType = null, $orderId = null){
         if(isset($request['transaction']) && !empty($request['transaction'])){
             $penjulana_outlet = Setting::where('key','penjualan_outlet')->first();
+            $availablePayment = config('payment_method');
+            $setting  = json_decode(MyHelper::setting('active_payment_methods', 'value_text', '[]'), true) ?? [];
+            foreach($setting as $s => $set){
+                $availablePayment[$set['code']]['chart_of_account_id'] = $set['chart_of_account_id'] ?? false;
+            }
+            // return $availablePayment;
             $data = [
                 "BranchID" => $request['id_branch'],
                 "BusinessPartnerID" => $request['id_branch'],
@@ -217,7 +223,6 @@ class Icount
                 "TermOfPaymentID" => '11',
                 "TransDate" => $request['trans_date'],
                 "DueDate" => $request['due_date'],
-                "ChartOfAccountID" => $request['trasaction_payment_type'],
                 "SalesmanID" => '',
                 "Tax" => 0,
                 "TaxNo" => '',
@@ -225,6 +230,21 @@ class Icount
                 "Notes" => '',
                 "ReferenceNo" => '',
             ];
+            if(isset($request['id_transaction_payment'])){
+                foreach($availablePayment as $a => $payment){
+                    if($payment['payment_method'] == $request['payment_type'] && $payment['payment_gateway'] == 'Midtrans'){
+                        $data['ChartOfAccountID'] = $payment['chart_of_account_id'];
+                    }
+                }
+            }else{
+                $request['type'] = ucfirst(strtolower($request['type']));
+                foreach($availablePayment as $a => $paymentx){
+                    if($paymentx['payment_method'] == $request['type'] && $paymentx['payment_gateway'] == 'Xendit'){
+                        $data['ChartOfAccountID'] = $paymentx['chart_of_account_id'];
+                    }
+                }
+            }
+            
             foreach($request['transaction'] as $key => $transaction){
                 $data['Detail'][$key] = [
                     "ItemID" => $penjulana_outlet['value'],
@@ -241,7 +261,6 @@ class Icount
                     $data['Tax'] = 10;
                 }
             }
-            return $data;
             return self::sendRequest('POST', '/sales/create_order_poo', $data, $logType, $orderId);
         }else{
             $data = [];

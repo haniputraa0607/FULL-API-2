@@ -5940,43 +5940,78 @@ class ApiTransaction extends Controller
     }
 
     public function CronICountPOO(Request $request) {
-        // $log = MyHelper::logCron('Create Order POO Icount');
-        // try{
-            $outlets = Outlet::join('locations','locations.id_branch','=','outlets.id_branch')
-                        ->join('transactions','transactions.id_outlet','=','outlets.id_outlet')
-                        ->leftJoin('partners','partners.id_partner','=','locations.id_partner')
-                        ->select('outlets.*','partners.*','locations.*','transactions.trasaction_payment_type')
-                        ->groupBy('outlets.id_outlet')
-                        ->groupBy('transactions.trasaction_payment_type')
-                        ->orderBy('outlets.id_outlet', 'DESC');
-            $outlets =  $outlets->get()->toArray();
+        $log = MyHelper::logCron('Create Order POO Icount');
+        try{
+            $date_now = date('Y-m-d');
+            $date_trans = date('Y-m-d', strtotime('-1 days', strtotime($date_now)));
+            $outlets_mid = Outlet::join('locations','locations.id_branch','=','outlets.id_branch')
+                            ->join('transactions','transactions.id_outlet','=','outlets.id_outlet')
+                            ->leftJoin('partners','partners.id_partner','=','locations.id_partner'); 
+
+            $outlets_xen = Outlet::join('locations','locations.id_branch','=','outlets.id_branch')
+                            ->join('transactions','transactions.id_outlet','=','outlets.id_outlet')
+                            ->leftJoin('partners','partners.id_partner','=','locations.id_partner'); 
+
+            $outlets_mid->join('transaction_payment_midtrans','transaction_payment_midtrans.id_transaction','=','transactions.id_transaction')->whereDate('transactions.transaction_date', '=', $date_trans);
+            $outlets_mid->select('outlets.*','partners.*','locations.*','transaction_payment_midtrans.id_transaction_payment','transaction_payment_midtrans.payment_type')->groupBy('outlets.id_outlet','transaction_payment_midtrans.payment_type')->orderBy('outlets.id_outlet', 'DESC');
+            $outlets_mid =  $outlets_mid->get()->toArray();
+
+            $outlets_xen->join('transaction_payment_xendits','transaction_payment_xendits.id_transaction','=','transactions.id_transaction')->whereDate('transactions.transaction_date', '=', $date_trans);
+            $outlets_xen->select('outlets.*','partners.*','locations.*','transaction_payment_xendits.id_transaction_payment_xendit','transaction_payment_xendits.type')->groupBy('outlets.id_outlet','transaction_payment_xendits.type')->orderBy('outlets.id_outlet', 'DESC');
+            $outlets_xen =  $outlets_xen->get()->toArray();
+
+            $outlets = [];
+            if($outlets_mid){
+                foreach($outlets_mid as $key => $mid){
+                    if(isset($mid) && !empty($mid)){
+                        $outlets[$key] = $mid;
+                    }
+                }
+            }   
+            $index_outlets = count($outlets);
+            if($outlets_xen){
+                foreach($outlets_xen as $xen){
+                    if(isset($xen) && !empty($xen)){
+                        $outlets[$index_outlets] = $xen;
+                        $index_outlets++;
+                    }
+                }
+            }
             $i = 0;
             foreach($outlets as $key => $outlet){
-                $date_now = date('Y-m-d');
-                $date_trans = date('Y-m-d', strtotime('-1 days', strtotime($date_now)));
                 $transaction = Transaction::join('transaction_outlet_services','transaction_outlet_services.id_transaction','=','transactions.id_transaction')
                                 ->leftJoin('outlets','outlets.id_outlet','=','transactions.id_outlet')
                                 ->leftJoin('transaction_products','transaction_products.id_transaction','transactions.id_transaction')
                                 ->leftJoin('users','transactions.id_user','=','users.id')
-                                ->leftJoin('products','products.id_product','=','transaction_products.id_product')
-                                ->whereDate('transactions.transaction_date', '=', $date_trans)
-                                ->where('outlets.id_outlet', '=', $outlet['id_outlet'])
-                                ->where('transactions.trasaction_payment_type', '=', $outlet['trasaction_payment_type'])
-                                ->select('transactions.*','transaction_outlet_services.*','transaction_products.*',
-                                    'products.*','outlets.outlet_code', 'outlets.outlet_name',
-                                    DB::raw('
-                                    SUM(
+                                ->leftJoin('products','products.id_product','=','transaction_products.id_product');
+                if(isset($outlet['id_transaction_payment'])){
+                    $transaction->join('transaction_payment_midtrans','transaction_payment_midtrans.id_transaction','=','transactions.id_transaction');
+                    $group = 'transaction_payment_midtrans.payment_type';
+                }else{
+                    $transaction->join('transaction_payment_xendits','transaction_payment_xendits.id_transaction','=','transactions.id_transaction');
+                    $group = 'transaction_payment_xendits.type';
+                }
+                $transaction->whereDate('transactions.transaction_date', '=', $date_trans)->where('outlets.id_outlet', '=', $outlet['id_outlet']);
+                if(isset($outlet['id_transaction_payment'])){
+                    $transaction->where('transaction_payment_midtrans.payment_type', '=', $outlet['payment_type']);
+                }else{
+                    $transaction->where('transaction_payment_xendits.type', '=', $outlet['type']);
+                }
+                $transaction->select('transactions.*','transaction_outlet_services.*','transaction_products.*','products.*','outlets.outlet_code', 'outlets.outlet_name',
+                                DB::raw('
+                                        SUM(
                                         CASE WHEN transactions.transaction_discount_item IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_item) 
                                         WHEN transactions.transaction_discount IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount)
                                         ELSE 0 END
-                                    ) as discRp
+                                        ) as discRp
                                     '))
-                                ->groupBy('transactions.id_transaction',);    
-                
+                            ->groupBy('transactions.id_transaction',$group);  
+
                 $outlets[$key]['trans_date'] = $date_trans;
                 $outlets[$key]['due_date'] = $date_trans;
                 $transaction->orderBy('transactions.id_transaction', 'DESC');
                 $transaction = $transaction->get()->toArray();
+
                 if($transaction){
                     $outlets[$key]['transaction'] = $transaction;
                     $create_order_poo[$i] = Icount::ApiCreateOrderPOO($outlets[$key]);
@@ -5985,12 +6020,13 @@ class ApiTransaction extends Controller
                 }
                 $i++;
             }
-            // $log->success('success');
+
+            $log->success('success');
             return response()->json(['status' => 'success','data' => $create_order_poo]);
 
-        // } catch (\Exception $e) {
-        //     DB::rollBack();
-        //     $log->fail($e->getMessage());
-        // }      
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $log->fail($e->getMessage());
+        }      
     }
 }

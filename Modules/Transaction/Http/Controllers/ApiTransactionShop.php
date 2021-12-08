@@ -1254,6 +1254,12 @@ class ApiTransactionShop extends Controller
     				'transaction_products.product.photos',
     				'transaction_products.product.product_group'
     			)
+    			->select(
+    				'transactions.*', 
+    				'transaction_shops.*', 
+    				'transactions.completed_at as trx_completed_at',
+    				'transaction_shops.completed_at as shop_completed_at'
+    			)
     			->first();
 
 		if (!$detail) {
@@ -1359,10 +1365,12 @@ class ApiTransactionShop extends Controller
     	}
 
     	$statusLog = [];
-    	$statusLog[] = [
-    		'text'  => $this->shopStatus('Pending'),
-            'date'  => $detail['transaction_date']
-    	];
+    	if ($detail['trx_completed_at']) {
+	    	$statusLog[] = [
+	    		'text'  => $this->shopStatus('Pending'),
+	            'date'  => $detail['trx_completed_at']
+	    	];
+    	}
     	if ($detail['received_at']) {
     		$statusLog[] = [
 	    		'text'  => $this->shopStatus('Received'),
@@ -1387,10 +1395,10 @@ class ApiTransactionShop extends Controller
 	            'date'  => $detail['arrived_at']
 	    	];
     	}
-    	if ($detail['completed_at']) {
+    	if ($detail['shop_completed_at']) {
     		$statusLog[] = [
 	    		'text'  => $this->shopStatus('Completed'),
-	            'date'  => $detail['completed_at']
+	            'date'  => $detail['shop_completed_at']
 	    	];
     	}
     	if ($detail['shop_status'] == 'Rejected by Admin') {

@@ -10,18 +10,23 @@ use App\Http\Models\Setting;
 use App\Http\Models\Outlet;
 use App\Http\Models\OutletSchedule;
 
+use Modules\Franchise\Entities\TransactionProduct;
 use Modules\Outlet\Entities\OutletTimeShift;
 
+use Modules\Recruitment\Entities\HairstylistLogBalance;
+use Modules\Recruitment\Entities\HairstylistTransferPayment;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Recruitment\Entities\HairstylistSchedule;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use Modules\Recruitment\Entities\HairstylistAnnouncement;
 use Modules\Recruitment\Entities\HairstylistInbox;
 
+use Modules\Transaction\Entities\TransactionPaymentCash;
 use Modules\UserRating\Entities\UserRating;
 use Modules\UserRating\Entities\RatingOption;
 use Modules\UserRating\Entities\UserRatingLog;
 use Modules\UserRating\Entities\UserRatingSummary;
+use App\Http\Models\Transaction;
 
 use Modules\Recruitment\Http\Requests\ScheduleCreateRequest;
 
@@ -36,6 +41,7 @@ class ApiMitra extends Controller
         $this->product = "Modules\Product\Http\Controllers\ApiProductController";
         $this->announcement = "Modules\Recruitment\Http\Controllers\ApiAnnouncement";
         $this->outlet = "Modules\Outlet\Http\Controllers\ApiOutletController";
+        $this->mitra_log_balance = "Modules\Recruitment\Http\Controllers\MitraLogBalance";
     }
 
     public function splash(Request $request){
@@ -684,5 +690,151 @@ class ApiMitra extends Controller
 		
 		return $dt->format($format);
 
+    }
+
+    public function balanceDetail(Request $request){
+        $user = $request->user();
+        $outletName = Outlet::where('id_outlet', $user->id_outlet)->first()['outlet_name']??'';
+
+        $dataMitra = [
+            'id_user_hair_stylist' => $user->id_user_hair_stylist,
+            'id_mitra' => $user->user_hair_stylist_code,
+            'name' => $user->fullname,
+            'outlet_name' => $outletName,
+            'current_balance' => $user->balance,
+            'currency' => 'Rp'
+        ];
+
+        return ['status' => 'success', 'result' => $dataMitra];
+    }
+
+    public function balanceHistory(Request $request){
+        $user = $request->user();
+            $history = HairstylistLogBalance::leftJoin('transactions', 'hairstylist_log_balances.id_reference', 'transactions.id_transaction')
+                    ->leftJoin('outlets', 'outlets.id_outlet', 'transactions.id_outlet')
+                    ->where('id_user_hair_stylist', $user->id_user_hair_stylist)
+                    ->select('hairstylist_log_balances.id_hairstylist_log_balance', 'hairstylist_log_balances.balance', 'hairstylist_log_balances.source',
+                        'transactions.transaction_receipt_number', 'outlets.outlet_name')
+                    ->get()->toArray();
+
+        return ['status' => 'success', 'result' => $history];
+    }
+
+    public function transferCashDetail(Request $request){
+        $user = $request->user();
+        $post = $request->json()->all();
+        if(empty($post['date'])){
+            return ['status' => 'fail', 'messages' => ['Date can not be empty']];
+        }
+        $date = date('Y-m-d', strtotime($post['date']));
+
+        $listTransaction = Transaction::join('hairstylist_log_balances', 'hairstylist_log_balances.id_reference', 'transactions.id_transaction')
+                            ->whereDate('hairstylist_log_balances.created_at', $date)
+                            ->where('source', 'Receive Payment')
+                            ->where('id_user_hair_stylist', $user->id_user_hair_stylist)
+                            ->where('transfer_status', 0)
+                            ->where('id_outlet', $user->id_outlet)
+                            ->select('hairstylist_log_balances.created_at as date_receive_cash', 'transactions.id_transaction', 'transactions.transaction_receipt_number',
+                                'hairstylist_log_balances.*', 'id_user')
+                            ->with('user')->get()->toArray();
+
+        $res = [];
+        foreach ($listTransaction as $transaction){
+            $products = TransactionProduct::join('products', 'products.id_product', 'transaction_products.id_product')
+                        ->where('id_transaction', $transaction['id_transaction'])->pluck('product_name')->toArray();
+
+            $productName = $products[0].(count($products) > 1?' + '.(count($products)-1).' lainnya':'');
+            $res[] = [
+                'id_transaction' => $transaction['id_transaction'],
+                'time' => date('H:i', strtotime($transaction['date_receive_cash'])),
+                'customer_name' => $transaction['user']['name'],
+                'transaction_receipt_number' => $transaction['transaction_receipt_number'],
+                'transaction_grandtotal' => $transaction['balance'],
+                'product' => $productName,
+                'currency' => 'Rp'
+            ];
+        }
+
+        return ['status' => 'success', 'result' => $res];
+    }
+
+    public function transferCashCreate(Request $request){
+        $user = $request->user();
+        $post = $request->json()->all();
+        if(empty($post['date'])){
+            return ['status' => 'fail', 'messages' => ['Date can not be empty']];
+        }
+        $date = date('Y-m-d', strtotime($post['date']));
+
+        $listCash = HairstylistLogBalance::join('transactions', 'hairstylist_log_balances.id_reference', 'transactions.id_transaction')
+                        ->whereDate('hairstylist_log_balances.created_at', $date)
+                        ->where('source', 'Receive Payment')
+                        ->where('id_user_hair_stylist', $user->id_user_hair_stylist)
+                        ->where('transfer_status', 0)
+                        ->where('id_outlet', $user->id_outlet)
+                        ->select('id_hairstylist_log_balance', 'balance', 'id_reference', 'id_user')->get()->toArray();
+
+        $idTransaction = array_column($listCash, 'id_reference');
+        $idLogBalance = array_column($listCash, 'id_hairstylist_log_balance');
+        $totalWillTransfer = array_column($listCash, 'balance');
+        $totalWillTransfer = array_sum($totalWillTransfer);
+        if(empty($totalWillTransfer)){
+            return ['status' => 'fail', 'messages' => ['All cash already transfer']];
+        }
+
+        $dt = [
+            'id_user_hair_stylist'    => $user->id_user_hair_stylist,
+            'balance'                 => -$totalWillTransfer,
+            'source'                  => 'Transfer To SPV'
+        ];
+
+        $insertLogBalance = app($this->mitra_log_balance)->insertLogBalance($dt);
+
+        $update = false;
+        if(!empty($insertLogBalance['id_hairstylist_log_balance'])){
+            $update = HairstylistLogBalance::whereIn('id_hairstylist_log_balance', $idLogBalance)->update(['transfer_status' => 1]);
+            if($update){
+                $transferPayment = HairstylistTransferPayment::create([
+                    'id_hairstylist_log_balance' => $insertLogBalance['id_hairstylist_log_balance'],
+                    'id_user_hair_stylist' => $user->id_user_hair_stylist,
+                    'id_outlet' => $user->id_outlet,
+                    'transfer_payment_code' => 'TSPV-'.MyHelper::createrandom(4,'Angka').$user->id_user_hair_stylist.$insertLogBalance['id_hairstylist_log_balance'],
+                    'total_amount' => abs($totalWillTransfer)
+                ]);
+                if($transferPayment){
+                    $update = TransactionPaymentCash::whereIn('id_transaction', $idTransaction)->update(['id_hairstylist_transfer_payment' => $transferPayment['id_hairstylist_transfer_payment']]);
+                }else{
+                    $update = false;
+                }
+            }
+        }
+
+        return MyHelper::checkUpdate($update);
+    }
+
+    public function transferCashHistory(Request $request){
+        $user = $request->user();
+        $post = $request->json()->all();
+        if(empty($post['month']) && empty($post['year'])){
+            return ['status' => 'fail', 'messages' => ['Month and Year can not be empty']];
+        }
+
+        $list = HairstylistTransferPayment::whereYear('created_at', '=', $post['year'])
+                ->whereMonth('created_at', '=', $post['month'])
+                ->where('id_outlet', $user->id_outlet)->where('id_user_hair_stylist', $user->id_user_hair_stylist)
+                ->get()->toArray();
+
+        $res = [];
+        foreach ($list as $value){
+            $date = MyHelper::dateFormatInd(date('Y-m-d', strtotime($value['created_at'])), false, false);
+            $res[] = [
+                'date' => str_replace(' '.$post['year'], '', $date),
+                'time' => date('H:i', strtotime($value['created_at'])),
+                'transfer_code' => $value['transfer_payment_code'],
+                'amount' => $value['total_amount']
+            ];
+        }
+
+        return ['status' => 'success', 'result' => $res];
     }
 }

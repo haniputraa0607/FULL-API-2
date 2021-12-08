@@ -4,7 +4,7 @@ return [
     'cash' => [
         'payment_gateway' => 'Cash',
         'payment_method'  => 'Cash',
-        'status'          => 1,
+        'status'          => 'platform:webapps',
         'logo'            => env('STORAGE_URL_API').'default_image/payment_method/ic_cash.png',
         'text'            => 'Tunai'
     ],

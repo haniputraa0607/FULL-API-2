@@ -101,7 +101,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
 
         Route::get('balance-detail', 'ApiMitra@balanceDetail');
         Route::get('balance-history', 'ApiMitra@balanceHistory');
-        Route::get('cash/transfer/detail', 'ApiMitra@transferCashDetail');
+        Route::post('cash/transfer/detail', 'ApiMitra@transferCashDetail');
         Route::post('cash/transfer/create', 'ApiMitra@transferCashCreate');
         Route::post('cash/transfer/history', 'ApiMitra@transferCashHistory');
 	});

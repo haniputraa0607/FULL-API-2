@@ -5634,6 +5634,14 @@ class ApiTransaction extends Controller
     		}
     	}
 
+    	$paymentMethodDetail = null;
+    	if ($paymentMethod) {
+	    	$paymentMethodDetail = [
+	            'text'  => 'Metode Pembayaran',
+	            'value' => $paymentMethod
+	        ];
+    	}
+
     	$paymentCashCode = null;
     	if ($detail['transaction_payment_status'] == 'Pending' && $detail['trasaction_payment_type'] == 'Cash') {
     		$paymentCash = TransactionPaymentCash::where('id_transaction', $detail['id_transaction'])->first();
@@ -5662,7 +5670,8 @@ class ApiTransaction extends Controller
 			'brand' => $brand,
 			'service' => $services,
 			'product' => $products,
-			'payment_detail' => $paymentDetail
+			'payment_detail' => $paymentDetail,
+			'payment_method_detail' => $paymentMethodDetail
 		];
 		
 		return MyHelper::checkGet($res);
@@ -5895,6 +5904,14 @@ class ApiTransaction extends Controller
     		}
     	}
 
+    	$paymentMethodDetail = null;
+    	if ($paymentMethod) {
+	    	$paymentMethodDetail = [
+	            'text'  => 'Metode Pembayaran',
+	            'value' => $paymentMethod
+	        ];
+    	}
+
     	$homeDetail = [
     		'preference_hair_stylist' => $detail['preference_hair_stylist'],
     		'destination_phone' => $detail['destination_phone'],
@@ -5931,6 +5948,7 @@ class ApiTransaction extends Controller
 			'service' => $services,
 			'product' => null,
 			'payment_detail' => $paymentDetail,
+			'payment_method_detail' => $paymentMethodDetail,
 			'home_service_detail' => $homeDetail
 		];
 		

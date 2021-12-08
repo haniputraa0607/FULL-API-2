@@ -203,7 +203,7 @@ class Kernel extends ConsoleKernel
         $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiOutletCloseController@cronChange')->dailyAt('00:00');
         $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiOutletCloseTemporaryController@cronClose')->everyMinute();
         $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiOutletCloseTemporaryController@cronActive')->everyMinute();
-//        $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiOutletCloseTemporaryController@cronChangeLocation')->everyMinute();
+        $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiOutletCloseTemporaryController@cronChangeLocation')->everyMinute();
         $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiPartnerClosePermanentController@cronInactive')->dailyAt('00:00');
         $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiPartnersBecomesIxoboxController@cronBecomeIxobox')->dailyAt('00:00');
     }

@@ -132,6 +132,7 @@ class ApiMitraOutletService extends Controller
 			$resData[] = [
 				'id_transaction_product_service' => $val['id_transaction_product_service'],
 				'order_id' => $val['order_id'] ?? null,
+				'transaction_receipt_number' => $val['transaction_receipt_number'],
 				'customer_name' => $val['customer_name'],
 				'schedule_date' => $scheduleDate,
 				'schedule_time' => $scheduleTime,

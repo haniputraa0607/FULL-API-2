@@ -792,7 +792,7 @@ class ApiMitraOutletService extends Controller
             'transaction_subtotal' => $trx['transaction_subtotal'],
             'transaction_tax' => $trx['transaction_tax'],
             'transaction_grandtotal' => $trx['transaction_grandtotal'],
-            'transaction_date' => MyHelper::dateFormatInd($trx['transaction_date']),
+            'transaction_date' => MyHelper::dateFormatInd($trx['transaction_date'], true, false),
             'customer_name' => $trx['customer_name'],
             'customer_email' => $trx['customer_email'],
             'currency' => 'Rp',

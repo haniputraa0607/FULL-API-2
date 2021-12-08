@@ -104,6 +104,9 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
         Route::post('cash/transfer/detail', 'ApiMitra@transferCashDetail');
         Route::post('cash/transfer/create', 'ApiMitra@transferCashCreate');
         Route::post('cash/transfer/history', 'ApiMitra@transferCashHistory');
+
+        //Cash flow for SPV
+        Route::post('income/detail', 'ApiMitra@incomeDetail');
 	});
 
     Route::group(['middleware' => ['auth:api'],'prefix' => 'request'], function () {

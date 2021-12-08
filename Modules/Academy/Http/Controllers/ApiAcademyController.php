@@ -43,6 +43,7 @@ class ApiAcademyController extends Controller
 
     function __construct() {
         date_default_timezone_set('Asia/Jakarta');
+        $this->online_trx      = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
     }
 
     public function settingInstallment(){
@@ -511,13 +512,20 @@ class ApiAcademyController extends Controller
 
     public function detailMyCourse(Request $request){
         $post = $request->json()->all();
-        if(!empty($post['id_transaction'])){
+        if(!empty($post['id_transaction']) || !empty($post['transaction_receipt_number'])){
 
             $detail =  Transaction::join('transaction_academy', 'transactions.id_transaction', 'transaction_academy.id_transaction')
                         ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
                         ->leftJoin('products', 'products.id_product', 'transaction_products.id_product')
-                        ->where('transactions.id_transaction', $post['id_transaction'])->with('outlet')->first();
+                        ->with('outlet');
 
+            if(!empty($post['transaction_receipt_number'])){
+                $detail = $detail->where('transactions.transaction_receipt_number', $post['transaction_receipt_number']);
+            }elseif(!empty($post['id_transaction'])){
+                $detail = $detail->where('transactions.id_transaction', $post['id_transaction']);
+            }
+
+            $detail = $detail->first();
             if(!empty($detail)){
                 $ongoingCheck = Transaction::join('transaction_academy', 'transactions.id_transaction', 'transaction_academy.id_transaction')
                     ->leftJoin('transaction_academy_schedules', 'transaction_academy_schedules.id_transaction_academy', 'transaction_academy.id_transaction_academy')
@@ -694,6 +702,9 @@ class ApiAcademyController extends Controller
                 'next_bill' => $nextBill,
                 'list_next_bill' => $listNextBill
             ];
+
+            $fake_request = new Request(['show_all' => 1]);
+            $res['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
             return response()->json(MyHelper::checkGet($res));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID transaction can not be empty']]);
@@ -755,7 +766,7 @@ class ApiAcademyController extends Controller
 
     public function xendit($data, $post)
     {
-        $paymentXendit = TransactionAcademyInstallmentPaymentXendit::where('id_subscription_user', $voucher['id_subscription_user'])->first();
+        $paymentXendit = TransactionAcademyInstallmentPaymentXendit::where('id_transaction_academy', $data['id_transaction_academy'])->first();
         $post['payment_detail'] = request()->payment_detail;
         if (!($post['phone'] ?? false)) {
             $post['phone'] = request()->user()->phone;
@@ -802,11 +813,6 @@ class ApiAcademyController extends Controller
                 $result['timer']  = (int) MyHelper::setting('setting_timer_ovo', 'value', 60);
                 $result['message_timeout'] = 'Sorry, your payment has expired';
             } else {
-                if (!$paymentXendit->checkout_url) {
-                    $this->updateInfoDealUsers($voucher->id_subscription_user, ['payment_method' => 'Xendit', 'paid_status' => 'Cancelled']);
-                    \DB::commit();
-                    return false;
-                }
                 $result['redirect_url'] = $paymentXendit->checkout_url;
             }
 

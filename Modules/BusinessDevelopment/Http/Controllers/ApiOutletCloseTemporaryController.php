@@ -275,7 +275,7 @@ class ApiOutletCloseTemporaryController extends Controller
     public function cronActive(){
         $log = MyHelper::logCron('Cron Active Outlet Close Temporary,No Change Location');
         try {
-        $outlet = OutletCloseTemporary::where(array('status'=>"Waiting",'jenis'=>'Active'))->wheredate('date','<=',date('Y-m-d H:i:s'))->get();
+        $outlet = OutletCloseTemporary::where(array('status'=>"Waiting",'jenis'=>'Active','jenis_active'=>'No Change Location'))->wheredate('date','<=',date('Y-m-d H:i:s'))->get();
         foreach ($outlet as $value) {
             Location::join('outlets','outlets.id_location','locations.id_location')
                         ->where('outlets.id_outlet',$value['id_outlet'])

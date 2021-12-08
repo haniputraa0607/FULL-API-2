@@ -3374,7 +3374,8 @@ class ApiOnlineTransaction extends Controller
         $payments = [];
 
         $config = [
-            'credit_card_payment_gateway' => MyHelper::setting('credit_card_payment_gateway', 'value', 'Ipay88')
+            'credit_card_payment_gateway' => MyHelper::setting('credit_card_payment_gateway', 'value', 'Ipay88'),
+            'platform' => request()->user()->tokenCan('apps') ? 'native' : 'webapps',
         ];
         $last_status = [];
         foreach ($setting as $value) {

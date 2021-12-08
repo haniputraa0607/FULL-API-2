@@ -1872,4 +1872,65 @@ class ApiSetting extends Controller
         }
         return $data;
     }
+    public function icount_setting(){
+        $penjualan_outlet = Setting::where('key','penjualan_outlet')->first();
+        if(!$penjualan_outlet){
+            $data['penjualan_outlet']='';
+        }else{
+            $data['penjualan_outlet']=$penjualan_outlet['value'];
+        }
+        $revenue_sharing = Setting::where('key','revenue_sharing')->first();
+        if(!$revenue_sharing){
+             $data['revenue_sharing']='';
+        }else{
+             $data['revenue_sharing']=$revenue_sharing['value'];
+        }
+         $management_fee = Setting::where('key','management_fee')->first();
+        if(!$management_fee){
+             $data['management_fee']='';
+        }else{
+             $data['management_fee']=$management_fee['value'];
+        }
+         return response()->json($data);
+    }
+  
+    public function icount_setting_create(Request $request){
+        if(isset($request->penjualan_outlet)&&isset($request->revenue_sharing)&&isset($request->management_fee)){
+             $penjualan_outlet = Setting::where('key','penjualan_outlet')->first();
+             if($penjualan_outlet){
+                 $data = Setting::where('key','penjualan_outlet')->update([
+                 'value'=>$request->penjualan_outlet
+             ]);
+             }else{
+                 $data = Setting::where('key','penjualan_outlet')->create([
+                  'key'=>'penjualan_outlet',
+                 'value'=>$request->penjualan_outlet
+             ]);
+             }
+             $revenue_sharing = Setting::where('key','revenue_sharing')->first();
+             if($revenue_sharing){
+                 $data = Setting::where('key','revenue_sharing')->update([
+                 'value'=>$request->revenue_sharing
+             ]);
+             }else{
+                 $data = Setting::where('key','revenue_sharing')->create([
+                  'key'=>'revenue_sharing',
+                 'value'=>$request->revenue_sharing
+             ]);
+             }
+             $management_fee = Setting::where('key','management_fee')->first();
+             if($management_fee){
+                 $data = Setting::where('key','management_fee')->update([
+                 'value'=>$request->revenue_sharing
+             ]);
+             }else{
+                 $data = Setting::where('key','management_fee')->create([
+                  'key'=>'management_fee',
+                 'value'=>$request->management_fee
+             ]);
+             }
+              return response()->json(MyHelper::checkCreate($data));
+        }
+        return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
+    }
 }

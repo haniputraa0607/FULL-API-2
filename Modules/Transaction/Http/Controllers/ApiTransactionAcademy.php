@@ -246,6 +246,9 @@ class ApiTransactionAcademy extends Controller
             ['type' => 'one_time_payment', 'text' => 'One-time Payment'],
             ['type' => 'installment', 'text' => 'Cicilan Bertahap']
         ];
+
+        $fake_request = new Request(['show_all' => 1]);
+        $result['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
         $result['messages_all'] = (empty($errAll)? null:implode(".", array_unique($errAll)));
         return MyHelper::checkGet($result);
     }
@@ -588,6 +591,9 @@ class ApiTransactionAcademy extends Controller
             }
         }
         DB::commit();
+
+        $insertTransaction['id_transaction_academy_installment'] = TransactionAcademyInstallment::where('id_transaction_academy', $createTransactionAcademy['id_transaction_academy'])
+                                                                    ->where('installment_step', 1)->first()['id_transaction_academy_installment']??null;
         return response()->json([
             'status'   => 'success',
             'result'   => $insertTransaction
@@ -643,6 +649,9 @@ class ApiTransactionAcademy extends Controller
             'total_amount' => $post['grandtotal'],
             'list_installment' => $listinstallment
         ];
+
+        $fake_request = new Request(['show_all' => 1]);
+        $result['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
 
         return response()->json(MyHelper::checkGet($result));
     }

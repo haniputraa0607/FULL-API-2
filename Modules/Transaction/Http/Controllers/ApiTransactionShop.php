@@ -1254,6 +1254,12 @@ class ApiTransactionShop extends Controller
     				'transaction_products.product.photos',
     				'transaction_products.product.product_group'
     			)
+    			->select(
+    				'transactions.*', 
+    				'transaction_shops.*', 
+    				'transactions.completed_at as trx_completed_at',
+    				'transaction_shops.completed_at as shop_completed_at'
+    			)
     			->first();
 
 		if (!$detail) {
@@ -1352,9 +1358,67 @@ class ApiTransactionShop extends Controller
     		if ($d['delivery_method'] == $detail['delivery_method'] && $d['delivery_name'] == $detail['delivery_name']) {
     			$delivDetail = $d;
     			$delivDetail['price'] = $detail['transaction_shipment'];
+    			$delivDetail['delivery_number'] = 'INVH2120010180';
+    			$delivDetail['live_tracking_url'] = null;
+    			break;
     		}
     	}
 
+    	$statusLog = [];
+    	if ($detail['trx_completed_at']) {
+	    	$statusLog[] = [
+	    		'text'  => $this->shopStatus('Pending'),
+	            'date'  => $detail['trx_completed_at']
+	    	];
+    	}
+    	if ($detail['received_at']) {
+    		$statusLog[] = [
+	    		'text'  => $this->shopStatus('Received'),
+	            'date'  => $detail['received_at']
+	    	];
+    	}
+    	if ($detail['ready_at']) {
+    		$statusLog[] = [
+	    		'text'  => $this->shopStatus('Ready'),
+	            'date'  => $detail['ready_at']
+	    	];
+    	}
+    	if ($detail['delivery_at']) {
+    		$statusLog[] = [
+	    		'text'  => $this->shopStatus('Delivery'),
+	            'date'  => $detail['delivery_at']
+	    	];
+    	}
+    	if ($detail['arrived_at']) {
+    		$statusLog[] = [
+	    		'text'  => $this->shopStatus('Arrived'),
+	            'date'  => $detail['arrived_at']
+	    	];
+    	}
+    	if ($detail['shop_completed_at']) {
+    		$statusLog[] = [
+	    		'text'  => $this->shopStatus('Completed'),
+	            'date'  => $detail['shop_completed_at']
+	    	];
+    	}
+    	if ($detail['shop_status'] == 'Rejected by Admin') {
+    		$statusLog[] = [
+	    		'text'  => $this->shopStatus('Rejected by Admin') . ($detail['reject_reason'] ? '(' . $detail['reject_reason'] . ')' : null),
+	            'date'  => $detail['rejected_at']
+	    	];
+    	}
+    	if ($detail['shop_status'] == 'Rejected by Customer') {
+    		$statusLog[] = [
+	    		'text'  => $this->shopStatus('Rejected by Customer') . ($detail['reject_reason'] ? '(' . $detail['reject_reason'] . ')' : null),
+	            'date'  => $detail['rejected_at']
+	    	];
+    	}
+
+    	$statusLog = array_reverse($statusLog);
+    	foreach ($statusLog as $key => $val) {
+    		$statusLog[$key]['date'] = MyHelper::dateFormatInd($val['date']);
+    	}
+    	
 		$res = [
 			'id_transaction' => $detail['id_transaction'],
 			'transaction_receipt_number' => $detail['transaction_receipt_number'],
@@ -1371,7 +1435,8 @@ class ApiTransactionShop extends Controller
 			'delivery_detail' => $delivDetail,
 			'product' => $products,
 			'payment_detail' => $paymentDetail,
-			'payment_method' => $paymentMethodDetail
+			'payment_method' => $paymentMethodDetail,
+			'status_log' => $statusLog
 		];
 		
 		return MyHelper::checkGet($res);

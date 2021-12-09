@@ -3927,6 +3927,46 @@ class FeaturesTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00')
                 ),
+            392 =>
+                array (
+                    'feature_module' => 'Hairstylist Group',
+                    'feature_type' => 'List',
+                    'id_feature' => 393,
+                    'order' => 142,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            393 =>
+                array (
+                    'feature_module' => 'Hairstylist Group',
+                    'feature_type' => 'Create',
+                    'id_feature' => 394,
+                    'order' => 142,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            394 =>
+                array (
+                    'feature_module' => 'Hairstylist Group',
+                    'feature_type' => 'Update',
+                    'id_feature' => 395,
+                    'order' => 142,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            395 =>
+                array (
+                    'feature_module' => 'Hairstylist Group',
+                    'feature_type' => 'Detail',
+                    'id_feature' => 396,
+                    'order' => 142,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
           
         ));
         

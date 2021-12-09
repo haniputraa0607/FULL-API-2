@@ -37,8 +37,7 @@ class TransactionProduct extends Model
 		'transaction_product_qty' => 'int',
 // 		'transaction_product_price' => 'int',
 		'transaction_product_subtotal' => 'int',
-		'transaction_variant_subtotal' => 'double',
-		'is_rejected' => 'int',
+		'transaction_variant_subtotal' => 'double'
 	];
 
 	protected $fillable = [
@@ -70,7 +69,8 @@ class TransactionProduct extends Model
         'transaction_product_bundling_charged_outlet',
         'transaction_product_bundling_charged_central',
         'transaction_product_completed_at',
-        'is_rejected'
+        'reject_at',
+        'reject_reason'
 	];
 	
 	public function modifiers()

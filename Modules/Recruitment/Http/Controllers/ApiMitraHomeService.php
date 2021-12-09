@@ -68,11 +68,11 @@ class ApiMitraHomeService extends Controller
 
         $list = $list->orderBy('transaction_home_services.created_at', 'desc')
                 ->select('transactions.id_transaction', 'id_transaction_home_service', 'transaction_receipt_number as booking_id', 'status as home_service_status', 'schedule_date', DB::raw('DATE_FORMAT(schedule_time, "%H:%i") as schedule_time'),
-                    'destination_name', 'destination_phone', 'destination_address', 'destination_note');
+                    'destination_name', 'destination_phone', 'destination_address', 'destination_note')->orderBy('schedule_date', 'asc');
 
         $dateNow = new DateTime("now");
         if(!empty($post['page'])){
-            $list = $list->paginate($post['total_data']??15)->toArray();
+            $list = $list->paginate($post['total_data']??10)->toArray();
             foreach ($list['data'] as $key=>$data){
                 $timerText = "";
                 $dateSchedule = new DateTime($data['schedule_date'] . ' ' .$data['schedule_time']);
@@ -126,8 +126,8 @@ class ApiMitraHomeService extends Controller
                 $list[$key]['status'] = (empty($data['status']) ? '':$data['status']);
                 $list[$key]['schedule_date_display'] = MyHelper::dateFormatInd($data['schedule_date'], true, false);
                 $list[$key]['services'] = $services;
-                $list['data'][$key]['timer_text'] = $timerText;
-                $list['data'][$key]['timer_text_color'] = $timerTextColor;
+                $list[$key]['timer_text'] = $timerText;
+                $list[$key]['timer_text_color'] = $timerTextColor;
             }
         }
 
@@ -169,8 +169,7 @@ class ApiMitraHomeService extends Controller
 
                     $createUpdateStatus = TransactionHomeServiceStatusUpdate::create(['id_transaction' => $detail['id_transaction'],'status' => 'Get Hair Stylist']);
                     if($createUpdateStatus){
-                        $update = TransactionHomeService::where('id_transaction', $detail['id_transaction'])->update(['status' => 'Get Hair Stylist',
-                            'latest_status' => $createUpdateStatus['status'], 'latest_status_id' => $createUpdateStatus['id_transaction_home_service_update']]);
+                        $update = TransactionHomeService::where('id_transaction', $detail['id_transaction'])->update(['status' => 'Get Hair Stylist']);
                         TransactionHomeServiceHairStylistFinding::where('id_transaction', $detail['id_transaction'])->delete();
 
                         app($this->autocrm)->SendAutoCRM(
@@ -202,8 +201,7 @@ class ApiMitraHomeService extends Controller
 
                     $createUpdateStatus = TransactionHomeServiceStatusUpdate::create(['id_transaction' => $detail['id_transaction'],'status' => $status]);
                     if($createUpdateStatus){
-                        $update = TransactionHomeService::where('id_transaction', $detail['id_transaction'])->update(['status' => $status,
-                            'latest_status' => $createUpdateStatus['status'], 'latest_status_id' => $createUpdateStatus['id_transaction_home_service_update']]);
+                        $update = TransactionHomeService::where('id_transaction', $detail['id_transaction'])->update(['status' => $status]);
                         if($status == 'Completed'){
                             HairstylistNotAvailable::where('id_transaction', $detail['id_transaction'])->delete();
                         }
@@ -224,7 +222,18 @@ class ApiMitraHomeService extends Controller
             return ['status' => 'fail', 'messages' => ['Status not found']];
         }
 
-        return MyHelper::checkUpdate($update);
+        if($update){
+            return [
+                'status' => 'success',
+                'result' => [
+                    'status_id' => $post['status_id'],
+                    'id_transaction' => $post['id_transaction'],
+                    'transaction_receipt_number' => $detail['transaction_receipt_number']
+                ]
+            ];
+        }else{
+            return ['status' => 'fail', 'messages' => ['Failed update data']];
+        }
     }
 
     public function detailOrder(Request $request){
@@ -239,6 +248,24 @@ class ApiMitraHomeService extends Controller
             return ['status' => 'fail', 'messages' => ['Transaction not found']];
         }
 
+        $timerText = "";
+        $dateNow = new DateTime("now");
+        $dateSchedule = new DateTime($detail['schedule_date'] . ' ' .$detail['schedule_time']);
+        $interval = $dateNow->diff($dateSchedule);
+        $day = $interval->d;
+        $hour = $interval->h;
+        $minute = $interval->i;
+        if ($day) {
+            $timerText .= $day.' hari, '. $hour.' jam' ;
+        } elseif ($hour) {
+            $timerText .= $hour.' jam' ;
+        } else {
+            $timerText .= $minute.' menit' ;
+        }
+
+        $timerText .= (strtotime(date('Y-m-d H:i:s')) < strtotime($detail['schedule_date'] . ' ' .$detail['schedule_time'])) ? ' lagi' : ' lalu';
+        $timerTextColor = (strtotime(date('Y-m-d')) == strtotime($detail['schedule_date'])) ? '#FF2424' : '#121212';
+
         $detail = [
             'id_transaction' => $detail['id_transaction'],
             'booking_id' => $detail['transaction_receipt_number'],
@@ -248,7 +275,9 @@ class ApiMitraHomeService extends Controller
             'destination_longitude' => $detail['destination_longitude'],
             'name' => $detail['destination_name'],
             'phone' => $detail['destination_phone'],
-            'status' => $detail['status']
+            'status' => $detail['status'],
+            'timer_text' => $timerText,
+            'timer_text_color' => $timerTextColor
         ];
 
         return MyHelper::checkGet($detail);

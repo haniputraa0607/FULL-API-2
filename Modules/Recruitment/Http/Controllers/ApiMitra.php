@@ -548,7 +548,7 @@ class ApiMitra extends Controller
 				        	user_hair_stylist.level,
 				        	user_hair_stylist.total_rating,
 				        	COUNT(DISTINCT user_ratings.id_user) as total_customer
-	        			'),
+	        			')
 			        )
 			        ->first();
 
@@ -836,5 +836,82 @@ class ApiMitra extends Controller
         }
 
         return ['status' => 'success', 'result' => $res];
+    }
+
+    public function incomeDetail(Request $request){
+        $user = $request->user();
+        $post = $request->json()->all();
+        if(empty($post['date'])){
+            return ['status' => 'fail', 'messages' => ['Date can not be empty']];
+        }
+
+
+
+        if($user->level != 'Supervisor'){
+            return ['status' => 'fail', 'messages' => ['Your level not available for this detail']];
+        }
+
+        $date = date('Y-m-d', strtotime($post['date']));
+        $currency = 'Rp';
+        $currentBalance = $user->balance;
+        $listHS = UserHairStylist::where('id_outlet', $user->id_outlet)
+                    ->where('level', 'Hairstylist')
+                    ->where('user_hair_stylist_status', 'Active')->select('id_user_hair_stylist', 'fullname as name')->get()->toArray();
+
+        $projection = Transaction::join('transaction_payment_cash', 'transaction_payment_cash.id_transaction', 'transactions.id_transaction')
+                    ->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_payment_cash.cash_received_by')
+                    ->whereDate('transaction_payment_cash.updated_at', $date)
+                    ->where('transactions.id_outlet', $user->id_outlet)
+                    ->select('transaction_grandtotal', 'transactions.id_transaction', 'transactions.transaction_receipt_number', 'transaction_payment_cash.*', 'user_hair_stylist.fullname');
+
+        $reception = HairstylistTransferPayment::join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'hairstylist_transfer_payments.id_user_hair_stylist')
+            ->where('hairstylist_transfer_payments.id_outlet', $user->id_outlet)
+            ->whereDate('hairstylist_transfer_payments.created_at', $date)
+            ->where('transfer_payment_status', 'Pending')
+            ->select('id_hairstylist_transfer_payment', DB::raw('DATE_FORMAT(hairstylist_transfer_payments.created_at, "%H:%i") as time'), 'fullname as hair_stylist_name',
+                'transfer_payment_status as status', 'transfer_payment_code as transfer_code', 'total_amount');
+
+        $history = HairstylistTransferPayment::join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'hairstylist_transfer_payments.id_user_hair_stylist')
+            ->where('hairstylist_transfer_payments.id_outlet', $user->id_outlet)
+            ->whereDate('hairstylist_transfer_payments.created_at', $date)
+            ->where('transfer_payment_status', 'Confirm')
+            ->select('id_hairstylist_transfer_payment', DB::raw('DATE_FORMAT(hairstylist_transfer_payments.created_at, "%H:%i") as time'), 'fullname as hair_stylist_name',
+                'transfer_payment_status as status', 'transfer_payment_code as transfer_code', 'total_amount');
+
+        if(!empty($post['id_user_hair_stylist'])){
+            $projection = $projection->where('id_user_hair_stylist', $post['id_user_hair_stylist']);
+            $reception = $reception->where('hairstylist_transfer_payments.id_user_hair_stylist', $post['id_user_hair_stylist']);
+            $history = $history->where('hairstylist_transfer_payments.id_user_hair_stylist', $post['id_user_hair_stylist']);
+        }
+
+        $projection = $projection->get()->toArray();
+        $reception = $reception->get()->toArray();
+        $history = $history->get()->toArray();
+
+        $resProjection = [];
+        foreach ($projection as $value){
+            $resProjection[] = [
+                'id_transaction' => $value['id_transaction'],
+                'time' => date('H:i', strtotime($value['updated_at'])),
+                'hair_stylist_name' => $value['fullname'],
+                'receipt_number' => $value['transaction_receipt_number'],
+                'total_amount' => $value['transaction_grandtotal']
+            ];
+        }
+
+        $totalProjection = array_sum(array_column($resProjection, 'total_amount'));
+        $totalReception = array_sum(array_column($reception, 'total_amount'));
+
+        $result = [
+            'total_projection' => $totalProjection,
+            'total_reception' => $totalReception,
+            'currency' => $currency,
+            'current_balance_spv' => $currentBalance,
+            'list_hair_stylist' => $listHS,
+            'projection' => $resProjection,
+            'reception' => $reception,
+            'history' => $history
+        ];
+        return ['status' => 'success', 'result' => $result];
     }
 }

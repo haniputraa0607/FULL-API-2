@@ -1068,6 +1068,9 @@ class ApiTransactionOutletService extends Controller
     {
     	$post = $request->all();
 
+    	if ($request->submit_type == 'reject') {
+    		return $this->manageDetailReject($request);
+    	}
     	$tps = TransactionProductService::find($request->id_transaction_product_service);
 
 		if (!$tps) {
@@ -1285,4 +1288,131 @@ class ApiTransactionOutletService extends Controller
         return ['status' => 'success'];
     }
 
+    public function manageDetailReject(Request $request)
+    {
+    	$post = $request->all();
+
+    	$trxProduct = TransactionProduct::with('transaction_product_service')->find($request->id_transaction_product);
+
+		if (!$trxProduct) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Transaction product not found']
+			];
+		}
+
+		if ($trxProduct->reject_at) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Transaction already rejected']
+			];
+		}
+
+		$trx = Transaction::with([
+			'transaction_products.transaction_product_service.hairstylist_not_available',
+			'transaction_outlet_service'
+		])
+		->find($trxProduct->id_transaction);
+
+		$oldTrx = clone $trx;
+
+		$rejected = 0;
+		$completed = 0;
+		$unprocessed = 0;
+		$totalItem = count($trx['transaction_products']) - 1;
+
+		foreach ($trx['transaction_products'] as $tp) {
+			if ($tp['id_transaction_product'] == $trxProduct->id_transaction_product) {
+				continue;
+			}
+
+			if ($tp['transaction_product_completed_at']) {
+				$completed++;
+				continue;
+			}
+
+			if ($tp['reject_at']) {
+				$rejected++;
+				continue;
+			}
+
+			$unprocessed++;
+			break;
+		}
+
+		DB::beginTransaction();
+		$trxProduct->update([
+			'reject_at' => date('Y-m-d H:i:s'),
+			'reject_reason' => $request->note
+		]);
+
+		$trx->update(['need_manual_void' => 1]);
+
+		// return stok for product and remove book for service
+		if (isset($trxProduct['transaction_product_service']['id_transaction_product_service'])) {
+			HairstylistNotAvailable::where('id_transaction_product_service', $trxProduct['transaction_product_service']['id_transaction_product_service'])->delete();
+		} else {
+			$this->returnProductStock($trxProduct->id_transaction_product);
+		}
+
+		if ($completed == $totalItem || ($completed + $rejected) == $totalItem) {
+			// completed
+			TransactionOutletService::where('id_transaction', $trx->id_transaction)
+			->update(['completed_at' => date('Y-m-d H:i:s')]);
+
+		} elseif (empty($unprocessed) || $rejected == $totalItem) {
+			// rejected
+			TransactionOutletService::where('id_transaction', $trx->id_transaction)
+			->update([
+				'reject_at' => date('Y-m-d H:i:s'),
+				'reject_reason' => $request->note
+			]);
+		}
+
+		$newTrx = Transaction::with([
+			'transaction_products.transaction_product_service.hairstylist_not_available',
+			'transaction_outlet_service'
+		])
+		->find($trx->id_transaction);
+
+
+		$logTrx = LogTransactionUpdate::create([
+			'id_user' => $request->user()->id,
+	    	'id_transaction' => $trx->id_transaction,
+	    	'transaction_from' => 'outlet-service',
+	        'old_data' => json_encode($oldTrx),
+	        'new_data' => json_encode($newTrx),
+	    	'note' => $request->note
+		]);
+
+		DB::commit();
+
+		return MyHelper::checkCreate($logTrx);
+    }
+
+    function returnProductStock($id_transaction_product) {
+        $dt = TransactionProduct::where('transactions.id_transaction_product', $id_transaction_product)
+            ->join('transactions', 'transactions.id_transaction', 'transaction_products.id_transaction')
+            ->select('transaction_products.*', 'transactions.id_outlet')
+            ->where('type', 'Product')
+            ->first();
+
+        if ($dt) {
+            $stock = ProductDetail::where(['id_product' => $dt['id_product'], 'id_outlet' => $dt['id_outlet']])->first();
+            ProductStockLog::create([
+                'id_product' => $dt['id_product'],
+                'id_transaction' => $dt['id_transaction'],
+                'stock_item' => $dt['transaction_product_qty'],
+                'stock_item_before' => $stock['product_detail_stock_item'],
+                'stock_service_before' => (empty($stock['product_detail_stock_service']) ? 0 :$stock['product_detail_stock_service']),
+                'stock_item_after' => $stock['product_detail_stock_item'] + $dt['transaction_product_qty'],
+                'stock_service_after' => (empty($stock['product_detail_stock_service']) ? 0 :$stock['product_detail_stock_service'])
+            ]);
+
+            $stock->product_detail_stock_item = $stock['product_detail_stock_item'] + $dt['transaction_product_qty'];
+            $stock->save();
+        }
+
+        return true;
+    }
 }

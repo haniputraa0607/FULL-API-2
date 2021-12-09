@@ -520,10 +520,12 @@ class ApiAcademyController extends Controller
                         ->with('outlet');
 
             if(!empty($post['transaction_receipt_number'])){
-                $detail = $detail->where('transactions.transaction_receipt_number', $post['transaction_receipt_number']);
-            }elseif(!empty($post['id_transaction'])){
-                $detail = $detail->where('transactions.id_transaction', $post['id_transaction']);
+                $trxReciptNumber = TransactionAcademyInstallment::join('transaction_academy', 'transaction_academy_installment.id_transaction_academy', 'transaction_academy.id_transaction_academy')
+                                ->where('installment_receipt_number', $post['transaction_receipt_number'])->first();
+                $post['id_transaction'] = $trxReciptNumber['id_transaction'];
             }
+
+            $detail = $detail->where('transactions.id_transaction', $post['id_transaction']);
 
             $detail = $detail->first();
             if(!empty($detail)){
@@ -726,20 +728,37 @@ class ApiAcademyController extends Controller
         }
 
         $dataInstallment->update(['installment_payment_type' => $request->payment_type]);
-        /* MIDTRANS */
+
+        $res = [];
         if ($request->json('payment_type') && $request->json('payment_type') == "Midtrans") {
             $pay = $this->midtrans($dataInstallment, $post);
+
+            if(!empty($pay)){
+                $res = [
+                    "snap_token" => $pay['midtrans']['token'],
+                    "redirect_url" => $pay['midtrans']['redirect_url'],
+                    "transaction_data" => [
+                        "transaction_details" => [
+                            "order_id" => $dataInstallment['installment_receipt_number'],
+                            "gross_amount" => $dataInstallment['amount'],
+                            "id_transaction_academy_installment" =>  $dataInstallment['id_transaction_academy_installment'],
+                            "id_transaction" => $dataInstallment['id_transaction']
+                        ]
+                    ]
+                ];
+            }
         } elseif ($request->payment_type == 'Xendit') {
             $pay = $this->xendit($dataInstallment, $post);
+            $res = $pay;
         }
 
-        return response()->json(MyHelper::checkGet($pay??[]));
+        return response()->json(MyHelper::checkGet($res));
     }
 
     function midtrans($data, $post)
     {
         $data['gross_amount'] = $data['amount'];
-        $requestToMidtrans = Midtrans::token($data['installment_receipt_number'], $data['gross_amount'], null, null, null, 'transaction', $data['id_transaction'], $post['payment_detail'] ?? null);
+        $requestToMidtrans = Midtrans::token($data['installment_receipt_number'], $data['gross_amount'], null, null, null, 'transaction', $data['id_transaction'], $post['payment_detail'] ?? null, 'apps', null, 'academy');
         $requestToMidtrans['order_id'] = $data['installment_receipt_number'];
         $requestToMidtrans['gross_amount'] = $data['amount'];
 

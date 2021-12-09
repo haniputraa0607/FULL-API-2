@@ -67,7 +67,7 @@ class ApiMitraHomeService extends Controller
         }
 
         $list = $list->orderBy('transaction_home_services.created_at', 'desc')
-                ->select('transactions.id_transaction', 'id_transaction_home_service', 'transaction_receipt_number as booking_id', 'status as home_service_status', 'schedule_date', 'schedule_time',
+                ->select('transactions.id_transaction', 'id_transaction_home_service', 'transaction_receipt_number as booking_id', 'status as home_service_status', 'schedule_date', DB::raw('DATE_FORMAT(schedule_time, "%H:%i") as schedule_time'),
                     'destination_name', 'destination_phone', 'destination_address', 'destination_note');
 
         $dateNow = new DateTime("now");

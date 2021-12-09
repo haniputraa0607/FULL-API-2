@@ -3063,7 +3063,7 @@ class ApiProductController extends Controller
         	// 'outlet' => Outlet::select('id_outlet','outlet_code','outlet_address','outlet_name')->find($id_outlet),
         	'variants' => $variants,
         	'popup_message' => $selectedProduct['disable'] ? 'Produk yang dipilih tidak tersedia' : '',
-            'complete_profile' => $request->user()->complete_profile,
+            'complete_profile' => !!$request->user()->complete_profile,
         ];
 
         return MyHelper::checkGet($res);

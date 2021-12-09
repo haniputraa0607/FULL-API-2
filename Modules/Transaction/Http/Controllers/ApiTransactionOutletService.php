@@ -62,6 +62,8 @@ use Modules\Product\Entities\ProductGlobalPrice;
 use Modules\Product\Entities\ProductSpecialPrice;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
+use Modules\Product\Entities\ProductDetail;
+use Modules\Product\Entities\ProductStockLog;
 
 use Modules\Subscription\Entities\SubscriptionUserVoucher;
 use Modules\Transaction\Entities\LogInvalidTransaction;
@@ -1391,7 +1393,7 @@ class ApiTransactionOutletService extends Controller
     }
 
     function returnProductStock($id_transaction_product) {
-        $dt = TransactionProduct::where('transactions.id_transaction_product', $id_transaction_product)
+        $dt = TransactionProduct::where('transaction_products.id_transaction_product', $id_transaction_product)
             ->join('transactions', 'transactions.id_transaction', 'transaction_products.id_transaction')
             ->select('transaction_products.*', 'transactions.id_outlet')
             ->where('type', 'Product')

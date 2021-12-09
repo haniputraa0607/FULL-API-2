@@ -2,6 +2,7 @@
 
 namespace Modules\Transaction\Entities;
 
+use App\Jobs\FindingHairStylistHomeService;
 use Illuminate\Database\Eloquent\Model;
 
 class TransactionHomeService extends \App\Http\Models\Template\TransactionService
@@ -30,4 +31,8 @@ class TransactionHomeService extends \App\Http\Models\Template\TransactionServic
         'destination_longitude',
         'counter_finding_hair_stylist'
     ];
+
+    public function triggerPaymentCompleted($data = []){
+        FindingHairStylistHomeService::dispatch(['id_transaction' => $this->id_transaction, 'id_transaction_home_service' => $this->id_transaction_home_service])->allOnConnection('findinghairstylistqueue');
+    }
 }

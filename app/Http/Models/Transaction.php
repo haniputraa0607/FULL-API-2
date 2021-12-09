@@ -311,12 +311,12 @@ class Transaction extends Model
 
     public function transaction_home_service()
 	{
-		return $this->hasMany(\Modules\Transaction\Entities\TransactionHomeService::class, 'id_transaction');
+		return $this->hasOne(\Modules\Transaction\Entities\TransactionHomeService::class, 'id_transaction');
 	}
 
     public function transaction_shop()
 	{
-		return $this->hasMany(\Modules\Transaction\Entities\TransactionShop::class, 'id_transaction');
+		return $this->hasOne(\Modules\Transaction\Entities\TransactionShop::class, 'id_transaction');
 	}
 
 	public function transaction_academy(){
@@ -365,19 +365,19 @@ class Transaction extends Model
     	// trigger payment complete -> service
     	switch ($this->transaction_from) {
     		case 'outlet-service':
-    			$this->transaction_outlet_service->triggerPaymentCompleted();
+    			$this->transaction_outlet_service->triggerPaymentCompleted($data);
     			break;
 
     		case 'home-service':
-    			$this->transaction_home_service->triggerPaymentCompleted();
+    			$this->transaction_home_service->triggerPaymentCompleted($data);
     			break;
 
     		case 'shop':
-    			$this->transaction_shop->triggerPaymentCompleted();
+    			$this->transaction_shop->triggerPaymentCompleted($data);
     			break;
 
     		case 'academy':
-    			$this->transaction_academy->triggerPaymentCompleted();
+    			$this->transaction_academy->triggerPaymentCompleted($data);
     			if ($this->transaction_academy->amount_not_completed == 0) {
 			    	$this->update([
 			    		'transaction_payment_status' => 'Completed', 
@@ -476,19 +476,19 @@ class Transaction extends Model
     	// trigger payment cancelled -> service
     	switch ($this->transaction_from) {
     		case 'outlet-service':
-    			$this->transaction_outlet_service->triggerPaymentCancelled();
+    			$this->transaction_outlet_service->triggerPaymentCancelled($data);
     			break;
 
     		case 'home-service':
-    			$this->transaction_home_service->triggerPaymentCancelled();
+    			$this->transaction_home_service->triggerPaymentCancelled($data);
     			break;
 
     		case 'shop':
-    			$this->transaction_shop->triggerPaymentCancelled();
+    			$this->transaction_shop->triggerPaymentCancelled($data);
     			break;
 
     		case 'academy':
-    			$this->transaction_academy->triggerPaymentCancelled();
+    			$this->transaction_academy->triggerPaymentCancelled($data);
     			break;
     	}
 

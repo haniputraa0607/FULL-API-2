@@ -695,20 +695,21 @@ class ApiTransactionShop extends Controller
         $result['payment_detail'][] = [
             'name'          => 'Subtotal Order ('.$totalItem.' item)',
             "is_discount"   => 0,
-            'amount'        => (int) $result['subtotal']
+            'amount'        => number_format(((int) $result['subtotal']),0,',','.')
         ];
 
         $result['payment_detail'][] = [
             'name'          => 'Pengiriman',
             "is_discount"   => 0,
-            'amount'        => $result['shipping']
+            'amount'        => number_format(((int) $result['shipping']),0,',','.')
         ];
 
         if (!empty($post['tax'])) {
 	        $result['payment_detail'][] = [
 	            'name'          => 'Tax',
 	            "is_discount"   => 0,
-	            'amount'        => (int) $post['tax']
+	            'amount'        => number_format(((int) $post['tax']),0,',','.')
+
 	        ];
         }
 
@@ -1031,6 +1032,8 @@ class ApiTransactionShop extends Controller
 
         $createTransactionShop = TransactionShop::create([
         	'id_transaction' => $insertTransaction['id_transaction'],
+			'delivery_method' =>  $request->delivery_method,
+			'delivery_name' =>  $request->delivery_name,
 			'destination_name' => $user['name'],
 			'destination_phone' => $user['phone'],
 			'destination_address' => $address['address'],
@@ -1251,6 +1254,12 @@ class ApiTransactionShop extends Controller
     				'transaction_products.product.photos',
     				'transaction_products.product.product_group'
     			)
+    			->select(
+    				'transactions.*', 
+    				'transaction_shops.*', 
+    				'transactions.completed_at as trx_completed_at',
+    				'transaction_shops.completed_at as shop_completed_at'
+    			)
     			->first();
 
 		if (!$detail) {
@@ -1296,23 +1305,23 @@ class ApiTransactionShop extends Controller
         $paymentDetail[] = [
             'name'          => 'Subtotal Order (' . $totalProductQty . ' item)',
             "is_discount"   => 0,
-            'amount'        => $detail['transaction_subtotal']
+            'amount'        => number_format(((int) $detail['transaction_subtotal']),0,',','.')
         ];
 
         $paymentDetail[] = [
             'name'          => 'Pengiriman',
             "is_discount"   => 0,
-            'amount'        => $detail['transaction_shipment']
+            'amount'        => number_format(((int) $detail['transaction_shipment']),0,',','.')
         ];
 
         if (!empty($detail['transaction_tax'])) {
 	        $paymentDetail[] = [
 	            'name'          => 'Tax',
 	            "is_discount"   => 0,
-	            'amount'        => $detail['transaction_tax']
+	            'amount'        => number_format(((int) $detail['transaction_tax']),0,',','.')
+
 	        ];
         }
-
 
         $trx = Transaction::where('id_transaction', $detail['id_transaction'])->first();
 		$trxPayment = app($this->trx_outlet_service)->transactionPayment($trx);
@@ -1343,6 +1352,73 @@ class ApiTransactionShop extends Controller
     		'destination_longitude' => $detail['destination_longitude'],
     	];
 
+    	$listDelivery = $this->listDelivery();
+    	$delivDetail = null;
+    	foreach ($listDelivery as $d) {
+    		if ($d['delivery_method'] == $detail['delivery_method'] && $d['delivery_name'] == $detail['delivery_name']) {
+    			$delivDetail = $d;
+    			$delivDetail['price'] = $detail['transaction_shipment'];
+    			$delivDetail['delivery_number'] = 'INVH2120010180';
+    			$delivDetail['live_tracking_url'] = null;
+    			break;
+    		}
+    	}
+
+    	$statusLog = [];
+    	if ($detail['trx_completed_at']) {
+	    	$statusLog[] = [
+	    		'text'  => $this->shopStatus('Pending'),
+	            'date'  => $detail['trx_completed_at']
+	    	];
+    	}
+    	if ($detail['received_at']) {
+    		$statusLog[] = [
+	    		'text'  => $this->shopStatus('Received'),
+	            'date'  => $detail['received_at']
+	    	];
+    	}
+    	if ($detail['ready_at']) {
+    		$statusLog[] = [
+	    		'text'  => $this->shopStatus('Ready'),
+	            'date'  => $detail['ready_at']
+	    	];
+    	}
+    	if ($detail['delivery_at']) {
+    		$statusLog[] = [
+	    		'text'  => $this->shopStatus('Delivery'),
+	            'date'  => $detail['delivery_at']
+	    	];
+    	}
+    	if ($detail['arrived_at']) {
+    		$statusLog[] = [
+	    		'text'  => $this->shopStatus('Arrived'),
+	            'date'  => $detail['arrived_at']
+	    	];
+    	}
+    	if ($detail['shop_completed_at']) {
+    		$statusLog[] = [
+	    		'text'  => $this->shopStatus('Completed'),
+	            'date'  => $detail['shop_completed_at']
+	    	];
+    	}
+    	if ($detail['shop_status'] == 'Rejected by Admin') {
+    		$statusLog[] = [
+	    		'text'  => $this->shopStatus('Rejected by Admin') . ($detail['reject_reason'] ? '(' . $detail['reject_reason'] . ')' : null),
+	            'date'  => $detail['rejected_at']
+	    	];
+    	}
+    	if ($detail['shop_status'] == 'Rejected by Customer') {
+    		$statusLog[] = [
+	    		'text'  => $this->shopStatus('Rejected by Customer') . ($detail['reject_reason'] ? '(' . $detail['reject_reason'] . ')' : null),
+	            'date'  => $detail['rejected_at']
+	    	];
+    	}
+
+    	$statusLog = array_reverse($statusLog);
+    	foreach ($statusLog as $key => $val) {
+    		$statusLog[$key]['date'] = MyHelper::dateFormatInd($val['date']);
+    	}
+    	
 		$res = [
 			'id_transaction' => $detail['id_transaction'],
 			'transaction_receipt_number' => $detail['transaction_receipt_number'],
@@ -1356,9 +1432,11 @@ class ApiTransactionShop extends Controller
 			'shop_status' => $shopStatus,
 			'transaction_payment_status' => $detail['transaction_payment_status'],
 			'customer_detail' => $custDetail,
+			'delivery_detail' => $delivDetail,
 			'product' => $products,
 			'payment_detail' => $paymentDetail,
-			'payment_method' => $paymentMethodDetail
+			'payment_method' => $paymentMethodDetail,
+			'status_log' => $statusLog
 		];
 		
 		return MyHelper::checkGet($res);

@@ -206,6 +206,13 @@ class Kernel extends ConsoleKernel
         $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiOutletCloseTemporaryController@cronChangeLocation')->everyMinute();
         $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiPartnerClosePermanentController@cronInactive')->dailyAt('00:00');
         $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiPartnersBecomesIxoboxController@cronBecomeIxobox')->dailyAt('00:00');
+
+        /**
+         * Send Daily Report Transactions to Icount
+         * run every minute
+         */
+        $schedule->call('Modules\Transaction\Http\Controllers\ApiTransaction@CronICountPOO')->dailyAt('00:05');
+
     }
 
     /**

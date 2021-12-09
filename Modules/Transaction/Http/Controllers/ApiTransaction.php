@@ -96,10 +96,12 @@ use Hash;
 use DB;
 use Mail;
 use Image;
+use App\Lib\Icount;
 use Illuminate\Support\Facades\Log;
 use Modules\Quest\Entities\Quest;
 use Lcobucci\JWT\Parser;
 use App\Http\Models\OauthAccessToken;
+use Modules\BusinessDevelopment\Entities\Location;
 
 class ApiTransaction extends Controller
 {
@@ -1582,6 +1584,32 @@ class ApiTransaction extends Controller
     }
 
     public function exportTransaction($filter, $statusReturn = null, $filter_type='admin') {
+    // public function exportTransaction(Request $request) {
+    //     $filter = [
+    //         "rule" => "and",
+    //         "operator" => "and",
+    //         "date_start" => "2021-11-01",
+    //         "date_end" => "2021-11-30",
+    //         "detail" => 1,
+    //         "key" => "all",
+    //         "conditions" => [
+    //             [
+    //                 "subject" => "id_outlet",
+    //                 "operator" => 12,
+    //                 "parameter" => null,
+    //             ],
+    //             [
+    //                 "subject" => "status",
+    //                 "operator" => "Completed",
+    //                 "parameter" => null,
+    //             ],
+    //             [
+    //                 "subject" => "all_transaction"
+    //             ]
+    //         ]
+    //     ];
+    //     $statusReturn = 1;
+    //     $filter_type = "franchise";
         $post = $filter;
 
         $delivery = false;
@@ -1590,43 +1618,46 @@ class ApiTransaction extends Controller
             $delivery = true;
         }
 
-        $query = Transaction::join('transaction_pickups','transaction_pickups.id_transaction','=','transactions.id_transaction')
-            ->select('transaction_pickups.*','transactions.*','users.*','outlets.outlet_code', 'outlets.outlet_name', 'payment_type', 'payment_method', 'transaction_payment_midtrans.gross_amount', 'transaction_payment_ipay88s.amount', 'transaction_payment_shopee_pays.id_transaction_payment_shopee_pay')
+        $query = Transaction::join('transaction_outlet_services','transaction_outlet_services.id_transaction','=','transactions.id_transaction')
+            ->select('transaction_outlet_services.*','transactions.*','transaction_products.*','users.*','outlets.outlet_code', 'outlets.outlet_name','product_name','product_code')
             ->leftJoin('outlets','outlets.id_outlet','=','transactions.id_outlet')
             ->leftJoin('users','transactions.id_user','=','users.id')
+            ->leftJoin('transaction_products','transaction_products.id_transaction','=','transactions.id_transaction')
+            ->leftJoin('products','products.id_product','=','transaction_products.id_product')
             ->orderBy('transactions.transaction_date', 'asc');
 
-        $query = $query->leftJoin('transaction_payment_midtrans', 'transactions.id_transaction', '=', 'transaction_payment_midtrans.id_transaction')
-            ->leftJoin('transaction_payment_ipay88s', 'transactions.id_transaction', '=', 'transaction_payment_ipay88s.id_transaction')
-            ->leftJoin('transaction_payment_shopee_pays', 'transactions.id_transaction', '=', 'transaction_payment_shopee_pays.id_transaction');
-
+        // $query = $query->leftJoin('transaction_payment_midtrans', 'transactions.id_transaction', '=', 'transaction_payment_midtrans.id_transaction')
+        //     ->leftJoin('transaction_payment_ipay88s', 'transactions.id_transaction', '=', 'transaction_payment_ipay88s.id_transaction')
+        //     ->leftJoin('transaction_payment_shopee_pays', 'transactions.id_transaction', '=', 'transaction_payment_shopee_pays.id_transaction');
+        
         $settingMDRAll = [];
-        if(isset($post['detail']) && $post['detail'] == 1){
-            $settingMDRAll = MDR::get()->toArray();
-            $query->leftJoin('disburse_outlet_transactions', 'disburse_outlet_transactions.id_transaction', 'transactions.id_transaction')
-                ->join('transaction_products','transaction_products.id_transaction','=','transactions.id_transaction')
-                ->leftJoin('transaction_balances','transaction_balances.id_transaction','=','transactions.id_transaction')
-                ->join('products', 'products.id_product', 'transaction_products.id_product')
-                ->join('brands', 'brands.id_brand', 'transaction_products.id_brand')
-                ->leftJoin('product_categories','products.id_product_category','=','product_categories.id_product_category')
-                ->join('cities', 'cities.id_city', 'outlets.id_city')
-                ->leftJoin('cities as c', 'c.id_city', 'users.id_city')
-                ->join('provinces', 'cities.id_province', 'provinces.id_province')
-                ->leftJoin('transaction_bundling_products','transaction_products.id_transaction_bundling_product','=','transaction_bundling_products.id_transaction_bundling_product')
-                ->leftJoin('bundling','bundling.id_bundling','=','transaction_bundling_products.id_bundling')
-                ->leftJoin('rule_promo_payment_gateway','rule_promo_payment_gateway.id_rule_promo_payment_gateway','=','disburse_outlet_transactions.id_rule_promo_payment_gateway')
-                ->leftJoin('promo_payment_gateway_transactions as promo_pg', 'promo_pg.id_transaction', 'transactions.id_transaction')
-                ->with(['transaction_payment_subscription', 'vouchers', 'promo_campaign', 'point_refund', 'point_use', 'subscription_user_voucher.subscription_user.subscription'])
-                ->orderBy('transaction_products.id_transaction_bundling_product', 'asc')
-                ->addSelect('promo_pg.total_received_cashback',  'rule_promo_payment_gateway.name as promo_payment_gateway_name',
-                    'transaction_bundling_products.transaction_bundling_product_base_price', 'transaction_bundling_products.transaction_bundling_product_qty', 'transaction_bundling_products.transaction_bundling_product_total_discount', 'transaction_bundling_products.transaction_bundling_product_subtotal', 'bundling.bundling_name', 'disburse_outlet_transactions.bundling_product_fee_central', 'transaction_products.*', 'products.product_code', 'products.product_name', 'product_categories.product_category_name',
-                    'brands.name_brand', 'cities.city_name', 'c.city_name as user_city', 'provinces.province_name',
-                    'disburse_outlet_transactions.fee_item', 'disburse_outlet_transactions.payment_charge', 'disburse_outlet_transactions.discount', 'disburse_outlet_transactions.subscription',
-                    'disburse_outlet_transactions.point_use_expense',
-                    'disburse_outlet_transactions.fee_promo_payment_gateway_outlet', 'disburse_outlet_transactions.fee_promo_payment_gateway_central',
-                    'disburse_outlet_transactions.income_outlet', 'disburse_outlet_transactions.discount_central', 'disburse_outlet_transactions.subscription_central');
-        }
-
+        // if(isset($post['detail']) && $post['detail'] == 1){
+        //     $settingMDRAll = MDR::get()->toArray();
+        //     $query->leftJoin('disburse_outlet_transactions', 'disburse_outlet_transactions.id_transaction', 'transactions.id_transaction')
+        //         ->join('transaction_products','transaction_products.id_transaction','=','transactions.id_transaction')
+        //         ->leftJoin('transaction_balances','transaction_balances.id_transaction','=','transactions.id_transaction')
+        //         ->join('products', 'products.id_product', 'transaction_products.id_product')
+        //         ->join('brands', 'brands.id_brand', 'transaction_products.id_brand')
+        //         ->leftJoin('product_categories','products.id_product_category','=','product_categories.id_product_category')
+        //         ->join('cities', 'cities.id_city', 'outlets.id_city')
+                    $query->leftJoin('cities', 'outlets.id_city','=', 'cities.id_city')
+                    ->leftJoin('provinces', 'cities.id_province', 'provinces.id_province')
+        //         ->leftJoin('transaction_bundling_products','transaction_products.id_transaction_bundling_product','=','transaction_bundling_products.id_transaction_bundling_product')
+        //         ->leftJoin('bundling','bundling.id_bundling','=','transaction_bundling_products.id_bundling')
+        //         ->leftJoin('rule_promo_payment_gateway','rule_promo_payment_gateway.id_rule_promo_payment_gateway','=','disburse_outlet_transactions.id_rule_promo_payment_gateway')
+        //         ->leftJoin('promo_payment_gateway_transactions as promo_pg', 'promo_pg.id_transaction', 'transactions.id_transaction')
+        //         ->with(['transaction_payment_subscription', 'vouchers', 'promo_campaign', 'point_refund', 'point_use', 'subscription_user_voucher.subscription_user.subscription'])
+        //         ->orderBy('transaction_products.id_transaction_bundling_product', 'asc')
+        //         ->addSelect('promo_pg.total_received_cashback',  'rule_promo_payment_gateway.name as promo_payment_gateway_name',
+        //             'transaction_bundling_products.transaction_bundling_product_base_price', 'transaction_bundling_products.transaction_bundling_product_qty', 'transaction_bundling_products.transaction_bundling_product_total_discount', 'transaction_bundling_products.transaction_bundling_product_subtotal', 'bundling.bundling_name', 'disburse_outlet_transactions.bundling_product_fee_central', 'transaction_products.*', 'products.product_code', 'products.product_name', 'product_categories.product_category_name',
+        //             'brands.name_brand', 'cities.city_name', 'c.city_name as user_city', 'provinces.province_name',
+        //             'disburse_outlet_transactions.fee_item', 'disburse_outlet_transactions.payment_charge', 'disburse_outlet_transactions.discount', 'disburse_outlet_transactions.subscription',
+        //             'disburse_outlet_transactions.point_use_expense',
+        //             'disburse_outlet_transactions.fee_promo_payment_gateway_outlet', 'disburse_outlet_transactions.fee_promo_payment_gateway_central',
+        //             'disburse_outlet_transactions.income_outlet', 'disburse_outlet_transactions.discount_central', 'disburse_outlet_transactions.subscription_central');
+                    ->addSelect('cities.city_name', 'cities.city_name as outlet_city','provinces.province_name');
+        // }
+       
         if(isset($post['date_start']) && !empty($post['date_start'])
             && isset($post['date_end']) && !empty($post['date_end'])){
             $start = date('Y-m-d', strtotime($post['date_start']));
@@ -1647,22 +1678,22 @@ class ApiTransaction extends Controller
                 $query->where('pickup_by','Customer');
             }
         }
-
+        
         if($filter_type == 'admin'){
             $query = $this->filterExportTransactionForAdmin($query,$post);
         }else{
             $query = app('Modules\Franchise\Http\Controllers\ApiTransactionFranchiseController')->filterTransaction($query,$post);
         }
-
+        
         if($statusReturn == 1){
             $columnsVariant = '';
             $addAdditionalColumnVariant = '';
-            $getVariant = ProductVariant::whereNull('id_parent')->get()->toArray();
-            $getAllVariant = ProductVariant::select('id_product_variant', 'id_parent')->get()->toArray();
-            foreach ($getVariant as $v){
-                $columnsVariant .= '<td style="background-color: #dcdcdc;" width="10">'.$v['product_variant_name'].'</td>';
-                $addAdditionalColumnVariant .= '<td></td>';
-            }
+            // $getVariant = ProductVariant::whereNull('id_parent')->get()->toArray();
+            // $getAllVariant = ProductVariant::select('id_product_variant', 'id_parent')->get()->toArray();
+            // foreach ($getVariant as $v){
+            //     $columnsVariant .= '<td style="background-color: #dcdcdc;" width="10">'.$v['product_variant_name'].'</td>';
+            //     $addAdditionalColumnVariant .= '<td></td>';
+            // }
             if($filter_type == 'admin') {
                 $query->whereNull('reject_at');
             }
@@ -1675,13 +1706,13 @@ class ApiTransaction extends Controller
             $htmlBundling = '';
             foreach ($get as $key=>$val) {
                 $payment = '';
-                if(!empty($val['payment_type'])){
-                    $payment = $val['payment_type'];
-                }elseif(!empty($val['payment_method'])){
-                    $payment = $val['payment_method'];
-                }elseif(!empty($val['id_transaction_payment_shopee_pay'])){
-                    $payment = 'Shopeepay';
-                }
+                // if(!empty($val['payment_type'])){
+                //     $payment = $val['payment_type'];
+                // }elseif(!empty($val['payment_method'])){
+                //     $payment = $val['payment_method'];
+                // }elseif(!empty($val['id_transaction_payment_shopee_pay'])){
+                //     $payment = 'Shopeepay';
+                // }
 
                 $variant = [];
                 $productCode = $val['product_code'];
@@ -1689,13 +1720,13 @@ class ApiTransaction extends Controller
                     $getProductVariantGroup = ProductVariantGroup::where('id_product_variant_group', $val['id_product_variant_group'])->first();
                     $productCode = $getProductVariantGroup['product_variant_group_code']??'';
                 }
-
+                
                 $modifierGroup = TransactionProductModifier::where('id_transaction_product', $val['id_transaction_product'])
                     ->whereNotNull('transaction_product_modifiers.id_product_modifier_group')
                     ->select('text', 'transaction_product_modifier_price')->get()->toArray();
                 $modifierGroupText = array_column($modifierGroup, 'text');
                 $modifierGroupPrice = array_sum(array_column($modifierGroup, 'transaction_product_modifier_price'));
-
+                
                 if(isset($post['detail']) && $post['detail'] == 1){
 
                     $mod = TransactionProductModifier::join('product_modifiers', 'product_modifiers.id_product_modifier', 'transaction_product_modifiers.id_product_modifier')
@@ -1711,34 +1742,34 @@ class ApiTransaction extends Controller
                     $promoName2 = '';
                     $promoType2 = '';
                     $promoCode2 = '';
-                    if(count($val['vouchers']) > 0){
-                        $getDeal = Deal::where('id_deals', $val['vouchers'][0]['id_deals'])->first();
-                        if($getDeal['promo_type'] == 'Discount bill' || $getDeal['promo_type'] == 'Discount delivery'){
-                            $promoName2 = $getDeal['deals_title'];
-                            $promoType2 = 'Deals';
-                            $promoCode2 = $val['vouchers'][0]['voucher_code'];
-                        }else{
-                            $promoName = $getDeal['deals_title'];
-                            $promoType = 'Deals';
-                            $promoCode = $val['vouchers'][0]['voucher_code'];
-                        }
+                    // if(count($val['vouchers']) > 0){
+                    //     $getDeal = Deal::where('id_deals', $val['vouchers'][0]['id_deals'])->first();
+                    //     if($getDeal['promo_type'] == 'Discount bill' || $getDeal['promo_type'] == 'Discount delivery'){
+                    //         $promoName2 = $getDeal['deals_title'];
+                    //         $promoType2 = 'Deals';
+                    //         $promoCode2 = $val['vouchers'][0]['voucher_code'];
+                    //     }else{
+                    //         $promoName = $getDeal['deals_title'];
+                    //         $promoType = 'Deals';
+                    //         $promoCode = $val['vouchers'][0]['voucher_code'];
+                    //     }
 
-                    }elseif (!empty($val['promo_campaign'])){
-                        if($val['promo_campaign']['promo_type'] == 'Discount bill' || $val['promo_campaign']['promo_type'] == 'Discount delivery'){
-                            $promoName2 = $val['promo_campaign']['promo_title'];
-                            $promoType2 = 'Promo Campaign';
-                            $promoCode2 = $val['promo_campaign']['promo_code'];
-                        }else{
-                            $promoName = $val['promo_campaign']['promo_title'];
-                            $promoType = 'Promo Campaign';
-                            $promoCode = $val['promo_campaign']['promo_code'];
-                        }
-                    }elseif(isset($val['subscription_user_voucher']['subscription_user']['subscription']['subscription_title'])){
-                        $promoName2 = htmlspecialchars($val['subscription_user_voucher']['subscription_user']['subscription']['subscription_title']);
-                        $promoType2 = 'Subscription';
-                    }
+                    // }elseif (!empty($val['promo_campaign'])){
+                    //     if($val['promo_campaign']['promo_type'] == 'Discount bill' || $val['promo_campaign']['promo_type'] == 'Discount delivery'){
+                    //         $promoName2 = $val['promo_campaign']['promo_title'];
+                    //         $promoType2 = 'Promo Campaign';
+                    //         $promoCode2 = $val['promo_campaign']['promo_code'];
+                    //     }else{
+                    //         $promoName = $val['promo_campaign']['promo_title'];
+                    //         $promoType = 'Promo Campaign';
+                    //         $promoCode = $val['promo_campaign']['promo_code'];
+                    //     }
+                    // }elseif(isset($val['subscription_user_voucher']['subscription_user']['subscription']['subscription_title'])){
+                    //     $promoName2 = htmlspecialchars($val['subscription_user_voucher']['subscription_user']['subscription']['subscription_title']);
+                    //     $promoType2 = 'Subscription';
+                    // }
 
-                    $promoName = htmlspecialchars($promoName);
+                    // $promoName = htmlspecialchars($promoName);
                     $status = $val['transaction_payment_status'];
                     if(!is_null($val['reject_at'])){
                         $status = 'Reject';
@@ -1755,18 +1786,18 @@ class ApiTransaction extends Controller
                     }
 
                     $paymentRefund = '';
-                    if($val['reject_type'] == 'payment'){
-                        $paymentRefund = $val['amount']??$val['gross_amount'];
-                    }
+                    // if($val['reject_type'] == 'payment'){
+                    //     $paymentRefund = $val['amount']??$val['gross_amount'];
+                    // }
 
                     $paymentCharge = 0;
-                    if((int)$val['point_use_expense'] > 0){
-                        $paymentCharge = $val['point_use_expense'];
-                    }
+                    // if((int)$val['point_use_expense'] > 0){
+                    //     $paymentCharge = $val['point_use_expense'];
+                    // }
 
-                    if((int)$val['payment_charge'] > 0){
-                        $paymentCharge = $val['payment_charge'];
-                    }
+                    // if((int)$val['payment_charge'] > 0){
+                    //     $paymentCharge = $val['payment_charge'];
+                    // }
 
                     $html = '';
                     $sameData = '';
@@ -1795,25 +1826,25 @@ class ApiTransaction extends Controller
                             }
                             $htmlBundling .= '<tr>';
                             $htmlBundling .= $sameData;
-                            $htmlBundling .= '<td>'.$val['name_brand'].'</td>';
+                            // $htmlBundling .= '<td>'.$val['name_brand'].'</td>';
                             $htmlBundling .= '<td>'.$val['product_category_name'].'</td>';
                             if(isset($post['show_product_code']) && $post['show_product_code'] == 1){
                                 $htmlBundling .= '<td>'.$productCode.'</td>';
                             }
                             $htmlBundling .= '<td>'.$val['product_name'].'</td>';
-                            $getTransactionVariant = TransactionProductVariant::join('product_variants as pv', 'pv.id_product_variant', 'transaction_product_variants.id_product_variant')
-                                ->where('id_transaction_product', $val['id_transaction_product'])->select('pv.*')->get()->toArray();
-                            foreach ($getTransactionVariant as $k=>$gtV){
-                                $getTransactionVariant[$k]['main_parent'] = $this->getParentVariant($getAllVariant, $gtV['id_product_variant']);
-                            }
-                            foreach ($getVariant as $v){
-                                $search = array_search($v['id_product_variant'], array_column($getTransactionVariant, 'main_parent'));
-                                if($search !== false){
-                                    $htmlBundling .= '<td>'.$getTransactionVariant[$search]['product_variant_name'].'</td>';
-                                }else{
-                                    $htmlBundling .= '<td></td>';
-                                }
-                            }
+                            // $getTransactionVariant = TransactionProductVariant::join('product_variants as pv', 'pv.id_product_variant', 'transaction_product_variants.id_product_variant')
+                            //     ->where('id_transaction_product', $val['id_transaction_product'])->select('pv.*')->get()->toArray();
+                            // foreach ($getTransactionVariant as $k=>$gtV){
+                            //     $getTransactionVariant[$k]['main_parent'] = $this->getParentVariant($getAllVariant, $gtV['id_product_variant']);
+                            // }
+                            // foreach ($getVariant as $v){
+                            //     $search = array_search($v['id_product_variant'], array_column($getTransactionVariant, 'main_parent'));
+                            //     if($search !== false){
+                            //         $htmlBundling .= '<td>'.$getTransactionVariant[$search]['product_variant_name'].'</td>';
+                            //     }else{
+                            //         $htmlBundling .= '<td></td>';
+                            //     }
+                            // }
                             $totalModPrice = $totalModPrice + $priceMod;
                             $htmlBundling .= '<td></td>';
                             $htmlBundling .= '<td>'.implode(",",$modifierGroupText).'</td>';
@@ -1907,25 +1938,25 @@ class ApiTransaction extends Controller
                             }
                             $html .= '<tr>';
                             $html .= $sameData;
-                            $html .= '<td>'.$val['name_brand'].'</td>';
-                            $html .= '<td>'.$val['product_category_name'].'</td>';
+                            // $html .= '<td>'.$val['name_brand'].'</td>';
+                            // $html .= '<td>'.$val['product_category_name'].'</td>';
                             if(isset($post['show_product_code']) && $post['show_product_code'] == 1){
                                 $html .= '<td>'.$productCode.'</td>';
                             }
                             $html .= '<td>'.$val['product_name'].'</td>';
-                            $getTransactionVariant = TransactionProductVariant::join('product_variants as pv', 'pv.id_product_variant', 'transaction_product_variants.id_product_variant')
-                                ->where('id_transaction_product', $val['id_transaction_product'])->select('pv.*')->get()->toArray();
-                            foreach ($getTransactionVariant as $k=>$gtV){
-                                $getTransactionVariant[$k]['main_parent'] = $this->getParentVariant($getAllVariant, $gtV['id_product_variant']);
-                            }
-                            foreach ($getVariant as $v){
-                                $search = array_search($v['id_product_variant'], array_column($getTransactionVariant, 'main_parent'));
-                                if($search !== false){
-                                    $html .= '<td>'.$getTransactionVariant[$search]['product_variant_name'].'</td>';
-                                }else{
-                                    $html .= '<td></td>';
-                                }
-                            }
+                            // $getTransactionVariant = TransactionProductVariant::join('product_variants as pv', 'pv.id_product_variant', 'transaction_product_variants.id_product_variant')
+                            //     ->where('id_transaction_product', $val['id_transaction_product'])->select('pv.*')->get()->toArray();
+                            // foreach ($getTransactionVariant as $k=>$gtV){
+                            //     $getTransactionVariant[$k]['main_parent'] = $this->getParentVariant($getAllVariant, $gtV['id_product_variant']);
+                            // }
+                            // foreach ($getVariant as $v){
+                            //     $search = array_search($v['id_product_variant'], array_column($getTransactionVariant, 'main_parent'));
+                            //     if($search !== false){
+                            //         $html .= '<td>'.$getTransactionVariant[$search]['product_variant_name'].'</td>';
+                            //     }else{
+                            //         $html .= '<td></td>';
+                            //     }
+                            // }
                             $priceProd = $val['transaction_product_price']+(float)$val['transaction_variant_subtotal']+$modifierGroupPrice;
                             $html .= '<td></td>';
                             $html .= '<td>'.implode(",",$modifierGroupText).'</td>';
@@ -2117,7 +2148,7 @@ class ApiTransaction extends Controller
                         }
 
                         $promoNamePaymentGateway = (empty($val['promo_payment_gateway_name']) ? "": $val['promo_payment_gateway_name']);
-                        $nominalPromoPaymentGateway =  $val['total_received_cashback'];
+                        // $nominalPromoPaymentGateway =  $val['total_received_cashback'];
                         if(!empty($promoNamePaymentGateway)) {
                             $html .= '<tr>';
                             $html .= $sameData;
@@ -2156,7 +2187,7 @@ class ApiTransaction extends Controller
                         $html .= '<td></td>';
                         $html .= '<td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>';
                         $html .= '<td>'.($val['transaction_grandtotal']-$sub).'</td>';
-                        $html .= '<td>'.(float)$val['fee_item'].'</td>';
+                        // $html .= '<td>'.(float)$val['fee_item'].'</td>';
                         $html .= '<td>'.(float)$paymentCharge.'</td>';
                         if(isset($post['show_another_income']) && $post['show_another_income'] == 1) {
                             $html .= '<td>' . (float)$val['discount_central'] . '</td>';
@@ -2164,17 +2195,17 @@ class ApiTransaction extends Controller
                             $html .= '<td>' . (float)$val['bundling_product_fee_central'] . '</td>';
                             $html .= '<td>' . (float)$val['fee_promo_payment_gateway_central'] . '</td>';
                         }
-                        $html .= '<td>'.(float)$val['income_outlet'].'</td>';
+                        // $html .= '<td>'.(float)$val['income_outlet'].'</td>';
                         $html .= '<td>'.$payment.'</td>';
                         $html .= '<td>'.abs($poinUse).'</td>';
                         $html .= '<td>'.$val['transaction_cashback_earned'].'</td>';
                         $html .= '<td>'.$pointRefund.'</td>';
                         $html .= '<td>'.$paymentRefund.'</td>';
                         $html .= '<td>'.(!empty($deliveryPrice)  ? 'Delivery' : $val['trasaction_type']).'</td>';
-                        $html .= '<td>'.($val['receive_at'] == null ? '' : date('d M Y H:i:s', strtotime($val['receive_at']))).'</td>';
-                        $html .= '<td>'.($val['ready_at'] == null ? '' : date('d M Y H:i:s', strtotime($val['ready_at']))).'</td>';
-                        $html .= '<td>'.($val['taken_at'] == null ? '' : date('d M Y H:i:s', strtotime($val['taken_at']))).'</td>';
-                        $html .= '<td>'.($val['arrived_at'] == null ? '' : date('d M Y H:i:s', strtotime($val['arrived_at']))).'</td>';
+                        // $html .= '<td>'.($val['receive_at'] == null ? '' : date('d M Y H:i:s', strtotime($val['receive_at']))).'</td>';
+                        // $html .= '<td>'.($val['ready_at'] == null ? '' : date('d M Y H:i:s', strtotime($val['ready_at']))).'</td>';
+                        // $html .= '<td>'.($val['taken_at'] == null ? '' : date('d M Y H:i:s', strtotime($val['taken_at']))).'</td>';
+                        // $html .= '<td>'.($val['arrived_at'] == null ? '' : date('d M Y H:i:s', strtotime($val['arrived_at']))).'</td>';
                         $html .= '</tr>';
                     }
                 }
@@ -2563,9 +2594,123 @@ class ApiTransaction extends Controller
             return $this->getParentVariant($arr, $arr[$key]['id_parent']);
         }
     }
-
-
     public function transactionDetail(TransactionDetail $request){
+        $trans_outlet_service = new ApiTransactionOutletService;
+        if ($request->json('transaction_receipt_number') !== null) {
+            $trx = Transaction::where(['transaction_receipt_number' => $request->json('transaction_receipt_number')])->first();
+            if($trx) {
+                $id = $trx->id_transaction;
+            } else {
+                return MyHelper::checkGet([]);
+            }
+        } else {
+            $id = $request->json('id_transaction');
+        }
+
+        $trx = Transaction::where(['transactions.id_transaction' => $id])
+        		->leftJoin('transaction_outlet_services','transaction_outlet_services.id_transaction','=','transactions.id_transaction')
+        		->first();
+
+        if(!$trx){
+            return MyHelper::checkGet($trx);
+        }
+
+        $trxProducts = $trans_outlet_service->transactionProduct($trx);
+        $trx['product_transaction'] = $trxProducts['product'];
+        $productCount = $trxProducts['count'];
+
+        $trxProductServices = $trans_outlet_service->transactionProductService($trx);
+        $trx['product_service_transaction'] = $trxProductServices['product_service'];
+        $productServiceCount = $trxProductServices['count'];
+
+    	$cart = $trx['transaction_subtotal'] + $trx['transaction_shipment'] + $trx['transaction_service'] + $trx['transaction_tax'] - $trx['transaction_discount'];
+    	$trx['transaction_carttotal'] = $cart;
+        $trx['transaction_item_total'] = $productCount;
+        $trx['transaction_item_service_total'] = $productServiceCount;
+
+        $trxPayment = $trans_outlet_service->transactionPayment($trx);
+        $trx['payment'] = $trxPayment['payment'];
+
+        $trx->load('user','outlet');
+        $result = [
+            'id_transaction'                => $trx['id_transaction'],
+            'transaction_receipt_number'    => $trx['transaction_receipt_number'],
+            'receipt_qrcode' 						=> 'https://chart.googleapis.com/chart?chl=' . $trx['transaction_receipt_number'] . '&chs=250x250&cht=qr&chld=H%7C0',
+            'transaction_date'              => date('d M Y H:i', strtotime($trx['transaction_date'])),
+            'trasaction_type'               => $trx['trasaction_type'],
+            'transaction_grandtotal'        => MyHelper::requestNumber($trx['transaction_grandtotal'],'_CURRENCY'),
+            'transaction_subtotal'          => MyHelper::requestNumber($trx['transaction_subtotal'],'_CURRENCY'),
+            'transaction_discount'          => MyHelper::requestNumber($trx['transaction_discount'],'_CURRENCY'),
+            'transaction_cashback_earned'   => MyHelper::requestNumber($trx['transaction_cashback_earned'],'_POINT'),
+            'trasaction_payment_type'       => $trx['trasaction_payment_type'],
+            'transaction_payment_status'    => $trx['transaction_payment_status'],
+            'pickup_at'                     => $trx['pickup_at'],
+            'completed_at'                  => $trx['completed_at'],
+            'reject_at'                     => $trx['reject_at'],
+            'continue_payment'              => $trxPayment['continue_payment'],
+            'payment_gateway'               => $trxPayment['payment_gateway'],
+            'payment_type'                  => $trxPayment['payment_type'],
+            'payment_redirect_url'          => $trxPayment['payment_redirect_url'],
+            'payment_redirect_url_app'      => $trxPayment['payment_redirect_url_app'],
+            'payment_token'                 => $trxPayment['payment_token'],
+            'total_payment'                 => (int) $trxPayment['total_payment'],
+            'timer_shopeepay'               => $trxPayment['timer_shopeepay'],
+            'message_timeout_shopeepay'     => $trxPayment['message_timeout_shopeepay'],
+            'outlet'                        => [
+                'outlet_name'    => $trx['outlet']['outlet_name'],
+                'outlet_address' => $trx['outlet']['outlet_address']
+            ],
+            'user'							=> [
+                'phone' => $trx['user']['phone'],
+	            'name' 	=> $trx['user']['name'],
+	            'email' => $trx['user']['email']
+            ],
+
+        ];
+
+        $lastLog = LogInvalidTransaction::where('id_transaction', $trx['id_transaction'])->orderBy('updated_at', 'desc')->first();
+
+        $result['image_invalid_flag'] = NULL;
+        if(!empty($trx['image_invalid_flag'])){
+            $result['image_invalid_flag'] =  config('url.storage_url_api').$trx['image_invalid_flag'];
+        }
+
+        $result['transaction_flag_invalid'] =  $trx['transaction_flag_invalid'];
+        $result['flag_reason'] =  $lastLog['reason'] ?? '';
+
+        $formatedTrxProduct = $trans_outlet_service->formatTransactionProduct($trx);
+        $trx['total_product_qty'] = $formatedTrxProduct['qty'];
+        $result['product_transaction'] = $formatedTrxProduct['result'] ?? [];
+
+        $formatedTrxProductService = $trans_outlet_service->formatTransactionProductService($trx);
+        $trx['total_product_service_qty'] = $formatedTrxProductService['qty'];
+        $result['product_service_transaction'] = $formatedTrxProductService['result'] ?? [];
+
+        $result['payment_detail'] = $trans_outlet_service->transactionPaymentDetail($trx);
+
+        if(!isset($trx['payment'])){
+            $result['transaction_payment'] = null;
+        }else{
+            foreach ($trx['payment'] as $key => $value) {
+                if ($value['name'] == 'Balance') {
+                    $result['transaction_payment'][$key] = [
+                        'name'      => (env('POINT_NAME')) ? env('POINT_NAME') : $value['name'],
+                        'is_balance'=> 1,
+                        'amount'    => MyHelper::requestNumber($value['amount'],'_POINT')
+                    ];
+                } else {
+                    $result['transaction_payment'][$key] = [
+                        'name'      => $value['name'],
+                        'amount'    => MyHelper::requestNumber($value['amount'],'_CURRENCY')
+                    ];
+                }
+            }
+        }
+        
+        return MyHelper::checkGet($result);
+    }
+
+    public function transactionDetailOld(TransactionDetail $request){
         if ($request->json('transaction_receipt_number') !== null) {
             $trx = Transaction::where(['transaction_receipt_number' => $request->json('transaction_receipt_number')])->first();
             if($trx) {
@@ -5491,6 +5636,14 @@ class ApiTransaction extends Controller
     		}
     	}
 
+    	$paymentMethodDetail = null;
+    	if ($paymentMethod) {
+	    	$paymentMethodDetail = [
+	            'text'  => 'Metode Pembayaran',
+	            'value' => $paymentMethod
+	        ];
+    	}
+
     	$paymentCashCode = null;
     	if ($detail['transaction_payment_status'] == 'Pending' && $detail['trasaction_payment_type'] == 'Cash') {
     		$paymentCash = TransactionPaymentCash::where('id_transaction', $detail['id_transaction'])->first();
@@ -5519,7 +5672,8 @@ class ApiTransaction extends Controller
 			'brand' => $brand,
 			'service' => $services,
 			'product' => $products,
-			'payment_detail' => $paymentDetail
+			'payment_detail' => $paymentDetail,
+			'payment_method_detail' => $paymentMethodDetail
 		];
 		
 		return MyHelper::checkGet($res);
@@ -5693,6 +5847,8 @@ class ApiTransaction extends Controller
 				$services[] = [
 					'id_user_hair_stylist' => $hairstylist['id_user_hair_stylist'],
 					'hairstylist_name' => $hairstylist['nickname'],
+                    'hairstylist_phone_number' => $hairstylist['phone_number'],
+                    'hairstylist_photo' => $hairstylist['user_hair_stylist_photo'],
 					'schedule_date' => MyHelper::dateFormatInd($detail['schedule_date'], true, false),
 					'schedule_time' => date('H:i', strtotime($detail['schedule_time'])),
 					'product_name' => $product['product']['product_name'],
@@ -5750,6 +5906,14 @@ class ApiTransaction extends Controller
     		}
     	}
 
+    	$paymentMethodDetail = null;
+    	if ($paymentMethod) {
+	    	$paymentMethodDetail = [
+	            'text'  => 'Metode Pembayaran',
+	            'value' => $paymentMethod
+	        ];
+    	}
+
     	$homeDetail = [
     		'preference_hair_stylist' => $detail['preference_hair_stylist'],
     		'destination_phone' => $detail['destination_phone'],
@@ -5786,9 +5950,101 @@ class ApiTransaction extends Controller
 			'service' => $services,
 			'product' => null,
 			'payment_detail' => $paymentDetail,
+			'payment_method_detail' => $paymentMethodDetail,
 			'home_service_detail' => $homeDetail
 		];
 		
 		return MyHelper::checkGet($res);
+    }
+
+    public function CronICountPOO(Request $request) {
+        $log = MyHelper::logCron('Create Order POO Icount');
+        try{
+            $date_now = date('Y-m-d');
+            $date_trans = date('Y-m-d', strtotime('-1 days', strtotime($date_now)));
+            $outlets_mid = Outlet::join('locations','locations.id_branch','=','outlets.id_branch')
+                            ->join('transactions','transactions.id_outlet','=','outlets.id_outlet')
+                            ->leftJoin('partners','partners.id_partner','=','locations.id_partner'); 
+
+            $outlets_xen = Outlet::join('locations','locations.id_branch','=','outlets.id_branch')
+                            ->join('transactions','transactions.id_outlet','=','outlets.id_outlet')
+                            ->leftJoin('partners','partners.id_partner','=','locations.id_partner'); 
+
+            $outlets_mid->join('transaction_payment_midtrans','transaction_payment_midtrans.id_transaction','=','transactions.id_transaction')->whereDate('transactions.transaction_date', '=', $date_trans);
+            $outlets_mid->select('outlets.*','partners.*','locations.*','transaction_payment_midtrans.id_transaction_payment','transaction_payment_midtrans.payment_type')->groupBy('outlets.id_outlet','transaction_payment_midtrans.payment_type')->orderBy('outlets.id_outlet', 'DESC');
+            $outlets_mid =  $outlets_mid->get()->toArray();
+
+            $outlets_xen->join('transaction_payment_xendits','transaction_payment_xendits.id_transaction','=','transactions.id_transaction')->whereDate('transactions.transaction_date', '=', $date_trans);
+            $outlets_xen->select('outlets.*','partners.*','locations.*','transaction_payment_xendits.id_transaction_payment_xendit','transaction_payment_xendits.type')->groupBy('outlets.id_outlet','transaction_payment_xendits.type')->orderBy('outlets.id_outlet', 'DESC');
+            $outlets_xen =  $outlets_xen->get()->toArray();
+
+            $outlets = [];
+            if($outlets_mid){
+                foreach($outlets_mid as $key => $mid){
+                    if(isset($mid) && !empty($mid)){
+                        $outlets[$key] = $mid;
+                    }
+                }
+            }   
+            $index_outlets = count($outlets);
+            if($outlets_xen){
+                foreach($outlets_xen as $xen){
+                    if(isset($xen) && !empty($xen)){
+                        $outlets[$index_outlets] = $xen;
+                        $index_outlets++;
+                    }
+                }
+            }
+            $i = 0;
+            foreach($outlets as $key => $outlet){
+                $transaction = Transaction::join('transaction_outlet_services','transaction_outlet_services.id_transaction','=','transactions.id_transaction')
+                                ->leftJoin('outlets','outlets.id_outlet','=','transactions.id_outlet')
+                                ->leftJoin('transaction_products','transaction_products.id_transaction','transactions.id_transaction')
+                                ->leftJoin('users','transactions.id_user','=','users.id')
+                                ->leftJoin('products','products.id_product','=','transaction_products.id_product');
+                if(isset($outlet['id_transaction_payment'])){
+                    $transaction->join('transaction_payment_midtrans','transaction_payment_midtrans.id_transaction','=','transactions.id_transaction');
+                    $group = 'transaction_payment_midtrans.payment_type';
+                }else{
+                    $transaction->join('transaction_payment_xendits','transaction_payment_xendits.id_transaction','=','transactions.id_transaction');
+                    $group = 'transaction_payment_xendits.type';
+                }
+                $transaction->whereDate('transactions.transaction_date', '=', $date_trans)->where('outlets.id_outlet', '=', $outlet['id_outlet']);
+                if(isset($outlet['id_transaction_payment'])){
+                    $transaction->where('transaction_payment_midtrans.payment_type', '=', $outlet['payment_type']);
+                }else{
+                    $transaction->where('transaction_payment_xendits.type', '=', $outlet['type']);
+                }
+                $transaction->select('transactions.*','transaction_outlet_services.*','transaction_products.*','products.*','outlets.outlet_code', 'outlets.outlet_name',
+                                DB::raw('
+                                        SUM(
+                                        CASE WHEN transactions.transaction_discount_item IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_item) 
+                                        WHEN transactions.transaction_discount IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount)
+                                        ELSE 0 END
+                                        ) as discRp
+                                    '))
+                            ->groupBy('transactions.id_transaction',$group);  
+
+                $outlets[$key]['trans_date'] = $date_trans;
+                $outlets[$key]['due_date'] = $date_trans;
+                $transaction->orderBy('transactions.id_transaction', 'DESC');
+                $transaction = $transaction->get()->toArray();
+
+                if($transaction){
+                    $outlets[$key]['transaction'] = $transaction;
+                    $create_order_poo[$i] = Icount::ApiCreateOrderPOO($outlets[$key]);
+                }else{
+                    unset($outlets[$key]);
+                }
+                $i++;
+            }
+
+            $log->success('success');
+            return response()->json(['status' => 'success','data' => $create_order_poo]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $log->fail($e->getMessage());
+        }      
     }
 }

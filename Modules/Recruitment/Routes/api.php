@@ -42,6 +42,13 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
 		    Route::post('create', ['middleware' => 'feature_control:370', 'uses' =>'ApiAnnouncement@createAnnouncement']);
 		    Route::post('delete', ['middleware' => 'feature_control:372', 'uses' =>'ApiAnnouncement@deleteAnnouncement']);
     	});
+    	Route::group(['prefix' => 'group'], function () {
+                    Route::get('/', ['middleware' => 'feature_control:393','uses' =>'ApiHairStylistGroupController@index']);
+                    Route::post('create', ['middleware' => 'feature_control:394','uses' =>'ApiHairStylistGroupController@create']);
+		    Route::post('update', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupController@update']);
+		    Route::post('detail', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@detail']);
+//		    Route::post('delete', ['middleware' => 'feature_control:372', 'uses' =>'ApiAnnouncement@deleteAnnouncement']);
+    	});
     });
 });
 
@@ -91,8 +98,22 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
     	});
 
         Route::group(['prefix' => 'home-service'], function () {
+            Route::post('update-location', 'ApiMitraHomeService@setHSLocation');
             Route::post('update-status', 'ApiMitraHomeService@activeInactiveHomeService');
+            Route::post('list-order', 'ApiMitraHomeService@listOrder');
+            Route::post('detail-order', 'ApiMitraHomeService@detailOrder');
+            Route::post('detail-service', 'ApiMitraHomeService@detailOrderService');
+            Route::post('action', 'ApiMitraHomeService@action');
         });
+
+        Route::get('balance-detail', 'ApiMitra@balanceDetail');
+        Route::get('balance-history', 'ApiMitra@balanceHistory');
+        Route::post('cash/transfer/detail', 'ApiMitra@transferCashDetail');
+        Route::post('cash/transfer/create', 'ApiMitra@transferCashCreate');
+        Route::post('cash/transfer/history', 'ApiMitra@transferCashHistory');
+
+        //Cash flow for SPV
+        Route::post('income/detail', 'ApiMitra@incomeDetail');
 	});
 
     Route::group(['middleware' => ['auth:api'],'prefix' => 'request'], function () {
@@ -106,8 +127,4 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
     });
 
 
-});
-
-Route::group(['middleware' => ['log_activities', 'user_agent', 'auth:mitra', 'scopes:mitra-apps'], 'prefix' => 'mitra'], function () {
-    Route::post('home-service/update-location', 'ApiMitraHomeService@setHSLocation');
 });

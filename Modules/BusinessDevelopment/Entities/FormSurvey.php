@@ -11,6 +11,7 @@ class FormSurvey extends Model
 
 	protected $fillable = [
         'id_partner',
+        'id_location',
 		'survey',
         'surveyor',
         'potential',

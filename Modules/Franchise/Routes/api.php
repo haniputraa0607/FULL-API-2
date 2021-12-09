@@ -49,16 +49,6 @@ Route::group(['prefix' => 'franchise'], function () {
         });
         Route::post('profile-admin', 'ApiUserFranchiseController@updateProfile');
 
-        Route::group(['prefix' => 'transaction'], function () {
-		    Route::any('filter', 'ApiTransactionFranchiseController@transactionFilter');
-		    Route::post('detail', ['uses' => '\Modules\Transaction\Http\Controllers\ApiTransaction@transactionDetail']);
-
-		    Route::get('export','ApiTransactionFranchiseController@listExport');
-	        Route::post('export','ApiTransactionFranchiseController@newExport');
-	        Route::delete('export/{export_queue}','ApiTransactionFranchiseController@destroyExport');
-	        Route::any('export/action', 'ApiTransactionFranchiseController@actionExport');
-		});
-
 		Route::group(['prefix' => 'product'], function() {
             Route::post('list','ApiTransactionFranchiseController@listProduct');
 		    Route::post('category/list','ApiTransactionFranchiseController@listProductCategory');
@@ -84,11 +74,6 @@ Route::group(['prefix' => 'franchise'], function () {
             Route::get('list-bank', 'ApiReportDisburseController@listBank');
         });
 
-        Route::group(['prefix' => 'report-sales'], function() {
-            Route::post('summary', 'ApiReportSalesController@summary');
-            Route::post('list', 'ApiReportSalesController@listDaily');
-        });
-
         Route::group(['prefix' => 'report-promo'], function() {
             Route::post('detail', 'ApiReportPromoController@detailPromo');
             Route::post('{promo}', 'ApiReportPromoController@listPromoV2');
@@ -104,7 +89,25 @@ Route::group(['prefix' => 'franchise'], function () {
             Route::any('bank', ['uses' => '\Modules\Disburse\Http\Controllers\ApiDisburseSettingController@getBank']);
         });
 
-        Route::get('select-list/{table}','ApiReportTransactionController@listForSelect');
+    });
+
+    Route::group(['middleware' => ['auth:partners', 'scopes:partners']], function () {
+        Route::group(['prefix' => 'report-sales'], function() {
+            Route::group(['prefix' => 'outlet'], function() {
+                Route::post('summary', 'ApiReportSalesController@outletSummary');
+                Route::post('list', 'ApiReportSalesController@outletListDaily');
+            });
+        });
+        
+        Route::group(['prefix' => 'transaction'], function () {
+		    Route::any('filter', 'ApiTransactionFranchiseController@transactionFilter');
+		    Route::post('detail', ['uses' => '\Modules\Transaction\Http\Controllers\ApiTransaction@transactionDetail']);
+
+		    Route::get('export','ApiTransactionFranchiseController@listExport');
+	        Route::post('export','ApiTransactionFranchiseController@newExport');
+	        Route::delete('export/{export_queue}','ApiTransactionFranchiseController@destroyExport');
+	        Route::any('export/action', 'ApiTransactionFranchiseController@actionExport');
+		});
 
         Route::group(['prefix' => 'report-transaction'], function() {
             Route::prefix('product')->group(function(){
@@ -115,6 +118,14 @@ Route::group(['prefix' => 'franchise'], function () {
                 Route::delete('export/{export_queue}','ApiReportTransactionController@destroyProductExport');
                 Route::any('export/action', 'ApiReportTransactionController@actionProductExport');
             });
+            Route::prefix('service')->group(function(){
+                Route::post('/', 'ApiReportTransactionController@productService');
+                Route::post('summary', 'ApiReportTransactionController@productSummaryService');
+                Route::get('export','ApiReportTransactionController@listProductExportService');
+                Route::post('export','ApiReportTransactionController@newProductExportService');
+                Route::delete('export/{export_queue}','ApiReportTransactionController@destroyProductExportService');
+                Route::any('export/action', 'ApiReportTransactionController@actionProductExportService');
+            });
             Route::prefix('modifier')->group(function(){
                 Route::post('/', 'ApiReportTransactionController@modifier');
                 Route::post('summary', 'ApiReportTransactionController@modifierSummary');
@@ -124,5 +135,8 @@ Route::group(['prefix' => 'franchise'], function () {
                 Route::any('export/action', 'ApiReportTransactionController@actionModifierExport');
             });
         });
+
+        Route::get('select-list/{table}','ApiReportTransactionController@listForSelect');
+
     });
 });

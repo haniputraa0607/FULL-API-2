@@ -4,7 +4,7 @@ namespace Modules\Transaction\Entities;
 
 use Illuminate\Database\Eloquent\Model;
 
-class TransactionOutletService extends Model
+class TransactionOutletService extends \App\Http\Models\Template\TransactionService
 {
     protected $table = 'transaction_outlet_services';
 
@@ -27,4 +27,12 @@ class TransactionOutletService extends Model
 		return $this->belongsTo(\App\Http\Models\Transaction::class, 'id_transaction');
 	}
 
+    public function triggerPaymentCancelled($data = [])
+    {
+        //remove hs from table not available
+        $idTrxProductService = TransactionProductService::where('id_transaction', $this->id_transaction)->pluck('id_transaction_product_service')->toArray();
+        if(!empty($idTrxProductService)){
+            HairstylistNotAvailable::whereIn('id_transaction_product_service', $idTrxProductService)->delete();
+        }
+    }
 }

@@ -16,7 +16,7 @@ use Modules\Product\Entities\ProductDetail;
 use Modules\ProductService\Entities\ProductServiceUse;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Transaction\Entities\TransactionHomeService;
-use Modules\Transaction\Entities\TransactionHomeServiceHairStylistReject;
+use Modules\Transaction\Entities\TransactionHomeServiceHairStylistFinding;
 use Modules\Transaction\Entities\TransactionHomeServiceStatusUpdate;
 use Modules\Users\Http\Controllers\ApiUser;
 use App\Http\Models\Transaction;
@@ -47,74 +47,78 @@ class FindingHairStylistHomeService implements ShouldQueue
     public function handle()
     {
         $data = $this->data;
-        $arrHS = $data['arr_id_hs'];
-        $trx = Transaction::where('id_transaction', $data['id_transaction'])->first();
+        $arrHS = TransactionHomeServiceHairStylistFinding::where('id_transaction', $data['id_transaction'])->pluck('id_user_hair_stylist')->toArray();
+        $trx = Transaction::where('id_transaction', $data['id_transaction'])->with('user')->first();
 
-        if($trx['transaction_payment_status'] == 'Pending'){
-            FindingHairStylistHomeService::dispatch(['id_transaction' => $data['id_transaction'], 'id_transaction_home_service' => $data['id_transaction_home_service'],'arr_id_hs' => $arrHS])->allOnConnection('findinghairstylistqueue');
-        }elseif($trx['transaction_payment_status'] == 'Completed'){
-            TransactionHomeService::where('id_transaction_home_service', $data['id_transaction_home_service'])->update(['status' => 'Finding Hair Stylist']);
-            TransactionHomeServiceStatusUpdate::create(['id_transaction' => $data['id_transaction'],'status' => 'Finding Hair Stylist']);
-
+        if($trx['transaction_payment_status'] == 'Completed'){
             $trxProduct = TransactionProduct::where('id_transaction', $data['id_transaction'])->get()->toArray();
             $trxHomeService = TransactionHomeService::where('id_transaction_home_service', $data['id_transaction_home_service'])->first();
             $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
             $outlet = Outlet::where('id_outlet', $outletHomeService)->first();
             $getHs = null;
 
-            $hsReject = TransactionHomeServiceHairStylistReject::where('id_transaction', $data['id_transaction'])->pluck('id_user_hair_stylist')->toArray();
-            foreach ($arrHS as $idHs){
-                $err = [];
-                foreach ($trxProduct as $key=>$item){
-                    $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
-                        ->select('products.*', 'product_global_price as product_price')
-                        ->where('products.id_product', $item['id_product'])
-                        ->with('product_service_use')
-                        ->first();
+            TransactionHomeService::where('id_transaction_home_service', $data['id_transaction_home_service'])->update(['status' => 'Finding Hair Stylist']);
+            if($trxHomeService['counter_finding_hair_stylist'] == 0){
+                $updateStatus = TransactionHomeServiceStatusUpdate::create(['id_transaction' => $data['id_transaction'],'status' => 'Finding Hair Stylist']);
+            }
 
-                    $hs = UserHairStylist::where('id_user_hair_stylist', $idHs)->where('user_hair_stylist_status', 'Active')->first();
-                    if(empty($hs)){
-                        $err[] = "Outlet hair stylist not found";
-                        continue;
-                    }
+            $hsReject = TransactionHomeServiceHairStylistFinding::where('id_transaction', $data['id_transaction'])->where('status', 'Reject')->pluck('id_user_hair_stylist')->toArray();
+            if($trxHomeService['preference_hair_stylist'] == 'Favorite'){
+                $getHs = $arrHS[0]??null;
+            }else{
+                foreach ($arrHS as $idHs){
+                    $err = [];
+                    foreach ($trxProduct as $key=>$item){
+                        $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
+                            ->select('products.*', 'product_global_price as product_price')
+                            ->where('products.id_product', $item['id_product'])
+                            ->with('product_service_use')
+                            ->first();
 
-                    if(!empty($service['product_service_use'])){
-                        $getProductUse = ProductServiceUse::join('product_detail', 'product_detail.id_product', 'product_service_use.id_product')
-                            ->where('product_service_use.id_product_service', $service['id_product'])
-                            ->where('product_detail.id_outlet', $outlet['id_outlet'])->get()->toArray();
-                        if(count($service['product_service_use']) != count($getProductUse)){
-                            $err[] = 'Stok habis';
+                        $hs = UserHairStylist::where('id_user_hair_stylist', $idHs)->where('user_hair_stylist_status', 'Active')->first();
+                        if(empty($hs)){
+                            $err[] = "Outlet hair stylist not found";
                             continue;
                         }
 
-                        foreach ($getProductUse as $stock){
-                            $use = $stock['quantity_use'] * $item['transaction_product_qty'];
-                            if($use > $stock['product_detail_stock_service']){
+                        if(!empty($service['product_service_use'])){
+                            $getProductUse = ProductServiceUse::join('product_detail', 'product_detail.id_product', 'product_service_use.id_product')
+                                ->where('product_service_use.id_product_service', $service['id_product'])
+                                ->where('product_detail.id_outlet', $outlet['id_outlet'])->get()->toArray();
+                            if(count($service['product_service_use']) != count($getProductUse)){
                                 $err[] = 'Stok habis';
                                 continue;
                             }
+
+                            foreach ($getProductUse as $stock){
+                                $use = $stock['quantity_use'] * $item['transaction_product_qty'];
+                                if($use > $stock['product_detail_stock_service']){
+                                    $err[] = 'Stok habis';
+                                    continue;
+                                }
+                            }
+                        }
+
+                        $getProductDetail = ProductDetail::where('id_product', $service['id_product'])->where('id_outlet', $outlet['id_outlet'])->first();
+                        $service['visibility_outlet'] = $getProductDetail['product_detail_visibility']??null;
+
+                        if($service['visibility_outlet'] == 'Hidden' || (empty($service['visibility_outlet']) && $service['product_visibility'] == 'Hidden')){
+                            $err[] = 'Service tidak tersedia';
+                            continue;
+                        }
+
+                        if(empty($service['product_price'])){
+                            $err[] = 'Service tidak tersedia';
+                            continue;
                         }
                     }
 
-                    $getProductDetail = ProductDetail::where('id_product', $service['id_product'])->where('id_outlet', $outlet['id_outlet'])->first();
-                    $service['visibility_outlet'] = $getProductDetail['product_detail_visibility']??null;
-
-                    if($service['visibility_outlet'] == 'Hidden' || (empty($service['visibility_outlet']) && $service['product_visibility'] == 'Hidden')){
-                        $err[] = 'Service tidak tersedia';
-                        continue;
-                    }
-
-                    if(empty($service['product_price'])){
-                        $err[] = 'Service tidak tersedia';
-                        continue;
-                    }
-                }
-
-                if(empty($err)){
-                    $check = array_search($idHs,$hsReject);
-                    if($check === false){
-                        $getHs = $idHs;
-                        break;
+                    if(empty($err)){
+                        $check = array_search($idHs,$hsReject);
+                        if($check === false){
+                            $getHs = $idHs;
+                            break;
+                        }
                     }
                 }
             }
@@ -122,24 +126,65 @@ class FindingHairStylistHomeService implements ShouldQueue
             if(!empty($getHs)){
                 $update = TransactionHomeService::where('id_transaction_home_service', $data['id_transaction_home_service'])
                     ->update([
+                        'latest_status_id' => $updateStatus['id_transaction_home_service_update']??null,
+                        'latest_status' => $updateStatus['status']??null,
                         'id_user_hair_stylist' => $getHs,
                         'counter_finding_hair_stylist' => $trxHomeService['counter_finding_hair_stylist'] + 1
                     ]);
                 if($update){
+                    app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
+                        'Home Service Update Status',
+                        $trx['user']['phone'],
+                        [
+                            'id_transaction' => $trx['id_transaction'],
+                            'status'=> $updateStatus['status']??' ',
+                            'receipt_number' => $trx['transaction_receipt_number']
+                        ]
+                    );
+
+                    $dataHS = UserHairStylist::where('id_user_hair_stylist', $getHs)->first();
+                    app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
+                        'Home Service Mitra Get Order',
+                        $dataHS['phone_number'],
+                        [
+                            'id_transaction' => $trx['id_transaction'],
+                            'receipt_number' => $trx['transaction_receipt_number']
+                        ], null, false, false, 'hairstylist'
+                    );
+
                     app("Modules\Transaction\Http\Controllers\ApiOnlineTransaction")->bookHS($data['id_transaction']);
                     app("Modules\Transaction\Http\Controllers\ApiTransactionHomeService")->bookProductServiceStockHM($data['id_transaction']);
                 }
             }else{
-                $update = TransactionHomeService::where('id_transaction_home_service', $data['id_transaction_home_service'])->update([
+                $updateStatus = TransactionHomeServiceStatusUpdate::create([
+                    'id_transaction' => $data['id_transaction'],
                     'status' => 'Cancelled'
                 ]);
-                if($update){
-                    TransactionHomeServiceStatusUpdate::create([
-                        'id_transaction' => $data['id_transaction'],
+
+                if($updateStatus){
+                    app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
+                        'Home Service Update Status',
+                        $trx['user']['phone'],
+                        [
+                            'id_transaction' => $trx['id_transaction'],
+                            'status'=> $updateStatus['status']??' ',
+                            'receipt_number' => $trx['transaction_receipt_number']
+                        ]
+                    );
+
+                    TransactionHomeService::where('id_transaction_home_service', $data['id_transaction_home_service'])->update([
+                        'latest_status_id' => $updateStatus['id_transaction_home_service_update']??null,
+                        'latest_status' => $updateStatus['status']??null,
+                        'id_user_hair_stylist' => null,
                         'status' => 'Cancelled'
                     ]);
+
+                    TransactionHomeServiceHairStylistFinding::where('id_transaction', $data['id_transaction'])->delete();
                     app("Modules\Transaction\Http\Controllers\ApiOnlineTransaction")->cancelBookHS($data['id_transaction']);
                     app("Modules\Transaction\Http\Controllers\ApiTransactionHomeService")->cancelBookProductServiceStockHM($data['id_transaction']);
+
+                    //refund payment
+                    app('Modules\Transaction\Http\Controllers\ApiTransactionHomeService')->rejectOrder($data['id_transaction']);
                 }
             }
         }

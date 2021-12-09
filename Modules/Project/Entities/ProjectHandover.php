@@ -15,6 +15,9 @@ class ProjectHandover extends Model
         'id_project',
         'title',
         'note',
+        'tanggal_serah_terima',
+        'soft_opening',
+        'grand_opening',
         'attachment',
         'created_at',
         'updated_at'

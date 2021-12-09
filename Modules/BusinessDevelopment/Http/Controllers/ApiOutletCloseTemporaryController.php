@@ -32,11 +32,11 @@ use Modules\BusinessDevelopment\Entities\OutletCloseTemporaryStep;
 use Modules\BusinessDevelopment\Entities\OutletCloseTemporaryFormSurvey;
 use Modules\BusinessDevelopment\Entities\OutletCloseTemporaryConfirmationLetter;
 use App\Http\Models\Outlet;
-use Modules\BusinessDevelopment\Http\Requests\Outlet_CLose\CreateOutletCloseTemporaryRequest;
-use Modules\BusinessDevelopment\Http\Requests\Outlet_CLose\CreateOutletActiveRequest;
-use Modules\BusinessDevelopment\Http\Requests\Outlet_CLose\UpdateOutletCloseTemporaryRequest;
-use Modules\BusinessDevelopment\Http\Requests\Outlet_CLose\CreateLampiranCloseTemporaryRequest;
-use Modules\BusinessDevelopment\Http\Requests\Outlet_CLose\UpdateOutletCloseTemporaryActiveRequest;
+use Modules\BusinessDevelopment\Http\Requests\OutletClose\CreateOutletCloseTemporaryRequest;
+use Modules\BusinessDevelopment\Http\Requests\OutletClose\CreateOutletActiveRequest;
+use Modules\BusinessDevelopment\Http\Requests\OutletClose\UpdateOutletCloseTemporaryRequest;
+use Modules\BusinessDevelopment\Http\Requests\OutletClose\CreateLampiranCloseTemporaryRequest;
+use Modules\BusinessDevelopment\Http\Requests\OutletClose\UpdateOutletCloseTemporaryActiveRequest;
 
 class ApiOutletCloseTemporaryController extends Controller
 {
@@ -52,8 +52,7 @@ class ApiOutletCloseTemporaryController extends Controller
         $this->form_survey = "file/outlet_close_temporary/form_survey/";
     }
     public function index(Request $request){
-        $project = Outlet::join('cities','cities.id_city','outlets.id_city')
-                    ->join('locations','locations.id_city','cities.id_city')
+        $project = Outlet::join('locations','locations.id_location','outlets.id_location')
                     ->orderby('outlets.created_at','desc')->select('outlets.id_outlet','locations.id_location')->get();
                
         foreach ($project as $value) {
@@ -166,7 +165,7 @@ class ApiOutletCloseTemporaryController extends Controller
     }
     public function indexClose(Request $request){
          $store = OutletCloseTemporary::where(array('outlet_close_temporary.id_outlet'=>$request->id_outlet))->orderby('created_at','desc')->get();
-         $outlet = Outlet::where('id_outlet',$request->id_outlet)->join('locations','locations.id_location','outlets.id_location')->first();
+         $outlet = Outlet::where('id_outlet',$request->id_outlet)->join('cities','cities.id_city','outlets.id_city')->join('locations','locations.id_location','outlets.id_location')->first();
          return response()->json(['status' => 'success','result'=>array(
              'outlet'=>$outlet,
              'list'=>$store
@@ -175,6 +174,7 @@ class ApiOutletCloseTemporaryController extends Controller
     public function detailClose(Request $request){
          $store = OutletCloseTemporary::where(array('id_outlet_close_temporary'=>$request->id_outlet_close_temporary))
                  ->join('outlets','outlets.id_outlet','outlet_close_temporary.id_outlet')
+                 ->join('cities','cities.id_city','outlets.id_city')
                  ->join('locations','locations.id_location','outlets.id_location')
                  ->join('partners','partners.id_partner','locations.id_partner')
                  ->select('outlet_close_temporary.*','outlets.*','locations.id_location','locations.id_brand','partners.gender','partners.name as name_partner')
@@ -275,7 +275,7 @@ class ApiOutletCloseTemporaryController extends Controller
     public function cronActive(){
         $log = MyHelper::logCron('Cron Active Outlet Close Temporary,No Change Location');
         try {
-        $outlet = OutletCloseTemporary::where(array('status'=>"Waiting",'jenis'=>'Active'))->wheredate('date','<=',date('Y-m-d H:i:s'))->get();
+        $outlet = OutletCloseTemporary::where(array('status'=>"Waiting",'jenis'=>'Active','jenis_active'=>'No Change Location'))->wheredate('date','<=',date('Y-m-d H:i:s'))->get();
         foreach ($outlet as $value) {
             Location::join('outlets','outlets.id_location','locations.id_location')
                         ->where('outlets.id_outlet',$value['id_outlet'])
@@ -760,5 +760,32 @@ class ApiOutletCloseTemporaryController extends Controller
         
         return $text;
     }
-
+    public function update_step_status() {
+        $i = 0;
+        $data = OutletCloseTemporaryStep::where(array('follow_up'=>""))->get();
+        foreach ($data as $value) {
+            $update = OutletCloseTemporaryStep::where(array('id_outlet_close_temporary_steps'=>$value['id_outlet_close_temporary_steps']))
+                      ->update([
+                          'follow_up'=>"Follow Up"
+                      ]);
+            if($update){
+                $i++;
+            }
+        }
+        return $i;
+    }
+    public function update_step_log() {
+        $i = 0;
+        $data = StepsLog::where(array('follow_up'=>""))->get();
+        foreach ($data as $value) {
+            $update = StepsLog::where(array('id_steps_log'=>$value['id_steps_log']))
+                      ->update([
+                          'follow_up'=>"Follow Up"
+                      ]);
+            if($update){
+                $i++;
+            }
+        }
+        return $i;
+    }
 }

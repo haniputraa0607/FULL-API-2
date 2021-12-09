@@ -55,9 +55,14 @@ class Midtrans {
             'gross_amount'  => $grandTotal
         );
 
+        $payment_detail = str_replace(' ', '-', (strtolower($payment_detail)));
         $dataMidtrans = array(
             'transaction_details' => $transaction_details,
         );
+
+        if ($payment_detail) {
+            $dataMidtrans['enabled_payments'] = [$payment_detail];
+        }
 
         if (!is_null($user)) {
             $dataMidtrans['customer_details'] = $user;
@@ -76,20 +81,25 @@ class Midtrans {
         ];
 
         if ($scopeUser == 'web-apps'){
-            $dataMidtrans['gopay'] = [
-                'enable_callback' => true,
-                'callback_url' => env('MIDTRANS_CALLBACK').$outletCode.'/payment-finish'.'?id_transaction='.$id.'&result=success',
-            ];
+            $baseCallback = env('MIDTRANS_CALLBACK').$outletCode.'/payment-finish'.'?id_transaction='.$id;
+            if (!$payment_detail || $payment_detail == 'gopay') {
+                $dataMidtrans['gopay'] = [
+                    'enable_callback' => true,
+                    'callback_url' => $baseCallback.'&result=success',
+                ];
+            }
             $dataMidtrans['callbacks'] = [
-                'finish' => env('MIDTRANS_CALLBACK').$outletCode.'/payment-finish'.'?id_transaction='.$id.'&result=success',
-                'unfinish' => env('MIDTRANS_CALLBACK').$outletCode.'/payment-finish'.'?id_transaction='.$id.'&result=fail',
-                'error' => env('MIDTRANS_CALLBACK').$outletCode.'/payment-finish'.'?id_transaction='.$id.'&result=fail'
+                'finish' => $baseCallback.'&result=success',
+                'unfinish' => $baseCallback.'&result=fail',
+                'error' => $baseCallback.'&result=fail'
             ];
         }else{
-            $dataMidtrans['gopay'] = [
-                'enable_callback' => true,
-                'callback_url' => env('MIDTRANS_CALLBACK_APPS').'?order_id='.urlencode($receipt).(!empty($type)? '&type='.$type: '').(!empty($transaction_from)? '&transaction_from='.$transaction_from: ''),
-            ];
+            if (!$payment_detail || $payment_detail == 'gopay') {
+                $dataMidtrans['gopay'] = [
+                    'enable_callback' => true,
+                    'callback_url' => env('MIDTRANS_CALLBACK_APPS').'?order_id='.urlencode($receipt).(!empty($type)? '&type='.$type: '').(!empty($transaction_from)? '&transaction_from='.$transaction_from: ''),
+                ];
+            }
             $dataMidtrans['callbacks'] = [
                 'finish' => env('MIDTRANS_CALLBACK_APPS').'?result=success&'.(!empty($type)? 'type='.$type.'&': '').(!empty($transaction_from)? '&transaction_from='.$transaction_from: ''),
                 'unfinish' => env('MIDTRANS_CALLBACK_APPS').'?result=fail&'.(!empty($type)? 'type='.$type.'&': '').(!empty($transaction_from)? '&transaction_from='.$transaction_from: ''),
@@ -113,6 +123,9 @@ class Midtrans {
             \Log::error('Failed write log to LogMidtrans: ' . $e->getMessage());
         }
 
+        if (isset($token['redirect_url'])) {
+            $token['redirect_url'] .= "#/$payment_detail";
+        }
         return $token;
     }
 

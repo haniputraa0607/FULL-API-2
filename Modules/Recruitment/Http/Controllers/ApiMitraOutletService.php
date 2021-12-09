@@ -40,15 +40,16 @@ use DateTime;
 class ApiMitraOutletService extends Controller
 {
     public function __construct() {
-        date_default_timezone_set('Asia/Jakarta');
         $this->mitra = "Modules\Recruitment\Http\Controllers\ApiMitra";
         $this->trx = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
         $this->trx_outlet_service = "Modules\Transaction\Http\Controllers\ApiTransactionOutletService";
+        $this->mitra_log_balance = "Modules\Recruitment\Http\Controllers\MitraLogBalance";
     }
 
     public function customerQueue(Request $request)
     {
     	$user = $request->user();
+
     	$queue = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
 				->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
 				->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
@@ -71,11 +72,6 @@ class ApiMitraOutletService extends Controller
 		$serviceInProgress = TransactionProductService::where('service_status', 'In Progress')
 							->where('id_user_hair_stylist', $user->id_user_hair_stylist)
 							->first();
-
-		$disable = 0;
-		if ($serviceInProgress) {
-			$disable = 1;
-		}
 
  		$schedule = HairstylistSchedule::join(
 			'hairstylist_schedule_dates', 
@@ -104,6 +100,7 @@ class ApiMitraOutletService extends Controller
 			}
 
 			$timerText .= (strtotime(date('Y-m-d H:i:s')) < strtotime($val['schedule_date'] . ' ' .$val['schedule_time'])) ? ' lagi' : ' lalu';
+			$timerTextColor = (strtotime(date('Y-m-d')) == strtotime($val['schedule_date'])) ? '#FF2424' : '#121212';
 
 			$trx = Transaction::where('id_transaction', $val['id_transaction'])->first();
 			$trxPayment = app($this->trx_outlet_service)->transactionPayment($trx);
@@ -122,17 +119,29 @@ class ApiMitraOutletService extends Controller
 	    		$paymentCash = 1;
 	    	}
 
+			$disable = 0;
+			if ($serviceInProgress && $serviceInProgress['id_transaction_product_service'] != $val['id_transaction_product_service']) {
+				$disable = 1;
+			}
+
+			$scheduleDate = app($this->mitra)->convertTimezoneMitra($val['schedule_date']);
+			$scheduleDate = MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($scheduleDate)), 'j F Y');
+			$scheduleTime = app($this->mitra)->convertTimezoneMitra($val['schedule_time']);
+			$scheduleTime = date('H:i', strtotime($scheduleTime));
+
 			$resData[] = [
 				'id_transaction_product_service' => $val['id_transaction_product_service'],
 				'order_id' => $val['order_id'] ?? null,
+				'transaction_receipt_number' => $val['transaction_receipt_number'],
 				'customer_name' => $val['customer_name'],
-				'schedule_date' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($val['schedule_date'])), 'j F Y'),
-				'schedule_time' => date('H:i', strtotime($val['schedule_time'])),
+				'schedule_date' => $scheduleDate,
+				'schedule_time' => $scheduleTime,
 				'service_status' => $val['service_status'],
 				'payment_method' => $paymentMethod,
 				'product_name' => $val['product_name'],
 				'price' => $val['transaction_product_net'],
 				'timer_text' => $timerText,
+				'timer_text_color' => $timerTextColor,
 				'button_text' => $buttonText,
 				'disable' => $disable,
 				'id_outlet_box' => $schedule->id_outlet_box ?? null,
@@ -222,13 +231,40 @@ class ApiMitraOutletService extends Controller
 
     	$box = OutletBox::where('id_outlet_box', $schedule['id_outlet_box'] ?? null)->first();
 
+		$logService = TransactionProductServiceLog::whereIn('action', ['Start', 'Extend'])
+					->where('id_transaction_product_service', $queue['id_transaction_product_service'])
+					->get()->keyBy('action');
+
+		$startTime = !empty($logService['Start']['created_at'])  ? date('Y-m-d H:i:s', strtotime($logService['Start']['created_at'])) : null;
+		$extendTime = !empty($logService['Extend']['created_at'])  ? date('Y-m-d H:i:s', strtotime($logService['Extend']['created_at'])) : null;
+		
+    	$processingTime = ($queue['processing_time_service'] ?? 30) * 60; //second
+
+    	$timeLeft = 0;
+		if ($startTime) {
+			$timeLeft = $processingTime - (strtotime(date('Y-m-d H:i:s')) - strtotime($startTime));
+		}
+
+		if ($extendTime) {
+			$timeLeft = $timeLeft + $processingTime;
+		}
+
+		$timeLeft = ($timeLeft >= 1) ? $timeLeft : 0;
+
+    	$extendPopup = (Setting::where('key', 'outlet_service_extend_popup_time')->first()['value'] ?? 5) * 60;
+
+    	$scheduleDate = app($this->mitra)->convertTimezoneMitra($queue['schedule_date']);
+		$scheduleDate = MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($scheduleDate)), 'j F Y');
+		$scheduleTime = app($this->mitra)->convertTimezoneMitra($queue['schedule_time']);
+		$scheduleTime = date('H:i', strtotime($scheduleTime));
+
 		$res = [
 			'id_transaction_product_service' => $queue['id_transaction_product_service'],
 			'order_id' => $queue['order_id'] ?? null,
 			'transaction_receipt_number' => $queue['transaction_receipt_number'] ?? null,
 			'customer_name' => $queue['customer_name'],
-			'schedule_date' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($queue['schedule_date'])), 'j F Y'),
-			'schedule_time' => date('H:i', strtotime($queue['schedule_time'])),
+			'schedule_date' => $scheduleDate,
+			'schedule_time' => $scheduleTime,
 			'service_status' => $queue['service_status'],
 			'payment_method' => $paymentMethod,
 			'product_name' => $queue['product_name'],
@@ -242,7 +278,9 @@ class ApiMitraOutletService extends Controller
 			'hairstylist_nickname' => $user['nickname'],
 			'hairstylist_fullname' => $user['fullname'],
 			'outlet_box_code' => $box['outlet_box_code'] ?? null,
-			'outlet_box_name' => $box['outlet_box_name'] ?? null
+			'outlet_box_name' => $box['outlet_box_name'] ?? null,
+			'processing_time_service' => $timeLeft,
+			'extend_popup_time' => $extendPopup
 		];
 		
 		return MyHelper::checkGet($res);
@@ -362,7 +400,14 @@ class ApiMitraOutletService extends Controller
 			];
 		}
 
-		$shift = app($this->mitra)->timeToShift(date('H:i:s'));
+		$shift = app($this->mitra)->getOutletShift($user->id_outlet);
+		if (!$shift) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Shift outlet tidak ditemukan']
+			];
+		}
+
 		$usedBox = HairstylistSchedule::join(
 			'hairstylist_schedule_dates', 
 			'hairstylist_schedules.id_hairstylist_schedule', 
@@ -485,13 +530,12 @@ class ApiMitraOutletService extends Controller
     public function extendService(Request $request)
     {
     	$user = $request->user();
-    	$service = TransactionProductService::where('id_user_hair_stylist', $user->id_user_hair_stylist)
+
+    	$service = TransactionProductService::where('transaction_product_services.id_user_hair_stylist', $user->id_user_hair_stylist)
 					->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
 					->join('products', 'transaction_products.id_product', 'products.id_product')
 					->where('id_transaction_product_service', $request->id_transaction_product_service)
 					->first();
-
-
 
 		if (!$service) {
 			return [
@@ -521,11 +565,25 @@ class ApiMitraOutletService extends Controller
 			];
 		}
 
-		$processingTime = $service->processing_time_service;
+		$processingTime = $service->processing_time_service ?? 30;
+		$startTime = TransactionProductServiceLog::where('action', 'Start')
+					->where('id_transaction_product_service', $request->id_transaction_product_service)
+					->first();
 
-		$extended = new DateTime('now +'. $processingTime .' minutes');
+		if (!$startTime) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Waktu layanan dimulai tidak ditemukan']
+			];
+		}
+
+		$timeLeft = ($processingTime * 60) -  (strtotime(date('Y-m-d H:i:s')) - strtotime(date('Y-m-d H:i:s', strtotime($startTime->created_at))));
+		$newTime = ($processingTime * 60) + $timeLeft;
+		$newTime = ($newTime >= 1) ? $newTime : 0;
+		
+		$extended = new DateTime("+".  $newTime ." seconds");
 		$extendedTime = $extended->format('H:i:s');
-
+		
     	DB::beginTransaction();
     	try {
 
@@ -541,7 +599,7 @@ class ApiMitraOutletService extends Controller
 					->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
 					->join('products', 'transaction_products.id_product', 'products.id_product')
 	    			->whereNull('service_status')
-	    			->where('id_user_hair_stylist', $user->id_user_hair_stylist)
+	    			->where('transaction_product_services.id_user_hair_stylist', $user->id_user_hair_stylist)
 	    			->where('transaction_payment_status' ,'Completed')
 	    			->whereDate('schedule_date', date('Y-m-d'))
 	    			->where('schedule_time', '<', $extendedTime)
@@ -564,7 +622,12 @@ class ApiMitraOutletService extends Controller
 			];	
     	}
 
-		return ['status' => 'success'];
+		return [
+			'status' => 'success',
+			'result' =>[
+				'extended_time' => $newTime
+			]
+		];
     }
 
     public function completeService(Request $request)
@@ -678,6 +741,7 @@ class ApiMitraOutletService extends Controller
 
     public function paymentCashDetail(Request $request){
         $post = $request->json()->all();
+        $user = $request->user();
         if(empty($post['order_id']) && empty($post['payment_code'])){
             return ['status' => 'fail', 'messages' => ['Order ID and Payment code can not be empty']];
         }
@@ -723,11 +787,12 @@ class ApiMitraOutletService extends Controller
         }
 
         $result = [
+            'current_balance' => $user->balance??0,
             'order_id' => $trx['transaction_receipt_number'],
             'transaction_subtotal' => $trx['transaction_subtotal'],
             'transaction_tax' => $trx['transaction_tax'],
-            'transaction_grandtotal' => $trx['transaction_subtotal'],
-            'transaction_date' => MyHelper::dateFormatInd($trx['transaction_date']),
+            'transaction_grandtotal' => $trx['transaction_grandtotal'],
+            'transaction_date' => MyHelper::dateFormatInd($trx['transaction_date'], true, false),
             'customer_name' => $trx['customer_name'],
             'customer_email' => $trx['customer_email'],
             'currency' => 'Rp',
@@ -757,7 +822,18 @@ class ApiMitraOutletService extends Controller
                 ->update(['cash_received_by' => $user->id_user_hair_stylist]);
 
         if($update){
-            $update = Transaction::where('id_transaction', $trx['id_transaction'])->update(['transaction_payment_status' => 'Completed']);
+            $update = Transaction::where('id_transaction', $trx['id_transaction'])
+                ->update(['transaction_payment_status' => 'Completed', 'completed_at' => date('Y-m-d H:i:s')]);
+
+            if($update){
+                $dt = [
+                    'id_user_hair_stylist'    => $user->id_user_hair_stylist,
+                    'balance'                 => $trx['transaction_grandtotal'],
+                    'id_reference'            => $trx['id_transaction'],
+                    'source'                  => 'Receive Payment'
+                ];
+                app($this->mitra_log_balance)->insertLogBalance($dt);
+            }
         }
 
         return response()->json(MyHelper::checkUpdate($update));
@@ -785,8 +861,7 @@ class ApiMitraOutletService extends Controller
             'brand_logo_landscape' => $user['outlet']['brands'][0]['logo_landscape_brand']
 		];
 
-		$timeNow = date('H:i:s');
-		$shift = app($this->mitra)->timeToShift($timeNow);
+		$shift = app($this->mitra)->getOutletShift($user->id_outlet);
 
 		$schedule = HairstylistSchedule::join(
 			'hairstylist_schedule_dates', 
@@ -942,7 +1017,14 @@ class ApiMitraOutletService extends Controller
 			];
 		}
 
-		$shift = app($this->mitra)->timeToShift(date('H:i:s'));
+		$shift = app($this->mitra)->getOutletShift($user->id_outlet);
+		if (!$shift) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Shift outlet tidak ditemukan']
+			];
+		}
+
 		$usedBox = HairstylistSchedule::join(
 			'hairstylist_schedule_dates', 
 			'hairstylist_schedules.id_hairstylist_schedule', 

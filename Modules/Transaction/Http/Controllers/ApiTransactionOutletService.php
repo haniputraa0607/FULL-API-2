@@ -9,6 +9,8 @@ use App\Lib\MyHelper;
 use Modules\Transaction\Entities\ManualRefund;
 use Modules\Transaction\Entities\TransactionPaymentCash;
 use Modules\Transaction\Entities\TransactionOutletService;
+use Modules\Transaction\Entities\TransactionProductService;
+use Modules\Transaction\Entities\TransactionProductServiceLog;
 
 use App\Http\Models\Deal;
 use App\Http\Models\TransactionProductModifier;
@@ -44,6 +46,7 @@ use App\Http\Models\LogBalance;
 use App\Http\Models\TransactionShipment;
 use App\Http\Models\TransactionPickup;
 use App\Http\Models\TransactionPaymentMidtran;
+use App\Http\Models\LogTransactionUpdate;
 use Modules\ProductVariant\Entities\ProductVariant;
 use Modules\ProductVariant\Entities\TransactionProductVariant;
 use Modules\ShopeePay\Entities\TransactionPaymentShopeePay;
@@ -56,6 +59,7 @@ use App\Http\Models\UserTrxProduct;
 use Modules\Brand\Entities\Brand;
 use Modules\Product\Entities\ProductGlobalPrice;
 use Modules\Product\Entities\ProductSpecialPrice;
+use Modules\Recruitment\Entities\UserHairStylist;
 
 use Modules\Subscription\Entities\SubscriptionUserVoucher;
 use Modules\Transaction\Entities\LogInvalidTransaction;
@@ -67,8 +71,14 @@ use Modules\ProductVariant\Entities\ProductVariantGroupSpecialPrice;
 
 use Modules\UserRating\Entities\UserRatingLog;
 
+use DB;
+
 class ApiTransactionOutletService extends Controller
 {
+	function __construct() {
+        $this->online_trx = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
+    }
+
     public function listOutletService(Request $request)
     {	
     	$list = Transaction::where('transaction_from', 'outlet-service')
@@ -93,7 +103,7 @@ class ApiTransactionOutletService extends Controller
         $countTotal = null;
 
         if ($request->rule) {
-            $countTotal = $list->count();
+            $countTotal = $list->getQuery()->getCountForPagination();
             $this->filterList($list, $request->rule, $request->operator ?: 'and');
         }
 
@@ -826,5 +836,277 @@ class ApiTransactionOutletService extends Controller
         }
 
         return $paymentDetail;
+    }
+
+    public function manageList(Request $request)
+    {	
+    	$list = Transaction::where('transaction_from', 'outlet-service')
+    			->join('transaction_outlet_services','transactions.id_transaction', 'transaction_outlet_services.id_transaction')
+	            ->join('users','transactions.id_user','=','users.id')
+	            ->join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')
+	            ->leftJoin('transaction_products','transactions.id_transaction','=','transaction_products.id_transaction')
+	            ->leftJoin('transaction_product_services','transactions.id_transaction','=','transaction_product_services.id_transaction')
+	            ->leftJoin('products','products.id_product','=','transaction_products.id_product')
+	            ->with('user')
+	            ->where('transaction_payment_status', 'Completed')
+	            ->whereNull('transaction_outlet_services.completed_at')
+	            ->select(
+	            	'transaction_product_services.*',
+	            	'transaction_outlet_services.*',
+	            	'products.*',
+	            	'transaction_products.*',
+	            	'outlets.*',
+	            	'users.*',
+	            	'transactions.*',
+	            )
+	            ->groupBy('transactions.id_transaction');
+
+        $countTotal = null;
+
+        if ($request->rule) {
+            $countTotal = $list->getQuery()->getCountForPagination();
+            $this->filterList($list, $request->rule, $request->operator ?: 'and');
+        }
+
+        if (is_array($orders = $request->order)) {
+            $columns = [
+            	'id_transaction',
+                'transaction_date',
+                'outlet_code',
+                'transaction_receipt_number', 
+                'name', 
+                'phone',
+                'transaction_grandtotal', 
+                'transaction_payment_status', 
+            ];
+
+            foreach ($orders as $column) {
+                if ($colname = ($columns[$column['column']] ?? false)) {
+                    $list->orderBy($colname, $column['dir']);
+                }
+            }
+        }
+        $list->orderBy('transactions.id_transaction', $column['dir'] ?? 'DESC');
+
+        if ($request->page) {
+            $list = $list->paginate($request->length ?: 15);
+            $list->each(function($item) {
+                $item->images = array_map(function($item) {
+                    return config('url.storage_url_api').$item;
+                }, json_decode($item->images) ?? []);
+            });
+            $list = $list->toArray();
+            if (is_null($countTotal)) {
+                $countTotal = $list['total'];
+            }
+            // needed by datatables
+            $list['recordsTotal'] = $countTotal;
+            $list['recordsFiltered'] = $list['total'];
+        } else {
+            $list = $list->get();
+        }
+        return MyHelper::checkGet($list);
+    }
+
+    public function manageDetail(Request $request, $id_transaction)
+    {
+    	$detail = Transaction::where('transaction_from', 'outlet-service')
+    			->join('transaction_outlet_services','transactions.id_transaction', 'transaction_outlet_services.id_transaction')
+    			->where('transactions.id_transaction', $id_transaction)
+    			->orderBy('transaction_date', 'desc')
+    			->with(
+    				'outlet.brands', 
+    				'transaction_outlet_service', 
+    				'transaction_products.transaction_product_service.user_hair_stylist',
+    				'transaction_products.product.photos',
+    				'user_feedbacks'
+    			)
+    			->first();
+
+		if (!$detail) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Transaction not found']
+			];
+		}
+
+		$outlet = [
+			'id_outlet' => $detail['outlet']['id_outlet'],
+			'outlet_code' => $detail['outlet']['outlet_code'],
+			'outlet_name' => $detail['outlet']['outlet_name'],
+			'outlet_address' => $detail['outlet']['outlet_address'],
+			'outlet_latitude' => $detail['outlet']['outlet_latitude'],
+			'outlet_longitude' => $detail['outlet']['outlet_longitude']
+		];
+
+		$brand = [
+			'id_brand' => $detail['outlet']['brands'][0]['id_brand'],
+			'brand_code' => $detail['outlet']['brands'][0]['code_brand'],
+			'brand_name' => $detail['outlet']['brands'][0]['name_brand'],
+			'brand_logo' => $detail['outlet']['brands'][0]['logo_brand'],
+            'brand_logo_landscape' => $detail['outlet']['brands'][0]['logo_landscape_brand']
+		];
+
+		$products = [];
+		$services = [];
+		$subtotalProduct = 0;
+		$subtotalService = 0;
+		foreach ($detail['transaction_products'] as $product) {
+			$productPhoto = config('url.storage_url_api') . ($product['product']['photos'][0]['product_photo'] ?? 'img/product/item/default.png');
+			if ($product['type'] == 'Service') {
+				$services[] = [
+					'id_user_hair_stylist' => $product['transaction_product_service']['id_user_hair_stylist'],
+					'hairstylist_name' => $product['transaction_product_service']['user_hair_stylist']['nickname'],
+					'schedule_date' => MyHelper::dateFormatInd($product['transaction_product_service']['schedule_date'], true, false),
+					'schedule_time' => date('H:i', strtotime($product['transaction_product_service']['schedule_time'])),
+					'product_name' => $product['product']['product_name'],
+					'subtotal' => $product['transaction_product_subtotal'],
+					'order_id' => $product['transaction_product_service']['order_id'],
+					'photo' => $productPhoto,
+					'detail' => $product
+				];
+
+				$subtotalService += abs($product['transaction_product_subtotal']);
+			} else {
+				$products[] = [
+					'product_name' => $product['product']['product_name'],
+					'transaction_product_qty' => $product['transaction_product_qty'],
+					'transaction_product_price' => $product['transaction_product_price'],
+					'transaction_product_subtotal' => $product['transaction_product_subtotal'],
+					'photo' => $productPhoto,
+					'detail' => $product
+				];
+				$subtotalProduct += abs($product['transaction_product_subtotal']);
+			}
+		}
+
+		if ($detail['transaction_payment_status'] == 'Pending') {
+			$status = 'unpaid';
+		} elseif ($detail['transaction_payment_status'] == 'Cancelled') {
+			$status = 'cancelled';
+		} elseif (empty($detail['completed_at']) && $detail['transaction_payment_status'] == 'Completed') {
+			$status = 'ongoing';
+		} else {
+			$status = 'completed';
+		}
+
+		$paymentDetail = [];
+        
+        $paymentDetail[] = [
+            'name'          => 'Total',
+            "is_discount"   => 0,
+            'amount'        => MyHelper::requestNumber($detail['transaction_subtotal'],'_CURRENCY')
+        ];
+
+        if (!empty($detail['transaction_tax'])) {
+	        $paymentDetail[] = [
+	            'name'          => 'Tax',
+	            "is_discount"   => 0,
+	            'amount'        => MyHelper::requestNumber($detail['transaction_tax'],'_CURRENCY')
+	        ];
+        }
+    	
+        $trx = Transaction::where('id_transaction', $detail['id_transaction'])->first();
+		$trxPayment = $this->transactionPayment($trx);
+    	$paymentMethod = null;
+    	foreach ($trxPayment['payment'] as $p) {
+    		$paymentMethod = $p['name'];
+    		if (strtolower($p['name']) != 'balance') {
+    			break;
+    		}
+    	}
+
+    	$paymentCashCode = null;
+    	if ($detail['transaction_payment_status'] == 'Pending' && $detail['trasaction_payment_type'] == 'Cash') {
+    		$paymentCash = TransactionPaymentCash::where('id_transaction', $detail['id_transaction'])->first();
+    		$paymentCashCode = $paymentCash->payment_code;
+    	}
+
+    	$listHs = UserHairStylist::where('id_outlet', $detail['id_outlet'])
+    			->where('user_hair_stylist_status', 'Active')
+    			->select('id_user_hair_stylist', 'user_hair_stylist_code', 'nickname', 'fullname', 'phone_number', 'email')
+    			->get();
+
+		$res = [
+			'id_transaction' => $detail['id_transaction'],
+			'transaction_receipt_number' => $detail['transaction_receipt_number'],
+			'qrcode' => 'https://chart.googleapis.com/chart?chl=' . $detail['transaction_receipt_number'] . '&chs=250x250&cht=qr&chld=H%7C0',
+			'transaction_date' => $detail['transaction_date'],
+			'transaction_date_indo' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($detail['transaction_date'])), 'j F Y'),
+			'transaction_subtotal' => $detail['transaction_subtotal'],
+			'transaction_grandtotal' => $detail['transaction_grandtotal'],
+			'transaction_tax' => $detail['transaction_tax'],
+			'transaction_product_subtotal' => $subtotalProduct,
+			'transaction_service_subtotal' => $subtotalService,
+			'customer_name' => $detail['transaction_outlet_service']['customer_name'],
+			'color' => $detail['outlet']['brands'][0]['color_brand'],
+			'status' => $status,
+			'transaction_payment_status' => $detail['transaction_payment_status'],
+			'payment_method' => $paymentMethod,
+			'payment_cash_code' => $paymentCashCode,
+			'outlet' => $outlet,
+			'brand' => $brand,
+			'service' => $services,
+			'product' => $products,
+			'payment_detail' => $paymentDetail,
+			'list_hs' => $listHs
+		];
+		
+		return MyHelper::checkGet($res);
+    }
+
+    public function manageDetailUpdate(Request $request)
+    {
+    	$post = $request->all();
+
+    	$tps = TransactionProductService::find($request->id_transaction_product_service);
+
+		if (!$tps) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Transaction product service not found']
+			];
+		}
+
+		$oldTps = clone $tps;
+		$newTps = clone $tps;
+
+		$tps->load(
+			'user_hair_stylist', 
+			'transaction.transaction_outlet_service', 
+			'transaction_product.product'
+		);
+
+    	$outlet = Outlet::join('cities', 'cities.id_city', 'outlets.id_city')
+	            ->join('provinces', 'provinces.id_province', 'cities.id_province')
+	            ->with('today')
+	            ->select('outlets.*', 'provinces.time_zone_utc as province_time_zone_utc')
+	            ->where('id_outlet', $tps['transaction']['id_outlet'])
+	            ->first();
+
+        if (!$outlet) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Outlet not found']
+			];
+		}
+
+		$newTps->update([
+			'schedule_date' => date('Y-m-d', strtotime($post['schedule_date'])),
+			'schedule_time' => date('H:i:s', strtotime($post['schedule_time'])),
+			'id_user_hair_stylist' => $post['id_user_hair_stylist'],
+			'is_conflict' => 0,
+		]);
+
+		$logTrx = LogTransactionUpdate::create([
+			'id_user' => $request->user()->id,
+	    	'id_transaction' => $tps->id_transaction,
+	    	'transaction_from' => 'outlet-service',
+	        'old_data' => json_encode($oldTps),
+	        'new_data' => json_encode($newTps),
+	    	'note' => $post['note']
+		]);
+
+		return MyHelper::checkCreate($logTrx);
     }
 }

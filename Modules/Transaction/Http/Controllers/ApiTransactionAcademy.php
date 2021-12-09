@@ -2,14 +2,21 @@
 
 namespace Modules\Transaction\Http\Controllers;
 
+use App\Http\Models\LogBalance;
 use App\Http\Models\Outlet;
 use App\Http\Models\Setting;
 use App\Http\Models\Transaction;
+use App\Http\Models\TransactionMultiplePayment;
+use App\Http\Models\TransactionPaymentBalance;
+use App\Http\Models\TransactionPaymentManual;
+use App\Http\Models\TransactionPaymentMidtran;
+use App\Http\Models\TransactionPaymentOffline;
 use App\Http\Models\TransactionProduct;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use App\Lib\MyHelper;
 use Modules\Brand\Entities\Brand;
+use Modules\IPay88\Entities\TransactionPaymentIpay88;
 use Modules\Product\Entities\ProductDetail;
 use App\Http\Models\TransactionPayment;
 use App\Http\Models\User;
@@ -17,8 +24,11 @@ use App\Http\Models\Product;
 use App\Http\Models\StockLog;
 use DB;
 use App\Http\Models\Configs;
+use Modules\ShopeePay\Entities\TransactionPaymentShopeePay;
+use Modules\Transaction\Entities\LogInvalidTransaction;
 use Modules\Transaction\Entities\TransactionAcademy;
 use Modules\Transaction\Entities\TransactionAcademyInstallment;
+use Modules\Transaction\Entities\TransactionPaymentCash;
 use Modules\UserFeedback\Entities\UserFeedbackLog;
 
 class ApiTransactionAcademy extends Controller
@@ -193,12 +203,12 @@ class ApiTransactionAcademy extends Controller
             'id_outlet' => $outlet['id_outlet'],
             'outlet_code' => $outlet['outlet_code'],
             'outlet_name' => $outlet['outlet_name'],
-            'outlet_address' => $outlet['outlet_address']
+            'outlet_address' => $outlet['outlet_address'],
+            'color' => $brand['color_brand']??''
         ];
 
         $result['item_academy'] = $itemAcademy;
         $result['subtotal'] = $post['subtotal'];
-        $result['tax'] = (int) $post['tax'];
         $result['grandtotal'] = (int)$result['subtotal'] + (int)$post['tax'] ;
         $balance = app($this->balance)->balanceNow($user->id);
         $result['points'] = (int) $balance;
@@ -217,6 +227,18 @@ class ApiTransactionAcademy extends Controller
             }
         }
 
+        $result['payment_detail'][] = [
+            'name'          => 'Subtotal',
+            "is_discount"   => 0,
+            'amount'        => MyHelper::requestNumber($result['subtotal'],'_CURRENCY')
+        ];
+
+        $result['payment_detail'][] = [
+            'name'          => 'Tax',
+            "is_discount"   => 0,
+            'amount'        => MyHelper::requestNumber((int) $post['tax'],'_CURRENCY')
+        ];
+
         $result['currency'] = 'Rp';
         $result['complete_profile'] = (empty($user->complete_profile) ?false:true);
         $result['continue_checkout'] = $continueCheckOut;
@@ -224,6 +246,9 @@ class ApiTransactionAcademy extends Controller
             ['type' => 'one_time_payment', 'text' => 'One-time Payment'],
             ['type' => 'installment', 'text' => 'Cicilan Bertahap']
         ];
+
+        $fake_request = new Request(['show_all' => 1]);
+        $result['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
         $result['messages_all'] = (empty($errAll)? null:implode(".", array_unique($errAll)));
         return MyHelper::checkGet($result);
     }
@@ -312,8 +337,9 @@ class ApiTransactionAcademy extends Controller
             "product_code" => $academy['product_code'],
             "product_name" => $academy['product_name'],
             "product_price" => (int)$academy['product_price'],
-            'duration' => 'Durasi '.$academy['product_academy_duration'].' bulan',
-            'total_meeting' => (!empty($academy['product_academy_total_meeting'])? $academy['product_academy_total_meeting'].' x Pertemuan @'.$academy['product_academy_hours_meeting'].' jam':''),
+            'duration' => $academy['product_academy_duration'],
+            'total_meeting' => $academy['product_academy_total_meeting'],
+            'hours_meeting' => $academy['product_academy_hours_meeting'],
             "qty" => 1
         ];
 
@@ -410,7 +436,6 @@ class ApiTransactionAcademy extends Controller
         $cashback = $earnedPoint['cashback'] ?? 0;
 
         DB::beginTransaction();
-        UserFeedbackLog::where('id_user',$request->user()->id)->delete();
         $id=$request->user()->id;
         $transaction = [
             'id_outlet'                   => $post['id_outlet'],
@@ -424,6 +449,7 @@ class ApiTransactionAcademy extends Controller
             'transaction_payment_status'  => $post['transaction_payment_status'],
             'membership_level'            => $post['membership_level'],
             'membership_promo_id'         => $post['membership_promo_id'],
+            'trasaction_payment_type'     => ($post['payment_method'] == 'installment'? 'Installment': null),
             'void_date'                   => null,
             'transaction_from'            => $post['transaction_from'],
             'scope'                       => 'apps'
@@ -497,7 +523,10 @@ class ApiTransactionAcademy extends Controller
             'payment_method' => $post['payment_method'],
             'total_installment' => (($post['payment_method'] == 'installment')? count($post['installment']) : null),
             'amount_completed' => 0,
-            'amount_not_completed' => $insertTransaction['transaction_grandtotal']
+            'amount_not_completed' => $insertTransaction['transaction_grandtotal'],
+            'transaction_academy_duration' => $itemAcademy['duration'],
+            'transaction_academy_total_meeting' => $itemAcademy['total_meeting'],
+            'transaction_academy_hours_meeting' => $itemAcademy['hours_meeting']
         ]);
 
         if (!$createTransactionAcademy) {
@@ -528,11 +557,25 @@ class ApiTransactionAcademy extends Controller
                 ]);
             }
 
-            foreach ($post['installment'] as $value){
+            $settingDeadline = Setting::where('key', 'transaction_academy_installment_deadline_date')->first()['value']??null;
+            if(empty($settingDeadline)){
+                DB::rollback();
+                return response()->json([
+                    'status'    => 'fail',
+                    'messages'  => ['Deadline date is empty']
+                ]);
+            }
+
+            $startDeadline = date('Y-m-d', strtotime(date('Y-m').'-'.$settingDeadline));
+            $startDeadline = date('Y-m-d', strtotime("+1 month", strtotime($startDeadline)));
+            foreach ($post['installment'] as $key=>$value){
                 $installment[] = [
+                    'installment_step' => $key+1,
                     'id_transaction_academy' => $createTransactionAcademy['id_transaction_academy'],
+                    'installment_receipt_number' => 'INS-'.MyHelper::createrandom(4,'Angka').time().substr($createTransactionAcademy['id_transaction_academy'], 0, 4),
                     'percent' => $value['percent'],
                     'amount' => $value['amount'],
+                    'deadline' => date('Y-m-d', strtotime("+".$key." month", strtotime($startDeadline))),
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s')
                 ];
@@ -548,6 +591,9 @@ class ApiTransactionAcademy extends Controller
             }
         }
         DB::commit();
+
+        $insertTransaction['id_transaction_academy_installment'] = TransactionAcademyInstallment::where('id_transaction_academy', $createTransactionAcademy['id_transaction_academy'])
+                                                                    ->where('installment_step', 1)->first()['id_transaction_academy_installment']??null;
         return response()->json([
             'status'   => 'success',
             'result'   => $insertTransaction
@@ -572,13 +618,8 @@ class ApiTransactionAcademy extends Controller
         }
 
         $listinstallment = [];
-        $resinstallment = [];
         foreach ($data as $dt){
             $dt = (array)$dt;
-            $listinstallment[] = [
-                'key' => $dt['total_installment'],
-                'text' => $dt['total_installment'].' x'
-            ];
             $step = [];
             $allMinimumStep = array_values((array)$dt['step']);
             $sumMinimumStep = array_sum($allMinimumStep);
@@ -592,12 +633,13 @@ class ApiTransactionAcademy extends Controller
                 $percent = (empty($value) ? $diff:$value);
                 $step[] = [
                     'text' => 'Tahap '.$key,
-                    'minimum' => $percent,
+                    'minimum' => (int)$percent,
                     'amount' => ($percent/100) * $post['grandtotal']
                 ];
             }
 
-            $resinstallment[$dt['total_installment']] = [
+            $listinstallment[] = [
+                'text' => $dt['total_installment'].' x',
                 'description' => $dt['description'],
                 'step' => $step
             ];
@@ -605,9 +647,11 @@ class ApiTransactionAcademy extends Controller
 
         $result = [
             'total_amount' => $post['grandtotal'],
-            'list_installment' => $listinstallment,
-            'detail_installment' => $resinstallment
+            'list_installment' => $listinstallment
         ];
+
+        $fake_request = new Request(['show_all' => 1]);
+        $result['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
 
         return response()->json(MyHelper::checkGet($result));
     }
@@ -713,5 +757,423 @@ class ApiTransactionAcademy extends Controller
                 $model->where(\DB::raw('DATE(transaction_date)'), $rul['operator'], $rul['parameter']);
             }
         }
+    }
+
+    public function detailTransaction(Request $request)
+    {
+        if ($request->json('transaction_receipt_number') !== null) {
+            $trx = Transaction::where(['transaction_receipt_number' => $request->json('transaction_receipt_number')])->first();
+            if($trx) {
+                $id = $trx->id_transaction;
+            } else {
+                return MyHelper::checkGet([]);
+            }
+        } else {
+            $id = $request->json('id_transaction');
+        }
+
+        $trx = Transaction::where(['transactions.id_transaction' => $id])
+            ->join('transaction_academy','transaction_academy.id_transaction','=','transactions.id_transaction')
+            ->first();
+
+        if(!$trx){
+            return MyHelper::checkGet($trx);
+        }
+
+        $trxPayment = $this->transactionPayment($trx);
+        $trx['payment'] = $trxPayment['payment'];
+
+        $trx->load('user', 'outlet');
+        $result = [
+            'id_transaction'                => $trx['id_transaction'],
+            'transaction_receipt_number'    => $trx['transaction_receipt_number'],
+            'receipt_qrcode' 				=> 'https://chart.googleapis.com/chart?chl=' . $trx['transaction_receipt_number'] . '&chs=250x250&cht=qr&chld=H%7C0',
+            'transaction_date'              => date('d M Y H:i', strtotime($trx['transaction_date'])),
+            'transaction_grandtotal'        => MyHelper::requestNumber($trx['transaction_grandtotal'],'_CURRENCY'),
+            'transaction_subtotal'          => MyHelper::requestNumber($trx['transaction_subtotal'],'_CURRENCY'),
+            'transaction_discount'          => MyHelper::requestNumber($trx['transaction_discount'],'_CURRENCY'),
+            'transaction_cashback_earned'   => MyHelper::requestNumber($trx['transaction_cashback_earned'],'_POINT'),
+            'trasaction_payment_type'       => $trx['trasaction_payment_type'],
+            'trasaction_type'               => $trx['trasaction_type'],
+            'transaction_payment_status'    => $trx['transaction_payment_status'],
+            'continue_payment'              => $trxPayment['continue_payment'],
+            'payment_gateway'               => $trxPayment['payment_gateway'],
+            'payment_type'                  => $trxPayment['payment_type'],
+            'payment_redirect_url'          => $trxPayment['payment_redirect_url'],
+            'payment_redirect_url_app'      => $trxPayment['payment_redirect_url_app'],
+            'payment_token'                 => $trxPayment['payment_token'],
+            'total_payment'                 => (int) $trxPayment['total_payment'],
+            'timer_shopeepay'               => $trxPayment['timer_shopeepay'],
+            'message_timeout_shopeepay'     => $trxPayment['message_timeout_shopeepay'],
+            'transaction_academy_total_meeting' => $trx['transaction_academy_total_meeting'],
+            'outlet'                        => [
+                'outlet_name'    => $trx['outlet']['outlet_name'],
+                'outlet_address' => $trx['outlet']['outlet_address']
+            ],
+            'user'							=> [
+                'phone' => $trx['user']['phone'],
+                'name' 	=> $trx['user']['name'],
+                'email' => $trx['user']['email']
+            ],
+
+        ];
+
+        $result['product_academy'] =  TransactionProduct::where('id_transaction', $trx['id_transaction'])
+            ->join('products', 'products.id_product', 'transaction_products.id_product')->get()->toArray();
+
+        $lastLog = LogInvalidTransaction::where('id_transaction', $trx['id_transaction'])->orderBy('updated_at', 'desc')->first();
+
+        $result['image_invalid_flag'] = NULL;
+        if(!empty($trx['image_invalid_flag'])){
+            $result['image_invalid_flag'] =  config('url.storage_url_api').$trx['image_invalid_flag'];
+        }
+
+        $result['transaction_flag_invalid'] =  $trx['transaction_flag_invalid'];
+        $result['flag_reason'] =  $lastLog['reason'] ?? '';
+        $result['payment_detail'] = $this->transactionPaymentDetail($trx);
+
+        if(!isset($trx['payment'])){
+            $result['transaction_payment'] = null;
+        }else{
+            foreach ($trx['payment'] as $key => $value) {
+                if ($value['name'] == 'Balance') {
+                    $result['transaction_payment'][$key] = [
+                        'name'      => (env('POINT_NAME')) ? env('POINT_NAME') : $value['name'],
+                        'is_balance'=> 1,
+                        'amount'    => MyHelper::requestNumber($value['amount'],'_POINT')
+                    ];
+                } else {
+                    $result['transaction_payment'][$key] = [
+                        'name'      => $value['name'],
+                        'amount'    => MyHelper::requestNumber($value['amount'],'_CURRENCY')
+                    ];
+                }
+            }
+        }
+
+        return MyHelper::checkGet($result);
+    }
+
+    public function transactionPayment(Transaction $trx)
+    {
+        $trx = clone $trx;
+        $trx = $trx->toArray();
+        $redirectUrlApp = "";
+        $redirectUrl = "";
+        $tokenPayment = "";
+        $continuePayment = false;
+        $totalPayment = 0;
+        $shopeeTimer = 0;
+        $shopeeMessage = "";
+        $paymentType = "";
+        $paymentGateway = "";
+        switch ($trx['trasaction_payment_type']) {
+            case 'Balance':
+                $multiPayment = TransactionMultiplePayment::where('id_transaction', $trx['id_transaction'])->get()->toArray();
+                if ($multiPayment) {
+                    foreach ($multiPayment as $keyMP => $mp) {
+                        switch ($mp['type']) {
+                            case 'Balance':
+                                $log = LogBalance::where('id_reference', $mp['id_transaction'])->where('source', 'Online Transaction')->first();
+                                if ($log['balance'] < 0) {
+                                    $trx['balance'] = $log['balance'];
+                                    $trx['check'] = 'tidak topup';
+                                } else {
+                                    $trx['balance'] = $trx['transaction_grandtotal'] - $log['balance'];
+                                    $trx['check'] = 'topup';
+                                }
+                                $trx['payment'][] = [
+                                    'name'      => 'Balance',
+                                    'amount'    => $trx['balance']
+                                ];
+                                break;
+                            case 'Manual':
+                                $payment = TransactionPaymentManual::with('manual_payment_method.manual_payment')->where('id_transaction', $trx['id_transaction'])->first();
+                                $trx['payment'] = $payment;
+                                $trx['payment'][] = [
+                                    'name'      => 'Cash',
+                                    'amount'    => $payment['payment_nominal']
+                                ];
+                                break;
+                            case 'Midtrans':
+                                $payMidtrans = TransactionPaymentMidtran::find($mp['id_payment']);
+                                $payment['name']      = strtoupper(str_replace('_', ' ', $payMidtrans->payment_type)).' '.strtoupper($payMidtrans->bank);
+                                $payment['amount']    = $payMidtrans->gross_amount;
+                                $trx['payment'][] = $payment;
+                                if($trx['transaction_payment_status'] == 'Pending' && !empty($payMidtrans->token)) {
+                                    $redirectUrl = $payMidtrans->redirect_url;
+                                    $tokenPayment = $payMidtrans->token;
+                                    $continuePayment =  true;
+                                    $totalPayment = $payMidtrans->gross_amount;
+                                    $paymentType = strtoupper($payMidtrans->payment_type);
+                                    $paymentGateway = 'Midtrans';
+                                }
+                                break;
+                            case 'Ovo':
+                                $payment = TransactionPaymentOvo::find($mp['id_payment']);
+                                $payment['name']    = 'OVO';
+                                $trx['payment'][] = $payment;
+                                break;
+                            case 'IPay88':
+                                $PayIpay = TransactionPaymentIpay88::find($mp['id_payment']);
+                                $payment['name']    = $PayIpay->payment_method;
+                                $payment['amount']    = $PayIpay->amount / 100;
+                                $trx['payment'][] = $payment;
+                                if($trx['transaction_payment_status'] == 'Pending'){
+                                    $redirectUrl = config('url.api_url').'/api/ipay88/pay?type=trx&id_reference='.$trx['id_transaction'].'&payment_id='.$PayIpay->payment_id;
+                                    $continuePayment =  true;
+                                    $totalPayment = $PayIpay->amount / 100;
+                                    $paymentType = strtoupper($PayIpay->payment_method);
+                                    $paymentGateway = 'IPay88';
+                                }
+                                break;
+                            case 'Shopeepay':
+                                $shopeePay = TransactionPaymentShopeePay::find($mp['id_payment']);
+                                $payment['name']    = 'ShopeePay';
+                                $payment['amount']  = $shopeePay->amount / 100;
+                                $payment['reject']  = $shopeePay->err_reason?:'payment expired';
+                                $trx['payment'][]  = $payment;
+                                if($trx['transaction_payment_status'] == 'Pending'){
+                                    $redirectUrl = $shopeePay->redirect_url_http;
+                                    $redirectUrlApp = $shopeePay->redirect_url_app;
+                                    $continuePayment =  true;
+                                    $totalPayment = $shopeePay->amount / 100;
+                                    $shopeeTimer = (int) MyHelper::setting('shopeepay_validity_period', 'value', 300);
+                                    $shopeeMessage ='Sorry, your payment has expired';
+                                    $paymentGateway = 'Shopeepay';
+                                }
+                                break;
+                            case 'Offline':
+                                $payment = TransactionPaymentOffline::where('id_transaction', $trx['id_transaction'])->get();
+                                foreach ($payment as $key => $value) {
+                                    $trx['payment'][$key] = [
+                                        'name'      => $value['payment_bank'],
+                                        'amount'    => $value['payment_amount']
+                                    ];
+                                }
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                } else {
+                    $log = LogBalance::where('id_reference', $trx['id_transaction'])->first();
+                    if ($log['balance'] < 0) {
+                        $trx['balance'] = $log['balance'];
+                        $trx['check'] = 'tidak topup';
+                    } else {
+                        $trx['balance'] = $trx['transaction_grandtotal'] - $log['balance'];
+                        $trx['check'] = 'topup';
+                    }
+                    $trx['payment'][] = [
+                        'name'      => 'Balance',
+                        'amount'    => $trx['balance']
+                    ];
+                }
+                break;
+            case 'Manual':
+                $payment = TransactionPaymentManual::with('manual_payment_method.manual_payment')->where('id_transaction', $trx['id_transaction'])->first();
+                $trx['payment'] = $payment;
+                $trx['payment'][] = [
+                    'name'      => 'Cash',
+                    'amount'    => $payment['payment_nominal']
+                ];
+                break;
+            case 'Midtrans':
+                $multiPayment = TransactionMultiplePayment::where('id_transaction', $trx['id_transaction'])->get();
+                $payment = [];
+                foreach($multiPayment as $dataKey => $dataPay){
+                    if($dataPay['type'] == 'Midtrans'){
+                        $payMidtrans = TransactionPaymentMidtran::find($dataPay['id_payment']);
+                        $payment[$dataKey]['name']      = strtoupper(str_replace('_', ' ', $payMidtrans->payment_type)).' '.strtoupper($payMidtrans->bank);
+                        $payment[$dataKey]['amount']    = $payMidtrans->gross_amount;
+                        if($trx['transaction_payment_status'] == 'Pending' && !empty($payMidtrans->token)){
+                            $redirectUrl = $payMidtrans->redirect_url;
+                            $tokenPayment = $payMidtrans->token;
+                            $continuePayment =  true;
+                            $totalPayment = $payMidtrans->gross_amount;
+                            $paymentType = strtoupper($payMidtrans->payment_type);
+                            $paymentGateway = 'Midtrans';
+                        }
+
+                    }else{
+                        $dataPay = TransactionPaymentBalance::find($dataPay['id_payment']);
+                        $payment[$dataKey] = $dataPay;
+                        $trx['balance'] = $dataPay['balance_nominal'];
+                        $payment[$dataKey]['name']          = 'Balance';
+                        $payment[$dataKey]['amount']        = $dataPay['balance_nominal'];
+                    }
+                }
+                $trx['payment'] = $payment;
+                break;
+            case 'Ovo':
+                $multiPayment = TransactionMultiplePayment::where('id_transaction', $trx['id_transaction'])->get();
+                $payment = [];
+                foreach($multiPayment as $dataKey => $dataPay){
+                    if($dataPay['type'] == 'Ovo'){
+                        $payment[$dataKey] = TransactionPaymentOvo::find($dataPay['id_payment']);
+                        $payment[$dataKey]['name']    = 'OVO';
+                    }else{
+                        $dataPay = TransactionPaymentBalance::find($dataPay['id_payment']);
+                        $payment[$dataKey] = $dataPay;
+                        $trx['balance'] = $dataPay['balance_nominal'];
+                        $payment[$dataKey]['name']          = 'Balance';
+                        $payment[$dataKey]['amount']        = $dataPay['balance_nominal'];
+                    }
+                }
+                $trx['payment'] = $payment;
+                break;
+            case 'Ipay88':
+                $multiPayment = TransactionMultiplePayment::where('id_transaction', $trx['id_transaction'])->get();
+                $payment = [];
+                foreach($multiPayment as $dataKey => $dataPay){
+                    if($dataPay['type'] == 'IPay88'){
+                        $PayIpay = TransactionPaymentIpay88::find($dataPay['id_payment']);
+                        $payment[$dataKey]['name']    = $PayIpay->payment_method;
+                        $payment[$dataKey]['amount']    = $PayIpay->amount / 100;
+
+                        if($trx['transaction_payment_status'] == 'Pending'){
+                            $redirectUrl = config('url.api_url').'/api/ipay88/pay?type=trx&id_reference='.$trx['id_transaction'].'&payment_id='.$PayIpay->payment_id;
+                            $continuePayment =  true;
+                            $totalPayment = $PayIpay->amount / 100;
+                            $paymentType = strtoupper($PayIpay->payment_method);
+                            $paymentGateway = 'Ipay88';
+                        }
+                    }else{
+                        $dataPay = TransactionPaymentBalance::find($dataPay['id_payment']);
+                        $payment[$dataKey] = $dataPay;
+                        $trx['balance'] = $dataPay['balance_nominal'];
+                        $payment[$dataKey]['name']          = 'Balance';
+                        $payment[$dataKey]['amount']        = $dataPay['balance_nominal'];
+                    }
+                }
+                $trx['payment'] = $payment;
+                break;
+            case 'Shopeepay':
+                $multiPayment = TransactionMultiplePayment::where('id_transaction', $trx['id_transaction'])->get();
+                $payment = [];
+                foreach($multiPayment as $dataKey => $dataPay){
+                    if($dataPay['type'] == 'Shopeepay'){
+                        $payShopee = TransactionPaymentShopeePay::find($dataPay['id_payment']);
+                        $payment[$dataKey]['name']      = 'ShopeePay';
+                        $payment[$dataKey]['amount']    = $payShopee->amount / 100;
+                        $payment[$dataKey]['reject']    = $payShopee->err_reason?:'payment expired';
+                        if($trx['transaction_payment_status'] == 'Pending') {
+                            $redirectUrl = $payShopee->redirect_url_http;
+                            $redirectUrlApp = $payShopee->redirect_url_app;
+                            $continuePayment =  true;
+                            $totalPayment = $payShopee->amount / 100;
+                            $shopeeTimer = (int) MyHelper::setting('shopeepay_validity_period', 'value', 300);
+                            $shopeeMessage ='Sorry, your payment has expired';
+                            $paymentGateway = 'Shopeepay';
+                        }
+                    }else{
+                        $dataPay = TransactionPaymentBalance::find($dataPay['id_payment']);
+                        $payment[$dataKey]              = $dataPay;
+                        $trx['balance']                = $dataPay['balance_nominal'];
+                        $payment[$dataKey]['name']      = 'Balance';
+                        $payment[$dataKey]['amount']    = $dataPay['balance_nominal'];
+                    }
+                }
+                $trx['payment'] = $payment;
+                break;
+            case 'Offline':
+                $payment = TransactionPaymentOffline::where('id_transaction', $trx['id_transaction'])->get();
+                foreach ($payment as $key => $value) {
+                    $trx['payment'][$key] = [
+                        'name'      => $value['payment_bank'],
+                        'amount'    => $value['payment_amount']
+                    ];
+                }
+                break;
+
+            case 'Cash':
+                $payment = TransactionPaymentCash::where('id_transaction', $trx['id_transaction'])->first();
+                $trx['payment'] = [];
+                $trx['payment'][] = [
+                    'name'      => 'Cash',
+                    'amount'    => $payment['cash_nominal']
+                ];
+                break;
+
+            default:
+                break;
+        }
+
+        $res = [
+            'payment' 					=> $trx['payment'] ?? [],
+            'continue_payment'          => $continuePayment,
+            'payment_gateway'           => $paymentGateway,
+            'payment_type'              => $paymentType,
+            'payment_redirect_url'      => $redirectUrl,
+            'payment_redirect_url_app'  => $redirectUrlApp,
+            'payment_token'             => $tokenPayment,
+            'total_payment'             => (int)$totalPayment,
+            'timer_shopeepay'           => $shopeeTimer,
+            'message_timeout_shopeepay' => $shopeeMessage,
+        ];
+
+        return $res;
+    }
+
+    public function transactionPaymentDetail(Transaction $trx)
+    {
+        $trx = clone $trx;
+        $trx->load(
+            'transaction_vouchers.deals_voucher.deal',
+            'promo_campaign_promo_code.promo_campaign',
+            'transaction_payment_subscription.subscription_user_voucher',
+            'subscription_user_voucher'
+        );
+
+        $paymentDetail = [];
+        $totalItem = $trx['transaction_item_service_total'];
+        $paymentDetail[] = [
+            'name'      => 'Subtotal',
+            'desc'      => $totalItem . ' items',
+            'amount'    => MyHelper::requestNumber($trx['transaction_subtotal'],'_CURRENCY')
+        ];
+        $paymentDetail[] = [
+            'name'      => 'Tax',
+            'desc'      => '10%',
+            'amount'    => MyHelper::requestNumber($trx['transaction_tax'],'_CURRENCY')
+        ];
+
+        if ($trx['transaction_discount']) {
+            $discount = abs($trx['transaction_discount']);
+            $p = 0;
+            if (!empty($trx['transaction_vouchers'])) {
+                foreach ($trx['transaction_vouchers'] as $valueVoc) {
+                    $result['promo']['code'][$p++]   = $valueVoc['deals_voucher']['voucher_code'];
+                    $paymentDetail[] = [
+                        'name'          => 'Diskon',
+                        'desc'          => 'Promo',
+                        "is_discount"   => 1,
+                        'amount'        => '- '.MyHelper::requestNumber($discount,'_CURRENCY')
+                    ];
+                }
+            }
+
+            if (!empty($trx['promo_campaign_promo_code'])) {
+                $result['promo']['code'][$p++]   = $trx['promo_campaign_promo_code']['promo_code'];
+                $paymentDetail[] = [
+                    'name'          => 'Diskon',
+                    'desc'          => 'Promo',
+                    "is_discount"   => 1,
+                    'amount'        => '- '.MyHelper::requestNumber($discount,'_CURRENCY')
+                ];
+            }
+
+            if (!empty($trx['id_subscription_user_voucher']) && !empty($trx['transaction_discount'])) {
+                $paymentDetail[] = [
+                    'name'          => 'Subscription',
+                    'desc'          => 'Diskon',
+                    "is_discount"   => 1,
+                    'amount'        => '- '.MyHelper::requestNumber($discount,'_CURRENCY')
+                ];
+            }
+        }
+
+        return $paymentDetail;
     }
 }

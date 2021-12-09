@@ -10,30 +10,38 @@ use App\Http\Models\Setting;
 use App\Http\Models\Outlet;
 use App\Http\Models\OutletSchedule;
 
+use Modules\Franchise\Entities\TransactionProduct;
 use Modules\Outlet\Entities\OutletTimeShift;
 
+use Modules\Recruitment\Entities\HairstylistLogBalance;
+use Modules\Recruitment\Entities\HairstylistTransferPayment;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Recruitment\Entities\HairstylistSchedule;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use Modules\Recruitment\Entities\HairstylistAnnouncement;
 use Modules\Recruitment\Entities\HairstylistInbox;
 
+use Modules\Transaction\Entities\TransactionPaymentCash;
 use Modules\UserRating\Entities\UserRating;
 use Modules\UserRating\Entities\RatingOption;
 use Modules\UserRating\Entities\UserRatingLog;
 use Modules\UserRating\Entities\UserRatingSummary;
+use App\Http\Models\Transaction;
 
 use Modules\Recruitment\Http\Requests\ScheduleCreateRequest;
 
 use App\Lib\MyHelper;
 use DB;
+use DateTime;
+use DateTimeZone;
 
 class ApiMitra extends Controller
 {
     public function __construct() {
-        date_default_timezone_set('Asia/Jakarta');
         $this->product = "Modules\Product\Http\Controllers\ApiProductController";
         $this->announcement = "Modules\Recruitment\Http\Controllers\ApiAnnouncement";
+        $this->outlet = "Modules\Outlet\Http\Controllers\ApiOutletController";
+        $this->mitra_log_balance = "Modules\Recruitment\Http\Controllers\MitraLogBalance";
     }
 
     public function splash(Request $request){
@@ -143,14 +151,16 @@ class ApiMitra extends Controller
 		}
 
 		$outletSchedule = OutletSchedule::where('id_outlet', $user->id_outlet)->with('time_shift')->get();
+		$arrShift = ['Morning' => 1, 'Middle' => 2, 'Evening' => 3];
 		$shiftInfo = [];
 		foreach ($outletSchedule as $sch) {
 			$shiftInfo[$sch['day']] = [];
 			foreach ($sch['time_shift'] as $shift) {
-				$timeStart 	= date('H:i', strtotime($shift['shift_time_start'] ?? '09:00'));
-				$timeEnd 	= date('H:i', strtotime($shift['shift_time_end'] ?? '15:00'));
+				$timeStart 	= date('H:i', strtotime($shift['shift_time_start']));
+				$timeEnd 	= date('H:i', strtotime($shift['shift_time_end']));
 				$shiftInfo[$sch['day']][] = [
 					'shift' => $shift['shift'],
+					'value' => $arrShift[$shift['shift']],
 					'time' => $timeStart . ' - ' . $timeEnd
 				];
 			}
@@ -374,6 +384,7 @@ class ApiMitra extends Controller
     public function home(Request $request)
     {
     	$user = $request->user();
+    	$this->setTimezone();
     	$today = date('Y-m-d H:i:s');
 
     	$user->load('outlet.brands');
@@ -397,6 +408,7 @@ class ApiMitra extends Controller
 
     	$res = [
     		'id_user_hair_stylist' => $user['id_user_hair_stylist'],
+    		'user_hair_stylist_code' => $user['user_hair_stylist_code'],
     		'nickname' => $user['nickname'],
     		'fullname' => $user['fullname'],
     		'name' => $level . ' ' . $user['fullname'],
@@ -424,32 +436,67 @@ class ApiMitra extends Controller
     	return MyHelper::checkGet($res);
     }
 
-    public function outletServiceScheduleStatus($id_user_hair_stylist)
+    public function outletServiceScheduleStatus($id_user_hair_stylist, $date = null)
     {
-    	$today = date('Y-m-d H:i:s');
-        $todayTime = date('H:i:s', strtotime($today));
+    	$today = $date ?? date('Y-m-d H:i:s');
+        $curTime = date('H:i:s', strtotime($today));
+    	$day = MyHelper::indonesian_date_v2($date, 'l');
     	$status = [
     		'is_available' => 0,
     		'is_active' => 0,
     		'messages' => []
     	];
 
-    	$schedule = HairstylistScheduleDate::join('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
+    	$hs = UserHairStylist::find($id_user_hair_stylist);
+    	$outletSchedule = OutletSchedule::where('id_outlet', $hs->id_outlet)->where('day', $day)->first();
+    	if (!$outletSchedule) {
+        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Outlet tidak memiliki jadwal buka hari ini.";
+        	return $status;
+        }
+
+        if ($outletSchedule->is_closed) {
+        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Outlet tutup.";
+        	return $status;
+        }
+
+        $isHoliday = app($this->outlet)->isHoliday($hs->id_outlet);
+        if ($isHoliday['status']) {
+        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Outlet libur \" " . $isHoliday['holiday'] . "\".";
+        	return $status;
+        }
+
+        $outletShift = OutletTimeShift::where('id_outlet_schedule', $outletSchedule->id_outlet_schedule)
+        				->where(function($q) use ($curTime) {
+        					$q->where(function($q2) use ($curTime) {
+        						$q2->whereColumn('shift_time_start', '<', 'shift_time_end')
+        							->where('shift_time_start', '<', $curTime)
+        							->where('shift_time_end', '>', $curTime);
+        					})->orWhere(function($q2) use ($curTime) {
+        						$q2->whereColumn('shift_time_start', '>', 'shift_time_end')
+        							->where(function($q3) use ($curTime) {
+        								$q3->where('shift_time_start', '<', $curTime)
+        									->orWhere('shift_time_end', '>', $curTime);	
+        							});
+        					});
+        				})->first()['shift'] ?? null;
+
+		if (!$outletShift) {
+        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Outlet tidak memiliki jadwal shift pada jam ini.";
+        	return $status;
+        }
+
+    	$mitraSchedule = HairstylistScheduleDate::join('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
                 ->whereNotNull('approve_at')->where('id_user_hair_stylist', $id_user_hair_stylist)
                 ->whereDate('date', date('Y-m-d', strtotime($today)))
-                ->get();
+                ->first();
 
-        if (empty($schedule) || $schedule->isEmpty()) {
+        if (!$mitraSchedule) {
         	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal layanan outlet hari ini.";
         	return $status;
         }
 
-        $shift = $this->getNearestShift($schedule);
-        $outlet = Outlet::where('id_outlet', $shift->id_outlet)->with(['today'])->first();
-		$getTimeShift = app($this->product)->getTimeShift(strtolower($shift['shift']), $shift->id_outlet, $outlet['today']['id_outlet_schedule']);
-
-		if (empty($getTimeShift)) {
-        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Jadwal layanan outlet tidak ditemukan.";
+        if ($mitraSchedule->shift != $outletShift) {
+        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal layanan outlet pada jam ini.";
         	return $status;
         }
 
@@ -465,77 +512,26 @@ class ApiMitra extends Controller
         return $status;
     }
 
-    public function homeServiceScheduleStatus($id_user_hair_stylist, $date)
+    public function homeServiceScheduleStatus($id_user_hair_stylist, $date = null)
     {
-        $today = date('Y-m-d H:i:s');
-        $todayTime = date('H:i:s', strtotime($today));
-        $isHomeServiceStart = 0;
+
+        $isHomeServiceStart = UserHairStylist::find($id_user_hair_stylist)->home_service_status;
     	$status = [
     		'is_available' => 0,
     		'is_active' => $isHomeServiceStart,
     		'messages' => []
     	];
 
-    	$schedule = HairstylistScheduleDate::join('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
-                ->whereNotNull('approve_at')->where('id_user_hair_stylist', $id_user_hair_stylist)
-                ->whereDate('date', date('Y-m-d', strtotime($today)))
-                ->get();
+    	$outletService = $this->outletServiceScheduleStatus($id_user_hair_stylist, $date);
 
-        if (empty($schedule) || $schedule->isEmpty()) {
-    		$status['is_available'] = 1;
-        	return $status;
-        }
-
-        $shift = $this->getNearestShift($schedule);
-        $outlet = Outlet::where('id_outlet', $shift->id_outlet)->with(['today'])->first();
-		$getTimeShift = app($this->product)->getTimeShift(strtolower($shift['shift']), $shift->id_outlet, $outlet['today']['id_outlet_schedule']);
-
-		if (empty($getTimeShift)) {
-    		$status['is_available'] = 1;
-        	return $status;
-        }
-
-        $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
-        $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
-        if (strtotime($todayTime) > strtotime($shiftTimeStart) && strtotime($todayTime) < strtotime($shiftTimeEnd)) {
-        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n karena layanan outlet Anda sedang aktif.";
+    	if ($outletService['is_available']) {
+    		$status['messages'][] = "Layanan tidak bisa diaktifkan.\n karena layanan outlet Anda sedang aktif.";
     		$status['is_active'] = 0;
             return $status;
-        }
-
+    	}
+    	
     	$status['is_available'] = 1;
         return $status;
-    }
-
-    public function getNearestShift($schedule)
-    {
-    	$res = null;
-    	$shiftNow = $this->timeToShift(date('H:i:s'));
-    	foreach ($schedule ?? [] as $val) {
-    		if ($val['shift'] == $shiftNow) {
-    			$res = $val;
-    			break;
-    		}
-    	}
-
-    	return $res ?? $schedule[0] ?? [];
-    }
-
-    public function timeToShift($time)
-    {
-        $time = date('H:i:s', strtotime($time));
-        $morningShiftStart = date('H:i:s', strtotime('09:00'));
-        $morningShiftEnd = date('H:i:s', strtotime('15:00'));
-        $eveningShiftStart = date('H:i:s', strtotime('15:00'));
-        $eveningShiftEnd = date('H:i:s', strtotime('21:00'));
-
-    	if ( strtotime($time) >= strtotime($morningShiftStart) && strtotime($time) < strtotime($morningShiftEnd) ) {
-            return 'Morning';
-        } elseif ( strtotime($time) >= strtotime($eveningShiftStart) && strtotime($time) < strtotime($eveningShiftEnd) ) {
-            return 'Evening';
-        }
-
-        return null;
     }
 
     public function ratingSummary(Request $request)
@@ -552,7 +548,7 @@ class ApiMitra extends Controller
 				        	user_hair_stylist.level,
 				        	user_hair_stylist.total_rating,
 				        	COUNT(DISTINCT user_ratings.id_user) as total_customer
-	        			'),
+	        			')
 			        )
 			        ->first();
 
@@ -577,7 +573,10 @@ class ApiMitra extends Controller
         $options = array_keys(array_flip($options));
         $resOption = [];
         foreach ($options as $val) {
-        	$resOption[$val] = $summaryOption[$val] ?? 0;
+        	$resOption[] = [
+        		"name" => $val,
+        		"value" => $summaryOption[$val] ?? 0
+        	];
         }
 
         $level = $ratingHs['level'] ?? null;
@@ -589,7 +588,7 @@ class ApiMitra extends Controller
         	'phone_number' => $ratingHs['phone_number'] ?? null,
         	'level' => $ratingHs['level'] ?? null,
         	'total_customer' => (int) ($ratingHs['total_customer'] ?? null),
-        	'total_rating' => (int) ($ratingHs['total_rating'] ?? null),
+        	'total_rating' => (float) ($ratingHs['total_rating'] ?? null),
         	'rating_value' => [
         		'5' => (int) ($summaryRating['5'] ?? null),
         		'4' => (int) ($summaryRating['4'] ?? null),
@@ -609,6 +608,7 @@ class ApiMitra extends Controller
     	$comment = UserRating::where('user_ratings.id_user_hair_stylist', $user->id_user_hair_stylist)
     				->leftJoin('transaction_product_services','user_ratings.id_transaction_product_service','transaction_product_services.id_transaction_product_service')
     				->whereNotNull('suggestion')
+    				->where('suggestion', '!=', "")
     				->select(
     					'transaction_product_services.order_id',
     					'user_ratings.id_user_rating',
@@ -627,5 +627,291 @@ class ApiMitra extends Controller
 		$comment['data'] = $resData;
 
 		return MyHelper::checkGet($comment);
+    }
+
+    public function getOutletShift($id_outlet, $dateTime = null)
+    {
+    	$outlet = Outlet::find($id_outlet);
+    	$timezone = $outlet->city->province->time_zone_utc;
+    	$dateTime = $dateTime ?? date('Y-m-d H:i:s');
+        $curTime = date('H:i:s', strtotime($dateTime));
+    	$day = MyHelper::indonesian_date_v2($dateTime, 'l');
+
+    	$res = null;
+    	$outletSchedule = OutletSchedule::where('id_outlet', $id_outlet)->where('day', $day)->first();
+    	if (!$outletSchedule || $outletSchedule->is_closed) {
+        	return $res;
+        }
+
+        $isHoliday = app($this->outlet)->isHoliday($id_outlet);
+        if ($isHoliday['status']) {
+        	return $res;
+        }
+
+    	$outletShift = OutletTimeShift::where('id_outlet_schedule', $outletSchedule->id_outlet_schedule)
+        				->where(function($q) use ($curTime) {
+        					$q->where(function($q2) use ($curTime) {
+        						$q2->whereColumn('shift_time_start', '<', 'shift_time_end')
+        							->where('shift_time_start', '<', $curTime)
+        							->where('shift_time_end', '>', $curTime);
+        					})->orWhere(function($q2) use ($curTime) {
+        						$q2->whereColumn('shift_time_start', '>', 'shift_time_end')
+        							->where(function($q3) use ($curTime) {
+        								$q3->where('shift_time_start', '<', $curTime)
+        									->orWhere('shift_time_end', '>', $curTime);	
+        							});
+        					});
+        				})
+        				->first();
+
+		if (!$outletShift) {
+			return $res;
+		}
+
+		return $outletShift['shift'] ?? $res;
+    }
+
+    public function setTimezone()
+    {
+    	return MyHelper::setTimezone(request()->user()->outlet->city->province->time_zone_utc);
+    }
+
+    public function convertTimezoneMitra($date = null, $format = 'Y-m-d H:i:s')
+    {
+    	$timestamp = $date ? strtotime($date) : time();
+    	$arrTz = [7 => 'Asia/Jakarta', 8 => 'Asia/Ujung_Pandang', 9 => 'Asia/Jayapura'];
+
+    	$utc = request()->user()->outlet->city->province->time_zone_utc;
+    	$tz = $arrTz[$utc] ?? 'Asia/Jakarta';
+
+    	$dt = new DateTime();
+		$dt->setTimezone(new DateTimeZone($tz));
+		$dt->setTimestamp($timestamp);
+		
+		return $dt->format($format);
+
+    }
+
+    public function balanceDetail(Request $request){
+        $user = $request->user();
+        $outletName = Outlet::where('id_outlet', $user->id_outlet)->first()['outlet_name']??'';
+
+        $dataMitra = [
+            'id_user_hair_stylist' => $user->id_user_hair_stylist,
+            'id_mitra' => $user->user_hair_stylist_code,
+            'name' => $user->fullname,
+            'outlet_name' => $outletName,
+            'current_balance' => $user->balance,
+            'currency' => 'Rp'
+        ];
+
+        return ['status' => 'success', 'result' => $dataMitra];
+    }
+
+    public function balanceHistory(Request $request){
+        $user = $request->user();
+            $history = HairstylistLogBalance::leftJoin('transactions', 'hairstylist_log_balances.id_reference', 'transactions.id_transaction')
+                    ->leftJoin('outlets', 'outlets.id_outlet', 'transactions.id_outlet')
+                    ->where('id_user_hair_stylist', $user->id_user_hair_stylist)
+                    ->select('hairstylist_log_balances.id_hairstylist_log_balance', 'hairstylist_log_balances.balance', 'hairstylist_log_balances.source',
+                        'transactions.transaction_receipt_number', 'outlets.outlet_name')
+                    ->get()->toArray();
+
+        return ['status' => 'success', 'result' => $history];
+    }
+
+    public function transferCashDetail(Request $request){
+        $user = $request->user();
+        $post = $request->json()->all();
+        if(empty($post['date'])){
+            return ['status' => 'fail', 'messages' => ['Date can not be empty']];
+        }
+        $date = date('Y-m-d', strtotime($post['date']));
+
+        $listTransaction = Transaction::join('hairstylist_log_balances', 'hairstylist_log_balances.id_reference', 'transactions.id_transaction')
+                            ->whereDate('hairstylist_log_balances.created_at', $date)
+                            ->where('source', 'Receive Payment')
+                            ->where('id_user_hair_stylist', $user->id_user_hair_stylist)
+                            ->where('transfer_status', 0)
+                            ->where('id_outlet', $user->id_outlet)
+                            ->select('hairstylist_log_balances.created_at as date_receive_cash', 'transactions.id_transaction', 'transactions.transaction_receipt_number',
+                                'hairstylist_log_balances.*', 'id_user')
+                            ->with('user')->get()->toArray();
+
+        $res = [];
+        foreach ($listTransaction as $transaction){
+            $products = TransactionProduct::join('products', 'products.id_product', 'transaction_products.id_product')
+                        ->where('id_transaction', $transaction['id_transaction'])->pluck('product_name')->toArray();
+
+            $productName = $products[0].(count($products) > 1?' + '.(count($products)-1).' lainnya':'');
+            $res[] = [
+                'id_transaction' => $transaction['id_transaction'],
+                'time' => date('H:i', strtotime($transaction['date_receive_cash'])),
+                'customer_name' => $transaction['user']['name'],
+                'transaction_receipt_number' => $transaction['transaction_receipt_number'],
+                'transaction_grandtotal' => $transaction['balance'],
+                'product' => $productName,
+                'currency' => 'Rp'
+            ];
+        }
+
+        return ['status' => 'success', 'result' => $res];
+    }
+
+    public function transferCashCreate(Request $request){
+        $user = $request->user();
+        $post = $request->json()->all();
+        if(empty($post['date'])){
+            return ['status' => 'fail', 'messages' => ['Date can not be empty']];
+        }
+        $date = date('Y-m-d', strtotime($post['date']));
+
+        $listCash = HairstylistLogBalance::join('transactions', 'hairstylist_log_balances.id_reference', 'transactions.id_transaction')
+                        ->whereDate('hairstylist_log_balances.created_at', $date)
+                        ->where('source', 'Receive Payment')
+                        ->where('id_user_hair_stylist', $user->id_user_hair_stylist)
+                        ->where('transfer_status', 0)
+                        ->where('id_outlet', $user->id_outlet)
+                        ->select('id_hairstylist_log_balance', 'balance', 'id_reference', 'id_user')->get()->toArray();
+
+        $idTransaction = array_column($listCash, 'id_reference');
+        $idLogBalance = array_column($listCash, 'id_hairstylist_log_balance');
+        $totalWillTransfer = array_column($listCash, 'balance');
+        $totalWillTransfer = array_sum($totalWillTransfer);
+        if(empty($totalWillTransfer)){
+            return ['status' => 'fail', 'messages' => ['All cash already transfer']];
+        }
+
+        $dt = [
+            'id_user_hair_stylist'    => $user->id_user_hair_stylist,
+            'balance'                 => -$totalWillTransfer,
+            'source'                  => 'Transfer To SPV'
+        ];
+
+        $insertLogBalance = app($this->mitra_log_balance)->insertLogBalance($dt);
+
+        $update = false;
+        if(!empty($insertLogBalance['id_hairstylist_log_balance'])){
+            $update = HairstylistLogBalance::whereIn('id_hairstylist_log_balance', $idLogBalance)->update(['transfer_status' => 1]);
+            if($update){
+                $transferPayment = HairstylistTransferPayment::create([
+                    'id_hairstylist_log_balance' => $insertLogBalance['id_hairstylist_log_balance'],
+                    'id_user_hair_stylist' => $user->id_user_hair_stylist,
+                    'id_outlet' => $user->id_outlet,
+                    'transfer_payment_code' => 'TSPV-'.MyHelper::createrandom(4,'Angka').$user->id_user_hair_stylist.$insertLogBalance['id_hairstylist_log_balance'],
+                    'total_amount' => abs($totalWillTransfer)
+                ]);
+                if($transferPayment){
+                    $update = TransactionPaymentCash::whereIn('id_transaction', $idTransaction)->update(['id_hairstylist_transfer_payment' => $transferPayment['id_hairstylist_transfer_payment']]);
+                }else{
+                    $update = false;
+                }
+            }
+        }
+
+        return MyHelper::checkUpdate($update);
+    }
+
+    public function transferCashHistory(Request $request){
+        $user = $request->user();
+        $post = $request->json()->all();
+        if(empty($post['month']) && empty($post['year'])){
+            return ['status' => 'fail', 'messages' => ['Month and Year can not be empty']];
+        }
+
+        $list = HairstylistTransferPayment::whereYear('created_at', '=', $post['year'])
+                ->whereMonth('created_at', '=', $post['month'])
+                ->where('id_outlet', $user->id_outlet)->where('id_user_hair_stylist', $user->id_user_hair_stylist)
+                ->get()->toArray();
+
+        $res = [];
+        foreach ($list as $value){
+            $date = MyHelper::dateFormatInd(date('Y-m-d', strtotime($value['created_at'])), false, false);
+            $res[] = [
+                'date' => str_replace(' '.$post['year'], '', $date),
+                'time' => date('H:i', strtotime($value['created_at'])),
+                'transfer_code' => $value['transfer_payment_code'],
+                'amount' => $value['total_amount']
+            ];
+        }
+
+        return ['status' => 'success', 'result' => $res];
+    }
+
+    public function incomeDetail(Request $request){
+        $user = $request->user();
+        $post = $request->json()->all();
+        if(empty($post['date'])){
+            return ['status' => 'fail', 'messages' => ['Date can not be empty']];
+        }
+
+
+
+        if($user->level != 'Supervisor'){
+            return ['status' => 'fail', 'messages' => ['Your level not available for this detail']];
+        }
+
+        $date = date('Y-m-d', strtotime($post['date']));
+        $currency = 'Rp';
+        $currentBalance = $user->balance;
+        $listHS = UserHairStylist::where('id_outlet', $user->id_outlet)
+                    ->where('level', 'Hairstylist')
+                    ->where('user_hair_stylist_status', 'Active')->select('id_user_hair_stylist', 'fullname as name')->get()->toArray();
+
+        $projection = Transaction::join('transaction_payment_cash', 'transaction_payment_cash.id_transaction', 'transactions.id_transaction')
+                    ->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_payment_cash.cash_received_by')
+                    ->whereDate('transaction_payment_cash.updated_at', $date)
+                    ->where('transactions.id_outlet', $user->id_outlet)
+                    ->select('transaction_grandtotal', 'transactions.id_transaction', 'transactions.transaction_receipt_number', 'transaction_payment_cash.*', 'user_hair_stylist.fullname');
+
+        $reception = HairstylistTransferPayment::join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'hairstylist_transfer_payments.id_user_hair_stylist')
+            ->where('hairstylist_transfer_payments.id_outlet', $user->id_outlet)
+            ->whereDate('hairstylist_transfer_payments.created_at', $date)
+            ->where('transfer_payment_status', 'Pending')
+            ->select('id_hairstylist_transfer_payment', DB::raw('DATE_FORMAT(hairstylist_transfer_payments.created_at, "%H:%i") as time'), 'fullname as hair_stylist_name',
+                'transfer_payment_status as status', 'transfer_payment_code as transfer_code', 'total_amount');
+
+        $history = HairstylistTransferPayment::join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'hairstylist_transfer_payments.id_user_hair_stylist')
+            ->where('hairstylist_transfer_payments.id_outlet', $user->id_outlet)
+            ->whereDate('hairstylist_transfer_payments.created_at', $date)
+            ->where('transfer_payment_status', 'Confirm')
+            ->select('id_hairstylist_transfer_payment', DB::raw('DATE_FORMAT(hairstylist_transfer_payments.created_at, "%H:%i") as time'), 'fullname as hair_stylist_name',
+                'transfer_payment_status as status', 'transfer_payment_code as transfer_code', 'total_amount');
+
+        if(!empty($post['id_user_hair_stylist'])){
+            $projection = $projection->where('id_user_hair_stylist', $post['id_user_hair_stylist']);
+            $reception = $reception->where('hairstylist_transfer_payments.id_user_hair_stylist', $post['id_user_hair_stylist']);
+            $history = $history->where('hairstylist_transfer_payments.id_user_hair_stylist', $post['id_user_hair_stylist']);
+        }
+
+        $projection = $projection->get()->toArray();
+        $reception = $reception->get()->toArray();
+        $history = $history->get()->toArray();
+
+        $resProjection = [];
+        foreach ($projection as $value){
+            $resProjection[] = [
+                'id_transaction' => $value['id_transaction'],
+                'time' => date('H:i', strtotime($value['updated_at'])),
+                'hair_stylist_name' => $value['fullname'],
+                'receipt_number' => $value['transaction_receipt_number'],
+                'total_amount' => $value['transaction_grandtotal']
+            ];
+        }
+
+        $totalProjection = array_sum(array_column($resProjection, 'total_amount'));
+        $totalReception = array_sum(array_column($reception, 'total_amount'));
+
+        $result = [
+            'total_projection' => $totalProjection,
+            'total_reception' => $totalReception,
+            'currency' => $currency,
+            'current_balance_spv' => $currentBalance,
+            'list_hair_stylist' => $listHS,
+            'projection' => $resProjection,
+            'reception' => $reception,
+            'history' => $history
+        ];
+        return ['status' => 'success', 'result' => $result];
     }
 }

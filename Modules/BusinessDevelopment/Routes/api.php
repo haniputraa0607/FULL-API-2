@@ -23,9 +23,11 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefi
     Route::post('/delete', ['middleware'=>['feature_control:341','scopes:be'],'uses' => 'ApiPartnersController@destroy']);
     Route::post('/edit', ['middleware'=>['feature_control:339','scopes:be'],'uses' => 'ApiPartnersController@edit']);
     Route::post('/update', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@update']);
+    Route::post('/cek-duplikat', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@cekDuplikat']);
     Route::post('/create-follow-up', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@followUp']);
     Route::post('/pdf', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@pdf']);
     Route::post('/tesIcount', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@tesIcount']);
+    Route::any('/term', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@term']);
     Route::group(['prefix' => '/locations'], function() {
         Route::any('/', ['middleware'=>['feature_control:342','scopes:be'],'uses' => 'ApiLocationsController@index']);
         Route::post('/create', ['middleware'=>'scopes:franchise-user','uses' => 'ApiLocationsController@store']);
@@ -33,6 +35,8 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefi
         Route::post('/edit', ['middleware'=>['feature_control:343','scopes:be'],'uses' => 'ApiLocationsController@edit']);
         Route::post('/update', ['middleware'=>['feature_control:344','scopes:be'],'uses' => 'ApiLocationsController@update']);
         Route::get('/brands', ['middleware'=>['feature_control:344','scopes:be'],'uses' => 'ApiLocationsController@brandsList']);
+        Route::post('/create-follow-up', ['middleware'=>['feature_control:344','scopes:be'],'uses' => 'ApiLocationsController@followUp']);
+        // Route::post('/create-follow-up', ['middleware'=>['feature_control:344','scopes:be'],'uses' => 'ApiPartnersController@pdfSurvey']);
     });
     Route::group(['prefix' => '/bankaccount'], function() {
         Route::post('/detail', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiBankAccountsController@detail']);
@@ -152,6 +156,8 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefi
             Route::post('/cronActive', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseTemporaryController@cronActive']);
             Route::post('/cronChangeLocation', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseTemporaryController@cronChangeLocation']);
             //active steps
+            Route::post('/updatestepstatus', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseTemporaryController@update_step_status']);
+            Route::post('/updatesteplog', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseTemporaryController@update_step_log']);
             Route::post('/updateStatus', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseTemporaryController@updateStatus']);
             Route::post('/create-follow-up', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseTemporaryController@createFollowUp']);
             Route::post('/form-survey', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiOutletCloseTemporaryController@createFormSurvey']);

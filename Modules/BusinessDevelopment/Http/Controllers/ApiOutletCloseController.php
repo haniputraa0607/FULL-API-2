@@ -49,73 +49,249 @@ class ApiOutletCloseController extends Controller
     public function index(Request $request){
          if($request->id_partner){
                 $project = Outlet::where('locations.id_partner',$request->id_partner)
-                            ->join('cities','cities.id_city','outlets.id_city')
-                            ->join('locations','locations.id_city','cities.id_city')
+                            ->join('locations','locations.id_location','outlets.id_location')
+                            ->join('cities','cities.id_city','locations.id_city')
                            ->orderby('outlets.created_at','desc')->get();
            foreach ($project as $value) {
                $cutoff = OutletCutOff::where(array('id_outlet'=>$value['id_outlet']))
                        ->orderby('created_at','desc')
                        ->first();
-               $value['cutoff'] = $cutoff;
+               $date_cutoff = 0;
+               if(isset($cutoff)){
+                   if($cutoff->status!='Reject'){
+                       $date_cutoff = strtotime($cutoff->created_at);
+                   }
+               }
                $change = OutletChangeOwnership::where(array('id_outlet'=>$value['id_outlet']))
                         ->orderby('created_at','desc')
                         ->first();
-               $value['change'] = $change;
+               $date_change = 0;
+               if(isset($change)){
+                   if($change->status!='Reject'||$change->status!='Success'){
+                       $date_change = strtotime($change->created_at);
+                   }
+               }
                $close = OutletCloseTemporary::where(array('id_outlet'=>$value['id_outlet']))
                         ->orderby('created_at','desc')
                         ->first();
-               $value['close'] = $close;
+               $date_close = 0;
+               $name_close = null;
+               $url_detail_close = null;
+               if(isset($close)){
+                    $enkripsi = MyHelper::createSlug($close->id_outlet,$close->created_at);
+                    $name_close = 'Detail Close';
+                    $url_detail_close = $close->id_outlet;
+                   if($close->jenis =='Close'){
+                       if($close->status != 'Reject'){
+                        $date_close = strtotime($close->created_at);   
+                       }
+                   }else{
+                       if($close->status!='Success'){
+                           $date_close = strtotime($close->created_at);
+                       }
+                   }
+               }
+               $status = 'Active';
+               $status_warna = 0;
+               $name = null;
+               $url_detail = null;
+               $id_url_detail = null;
+               if($date_cutoff>=$date_change){
+                   if($date_cutoff>=$date_close){
+                       if($date_change>0){
+                           $status = $cutoff->status.' Cut Off';
+                           if($cutoff->status == "Success"){
+                             $status_warna = 2; 
+                             $name = 'Detail Cut Off';
+                            $url_detail = 'Cut Off';
+                            $id_url_detail = $cutoff->id_outlet_cut_off;
+                           }elseif($cutoff->status == "Process"){
+                             $status_warna = 1;
+                             $name = 'Detail Cut Off';
+                             $url_detail = 'Cut Off';
+                            $id_url_detail = $cutoff->id_outlet_cut_off;
+                           }elseif($cutoff->status == "Waiting"){
+                               $status_warna = 1;
+                               $name = 'Detail Cut Off';
+                               $url_detail = 'Cut Off';
+                               $id_url_detail = $cutoff->id_outlet_cut_off;
+                           }
+                       }
+                   }else{
+                       if($close->jenis=='Close'){
+                        $status= $close->status.' Close Temporary';
+                            if($close->status == "Success"){
+                             $status_warna = 2; 
+                           }elseif($close->status == "Process"){
+                             $status_warna = 1;   
+                           }elseif($close->status == "Waiting"){
+                               $status_warna = 1; 
+                           }
+                       }else{
+                          $status = $close->status.' Aktivation Outlet';
+                          if($close->status == "Process"){
+                             $status_warna = 1;   
+                           }elseif($close->status == "Waiting"){
+                               $status_warna = 1; 
+                           }
+                       }
+                   }
+               }else{
+                   if($date_change>=$date_close){
+                       if($change->status == 'Process'){
+                       $status = $change->status.' Change Ownership';
+                       $status_warna = 1; 
+                        $name = 'Detail Change';
+                        $url_detail = 'Change';
+                        $id_url_detail = $change->id_outlet_change_ownership;
+                       }elseif($change->status == 'Waiting'){
+                           $status = $change->status.' Change Ownership';
+                           $status_warna = 1; 
+                           $name = 'Detail Change';
+                           $url_detail = 'Change';
+                           $id_url_detail = $change->id_outlet_change_ownership;
+                       }
+                   }else{
+                       if($close->jenis=='Close'){
+                       $status = $close->status.' Close Temporary';
+                       if($close->status == "Success"){
+                             $status_warna = 2; 
+                           }elseif($close->status == "Process"){
+                             $status_warna = 1;   
+                           }elseif($close->status == "Waiting"){
+                               $status_warna = 1; 
+                           }
+                       }else{
+                           $status = $close->status.' Aktivation Outlet';
+                           if($close->status == "Process"){
+                             $status_warna = 1;   
+                           }elseif($close->status == "Waiting"){
+                               $status_warna = 1; 
+                           }
+                       }
+                   }
+               }
+               $value['status_outlet']= $status;
+               $value['status_warna']= $status_warna;
+               $value['name_button'] = $name;
+               $value['url_detail'] = $url_detail;
+               $value['name_button_close'] = $name_close;
+               $value['url_detail_close'] = $url_detail_close;
+               $value['id_url_detail'] = $id_url_detail;
            }
-            return response()->json(['status' => 'success', 'result' => $project]);
+            return response()->json(['status' => 'success', 'result' => $project,'id_partner'=>$request->id_partner]);
         }
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
     }
+    public function cek_outlet($id_outlet=null){
+           $cutoff = OutletCutOff::where(array('id_outlet'=>$id_outlet))
+                       ->orderby('created_at','desc')
+                       ->first();
+               $date_cutoff = 0;
+               if(isset($cutoff)){
+                   if($cutoff->status!='Reject'){
+                       $date_cutoff = strtotime($cutoff->created_at);
+                   }
+               }
+               $change = OutletChangeOwnership::where(array('id_outlet'=>$id_outlet))
+                        ->orderby('created_at','desc')
+                        ->first();
+               $date_change = 0;
+               if(isset($change)){
+                   if($change->status!='Reject'||$change->status!='Success'){
+                       $date_change = strtotime($change->created_at);
+                   }
+               }
+               $close = OutletCloseTemporary::where(array('id_outlet'=>$id_outlet))
+                        ->orderby('created_at','desc')
+                        ->first();
+               $date_close = 0;
+               if(isset($close)){
+                   if($close->jenis =='Close'){
+                       if($close->status != 'Reject'){
+                        $date_close = strtotime($close->created_at);   
+                       }
+                   }else{
+                       if($close->status!='Success'){
+                           $date_close = strtotime($close->created_at);
+                       }
+                   }
+               }
+                $data = 1;
+               if($date_cutoff>=$date_change){
+                   if($date_cutoff>=$date_close){
+                       if($date_change>0){
+                           if($cutoff->status == "Success"){
+                              $data = 0;
+                           }elseif($cutoff->status == "Process"){
+                              $data = 0;
+                           }elseif($cutoff->status == "Waiting"){
+                                $data = 0;
+                           }
+                       }
+                   }else{
+                       if($close->jenis=='Close'){
+                      
+                            if($close->status == "Success"){
+                              $data = 0;
+                           }elseif($close->status == "Process"){
+                             $data = 0;
+                           }elseif($close->status == "Waiting"){
+                                $data = 0;
+                           }
+                       }else{
+                          
+                          if($close->status == "Process"){
+                             $data = 0;
+                           }elseif($close->status == "Waiting"){
+                               $data = 0;
+                           }
+                       }
+                   }
+               }else{
+                   if($date_change>=$date_close){
+                       if($change->status == 'Process'){
+                       $data = 0;
+                       }elseif($change->status == 'Waiting'){
+                            $data = 0;
+                       }
+                   }else{
+                       if($close->jenis=='Close'){
+                     
+                       if($close->status == "Success"){
+                              $data = 0;
+                           }elseif($close->status == "Process"){
+                              $data = 0;  
+                           }elseif($close->status == "Waiting"){
+                                $data = 0;
+                           }
+                       }else{
+                          
+                           if($close->status == "Process"){
+                              $data = 0;
+                           }elseif($close->status == "Waiting"){
+                               $data = 0;
+                           }
+                       }
+                   }
+               }
+               return $data;
+    }
+
     public function ready(Request $request){
          if($request->id_partner){
              $list = array();
                 $project = Outlet::where('outlets.outlet_status',"Active")
                             ->join('cities','cities.id_city','outlets.id_city')
-                            ->join('locations','locations.id_city','cities.id_city')
+                            ->join('locations','locations.id_location','outlets.id_location')
                             ->where('locations.id_partner',$request->id_partner)
-                            ->select(['outlets.outlet_name','outlets.id_outlet'])
+                            ->select(['outlets.outlet_name','outlets.id_outlet','outlets.outlet_code'])
                            ->orderby('outlets.created_at','asc')->get();
            foreach ($project as $value) {
-               $cutoff = OutletCutOff::where(array('id_outlet'=>$value['id_outlet']))
-                        ->orderby('created_at','desc')
-                        ->first();
-               $change = OutletChangeOwnership::where(array('id_outlet'=>$value['id_outlet']))
-                        ->orderby('created_at','desc')
-                        ->first();
-                $close = OutletCloseTemporary::where(array('id_outlet'=>$value['id_outlet']))
-                        ->orderby('created_at','desc')
-                        ->where('jenis','Close')
-                        ->first();
-                if(isset($cutoff)){
-                    if($cutoff->status =='Process'||$cutoff->status=='Waiting'||$cutoff->status=='Success'){
-                    }else{
-                        array_push($list,$value);
-                    }
-                }elseif(isset($change)){
-                    if($change->status=='Process'||$change->status=='Waiting'||$cutoff->status=='Success'){
-                    }else{
-                        array_push($list,$value);
-                    }
-                }elseif(isset($close)){
-                    if($close->jenis =='Close'){
-                    if($close->status=='Process'||$close->status=='Waiting'||$close->status=='Success'){
-                    }else{
-                        array_push($list,$value);
-                    }
-                    }else{
-                        if($close->status=='Process'||$close->status=='Waiting'){
-                    }else{
-                        array_push($list,$value);
-                    }
-                    }
-                }else{
+                $cek_outlet = $this->cek_outlet($value['id_outlet']);
+                if($cek_outlet==1){
                     array_push($list,$value);
                 }
-                   
            }
             return response()->json(['status' => 'success', 'result' => $list]);
         }
@@ -221,8 +397,7 @@ class ApiOutletCloseController extends Controller
         try {
         $outlet = OutletCutOff::where(array('status'=>"Waiting"))->wheredate('date','<=',date('Y-m-d H:i:s'))->get();
         foreach ($outlet as $value) {
-            $location = Location::join('cities','cities.id_city','locations.id_city')
-                        ->join('outlets','outlets.id_city','cities.id_city')
+            $location = Location::join('outlets','outlets.id_location','locations.id_location')
                         ->where('outlets.id_outlet',$value['id_outlet'])
                         ->update(['locations.status'=>'Inactive','outlets.outlet_status'=>'Inactive']);
             $store = OutletCutOff::where(array('id_outlet_cut_off'=>$value['id_outlet_cut_off']))

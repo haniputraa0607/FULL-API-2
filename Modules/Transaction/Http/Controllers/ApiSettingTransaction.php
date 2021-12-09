@@ -324,4 +324,21 @@ class ApiSettingTransaction extends Controller
             return response()->json(MyHelper::checkUpdate(true));
         }
     }
+
+    public function academySetting(Request $request){
+        $post = $request->json()->all();
+
+        if(empty($post)){
+            $installmentDeadline = Setting::where('key', 'transaction_academy_installment_deadline_date')->first()['value']??null;
+            $result = [
+                'installment_deadline' => $installmentDeadline
+            ];
+
+            return response()->json(MyHelper::checkGet($result));
+        }else{
+            Setting::updateOrCreate(['key' => 'transaction_academy_installment_deadline_date'], ['value' => $post['installment_deadline']]);
+
+            return response()->json(MyHelper::checkUpdate(true));
+        }
+    }
 }

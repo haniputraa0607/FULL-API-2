@@ -3917,36 +3917,86 @@ class FeaturesTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00')
                 ),
-            391 => 
-            array (
-                'id_feature' => 392,
-                'feature_type' => 'List',
-                'feature_module' => 'Manage Outlet Service',
-                'show_hide' => 1,
-                'order' => 141,
-                'created_at' => '2021-11-10 11:00:00',
-                'updated_at' => '2021-11-10 11:00:00',
-            ),
-            392 => 
-            array (
-                'id_feature' => 393,
-                'feature_type' => 'Detail',
-                'feature_module' => 'Manage Outlet Service',
-                'show_hide' => 1,
-                'order' => 141,
-                'created_at' => '2021-11-10 11:00:00',
-                'updated_at' => '2021-11-10 11:00:00',
-            ),
-            393 => 
-            array (
-                'id_feature' => 394,
-                'feature_type' => 'Update',
-                'feature_module' => 'Manage Outlet Service',
-                'show_hide' => 1,
-                'order' => 141,
-                'created_at' => '2021-11-10 11:00:00',
-                'updated_at' => '2021-11-10 11:00:00',
-            )
+            391 =>
+                array (
+                    'feature_module' => 'Icount Setting',
+                    'feature_type' => 'List',
+                    'id_feature' => 392,
+                    'order' => 141,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            392 =>
+                array (
+                    'feature_module' => 'Hairstylist Group',
+                    'feature_type' => 'List',
+                    'id_feature' => 393,
+                    'order' => 142,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            393 =>
+                array (
+                    'feature_module' => 'Hairstylist Group',
+                    'feature_type' => 'Create',
+                    'id_feature' => 394,
+                    'order' => 142,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            394 =>
+                array (
+                    'feature_module' => 'Hairstylist Group',
+                    'feature_type' => 'Update',
+                    'id_feature' => 395,
+                    'order' => 142,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            395 =>
+                array (
+                    'feature_module' => 'Hairstylist Group',
+                    'feature_type' => 'Detail',
+                    'id_feature' => 396,
+                    'order' => 142,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+ 			396 => 
+	            array (
+	                'id_feature' => 397,
+	                'feature_type' => 'List',
+	                'feature_module' => 'Manage Outlet Service',
+	                'show_hide' => 1,
+	                'order' => 143,
+	                'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+	            ),
+            397 => 
+	            array (
+	                'id_feature' => 398,
+	                'feature_type' => 'Detail',
+	                'feature_module' => 'Manage Outlet Service',
+	                'show_hide' => 1,
+	                'order' => 143,
+	                'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+	            ),
+            398 => 
+	            array (
+	                'id_feature' => 399,
+	                'feature_type' => 'Update',
+	                'feature_module' => 'Manage Outlet Service',
+	                'show_hide' => 1,
+	                'order' => 143,
+	                'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+	            )
         ));
         
         

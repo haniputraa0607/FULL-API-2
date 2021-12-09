@@ -48,15 +48,12 @@ class ApiDesainController extends Controller
                     "id_project"   =>  $request->id_project,
                     "desain"   =>  1,
                     "status"   =>  $request->status,
+                    "nama_designer"   =>  $request->nama_designer,
+                    "cp_designer"   =>  $request->cp_designer,
                     "attachment"   =>  $attachment,
                     "note"   =>  $note
                 ]);
         }else{
-            $attachment = $projectDesain->attachment;
-            $note = $projectDesain->note;
-            if(isset($request->note)){
-                $note = $request->note;
-            }
             if(isset($request->attachment)){
                     $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, 'pdf');
                      if (isset($upload['status']) && $upload['status'] == "success") {
@@ -73,6 +70,8 @@ class ApiDesainController extends Controller
                     "id_project"   =>  $request->id_project,
                     "desain"   =>  $projectDesain->desain+1,
                     "status"   =>  $request->status,
+                    "nama_designer"   =>  $request->nama_designer,
+                    "cp_designer"   =>  $request->cp_designer,
                     "attachment"   => $attachment,
                     "note"   =>  $note
                 ]);

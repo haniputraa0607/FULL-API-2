@@ -2,7 +2,7 @@
 
 namespace Modules\Academy\Http\Controllers;
 
-use App\Jobs\SyncronPlasticTypeOutlet;
+use App\Lib\Midtrans;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
@@ -10,34 +10,19 @@ use Illuminate\Routing\Controller;
 use App\Http\Models\Outlet;
 use App\Http\Models\OutletDoctor;
 use App\Http\Models\OutletDoctorSchedule;
-use App\Http\Models\OutletHoliday;
-use App\Http\Models\UserOutletApp;
-use App\Http\Models\Holiday;
-use App\Http\Models\DateHoliday;
-use App\Http\Models\OutletPhoto;
-use App\Http\Models\City;
-use App\Http\Models\User;
-use App\Http\Models\UserOutlet;
-use App\Http\Models\Configs;
-use App\Http\Models\OutletSchedule;
 use App\Http\Models\Setting;
 use App\Http\Models\OauthAccessToken;
 use App\Http\Models\Product;
-use App\Http\Models\ProductPrice;
-use Modules\Outlet\Entities\DeliveryOutlet;
-use Modules\Outlet\Entities\OutletBox;
-use Modules\POS\Http\Requests\reqMember;
+use Modules\Academy\Http\Requests\Pay;
 use Modules\Product\Entities\ProductDetail;
-use Modules\Product\Entities\ProductGlobalPrice;
 use Modules\Product\Entities\ProductSpecialPrice;
-use Modules\Franchise\Entities\UserFranchise;
-use Modules\Franchise\Entities\UserFranchiseOultet;
-use Modules\Outlet\Entities\OutletScheduleUpdate;
-
-use App\Imports\ExcelImport;
-use App\Imports\FirstSheetOnlyImport;
-
 use App\Lib\MyHelper;
+use Modules\Transaction\Entities\TransactionAcademy;
+use Modules\Transaction\Entities\TransactionAcademyInstallment;
+use Modules\Transaction\Entities\TransactionAcademyInstallmentPaymentMidtrans;
+use Modules\Transaction\Entities\TransactionAcademySchedule;
+use Modules\Transaction\Entities\TransactionAcademyScheduleDayOff;
+use Modules\Xendit\Entities\TransactionAcademyInstallmentPaymentXendit;
 use Validator;
 use Hash;
 use DB;
@@ -45,36 +30,12 @@ use Mail;
 use Excel;
 use Storage;
 
-use Modules\Brand\Entities\BrandOutlet;
 use Modules\Brand\Entities\Brand;
 
 use Modules\Outlet\Http\Requests\Outlet\Upload;
-use Modules\Outlet\Http\Requests\Outlet\Update;
-use Modules\Outlet\Http\Requests\Outlet\UpdateStatus;
-use Modules\Outlet\Http\Requests\Outlet\UpdatePhoto;
-use Modules\Outlet\Http\Requests\Outlet\UploadPhoto;
-use Modules\Outlet\Http\Requests\Outlet\Create;
-use Modules\Outlet\Http\Requests\Outlet\Delete;
-use Modules\Outlet\Http\Requests\Outlet\DeletePhoto;
-use Modules\Outlet\Http\Requests\Outlet\Nearme;
-use Modules\Outlet\Http\Requests\Outlet\Filter;
-use Modules\Outlet\Http\Requests\Outlet\OutletList;
-use Modules\Outlet\Http\Requests\Outlet\OutletListOrderNow;
 
-use Modules\Outlet\Http\Requests\UserOutlet\Create as CreateUserOutlet;
-use Modules\Outlet\Http\Requests\UserOutlet\Update as UpdateUserOutlet;
-
-use Modules\Outlet\Http\Requests\Holiday\HolidayStore;
 use Modules\Outlet\Http\Requests\Holiday\HolidayEdit;
-use Modules\Outlet\Http\Requests\Holiday\HolidayUpdate;
-use Modules\Outlet\Http\Requests\Holiday\HolidayDelete;
-
-use Modules\PromoCampaign\Entities\PromoCampaignPromoCode;
-use Modules\PromoCampaign\Lib\PromoCampaignTools;
 use App\Http\Models\Transaction;
-
-use App\Jobs\SendOutletJob;
-use function Clue\StreamFilter\fun;
 
 class ApiAcademyController extends Controller
 {
@@ -82,6 +43,7 @@ class ApiAcademyController extends Controller
 
     function __construct() {
         date_default_timezone_set('Asia/Jakarta');
+        $this->online_trx      = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
     }
 
     public function settingInstallment(){
@@ -126,16 +88,6 @@ class ApiAcademyController extends Controller
         $totalListOutlet = Setting::where('key', 'total_list_nearby_outlet')->first()['value']??5;
         $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
 
-        $day = [
-            'Mon' => 'Senin',
-            'Tue' => 'Selasa',
-            'Wed' => 'Rabu',
-            'Thu' => 'Kamis',
-            'Fri' => 'Jumat',
-            'Sat' => 'Sabtu',
-            'Sun' => 'Minggu'
-        ];
-
         $outlet = Outlet::join('cities', 'cities.id_city', 'outlets.id_city')
             ->selectRaw('cities.city_name, outlets.id_outlet, outlets.outlet_name, outlets.outlet_code,
                     outlets.outlet_latitude, outlets.outlet_longitude, outlets.outlet_address, 
@@ -155,6 +107,14 @@ class ApiAcademyController extends Controller
             ->with(['brands', 'holidays.date_holidays', 'today'])
             ->orderBy('distance_in_km', 'asc')
             ->limit($totalListOutlet);
+
+        if(!empty($post['id_product'])){
+            $listOutletAvailable = ProductDetail::where('id_product', $post['id_product'])->where('product_detail_visibility', 'Hidden')->pluck('id_outlet')->toArray();
+            $listOutletAvailable = array_unique($listOutletAvailable);
+            if(!empty($listOutletAvailable)){
+                $outlet = $outlet->whereNotIn('id_outlet', $listOutletAvailable);
+            }
+        }
 
         if(!empty($outletHomeService)){
             $outlet = $outlet->whereNotIn('id_outlet', [$outletHomeService]);
@@ -215,7 +175,7 @@ class ApiAcademyController extends Controller
             ];
         }
 
-        return response()->json(MyHelper::checkGet($res));
+        return response()->json(['status' => 'success', 'result' => $res]);
     }
 
     public function detailOutlet(Request $request){
@@ -460,6 +420,7 @@ class ApiAcademyController extends Controller
             }
 
             $resDetail = [
+                'complete_profile' => (empty($request->user()->complete_profile) ?false:true),
                 'brand' => (empty($brand) ? null : $brand),
                 'outlet' => (empty($outlet) ? null : $outlet),
                 'detail' => [
@@ -481,5 +442,406 @@ class ApiAcademyController extends Controller
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID product can not be empty']]);
         }
+    }
+
+    public function listMyCourse(Request $request){
+        $post = $request->json()->all();
+        $idUser = $request->user()->id;
+
+        $list = Transaction::join('transaction_academy', 'transactions.id_transaction', 'transaction_academy.id_transaction')
+            ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+            ->leftJoin('brands', 'brands.id_brand', 'transaction_products.id_brand')
+            ->leftJoin('products', 'products.id_product', 'transaction_products.id_product')
+            ->where('transactions.id_user', $idUser)
+            ->whereNotIn('transaction_payment_status', ['Cancelled'])
+            ->groupBy('transactions.id_transaction')
+            ->orderBy('transactions.id_transaction', 'desc')
+            ->with('outlet');
+
+        $post['status'] = $post['status']??'';
+
+        if($post['status'] == 'ongoing'){
+            $idTransactionOnGoing = Transaction::join('transaction_academy', 'transactions.id_transaction', 'transaction_academy.id_transaction')
+                ->leftJoin('transaction_academy_schedules', 'transaction_academy_schedules.id_transaction_academy', 'transaction_academy.id_transaction_academy')
+                ->where('transactions.id_user', $idUser)
+                ->where(function ($q){
+                    $q->where('transaction_academy_schedule_status', '=', 'Not Started')->orWhereNull('schedule_date');
+                })->pluck('transaction_academy.id_transaction_academy')->toArray();
+            $idTransactionOnGoing = array_unique($idTransactionOnGoing);
+            $list = $list->whereIn('transaction_academy.id_transaction_academy', $idTransactionOnGoing);
+        }elseif($post['status'] == 'completed'){
+            $idTransactionOnGoing = Transaction::join('transaction_academy', 'transactions.id_transaction', 'transaction_academy.id_transaction')
+                ->leftJoin('transaction_academy_schedules', 'transaction_academy_schedules.id_transaction_academy', 'transaction_academy.id_transaction_academy')
+                ->where('transactions.id_user', $idUser)
+                ->where(function ($q){
+                    $q->where('transaction_academy_schedule_status', '=', 'Not Started')->orWhereNull('schedule_date');
+                })->pluck('transaction_academy.id_transaction_academy')->toArray();
+            $idTransactionOnGoing = array_unique($idTransactionOnGoing);
+
+            $list = $list->whereNotIn('transaction_academy.id_transaction_academy', $idTransactionOnGoing);
+        }
+
+        $list = $list->get()->toArray();
+        $res = [];
+        foreach ($list as $value){
+            $nextTimeStart = '';
+            if($post['status'] == 'ongoing'){
+                $getNextTime = TransactionAcademySchedule::where('id_transaction_academy', $value['id_transaction_academy'])
+                        ->where('transaction_academy_schedule_status', 'Not Started')->orderBy('meeting', 'asc')->first()['schedule_date']??'';
+                if(!empty($getNextTime)){
+                    $nextTimeStart = date('Y-m-d H:i:s', strtotime($getNextTime));
+                    $nextTimeEnd = date('Y-m-d H:i:s', strtotime("+".(int)$value['transaction_academy_hours_meeting']." hour", strtotime($nextTimeStart)));
+                }
+            }
+
+            $res[] = [
+                'id_transaction' => $value['id_transaction'],
+                'id_transaction_academy' => $value['id_transaction_academy'],
+                'receipt_number' => $value['transaction_receipt_number'],
+                'course_name' => $value['product_name'],
+                'next_schedule_date_display' => (empty($nextTimeStart)? '' : MyHelper::dateFormatInd($nextTimeStart, true, false)),
+                'next_schedule_date' => (empty($nextTimeStart)? '' : date('Y-m-d', strtotime($nextTimeStart))),
+                'next_schedule_time' => (empty($nextTimeStart)? '' : date('H:i', strtotime($nextTimeStart)) .' - '. date('H:i', strtotime($nextTimeEnd))),
+                'location' => $value['outlet']['outlet_name'],
+                'color' => $value['color_brand']??''
+            ];
+        }
+
+        return response()->json(['status' => 'success', 'result' => $res]);
+    }
+
+    public function detailMyCourse(Request $request){
+        $post = $request->json()->all();
+        if(!empty($post['id_transaction']) || !empty($post['transaction_receipt_number'])){
+
+            $detail =  Transaction::join('transaction_academy', 'transactions.id_transaction', 'transaction_academy.id_transaction')
+                        ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+                        ->leftJoin('products', 'products.id_product', 'transaction_products.id_product')
+                        ->with('outlet');
+
+            if(!empty($post['transaction_receipt_number'])){
+                $trxReciptNumber = TransactionAcademyInstallment::join('transaction_academy', 'transaction_academy_installment.id_transaction_academy', 'transaction_academy.id_transaction_academy')
+                                ->where('installment_receipt_number', $post['transaction_receipt_number'])->first();
+                $post['id_transaction'] = $trxReciptNumber['id_transaction'];
+            }
+
+            $detail = $detail->where('transactions.id_transaction', $post['id_transaction']);
+
+            $detail = $detail->first();
+            if(!empty($detail)){
+                $ongoingCheck = Transaction::join('transaction_academy', 'transactions.id_transaction', 'transaction_academy.id_transaction')
+                    ->leftJoin('transaction_academy_schedules', 'transaction_academy_schedules.id_transaction_academy', 'transaction_academy.id_transaction_academy')
+                    ->where('transaction_academy.id_transaction_academy', $detail['id_transaction_academy'])
+                    ->where(function ($q){
+                        $q->where('transaction_academy_schedule_status', '=', 'Not Started')->orWhereNull('schedule_date');
+                    })->first();
+
+                $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
+                    ->where('id_outlet', $detail['id_outlet'])->first();
+
+                if(empty($brand)){
+                    return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
+                }
+
+                $status = 'completed';
+                $nextTimeStart = '';
+                if(!empty($ongoingCheck)){
+                    $status = 'ongoing';
+                    $getNextTime = TransactionAcademySchedule::where('id_transaction_academy', $detail['id_transaction_academy'])
+                            ->where('transaction_academy_schedule_status', 'Not Started')->orderBy('meeting', 'asc')->first()['schedule_date']??'';
+                    if(!empty($getNextTime)){
+                        $nextTimeStart = date('Y-m-d H:i:s', strtotime($getNextTime));
+                        $nextTimeEnd = date('Y-m-d H:i:s', strtotime("+".(int)$detail['transaction_academy_hours_meeting']." hour", strtotime($nextTimeStart)));
+                    }
+                }
+
+                $detail = [
+                    'id_transaction' => $detail['id_transaction'],
+                    'id_transaction_academy' => $detail['id_transaction_academy'],
+                    'course_name' => $detail['product_name'],
+                    'status' => $status,
+                    'next_schedule_date_display' => (empty($nextTimeStart)? '' : MyHelper::dateFormatInd($nextTimeStart, true, false)),
+                    'next_schedule_date' => (empty($nextTimeStart)? '' : date('Y-m-d', strtotime($nextTimeStart))),
+                    'next_schedule_time' => (empty($nextTimeStart)? '' : date('H:i', strtotime($nextTimeStart)) .' - '. date('H:i', strtotime($nextTimeEnd))),
+                    'outlet' => [
+                        'outlet_name' => $detail['outlet']['outlet_name'],
+                        'outlet_address' => $detail['outlet']['outlet_address'],
+                        'color' => $brand['color_brand']
+                    ],
+                    'brand' => [
+                        'id_brand' => $brand['id_brand'],
+                        'brand_code' => $brand['code_brand'],
+                        'brand_name' => $brand['name_brand'],
+                        'brand_logo' => $brand['logo_brand'],
+                        'brand_logo_landscape' => $brand['logo_landscape_brand']
+                    ]
+                ];
+            }
+
+            return response()->json(MyHelper::checkGet($detail));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID transaction can not be empty']]);
+        }
+    }
+
+    public function scheduleDetailMyCourse(Request $request){
+        $post = $request->json()->all();
+        if(!empty($post['id_transaction_academy'])){
+            $totalCompleted = TransactionAcademySchedule::where('id_transaction_academy', $post['id_transaction_academy'])->where('transaction_academy_schedule_status', 'Attend')->count();
+
+            $nextMeeting = TransactionAcademySchedule::where('id_transaction_academy', $post['id_transaction_academy'])
+                        ->where('transaction_academy_schedule_status', 'Not Started')->orderBy('meeting', 'asc')->first()['meeting']??null;
+            if(!isset($post['page'])){
+                $listSchedule = TransactionAcademySchedule::where('id_transaction_academy', $post['id_transaction_academy'])->get()->toArray();
+
+                foreach ($listSchedule as $key=>$value){
+                    $listSchedule[$key] = [
+                        'meeting' => 'Pertemuan '.MyHelper::numberToRomanRepresentation($value['meeting']),
+                        'status' => ($nextMeeting == $value['meeting'] ? 'Next':$value['transaction_academy_schedule_status']),
+                        'date' => MyHelper::dateFormatInd($value['schedule_date'], true, false),
+                        'time' => date('H:i', strtotime($value['schedule_date']))
+                    ];
+                }
+            }else{
+                $listSchedule = TransactionAcademySchedule::where('id_transaction_academy', $post['id_transaction_academy'])->paginate(15)->toArray();
+
+                foreach ($listSchedule['data'] as $key=>$value){
+                    $listSchedule['data'][$key] = [
+                        'meeting' => 'Pertemuan '.MyHelper::numberToRomanRepresentation($value['meeting']),
+                        'status' => ($nextMeeting == $value['meeting'] ? 'Next':$value['transaction_academy_schedule_status']),
+                        'date' => MyHelper::dateFormatInd($value['schedule_date'], true, false),
+                        'time' => date('H:i', strtotime($value['schedule_date']))
+                    ];
+                }
+            }
+
+            $res = [
+                'total_meeting' => count($listSchedule),
+                'total_meeting_completed' => $totalCompleted,
+                'list_meeting_date' => $listSchedule
+            ];
+            return response()->json(MyHelper::checkGet($res));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID transaction academy can not be empty']]);
+        }
+    }
+
+    public function scheduleMyCourse(Request $request){
+        $post = $request->json()->all();
+        if(!empty($post['id_transaction_academy'])){
+            $listSchedule = TransactionAcademySchedule::where('id_transaction_academy', $post['id_transaction_academy'])
+                ->where('transaction_academy_schedule_status', 'Not Started')
+                ->get()->toArray();
+
+            $res = [];
+            foreach ($listSchedule as $key=>$value){
+                $res[] = [
+                    'id_transaction_academy_schedule' => $value['id_transaction_academy_schedule'],
+                    'meeting' => 'Pertemuan '.MyHelper::numberToRomanRepresentation($value['meeting']),
+                    'date' => MyHelper::dateFormatInd($value['schedule_date'], true, false),
+                    'time' => date('H:i', strtotime($value['schedule_date']))
+                ];
+            }
+
+            return response()->json(['status' => 'success', 'result' => $res]);
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID transaction academy can not be empty']]);
+        }
+    }
+
+    public function createDayOff(Request $request){
+        $post = $request->json()->all();
+        if(!empty($post['id_transaction_academy_schedule'])){
+            $check = TransactionAcademySchedule::where('id_transaction_academy_schedule', $post['id_transaction_academy_schedule'])->first();
+            if(empty($check)){
+                return response()->json(['status' => 'fail', 'messages' => ['Schedule old not found']]);
+            }
+            $newDate = date('Y-m-d', strtotime($post['schedule_date_new']));
+            $newTime = date('H:i:s', strtotime($check['schedule_date']));
+            $create = TransactionAcademyScheduleDayOff::create([
+                            'id_transaction_academy_schedule' => $post['id_transaction_academy_schedule'],
+                            'id_transaction_academy' => $check['id_transaction_academy'],
+                            'schedule_date_old' => date('Y-m-d H:i:s', strtotime($check['schedule_date'])),
+                            'schedule_date_new' => date('Y-m-d H:i:s', strtotime($newDate.' '.$newTime)),
+                            'description' => $post['description']
+                        ]);
+            return response()->json(MyHelper::checkCreate($create));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID transaction academy schedule can not be empty']]);
+        }
+    }
+
+    public function installmentDetail(Request $request){
+        $post = $request->json()->all();
+        if(!empty($post['id_transaction'])){
+            $trx = Transaction::join('transaction_academy', 'transactions.id_transaction', 'transaction_academy.id_transaction')
+                    ->where('transactions.id_transaction', $post['id_transaction'])->first();
+            if(empty($trx)){
+                return response()->json(['status' => 'fail', 'messages' => ['Transaction not found']]);
+            }
+
+            $listInstallment = TransactionAcademyInstallment::where('id_transaction_academy', $trx['id_transaction_academy'])->orderBy('id_transaction_academy_installment', 'asc')->get()->toArray();
+            $listNextBill = [];
+            foreach ($listInstallment as $key=>$value){
+                if(empty($value['completed_installment_at'])){
+                    $listNextBill[] = [
+                        'id_transaction_academy_installment' => $value['id_transaction_academy_installment'],
+                        'text' => 'Pembayaran Tahap '.($key+1),
+                        'deadline' => (empty($value['deadline'])? '':MyHelper::dateFormatInd($value['deadline'], true, false)),
+                        'amount' => $value['amount']
+                    ];
+                }
+            }
+
+            $nextBill = $listNextBill[0]??null;
+            unset($listNextBill[0]);
+            $listNextBill = array_values($listNextBill);
+            $res = [
+                'currency' => 'Rp',
+                'total_amount' => $trx['transaction_grandtotal'],
+                'amount_completed' => $trx['amount_completed'],
+                'amount_not_completed' => $trx['amount_not_completed'],
+                'next_bill' => $nextBill,
+                'list_next_bill' => $listNextBill
+            ];
+
+            $fake_request = new Request(['show_all' => 1]);
+            $res['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
+            return response()->json(MyHelper::checkGet($res));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID transaction can not be empty']]);
+        }
+    }
+
+    public function installmentPay(Pay $request){
+        $post = $request->json()->all();
+        $dataInstallment = TransactionAcademyInstallment::join('transaction_academy', 'transaction_academy.id_transaction_academy', 'transaction_academy_installment.id_transaction_academy')
+                            ->where('id_transaction_academy_installment', $post['id_transaction_academy_installment'])
+                            ->select('transaction_academy_installment.*', 'transaction_academy.id_transaction')->first();
+
+        if(empty($dataInstallment)){
+            return response()->json(['status' => 'fail', 'messages' => ['Data installment not found']]);
+        }
+
+        if(!empty($dataInstallment['completed_installment_at'])){
+            return response()->json(['status' => 'fail', 'messages' => ['Installment already paid']]);
+        }
+
+        $dataInstallment->update(['installment_payment_type' => $request->payment_type]);
+
+        $res = [];
+        if ($request->json('payment_type') && $request->json('payment_type') == "Midtrans") {
+            $pay = $this->midtrans($dataInstallment, $post);
+
+            if(!empty($pay)){
+                $res = [
+                    "snap_token" => $pay['midtrans']['token'],
+                    "redirect_url" => $pay['midtrans']['redirect_url'],
+                    "transaction_data" => [
+                        "transaction_details" => [
+                            "order_id" => $dataInstallment['installment_receipt_number'],
+                            "gross_amount" => $dataInstallment['amount'],
+                            "id_transaction_academy_installment" =>  $dataInstallment['id_transaction_academy_installment'],
+                            "id_transaction" => $dataInstallment['id_transaction']
+                        ]
+                    ]
+                ];
+            }
+        } elseif ($request->payment_type == 'Xendit') {
+            $pay = $this->xendit($dataInstallment, $post);
+            $res = $pay;
+        }
+
+        return response()->json(MyHelper::checkGet($res));
+    }
+
+    function midtrans($data, $post)
+    {
+        $data['gross_amount'] = $data['amount'];
+        $requestToMidtrans = Midtrans::token($data['installment_receipt_number'], $data['gross_amount'], null, null, null, 'transaction', $data['id_transaction'], $post['payment_detail'] ?? null, 'apps', null, 'academy');
+        $requestToMidtrans['order_id'] = $data['installment_receipt_number'];
+        $requestToMidtrans['gross_amount'] = $data['amount'];
+
+        if (isset($requestToMidtrans['token'])) {
+            TransactionAcademyInstallment::where('id_transaction_academy_installment', $data['id_transaction_academy_installment'])->update(['paid_status' => 'Pending']);
+            $insert = [
+                'id_transaction_academy' => $data['id_transaction_academy'],
+                'id_transaction_academy_installment' => $data['id_transaction_academy_installment'],
+                'gross_amount' => $data['gross_amount'],
+                'order_id' => $data['installment_receipt_number']
+            ];
+            if (TransactionAcademyInstallmentPaymentMidtrans::create($insert)) {
+                return [
+                    'midtrans'      => $requestToMidtrans,
+                    'data'          => $data,
+                    'redirect_url'  => $requestToMidtrans['redirect_url'] ?? null,
+                    'redirect'      => true,
+                ];
+            }
+        }
+
+        return false;
+    }
+
+    public function xendit($data, $post)
+    {
+        $paymentXendit = TransactionAcademyInstallmentPaymentXendit::where('id_transaction_academy', $data['id_transaction_academy'])->first();
+        $post['payment_detail'] = request()->payment_detail;
+        if (!($post['phone'] ?? false)) {
+            $post['phone'] = request()->user()->phone;
+        }
+        $grossAmount = $data['amount'];
+        if (!$paymentXendit) {
+            $paymentXendit = new TransactionAcademyInstallmentPaymentXendit([
+                'id_transaction_academy' => $data['id_transaction_academy'],
+                'id_transaction_academy_installment' => $data['id_transaction_academy_installment'],
+                'order_id' => $data['installment_receipt_number'],
+                'xendit_id' => null,
+                'external_id' => $data['installment_receipt_number'],
+                'business_id' => null,
+                'phone' => $post['phone'],
+                'type' => $post['payment_detail'],
+                'amount' => $grossAmount,
+                'expiration_date' => null,
+                'failure_code' => null,
+                'status' => null,
+                'checkout_url' => null,
+            ]);
+        }
+
+        if ($this->payment_id == 'LINKAJA') {
+            $paymentXendit->items = [
+                [
+                    'id'       => (string) $data['id_transaction_academy'],
+                    'price'    => $grossAmount,
+                    'name'     => $data['installment_receipt_number'],
+                    'quantity' => 1,
+                ]
+            ];
+        }
+
+        if ($paymentXendit->pay($errors)) {
+            $result = [
+                'redirect' => true,
+                'payment_type' => 'Xendit',
+                'payment_detail' => $post['payment_detail'],
+                'data' => $data,
+            ];
+
+            if ($paymentXendit->type == 'OVO') {
+                $result['timer']  = (int) MyHelper::setting('setting_timer_ovo', 'value', 60);
+                $result['message_timeout'] = 'Sorry, your payment has expired';
+            } else {
+                $result['redirect_url'] = $paymentXendit->checkout_url;
+            }
+
+            return $result;
+        }
+        return [
+            'redirect' => true,
+            'payment_type' => 'Xendit',
+            'payment_detail' => $post['payment_detail'],
+            'data' => $data,
+        ];
     }
 }

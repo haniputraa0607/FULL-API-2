@@ -11,7 +11,14 @@ use Modules\Project\Entities\Project;
 use App\Lib\MyHelper;
 use Modules\BusinessDevelopment\Entities\Partner;
 use Modules\BusinessDevelopment\Entities\Location;
+use Modules\BusinessDevelopment\Entities\ConfirmationLetter;
 use App\Http\Models\Outlet;
+use Modules\Project\Entities\ProjectSurveyLocation;
+use Modules\Project\Entities\ProjectContract;
+use Modules\Project\Entities\ProjectHandover;
+use Modules\Project\Entities\ProjectDesain;
+use Modules\Project\Entities\ProjectFitOut;
+use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Project\Http\Requests\Project\UpdateProjectRequest;
 class ApiProjectController extends Controller
 {
@@ -103,7 +110,7 @@ class ApiProjectController extends Controller
         $id_project = $request['id_project'];
         if(isset($id_project) && !empty($id_project)){
             $project = Project::where(array('id_project'=>$id_project))
-                    ->with(['project_locations','project_partners','project_survey','project_desain','project_contract','project_fitout','project_handover'])
+                    ->with(['project_locations','project_partners','project_survey','project_desain','project_contract','project_fitout','project_handover','invoice_bap','invoice_spk','purchase_spk'])
                     ->join('locations','locations.id_location','projects.id_location')
                     ->join('partners','partners.id_partner','projects.id_partner')
                     ->select('projects.*','partners.name as name_partner','locations.name as name_location')
@@ -141,6 +148,8 @@ class ApiProjectController extends Controller
                     'note' =>$note,
                 ]);
         $outlet = Outlet::create([
+            'id_branch' => $location->id_branch,
+            'branch_code' => $location->code,
             'outlet_code' => $this->outlet_code(),
             'id_location' => $location->id_location,
             'outlet_name' => $location->name,
@@ -177,5 +186,28 @@ class ApiProjectController extends Controller
         return $outlet_code;
         }
         return $awal."1";
+    }
+     public function excel(Request $request){
+        if(isset($request->id_project)){
+         $project = Project::where('id_project', $request->id_project)
+                ->first();
+         if($project){
+             $data_send = [
+                            "project" => $project,
+                            "partner" => Partner::where('id_partner',$project->id_partner)->first(),
+                            "location" => Location::where('id_partner',$project->id_partner)->first(),
+                            "confir" => ConfirmationLetter::where('id_partner',$project->id_partner)->first(),
+                            "outlet" => Outlet::where('id_location',$project->id_location)->first(),
+                            "contract" => ProjectContract::where('id_project',$request->id_project)->first(),
+                            "survey" => ProjectSurveyLocation::where('id_project',$request->id_project)->first(),
+                            "desain" => ProjectDesain::where('id_project',$request->id_project)->where(array('status'=>'Success'))->orderby('created_at','DESC')->first(),
+                            "handover" => ProjectHandover::where('id_project',$request->id_project)->first(),
+                            'hs'     => UserHairStylist::join('outlets','outlets.id_outlet','user_hair_stylist.id_outlet')->where('id_location',$project->id_location)->where(array('level'=>'Hairstylist','user_hair_stylist_status'=>'Active'))->select('user_hair_stylist.*')->get(),
+                            'spv'     => UserHairStylist::join('outlets','outlets.id_outlet','user_hair_stylist.id_outlet')->where('id_location',$project->id_location)->where(array('level'=>'Supervisor','user_hair_stylist_status'=>'Active'))->select('user_hair_stylist.*')->get(),
+                        ];
+             return response()->json(['status' => 'success','result'=>$data_send]); 
+            }
+         }
+         return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
     }
 }

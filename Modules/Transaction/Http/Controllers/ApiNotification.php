@@ -22,6 +22,7 @@ use App\Http\Models\User;
 use App\Http\Models\Outlet;
 use App\Http\Models\LogBalance;
 use App\Http\Models\LogTopup;
+use App\Http\Models\LogMidtrans;
 use App\Http\Models\UsersMembership;
 use App\Http\Models\Setting;
 use App\Http\Models\UserOutlet;
@@ -53,6 +54,8 @@ use App\Lib\Midtrans;
 use App\Lib\GoSend;
 use Modules\Transaction\Entities\HairstylistNotAvailable;
 use Modules\Transaction\Entities\TransactionAcademy;
+use Modules\Transaction\Entities\TransactionAcademyInstallment;
+use Modules\Transaction\Entities\TransactionAcademyInstallmentPaymentMidtrans;
 use Modules\Transaction\Entities\TransactionProductService;
 use Validator;
 use Hash;
@@ -81,6 +84,15 @@ class ApiNotification extends Controller {
     public function receiveNotification(Request $request) {
         $midtrans = $request->json()->all();
 
+        LogMidtrans::create([
+            'type' => 'webhook',
+            'id_reference' => $midtrans['order_id'],
+            'request' => json_encode($midtrans),
+            'request_url' => url()->current(),
+            'request_header' => json_encode(getallheaders()),
+            'response' => '',
+            'response_status_code' => ''
+        ]);
         DB::beginTransaction();
 
         try{
@@ -282,6 +294,18 @@ class ApiNotification extends Controller {
                     $checkSubsPayment = $this->checkSubsPayment($subs, $midtrans);
     
                     if ($checkSubsPayment) {
+                        DB::commit();
+                        return response()->json(['status' => 'success']);
+                    }
+                }
+            }
+            else if (stristr($midtrans['order_id'], "INS")) {
+                $installment = TransactionAcademyInstallmentPaymentMidtrans::where('order_id', $midtrans['order_id'])->first();
+
+                if ($installment) {
+                    $checkInstallmentPayment = $this->checkInstallmentPayment($installment, $midtrans);
+
+                    if ($checkInstallmentPayment) {
                         DB::commit();
                         return response()->json(['status' => 'success']);
                     }
@@ -699,16 +723,12 @@ Detail: ".$link['short'],
                     $check = LogTopup::where('id_log_topup', $trx['logTopup']['id_log_topup'])->update(['topup_payment_status' => 'Completed', 'payment_type' => 'Midtrans']);
 
                     if ($check) {
-                        $upTrx = Transaction::where('id_transaction', $trx['id_transaction'])->update(['transaction_payment_status' => 'Completed', 'completed_at' => date('Y-m-d H:i:s')]);
+                        $upTrx = Transaction::where('id_transaction', $trx['id_transaction'])->first()->triggerPaymentCompleted([
+                            'amount' => $midtrans['gross_amount'],
+                        ]);
                         if (!$upTrx) {
                             return false;
                         }
-
-                        $fraud = $this->checkFraud($trx);
-                        if ($fraud == false) {
-                            return false;
-                        }
-
 
                         return app($this->balance)->addTopupToBalance($trx['logTopup']['id_log_topup']);
                     }
@@ -847,6 +867,58 @@ Detail: ".$link['short'],
         return false;
     }
 
+    function checkInstallmentPayment($data, $midtrans) {
+        DB::beginTransaction();
+        $midtrans = $this->processMidtrans($midtrans);
+        unset($midtrans['store']);
+
+        $update = TransactionAcademyInstallmentPaymentMidtrans::where('order_id', $midtrans['order_id'])->update($midtrans);
+
+        if ($update) {
+            $updateInstallment = TransactionAcademyInstallment::where('id_transaction_academy_installment', $data['id_transaction_academy_installment'])->update(['completed_installment_at' => date('Y-m-d H:i:s')]);
+
+            if ($updateInstallment) {
+                $dataAcademy = Transaction::join('transaction_academy', 'transaction_academy.id_transaction', 'transactions.id_transaction')
+                            ->where('id_transaction_academy', $data['id_transaction_academy'])->with('user')->first();
+                $dataInstallment = TransactionAcademyInstallment::where('id_transaction_academy_installment', $data['id_transaction_academy_installment'])->first();
+                $currentDate = date('Y-m-d H:i:s');
+
+                if (isset($midtrans['status_code']) && $midtrans['status_code'] == 200 && $dataInstallment['paid_status'] == 'Pending') {
+                    $send = app($this->autocrm)->SendAutoCRM(
+                        'Payment Academy Installment',
+                        $dataAcademy['user']['phone'],
+                        [
+                            'completed_date'=> $currentDate,
+                            'installment_step' => MyHelper::numberToRomanRepresentation($data['installment_step']),
+                            'total_amount'      => $data['amount']
+                        ]
+                    );
+
+                    $dtForUpdate = [
+                        'paid_status' => 'Completed',
+                        'completed_installment_at' => $currentDate
+                    ];
+                    $updateDataAcademy = TransactionAcademy::where('id_transaction_academy', $dataAcademy['id_transaction_academy'])
+                        ->update(['amount_completed' => $dataAcademy['amount_completed']+$dataInstallment['amount'], 'amount_not_completed' => $dataAcademy['amount_not_completed']-$dataInstallment['amount']]);
+                }elseif (isset($midtrans['status_code']) && $midtrans['status_code'] == 201){
+                    $dtForUpdate = ['paid_status' => 'Pending'];
+                }elseif (isset($midtrans['status_code']) && $midtrans['status_code'] == 202) {
+                    $dtForUpdate = ['paid_status' => 'Cancelled'];
+                }
+
+                if(!empty($dtForUpdate)){
+                    $updateDataAcademy = TransactionAcademyInstallment::where('id_transaction_academy_installment', $data['id_transaction_academy_installment'])->update($dtForUpdate);
+                    if($updateDataAcademy){
+                        DB::commit();
+                        return true;
+                    }
+                }
+            }
+        }
+        DB::rollback();
+        return false;
+    }
+
     /* DATA MIDTRANS */
     function processMidtrans($midtrans) {
         $transaction_time   = isset($midtrans['transaction_time']) ? $midtrans['transaction_time'] : null;
@@ -921,20 +993,13 @@ Detail: ".$link['short'],
             if ($midtrans['transaction_status'] == 'refund' ) {
                 return true;
             }elseif ($midtrans['transaction_status'] == 'capture' || $midtrans['transaction_status'] == 'settlement') {
-                $check = Transaction::where('id_transaction', $trx->id_transaction)->update(['transaction_payment_status' => 'Completed', 'completed_at' => date('Y-m-d H:i:s')]);
+                $check = Transaction::where('id_transaction', $trx['id_transaction'])->first()->triggerPaymentCompleted([
+                    'amount' => $midtrans['gross_amount'],
+                ]);
                 if (!$check) {
                     return false;
                 }
 
-                //update amount completed transaction academy
-                if($trx->transaction_from == 'academy'){
-                    TransactionAcademy::where('id_transaction', $trx->id_transaction)->update(['amount_completed' => $trx->transaction_grandtotal, 'amount_not_completed' => 0]);
-                }
-
-                $fraud = $this->checkFraud($trx);
-                if (!$fraud) {
-                    return false;
-                }
             } else {
                 $check = Transaction::where('id_transaction', $trx->id_transaction)->update(['transaction_payment_status' => ucwords($midtrans['transaction_status'])]);
 

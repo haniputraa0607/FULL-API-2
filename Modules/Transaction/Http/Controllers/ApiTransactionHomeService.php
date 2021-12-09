@@ -2,6 +2,7 @@
 
 namespace Modules\Transaction\Http\Controllers;
 
+use App\Http\Models\Configs;
 use App\Http\Models\LogBalance;
 use App\Http\Models\Outlet;
 use App\Http\Models\OutletSchedule;
@@ -12,14 +13,19 @@ use App\Http\Models\TransactionPaymentBalance;
 use App\Http\Models\TransactionPaymentManual;
 use App\Http\Models\TransactionPaymentMidtran;
 use App\Http\Models\TransactionPaymentOffline;
+use App\Http\Models\TransactionPaymentOvo;
+use App\Http\Models\TransactionPickup;
 use App\Http\Models\TransactionProduct;
 use App\Http\Models\UserAddress;
 use App\Jobs\ExportFranchiseJob;
 use App\Jobs\FindingHairStylistHomeService;
+use App\Lib\Midtrans;
+use App\Lib\Ovo;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use App\Lib\MyHelper;
 use Modules\Brand\Entities\Brand;
+use Modules\Favorite\Entities\FavoriteUserHiarStylist;
 use Modules\IPay88\Entities\TransactionPaymentIpay88;
 use Modules\Product\Entities\ProductDetail;
 use Modules\Product\Entities\ProductStockLog;
@@ -40,6 +46,7 @@ use Modules\Transaction\Entities\TransactionPaymentCash;
 use Modules\Transaction\Entities\TransactionProductServiceUse;
 use Modules\Transaction\Http\Requests\Transaction\NewTransaction;
 use Modules\UserFeedback\Entities\UserFeedbackLog;
+use Modules\Transaction\Entities\TransactionHomeServiceHairStylistFinding;
 use DB;
 
 class ApiTransactionHomeService extends Controller
@@ -335,6 +342,7 @@ class ApiTransactionHomeService extends Controller
         if(empty($brand)){
             return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
         }
+        $totalItem = 0;
         foreach ($post['item_service']??[] as $key=>$item){
             $err = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
@@ -410,6 +418,8 @@ class ApiTransactionHomeService extends Controller
                 "qty" => $item['qty'],
                 "error_msg" => (empty($err)? null:implode(".", array_unique($err)))
             ];
+
+            $totalItem = $totalItem + $item['qty'];
 
             if(!empty($err)){
                 $continueCheckOut = false;
@@ -512,7 +522,6 @@ class ApiTransactionHomeService extends Controller
         $result['booking_date_display'] = MyHelper::dateFormatInd($post['booking_date'].' '.$post['booking_time'], true, true);
         $result['item_service'] = array_values($itemService);
         $result['subtotal'] = $post['subtotal'];
-        $result['tax'] = (int) $post['tax'];
         $result['grandtotal'] = (int)$result['subtotal'] + (int)$post['tax'] ;
         $balance = app($this->balance)->balanceNow($user->id);
         $result['points'] = (int) $balance;
@@ -527,10 +536,27 @@ class ApiTransactionHomeService extends Controller
             ];
         }
 
+        $result['payment_detail'][] = [
+            'name'          => 'Subtotal ('.$totalItem.' item)',
+            "is_discount"   => 0,
+            'amount'        => MyHelper::requestNumber($result['subtotal'],'_CURRENCY')
+        ];
+
+
+        $result['payment_detail'][] = [
+            'name'          => 'Tax',
+            "is_discount"   => 0,
+            'amount'        => MyHelper::requestNumber((int) $post['tax'],'_CURRENCY')
+        ];
+
         $result['currency'] = 'Rp';
         $result['complete_profile'] = (empty($user->complete_profile) ?false:true);
         $result['continue_checkout'] = $continueCheckOut;
         $result['messages_all'] = (empty($errAll)? null:implode(".", array_unique($errAll)));
+
+        $fake_request = new Request(['show_all' => 1]);
+        $result['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
+
         return MyHelper::checkGet($result);
     }
 
@@ -620,7 +646,7 @@ class ApiTransactionHomeService extends Controller
             ]);
         }
         $idHs = $checkHS['id_user_hair_stylist'];
-        $arrHs = $checkHS['all_id_hs'];
+        $arrHs = (!empty($checkHS['all_id_hs']) ? $checkHS['all_id_hs'] : [$checkHS['id_user_hair_stylist']]);
 
         $post['item_service'] = $this->mergeService($post['item_service']);
         $errItem = [];
@@ -800,7 +826,6 @@ class ApiTransactionHomeService extends Controller
         $cashback = $earnedPoint['cashback'] ?? 0;
 
         DB::beginTransaction();
-        UserFeedbackLog::where('id_user',$request->user()->id)->delete();
         $id=$request->user()->id;
         $transaction = [
             'id_outlet'                   => $post['id_outlet'],
@@ -857,7 +882,7 @@ class ApiTransactionHomeService extends Controller
         $createHomeService = TransactionHomeService::create([
             'id_transaction' => $insertTransaction['id_transaction'],
             'id_user_address' => $address['id_user_address'],
-            'id_user_hair_stylist' => $idHs,
+            'id_user_hair_stylist' => null,
             'preference_hair_stylist' => $post['preference_hair_stylist'],
             'status' => null,
             'schedule_date' => date('Y-m-d', strtotime($post['booking_date'])),
@@ -866,12 +891,12 @@ class ApiTransactionHomeService extends Controller
             'destination_name' => $user['name'],
             'destination_phone' => $user['phone'],
             'destination_address' => $address['address'],
+            'destination_id_subdistrict' => $address['id_subdistrict'],
             'destination_short_address' => $address['short_address'],
             'destination_address_name' => $address['name'],
             'destination_note' => (empty($post['notes']) ? $address['description']:$post['notes']),
             'destination_latitude' => $address['latitude'],
-            'destination_longitude' => $address['longitude'],
-            'counter_finding_hair_stylist' => (!empty($idHs) ? 1 : 0)
+            'destination_longitude' => $address['longitude']
         ]);
 
         if (!$createHomeService) {
@@ -956,14 +981,19 @@ class ApiTransactionHomeService extends Controller
             ]);
         }
 
-        if($post['preference_hair_stylist'] == 'favorite'){
-            app($this->online_trx)->bookHS($insertTransaction['id_transaction']);
-            $this->bookProductServiceStockHM($insertTransaction['id_transaction']);
-        }
-
         DB::commit();
         if(!empty($arrHs)){
-            FindingHairStylistHomeService::dispatch(['id_transaction' => $insertTransaction['id_transaction'], 'id_transaction_home_service' => $createHomeService['id_transaction_home_service'],'arr_id_hs' => $arrHs])->allOnConnection('findinghairstylistqueue');
+            $insertTmpHS = [];
+            foreach ($arrHs as $value){
+                $insertTmpHS[] = [
+                    'id_transaction' =>  $insertTransaction['id_transaction'],
+                    'id_user_hair_stylist' => $value,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s')
+                ];
+            }
+
+            TransactionHomeServiceHairStylistFinding::insert($insertTmpHS);
         }
 
         return response()->json([
@@ -984,8 +1014,8 @@ class ApiTransactionHomeService extends Controller
         if(strtotime($currentDate) > strtotime($bookDateTime)){
             $errAll[] = "Waktu pemesanan Anda tidak valid";
         }
-        $startTime = $bookTime;
-        $endTime = date('H:i', strtotime("+".$post['sum_time']." minutes", strtotime($startTime)));
+        $startTime = date('Y-m-d H:i:s', strtotime($bookDate.' '.$bookTime));
+        $endTime = date('Y-m-d H:i', strtotime("+".$post['sum_time']." minutes", strtotime($startTime)));
         $day = [
             'Mon' => 'Senin',
             'Tue' => 'Selasa',
@@ -998,6 +1028,11 @@ class ApiTransactionHomeService extends Controller
         $bookDay = $day[date('D', strtotime($bookDate))];
         $maximumRadius = (int)(Setting::where('key', 'home_service_hs_maximum_radius')->first()['value']??25);
         if($post['preference_hair_stylist'] == 'favorite'){
+            $check = FavoriteUserHiarStylist::where('id_user', $user['id'])->where('id_user_hair_stylist', $post['id_user_hair_stylist'])->first();
+            if(empty($check)){
+                $errAll[] = "Hair stylist favorite tidak ditemukan";
+            }
+
             $hs = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->where('user_hair_stylist_status', 'Active')->first();
             if(empty($hs)){
                 $errAll[] = "Hair stylist tidak ditemukan";
@@ -1027,28 +1062,26 @@ class ApiTransactionHomeService extends Controller
                 if(!empty($getTimeShift['end'])){
                     $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
                     if(strtotime($shiftTimeEnd) > strtotime($bookTime)){
-                        $errAll[] = "Hair stylist tidak tersedian silahkan ubah tanggal pemesanan";
+                        $errAll[] = "Hair stylist tidak tersedia silahkan ubah tanggal pemesanan";
                     }
                 }
             }
 
-            $hsNotAvailable = HairstylistNotAvailable::where('booking_date', $bookDate)
-                ->where('booking_time', '>=',$startTime)
-                ->where('booking_time', '<=',$endTime)
-                ->where('id_user_hair_stylist', $post['id_user_hair_stylist'])
-                ->first();
+            $hsNotAvailable = HairstylistNotAvailable::whereRaw('((booking_start >= "'.$startTime.'" AND booking_end <= "'.$endTime.'") 
+                            OR (booking_start <= "'.$startTime.'" AND booking_end >= "'.$endTime.'"))')
+                            ->where('id_user_hair_stylist', $post['id_user_hair_stylist'])
+                            ->first();
 
             if(!empty($hsNotAvailable)){
-                $errAll[] = "Hair stylist tidak tersedian silahkan ubah tanggal pemesanan";
+                $errAll[] = "Hair stylist tidak tersedia silahkan ubah tanggal pemesanan";
             }
 
             $idHs = $post['id_user_hair_stylist'];
         }else{
             $arrIDHs = [];
-            $hsNotAvailable = HairstylistNotAvailable::where('booking_date', $bookDate)
-                ->where('booking_time', '>=',$startTime)
-                ->where('booking_time', '<=',$endTime)
-                ->pluck('id_user_hair_stylist')->toArray();
+            $hsNotAvailable = HairstylistNotAvailable::whereRaw('((booking_start >= "'.$startTime.'" AND booking_end <= "'.$endTime.'") 
+                            OR (booking_start <= "'.$startTime.'" AND booking_end >= "'.$endTime.'"))')
+                            ->pluck('id_user_hair_stylist')->toArray();
 
             $listHs = UserHairStylist::where('user_hair_stylist_status', 'Active');
 
@@ -1720,5 +1753,37 @@ class ApiTransactionHomeService extends Controller
     {
         $location = HairstylistLocation::find($request->id_hair_stylist);
         return MyHelper::checkGet($location);
+    }
+
+    public function rejectOrder($id_transaction){
+        $order = Transaction::leftJoin('users', 'transactions.id_user', 'users.id')
+                ->where('id_transaction', $id_transaction)
+                ->first();
+
+        $payMidtrans = TransactionPaymentMidtran::where('id_transaction', $order['id_transaction'])->first();
+        if ($payMidtrans) {
+            $doRefundPayment = MyHelper::setting('refund_midtrans');
+            if ($doRefundPayment) {
+                $refund = Midtrans::refund($payMidtrans['vt_transaction_id'],['reason' => $post['reason']??'']);
+                if ($refund['status'] != 'success') {
+                    $order->update(['need_manual_void' => 1]);
+                    $order2 = clone $order;
+                    $order2->payment_method = 'Midtrans';
+                    $order2->payment_detail = $payMidtrans['payment_type'];
+                    $order2->manual_refund = $payMidtrans['gross_amount'];
+                    $order2->payment_reference_number = $payMidtrans['vt_transaction_id'];
+                    if ($shared['reject_batch'] ?? false) {
+                        $shared['void_failed'][] = $order2;
+                    } else {
+                        $variables = [
+                            'detail' => view('emails.failed_refund', ['transaction' => $order2])->render()
+                        ];
+                        app("Modules\Autocrm\Http\Controllers\ApiAutoCrm")->SendAutoCRM('Payment Void Failed', $order->phone, $variables, null, true);
+                    }
+                }
+            }
+        }
+
+        return true;
     }
 }

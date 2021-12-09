@@ -5,6 +5,7 @@ Route::group(['prefix' => 'api/product','middleware' => ['log_activities','auth:
     /* product */
     Route::post('search', 'ApiCategoryController@search');
     Route::any('list', 'ApiProductController@listProduct');
+    
     Route::post('detail', 'ApiProductController@detail');
     Route::any('sync', 'ApiSyncProductController@sync');
     Route::get('next/{id}', 'ApiProductController@getNextID');
@@ -25,6 +26,9 @@ Route::group(['prefix' => 'api/product','middleware' => ['log_activities','auth:
 Route::group(['prefix' => 'api/product','middleware' => ['log_activities','auth:api', 'scopes:be'], 'namespace' => 'Modules\Product\Http\Controllers'], function()
 {
     Route::any('be/list', 'ApiProductController@listProduct');
+    Route::any('be/icount/list', 'ApiProductController@listProductIcount');
+    Route::any('be/sync', 'ApiProductController@syncIcount');
+    Route::any('be/list/icount', 'ApiProductController@item_icount');
     Route::any('be/list/image', 'ApiProductController@listProductImage');
     Route::any('be/list/image/detail', 'ApiProductController@listProductImageDetail');
     Route::any('be/imageOverride', 'ApiProductController@imageOverride');

@@ -733,9 +733,7 @@ class ApiAutoCrm extends Controller
                     }
                     elseif ($crm['autocrm_inbox_clickto'] == 'History Transaction') {
                         if (isset($variables['id_transaction'])) {
-                            $inboxFrom = Transaction::where('transactions.id_transaction', $variables['id_transaction'])->pluck('transaction_from')->first();
                             $inbox['inboxes_id_reference'] = $variables['id_transaction'];
-                            $inbox['inboxes_from'] = $inboxFrom;
                         } else {
                             $inbox['inboxes_id_reference'] = 0;
                         }
@@ -779,6 +777,11 @@ class ApiAutoCrm extends Controller
 					if (isset($crm['autocrm_inbox_id_reference']) && $crm['autocrm_inbox_id_reference'] != null) {
 						$inbox['inboxes_id_reference'] = (int)$crm['autocrm_inbox_id_reference'];
 					}
+
+                    if (empty($recipient_type) && isset($variables['id_transaction']) && !empty($variables['id_transaction'])) {
+                        $inboxFrom = Transaction::where('transactions.id_transaction', $variables['id_transaction'])->pluck('transaction_from')->first();
+                        $inbox['inboxes_from'] = $inboxFrom;
+                    }
 
 					$inbox['inboxes_send_at'] = date("Y-m-d H:i:s");
 					$inbox['created_at'] = date("Y-m-d H:i:s");

@@ -161,7 +161,8 @@ class ApiProductServiceController extends Controller
         }
     }
 
-    public function homeServiceListProduct(){
+    public function homeServiceListProduct(Request $request){
+        $post = $request->json()->all();
         $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
         $outlet = Outlet::where('id_outlet', $outletHomeService)->first();
         if(empty($outlet)){
@@ -180,7 +181,7 @@ class ApiProductServiceController extends Controller
 
         $productServie = Product::select([
             'products.id_product', 'products.product_name', 'products.product_code', 'products.product_description', 'product_variant_status',
-            'product_global_price.product_global_price as product_price'
+            'product_global_price.product_global_price as product_price', 'processing_time_service'
         ])
             ->leftJoin('product_global_price', 'product_global_price.id_product', '=', 'products.id_product')
             ->where('product_type', 'service')
@@ -202,10 +203,43 @@ class ApiProductServiceController extends Controller
                 'product_description' => $val['product_description'],
                 'product_price' => (int)$val['product_price'],
                 'string_product_price' => 'Rp '.number_format((int)$val['product_price'],0,",","."),
+                'processing_time' => (int)$val['processing_time_service'],
                 'photo' => (empty($val['photos'][0]['product_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$val['photos'][0]['product_photo'])
             ];
         }
-        return response()->json(MyHelper::checkGet($resProdService));
+
+        $totalAvailableTime = null;
+        $timeEnd = Setting::where('key', 'home_service_time_end')->first()['value']??'22:00:00';
+        if(!empty($post['id_user_hair_stylist'])){
+            if($post['booking_time'] == 'Sekarang'){
+                $post['booking_time'] = date('H:i:s', strtotime("+2 minutes", strtotime($post['booking_time_user'])));
+            }
+
+            $bookDate = date('Y-m-d H:i:s', strtotime($post['booking_date'].' '.$post['booking_time']));
+            //total available time
+            $nextSchedule = HairstylistNotAvailable::where('booking_start', '>', $bookDate)->where('id_user_hair_stylist', $post['id_user_hair_stylist'])
+                    ->orderBy('booking_start', 'asc')->first()['booking_start']??'';
+
+            if(!empty($nextSchedule) && strtotime(date('Y-m-d', strtotime($nextSchedule))) <= strtotime(date('Y-m-d', strtotime($bookDate)))){
+                $to_time = strtotime($nextSchedule);
+                $from_time = strtotime($bookDate);
+                $totalAvailableTime = round(abs($to_time - $from_time) / 60,2);
+            }else{
+                $endWork = date('Y-m-d H:i:s', strtotime($post['booking_date'].' '.$timeEnd));
+                $to_time = strtotime($endWork);
+                $from_time = strtotime($bookDate);
+                $totalAvailableTime = round(abs($to_time - $from_time) / 60,2);
+            }
+        }
+
+        $res = [];
+        if(!empty($resProdService)){
+            $res = [
+                'total_available_time' => $totalAvailableTime,
+                'list_service' => $resProdService
+            ];
+        }
+        return response()->json(MyHelper::checkGet($res));
     }
 
     public function homeServiceDetailProductService(Request $request){
@@ -285,7 +319,7 @@ class ApiProductServiceController extends Controller
 
     /**
      * Return home service available datetime
-     * @param  Request $request 
+     * @param  Request $request
      * @return Response
      */
     public function availableDateTime(Request $request){
@@ -302,6 +336,8 @@ class ApiProductServiceController extends Controller
         $processingTime = Setting::where('key', 'home_service_processing_time')->first()['value']??60;
         $timeStart = Setting::where('key', 'home_service_time_start')->first()['value']??'07:00:00';
         $timeEnd = Setting::where('key', 'home_service_time_end')->first()['value']??'22:00:00';
+        $timeEnd = date('H:i:s', strtotime('-15 minute', strtotime($timeEnd)));
+
         while($count <= (int)$totalDateShow) {
             $date = date('Y-m-d', strtotime('+'.$x.' day', strtotime($today)));
             $open = date('H:i', strtotime($timeStart));
@@ -315,7 +351,7 @@ class ApiProductServiceController extends Controller
             }
             while(strtotime($tmpTime) < strtotime($close)) {
                 $timeConvert = date('H:i', strtotime("+".$processingTime." minutes", strtotime($tmpTime)));
-                if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime)){
+                if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime) && strtotime($date.' '.$timeConvert) <= strtotime($date.' '.$close)){
                     $times[] = $timeConvert;
                 }
                 $tmpTime = $timeConvert;
@@ -339,6 +375,7 @@ class ApiProductServiceController extends Controller
     }
 
     public function homeServiceAvailableHsFavorite(Request $request){
+
         $post = $request->json()->all();
         $idUser = $request->user()->id??null;
         $address = UserAddress::where('id_user', $idUser)->where('id_user_address', $post['id_user_address'])->first();
@@ -352,14 +389,14 @@ class ApiProductServiceController extends Controller
         $post['latitude'] = $address['latitude'];
         $post['longitude'] = $address['longitude'];
 
-        if(strtolower($post['booking_time']) == 'sekarang'){
+        if($post['booking_time'] == 'Sekarang'){
             $post['booking_time'] = date('H:i', strtotime("+2 minutes", strtotime($post['booking_time_user'])));
         }
 
         $bookDate = date('Y-m-d', strtotime($post['booking_date']));
         $bookTime = date('H:i:s', strtotime($post['booking_time']));
-        $bookTimeStart = date('H:i', strtotime("-30 minutes", strtotime($bookTime)));
-        $bookTimeEnd = date('H:i', strtotime("+30 minutes", strtotime($bookTime)));
+        $bookTimeStart = date('Y-m-d H:i:s', strtotime($bookDate.' '.$bookTime));
+        $bookTimeEnd = date('Y-m-d H:i:s', strtotime("+30 minutes", strtotime($bookDate.' '.$bookTime)));
         $userTimeZone = (empty($request->user()->user_time_zone_utc) ? 7 : $request->user()->user_time_zone_utc);
         $diffTimeZone = $userTimeZone - 7;
         $currentDate = date('Y-m-d H:i:s');
@@ -370,17 +407,17 @@ class ApiProductServiceController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Book time is invalid']]);
         }
 
-        $hsNotAvailable = HairstylistNotAvailable::where('booking_date', $bookDate)
-            ->where('booking_time', '>=',$bookTimeStart)
-            ->where('booking_time', '<=',$bookTimeEnd)
+        $hsNotAvailable = HairstylistNotAvailable::whereRaw('((booking_start >= "'.$bookTimeStart.'" AND booking_end <= "'.$bookTimeEnd.'") 
+                            OR (booking_start <= "'.$bookTimeStart.'" AND booking_end >= "'.$bookTimeEnd.'"))')
             ->pluck('id_user_hair_stylist')->toArray();
+        $hsNotAvailable = array_unique($hsNotAvailable);
 
         $listHs = UserHairStylist::where('user_hair_stylist_status', 'Active')
             ->whereIn('id_user_hair_stylist', function($query) use($idUser){
-            $query->select('id_user_hair_stylist')
-                ->from('favorite_user_hair_stylist')
-                ->where('id_user', $idUser);
-        })->get()->toArray();
+                $query->select('id_user_hair_stylist')
+                    ->from('favorite_user_hair_stylist')
+                    ->where('id_user', $idUser);
+            })->get()->toArray();
 
         $day = [
             'Mon' => 'Senin',
@@ -392,9 +429,12 @@ class ApiProductServiceController extends Controller
             'Sun' => 'Minggu'
         ];
         $bookDay = $day[date('D', strtotime($bookDate))];
+        $timeEnd = Setting::where('key', 'home_service_time_end')->first()['value']??'22:00:00';
+        $timeEnd = date('H:i:s', strtotime('-15 minute', strtotime($timeEnd)));
         $res = [];
         foreach ($listHs as $val){
-            $available = false;
+            $available = true;
+            $availableText = 'Tersedia';
             //check schedule hs
             $shift = HairstylistScheduleDate::leftJoin('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
                     ->whereNotNull('approve_at')->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
@@ -406,14 +446,14 @@ class ApiProductServiceController extends Controller
                 $getTimeShift = app($this->product)->getTimeShift(strtolower($shift),$val['id_outlet'], $idOutletSchedule);
                 if(!empty($getTimeShift['end'])){
                     $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
-                    if((strtotime($shiftTimeEnd) > strtotime($bookTime)) === false){
-                        $available = true;
+                    if((strtotime($shiftTimeEnd) > strtotime($bookTime)) !== false){
+                        $available = false;
                     }
                 }
             }
 
-            if(array_search($val['id_user_hair_stylist'], $hsNotAvailable) === false){
-                $available = true;
+            if(array_search($val['id_user_hair_stylist'], $hsNotAvailable) !== false){
+                $available = false;
             }
 
             if(empty($val['latitude']) && empty($val['longitude'])){
@@ -429,12 +469,25 @@ class ApiProductServiceController extends Controller
                 $available = false;
             }
 
+            if($available == true){
+                $nextSchedule = HairstylistNotAvailable::where('booking_start', '>', $bookDate.' '.$bookTime)->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
+                        ->orderBy('booking_start', 'asc')->first()['booking_start']??'';
+                if(!empty($nextSchedule) && strtotime(date('Y-m-d', strtotime($nextSchedule))) <= strtotime($bookDate)){
+                    $availableText = 'Tersedia sampai pukul '.date('H:i', strtotime($nextSchedule));
+                }else{
+                    $availableText = 'Tersedia sampai pukul '.date('H:i', strtotime($timeEnd));
+                }
+            }else{
+                $availableText = '';
+            }
+
             $res[] = [
                 'id_user_hair_stylist' => $val['id_user_hair_stylist'],
                 'name' => $val['fullname'],
                 'photo' => (empty($val['user_hair_stylist_photo']) ? config('url.storage_url_api').'img/product/item/default.png':$val['user_hair_stylist_photo']),
                 'rating' => $val['total_rating'],
                 'available_status' => $available,
+                'available_text' => $availableText,
                 'distance' => $distance
             ];
         }

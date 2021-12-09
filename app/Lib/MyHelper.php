@@ -3140,4 +3140,96 @@ class MyHelper{
 
 		return $listDate;
     }
+
+    public static function setTimezone(int $utc)
+    {
+    	$arr = [7 => 'Asia/Jakarta', 8 => 'Asia/Ujung_Pandang', 9 => 'Asia/Jayapura'];
+    	$timezone = $arr[$utc] ?? 'Asia/Jakarta';
+    	config(['app.timezone' => $timezone]);
+    	date_default_timezone_set($timezone);
+    	return true;
+    }
+
+    public static function numberToRomanRepresentation($number) {
+        $map = array('M' => 1000, 'CM' => 900, 'D' => 500, 'CD' => 400, 'C' => 100, 'XC' => 90, 'L' => 50, 'XL' => 40, 'X' => 10, 'IX' => 9, 'V' => 5, 'IV' => 4, 'I' => 1);
+        $returnValue = '';
+        while ($number > 0) {
+            foreach ($map as $roman => $int) {
+                if($number >= $int) {
+                    $number -= $int;
+                    $returnValue .= $roman;
+                    break;
+                }
+            }
+        }
+        return $returnValue;
+    }
+
+    /**
+     * Merubah tanggal waktu timezone server menjadi sesuai timezone yang dibutuhkan
+     * @param  string|integer $timeserver datetime to adjust
+     * @param  integer $timezone   time difference with utc (WIB=7, WITA=8, WIT=9)
+     * @param  string $format     requested datetime format, 
+     * @param  bool $indo     format as indonesian, 
+     * @return string|integer             return date string or unix timestamp if $format == null
+     */
+    public static function adjustTimezone($timeserver, $timezone = null, $format = null, $indo = false)
+    {
+    	if (is_null($timezone)) {
+    		$user = request()->user();
+    		if ($user) {
+    			$timezone = $user->user_time_zone_utc ?? 7;
+    		} else {
+    			$timezone = 7;
+    		}
+    	}
+
+    	if (!is_numeric($timeserver)) {
+    		$timeserver = strtotime($timeserver);
+    	}
+
+		$time = $timeserver + (($timezone - 7) * 3600);
+
+    	if ($format) {
+    		if ($indo) {
+    			return self::indonesian_date_v2($time, $format);
+    		}
+    		return date($format, $time);
+    	}
+    	return $time;
+    }
+
+    /**
+     * Merubah tanggal waktu timezone awal menjadi sesuai timezone server
+     * @param  string|integer $timeserver datetime to adjust
+     * @param  integer $timezone   time difference with utc (WIB=7, WITA=8, WIT=9)
+     * @param  string $format     requested datetime format, 
+     * @param  bool $indo     format as indonesian, 
+     * @return string|integer             return date string or unix timestamp if $format == null
+     */
+    public static function reverseAdjustTimezone($timeserver, $timezone = null, $format = null, $indo = false)
+    {
+    	if (is_null($timezone)) {
+    		$user = request()->user();
+    		if ($user) {
+    			$timezone = $user->user_time_zone_utc ?? 7;
+    		} else {
+    			$timezone = 7;
+    		}
+    	}
+
+    	if (!is_numeric($timeserver)) {
+    		$timeserver = strtotime($timeserver);
+    	}
+
+		$time = $timeserver - (($timezone - 7) * 3600);
+
+    	if ($format) {
+    		if ($indo) {
+    			return self::indonesian_date_v2($time, $format);
+    		}
+    		return date($format, $time);
+    	}
+    	return $time;
+    }
 }

@@ -1,4 +1,10 @@
 <?php
+Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefix' => 'api/cobaexport', 'namespace' => 'Modules\Transaction\Http\Controllers'], function() {
+    Route::post('/', ['middleware'=>['scopes:be'],'uses' => 'ApiTransaction@exportTransaction']);
+});
+Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefix' => 'api/cobapoo', 'namespace' => 'Modules\Transaction\Http\Controllers'], function() {
+    Route::post('/', ['middleware'=>['scopes:be'],'uses' => 'ApiTransaction@CronICountPOO']);
+});
 Route::group(['middleware' => ['auth:api'],'prefix' => 'api/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
     Route::any('hs-location', 'ApiTransactionHomeService@getHSLocation');
     Route::any('available-payment', 'ApiOnlineTransaction@availablePayment');
@@ -50,6 +56,8 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::any('/setting/image-delivery', 'ApiSettingTransaction@imageDelivery');
     Route::get('/setting/home-service', 'ApiSettingTransaction@homeServiceSetting');
     Route::post('/setting/home-service', 'ApiSettingTransaction@homeServiceSetting');
+    Route::get('/setting/academy', 'ApiSettingTransaction@academySetting');
+    Route::post('/setting/academy', 'ApiSettingTransaction@academySetting');
 
     Route::post('retry-void-payment/retry', 'ApiTransaction@retry');
 
@@ -86,8 +94,13 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::post('failed-void-payment', 'ApiManualRefundController@listFailedVoidPayment');
     Route::post('failed-void-payment/confirm', 'ApiManualRefundController@confirmManualRefund');
 
-    Route::post('outlet-service', 'ApiTransactionOutletService@listOutletService');
-    Route::post('outlet-service/detail', 'ApiTransactionOutletService@detailTransaction');
+    Route::group(['prefix' => 'outlet-service'], function () {
+	    Route::post('/', 'ApiTransactionOutletService@listOutletService');
+	    Route::post('detail', 'ApiTransactionOutletService@detailTransaction');
+	    Route::post('manage', 'ApiTransactionOutletService@manageList');
+	    Route::get('manage/detail/{id_transaction}', 'ApiTransactionOutletService@manageDetail');
+	    Route::post('manage/detail/{id_transaction}', 'ApiTransactionOutletService@manageDetailUpdate');
+    });
 
     Route::post('home-service', 'ApiTransactionHomeService@listHomeService');
     Route::post('home-service/detail', 'ApiTransactionHomeService@detailTransaction');
@@ -160,6 +173,14 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::group(['prefix' => 'transaction'], function () {
         Route::post('installment', 'ApiTransactionAcademy@installmentDetail');
     });
+});
+
+Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scopes:apps'], 'prefix' => 'api/shop', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
+
+    Route::group(['prefix' => 'transaction'], function () {
+    	Route::post('list', 'ApiTransactionShop@shopList');
+    	Route::post('detail', 'ApiTransactionShop@shopDetail');
+	});
 });
 
 Route::group(['middleware' => ['auth_client', 'user_agent'], 'prefix' => 'api/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {

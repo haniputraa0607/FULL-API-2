@@ -8,6 +8,8 @@
 namespace App\Http\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Lib\MyHelper;
+use App\Jobs\FraudJob;
 
 /**
  * Class Transaction
@@ -307,6 +309,20 @@ class Transaction extends Model
 		return $this->hasOne(\Modules\Transaction\Entities\TransactionOutletService::class, 'id_transaction');
 	}
 
+    public function transaction_home_service()
+	{
+		return $this->hasOne(\Modules\Transaction\Entities\TransactionHomeService::class, 'id_transaction');
+	}
+
+    public function transaction_shop()
+	{
+		return $this->hasOne(\Modules\Transaction\Entities\TransactionShop::class, 'id_transaction');
+	}
+
+	public function transaction_academy(){
+        return $this->hasOne(\Modules\Transaction\Entities\TransactionAcademy::class, 'id_transaction');
+    }
+
 	public function user_feedbacks()
     {
         return $this->hasMany(\Modules\UserFeedback\Entities\UserFeedback::class,'id_transaction','id_transaction');
@@ -321,4 +337,165 @@ class Transaction extends Model
     {
     	return $this->hasMany(TransactionProduct::class, 'id_transaction', 'id_transaction');
 	}
+
+    /**
+     * Called when payment completed
+     * @return [type] [description]
+     */
+    public function triggerPaymentCompleted($data = [])
+    {
+    	\DB::beginTransaction();
+    	// check complete allowed
+    	if ($this->transaction_payment_status != 'Pending') {
+    		return $this->transaction_payment_status == 'Completed';
+    	}
+    	// update transaction status
+    	if ($this->transaction_from != 'academy') {
+	    	$this->update([
+	    		'transaction_payment_status' => 'Completed', 
+	    		'completed_at' => date('Y-m-d H:i:s')
+	    	]);
+    	}
+
+    	// trigger payment complete -> service
+    	switch ($this->transaction_from) {
+    		case 'outlet-service':
+    			$this->transaction_outlet_service->triggerPaymentCompleted($data);
+    			break;
+
+    		case 'home-service':
+    			$this->transaction_home_service->triggerPaymentCompleted($data);
+    			break;
+
+    		case 'shop':
+    			$this->transaction_shop->triggerPaymentCompleted($data);
+    			break;
+
+    		case 'academy':
+    			$this->transaction_academy->triggerPaymentCompleted($data);
+    			if ($this->transaction_academy->amount_not_completed == 0) {
+			    	$this->update([
+			    		'transaction_payment_status' => 'Completed', 
+			    		'completed_at' => date('Y-m-d H:i:s')
+			    	]);
+    			}
+    			break;
+    	}
+
+    	// check fraud
+    	if ($this->user) {
+	    	$this->user->update([
+	            'count_transaction_day' => $this->user->count_transaction_day + 1,
+	            'count_transaction_week' => $this->user->count_transaction_week + 1,
+	    	]);
+
+	    	$config_fraud_use_queue = Configs::where('config_name', 'fraud use queue')->value('is_active');
+
+	        if($config_fraud_use_queue == 1){
+	            FraudJob::dispatch($this->user, $this, 'transaction')->onConnection('fraudqueue');
+	        }else {
+	            $checkFraud = app('\Modules\SettingFraud\Http\Controllers\ApiFraud')->checkFraudTrxOnline($this->user, $this);
+	        }
+    	}
+
+    	// send notification
+        $trx = clone $this;
+        $mid = [
+            'order_id'     => $trx->transaction_receipt_number,
+            'gross_amount' => $trx->transaction_multiple_payment->where('type', '<>', 'Balance')->sum(),
+        ];
+        $trx->load('outlet');
+        $trx->load('productTransaction');
+        app('\Modules\Transaction\Http\Controllers\ApiNotification')->notification($mid, $trx);
+
+        \DB::commit();
+    	return true;
+    }
+
+    /**
+     * Called when payment completed
+     * @return [type] [description]
+     */
+    public function triggerPaymentCancelled($data = [])
+    {
+    	\DB::beginTransaction();
+    	// check complete allowed
+    	if ($this->transaction_payment_status != 'Pending') {
+    		return $this->transaction_payment_status == 'Completed';
+    	}
+
+    	// update transaction payment cancelled
+    	$this->update([
+    		'transaction_payment_status' => 'Cancelled', 
+    		'void_date' => date('Y-m-d H:i:s')
+    	]);
+		MyHelper::updateFlagTransactionOnline($this, 'cancel', $this->user);
+
+        //reversal balance
+        $logBalance = LogBalance::where('id_reference', $this->id_transaction)->whereIn('source', ['Online Transaction', 'Transaction'])->where('balance', '<', 0)->get();
+        foreach($logBalance as $logB){
+            $reversal = app('\Modules\Balance\Http\Controllers\BalanceController')->addLogBalance( $this->id_user, abs($logB['balance']), $this->id_transaction, 'Reversal', $this->transaction_grandtotal);
+            if (!$reversal) {
+            	\DB::rollBack();
+            	return false;
+            }
+            $user = User::where('id', $this->id_user)->first();
+            $send = app('\Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM('Transaction Failed Point Refund', $this->user->phone,
+                [
+                    "outlet_name"       => $this->outlet_name->outlet_name,
+                    "transaction_date"  => $this->transaction_date,
+                    'id_transaction'    => $this->id_transaction,
+                    'receipt_number'    => $this->transaction_receipt_number,
+                    'received_point'    => (string) abs($logB['balance']),
+                    'order_id'          => $this->order_id,
+                ]
+            );
+        }
+
+        // restore promo status
+        if ($this->id_promo_campaign_promo_code) {
+	        // delete promo campaign report
+        	$update_promo_report = app('\Modules\PromoCampaign\Http\Controllers\ApiPromoCampaign')->deleteReport($this->id_transaction, $this->id_promo_campaign_promo_code);
+        	if (!$update_promo_report) {
+            	\DB::rollBack();
+            	return false;
+            }	
+        }
+
+        // return voucher
+        $update_voucher = app('\Modules\Deals\Http\Controllers\ApiDealsVoucher')->returnVoucher($this->id_transaction);
+
+        // return subscription
+        $update_subscription = app('\Modules\Subscription\Http\Controllers\ApiSubscriptionVoucher')->returnSubscription($this->id_transaction);
+
+    	// trigger payment cancelled -> service
+    	switch ($this->transaction_from) {
+    		case 'outlet-service':
+    			$this->transaction_outlet_service->triggerPaymentCancelled($data);
+    			break;
+
+    		case 'home-service':
+    			$this->transaction_home_service->triggerPaymentCancelled($data);
+    			break;
+
+    		case 'shop':
+    			$this->transaction_shop->triggerPaymentCancelled($data);
+    			break;
+
+    		case 'academy':
+    			$this->transaction_academy->triggerPaymentCancelled($data);
+    			break;
+    	}
+
+    	// send notification
+    	// TODO write notification logic here
+
+    	\DB::commit();
+    	return true;
+    }
+
+    public function getOrderIdAttribute()
+    {
+    	return $this->transaction_receipt_number;
+    }
 }

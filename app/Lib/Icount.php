@@ -300,6 +300,6 @@ class Icount
         return self::sendRequest('GET', '/branch/list', $request, $logType, $orderId);
     }
     public static function ItemList($request = null, $logType = null, $orderId = null){
-        return self::sendRequest('GET', '/item/list', $request, $logType, $orderId);
+        return self::sendRequest('GET', '/item/list?Limit=20', $request, $logType, $orderId);
     }
 }

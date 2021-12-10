@@ -3,6 +3,7 @@
 namespace Modules\Product\Http\Controllers;
 
 use App\Http\Models\Holiday;
+use Storage;
 use App\Http\Models\OauthAccessToken;
 use App\Http\Models\Product;
 use App\Http\Models\ProductCategory;
@@ -20,6 +21,7 @@ use App\Http\Models\Setting;
 use Lcobucci\JWT\Parser;
 use Modules\Outlet\Entities\OutletTimeShift;
 use Modules\Product\Entities\ProductDetail;
+use Modules\Product\Entities\ProductIcount;
 use Modules\Product\Entities\ProductGlobalPrice;
 use Modules\Product\Entities\ProductSpecialPrice;
 use Modules\Product\Entities\ProductStockStatusUpdate;
@@ -61,6 +63,7 @@ use App\Http\Models\Deal;
 use Modules\PromoCampaign\Entities\PromoCampaign;
 use Modules\Subscription\Entities\Subscription;
 use App\Http\Models\OutletSchedule;
+use Modules\Product\Http\Requests\product\DeleteIcount;
 use Modules\ProductService\Entities\ProductServiceUse;
 
 class ApiProductController extends Controller
@@ -70,6 +73,7 @@ class ApiProductController extends Controller
     }
 
     public $saveImage = "img/product/item/";
+    public $saveImageIcount = "img/product/icount/item/";
 
     function checkInputProduct($post=[], $type=null) {
     	$data = [];
@@ -3098,7 +3102,30 @@ class ApiProductController extends Controller
         $data = $icount->ItemList();
         if(isset($data)){
             if($data['response']['Message']=='Success'){
-                
+                $items = $data['response']['Data'];
+                $items = $this->checkInputIcount($items);
+                foreach($items as $item){
+                    //cek
+                    $check_item = ProductIcount::where('id_item','=',$item['id_item'])->first();
+                    if($check_item){
+                        DB::beginTransaction();
+                        $update = ProductIcount::where('id_item','=',$item['id_item'])->update($item);
+                        if(!$update){
+                            DB::rollback();
+                            return ['status' => 'fail', 'messages' => ['Failed to sync with ICount']];    
+                        }
+                        DB::commit();
+                    }else{
+                        DB::beginTransaction();
+                        $store = ProductIcount::create($item);
+                        if(!$store){
+                            DB::rollback();
+                            return ['status' => 'fail', 'messages' => ['Failed to sync with ICount']];    
+                        }
+                        DB::commit();
+                    }
+                }
+                return ['status' => 'success', 'messages' => ['Success to sync with ICount']]; 
             }else{
                 return ['status' => 'fail', 'messages' => ['Failed to sync with ICount']];    
             }
@@ -3107,11 +3134,153 @@ class ApiProductController extends Controller
         }
     }
 
+    public function checkInputIcount($array){
+        if($array){
+            $data = [];
+            foreach($array as $key => $item){
+                if (isset($item['ItemID'])) {
+                    $data[$key]['id_item'] = $item['ItemID'];
+                }
+                if (isset($item['CompanyID'])) {
+                    $data[$key]['id_company'] = $item['CompanyID'];
+                }
+                if (isset($item['Code']) ) {
+                    $data[$key]['code'] = $item['Code'];
+                }
+                if (isset($item['Name']) && !empty($item['Name'])) {
+                    $data[$key]['name'] = $item['Name'];
+                }
+                if (isset($item['BrandID']) && !empty($item['BrandID'])) {
+                    $data[$key]['id_brand'] = $item['BrandID'];
+                }
+                if (isset($item['CategoryID']) && !empty($item['CategoryID'])) {
+                    $data[$key]['id_category'] = $item['CategoryID'];
+                }
+                if (isset($item['SubCategoryID']) && !empty($item['SubCategoryID'])) {
+                    $data[$key]['id_sub_category'] = $item['SubCategoryID'];
+                }
+                if (isset($item['GroupItem'])) {
+                    $data[$key]['item_group'] = $item['GroupItem'];
+                }
+                if (isset($item['ItemImage']) && !empty($item['ItemImage'])) {
+                    $decoded = base64_decode($item['ItemImage']);
+                    $name = str_replace(' ','_',$item['Name']);
+                    $name_im = $item['Code'].'_'.$name.'.png';
+                    $upload = $this->saveImageIcount.$name_im;
+                    if(Storage::disk(env('STORAGE'))->exists($upload)) {
+                        (Storage::disk(env('STORAGE'))->delete($upload));
+                    }
+                    $save = Storage::disk(env('STORAGE'))->put($upload, $decoded, 'public');
+                    if ($save) {
+                        $data[$key]['image_item'] = $upload;
+                    }
+                    else {
+                        $data[$key]['image_item'] = null;
+
+                    }
+                }else{
+                    $data[$key]['image_item'] = null;
+                }  
+                if (isset($item['Unit1']) && !empty($item['Unit1'])) {
+                    $data[$key]['unit1'] = $item['Unit1'];
+                }else{
+                    $data[$key]['unit1'] = null;
+                }  
+                if (isset($item['Unit2']) && !empty($item['Unit2'])) {
+                    $data[$key]['unit2'] = $item['Unit2'];
+                }else{
+                    $data[$key]['unit2'] = null;
+                }  
+                if (isset($item['Unit3']) && !empty($item['Unit3'])) {
+                    $data[$key]['unit3'] = $item['Unit3'];
+                }else{
+                    $data[$key]['unit3'] = null;
+                }  
+                if (isset($item['Ratio2'])) {
+                    $data[$key]['ratio2'] = $item['Ratio2'];
+                }
+                if (isset($item['Ratio3'])) {
+                    $data[$key]['ratio3'] = $item['Ratio3'];
+                }
+                if (isset($item['BuyPrice1'])) {
+                    $data[$key]['buy_price_1'] = $item['BuyPrice1'];
+                }
+                if (isset($item['BuyPrice2'])) {
+                    $data[$key]['buy_price_2'] = $item['BuyPrice2'];
+                }
+                if (isset($item['BuyPrice3'])) {
+                    $data[$key]['buy_price_3'] = $item['BuyPrice3'];
+                }
+                if (isset($item['UnitPrice1'])) {
+                    $data[$key]['unit_price_1'] = $item['UnitPrice1'];
+                }
+                if (isset($item['UnitPrice2'])) {
+                    $data[$key]['unit_price_2'] = $item['UnitPrice2'];
+                }
+                if (isset($item['UnitPrice3'])) {
+                    $data[$key]['unit_price_3'] = $item['UnitPrice3'];
+                }
+                if (isset($item['UnitPrice4'])) {
+                    $data[$key]['unit_price_4'] = $item['UnitPrice4'];
+                }
+                if (isset($item['UnitPrice5'])) {
+                    $data[$key]['unit_price_5'] = $item['UnitPrice5'];
+                }
+                if (isset($item['UnitPrice6'])) {
+                    $data[$key]['unit_price_6'] = $item['UnitPrice6'];
+                }
+                if (isset($item['Notes']) && !empty($item['Notes'])) {
+                    $data[$key]['notes'] = $item['Notes'];
+                }else{
+                    $data[$key]['notes'] = null;
+                }  
+                if (isset($item['IsSuspended']) && !empty($item['IsSuspended'])) {
+                    $data[$key]['is_suspended'] = $item['IsSuspended'];
+                }else{
+                    $data[$key]['is_suspended'] = null;
+                }  
+                if (isset($item['IsSellable']) && !empty($item['IsSellable'])) {
+                    $data[$key]['is_sellable'] = $item['IsSellable'];
+                }else{
+                    $data[$key]['is_sellable'] = null;
+                }  
+                if (isset($item['IsBuyable']) && !empty($item['IsBuyable'])) {
+                    $data[$key]['is_buyable'] = $item['IsBuyable'];
+                }else{
+                    $data[$key]['is_buyable'] = null;
+                }  
+                if (isset($item['COGSID']) && !empty($item['COGSID'])) {
+                    $data[$key]['id_cogs'] = $item['COGSID'];
+                }else{
+                    $data[$key]['id_cogs'] = null;
+                }  
+                if (isset($item['PurchaseID']) && !empty($item['PurchaseID'])) {
+                    $data[$key]['id_purchase'] = $item['PurchaseID'];
+                }else{
+                    $data[$key]['id_purchase'] = null;
+                }  
+                if (isset($item['SalesID']) && !empty($item['SalesID'])) {
+                    $data[$key]['id_sales'] = $item['SalesID'];
+                }else{
+                    $data[$key]['id_sales'] = null;
+                }  
+                if (isset($item['IsDeleted']) && !empty($item['IsDeleted'])) {
+                    $data[$key]['id_deleted'] = $item['IsDeleted'];
+                }else{
+                    $data[$key]['id_deleted'] = null;
+                }  
+            }
+            return $data;
+        }else{
+            ['status' => 'fail', 'messages' => ['Failed to sync with ICount']];
+        }
+    }
+
     function listProductIcount(Request $request) {
         $post = $request->json()->all();
 
 		if (isset($post['id_outlet'])) {
-            $product = Product::join('product_detail','product_detail.id_product','=','products.id_product')
+            $product = ProductIcount::join('product_detail','product_detail.id_product','=','products.id_product')
                                 ->leftJoin('product_special_price','product_special_price.id_product','=','products.id_product')
 									->where('product_detail.id_outlet','=',$post['id_outlet'])
 									->where('product_detail.product_detail_visibility','=','Visible')
@@ -3122,16 +3291,16 @@ class ApiProductController extends Controller
             if (isset($post['visibility'])) {
 
                 if($post['visibility'] == 'Hidden'){
-                    $product = Product::join('product_detail','product_detail.id_product','=','products.id_product')
+                    $product = ProductIcount::join('product_detail','product_detail.id_product','=','products.id_product')
                         ->where('product_detail.id_outlet','=',$post['id_outlet'])
                         ->where('product_detail.product_detail_visibility','=','Hidden')
                         ->with(['category', 'discount']);
                 }else{
-                    $ids = Product::join('product_detail','product_detail.id_product','=','products.id_product')
+                    $ids = ProductIcount::join('product_detail','product_detail.id_product','=','products.id_product')
                         ->where('product_detail.id_outlet','=',$post['id_outlet'])
                         ->where('product_detail.product_detail_visibility','=','Hidden')
                         ->pluck('products.id_product')->toArray();
-                    $product = Product::whereNotIn('id_product', $ids)
+                    $product = ProductIcount::whereNotIn('id_product', $ids)
                         ->with(['category', 'discount']);
                 }
 
@@ -3139,11 +3308,11 @@ class ApiProductController extends Controller
             }
 		} else {
 		    if(isset($post['product_setting_type']) && $post['product_setting_type'] == 'product_price'){
-                $product = Product::with(['category', 'discount', 'product_special_price', 'global_price']);
+                $product = ProductIcount::with(['category', 'discount', 'product_special_price', 'global_price']);
             }elseif(isset($post['product_setting_type']) && $post['product_setting_type'] == 'outlet_product_detail'){
-                $product = Product::with(['category', 'discount', 'product_detail']);
+                $product = ProductIcount::with(['category', 'discount', 'product_detail']);
             }else{
-                $product = Product::with(['category', 'discount']);
+                $product = ProductIcount::select();
             }
 		}
 
@@ -3176,7 +3345,10 @@ class ApiProductController extends Controller
         }
 
         if (isset($post['product_code'])) {
-            $product->with(['global_price','product_special_price','product_tags','brands','product_promo_categories'=>function($q){$q->select('product_promo_categories.id_product_promo_category');}])->where('products.product_code', $post['product_code']);
+            $product->where('code', $post['product_code']);
+        }
+        if (isset($post['id_item'])) {
+            $product->where('id_item', $post['id_item']);
         }
 
         if (isset($post['update_price']) && $post['update_price'] == 1) {
@@ -3191,7 +3363,7 @@ class ApiProductController extends Controller
             $product = $product->orderBy($post['orderBy']);
         }
         else{
-            $product = $product->orderBy('position');
+            $product = $product->orderBy('id_product_icount','DESC');
         }
 
         if(isset($post['admin_list'])){
@@ -3213,5 +3385,39 @@ class ApiProductController extends Controller
         $product = $product->toArray();
 
         return response()->json(MyHelper::checkGet($product));
+    }
+
+    function deleteIcount(DeleteIcount $request) {
+        $product = ProductIcount::find($request->json('id_product_icount'));
+
+    	if ($product) {
+
+    		// delete product
+    		$delete = ProductIcount::where('id_product_icount', $request->json('id_product_icount'))->delete();
+
+            if($delete){
+                $result = [
+                    'status' => 'success',
+                    'product' => [
+                        'id_product_icount' => $product['id_product_icount'],
+                        'plu_id' => $product['code'],
+                        'product_name' => $product['name'],
+                    ],
+                ];
+            }
+			else{
+                $result = ['status' => 'fail', 'messages' => ['failed to delete data']];
+            }
+
+    		return response()->json($result);
+
+    	}
+    	else {
+    		return response()->json([
+				'status'   => 'fail',
+				'messages' => ['product has been used.']
+    		]);
+    	}
+
     }
 }

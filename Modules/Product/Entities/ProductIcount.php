@@ -10,6 +10,7 @@ class ProductIcount extends Model
 	protected $primaryKey = "id_product_icount";
 
 	protected $fillable = [
+        'id_item',
         'id_company',
         'code',
         'name',
@@ -40,6 +41,5 @@ class ProductIcount extends Model
         'id_purchase',
         'id_sales',
         'id_deleted',
-        'id_item',
 	];
 }

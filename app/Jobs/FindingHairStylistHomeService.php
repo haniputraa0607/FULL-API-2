@@ -126,8 +126,6 @@ class FindingHairStylistHomeService implements ShouldQueue
             if(!empty($getHs)){
                 $update = TransactionHomeService::where('id_transaction_home_service', $data['id_transaction_home_service'])
                     ->update([
-                        'latest_status_id' => $updateStatus['id_transaction_home_service_update']??null,
-                        'latest_status' => $updateStatus['status']??null,
                         'id_user_hair_stylist' => $getHs,
                         'counter_finding_hair_stylist' => $trxHomeService['counter_finding_hair_stylist'] + 1
                     ]);
@@ -173,8 +171,6 @@ class FindingHairStylistHomeService implements ShouldQueue
                     );
 
                     TransactionHomeService::where('id_transaction_home_service', $data['id_transaction_home_service'])->update([
-                        'latest_status_id' => $updateStatus['id_transaction_home_service_update']??null,
-                        'latest_status' => $updateStatus['status']??null,
                         'id_user_hair_stylist' => null,
                         'status' => 'Cancelled'
                     ]);

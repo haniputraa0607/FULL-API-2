@@ -971,7 +971,7 @@ class ApiTransactionOutletService extends Controller
 					'schedule_date' => MyHelper::dateFormatInd($product['transaction_product_service']['schedule_date'], true, false),
 					'schedule_time' => MyHelper::adjustTimezone($product['transaction_product_service']['schedule_time'], $timezone, 'H:i'),
 					'product_name' => $product['product']['product_name'],
-					'subtotal' => $product['transaction_product_subtotal'],
+					'subtotal' => 'IDR '.number_format(($product['transaction_product_subtotal']),0,',','.'),
 					'order_id' => $product['transaction_product_service']['order_id'],
 					'photo' => $productPhoto,
 					'detail' => $product
@@ -982,8 +982,9 @@ class ApiTransactionOutletService extends Controller
 				$products[] = [
 					'product_name' => $product['product']['product_name'],
 					'transaction_product_qty' => $product['transaction_product_qty'],
-					'transaction_product_price' => $product['transaction_product_price'],
+					'transaction_product_price' => 'IDR '.number_format(($product['transaction_product_price']),0,',','.'),
 					'transaction_product_subtotal' => $product['transaction_product_subtotal'],
+					'subtotal' => 'IDR '.number_format(($product['transaction_product_subtotal']),0,',','.'),
 					'photo' => $productPhoto,
 					'detail' => $product
 				];

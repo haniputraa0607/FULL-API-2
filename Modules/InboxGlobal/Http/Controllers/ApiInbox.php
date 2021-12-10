@@ -51,12 +51,16 @@ class ApiInbox extends Controller
 		$countInbox = 0;
 		$arrDate = [];
 		$max_date = date('Y-m-d',time() - ((Setting::select('value')->where('key','inbox_max_days')->pluck('value')->first()?:30) * 86400));
-		$globals = InboxGlobal::with('inbox_global_rule_parents', 'inbox_global_rule_parents.rules')
-								->where('inbox_global_start', '<=', $today)
-								->where('inbox_global_end', '>=', $today)
-								->whereDate('inbox_global_start','>',$max_date)
-								->get()
-								->toArray();
+		if (!$request->inbox_from) {
+			$globals = InboxGlobal::with('inbox_global_rule_parents', 'inbox_global_rule_parents.rules')
+									->where('inbox_global_start', '<=', $today)
+									->where('inbox_global_end', '>=', $today)
+									->whereDate('inbox_global_start','>',$max_date)
+									->get()
+									->toArray();
+		} else {
+			$globals = [];
+		}
 
 		foreach($globals as $ind => $global){
 			$cons = array();
@@ -242,8 +246,10 @@ class ApiInbox extends Controller
 				];
 		} else {
 			$result = [
-					'status'  => 'fail',
-					'messages'  => ['Belum ada pesan']
+					'status'  => 'success',
+					'result'  => [],
+					'count'  => 0,
+					'count_unread' => 0,
 				];
 		}
 		return response()->json($result);

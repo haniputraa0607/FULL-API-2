@@ -50,9 +50,7 @@ class FindingHairStylistHomeService implements ShouldQueue
         $arrHS = TransactionHomeServiceHairStylistFinding::where('id_transaction', $data['id_transaction'])->pluck('id_user_hair_stylist')->toArray();
         $trx = Transaction::where('id_transaction', $data['id_transaction'])->with('user')->first();
 
-        if($trx['transaction_payment_status'] == 'Pending'){
-            FindingHairStylistHomeService::dispatch(['id_transaction' => $data['id_transaction'], 'id_transaction_home_service' => $data['id_transaction_home_service'],'arr_id_hs' => $arrHS])->allOnConnection('findinghairstylistqueue');
-        }elseif($trx['transaction_payment_status'] == 'Completed'){
+        if($trx['transaction_payment_status'] == 'Completed'){
             $trxProduct = TransactionProduct::where('id_transaction', $data['id_transaction'])->get()->toArray();
             $trxHomeService = TransactionHomeService::where('id_transaction_home_service', $data['id_transaction_home_service'])->first();
             $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;

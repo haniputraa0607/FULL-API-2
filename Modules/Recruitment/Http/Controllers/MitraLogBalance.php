@@ -45,16 +45,16 @@ class MitraLogBalance extends Controller
         DB::beginTransaction();
         $balanceBefore = HairstylistLogBalance::where('id_user_hair_stylist', $data['id_user_hair_stylist'])->sum('balance');
 
-        $LogBalance = [
+        $logBalance = [
             'id_user_hair_stylist'           => $data['id_user_hair_stylist'],
             'balance'                        => $data['balance'],
             'balance_before'                 => $balanceBefore,
             'balance_after'                  => $balanceBefore+$data['balance'],
-            'id_reference'                   => $data['id_reference'],
+            'id_reference'                   => $data['id_reference']??null,
             'source'                         => $data['source']
         ];
 
-        $create = HairstylistLogBalance::updateOrCreate(['id_user_hair_stylist' => $data['id_user_hair_stylist'], 'id_reference' => $data['id_reference'], 'source' => $data['source']], $LogBalance);
+        $create = HairstylistLogBalance::updateOrCreate(['id_user_hair_stylist' => $logBalance['id_user_hair_stylist'], 'id_reference' => $logBalance['id_reference'], 'source' => $logBalance['source']], $logBalance);
 
         $dataLogBalance = HairstylistLogBalance::find($create->id_hairstylist_log_balance);
         $dataHashBalance = [

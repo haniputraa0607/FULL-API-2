@@ -107,12 +107,7 @@ class ApiProductController extends Controller
     	if (isset($post['product_name'])) {
     		$data['product_name'] = $post['product_name'];
     	}
-    	if (isset($post['name_item'])) {
-    		$data['name_item'] = $post['name_item'];
-    	}
-    	if (isset($post['ItemID'])) {
-    		$data['ItemID'] = $post['ItemID'];
-    	}
+    	
         if (isset($post['product_name_pos'])) {
             $data['product_name_pos'] = $post['product_name_pos'];
         }
@@ -3077,6 +3072,7 @@ class ApiProductController extends Controller
 
         return MyHelper::checkGet($res);
     }
+
     public function item_icount(){
         $icount = new Icount();
         $data = $icount->ItemList();
@@ -3420,4 +3416,5 @@ class ApiProductController extends Controller
     	}
 
     }
+    
 }

@@ -3916,7 +3916,18 @@ class FeaturesTableSeeder extends Seeder
                     'show_hide' => 1,
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00')
-                )
+                ),
+            391 =>
+                array (
+                    'feature_module' => 'Icount Setting',
+                    'feature_type' => 'List',
+                    'id_feature' => 392,
+                    'order' => 141,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+          
         ));
         
         

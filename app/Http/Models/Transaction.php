@@ -110,7 +110,10 @@ class Transaction extends Model
 		'failed_void_reason',
 		'shipment_method',
 		'shipment_courier',
-        'scope'
+        'scope',
+        'reject_at',
+        'reject_type',
+        'reject_reason'
 	];
 
 	public $manual_refund = 0;

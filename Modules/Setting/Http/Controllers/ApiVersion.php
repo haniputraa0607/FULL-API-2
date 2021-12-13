@@ -122,6 +122,29 @@ class ApiVersion extends Controller
                     'button_url' => $setting['version_outletstore']
                 ]);
             }
+            if (strpos($device, 'mitra_ios') !== false) {
+                foreach ($setting['Device'] as $value) {
+                    if (in_array('MitraAppIOS', $value)) {
+                        $value['app_type'] = strtolower($value['app_type']);
+                        $compare_version[] = $value;
+                    }
+                }
+                
+                for ($i = 0; $i < count($compare_version); $i++) {
+                    if ($post['version'] == $compare_version[$i]['app_version']) {
+                        return response()->json(['status' => 'success']);
+                    }
+                }
+                $versionRec = array_shift($compare_version);
+                $setting['version_text_alert_mitra'] = str_replace('%version_app%', $versionRec['app_version'], $setting['version_text_alert_mitra']);
+                return response()->json([
+                    'status' => 'fail',
+                    'image' => config('url.storage_url_api') . $setting['version_image_mitra'],
+                    'text' => $setting['version_text_alert_mitra'],
+                    'button_text' => $setting['version_text_button_mitra'],
+                    'button_url' => $setting['version_mitra_appstore']
+                ]);
+            }
             if (strpos($device, 'mitra') !== false) {
                 foreach ($setting['Device'] as $value) {
                     if (in_array('MitraApp', $value)) {
@@ -194,6 +217,7 @@ class ApiVersion extends Controller
         $result['IOS'] = $version['IOS'] ?? [];
         $result['OutletApp'] = $version['OutletApp'] ?? [];
         $result['MitraApp'] = $version['MitraApp'] ?? [];
+        $result['MitraAppIOS'] = $version['MitraAppIOS'] ?? [];
         $result['WebApp'] = $version['WebApp'] ?? [];
 
         return response()->json(MyHelper::checkGet($result));

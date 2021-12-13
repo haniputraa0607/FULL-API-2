@@ -94,7 +94,9 @@ class Outlet extends Authenticatable
         'outlet_service_status',
 		'plastic_used_status',
         'outlet_special_fee',
-        'time_zone_utc'
+        'time_zone_utc',
+        'total_current_cash',
+        'total_cash_from_central'
 	];
 
 	protected $appends  = ['call', 'url'];

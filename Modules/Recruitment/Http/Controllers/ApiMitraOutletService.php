@@ -10,6 +10,7 @@ use App\Http\Models\Outlet;
 use App\Http\Models\Setting;
 use App\Http\Models\Transaction;
 use App\Http\Models\TransactionProduct;
+use App\Http\Models\LogOutletBox;
 
 use Modules\Product\Entities\ProductDetail;
 use Modules\Product\Entities\ProductStockLog;
@@ -1049,6 +1050,12 @@ class ApiMitraOutletService extends Controller
 			HairstylistScheduleDate::where('id_hairstylist_schedule_date', $schedule->id_hairstylist_schedule_date)
 			->update(['id_outlet_box' => $request->id_outlet_box]);
 
+			$createLog = LogOutletBox::create([
+				'id_user_hair_stylist' => $user->id_user_hair_stylist,
+		    	'assigned_by' => null,
+		    	'id_outlet_box' => $request->id_outlet_box,
+		        'note' => null
+			]);
 
 			DB::commit();
     	} catch (\Exception $e) {

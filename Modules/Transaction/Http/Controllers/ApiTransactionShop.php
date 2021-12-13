@@ -1359,12 +1359,13 @@ class ApiTransactionShop extends Controller
 
     	$listDelivery = $this->listDelivery();
     	$delivDetail = null;
+    	$isOdd = date('i', strtotime($detail['transaction_date']));
     	foreach ($listDelivery as $d) {
     		if ($d['delivery_method'] == $detail['delivery_method'] && $d['delivery_name'] == $detail['delivery_name']) {
     			$delivDetail = $d;
     			$delivDetail['price'] = $detail['transaction_shipment'];
     			$delivDetail['delivery_number'] = 'INVH2120010180';
-    			$delivDetail['live_tracking_url'] = null;
+    			$delivDetail['live_tracking_url'] = $isOdd % 2 ? 'https://www.google.com/' : null;
     			break;
     		}
     	}

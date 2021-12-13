@@ -8,8 +8,13 @@ use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Recruitment\Entities\UserHairStylistDocuments;
+use Modules\Recruitment\Entities\HairstylistSchedule;	
+use Modules\Recruitment\Entities\HairstylistScheduleDate;
+use Modules\Outlet\Entities\OutletBox;
+use App\Http\Models\LogOutletBox;
 use Modules\Recruitment\Http\Requests\user_hair_stylist_create;
 use Image;
+use DB;
 
 class ApiHairStylistController extends Controller
 {
@@ -17,6 +22,7 @@ class ApiHairStylistController extends Controller
     {
         date_default_timezone_set('Asia/Jakarta');
         $this->autocrm          = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
+        $this->mitra 			= "Modules\Recruitment\Http\Controllers\ApiMitra";
     }
     /**
      * Store a newly created resource in storage.
@@ -315,6 +321,11 @@ class ApiHairStylistController extends Controller
                             'documents'
 	                    ])
                         ->first();
+
+            if ($detail) {
+            	$detail['today_shift'] = app($this->mitra)->getTodayShift($detail->id_user_hair_stylist);
+            	$detail['shift_box'] = app('Modules\Recruitment\Http\Controllers\ApiMitraOutletService')->shiftBox($detail->id_outlet);
+            }
             return response()->json(MyHelper::checkGet($detail));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
@@ -508,6 +519,63 @@ class ApiHairStylistController extends Controller
             $del = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->delete();
             return response()->json(MyHelper::checkDelete($del));
         }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    }
+
+    public function updateBox(Request $request)
+    {
+    	$post = $request->json()->all();
+        if (!empty($post['id_user_hair_stylist']) && !empty($post['id_hairstylist_schedule_date'])) {
+
+        	if (!empty($post['id_outlet_box'])) {
+	        	$outletBox = OutletBox::find($post['id_outlet_box']);
+	        	if (!$outletBox) {
+	        		return ['status' => 'fail', 'messages' => ['Outlet box not found']];
+	        	}
+
+	        	$shift = app($this->mitra)->getOutletShift($outletBox['id_outlet']);
+	        	if (!$shift) {
+	        		return response()->json(['status' => 'fail', 'messages' => ['Outlet shift not found']]);
+	        	}
+
+	        	$usedBox = HairstylistSchedule::join(
+						'hairstylist_schedule_dates', 
+						'hairstylist_schedules.id_hairstylist_schedule', 
+						'hairstylist_schedule_dates.id_hairstylist_schedule'
+					)
+			 		->where('id_user_hair_stylist', '!=', $post['id_user_hair_stylist'])
+			 		->whereDate('date', date('Y-m-d'))
+			 		->where('shift', $shift)
+			 		->where('id_outlet_box', $post['id_outlet_box'])
+			 		->first();
+
+			 	if ($usedBox) {
+					return [
+						'status' => 'fail',
+						'messages' => ['Box already used']
+					];
+				}
+				$id_outlet_box = $post['id_outlet_box'];
+        	} else {
+				$id_outlet_box = null;
+        	}
+
+        	DB::beginTransaction();
+			$update = HairstylistScheduleDate::where('id_hairstylist_schedule_date', $post['id_hairstylist_schedule_date'])->update(['id_outlet_box' => $id_outlet_box]);
+
+			$createLog = LogOutletBox::create([
+				'id_user_hair_stylist' => $post['id_user_hair_stylist'],
+		    	'assigned_by' => $request->user()->id,
+		    	'id_outlet_box' => $id_outlet_box,
+		        'note' => $post['note']
+			]);
+
+			if ($createLog) {
+				DB::commit();
+			}
+            return response()->json(MyHelper::checkUpdate($update));
+        } else {
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
         }
     }

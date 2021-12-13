@@ -300,4 +300,7 @@ class Icount
     public static function ItemList($request = null, $logType = null, $orderId = null){
         return self::sendRequest('GET', '/item/list?Limit=20', $request, $logType, $orderId);
     }
+    public static function ChartOfAccount($request = null, $logType = null, $orderId = null){
+        return self::sendRequest('GET', '/chart_of_account/list', $request, $logType, $orderId);
+    }
 }

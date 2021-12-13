@@ -39,5 +39,7 @@ class HairstylistGroup extends Model
                 'created_at',
                 'updated_at'
 	];
-
+        public function commission(){
+            return $this->hasMany(HairstylistGroupCommission::class, 'id_hairstylist_group');
+        }
 }

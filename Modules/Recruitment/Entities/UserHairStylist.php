@@ -66,7 +66,8 @@ class UserHairStylist extends Authenticatable
         'latitude',
         'longitude',
         'home_service_status',
-        'balance'
+        'balance',
+        'id_hairstylist_groups',
 	];
 
     public function getUserHairStylistPhotoAttribute($value)

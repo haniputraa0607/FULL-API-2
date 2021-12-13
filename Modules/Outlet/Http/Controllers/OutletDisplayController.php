@@ -25,14 +25,15 @@ class OutletDisplayController extends Controller
             return abort(404);
         }
         $now = date('H:i:s');
-        $currentShift = $outlet->outlet_time_shifts()
+        $currentShift = optional($outlet->outlet_time_shifts()
             ->where('shift_time_start', '<=', $now)
             ->where('shift_time_end', '>=', $now)
             ->join('outlet_schedules', function($join) {
                 $join->on('outlet_schedules.id_outlet_schedule', 'outlet_time_shift.id_outlet_schedule')
                     ->where('day', MyHelper::indonesian_date_v2(time(), 'l'));
             })
-            ->first()->value('shift');
+            ->first())->shift;
+
         $outlet->outlet_box->transform(function($item) use ($currentShift) {
             $hairstylist = UserHairStylist::join('hairstylist_schedules', function ($join) {
                         $join->on('hairstylist_schedules.id_user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist');

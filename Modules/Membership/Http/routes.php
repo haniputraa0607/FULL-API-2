@@ -1,7 +1,7 @@
 <?php
 Route::group(['middleware' => ['auth:api', 'log_activities', 'scopes:apps'], 'prefix' => 'api/membership', 'namespace' => 'Modules\Membership\Http\Controllers'], function()
 {
-    Route::any('/detail', 'ApiMembershipWebview@detail');
+    Route::any('/detail', 'ApiMembershipWebview@detailV2');
 });
 
 Route::group(['middleware'=>['auth:api', 'scopes:apps'], 'prefix' => 'api/membership', 'namespace' => 'Modules\Membership\Http\Controllers'], function()

@@ -15,6 +15,152 @@ use Modules\Achievement\Entities\AchievementGroup;
 
 class ApiMembershipWebview extends Controller
 {
+	public function detailV2(Request $request)
+	{
+		$user = $request->user();
+		$currentMembership = $user->memberships()->first();
+		if (!$currentMembership) {
+			return [
+				'status' => 'fail',
+				'messages' => [
+					'Pengguna tidak memiliki membership',
+				],
+			];
+		}
+		$memberships = Membership::all();
+		$progress = [
+			'current' => 0,
+			'min' => 0,
+			'max' => 0,
+			'progress_percent' => 0,
+			'membership_text' => 0,
+		];
+
+		switch ($currentMembership->membership_type) {
+			case 'balance':
+				$memberships = $memberships->sortBy('min_total_balance');
+				$nextMembership = null;
+				$nextFlag = false;
+
+				foreach ($memberships as $membership) {
+					if ($nextFlag) {
+						$nextMembership = $membership;
+						break;
+					}
+					if ($currentMembership->id_membership == $membership->id_membership) {
+						$nextFlag = true;
+						continue;
+					}
+				}
+
+				$currentValue = LogBalance::where('id_user', $user['id_user'])->whereNotIn('source', [ 'Rejected Order', 'Rejected Order Midtrans', 'Rejected Order Point', 'Reversal', 'Point Injection', 'Welcome Point'])->where('balance', '>', 0)->sum('balance');
+				$kurang = ($nextMembership ? ($nextMembership['min_total_balance'] - $currentValue) : 0);
+				$currentMinValue = $currentMembership['min_total_balance'];
+				$nextMinValue = $nextMembership['min_total_balance'];
+				$membershipText = 'Silahkan kumpulkan ' .env('POINT_NAME', 'poin'). ' sebanyak <b>' . MyHelper::requestNumber($kurang, '_POINT') . ' '.env('POINT_NAME', 'poin').'</b> lagi untuk menuju <b>' . ($nextMembership['membership_name'] ?? '') . '</b>';
+				break;
+			case 'count':
+				$memberships = $memberships->sortBy('min_total_count');
+				$nextMembership = null;
+				$nextFlag = false;
+
+				foreach ($memberships as $membership) {
+					if ($nextFlag) {
+						$nextMembership = $membership;
+						break;
+					}
+					if ($currentMembership->id_membership == $membership->id_membership) {
+						$nextFlag = true;
+						continue;
+					}
+				}
+
+				$currentValue = Transaction::where('id_user', $user['id_user'])->whereNotNull('completed_at')->count('id_transaction');
+				$kurang = ($nextMembership ? ($nextMembership['min_total_count'] - $currentValue) : 0);
+				$currentMinValue = $currentMembership['min_total_count'];
+				$nextMinValue = $nextMembership['min_total_count'];
+				$membershipText = 'Silahkan memesan order sebanyak <b>' . MyHelper::requestNumber($kurang, '_POINT') . ' kali</b> lagi untuk menuju <b>' . ($nextMembership['membership_name'] ?? '') . '</b>';
+				break;
+			case 'value':
+				$memberships = $memberships->sortBy('min_total_value');
+				$nextMembership = null;
+				$nextFlag = false;
+
+				foreach ($memberships as $membership) {
+					if ($nextFlag) {
+						$nextMembership = $membership;
+						break;
+					}
+					if ($currentMembership->id_membership == $membership->id_membership) {
+						$nextFlag = true;
+						continue;
+					}
+				}
+				$currentValue = Transaction::where('id_user', $user['id_user'])->whereNotNull('completed_at')->sum('transaction_grandtotal');
+				$kurang = ($nextMembership ? ($nextMembership['min_total_value'] - $currentValue) : 0);
+				$currentMinValue = $currentMembership['min_total_value'];
+				$nextMinValue = $nextMembership['min_total_value'];
+				$membershipText = 'Silahkan memesan order senilai <b>Rp' . MyHelper::requestNumber($kurang, '_CURRENCY') . '</b> lagi untuk menuju <b>' . ($nextMembership['membership_name'] ?? '') . '</b>';
+				break;
+			default:
+				return [
+					'status' => 'fail',
+					'messages' => ['Perhitungan membership tidak diketahui']
+				];
+		}
+
+		$progress = [
+			'current' => $currentValue,
+			'min_value' => $currentMinValue,
+			'max_value' => $nextMinValue,
+			'membership_text' => $nextMembership ? $membershipText : 'Selamat! Kamu sudah menjadi <b>'.$nextMembership['membership_name'].'</b>. Silahkan nikmati berbagai keuntungannya ya!',
+		];
+
+		$progress['progress_percent'] = ($progress['current'] - $progress['min_value']) * 100 / ($progress['max_value'] ? ($progress['max_value'] - $progress['min_value']) : $progress['min_value']);
+
+		$memberships->transform(function ($item, $index) use ($currentMembership) {
+			if($index) {
+				switch ($currentMembership->membership_type) {
+					case 'balance':
+						$text = 'Perolehan ' . env('POINT_NAME') . ' sebanyak ' . MyHelper::requestNumber($item->min_total_balance, '_POINT') . ' ' . env('POINT_NAME');
+						break;
+					case 'count':
+						$text = 'Total transaksi & Order Layanan kumulatif sebanyak ' . MyHelper::requestNumber($item->min_total_count, '_POINT') . ' kali';
+						break;
+					case 'value':
+						$text = 'Total transaksi & Order Layanan kumulatif sebesar Rp' . MyHelper::requestNumber($item->min_total_value, '_CURRENCY');
+						break;
+				}
+			} else {
+				$text = 'Anda memulai dari level membership ini';
+			}
+			return [
+				'membership_name' => $item->membership_name,
+				'membership_image' => config('url.storage_url_api') . $item->membership_image,
+				'membership_description' => implode("\n", json_decode($item->benefit_text,true)),
+				'membership_requirement_text' => $text,
+				'membership_requirement_text_muted' => !$index,
+			];
+		});
+
+		$result = [
+			'user' => [
+				'name' => $user->name,
+				'member_since' => MyHelper::adjustTimezone($user->created_at, null, 'd F Y', true),
+			],
+			'current_membership' => [
+				'membership_name' => $currentMembership['membership_name'],
+				'membership_image' => config('url.storage_url_api') . $currentMembership['membership_image'],
+				'membership_next_image' => ($nextMembership['membership_image'] ?? false) ? config('url.storage_url_api') . $nextMembership['membership_image'] : null ,
+				'membership_card' => config('url.storage_url_api') . $currentMembership['membership_card'],
+				'membership_text' => '',
+				'progress' => $progress,
+			],
+			'memberships' => $memberships,
+		];
+		return MyHelper::checkGet($result);
+	}
+
 	public function detail(Request $request)
     {
 		$post = [
@@ -285,6 +431,7 @@ class ApiMembershipWebview extends Controller
 			$membershipUser['description'] = 'Selamat! Kamu sudah menjadi <b>'.$result['all_membership'][$indexNow]['membership_name'].'</b>. Silahkan nikmati berbagai keuntungannya ya!';
 		}
 
+		$membershipUser['member_since'] = MyHelper::adjustTimezone($transaction->transaction_date, null, 'd F Y', true);
 		$result['user_membership']['user']	= $membershipUser;
 
 		return response()->json(MyHelper::checkGet($result));

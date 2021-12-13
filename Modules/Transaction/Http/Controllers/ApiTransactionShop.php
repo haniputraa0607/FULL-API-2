@@ -279,6 +279,10 @@ class ApiTransactionShop extends Controller
                 $err[] = $max_order_alert;
             }
             $product['error_msg'] = (empty($err)? null:implode(".", array_unique($err)));
+            $stock = 'Available';
+            if (empty($product['qty_stock']) || $product['qty_stock'] <= 0) {
+                $stock = 'Sold Out';
+            }
 
             $item = [
             	'id_custom' => $product['id_custom'],
@@ -298,6 +302,7 @@ class ApiTransactionShop extends Controller
             	'product_price_total' => $product['product_price_total'],
             	'error_msg' => $product['error_msg'],
             	'qty_stock' => $product['qty_stock'],
+            	'product_stock_status' => $stock,
             	'max_order' => $max_order,
             	'max_order_alert' => $max_order_alert
             ];
@@ -1354,12 +1359,13 @@ class ApiTransactionShop extends Controller
 
     	$listDelivery = $this->listDelivery();
     	$delivDetail = null;
+    	$isOdd = date('i', strtotime($detail['transaction_date']));
     	foreach ($listDelivery as $d) {
     		if ($d['delivery_method'] == $detail['delivery_method'] && $d['delivery_name'] == $detail['delivery_name']) {
     			$delivDetail = $d;
     			$delivDetail['price'] = $detail['transaction_shipment'];
     			$delivDetail['delivery_number'] = 'INVH2120010180';
-    			$delivDetail['live_tracking_url'] = null;
+    			$delivDetail['live_tracking_url'] = $isOdd % 2 ? 'https://www.google.com/' : null;
     			break;
     		}
     	}

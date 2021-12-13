@@ -119,3 +119,9 @@ Route::group(['prefix' => 'api/webapp/outlet-service', 'middleware' => ['scopes:
 {
     Route::post('detail', 'ApiOutletServiseController@detailOutlet');
 });
+
+Route::group(['prefix' => 'api/outelt-display', 'middleware' => ['scopes:outlet-display', 'auth_client'], 'namespace' => 'Modules\Outlet\Http\Controllers'], function()
+{
+    Route::post('/queue', 'OutletDisplayController@queue');
+    Route::post('/status', 'OutletDisplayController@status');
+});

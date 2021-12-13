@@ -72,6 +72,7 @@ class Outlet extends Authenticatable
 		'branch_code',
 		'id_outlet_seed',
 		'id_location',
+		'is_tax',
 		'outlet_code',
 		'outlet_pin',
 		'outlet_name',
@@ -241,5 +242,10 @@ class Outlet extends Authenticatable
     public function outlet_box()
     {
         return $this->hasMany(\Modules\Outlet\Entities\OutletBox::class, 'id_outlet');
+    }
+
+    public function outlet_time_shifts()
+    {
+        return $this->hasMany(\Modules\Outlet\Entities\OutletTimeShift::class, 'id_outlet');
     }
 }

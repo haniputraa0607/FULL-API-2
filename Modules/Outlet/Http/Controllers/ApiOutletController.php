@@ -194,6 +194,9 @@ class ApiOutletController extends Controller
         if (isset($post['outlet_description'])) {
             $data['outlet_description'] = $post['outlet_description'];
         }
+        if (isset($post['is_tax'])) {
+            $data['is_tax'] = $post['is_tax'];
+        }
 
         return $data;
     }

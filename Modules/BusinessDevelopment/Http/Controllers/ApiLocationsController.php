@@ -334,6 +334,9 @@ class ApiLocationsController extends Controller
             if (isset($post['due_date'])) {
                 $data_update['due_date'] = $post['due_date'];
             }
+            if (isset($post['is_tax'])) {
+                $data_update['is_tax'] = $post['is_tax'];
+            }
             if(isset($data_update['start_date']) && isset($data_update['end_date'])){
                 $start = explode('-', $data_update['start_date']);
                 $end = explode('-', $data_update['end_date']);

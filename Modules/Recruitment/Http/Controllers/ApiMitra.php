@@ -29,6 +29,7 @@ use Modules\UserRating\Entities\UserRatingSummary;
 use App\Http\Models\Transaction;
 
 use Modules\Recruitment\Http\Requests\ScheduleCreateRequest;
+use Modules\Recruitment\Entities\OutletCashattachment;
 
 use App\Lib\MyHelper;
 use DB;
@@ -1045,22 +1046,14 @@ class ApiMitra extends Controller
         $user = $request->user();
         $post = $request->json()->all();
 
-        if(!empty($post['amount']) && !empty($post['attachement'])){
-            if(empty($post['attachement_extention'])){
-                return ['status' => 'fail', 'messages' => ['Attachement extention can not be empty']];
+        if(!empty($post['amount']) && !empty($post['attachment'])){
+            if(empty($post['attachment_extention'])){
+                return ['status' => 'fail', 'messages' => ['attachment extention can not be empty']];
             }
 
             $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
             if($outlet['total_current_cash'] < $post['amount']){
                 return ['status' => 'fail', 'messages' => ['Outlet balance is not sufficient']];
-            }
-
-            $fileName = null;
-            if(!empty($post['attachement'])){
-                $upload = MyHelper::uploadFile($post['attachement'], 'files/transfer_to_central/', $post['attachement_extention'], date('YmdHis').'_'.$user->id_outlet);
-                if (isset($upload['status']) && $upload['status'] == "success") {
-                    $fileName = $upload['path'];
-                }
             }
 
             $save = OutletCash::create([
@@ -1070,20 +1063,30 @@ class ApiMitra extends Controller
                 'outlet_cash_code' => 'TSPV-'.MyHelper::createrandom(4,'Angka').$user->id_user_hair_stylist.$user->id_outlet,
                 'outlet_cash_amount' => $post['amount'],
                 'outlet_cash_description' => $post['description']??null,
-                'outlet_cash_attachement' => $fileName,
                 'outlet_cash_status' => 'Confirm',
                 'confirm_at' => date('Y-m-d H:i:s'),
                 'confirm_by' => $user->id_user_hair_stylist
             ]);
 
             if($save){
+                if(!empty($post['attachment'])){
+                    $upload = MyHelper::uploadFile($post['attachment'], 'files/transfer_to_central/', $post['attachment_extention'], date('YmdHis').'_'.$user->id_outlet);
+                    if (isset($upload['status']) && $upload['status'] == "success") {
+                        $fileName = $upload['path'];
+                        OutletCashattachment::create([
+                            'id_outlet_cash' => $save['id_outlet_cash'],
+                            'outlet_cash_attachment' => $fileName
+                        ]);
+                    }
+                }
+
                 $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
                 $save = Outlet::where('id_outlet', $user->id_outlet)->update(['total_current_cash' => $outlet['total_current_cash'] - $post['amount']]);
             }
 
             return MyHelper::checkUpdate($save);
         }else{
-            return ['status' => 'fail', 'messages' => ['Transfer amount or Attachement can not be empty']];
+            return ['status' => 'fail', 'messages' => ['Transfer amount or attachment can not be empty']];
         }
     }
 
@@ -1091,17 +1094,9 @@ class ApiMitra extends Controller
         $user = $request->user();
         $post = $request->json()->all();
 
-        if(!empty($post['amount']) && !empty($post['attachement'])){
-            if(empty($post['attachement_extention'])){
-                return ['status' => 'fail', 'messages' => ['Attachement extention can not be empty']];
-            }
-
-            $fileName = null;
-            if(!empty($post['attachement'])){
-                $upload = MyHelper::uploadFile($post['attachement'], 'files/transfer_to_central/', $post['attachement_extention'], date('YmdHis').'_'.$user->id_outlet);
-                if (isset($upload['status']) && $upload['status'] == "success") {
-                    $fileName = $upload['path'];
-                }
+        if(!empty($post['amount']) && !empty($post['attachment'])){
+            if(empty($post['attachment_extention'])){
+                return ['status' => 'fail', 'messages' => ['attachment extention can not be empty']];
             }
 
             $save = OutletCash::create([
@@ -1111,20 +1106,28 @@ class ApiMitra extends Controller
                 'outlet_cash_code' => 'TSPV-'.MyHelper::createrandom(4,'Angka').$user->id_user_hair_stylist.$user->id_outlet,
                 'outlet_cash_amount' => $post['amount'],
                 'outlet_cash_description' => $post['description']??null,
-                'outlet_cash_attachement' => $fileName,
                 'outlet_cash_status' => 'Confirm',
                 'confirm_at' => date('Y-m-d H:i:s'),
                 'confirm_by' => $user->id_user_hair_stylist
             ]);
 
             if($save){
+                $upload = MyHelper::uploadFile($post['attachment'], 'files/transfer_to_central/', $post['attachment_extention'], date('YmdHis').'_'.$user->id_outlet);
+                if (isset($upload['status']) && $upload['status'] == "success") {
+                    $fileName = $upload['path'];
+                    OutletCashattachment::create([
+                        'id_outlet_cash' => $save['id_outlet_cash'],
+                        'outlet_cash_attachment' => $fileName
+                    ]);
+                }
+
                 $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
                 $save = Outlet::where('id_outlet', $user->id_outlet)->update(['total_cash_from_central' => $outlet['total_cash_from_central'] + $post['amount']]);
             }
 
             return MyHelper::checkUpdate($save);
         }else{
-            return ['status' => 'fail', 'messages' => ['Transfer amount or Attachement can not be empty']];
+            return ['status' => 'fail', 'messages' => ['Transfer amount or attachment can not be empty']];
         }
     }
 
@@ -1144,14 +1147,15 @@ class ApiMitra extends Controller
         $res = [];
         foreach ($list as $value){
             $type = strtok($value['outlet_cash_type'], " ");
+            $att = OutletCashattachment::where('id_outlet_cash', $value['id_outlet_cash'])->pluck('outlet_cash_attachment')->toArray();
             $res[] = [
                 'id_outlet_cash' => $value['id_outlet_cash'],
                 'id_user_hair_stylist' => $value['id_user_hair_stylist'],
                 'outlet_cash_type' => ($type == 'Income' ? 'Kas Outlet' : 'Transfer'),
                 'outlet_cash_amount' => $value['outlet_cash_amount'],
                 'outlet_cash_description' => $value['outlet_cash_description'],
-                'outlet_cash_attachement' => (empty($value['outlet_cash_attachement'])? '': config('url.storage_url_api').$value['outlet_cash_attachement']),
-                'date' => MyHelper::dateFormatInd($value['created_at'], true, false)
+                'date' => MyHelper::dateFormatInd($value['created_at'], true, false),
+                'outlet_cash_attachment' => $att
             ];
         }
 
@@ -1168,20 +1172,23 @@ class ApiMitra extends Controller
         return ['status' => 'success', 'result' => $result];
     }
 
-    public function createOutletHistory(Request $request){
+    public function expenseOutletCreate(Request $request){
         $user = $request->user();
-        $post = $request->json()->all();
+        $post = $request->all();
 
-        if(!empty($post['amount']) && !empty($post['attachement'])){
-            if(empty($post['attachement_extention'])){
-                return ['status' => 'fail', 'messages' => ['Attachement extention can not be empty']];
+        if(!empty($post['amount']) && !empty($post['total_attachment'])){
+            if($post['total_attachment'] > 3){
+                return ['status' => 'fail', 'messages' => ['You can upload maximum 3 file']];
             }
-
-            $fileName = null;
-            if(!empty($post['attachement'])){
-                $upload = MyHelper::uploadFile($post['attachement'], 'files/transfer_to_central/', $post['attachement_extention'], date('YmdHis').'_'.$user->id_outlet);
-                if (isset($upload['status']) && $upload['status'] == "success") {
-                    $fileName = $upload['path'];
+            $files = [];
+            for($i=1;$i<=$post['total_attachment'];$i++){
+                if(!empty($request->file('attachment_'.$i))){
+                    $encode = base64_encode(fread(fopen($request->file('attachment_'.$i), "r"), filesize($request->file('attachment_'.$i))));
+                    $ext = pathinfo($request->file('attachment_'.$i)->getClientOriginalName(), PATHINFO_EXTENSION);
+                    $upload = MyHelper::uploadFile($encode, 'files/outlet_expense/',$ext, date('YmdHis').'_'.$user->id_outlet);
+                    if (isset($upload['status']) && $upload['status'] == "success") {
+                        $files[] = $upload['path'];
+                    }
                 }
             }
 
@@ -1192,20 +1199,33 @@ class ApiMitra extends Controller
                 'outlet_cash_code' => 'TSPV-'.MyHelper::createrandom(4,'Angka').$user->id_user_hair_stylist.$user->id_outlet,
                 'outlet_cash_amount' => $post['amount'],
                 'outlet_cash_description' => $post['description']??null,
-                'outlet_cash_attachement' => $fileName,
                 'outlet_cash_status' => 'Confirm',
                 'confirm_at' => date('Y-m-d H:i:s'),
                 'confirm_by' => $user->id_user_hair_stylist
             ]);
 
             if($save){
+                $insertattachment = [];
+                foreach ($files??[] as $file){
+                    $insertattachment[] = [
+                        'id_outlet_cash' => $save['id_outlet_cash'],
+                        'outlet_cash_attachment' => $file,
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s')
+                    ];
+                }
+
+                if(!empty($insertattachment)){
+                    OutletCashattachment::insert($insertattachment);
+                }
+
                 $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
                 $save = Outlet::where('id_outlet', $user->id_outlet)->update(['total_cash_from_central' => $outlet['total_cash_from_central'] - $post['amount']]);
             }
 
             return MyHelper::checkUpdate($save);
         }else{
-            return ['status' => 'fail', 'messages' => ['Transfer amount or Attachement can not be empty']];
+            return ['status' => 'fail', 'messages' => ['Transfer amount or attachment can not be empty']];
         }
     }
 
@@ -1224,13 +1244,14 @@ class ApiMitra extends Controller
 
         $res = [];
         foreach ($list as $value){
+            $att = OutletCashattachment::where('id_outlet_cash', $value['id_outlet_cash'])->pluck('outlet_cash_attachment')->toArray();
             $res[] = [
                 'id_outlet_cash' => $value['id_outlet_cash'],
                 'id_user_hair_stylist' => $value['id_user_hair_stylist'],
                 'outlet_cash_amount' => $value['outlet_cash_amount'],
                 'outlet_cash_description' => $value['outlet_cash_description'],
-                'outlet_cash_attachement' => (empty($value['outlet_cash_attachement'])? '': config('url.storage_url_api').$value['outlet_cash_attachement']),
-                'date' => MyHelper::dateFormatInd($value['created_at'], true, false)
+                'date' => MyHelper::dateFormatInd($value['created_at'], true, false),
+                'outlet_cash_attachment' => $att
             ];
         }
 

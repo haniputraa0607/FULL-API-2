@@ -21,7 +21,6 @@ class OutletCash extends Model
         'outlet_cash_type',
 		'outlet_cash_amount',
 		'outlet_cash_description',
-		'outlet_cash_attachement',
 		'outlet_cash_code',
         'outlet_cash_status',
         'confirm_at',

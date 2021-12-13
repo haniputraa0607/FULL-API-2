@@ -125,7 +125,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
         Route::post('cash/outlet/transfer', 'ApiMitra@cashOutletTransfer');
         Route::post('cash/outlet/history', 'ApiMitra@cashOutletHistory');
 
-        Route::post('expense/outlet/create', 'ApiMitra@createOutletHistory');
+        Route::post('expense/outlet/create', 'ApiMitra@expenseOutletCreate');
         Route::post('expense/outlet/history', 'ApiMitra@expenseOutletHistory');
 	});
 

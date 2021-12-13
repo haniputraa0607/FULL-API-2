@@ -143,7 +143,7 @@ class ApiMembershipWebview extends Controller
 			];
 		});
 
-		return [
+		$result = [
 			'user' => [
 				'name' => $user->name,
 				'member_since' => MyHelper::adjustTimezone($user->created_at, null, 'd F Y', true),
@@ -158,6 +158,7 @@ class ApiMembershipWebview extends Controller
 			],
 			'memberships' => $memberships,
 		];
+		return MyHelper::checkGet($result);
 	}
 
 	public function detail(Request $request)

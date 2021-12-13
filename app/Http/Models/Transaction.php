@@ -338,6 +338,11 @@ class Transaction extends Model
     	return $this->hasMany(TransactionProduct::class, 'id_transaction', 'id_transaction');
 	}
 
+	public function hairstylist_not_available()
+	{
+		return $this->hasMany(\Modules\Transaction\Entities\HairstylistNotAvailable::class, 'id_transaction');
+	}
+
     /**
      * Called when payment completed
      * @return [type] [description]

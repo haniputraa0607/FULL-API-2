@@ -28,7 +28,8 @@ class Location extends Model
         'partnership_fee',
         'income',
         'notes',
-        'step_loc'
+        'step_loc',
+        'is_tax'
 
     ];
     public function location_partner(){

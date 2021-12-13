@@ -72,6 +72,7 @@ class Outlet extends Authenticatable
 		'branch_code',
 		'id_outlet_seed',
 		'id_location',
+		'is_tax',
 		'outlet_code',
 		'outlet_pin',
 		'outlet_name',

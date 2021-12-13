@@ -5996,6 +5996,7 @@ class ApiTransaction extends Controller
                 }
             }
             $i = 0;
+
             foreach($outlets as $key => $outlet){
                 $transaction = Transaction::join('transaction_outlet_services','transaction_outlet_services.id_transaction','=','transactions.id_transaction')
                                 ->leftJoin('outlets','outlets.id_outlet','=','transactions.id_outlet')
@@ -6032,11 +6033,44 @@ class ApiTransaction extends Controller
 
                 if($transaction){
                     $outlets[$key]['transaction'] = $transaction;
-                    $create_order_poo[$i] = Icount::ApiCreateOrderPOO($outlets[$key]);
                 }else{
                     unset($outlets[$key]);
                 }
                 $i++;
+            }
+            $new = 0;
+            foreach($outlets as $outlet){
+                if($outlet['transaction']){
+                    $new_trans_non = 0;
+                    $new_trans_use = 0;
+                    $new_transaction_non = [];
+                    $new_transaction = [];
+                    foreach($outlet['transaction'] as $t => $tran){
+                        if($tran['transaction_tax']==0){
+                            $new_transaction_non[$new_trans_non] = $tran;
+                            $new_trans_non++;
+                        }else{
+                            $new_transaction[$new_trans_use] = $tran;
+                            $new_trans_use++;
+                        }
+                    }
+
+                    if($new_transaction){
+                        $new_outlets[$new] = $outlet;
+                        $new_outlets[$new]['transaction'] = $new_transaction;
+                        $new_outlets[$new]['ppn'] = 10;
+                    }
+                    if($new_transaction_non){
+                        $new = $new + 1;
+                        $new_outlets[$new] = $outlet;
+                        $new_outlets[$new]['transaction'] = $new_transaction_non;
+                        $new_outlets[$new]['ppn'] = 0;
+                    }
+                }
+                $new++;
+            }
+            foreach($new_outlets as $n => $new_outlet){
+                    $create_order_poo[$n] = Icount::ApiCreateOrderPOO($new_outlet);
             }
 
             $log->success('success');

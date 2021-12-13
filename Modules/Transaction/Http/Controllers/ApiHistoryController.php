@@ -1498,7 +1498,7 @@ class ApiHistoryController extends Controller
 
         $transactions->transform(function ($transaction) {
             return [
-                'transaction_date' => \Carbon\Carbon::parse($transaction->transaction_date),
+                'transaction_date' => MyHelper::adjustTimezone($transaction->transaction_date, null, 'd F Y', true),
                 'transaction_receipt_number' => $transaction->transaction_receipt_number,
                 'transaction_grandtotal' => $transaction->transaction_grandtotal,
                 'payment_method' => $transaction->payment_type ?: '-',

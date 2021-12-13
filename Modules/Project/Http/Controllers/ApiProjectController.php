@@ -159,6 +159,7 @@ class ApiProjectController extends Controller
             'outlet_latitude' => $location->latitude,
             'outlet_longitude' => $location->longitude,
             'outlet_status' => 'Inactive',
+            'is_tax' => $location->is_tax,
         ]);
         return response()->json(['status' => 'success','result'=>[
             'project'=>$project,

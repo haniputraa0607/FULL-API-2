@@ -224,11 +224,11 @@ class Icount
                 "TransDate" => $request['trans_date'],
                 "DueDate" => $request['due_date'],
                 "SalesmanID" => '',
-                "Tax" => 0,
+                "ReferenceNo" => '',
+                "Tax" => $request['ppn'],
                 "TaxNo" => '',
                 "AddressInvoice" => '',
                 "Notes" => '',
-                "ReferenceNo" => '',
             ];
             if(isset($request['id_transaction_payment'])){
                 foreach($availablePayment as $a => $payment){
@@ -257,9 +257,7 @@ class Icount
                     "DiscRp" => $transaction['discRp'],
                     "Description" => ""
                 ];
-                if(isset($transaction['transaction_tax']) && !empty($transaction['transaction_tax'])){
-                    $data['Tax'] = 10;
-                }
+                
             }
             return self::sendRequest('POST', '/sales/create_order_poo', $data, $logType, $orderId);
         }else{
@@ -300,6 +298,6 @@ class Icount
         return self::sendRequest('GET', '/branch/list', $request, $logType, $orderId);
     }
     public static function ItemList($request = null, $logType = null, $orderId = null){
-        return self::sendRequest('GET', '/item/list', $request, $logType, $orderId);
+        return self::sendRequest('GET', '/item/list?Limit=20', $request, $logType, $orderId);
     }
 }

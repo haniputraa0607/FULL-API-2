@@ -100,6 +100,7 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
 	    Route::post('manage', ['middleware' => 'feature_control:397', 'uses' => 'ApiTransactionOutletService@manageList']);
 	    Route::get('manage/detail/{id_transaction}', ['middleware' => 'feature_control:398', 'uses' => 'ApiTransactionOutletService@manageDetail']);
 	    Route::post('manage/detail/{id_transaction}', ['middleware' => 'feature_control:399', 'uses' => 'ApiTransactionOutletService@manageDetailUpdate']);
+    	Route::post('reject', ['middleware' => 'feature_control:399', 'uses' => 'ApiTransactionOutletService@rejectTransactionOutletService']);
     });
 
     Route::post('home-service', 'ApiTransactionHomeService@listHomeService');

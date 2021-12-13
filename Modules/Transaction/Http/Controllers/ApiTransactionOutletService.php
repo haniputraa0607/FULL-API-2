@@ -85,6 +85,7 @@ class ApiTransactionOutletService extends Controller
         $this->online_trx = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
         $this->outlet = "Modules\Outlet\Http\Controllers\ApiOutletController";
         $this->product = "Modules\Product\Http\Controllers\ApiProductController";
+        $this->trx = "Modules\Transaction\Http\Controllers\ApiTransaction";
     }
 
     public function listOutletService(Request $request)
@@ -858,6 +859,7 @@ class ApiTransactionOutletService extends Controller
 	            ->with('user')
 	            ->where('transaction_payment_status', 'Completed')
 	            ->whereNull('transaction_outlet_services.completed_at')
+	            ->whereNull('transactions.reject_at')
 	            ->select(
 	            	'transaction_product_services.*',
 	            	'transaction_outlet_services.*',
@@ -930,6 +932,12 @@ class ApiTransactionOutletService extends Controller
     				'transaction_products.product.photos',
     				'user_feedbacks'
     			)
+    			->select([
+    				'transactions.*', 
+    				'transaction_outlet_services.*',
+    				'transactions.reject_at',
+    				'transactions.reject_reason'
+    			])
     			->first();
 
 		if (!$detail) {
@@ -1050,6 +1058,9 @@ class ApiTransactionOutletService extends Controller
 			'transaction_tax' => $detail['transaction_tax'],
 			'transaction_product_subtotal' => $subtotalProduct,
 			'transaction_service_subtotal' => $subtotalService,
+			'need_manual_void' => $detail['need_manual_void'],
+			'reject_at' => $detail['reject_at'],
+			'reject_reason' => $detail['reject_reason'],
 			'customer_name' => $detail['transaction_outlet_service']['customer_name'],
 			'color' => $detail['outlet']['brands'][0]['color_brand'],
 			'status' => $status,
@@ -1346,7 +1357,8 @@ class ApiTransactionOutletService extends Controller
 		DB::beginTransaction();
 		$trxProduct->update([
 			'reject_at' => date('Y-m-d H:i:s'),
-			'reject_reason' => $request->note
+			'reject_reason' => $request->note,
+			'need_manual_void' => 1
 		]);
 
 		$trx->update(['need_manual_void' => 1]);
@@ -1417,5 +1429,40 @@ class ApiTransactionOutletService extends Controller
         }
 
         return true;
+    }
+
+    public function rejectTransactionOutletService(Request $request)
+    {
+		$post = $request->json()->all();
+    	$tempTrx = Transaction::with([
+			'transaction_products.transaction_product_service.hairstylist_not_available',
+			'transaction_outlet_service'
+		]);
+
+    	$trx = $tempTrx->find($request->id_transaction);
+    	if (!$trx) {
+    		return ['status' => 'fail', 'messages' => ['Transaction not found']];
+    	}
+
+    	if ($trx->reject_at) {
+    		return ['status' => 'fail', 'messages' => ['Transaction already rejected']];
+    	}
+
+    	$oldTrx = clone $trx;
+    	$trx->triggerReject($post);
+
+    	$newTrx = $tempTrx->find($request->id_transaction);
+
+
+    	$logTrx = LogTransactionUpdate::create([
+			'id_user' => $request->user()->id,
+	    	'id_transaction' => $request->id_transaction,
+	    	'transaction_from' => 'outlet-service',
+	        'old_data' => json_encode($oldTrx),
+	        'new_data' => json_encode($newTrx),
+	    	'note' => $post['reject_reason']
+		]);
+
+    	return MyHelper::checkCreate($logTrx);
     }
 }

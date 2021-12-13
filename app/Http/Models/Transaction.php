@@ -110,7 +110,10 @@ class Transaction extends Model
 		'failed_void_reason',
 		'shipment_method',
 		'shipment_courier',
-        'scope'
+        'scope',
+        'reject_at',
+        'reject_type',
+        'reject_reason'
 	];
 
 	public $manual_refund = 0;
@@ -489,6 +492,64 @@ class Transaction extends Model
 
     		case 'academy':
     			$this->transaction_academy->triggerPaymentCancelled($data);
+    			break;
+    	}
+
+    	// send notification
+    	// TODO write notification logic here
+
+    	\DB::commit();
+    	return true;
+    }
+
+    public function triggerReject($data = [])
+    {
+    	\DB::beginTransaction();
+
+    	if ($this->reject_at) {
+    		return true;
+    	}
+
+    	$this->update([
+    		'reject_at' => date('Y-m-d H:i:s'),
+    		'reject_reason' => $data['reject_reason'] ?? null
+    	]);
+
+    	$refundPayment = app('\Modules\OutletApp\Http\Controllers\ApiOutletApp')->refundPayment($this);
+    	if (empty($refundPayment['status']) || $refundPayment['status'] != 'success') {
+        	\DB::rollBack();
+        	return false;
+        }	
+
+    	// restore promo status
+        if ($this->id_promo_campaign_promo_code) {
+	        // delete promo campaign report
+        	$update_promo_report = app('\Modules\PromoCampaign\Http\Controllers\ApiPromoCampaign')->deleteReport($this->id_transaction, $this->id_promo_campaign_promo_code);
+        	if (!$update_promo_report) {
+            	\DB::rollBack();
+            	return false;
+            }	
+        }
+
+        // return voucher
+        $update_voucher = app('\Modules\Deals\Http\Controllers\ApiDealsVoucher')->returnVoucher($this->id_transaction);
+
+        // return subscription
+        $update_subscription = app('\Modules\Subscription\Http\Controllers\ApiSubscriptionVoucher')->returnSubscription($this->id_transaction);
+
+        // trigger reject -> service
+    	switch ($this->transaction_from) {
+    		case 'outlet-service':
+    			$this->transaction_outlet_service->triggerRejectOutletService($data);
+    			break;
+
+    		case 'home-service':
+    			break;
+
+    		case 'shop':
+    			break;
+
+    		case 'academy':
     			break;
     	}
 

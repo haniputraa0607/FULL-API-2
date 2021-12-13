@@ -19,7 +19,9 @@ class TransactionOutletService extends \App\Http\Models\Template\TransactionServ
         'customer_gender',
         'pickup_by',
         'pickup_at',
-        'completed_at'
+        'completed_at',
+        'reject_at',
+        'reject_reason'
     ];
 
     public function transaction()

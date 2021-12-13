@@ -41,4 +41,9 @@ class HairstylistScheduleDate extends Model
 		'request_by',
 		'id_outlet_box'
 	];
+
+	public function hairstylist_schedule()
+	{
+		return $this->belongsTo(\Modules\Recruitment\Entities\HairstylistSchedule::class, 'id_hairstylist_schedule');
+	}
 }

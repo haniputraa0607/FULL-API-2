@@ -39,4 +39,9 @@ class TransactionProductService extends Model
 		return $this->belongsTo(\App\Http\Models\TransactionProduct::class, 'id_transaction_product');
 	}
 
+	public function hairstylist_not_available()
+	{
+		return $this->hasOne(\Modules\Transaction\Entities\HairstylistNotAvailable::class, 'id_transaction_product_service');
+	}
+
 }

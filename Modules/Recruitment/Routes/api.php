@@ -118,6 +118,15 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
 
         //Cash flow for SPV
         Route::post('income/detail', 'ApiMitra@incomeDetail');
+        Route::post('acceptance/detail', 'ApiMitra@acceptanceDetail');
+        Route::post('acceptance/confirm', 'ApiMitra@acceptanceConfirm');
+
+        Route::post('cash/outlet/income/create', 'ApiMitra@outletIncomeCreate');
+        Route::post('cash/outlet/transfer', 'ApiMitra@cashOutletTransfer');
+        Route::post('cash/outlet/history', 'ApiMitra@cashOutletHistory');
+
+        Route::post('expense/outlet/create', 'ApiMitra@expenseOutletCreate');
+        Route::post('expense/outlet/history', 'ApiMitra@expenseOutletHistory');
 	});
 
     Route::group(['middleware' => ['auth:api'],'prefix' => 'request'], function () {

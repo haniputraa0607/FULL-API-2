@@ -922,7 +922,7 @@ class ApiDealsVoucher extends Controller
         //     $result=[];
         // }
 
-        if (empty($voucher)) {
+        if (empty($result)) {
             $empty_text = Setting::where('key','=','message_myvoucher_empty_header')
                 ->orWhere('key','=','message_myvoucher_empty_content')
                 ->orderBy('id_setting')

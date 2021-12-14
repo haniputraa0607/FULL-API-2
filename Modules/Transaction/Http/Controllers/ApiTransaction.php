@@ -5716,6 +5716,15 @@ class ApiTransaction extends Controller
 		$list = $list->paginate(10)->toArray();
 
 		$resData = [];
+		$homeServiceStatusCode = [
+		    'Finding Hair Stylist' => 1,
+            'Get Hair Stylist' => 2,
+            'On The Way' => 3,
+            'Arrived' => 4,
+            'Start Service' => 5,
+            'Completed' => 6,
+            'Cancelled' => 7
+        ];
 		foreach ($list['data'] ?? [] as $val) {
 
 			if (!empty($val['outlet'])) {
@@ -5767,7 +5776,7 @@ class ApiTransaction extends Controller
 				'customer_name' => null,
 				'color' => $val['outlet']['brands'][0]['color_brand'],
 				'status' => $status,
-				'home_service_status' => $val['status'],
+				'home_service_status' => $homeServiceStatusCode[$val['status']]??0,
 				'show_rate_popup' => $val['show_rate_popup'],
 				'destination_address' => $val['destination_address'],
 				'outlet' => $outlet ?? null,
@@ -5914,6 +5923,16 @@ class ApiTransaction extends Controller
 	        ];
     	}
 
+        $homeServiceStatusCode = [
+            'Finding Hair Stylist' => 1,
+            'Get Hair Stylist' => 2,
+            'On The Way' => 3,
+            'Arrived' => 4,
+            'Start Service' => 5,
+            'Completed' => 6,
+            'Cancelled' => 7
+        ];
+
     	$homeDetail = [
     		'preference_hair_stylist' => $detail['preference_hair_stylist'],
     		'destination_phone' => $detail['destination_phone'],
@@ -5940,7 +5959,7 @@ class ApiTransaction extends Controller
 			'customer_name' => $detail['destination_name'],
 			'color' => $detail['outlet']['brands'][0]['color_brand'],
 			'status' => $status,
-			'home_service_status' => $detail['status'],
+			'home_service_status' => $homeServiceStatusCode[$detail['status']]??0,
 			'transaction_payment_status' => $detail['transaction_payment_status'],
 			'payment_method' => $paymentMethod,
 			'payment_cash_code' => null,

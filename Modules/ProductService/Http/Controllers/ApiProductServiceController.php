@@ -150,7 +150,6 @@ class ApiProductServiceController extends Controller
                     'created_at' => date('Y-m-d H:i:s')
                 ];
             }
-
             if(!empty($insert)){
                 $save = ProductServiceUse::insert($insert);
                 return response()->json(MyHelper::checkUpdate($save));

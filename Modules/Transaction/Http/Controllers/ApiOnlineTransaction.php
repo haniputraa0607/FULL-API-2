@@ -3322,7 +3322,10 @@ class ApiOnlineTransaction extends Controller
     }
     public function cancelTransaction(Request $request)
     {
-        if ($request->id) {
+        if (stristr($request->receipt_number, "INS")) {
+            $installment = app('Modules\Transaction\Http\Controllers\ApiTransactionAcademy')->cancelTransaction($request);
+            return $installment;
+        }elseif ($request->id) {
             $trx = Transaction::where(['id_transaction' => $request->id, 'id_user' => $request->user()->id])->where('transaction_payment_status', '<>', 'Completed')->first();
         } else {
             $trx = Transaction::where(['transaction_receipt_number' => $request->receipt_number, 'id_user' => $request->user()->id])->where('transaction_payment_status', '<>', 'Completed')->first();

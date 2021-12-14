@@ -12,6 +12,7 @@ use App\Http\Models\TransactionPaymentManual;
 use App\Http\Models\TransactionPaymentMidtran;
 use App\Http\Models\TransactionPaymentOffline;
 use App\Http\Models\TransactionProduct;
+use App\Lib\Midtrans;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use App\Lib\MyHelper;
@@ -1175,5 +1176,24 @@ class ApiTransactionAcademy extends Controller
         }
 
         return $paymentDetail;
+    }
+
+    public function cancelTransaction(Request $request)
+    {
+        $trx = TransactionAcademyInstallment::where(['installment_receipt_number' => $request->receipt_number])->first();
+
+        if($trx->paid_status != 'Pending'){
+            return MyHelper::checkGet([],'Transaction cannot be canceled');
+        }
+
+        $payment_type = $trx->installment_payment_type;
+
+        switch (strtolower($payment_type)) {
+            case 'midtrans':
+                Midtrans::expire($trx->installment_receipt_number);
+                $trx->triggerPaymentCancelled();
+                return ['status'=>'success'];
+        }
+        return ['status' => 'fail', 'messages' => ["Cancel $payment_type transaction is not supported yet"]];
     }
 }

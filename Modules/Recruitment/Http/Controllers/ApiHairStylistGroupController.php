@@ -12,6 +12,7 @@ use Modules\Recruitment\Http\Requests\user_hair_stylist_create;
 use Modules\Recruitment\Http\Requests\CreateGroup;
 use Modules\Recruitment\Http\Requests\CreateGroupCommission;
 use Modules\Recruitment\Http\Requests\UpdateGroupCommission;
+use Modules\Recruitment\Http\Requests\InviteHS;
 use Image;
 use Modules\Recruitment\Entities\HairstylistGroup;
 use Modules\Recruitment\Entities\HairstylistGroupCommission;
@@ -114,6 +115,26 @@ class ApiHairStylistGroupController extends Controller
             }
         }}
          return response()->json($data);
+    }
+    public function hs(Request $request)
+    {
+        $data = array();
+        if($request->id_hairstylist_group){
+         $query = UserHairStylist::where(array('user_hair_stylist_status'=>'Active'))->get();
+         foreach ($query as $value) {
+             if($value['id_hairstylist_group']!=$request->id_hairstylist_group){
+                 array_push($data,$value);
+             }
+         }
+        }
+         return response()->json($data);
+    }
+    public function invite_hs(InviteHS $request)
+    {
+        $store = UserHairStylist::where(array('id_user_hair_stylist'=>$request->id_user_hair_stylist))->update([
+            'id_hairstylist_group'=>$request->id_hairstylist_group
+        ]);
+          return response()->json(MyHelper::checkCreate($store));
     }
     public function create_commission(CreateGroupCommission $request)
     {

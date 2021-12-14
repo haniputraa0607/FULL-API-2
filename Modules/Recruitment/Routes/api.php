@@ -52,6 +52,8 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
 		    Route::post('update_commission', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@update_commission']);
 		    Route::post('detail_commission', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@detail_commission']);
 		    Route::post('product', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@product']);
+                    Route::post('hs', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@hs']);
+		    Route::post('invite_hs', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@invite_hs']);
     	});
     });
 });
@@ -118,6 +120,15 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
 
         //Cash flow for SPV
         Route::post('income/detail', 'ApiMitra@incomeDetail');
+        Route::post('acceptance/detail', 'ApiMitra@acceptanceDetail');
+        Route::post('acceptance/confirm', 'ApiMitra@acceptanceConfirm');
+
+        Route::post('cash/outlet/income/create', 'ApiMitra@outletIncomeCreate');
+        Route::post('cash/outlet/transfer', 'ApiMitra@cashOutletTransfer');
+        Route::post('cash/outlet/history', 'ApiMitra@cashOutletHistory');
+
+        Route::post('expense/outlet/create', 'ApiMitra@expenseOutletCreate');
+        Route::post('expense/outlet/history', 'ApiMitra@expenseOutletHistory');
 	});
 
     Route::group(['middleware' => ['auth:api'],'prefix' => 'request'], function () {

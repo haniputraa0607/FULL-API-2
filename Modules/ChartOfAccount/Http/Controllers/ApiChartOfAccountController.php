@@ -103,4 +103,8 @@ class ApiChartOfAccountController extends Controller
             return response()->json(['status' => 'fail', 'message' => ['Fail']]);
         }
     }
+    public function list() {
+        $data = ChartOfAccount::all();
+        return response()->json($data);
+    }
 }

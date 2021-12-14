@@ -218,7 +218,7 @@ class ApiDealsInvalidate extends Controller
     function checkRandomVoucher()
     {
         do {
-            $random = MyHelper::createRandomPIN(6);
+            $random = strtoupper(MyHelper::createrandom(6));
             $cek    = DealsUser::where('voucher_hash_code', $random)->first();
         } while ($cek);
 

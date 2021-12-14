@@ -4,10 +4,10 @@ namespace Modules\Product\Entities;
 
 use Illuminate\Database\Eloquent\Model;
 
-class ProductOutletStock extends Model
+class ProductIcountOutletStock extends Model
 {
-    protected $table = 'product_outlet_stocks';
-	protected $primaryKey = "id_product_outlet_stock";
+    protected $table = 'product_icount_outlet_stocks';
+	protected $primaryKey = "id_product_icount_outlet_stock";
 
 	protected $fillable = [
         'id_product_icount',

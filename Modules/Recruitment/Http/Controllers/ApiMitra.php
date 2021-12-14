@@ -937,7 +937,7 @@ class ApiMitra extends Controller
         }
 
         $totalProjection = array_sum(array_column($resProjection, 'amount'));
-        $totalAcceptance = array_sum(array_column($acceptance, 'outlet_cash_amount'));
+        $totalAcceptance = array_sum(array_column($history, 'amount'));
         $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
 
         $spvProjection = Transaction::join('transaction_payment_cash', 'transaction_payment_cash.id_transaction', 'transactions.id_transaction')

@@ -212,7 +212,7 @@ class ApiDealsVoucher extends Controller
 
     /* GENERATE CODE */
     function generateCode($id_deals) {
-        $code = sprintf('%03d', $id_deals).MyHelper::createRandomPIN(5);
+        $code = sprintf('%03d', $id_deals).strtoupper(MyHelper::createrandom(5));
 
         return $code;
     }
@@ -918,9 +918,9 @@ class ApiDealsVoucher extends Controller
         $result['prev_page_url'] = $prev_page_url;
         $result['per_page'] = $per_page;
         $result['total'] = $total;
-        if(!$result['total']){
-            $result=[];
-        }
+        // if(!$result['total']){
+        //     $result=[];
+        // }
 
         if (empty($voucher)) {
             $empty_text = Setting::where('key','=','message_myvoucher_empty_header')

@@ -50,6 +50,8 @@ class TransactionAcademyInstallmentPaymentMidtrans extends Eloquent
 		'vt_transaction_id',
 		'transaction_status',
 		'fraud_status',
-		'status_message'
+		'status_message',
+        'redirect_url',
+        'token'
 	];
 }

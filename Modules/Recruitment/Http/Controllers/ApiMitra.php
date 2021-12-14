@@ -731,7 +731,7 @@ class ApiMitra extends Controller
             'id_mitra' => $user->user_hair_stylist_code,
             'name' => $user->fullname,
             'outlet_name' => $outletName,
-            'current_balance' => $user->balance,
+            'current_balance' => $user->total_balance,
             'currency' => 'Rp'
         ];
 
@@ -899,7 +899,7 @@ class ApiMitra extends Controller
                     ->whereDate('transactions.transaction_date', $date)
                     ->where('transaction_payment_status', 'Completed')
                     ->where('transactions.id_outlet', $user->id_outlet)
-                    ->select('transaction_grandtotal', 'transactions.id_transaction', 'transactions.transaction_receipt_number', 'transaction_payment_cash.*', 'user_hair_stylist.fullname');
+                    ->select('transaction_grandtotal', 'cash_nominal', 'transactions.id_transaction', 'transactions.transaction_receipt_number', 'transaction_payment_cash.*', 'user_hair_stylist.fullname');
 
         $acceptance = OutletCash::join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'outlet_cash.id_user_hair_stylist')
                     ->where('outlet_cash.id_outlet', $user->id_outlet)
@@ -937,7 +937,7 @@ class ApiMitra extends Controller
             ];
         }
 
-        $totalProjection = array_sum(array_column($resProjection, 'outlet_cash_amount'));
+        $totalProjection = array_sum(array_column($resProjection, 'cash_nominal'));
         $totalAcceptance = array_sum(array_column($acceptance, 'outlet_cash_amount'));
         $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
 

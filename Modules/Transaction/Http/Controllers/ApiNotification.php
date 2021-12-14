@@ -875,48 +875,20 @@ Detail: ".$link['short'],
         $update = TransactionAcademyInstallmentPaymentMidtrans::where('order_id', $midtrans['order_id'])->update($midtrans);
 
         if ($update) {
-            $updateInstallment = TransactionAcademyInstallment::where('id_transaction_academy_installment', $data['id_transaction_academy_installment'])->update(['completed_installment_at' => date('Y-m-d H:i:s')]);
+            $installment = TransactionAcademyInstallment::where('id_transaction_academy_installment', $data['id_transaction_academy_installment'])->first();
 
-            if ($updateInstallment) {
-                $dataAcademy = Transaction::join('transaction_academy', 'transaction_academy.id_transaction', 'transactions.id_transaction')
-                            ->where('id_transaction_academy', $data['id_transaction_academy'])->with('user')->first();
-                $dataInstallment = TransactionAcademyInstallment::where('id_transaction_academy_installment', $data['id_transaction_academy_installment'])->first();
-                $currentDate = date('Y-m-d H:i:s');
-
-                if (isset($midtrans['status_code']) && $midtrans['status_code'] == 200 && $dataInstallment['paid_status'] == 'Pending') {
-                    $send = app($this->autocrm)->SendAutoCRM(
-                        'Payment Academy Installment',
-                        $dataAcademy['user']['phone'],
-                        [
-                            'completed_date'=> $currentDate,
-                            'installment_step' => MyHelper::numberToRomanRepresentation($data['installment_step']),
-                            'total_amount'      => $data['amount']
-                        ]
-                    );
-
-                    $dtForUpdate = [
-                        'paid_status' => 'Completed',
-                        'completed_installment_at' => $currentDate
-                    ];
-                    $updateDataAcademy = TransactionAcademy::where('id_transaction_academy', $dataAcademy['id_transaction_academy'])
-                        ->update(['amount_completed' => $dataAcademy['amount_completed']+$dataInstallment['amount'], 'amount_not_completed' => $dataAcademy['amount_not_completed']-$dataInstallment['amount']]);
-                }elseif (isset($midtrans['status_code']) && $midtrans['status_code'] == 201){
-                    $dtForUpdate = ['paid_status' => 'Pending'];
-                }elseif (isset($midtrans['status_code']) && $midtrans['status_code'] == 202) {
-                    $dtForUpdate = ['paid_status' => 'Cancelled'];
-                }
-
-                if(!empty($dtForUpdate)){
-                    $updateDataAcademy = TransactionAcademyInstallment::where('id_transaction_academy_installment', $data['id_transaction_academy_installment'])->update($dtForUpdate);
-                    if($updateDataAcademy){
-                        DB::commit();
-                        return true;
-                    }
-                }
+            if (isset($midtrans['status_code']) && $midtrans['status_code'] == 200 && $installment['paid_status'] == 'Pending') {
+                $installment->triggerPaymentCompleted();
+            }elseif (isset($midtrans['status_code']) && $midtrans['status_code'] == 202) {
+                $installment->triggerPaymentCancelled();
             }
+
+            DB::commit();
+            return true;
+        }else{
+            DB::rollback();
+            return false;
         }
-        DB::rollback();
-        return false;
     }
 
     /* DATA MIDTRANS */

@@ -883,6 +883,11 @@ class ApiConfirm extends Controller
             ], $dataMultiple);
 
             DB::commit();
+
+            if($check['transaction_from'] == 'outlet-service' || $check['transaction_from'] == 'shop'){
+                app($this->trx)->bookHS($check['id_transaction']);
+                app($this->trx)->bookProductStock($check['id_transaction']);
+            }
             return [
                 'status' => 'fail',
                 'messages' => $errors ?: ['Something went wrong']

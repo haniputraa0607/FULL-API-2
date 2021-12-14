@@ -111,6 +111,15 @@ class ApiTransaction extends Controller
         date_default_timezone_set('Asia/Jakarta');
         $this->shopeepay      = 'Modules\ShopeePay\Http\Controllers\ShopeePayController';
         $this->trx_outlet_service = "Modules\Transaction\Http\Controllers\ApiTransactionOutletService";
+        $this->home_service_status = [
+            'Finding Hair Stylist' => ['code' => 1, 'text' => 'Mencari hair stylist'],
+            'Get Hair Stylist' => ['code' => 2, 'text' => 'Dapat hair stylist'],
+            'On The Way' => ['code' => 3, 'text' => 'Hair stylist menuju lokasi Anda'],
+            'Arrived' => ['code' => 4, 'text' => 'Hair stylist tiba di lokasi Anda'],
+            'Start Service' => ['code' => 5, 'text' => 'Mulai layanan'],
+            'Completed' => ['code' => 6, 'text' => 'Selesai layanan'],
+            'Cancelled' => ['code' => 7, 'text' => 'Tidak menemukan hair stylist']
+        ];
     }
 
     public function transactionRule() {
@@ -5716,15 +5725,6 @@ class ApiTransaction extends Controller
 		$list = $list->paginate(10)->toArray();
 
 		$resData = [];
-		$homeServiceStatusCode = [
-		    'Finding Hair Stylist' => 1,
-            'Get Hair Stylist' => 2,
-            'On The Way' => 3,
-            'Arrived' => 4,
-            'Start Service' => 5,
-            'Completed' => 6,
-            'Cancelled' => 7
-        ];
 		foreach ($list['data'] ?? [] as $val) {
 
 			if (!empty($val['outlet'])) {
@@ -5776,7 +5776,9 @@ class ApiTransaction extends Controller
 				'customer_name' => null,
 				'color' => $val['outlet']['brands'][0]['color_brand'],
 				'status' => $status,
-				'home_service_status' => $homeServiceStatusCode[$val['status']]??0,
+                'home_service_status' => $val['status'],
+                'home_service_status_text' => $this->home_service_status[$val['status']]['text']??'',
+				'home_service_status_code' => $this->home_service_status[$val['status']]['code']??0,
 				'show_rate_popup' => $val['show_rate_popup'],
 				'destination_address' => $val['destination_address'],
 				'outlet' => $outlet ?? null,
@@ -5923,16 +5925,6 @@ class ApiTransaction extends Controller
 	        ];
     	}
 
-        $homeServiceStatusCode = [
-            'Finding Hair Stylist' => 1,
-            'Get Hair Stylist' => 2,
-            'On The Way' => 3,
-            'Arrived' => 4,
-            'Start Service' => 5,
-            'Completed' => 6,
-            'Cancelled' => 7
-        ];
-
     	$homeDetail = [
     		'preference_hair_stylist' => $detail['preference_hair_stylist'],
     		'destination_phone' => $detail['destination_phone'],
@@ -5959,7 +5951,9 @@ class ApiTransaction extends Controller
 			'customer_name' => $detail['destination_name'],
 			'color' => $detail['outlet']['brands'][0]['color_brand'],
 			'status' => $status,
-			'home_service_status' => $homeServiceStatusCode[$detail['status']]??0,
+            'home_service_status' => $detail['status'],
+            'home_service_status_text' => $this->home_service_status[$detail['status']]['text']??'',
+            'home_service_status_code' => $this->home_service_status[$detail['status']]['code']??0,
 			'transaction_payment_status' => $detail['transaction_payment_status'],
 			'payment_method' => $paymentMethod,
 			'payment_cash_code' => null,

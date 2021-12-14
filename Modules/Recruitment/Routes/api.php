@@ -44,7 +44,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
 		    Route::post('delete', ['middleware' => 'feature_control:372', 'uses' =>'ApiAnnouncement@deleteAnnouncement']);
     	});
     	Route::group(['prefix' => 'group'], function () {
-                    Route::get('/', ['middleware' => 'feature_control:393','uses' =>'ApiHairStylistGroupController@index']);
+                    Route::any('/', ['middleware' => 'feature_control:393','uses' =>'ApiHairStylistGroupController@index']);
                     Route::post('create', ['middleware' => 'feature_control:394','uses' =>'ApiHairStylistGroupController@create']);
 		    Route::post('update', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupController@update']);
 		    Route::post('detail', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@detail']);

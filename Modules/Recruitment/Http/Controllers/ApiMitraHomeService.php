@@ -58,6 +58,7 @@ class ApiMitraHomeService extends Controller
 
         $list = Transaction::join('transaction_home_services', 'transaction_home_services.id_transaction', 'transactions.id_transaction')
                 ->where('transaction_payment_status', 'Completed')
+                ->whereNotIn('status', ['Cancelled', 'Completed'])
                 ->where('id_user_hair_stylist', $user['id_user_hair_stylist']);
 
         if(!empty($post['status']) && $post['status'] == 'today'){
@@ -222,18 +223,14 @@ class ApiMitraHomeService extends Controller
             return ['status' => 'fail', 'messages' => ['Status not found']];
         }
 
-        if($update){
-            return [
-                'status' => 'success',
-                'result' => [
-                    'status_id' => $post['status_id'],
-                    'id_transaction' => $post['id_transaction'],
-                    'transaction_receipt_number' => $detail['transaction_receipt_number']
-                ]
-            ];
-        }else{
-            return ['status' => 'fail', 'messages' => ['Failed update data']];
-        }
+        return [
+            'status' => 'success',
+            'result' => [
+                'status_id' => $post['status_id'],
+                'id_transaction' => $post['id_transaction'],
+                'transaction_receipt_number' => $detail['transaction_receipt_number']
+            ]
+        ];
     }
 
     public function detailOrder(Request $request){
@@ -273,6 +270,8 @@ class ApiMitraHomeService extends Controller
             'destination_note' => $detail['destination_note'],
             'destination_latitude' => $detail['destination_latitude'],
             'destination_longitude' => $detail['destination_longitude'],
+            'schedule_date' => MyHelper::dateFormatInd($detail['schedule_date'], true, false),
+            'schedule_time' => date('H:i', strtotime($detail['schedule_time'])),
             'name' => $detail['destination_name'],
             'phone' => $detail['destination_phone'],
             'status' => $detail['status'],
@@ -306,6 +305,8 @@ class ApiMitraHomeService extends Controller
             'destination_note' => $detail['destination_note'],
             'destination_latitude' => $detail['destination_latitude'],
             'destination_longitude' => $detail['destination_longitude'],
+            'schedule_date' => MyHelper::dateFormatInd($detail['schedule_date'], true, false),
+            'schedule_time' => date('H:i', strtotime($detail['schedule_time'])),
             'name' => $detail['destination_name'],
             'phone' => $detail['destination_phone'],
             'status' => $detail['status'],

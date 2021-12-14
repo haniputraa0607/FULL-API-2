@@ -439,7 +439,7 @@ class XenditController extends Controller
         CustomHttpClient::setIdReference($external_id);
         $method = strtoupper($method);
 
-        $outlet_code = Outlet::join('transactions', 'transactions.id_outlet', 'outlets.id_outlet')->value('outlet_code');
+        $outlet_code = Outlet::join('transactions', 'transactions.id_outlet', 'outlets.id_outlet')->where('transaction_receipt_number', $external_id)->first()->outlet_code;
         $redirect_url = str_replace(
             ['%order_id%', '%type%', '%outlet_code%'],
             [urlencode($options['order_id'] ?? $external_id), $options['type'] ?? 'trx', $outlet_code],

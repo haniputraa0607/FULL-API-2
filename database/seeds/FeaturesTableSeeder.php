@@ -3967,7 +3967,7 @@ class FeaturesTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00')
                 ),
- 			396 => 
+            396 => 
 	            array (
 	                'id_feature' => 397,
 	                'feature_type' => 'List',
@@ -3975,7 +3975,7 @@ class FeaturesTableSeeder extends Seeder
 	                'show_hide' => 1,
 	                'order' => 143,
 	                'created_at' => date('Y-m-d H:00:00'),
-                    'updated_at' => date('Y-m-d H:00:00')
+                        'updated_at' => date('Y-m-d H:00:00')
 	            ),
             397 => 
 	            array (
@@ -3985,7 +3985,7 @@ class FeaturesTableSeeder extends Seeder
 	                'show_hide' => 1,
 	                'order' => 143,
 	                'created_at' => date('Y-m-d H:00:00'),
-                    'updated_at' => date('Y-m-d H:00:00')
+                        'updated_at' => date('Y-m-d H:00:00')
 	            ),
             398 => 
 	            array (
@@ -3995,8 +3995,78 @@ class FeaturesTableSeeder extends Seeder
 	                'show_hide' => 1,
 	                'order' => 143,
 	                'created_at' => date('Y-m-d H:00:00'),
-                    'updated_at' => date('Y-m-d H:00:00')
-	            )
+                        'updated_at' => date('Y-m-d H:00:00')
+	            ),
+            399 => 
+	            array (
+	                'id_feature' => 400,
+	                'feature_type' => 'List',
+	                'feature_module' => 'Chart Of Account',
+	                'show_hide' => 1,
+	                'order' => 144,
+	                'created_at' => date('Y-m-d H:00:00'),
+                        'updated_at' => date('Y-m-d H:00:00')
+	            ),
+            400 => 
+	            array (
+	                'id_feature' => 401,
+	                'feature_type' => 'Update',
+	                'feature_module' => 'Sync Chart Of Account',
+	                'show_hide' => 1,
+	                'order' => 144,
+	                'created_at' => date('Y-m-d H:00:00'),
+                        'updated_at' => date('Y-m-d H:00:00')
+	            ),
+            401 => 
+	            array (
+	                'id_feature' => 402,
+	                'feature_type' => 'List',
+	                'feature_module' => 'List Project',
+	                'show_hide' => 1,
+	                'order' => 145,
+	                'created_at' => date('Y-m-d H:00:00'),
+                        'updated_at' => date('Y-m-d H:00:00')
+	            ),
+            402 => 
+	            array (
+	                'id_feature' => 403,
+	                'feature_type' => 'Create',
+	                'feature_module' => 'Create Project',
+	                'show_hide' => 1,
+	                'order' => 145,
+	                'created_at' => date('Y-m-d H:00:00'),
+                        'updated_at' => date('Y-m-d H:00:00')
+	            ),
+            403 => 
+	            array (
+	                'id_feature' => 404,
+	                'feature_type' => 'Detail',
+	                'feature_module' => 'Detail Project',
+	                'show_hide' => 1,
+	                'order' => 145,
+	                'created_at' => date('Y-m-d H:00:00'),
+                        'updated_at' => date('Y-m-d H:00:00')
+	            ),
+            404 => 
+	            array (
+	                'id_feature' => 405,
+	                'feature_type' => 'Update',
+	                'feature_module' => 'Update Project',
+	                'show_hide' => 1,
+	                'order' => 145,
+	                'created_at' => date('Y-m-d H:00:00'),
+                        'updated_at' => date('Y-m-d H:00:00')
+	            ),
+            405 => 
+	            array (
+	                'id_feature' => 406,
+	                'feature_type' => 'Delete',
+	                'feature_module' => 'Delete Project',
+	                'show_hide' => 1,
+	                'order' => 145,
+	                'created_at' => date('Y-m-d H:00:00'),
+                        'updated_at' => date('Y-m-d H:00:00')
+	            ),
         ));
         
         

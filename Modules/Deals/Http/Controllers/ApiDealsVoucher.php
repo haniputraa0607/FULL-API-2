@@ -212,7 +212,7 @@ class ApiDealsVoucher extends Controller
 
     /* GENERATE CODE */
     function generateCode($id_deals) {
-        $code = sprintf('%03d', $id_deals).MyHelper::createRandomPIN(5);
+        $code = sprintf('%03d', $id_deals).strtoupper(MyHelper::createrandom(5));
 
         return $code;
     }

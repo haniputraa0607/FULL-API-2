@@ -2927,9 +2927,9 @@ class ApiUser extends Controller
                 ->where('transaction_payment_status', 'Completed')
                 ->whereDate('transaction_date', date('Y-m-d'))
                 ->whereNull('taken_at')
-                ->whereNull('reject_at')
+                ->whereNull('transaction_pickups.reject_at')
                 ->where('id_user', $query['id'])
-                ->select('transactions.id_transaction', 'id_outlet', 'transaction_receipt_number', 'trasaction_type', 'transaction_grandtotal', 'transaction_payment_status', 'transaction_date', 'receive_at', 'ready_at', 'taken_at', 'reject_at', 'pickup_by', 'reject_reason')
+                ->select('transactions.id_transaction', 'id_outlet', 'transaction_receipt_number', 'trasaction_type', 'transaction_grandtotal', 'transaction_payment_status', 'transaction_date', 'receive_at', 'ready_at', 'taken_at', 'transaction_pickups.reject_at', 'pickup_by', 'transaction_pickups.reject_reason')
                 ->orderBy('transaction_date', 'DESC')
                 ->get();
 

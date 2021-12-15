@@ -42,7 +42,51 @@ class ApiHairStylistGroupController extends Controller
                 ]);
         return response()->json(MyHelper::checkCreate($store));
     }
-    public function index()
+    function index(Request $request) 
+    {
+    	$post = $request->json()->all();
+        $data = HairstylistGroup::Select('hairstylist_groups.*');
+        if ($request->json('rule')){
+             $this->filterList($data,$request->json('rule'),$request->json('operator')??'and');
+        }
+        $data = $data->paginate($request->length ?: 10);
+        //jika mobile di pagination
+        if (!$request->json('web')) {
+            $resultMessage = 'Data tidak ada';
+            return response()->json(MyHelper::checkGet($data, $resultMessage));
+        }
+        else{
+           
+            return response()->json(MyHelper::checkGet($data));
+        }
+    }
+   
+    public function filterList($query,$rules,$operator='and'){
+        $newRule=[];
+        foreach ($rules as $var) {
+            $rule=[$var['operator']??'=',$var['parameter']];
+            if($rule[0]=='like'){
+                $rule[1]='%'.$rule[1].'%';
+            }
+            $newRule[$var['subject']][]=$rule;
+        }
+        $where=$operator=='and'?'where':'orWhere';
+        $subjects=['hair_stylist_group_name','hair_stylist_group_code'];
+         $i = 1;
+        foreach ($subjects as $subject) {
+            if($rules2=$newRule[$subject]??false){
+                foreach ($rules2 as $rule) {
+                    if($i<=1){
+                    $query->where($subject,$rule[0],$rule[1]);
+                    }else{
+                    $query->$where($subject,$rule[0],$rule[1]);    
+                    }
+                    $i++;
+                }
+            }
+        }
+    }
+    public function index_old()
     {
         $data = HairstylistGroup::all();
         return MyHelper::checkGet($data);

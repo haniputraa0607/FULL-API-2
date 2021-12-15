@@ -5682,7 +5682,7 @@ class ApiTransaction extends Controller
 			'service' => $services,
 			'product' => $products,
 			'payment_detail' => $paymentDetail,
-			'payment_method_detail' => $paymentMethodDetail
+			'payment_method' => $paymentMethodDetail
 		];
 		
 		return MyHelper::checkGet($res);
@@ -5963,7 +5963,7 @@ class ApiTransaction extends Controller
 			'service' => $services,
 			'product' => null,
 			'payment_detail' => $paymentDetail,
-			'payment_method_detail' => $paymentMethodDetail,
+			'payment_method' => $paymentMethodDetail,
 			'home_service_detail' => $homeDetail
 		];
 		

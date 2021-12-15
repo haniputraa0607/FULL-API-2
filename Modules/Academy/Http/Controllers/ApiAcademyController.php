@@ -520,10 +520,12 @@ class ApiAcademyController extends Controller
                         ->leftJoin('products', 'products.id_product', 'transaction_products.id_product')
                         ->with('outlet');
 
-            if(!empty($post['transaction_receipt_number'])){
+            if (!empty($post['transaction_receipt_number']) && stristr($request->transaction_receipt_number, "INS")) {
                 $trxReciptNumber = TransactionAcademyInstallment::join('transaction_academy', 'transaction_academy_installment.id_transaction_academy', 'transaction_academy.id_transaction_academy')
-                                ->where('installment_receipt_number', $post['transaction_receipt_number'])->first();
+                    ->where('installment_receipt_number', $post['transaction_receipt_number'])->first();
                 $post['id_transaction'] = $trxReciptNumber['id_transaction'];
+            }elseif (!empty($post['transaction_receipt_number'])) {
+                $post['id_transaction'] = Transaction::where('transaction_receipt_number', $post['transaction_receipt_number'])->first()['id_transaction']??null;
             }
 
             $detail = $detail->where('transactions.id_transaction', $post['id_transaction']);

@@ -414,6 +414,11 @@ class Transaction extends Model
         ];
         $trx->load('outlet');
         $trx->load('productTransaction');
+
+        $trx->productTransaction->each(function($transaction_product,$index){
+            $transaction_product->breakdown();
+        });
+
         app('\Modules\Transaction\Http\Controllers\ApiNotification')->notification($mid, $trx);
 
         \DB::commit();

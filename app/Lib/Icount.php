@@ -231,6 +231,7 @@ class Icount
                 "Notes" => '',
             ];
             if(isset($request['id_transaction_payment'])){
+                $request['payment_type'] = ucfirst(strtolower($request['payment_type']));
                 foreach($availablePayment as $a => $payment){
                     if($payment['payment_method'] == $request['payment_type'] && $payment['payment_gateway'] == 'Midtrans'){
                         $data['ChartOfAccountID'] = $payment['chart_of_account_id'];

@@ -1151,7 +1151,7 @@ class ApiTransactionOutletService extends Controller
 			'is_conflict' => 0
 		]);
 
-		$hna->update([
+		HairstylistNotAvailable::where('id_transaction_product_service', $request->id_transaction_product_service)->update([
 			'booking_start' => $bookStart,
 			'booking_end' => $bookEnd
 		]);
@@ -1196,10 +1196,11 @@ class ApiTransactionOutletService extends Controller
     	}
 
         $timeZone = 7; // all datetime use utc+7 timezone
-        $currentDate = MyHelper::adjustTimezone(date('Y-m-d H:i'), $timeZone);
+        $currentDate = MyHelper::adjustTimezone(date('Y-m-d H:i'), $timeZone, 'Y-m-d H:i');
         $bookingDate = date('Y-m-d', strtotime($bookDateTime));
         $bookingTime = date('H:i', strtotime($bookDateTime));
         $bookDateIndo = MyHelper::adjustTimezone($bookDateTime, $outlet['province_time_zone_utc'] ?? 7, 'l, d F Y H:i', true);
+        $currDateIndo = MyHelper::adjustTimezone($currentDate, $outlet['province_time_zone_utc'] ?? 7, 'l, d F Y H:i', true);
 
         $idOutletSchedule = $outlet['today']['id_outlet_schedule'] ?? null;
 
@@ -1240,7 +1241,7 @@ class ApiTransactionOutletService extends Controller
         if (strtotime($currentDate) > strtotime($bookTime)) {
         	return [
     			'status' => 'fail',
-    			'messages' => ['Booking time is expired']
+    			'messages' => ['Booking time must be after '.$currDateIndo]
     		];
         }
 
@@ -1253,15 +1254,15 @@ class ApiTransactionOutletService extends Controller
         if (empty($shift)) {
         	return [
     			'status' => 'fail',
-    			'messages' => ["Hair stylist " . $hs->nickname . " - " . $hs->fullname . " not available on ".$bookDateIndo]
+    			'messages' => ["Hair stylist " . $hs->nickname . " - " . $hs->fullname . " not available on ".$bookDateIndo.', shift not found']
     		];
         }
 
-        $getTimeShift = app($this->product)->getTimeShift(strtolower($shift), $outlet['id_outlet'], $idOutletSchedule);
+        $getTimeShift = app($this->product)->getTimeShift(strtolower($shift), $outlet['id_outlet'], $outletSchedule->id_outlet_schedule);
         if (empty($getTimeShift['start']) && empty($getTimeShift['end'])) {
         	return [
     			'status' => 'fail',
-    			'messages' => ["Hair stylist " . $hs->nickname . " - " . $hs->fullname . " not available on ".$bookDateIndo]
+    			'messages' => ["Hair stylist " . $hs->nickname . " - " . $hs->fullname . " not available on ".$bookDateIndo.', shift hour not found']
     		];
         } else {
             $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
@@ -1270,7 +1271,7 @@ class ApiTransactionOutletService extends Controller
             if ((strtotime($time) >= strtotime($shiftTimeStart) && strtotime($time) < strtotime($shiftTimeEnd)) === false) {
             	return [
 	    			'status' => 'fail',
-	    			'messages' => ["Hair stylist " . $hs->nickname . " - " . $hs->fullname . " not available on ".$bookDateIndo]
+	    			'messages' => ["Hair stylist " . $hs->nickname . " - " . $hs->fullname . " not available on ".$bookDateIndo.', shift hour not available']
 	    		];
             }
         }
@@ -1293,9 +1294,10 @@ class ApiTransactionOutletService extends Controller
             ->first();
 
         if(!empty($hsNotAvailable)){
+        	$bookEndIndo = MyHelper::adjustTimezone($hsNotAvailable->booking_end, $outlet['province_time_zone_utc'] ?? 7, 'l, d F Y H:i', true);
             return [
     			'status' => 'fail',
-    			'messages' => ["Hair stylist " . $hs->nickname . " - " . $hs->fullname . " not available on ".$bookDateIndo]
+    			'messages' => ["Hair stylist " . $hs->nickname . " - " . $hs->fullname . " not available on ".$bookDateIndo.', booked until '.$bookEndIndo]
     		];
         }
 

@@ -8,6 +8,12 @@
 namespace App\Http\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Modules\Product\Entities\ProductIcount;
+use Modules\Recruitment\Entities\HairstylistGroupCommission;
+use App\Http\Models\TransactionPaymentMidtran;
+use Modules\Xendit\Entities\TransactionPaymentXendit;
+use App\Lib\MyHelper;
+use Modules\Disburse\Entities\MDR;
 
 /**
  * Class TransactionProduct
@@ -98,6 +104,11 @@ class TransactionProduct extends Model
 	{
 		return $this->belongsTo(\App\Http\Models\Transaction::class, 'id_transaction');
 	}
+
+	public function hairstylist()
+	{
+		return $this->belongsTo(\Modules\Recruitment\Entities\UserHairStylist::class, 'id_user_hair_stylist');
+	}
 	
 	 public function getUserAttribute() {
         $user = $this->transaction->user;
@@ -128,4 +139,107 @@ class TransactionProduct extends Model
 	{
 		return $this->hasOne(\Modules\Transaction\Entities\TransactionProductService::class, 'id_transaction_product');
 	}
+
+    public function transaction_breakdown()
+    {
+        return $this->hasMany(\Modules\Transaction\Entities\TransactionBreakdown::class, 'id_transaction_product');
+    }
+
+    public function breakdown(){
+        $id_product = $this->id_product;
+        $id_transaction = $this->id_transaction;
+        $trx_product_subtotal = $this->transaction_product_subtotal;
+        $trans_grandtotal = $this->transaction->transaction_grandtotal;
+        $subtotal_grandtotal = $trx_product_subtotal/$trans_grandtotal;
+        $product_uses = $this->product->product_icount_use;
+        $total_material = 0;
+        foreach($product_uses ?? [] as $key => $product_use){
+            $detail_product_use[$key] = ProductIcount::where('id_product_icount',$product_use['id_product_icount'])->first();
+            if($product_use['unit']==$detail_product_use[$key]['unit1']){
+                $total_use[$key] = $product_use['qty']*$detail_product_use[$key]['unit_price_1'];
+            }
+            if($product_use['unit']==$detail_product_use[$key]['unit2']){
+                $total_use[$key] = $product_use['qty']*$detail_product_use[$key]['unit_price_2'];
+            }
+            if($product_use['unit']==$detail_product_use[$key]['unit3']){
+                $total_use[$key] = $product_use['qty']*$detail_product_use[$key]['unit_price_3'];
+            }
+            $total_material = $total_use[$key] + $total_material;
+        }
+        $material = [
+            "id_transaction_product" => $this->id_transaction_product,
+            "type"                   => 'material',
+            "value"                  => $total_material
+        ];
+        $send = $this->transaction_breakdown()->updateOrCreate(["type" => $material['type']],["value"=> $material['value']]);
+        if($send){
+            $hair_stylist = $this->hairstylist;
+            $id_group_hs =  $hair_stylist['id_hairstylist_group'];
+            $sub_total = $this->transaction_product_subtotal;
+            $group = HairstylistGroupCommission::where('id_hairstylist_group',$id_group_hs)->where('id_product',$id_product)->first() ?? [];
+            $fee_hs = [
+                "id_transaction_product" => $this->id_transaction_product,
+                "type"                   => 'fee_hs',
+            ];
+            if($group){
+                if($group['percent']==0){
+                    $fee_hs['value'] = $group['commission_percent'];
+                }else{
+                    $fee_hs['value'] = ($group['commission_percent']/100) * $sub_total;
+                }
+                
+            }else{
+                $fee_hs['value'] = '';
+            }
+            $send = $this->transaction_breakdown()->updateOrCreate(["type" => $fee_hs['type']],["value"=> $fee_hs['value']]);
+            if($send){
+                $payment = TransactionPaymentMidtran::where('id_transaction',$id_transaction)->first();
+                if($payment){
+                    $method = 'Midtran';
+                    $payment = ucfirst(strtolower($payment['payment_type']));
+                }else{
+                    $payment = TransactionPaymentXendit::where('id_transaction',$id_transaction)->first();
+                    if($payment){
+                        $method = 'Xendit';
+                        $payment = ucfirst(strtolower($payment['type']));
+                    }else{
+                        $method = null;
+                        $payment = null;
+                    }
+                }
+                $availablePayment = config('payment_method');
+                $setting  = json_decode(MyHelper::setting('active_payment_methods', 'value_text', '[]'), true) ?? [];
+                foreach($setting as $s => $set){
+                    $availablePayment[$set['code']]['method'] = $set['code'] ?? false;
+                }
+                $payment_method = '';
+                foreach($availablePayment as $av_pay){
+                    if($av_pay['payment_gateway'] == $method && $av_pay['payment_method'] == $payment){
+                        $payment_method = $av_pay['method'];
+                    }
+                }$fee_payment = [
+                    "id_transaction_product" => $this->id_transaction_product,
+                    "type"                   => 'fee_payment',
+                ];
+                $mdr = MDR::where('payment_name',$payment_method)->first();
+                if($mdr['percent_type']=='Nominal'){
+                    $fee_payment['value'] = $mdr['mdr'] * $subtotal_grandtotal;
+                }elseif($mdr['percent_type']=='Percent'){
+                    $fee_payment['value'] = (($mdr['mdr']/100)*$trans_grandtotal) * $subtotal_grandtotal;
+                }else{
+                    $fee_payment['value'] = null;
+                }
+                
+                if($fee_payment['value']){
+                    $send = $this->transaction_breakdown()->updateOrCreate(["type" => $fee_payment['type']],["value"=> $fee_payment['value']]);
+                    if($send){
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    
 }

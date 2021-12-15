@@ -13,6 +13,7 @@ use Modules\ProductService\Entities\ProductServiceUse;
 use Modules\ProductVariant\Entities\ProductVariant;
 use Modules\ProductVariant\Entities\ProductVariantGroup;
 use App\Lib\MyHelper;
+use Modules\Product\Entities\ProductIcount;
 use Modules\Product\Entities\ProductModifierGroup;
 
 /**
@@ -240,6 +241,14 @@ class Product extends Model
 
     public function product_service_use() {
         return $this->hasMany(\Modules\ProductService\Entities\ProductServiceUse::class, 'id_product_service', 'id_product');
+    }
+
+    public function product_icount_use() {
+        return $this->hasMany(\Modules\Product\Entities\ProductProductIcount::class, 'id_product', 'id_product');
+    }
+
+    public function getUseDetailAttribute(){
+        return $this->product_icount_use;
     }
 
     public function product_service_use_detail() {

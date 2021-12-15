@@ -1422,7 +1422,9 @@ class ApiTransactionShop extends Controller
 
     	$statusLog = array_reverse($statusLog);
     	foreach ($statusLog as $key => $val) {
-    		$statusLog[$key]['date'] = MyHelper::dateFormatInd($val['date']);
+    		$statusLog[$key]['time'] = MyHelper::adjustTimezone($val['date'], 7, 'H:i');
+    		$statusLog[$key]['date'] = MyHelper::adjustTimezone($val['date'], 7, 'd/m/Y');
+    		$statusLog[$key]['datetime'] = $val['date'];
     	}
     	
 		$res = [

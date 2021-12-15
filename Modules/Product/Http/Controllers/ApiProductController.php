@@ -945,25 +945,25 @@ class ApiProductController extends Controller
                     $product = Product::join('product_detail','product_detail.id_product','=','products.id_product')
                         ->where('product_detail.id_outlet','=',$post['id_outlet'])
                         ->where('product_detail.product_detail_visibility','=','Hidden')
-                        ->with(['category', 'discount']);
+                        ->with(['category', 'discount','product_icount_use']);
                 }else{
                     $ids = Product::join('product_detail','product_detail.id_product','=','products.id_product')
                         ->where('product_detail.id_outlet','=',$post['id_outlet'])
                         ->where('product_detail.product_detail_visibility','=','Hidden')
                         ->pluck('products.id_product')->toArray();
                     $product = Product::whereNotIn('id_product', $ids)
-                        ->with(['category', 'discount']);
+                        ->with(['category', 'discount','product_icount_use']);
                 }
 
                 unset($post['id_outlet']);
             }
 		} else {
 		    if(isset($post['product_setting_type']) && $post['product_setting_type'] == 'product_price'){
-                $product = Product::with(['category', 'discount', 'product_special_price', 'global_price']);
+                $product = Product::with(['category', 'discount', 'product_special_price', 'global_price','product_icount_use']);
             }elseif(isset($post['product_setting_type']) && $post['product_setting_type'] == 'outlet_product_detail'){
-                $product = Product::with(['category', 'discount', 'product_detail']);
+                $product = Product::with(['category', 'discount', 'product_detail','product_icount_use']);
             }else{
-                $product = Product::with(['category', 'discount']);
+                $product = Product::with(['category', 'discount','product_icount_use']);
             }
 		}
 

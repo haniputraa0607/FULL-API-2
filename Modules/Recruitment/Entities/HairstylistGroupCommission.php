@@ -18,6 +18,7 @@ class HairstylistGroupCommission extends Model
 	protected $fillable = [
 		'id_hairstylist_group',
 		'id_product',
+		'percent',
 		'commission_percent',
                 'created_at',   
                 'updated_at'

@@ -20,6 +20,7 @@ use App\Lib\MyHelper;
 use Modules\Transaction\Entities\TransactionAcademy;
 use Modules\Transaction\Entities\TransactionAcademyInstallment;
 use Modules\Transaction\Entities\TransactionAcademyInstallmentPaymentMidtrans;
+use Modules\Transaction\Entities\TransactionAcademyInstallmentUpdate;
 use Modules\Transaction\Entities\TransactionAcademySchedule;
 use Modules\Transaction\Entities\TransactionAcademyScheduleDayOff;
 use Modules\Xendit\Entities\TransactionAcademyInstallmentPaymentXendit;
@@ -519,10 +520,12 @@ class ApiAcademyController extends Controller
                         ->leftJoin('products', 'products.id_product', 'transaction_products.id_product')
                         ->with('outlet');
 
-            if(!empty($post['transaction_receipt_number'])){
+            if (!empty($post['transaction_receipt_number']) && stristr($request->transaction_receipt_number, "INS")) {
                 $trxReciptNumber = TransactionAcademyInstallment::join('transaction_academy', 'transaction_academy_installment.id_transaction_academy', 'transaction_academy.id_transaction_academy')
-                                ->where('installment_receipt_number', $post['transaction_receipt_number'])->first();
+                    ->where('installment_receipt_number', $post['transaction_receipt_number'])->first();
                 $post['id_transaction'] = $trxReciptNumber['id_transaction'];
+            }elseif (!empty($post['transaction_receipt_number'])) {
+                $post['id_transaction'] = Transaction::where('transaction_receipt_number', $post['transaction_receipt_number'])->first()['id_transaction']??null;
             }
 
             $detail = $detail->where('transactions.id_transaction', $post['id_transaction']);
@@ -723,8 +726,50 @@ class ApiAcademyController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Data installment not found']]);
         }
 
-        if(!empty($dataInstallment['completed_installment_at'])){
+        if($dataInstallment['paid_status'] == 'Completed'){
             return response()->json(['status' => 'fail', 'messages' => ['Installment already paid']]);
+        }
+
+        if ($post['payment_type']) {
+            $available_payment = app('Modules\Transaction\Http\Controllers\ApiOnlineTransaction')->availablePayment(new Request())['result'] ?? [];
+            if (!in_array($post['payment_type'], array_column($available_payment, 'payment_gateway'))) {
+                return [
+                    'status' => 'fail',
+                    'messages' => 'Metode pembayaran yang dipilih tidak tersedia untuk saat ini'
+                ];
+            }
+        }
+
+        if($dataInstallment['paid_status'] == 'Pending'){
+            if($dataInstallment['installment_payment_type'] == 'Midtrans'){
+                $installmentMidtrans = TransactionAcademyInstallmentPaymentMidtrans::where('order_id', $dataInstallment['installment_receipt_number'])->first();
+                $res = [
+                    "snap_token" => $installmentMidtrans['token'],
+                    "redirect_url" => $installmentMidtrans['redirect_url']
+                ];
+            }elseif ($dataInstallment['installment_payment_type'] == 'Xendit'){
+                $installmentXendit = TransactionAcademyInstallmentPaymentXendit::where('external_id', $dataInstallment['installment_receipt_number'])->first();
+                $res = [
+                    "snap_token" => '',
+                    "redirect_url" => $installmentXendit['checkout_url']
+                ];
+            }
+
+            $res['transaction_data'] = [
+                "transaction_details" => [
+                    "order_id" => $dataInstallment['installment_receipt_number'],
+                    "gross_amount" => $dataInstallment['amount'],
+                    "id_transaction_academy_installment" =>  $dataInstallment['id_transaction_academy_installment'],
+                    "id_transaction" => $dataInstallment['id_transaction']
+                ]
+            ];
+            return response()->json(MyHelper::checkGet($res));
+        }elseif($dataInstallment['paid_status'] == 'Cancelled'){
+            $insertUpdate = TransactionAcademyInstallmentUpdate::create(['id_transaction_academy_installment' => $dataInstallment['id_transaction_academy_installment'], 'installment_receipt_number_old' => $dataInstallment['installment_receipt_number']]);
+            if($insertUpdate){
+                $newReceiptNumber = 'INS-'.MyHelper::createrandom(4,'Angka').time().substr($dataInstallment['id_transaction_academy'], 0, 4);
+                $dataInstallment->update(['installment_receipt_number' => $newReceiptNumber]);
+            }
         }
 
         $dataInstallment->update(['installment_payment_type' => $request->payment_type]);
@@ -749,7 +794,21 @@ class ApiAcademyController extends Controller
             }
         } elseif ($request->payment_type == 'Xendit') {
             $pay = $this->xendit($dataInstallment, $post);
-            $res = $pay;
+
+            if(!empty($pay)){
+                $res = [
+                    "snap_token" => '',
+                    "redirect_url" => $pay['redirect_url'],
+                    "transaction_data" => [
+                        "transaction_details" => [
+                            "order_id" => $dataInstallment['installment_receipt_number'],
+                            "gross_amount" => $dataInstallment['amount'],
+                            "id_transaction_academy_installment" =>  $dataInstallment['id_transaction_academy_installment'],
+                            "id_transaction" => $dataInstallment['id_transaction']
+                        ]
+                    ]
+                ];
+            }
         }
 
         return response()->json(MyHelper::checkGet($res));
@@ -763,12 +822,14 @@ class ApiAcademyController extends Controller
         $requestToMidtrans['gross_amount'] = $data['amount'];
 
         if (isset($requestToMidtrans['token'])) {
-            TransactionAcademyInstallment::where('id_transaction_academy_installment', $data['id_transaction_academy_installment'])->update(['paid_status' => 'Pending']);
+            TransactionAcademyInstallment::where('id_transaction_academy_installment', $data['id_transaction_academy_installment'])->update(['paid_status' => 'Pending', 'installment_payment_type' => 'Midtrans']);
             $insert = [
                 'id_transaction_academy' => $data['id_transaction_academy'],
                 'id_transaction_academy_installment' => $data['id_transaction_academy_installment'],
                 'gross_amount' => $data['gross_amount'],
-                'order_id' => $data['installment_receipt_number']
+                'order_id' => $data['installment_receipt_number'],
+                'token' => $requestToMidtrans['token'],
+                'redirect_url' => $requestToMidtrans['redirect_url']
             ];
             if (TransactionAcademyInstallmentPaymentMidtrans::create($insert)) {
                 return [
@@ -809,7 +870,7 @@ class ApiAcademyController extends Controller
             ]);
         }
 
-        if ($this->payment_id == 'LINKAJA') {
+        if ($post['payment_detail'] == 'LINKAJA') {
             $paymentXendit->items = [
                 [
                     'id'       => (string) $data['id_transaction_academy'],
@@ -834,6 +895,8 @@ class ApiAcademyController extends Controller
             } else {
                 $result['redirect_url'] = $paymentXendit->checkout_url;
             }
+
+            TransactionAcademyInstallment::where('id_transaction_academy_installment', $data['id_transaction_academy_installment'])->update(['paid_status' => 'Pending', 'installment_payment_type' => 'Xendit']);
 
             return $result;
         }

@@ -1257,8 +1257,10 @@ class ApiMitra extends Controller
         }
 
         $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
+        $totalExpense = array_column($res, 'outlet_cash_amount');
         $result = [
             'total_cash_from_central' => $outlet['total_cash_from_central'],
+            'total_expense' => array_sum($totalExpense),
             'data' => $res
         ];
         return ['status' => 'success', 'result' => $result];

@@ -8,6 +8,7 @@
 namespace App\Http\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Modules\Product\Entities\ProductIcount;
 
 /**
  * Class TransactionProduct
@@ -126,4 +127,41 @@ class TransactionProduct extends Model
 	{
 		return $this->hasOne(\Modules\Transaction\Entities\TransactionProductService::class, 'id_transaction_product');
 	}
+
+    public function transaction_breakdown()
+    {
+        return $this->hasMany(\Modules\Transaction\Entities\TransactionBreakdown::class, 'id_transaction_product');
+    }
+
+    public function breakdown(){
+        $id_product = $this->id_product;
+        $product_uses = $this->product->product_icount_use;
+        $total_material = 0;
+        foreach($product_uses ?? [] as $key => $product_use){
+            $detail_product_use[$key] = ProductIcount::where('id_product_icount',$product_use['id_product_icount'])->first();
+            if($product_use['unit']==$detail_product_use[$key]['unit1']){
+                $total_use[$key] = $product_use['qty']*$detail_product_use[$key]['unit_price_1'];
+            }
+            if($product_use['unit']==$detail_product_use[$key]['unit2']){
+                $total_use[$key] = $product_use['qty']*$detail_product_use[$key]['unit_price_2'];
+            }
+            if($product_use['unit']==$detail_product_use[$key]['unit3']){
+                $total_use[$key] = $product_use['qty']*$detail_product_use[$key]['unit_price_3'];
+            }
+            $total_material = $total_use[$key] + $total_material;
+        }
+        $material = [
+            "id_transaction_product" => $this->id_transaction_product,
+            "type"                   => 'material',
+            "value"                  => $total_material
+        ];
+        $send = $this->transaction_breakdown()->updateOrCreate(["type" => $material['type']],["value"=> $material['value']]);
+        if($send){
+            return true;
+        }else{
+            return false;
+        }
+    }
+
+    
 }

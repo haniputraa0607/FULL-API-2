@@ -891,7 +891,6 @@ class ApiMitra extends Controller
         $date = date('Y-m-d', strtotime($post['date']));
         $currency = 'Rp';
         $listHS = UserHairStylist::where('id_outlet', $user->id_outlet)
-                    ->where('level', 'Hairstylist')
                     ->where('user_hair_stylist_status', 'Active')->select('id_user_hair_stylist', 'fullname as name')->get()->toArray();
 
         $projection = Transaction::join('transaction_payment_cash', 'transaction_payment_cash.id_transaction', 'transactions.id_transaction')
@@ -899,7 +898,7 @@ class ApiMitra extends Controller
                     ->whereDate('transactions.transaction_date', $date)
                     ->where('transaction_payment_status', 'Completed')
                     ->where('transactions.id_outlet', $user->id_outlet)
-                    ->select('transaction_grandtotal', 'cash_nominal', 'transactions.id_transaction', 'transactions.transaction_receipt_number', 'transaction_payment_cash.*', 'user_hair_stylist.fullname');
+                    ->select('transaction_grandtotal', 'transactions.id_transaction', 'transactions.transaction_receipt_number', 'transaction_payment_cash.*', 'user_hair_stylist.fullname');
 
         $acceptance = OutletCash::join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'outlet_cash.id_user_hair_stylist')
                     ->where('outlet_cash.id_outlet', $user->id_outlet)
@@ -922,9 +921,9 @@ class ApiMitra extends Controller
             $history = $history->where('outlet_cash.id_user_hair_stylist', $post['id_user_hair_stylist']);
         }
 
-        $projection = $projection->get()->toArray();
-        $acceptance = $acceptance->get()->toArray();
-        $history = $history->get()->toArray();
+        $projection = $projection->orderBy('transaction_date', 'desc')->get()->toArray();
+        $acceptance = $acceptance->orderBy('outlet_cash.created_at', 'desc')->get()->toArray();
+        $history = $history->orderBy('outlet_cash.confirm_at', 'desc')->get()->toArray();
 
         $resProjection = [];
         foreach ($projection as $value){
@@ -937,8 +936,8 @@ class ApiMitra extends Controller
             ];
         }
 
-        $totalProjection = array_sum(array_column($resProjection, 'cash_nominal'));
-        $totalAcceptance = array_sum(array_column($acceptance, 'outlet_cash_amount'));
+        $totalProjection = array_sum(array_column($resProjection, 'amount'));
+        $totalAcceptance = array_sum(array_column($history, 'amount'));
         $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
 
         $spvProjection = Transaction::join('transaction_payment_cash', 'transaction_payment_cash.id_transaction', 'transactions.id_transaction')
@@ -1142,6 +1141,7 @@ class ApiMitra extends Controller
                 ->whereYear('created_at', '=', $post['year'])
                 ->whereMonth('created_at', '=', $post['month'])
                 ->whereIn('outlet_cash_type', ['Transfer Supervisor To Central', 'Income From Central'])
+                ->orderBy('updated_at', 'desc')
                 ->get()->toArray();
 
         $res = [];
@@ -1240,6 +1240,7 @@ class ApiMitra extends Controller
             ->whereYear('created_at', '=', $post['year'])
             ->whereMonth('created_at', '=', $post['month'])
             ->whereIn('outlet_cash_type', ['Expense Outlet'])
+            ->orderBy('updated_at', 'desc')
             ->get()->toArray();
 
         $res = [];
@@ -1256,8 +1257,10 @@ class ApiMitra extends Controller
         }
 
         $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
+        $totalExpense = array_column($res, 'outlet_cash_amount');
         $result = [
             'total_cash_from_central' => $outlet['total_cash_from_central'],
+            'total_expense' => array_sum($totalExpense),
             'data' => $res
         ];
         return ['status' => 'success', 'result' => $result];

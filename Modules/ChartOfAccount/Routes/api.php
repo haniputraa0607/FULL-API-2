@@ -14,7 +14,8 @@ use Illuminate\Http\Request;
 */
 
 Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefix' => 'chartofaccount'], function() {
-   Route::get('/', ['middleware'=>['feature_control:400','scopes:be'],'uses' => 'ApiChartOfAccountController@index']);
-   Route::get('/sync', ['middleware'=>['feature_control:401','scopes:be'],'uses' => 'ApiChartOfAccountController@sync']);
-   Route::get('/list', ['middleware'=>['feature_control:400','scopes:be'],'uses' => 'ApiChartOfAccountController@list']);
+   Route::any('/', ['middleware'=>['feature_control:400','scopes:be'],'uses' => 'ApiChartOfAccountController@index']);
+   Route::any('/sync', ['middleware'=>['feature_control:401','scopes:be'],'uses' => 'ApiChartOfAccountController@sync']);
+   Route::any('/list', ['middleware'=>['feature_control:400','scopes:be'],'uses' => 'ApiChartOfAccountController@list']);
+
 });

@@ -7,6 +7,9 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Modules\Recruitment\Entities\HairstylistGroup;
 use Modules\Recruitment\Entities\HairstylistGroupCommission;
+use App\Http\Models\Product;
+
+
 class CreateGroupCommission extends FormRequest
 {
     public function rules()
@@ -14,7 +17,7 @@ class CreateGroupCommission extends FormRequest
         return [
             'id_hairstylist_group'        => 'required',
             'id_product'                  => 'required|unik',
-            'commission_percent'          => 'required',
+            'commission_percent'          => 'required|cek',
            ]; 
     }
     public function withValidator($validator)
@@ -26,6 +29,18 @@ class CreateGroupCommission extends FormRequest
              return true;
          } return false;
         }); 
+        $validator->addExtension('cek', function ($attribute, $value, $parameters, $validator) {
+         $request = $validator->getData();
+         if($request['percent']=='on'){
+             if($value>=1&& $value<=99 ){
+                 return true;
+             }else{
+                 return false;
+             }
+         }else{
+                 return true;
+         }
+        }); 
 
     }
     public function messages()
@@ -33,6 +48,7 @@ class CreateGroupCommission extends FormRequest
         return [
             'required' => ':attribute harus diisi',
             'unik' => 'Produk sudah ada ',
+            'cek' => 'Percent maksimal minimal 1% maksimal 99%. Nominal'
         ];
     }
     public function authorize()

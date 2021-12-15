@@ -158,6 +158,13 @@ Route::group(['prefix' => 'api/product','middleware' => ['log_activities','auth:
 	        Route::post('delete', 'ApiProductGroupController@featuredDestroy');
 	    });
     });
+
+    Route::group(['prefix' => 'pivot'], function() {
+        Route::post('/', 'ApiProductProductIcountController@index');
+        Route::post('store', 'ApiProductProductIcountController@store');
+        Route::post('update', 'ApiProductProductIcountController@update');
+    });
+
 });
 
 Route::group(['prefix' => 'api/outlet-service/product','middleware' => ['log_activities','auth:api', 'scopes:apps'], 'namespace' => 'Modules\Product\Http\Controllers'], function()

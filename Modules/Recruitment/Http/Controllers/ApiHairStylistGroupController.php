@@ -96,7 +96,7 @@ class ApiHairStylistGroupController extends Controller
         if($request->id_hairstylist_group!=''){
             $data = HairstylistGroup::where(array('id_hairstylist_group'=>$request->id_hairstylist_group))->first();
             if($data){
-                $data['commission'] = HairstylistGroupCommission::where(array('id_hairstylist_group'=>$request->id_hairstylist_group))->join('products','products.id_product','hairstylist_group_commissions.id_product')->select('id_hairstylist_group_commission','product_name','product_code','commission_percent','id_hairstylist_group')->get();
+                $data['commission'] = HairstylistGroupCommission::where(array('id_hairstylist_group'=>$request->id_hairstylist_group))->join('products','products.id_product','hairstylist_group_commissions.id_product')->select('id_hairstylist_group_commission','product_name','product_code','commission_percent','id_hairstylist_group','percent')->get();
                 $data['hs'] = UserHairStylist::where(array('id_hairstylist_group'=>$request->id_hairstylist_group))->join('outlets','outlets.id_outlet','user_hair_stylist.id_outlet')->get();
             }
         return MyHelper::checkGet($data);
@@ -138,17 +138,29 @@ class ApiHairStylistGroupController extends Controller
     }
     public function create_commission(CreateGroupCommission $request)
     {
+        if($request->percent == 'on'){
+            $percent = 1;
+        }else{
+            $percent = 0;
+        }
         $store = HairstylistGroupCommission::create([
                     "id_hairstylist_group"   =>  $request->id_hairstylist_group,
                     "id_product"   =>  $request->id_product,
                     "commission_percent"   =>  $request->commission_percent,
+                    "percent"   =>  $percent,
                 ]);
         return response()->json(MyHelper::checkCreate($store));
     }
     public function update_commission(UpdateGroupCommission $request)
     {
+        if($request->percent == 'on'){
+            $percent = 1;
+        }else{
+            $percent = 0;
+        }
        $store = HairstylistGroupCommission::where(array("id_hairstylist_group"=>  $request->id_hairstylist_group,"id_product"   =>  $request->id_product))->update([
                     "commission_percent"   =>  $request->commission_percent,
+                    "percent"   =>  $percent,
                 ]);
         return response()->json(MyHelper::checkCreate($store));
     }

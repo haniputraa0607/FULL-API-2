@@ -56,14 +56,20 @@ use App\Http\Models\DealsPaymentManual;
 use Modules\IPay88\Entities\DealsPaymentIpay88;
 use Modules\ShopeePay\Entities\DealsPaymentShopeePay;
 use App\Http\Models\UserTrxProduct;
+use App\Http\Models\OutletSchedule;
 use Modules\Brand\Entities\Brand;
 use Modules\Product\Entities\ProductGlobalPrice;
 use Modules\Product\Entities\ProductSpecialPrice;
 use Modules\Recruitment\Entities\UserHairStylist;
+use Modules\Recruitment\Entities\HairstylistScheduleDate;
+use Modules\Product\Entities\ProductDetail;
+use Modules\Product\Entities\ProductStockLog;
 
 use Modules\Subscription\Entities\SubscriptionUserVoucher;
 use Modules\Transaction\Entities\LogInvalidTransaction;
 use Modules\Transaction\Entities\TransactionBundlingProduct;
+use Modules\Transaction\Entities\HairstylistNotAvailable;
+
 use Modules\Transaction\Http\Requests\RuleUpdate;
 
 use Modules\ProductVariant\Entities\ProductVariantGroup;
@@ -77,6 +83,9 @@ class ApiTransactionOutletService extends Controller
 {
 	function __construct() {
         $this->online_trx = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
+        $this->outlet = "Modules\Outlet\Http\Controllers\ApiOutletController";
+        $this->product = "Modules\Product\Http\Controllers\ApiProductController";
+        $this->trx = "Modules\Transaction\Http\Controllers\ApiTransaction";
     }
 
     public function listOutletService(Request $request)
@@ -850,6 +859,7 @@ class ApiTransactionOutletService extends Controller
 	            ->with('user')
 	            ->where('transaction_payment_status', 'Completed')
 	            ->whereNull('transaction_outlet_services.completed_at')
+	            ->whereNull('transactions.reject_at')
 	            ->select(
 	            	'transaction_product_services.*',
 	            	'transaction_outlet_services.*',
@@ -916,11 +926,18 @@ class ApiTransactionOutletService extends Controller
     			->orderBy('transaction_date', 'desc')
     			->with(
     				'outlet.brands', 
+    				'outlet.city.province', 
     				'transaction_outlet_service', 
     				'transaction_products.transaction_product_service.user_hair_stylist',
     				'transaction_products.product.photos',
     				'user_feedbacks'
     			)
+    			->select([
+    				'transactions.*', 
+    				'transaction_outlet_services.*',
+    				'transactions.reject_at',
+    				'transactions.reject_reason'
+    			])
     			->first();
 
 		if (!$detail) {
@@ -951,6 +968,8 @@ class ApiTransactionOutletService extends Controller
 		$services = [];
 		$subtotalProduct = 0;
 		$subtotalService = 0;
+		$timezone = $detail['outlet']['city']['province']['time_zone_utc'] ?? null;
+
 		foreach ($detail['transaction_products'] as $product) {
 			$productPhoto = config('url.storage_url_api') . ($product['product']['photos'][0]['product_photo'] ?? 'img/product/item/default.png');
 			if ($product['type'] == 'Service') {
@@ -958,9 +977,9 @@ class ApiTransactionOutletService extends Controller
 					'id_user_hair_stylist' => $product['transaction_product_service']['id_user_hair_stylist'],
 					'hairstylist_name' => $product['transaction_product_service']['user_hair_stylist']['nickname'],
 					'schedule_date' => MyHelper::dateFormatInd($product['transaction_product_service']['schedule_date'], true, false),
-					'schedule_time' => date('H:i', strtotime($product['transaction_product_service']['schedule_time'])),
+					'schedule_time' => MyHelper::adjustTimezone($product['transaction_product_service']['schedule_time'], $timezone, 'H:i'),
 					'product_name' => $product['product']['product_name'],
-					'subtotal' => $product['transaction_product_subtotal'],
+					'subtotal' => 'IDR '.number_format(($product['transaction_product_subtotal']),0,',','.'),
 					'order_id' => $product['transaction_product_service']['order_id'],
 					'photo' => $productPhoto,
 					'detail' => $product
@@ -971,8 +990,9 @@ class ApiTransactionOutletService extends Controller
 				$products[] = [
 					'product_name' => $product['product']['product_name'],
 					'transaction_product_qty' => $product['transaction_product_qty'],
-					'transaction_product_price' => $product['transaction_product_price'],
+					'transaction_product_price' => 'IDR '.number_format(($product['transaction_product_price']),0,',','.'),
 					'transaction_product_subtotal' => $product['transaction_product_subtotal'],
+					'subtotal' => 'IDR '.number_format(($product['transaction_product_subtotal']),0,',','.'),
 					'photo' => $productPhoto,
 					'detail' => $product
 				];
@@ -1038,6 +1058,9 @@ class ApiTransactionOutletService extends Controller
 			'transaction_tax' => $detail['transaction_tax'],
 			'transaction_product_subtotal' => $subtotalProduct,
 			'transaction_service_subtotal' => $subtotalService,
+			'need_manual_void' => $detail['need_manual_void'],
+			'reject_at' => $detail['reject_at'],
+			'reject_reason' => $detail['reject_reason'],
 			'customer_name' => $detail['transaction_outlet_service']['customer_name'],
 			'color' => $detail['outlet']['brands'][0]['color_brand'],
 			'status' => $status,
@@ -1059,6 +1082,9 @@ class ApiTransactionOutletService extends Controller
     {
     	$post = $request->all();
 
+    	if ($request->submit_type == 'reject') {
+    		return $this->manageDetailReject($request);
+    	}
     	$tps = TransactionProductService::find($request->id_transaction_product_service);
 
 		if (!$tps) {
@@ -1068,8 +1094,24 @@ class ApiTransactionOutletService extends Controller
 			];
 		}
 
-		$oldTps = clone $tps;
-		$newTps = clone $tps;
+		$hna = HairstylistNotAvailable::where('id_transaction_product_service', $request->id_transaction_product_service)->first();
+		if (!$hna) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Transaction product service not found']
+			];
+		}
+
+		$trx = Transaction::with([
+				'transaction_product_services' => function($q) use ($tps) {
+					$q->where('id_transaction_product_service', $tps->id_transaction_product_service);
+				} ,
+				'hairstylist_not_available' => function($q) use ($hna) {
+					$q->where('id_hairstylist_not_available', $hna->id_hairstylist_not_available);
+				}
+			]);
+
+		$oldTrx = $trx->find($tps->id_transaction);
 
 		$tps->load(
 			'user_hair_stylist', 
@@ -1091,22 +1133,336 @@ class ApiTransactionOutletService extends Controller
 			];
 		}
 
-		$newTps->update([
-			'schedule_date' => date('Y-m-d', strtotime($post['schedule_date'])),
-			'schedule_time' => date('H:i:s', strtotime($post['schedule_time'])),
+		$newBookDateTime = date('Y-m-d H:i:s', strtotime($post['schedule_date'] . ' ' . $post['schedule_time']));
+		$newBookDateTime = $bookStart = MyHelper::reverseAdjustTimezone($newBookDateTime, $outlet['province_time_zone_utc'], 'Y-m-d H:i:s');
+		$checkSchedule = $this->checkOutletServiceSchedule($post['id_user_hair_stylist'], $newBookDateTime, $tps['transaction_product']['id_product']);
+		if ($checkSchedule['status'] == 'fail') {
+			return $checkSchedule;
+		}
+
+		$processingTime = Product::find($tps['transaction_product']['id_product'])['processing_time_service'] ?? null;
+    	$bookEnd = date('Y-m-d H:i:s', strtotime("+".(empty($processingTime) ? 30 : $processingTime)." minutes", strtotime($bookStart)));
+
+		DB::beginTransaction();
+		$tps->update([
+			'schedule_date' => date('Y-m-d', strtotime($bookStart)),
+			'schedule_time' => date('H:i:s', strtotime($bookStart)),
 			'id_user_hair_stylist' => $post['id_user_hair_stylist'],
-			'is_conflict' => 0,
+			'is_conflict' => 0
 		]);
+
+		$hna->update([
+			'booking_start' => $bookStart,
+			'booking_end' => $bookEnd
+		]);
+
+		$newTrx = $trx->find($tps->id_transaction);
 
 		$logTrx = LogTransactionUpdate::create([
 			'id_user' => $request->user()->id,
 	    	'id_transaction' => $tps->id_transaction,
 	    	'transaction_from' => 'outlet-service',
-	        'old_data' => json_encode($oldTps),
-	        'new_data' => json_encode($newTps),
+	        'old_data' => json_encode($oldTrx),
+	        'new_data' => json_encode($newTrx),
 	    	'note' => $post['note']
 		]);
 
+		DB::commit();
+
 		return MyHelper::checkCreate($logTrx);
+    }
+
+    public function checkOutletServiceSchedule($id_hs, $bookDateTime, $id_product) {
+
+    	$hs = UserHairStylist::where('user_hair_stylist_status', 'Active')->find($id_hs);
+
+    	if (!$hs) {
+    		return [
+    			'status' => 'fail',
+    			'messages' => ['Hair stylist not found']
+    		];
+    	}
+
+    	$outlet = Outlet::join('cities', 'cities.id_city', 'outlets.id_city')
+            ->join('provinces', 'provinces.id_province', 'cities.id_province')
+            ->with('today')->select('outlets.*', 'provinces.time_zone_utc as province_time_zone_utc')
+            ->find($hs->id_outlet);
+
+        if (!$outlet) {
+    		return [
+    			'status' => 'fail',
+    			'messages' => ['Outlet not found']
+    		];
+    	}
+
+        $timeZone = 7; // all datetime use utc+7 timezone
+        $currentDate = MyHelper::adjustTimezone(date('Y-m-d H:i'), $timeZone);
+        $bookingDate = date('Y-m-d', strtotime($bookDateTime));
+        $bookingTime = date('H:i', strtotime($bookDateTime));
+        $bookDateIndo = MyHelper::adjustTimezone($bookDateTime, $outlet['province_time_zone_utc'] ?? 7, 'l, d F Y H:i', true);
+
+        $idOutletSchedule = $outlet['today']['id_outlet_schedule'] ?? null;
+
+        $day = [
+            'Mon' => 'Senin',
+            'Tue' => 'Selasa',
+            'Wed' => 'Rabu',
+            'Thu' => 'Kamis',
+            'Fri' => 'Jumat',
+            'Sat' => 'Sabtu',
+            'Sun' => 'Minggu'
+        ];
+
+        $tempStock = [];
+
+        $err = [];
+        $outletSchedule = OutletSchedule::where('id_outlet', $outlet['id_outlet'])->where('day', $day[date('D', strtotime($bookingDate))])->first();
+        $open = date('H:i:s', strtotime($outletSchedule['open']));
+        $close = date('H:i:s', strtotime($outletSchedule['close']));
+        $currentHour = date('H:i:s', strtotime($bookingTime));
+
+        if (strtotime($currentHour) < strtotime($open) || strtotime($currentHour) > strtotime($close) || $outletSchedule['is_closed'] == 1) {
+        	return [
+    			'status' => 'fail',
+    			'messages' => ['Outlet closed on ' . $bookDateIndo]
+    		];
+        }
+
+        $isHoliday = app($this->outlet)->isHoliday($outlet['id_outlet'], $bookDateTime);
+        if ($isHoliday['status']) {
+        	return [
+    			'status' => 'fail',
+    			'messages' => ['Outlet closed on ' . $bookDateIndo]
+    		];
+        }
+
+        $bookTime = date('Y-m-d H:i', strtotime(date('Y-m-d', strtotime($bookingDate)).' '.date('H:i', strtotime($bookingTime))));
+        if (strtotime($currentDate) > strtotime($bookTime)) {
+        	return [
+    			'status' => 'fail',
+    			'messages' => ['Booking time is expired']
+    		];
+        }
+
+        //get hs schedule
+        $shift = HairstylistScheduleDate::where('id_user_hair_stylist', $id_hs)
+                ->leftJoin('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
+                ->whereNotNull('approve_at')
+                ->whereDate('date', date('Y-m-d', strtotime($bookingDate)))
+                ->first()['shift'] ?? null;
+        if (empty($shift)) {
+        	return [
+    			'status' => 'fail',
+    			'messages' => ["Hair stylist " . $hs->nickname . " - " . $hs->fullname . " not available on ".$bookDateIndo]
+    		];
+        }
+
+        $getTimeShift = app($this->product)->getTimeShift(strtolower($shift), $outlet['id_outlet'], $idOutletSchedule);
+        if (empty($getTimeShift['start']) && empty($getTimeShift['end'])) {
+        	return [
+    			'status' => 'fail',
+    			'messages' => ["Hair stylist " . $hs->nickname . " - " . $hs->fullname . " not available on ".$bookDateIndo]
+    		];
+        } else {
+            $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
+            $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
+            $time = date('H:i', strtotime($bookingTime));
+            if ((strtotime($time) >= strtotime($shiftTimeStart) && strtotime($time) < strtotime($shiftTimeEnd)) === false) {
+            	return [
+	    			'status' => 'fail',
+	    			'messages' => ["Hair stylist " . $hs->nickname . " - " . $hs->fullname . " not available on ".$bookDateIndo]
+	    		];
+            }
+        }
+
+        $service = Product::find($id_product);
+        if (empty($service)) {
+            return [
+    			'status' => 'fail',
+    			'messages' => ["Service not found"]
+    		];
+        }
+
+        $processingTime = $service['processing_time_service'];
+        $bookTimeStart = date("Y-m-d H:i:s", strtotime($bookingDate.' '.$bookingTime));
+        $bookTimeEnd = date('Y-m-d H:i:s', strtotime("+".$processingTime." minutes", strtotime($bookTimeStart)));
+        $hsNotAvailable = HairstylistNotAvailable::where('id_outlet', $outlet['id_outlet'])
+            ->whereRaw('((booking_start >= "'.$bookTimeStart.'" AND booking_start <= "'.$bookTimeEnd.'") 
+                        OR (booking_end > "'.$bookTimeStart.'" AND booking_end < "'.$bookTimeEnd.'"))')
+            ->where('id_user_hair_stylist', $id_hs)
+            ->first();
+
+        if(!empty($hsNotAvailable)){
+            return [
+    			'status' => 'fail',
+    			'messages' => ["Hair stylist " . $hs->nickname . " - " . $hs->fullname . " not available on ".$bookDateIndo]
+    		];
+        }
+
+        return ['status' => 'success'];
+    }
+
+    public function manageDetailReject(Request $request)
+    {
+    	$post = $request->all();
+
+    	$trxProduct = TransactionProduct::with('transaction_product_service')->find($request->id_transaction_product);
+
+		if (!$trxProduct) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Transaction product not found']
+			];
+		}
+
+		if ($trxProduct->reject_at) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Transaction already rejected']
+			];
+		}
+
+		$trx = Transaction::with([
+			'transaction_products.transaction_product_service.hairstylist_not_available',
+			'transaction_outlet_service'
+		])
+		->find($trxProduct->id_transaction);
+
+		$oldTrx = clone $trx;
+
+		$rejected = 0;
+		$completed = 0;
+		$unprocessed = 0;
+		$totalItem = count($trx['transaction_products']) - 1;
+
+		foreach ($trx['transaction_products'] as $tp) {
+			if ($tp['id_transaction_product'] == $trxProduct->id_transaction_product) {
+				continue;
+			}
+
+			if ($tp['transaction_product_completed_at']) {
+				$completed++;
+				continue;
+			}
+
+			if ($tp['reject_at']) {
+				$rejected++;
+				continue;
+			}
+
+			$unprocessed++;
+			break;
+		}
+
+		DB::beginTransaction();
+		$trxProduct->update([
+			'reject_at' => date('Y-m-d H:i:s'),
+			'reject_reason' => $request->note,
+			'need_manual_void' => 1
+		]);
+
+		$trx->update(['need_manual_void' => 1]);
+
+		// return stok for product and remove book for service
+		if (isset($trxProduct['transaction_product_service']['id_transaction_product_service'])) {
+			HairstylistNotAvailable::where('id_transaction_product_service', $trxProduct['transaction_product_service']['id_transaction_product_service'])->delete();
+		} else {
+			$this->returnProductStock($trxProduct->id_transaction_product);
+		}
+
+		if ($completed == $totalItem || ($completed + $rejected) == $totalItem) {
+			// completed
+			TransactionOutletService::where('id_transaction', $trx->id_transaction)
+			->update(['completed_at' => date('Y-m-d H:i:s')]);
+
+		} elseif (empty($unprocessed) || $rejected == $totalItem) {
+			// rejected
+			TransactionOutletService::where('id_transaction', $trx->id_transaction)
+			->update([
+				'reject_at' => date('Y-m-d H:i:s'),
+				'reject_reason' => $request->note
+			]);
+		}
+
+		$newTrx = Transaction::with([
+			'transaction_products.transaction_product_service.hairstylist_not_available',
+			'transaction_outlet_service'
+		])
+		->find($trx->id_transaction);
+
+
+		$logTrx = LogTransactionUpdate::create([
+			'id_user' => $request->user()->id,
+	    	'id_transaction' => $trx->id_transaction,
+	    	'transaction_from' => 'outlet-service',
+	        'old_data' => json_encode($oldTrx),
+	        'new_data' => json_encode($newTrx),
+	    	'note' => $request->note
+		]);
+
+		DB::commit();
+
+		return MyHelper::checkCreate($logTrx);
+    }
+
+    function returnProductStock($id_transaction_product) {
+        $dt = TransactionProduct::where('transaction_products.id_transaction_product', $id_transaction_product)
+            ->join('transactions', 'transactions.id_transaction', 'transaction_products.id_transaction')
+            ->select('transaction_products.*', 'transactions.id_outlet')
+            ->where('type', 'Product')
+            ->first();
+
+        if ($dt) {
+            $stock = ProductDetail::where(['id_product' => $dt['id_product'], 'id_outlet' => $dt['id_outlet']])->first();
+            ProductStockLog::create([
+                'id_product' => $dt['id_product'],
+                'id_transaction' => $dt['id_transaction'],
+                'stock_item' => $dt['transaction_product_qty'],
+                'stock_item_before' => $stock['product_detail_stock_item'],
+                'stock_service_before' => (empty($stock['product_detail_stock_service']) ? 0 :$stock['product_detail_stock_service']),
+                'stock_item_after' => $stock['product_detail_stock_item'] + $dt['transaction_product_qty'],
+                'stock_service_after' => (empty($stock['product_detail_stock_service']) ? 0 :$stock['product_detail_stock_service'])
+            ]);
+
+            $stock->product_detail_stock_item = $stock['product_detail_stock_item'] + $dt['transaction_product_qty'];
+            $stock->save();
+        }
+
+        return true;
+    }
+
+    public function rejectTransactionOutletService(Request $request)
+    {
+		$post = $request->json()->all();
+    	$tempTrx = Transaction::with([
+			'transaction_products.transaction_product_service.hairstylist_not_available',
+			'transaction_outlet_service'
+		]);
+
+    	$trx = $tempTrx->find($request->id_transaction);
+    	if (!$trx) {
+    		return ['status' => 'fail', 'messages' => ['Transaction not found']];
+    	}
+
+    	if ($trx->reject_at) {
+    		return ['status' => 'fail', 'messages' => ['Transaction already rejected']];
+    	}
+
+    	$oldTrx = clone $trx;
+    	$trx->triggerReject($post);
+
+    	$newTrx = $tempTrx->find($request->id_transaction);
+
+
+    	$logTrx = LogTransactionUpdate::create([
+			'id_user' => $request->user()->id,
+	    	'id_transaction' => $request->id_transaction,
+	    	'transaction_from' => 'outlet-service',
+	        'old_data' => json_encode($oldTrx),
+	        'new_data' => json_encode($newTrx),
+	    	'note' => $post['reject_reason']
+		]);
+
+    	return MyHelper::checkCreate($logTrx);
     }
 }

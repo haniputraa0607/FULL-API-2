@@ -10,6 +10,7 @@ use App\Http\Models\Outlet;
 use App\Http\Models\Setting;
 use App\Http\Models\Transaction;
 use App\Http\Models\TransactionProduct;
+use App\Http\Models\LogOutletBox;
 
 use Modules\Product\Entities\ProductDetail;
 use Modules\Product\Entities\ProductStockLog;
@@ -792,7 +793,7 @@ class ApiMitraOutletService extends Controller
             'transaction_subtotal' => $trx['transaction_subtotal'],
             'transaction_tax' => $trx['transaction_tax'],
             'transaction_grandtotal' => $trx['transaction_grandtotal'],
-            'transaction_date' => MyHelper::dateFormatInd($trx['transaction_date']),
+            'transaction_date' => MyHelper::dateFormatInd($trx['transaction_date'], true, false),
             'customer_name' => $trx['customer_name'],
             'customer_email' => $trx['customer_email'],
             'currency' => 'Rp',
@@ -1049,6 +1050,12 @@ class ApiMitraOutletService extends Controller
 			HairstylistScheduleDate::where('id_hairstylist_schedule_date', $schedule->id_hairstylist_schedule_date)
 			->update(['id_outlet_box' => $request->id_outlet_box]);
 
+			$createLog = LogOutletBox::create([
+				'id_user_hair_stylist' => $user->id_user_hair_stylist,
+		    	'assigned_by' => null,
+		    	'id_outlet_box' => $request->id_outlet_box,
+		        'note' => null
+			]);
 
 			DB::commit();
     	} catch (\Exception $e) {
@@ -1063,5 +1070,18 @@ class ApiMitraOutletService extends Controller
 
 
 		return ['status' => 'success'];	
+    }
+
+    public function shiftBox($id_outlet)
+    {
+    	$shift = app($this->mitra)->getOutletShift($id_outlet);
+    	$box = OutletBox::where('id_outlet', $id_outlet)->with([
+    		'hairstylist_schedule_dates.hairstylist_schedule.user_hair_stylist',
+    		'hairstylist_schedule_dates' => function($q) use ($shift) {
+    			$q->where('date', date('Y-m-d'))->where('shift', $shift);
+    		}
+    	])->get();
+
+    	return $box;
     }
 }

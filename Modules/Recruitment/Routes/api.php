@@ -25,6 +25,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
         Route::post('detail', 'ApiHairStylistController@detail');
         Route::post('update', 'ApiHairStylistController@update');
         Route::post('update-status', 'ApiHairStylistController@updateStatus');
+        Route::post('update-box', 'ApiHairStylistController@updateBox');
         Route::post('detail/document', 'ApiHairStylistController@detailDocument');
         Route::post('delete', 'ApiHairStylistController@delete');
 
@@ -41,6 +42,18 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
 		    Route::post('detail', ['middleware' => 'feature_control:369', 'uses' =>'ApiAnnouncement@detailAnnouncement']);
 		    Route::post('create', ['middleware' => 'feature_control:370', 'uses' =>'ApiAnnouncement@createAnnouncement']);
 		    Route::post('delete', ['middleware' => 'feature_control:372', 'uses' =>'ApiAnnouncement@deleteAnnouncement']);
+    	});
+    	Route::group(['prefix' => 'group'], function () {
+                    Route::any('/', ['middleware' => 'feature_control:393','uses' =>'ApiHairStylistGroupController@index']);
+                    Route::post('create', ['middleware' => 'feature_control:394','uses' =>'ApiHairStylistGroupController@create']);
+		    Route::post('update', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupController@update']);
+		    Route::post('detail', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@detail']);
+		    Route::post('create_commission', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@create_commission']);
+		    Route::post('update_commission', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@update_commission']);
+		    Route::post('detail_commission', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@detail_commission']);
+		    Route::post('product', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@product']);
+                    Route::post('hs', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@hs']);
+		    Route::post('invite_hs', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@invite_hs']);
     	});
     });
 });
@@ -104,6 +117,18 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
         Route::post('cash/transfer/detail', 'ApiMitra@transferCashDetail');
         Route::post('cash/transfer/create', 'ApiMitra@transferCashCreate');
         Route::post('cash/transfer/history', 'ApiMitra@transferCashHistory');
+
+        //Cash flow for SPV
+        Route::post('income/detail', 'ApiMitra@incomeDetail');
+        Route::post('acceptance/detail', 'ApiMitra@acceptanceDetail');
+        Route::post('acceptance/confirm', 'ApiMitra@acceptanceConfirm');
+
+        Route::post('cash/outlet/income/create', 'ApiMitra@outletIncomeCreate');
+        Route::post('cash/outlet/transfer', 'ApiMitra@cashOutletTransfer');
+        Route::post('cash/outlet/history', 'ApiMitra@cashOutletHistory');
+
+        Route::post('expense/outlet/create', 'ApiMitra@expenseOutletCreate');
+        Route::post('expense/outlet/history', 'ApiMitra@expenseOutletHistory');
 	});
 
     Route::group(['middleware' => ['auth:api'],'prefix' => 'request'], function () {

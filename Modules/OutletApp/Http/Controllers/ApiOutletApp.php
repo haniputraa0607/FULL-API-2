@@ -25,6 +25,7 @@ use App\Http\Models\TransactionPaymentBalance;
 use App\Http\Models\TransactionPaymentMidtran;
 use App\Http\Models\TransactionPaymentOffline;
 use App\Http\Models\TransactionPaymentOvo;
+use Modules\Transaction\Entities\TransactionPaymentCash;
 use App\Http\Models\TransactionPickup;
 use App\Http\Models\TransactionPickupGoSend;
 use App\Http\Models\TransactionPickupWehelpyou;
@@ -6454,5 +6455,424 @@ class ApiOutletApp extends Controller
         }
 
         return ['status' => 'success'];
+    }
+
+    public function refundPayment(Transaction $trx)
+    {
+    	$order = Transaction::where('transactions.id_transaction', $trx->id_transaction)
+            // join user used by autocrm void failed
+            ->leftJoin('users', 'transactions.id_user', 'users.id')
+            ->first();
+
+    	$user = User::find($trx->id_user);
+    	$shared = \App\Lib\TemporaryDataManager::create('reject_order');
+    	$refund_failed_process_balance = MyHelper::setting('refund_failed_process_balance');
+    	$rejectBalance = false;
+        $point = 0;
+        
+        $multiple = TransactionMultiplePayment::where('id_transaction', $trx->id_transaction)->get()->toArray();
+
+        if ($multiple) {
+            foreach ($multiple as $pay) {
+                if ($pay['type'] == 'Balance') {
+                    $payBalance = TransactionPaymentBalance::find($pay['id_payment']);
+                    if ($payBalance) {
+                        $refund = app($this->balance)->addLogBalance($trx->id_user, $point = $payBalance['balance_nominal'], $order['id_transaction'], 'Rejected Order Point', $order['transaction_grandtotal']);
+                        if ($refund == false) {
+                            return [
+                                'status'   => 'fail',
+                                'messages' => ['Insert Cashback Failed'],
+                            ];
+                        }
+                        $rejectBalance = true;
+                    }
+                } elseif (strtolower($pay['type']) == 'cash') {
+                    $payCash = TransactionPaymentCash::find($pay['id_payment']);
+                    if ($payCash) {
+                    	$order->update([
+                            'reject_type' => 'refund',
+                            'need_manual_void' => 1
+                        ]);
+                    }
+                } elseif ($pay['type'] == 'Ovo') {
+                    $payOvo = TransactionPaymentOvo::find($pay['id_payment']);
+                    if ($payOvo) {
+                        $doRefundPayment = Configs::select('is_active')->where('config_name','refund ovo')->pluck('is_active')->first();
+                        if($doRefundPayment){
+                            $point = 0;
+                            $transaction = TransactionPaymentOvo::where('transaction_payment_ovos.id_transaction', $order['id_transaction'])
+                                ->join('transactions','transactions.id_transaction','=','transaction_payment_ovos.id_transaction')
+                                ->first();
+                            $order->update([
+                                'reject_type'   => 'refund',
+                            ]);
+                            $refund = Ovo::Void($transaction);
+                            if ($refund['response']['responseCode'] != '00') {
+                                $order->update(['failed_void_reason' => $refund['response']['response_description'] ?? '']);
+                                if ($refund_failed_process_balance) {
+                                    $doRefundPayment = false;
+                                } else {
+                                    $order->update(['need_manual_void' => 1]);
+                                    $order2 = clone $order;
+                                    $order2->manual_refund = $payOvo['amount'];
+                                    $order2->payment_method = 'Ovo';
+                                    $order2->payment_reference_number = $payOvo['approval_code'];
+                                    if ($shared['reject_batch'] ?? false) {
+                                        $shared['void_failed'][] = $order2;
+                                    } else {
+                                        $variables = [
+                                            'detail' => view('emails.failed_refund', ['transaction' => $order2])->render()
+                                        ];
+                                        app("Modules\Autocrm\Http\Controllers\ApiAutoCrm")->SendAutoCRM('Payment Void Failed', $order->phone, $variables, null, true);
+                                    }
+                                }
+                            }
+                        }
+
+                        // don't use elseif / else because in the if block there are conditions that should be included in this process too
+                        if (!$doRefundPayment) {
+                            $order->update([
+                                'reject_type'   => 'point',
+                            ]);
+                            $refund = app($this->balance)->addLogBalance($order['id_user'], $point = $payOvo['amount'], $order['id_transaction'], 'Rejected Order Ovo', $order['transaction_grandtotal']);
+                            if ($refund == false) {
+                                return [
+                                    'status'   => 'fail',
+                                    'messages' => ['Insert Cashback Failed'],
+                                ];
+                            }
+                            $rejectBalance = true;
+                        }
+                    }
+                } elseif (strtolower($pay['type']) == 'ipay88') {
+                    $point = 0;
+                    $payIpay = TransactionPaymentIpay88::find($pay['id_payment']);
+                    if ($payIpay) {
+                        $doRefundPayment = strtolower($payIpay['payment_method']) == 'ovo' && MyHelper::setting('refund_ipay88');
+                        if($doRefundPayment){
+                            $refund = \Modules\IPay88\Lib\IPay88::create()->void($payIpay, 'trx', 'user', $message);
+                            $order->update([
+                                'reject_type'   => 'refund',
+                            ]);
+                            if (!$refund) {
+                                $order->update(['failed_void_reason' => $message ?? '']);
+                                if ($refund_failed_process_balance) {
+                                    $doRefundPayment = false;
+                                } else {
+                                    $order->update(['need_manual_void' => 1]);
+                                    $order2 = clone $order;
+                                    $order2->manual_refund = $payIpay['amount']/100;
+                                    $order2->payment_method = 'Ipay88';
+                                    $order2->payment_detail = $payIpay['payment_method'];
+                                    $order2->payment_reference_number = $payIpay['trans_id'];
+                                    if ($shared['reject_batch'] ?? false) {
+                                        $shared['void_failed'][] = $order2;
+                                    } else {
+                                        $variables = [
+                                            'detail' => view('emails.failed_refund', ['transaction' => $order2])->render()
+                                        ];
+                                        app("Modules\Autocrm\Http\Controllers\ApiAutoCrm")->SendAutoCRM('Payment Void Failed', $order->phone, $variables, null, true);
+                                    }
+                                }
+                            }
+                        }
+
+                        // don't use elseif / else because in the if block there are conditions that should be included in this process too
+                        if (!$doRefundPayment) {
+                            $order->update([
+                                'reject_type'   => 'point',
+                            ]);
+                            $refund = app($this->balance)->addLogBalance($order['id_user'], $point = ($payIpay['amount']/100), $order['id_transaction'], 'Rejected Order', $order['transaction_grandtotal']);
+                            if ($refund == false) {
+                                return [
+                                    'status'   => 'fail',
+                                    'messages' => ['Insert Cashback Failed'],
+                                ];
+                            }
+                            $rejectBalance = true;
+                        }
+                    }
+                } elseif (strtolower($pay['type']) == 'shopeepay') {
+                    $point = 0;
+                    $payShopeepay = TransactionPaymentShopeePay::find($pay['id_payment']);
+                    if ($payShopeepay) {
+                        $doRefundPayment = MyHelper::setting('refund_shopeepay');
+                        if($doRefundPayment){
+                            $refund = app($this->shopeepay)->refund($payShopeepay['id_transaction'], 'trx', $errors);
+                            $order->update([
+                                'reject_type'   => 'refund',
+                            ]);
+                            if (!$refund) {
+                                $order->update(['failed_void_reason' => implode(', ', $errors ?: [])]);
+                                if ($refund_failed_process_balance) {
+                                    $doRefundPayment = false;
+                                } else {
+                                    $order->update(['need_manual_void' => 1]);
+                                    $order2 = clone $order;
+                                    $order2->payment_method = 'ShopeePay';
+                                    $order2->manual_refund = $payShopeepay['amount']/100;
+                                    $order2->payment_reference_number = $payShopeepay['transaction_sn'];
+                                    if ($shared['reject_batch'] ?? false) {
+                                        $shared['void_failed'][] = $order2;
+                                    } else {
+                                        $variables = [
+                                            'detail' => view('emails.failed_refund', ['transaction' => $order2])->render()
+                                        ];
+                                        app("Modules\Autocrm\Http\Controllers\ApiAutoCrm")->SendAutoCRM('Payment Void Failed', $order->phone, $variables, null, true);
+                                    }
+                                }
+                            }
+                        }
+
+                        // don't use elseif / else because in the if block there are conditions that should be included in this process too
+                        if (!$doRefundPayment) {
+                            $order->update([
+                                'reject_type'   => 'point',
+                            ]);
+                            $refund = app($this->balance)->addLogBalance($order['id_user'], $point = ($payShopeepay['amount']/100), $order['id_transaction'], 'Rejected Order', $order['transaction_grandtotal']);
+                            if ($refund == false) {
+                                return [
+                                    'status'   => 'fail',
+                                    'messages' => ['Insert Cashback Failed'],
+                                ];
+                            }
+                            $rejectBalance = true;
+                        }
+                    }
+                } else {
+                    $point = 0;
+                    $payMidtrans = TransactionPaymentMidtran::find($pay['id_payment']);
+                    if ($payMidtrans) {
+                        $doRefundPayment = MyHelper::setting('refund_midtrans');
+                        if ($doRefundPayment) {
+                            $refund = Midtrans::refund($payMidtrans['vt_transaction_id'],['reason' => $order['reject_reason']??'']);
+                            $order->update([
+                                'reject_type'   => 'refund',
+                            ]);
+                            if ($refund['status'] != 'success') {
+                                $order->update(['failed_void_reason' => implode(', ', $refund['messages'] ?? [])]);
+                                if ($refund_failed_process_balance) {
+                                    $doRefundPayment = false;
+                                } else {
+                                    $order->update(['need_manual_void' => 1]);
+                                    $order2 = clone $order;
+                                    $order2->payment_method = 'Midtrans';
+                                    $order2->payment_detail = $payMidtrans['payment_type'];
+                                    $order2->manual_refund = $payMidtrans['gross_amount'];
+                                    $order2->payment_reference_number = $payMidtrans['vt_transaction_id'];
+                                    if ($shared['reject_batch'] ?? false) {
+                                        $shared['void_failed'][] = $order2;
+                                    } else {
+                                        $variables = [
+                                            'detail' => view('emails.failed_refund', ['transaction' => $order2])->render()
+                                        ];
+                                        app("Modules\Autocrm\Http\Controllers\ApiAutoCrm")->SendAutoCRM('Payment Void Failed', $order->phone, $variables, null, true);
+                                    }
+                                }
+                            }
+                        }
+
+                        // don't use elseif / else because in the if block there are conditions that should be included in this process too
+                        if (!$doRefundPayment) {
+                            $order->update([
+                                'reject_type'   => 'point',
+                            ]);
+                            $refund = app($this->balance)->addLogBalance( $order['id_user'], $point = $payMidtrans['gross_amount'], $order['id_transaction'], 'Rejected Order Midtrans', $order['transaction_grandtotal']);
+                            if ($refund == false) {
+                                return [
+                                    'status'    => 'fail',
+                                    'messages'  => ['Insert Cashback Failed']
+                                ];
+                            }
+                            $rejectBalance = true;
+                        }
+                    }
+                }
+
+            }
+        } else {
+            $payMidtrans = TransactionPaymentMidtran::where('id_transaction', $order['id_transaction'])->first();
+            $payOvo      = TransactionPaymentOvo::where('id_transaction', $order['id_transaction'])->first();
+            $payIpay     = TransactionPaymentIpay88::where('id_transaction', $order['id_transaction'])->first();
+            $payCash     = TransactionPaymentCash::where('id_transaction', $order['id_transaction'])->first();
+            if ($payMidtrans) {
+                $point = 0;
+                $doRefundPayment = MyHelper::setting('refund_midtrans');
+                if ($doRefundPayment) {
+                    $refund = Midtrans::refund($payMidtrans['vt_transaction_id'],['reason' => $order['reject_reason']??'']);
+                    $order->update([
+                        'reject_type'   => 'refund',
+                    ]);
+                    if ($refund['status'] != 'success') {
+                        if ($refund_failed_process_balance) {
+                            $doRefundPayment = false;
+                        } else {
+                            $order->update(['need_manual_void' => 1]);
+                            $order2 = clone $order;
+                            $order2->payment_method = 'Midtrans';
+                            $order2->payment_detail = $payMidtrans['payment_type'];
+                            $order2->manual_refund = $payMidtrans['gross_amount'];
+                            $order2->payment_reference_number = $payMidtrans['vt_transaction_id'];
+                            if ($shared['reject_batch'] ?? false) {
+                                $shared['void_failed'][] = $order2;
+                            } else {
+                                $variables = [
+                                    'detail' => view('emails.failed_refund', ['transaction' => $order2])->render()
+                                ];
+                                app("Modules\Autocrm\Http\Controllers\ApiAutoCrm")->SendAutoCRM('Payment Void Failed', $order->phone, $variables, null, true);
+                            }
+                        }
+                    }
+                }
+
+                // don't use elseif / else because in the if block there are conditions that should be included in this process too
+                if (!$doRefundPayment) {
+                    $order->update([
+                        'reject_type'   => 'point',
+                    ]);
+                    $refund = app($this->balance)->addLogBalance( $order['id_user'], $point = $payMidtrans['gross_amount'], $order['id_transaction'], 'Rejected Order Midtrans', $order['transaction_grandtotal']);
+                    if ($refund == false) {
+                        return [
+                            'status'    => 'fail',
+                            'messages'  => ['Insert Cashback Failed']
+                        ];
+                    }
+                    $rejectBalance = true;
+                }
+        	} elseif ($payCash) {
+            	$order->update([
+                    'reject_type' => 'refund',
+                    'need_manual_void' => 1
+                ]);
+            } elseif ($payOvo) {
+                $doRefundPayment = Configs::select('is_active')->where('config_name','refund ovo')->pluck('is_active')->first();
+                if ($doRefundPayment) {
+                    $point = 0;
+                    $transaction = TransactionPaymentOvo::where('transaction_payment_ovos.id_transaction', $order['id_transaction'])
+                        ->join('transactions','transactions.id_transaction','=','transaction_payment_ovos.id_transaction')
+                        ->first();
+                    $refund = Ovo::Void($transaction);
+                    $order->update([
+                        'reject_type'   => 'refund',
+                    ]);
+                    if ($refund['status_code'] != '200') {
+                        if ($refund_failed_process_balance) {
+                            $doRefundPayment = false;
+                        } else {
+                            $order->update(['need_manual_void' => 1]);
+                            $order2 = clone $order;
+                            $order2->payment_method = 'Ovo';
+                            $order2->manual_refund = $payOvo['amount'];
+                            $order2->payment_reference_number = $payOvo['approval_code'];
+                            if ($shared['reject_batch'] ?? false) {
+                                $shared['void_failed'][] = $order2;
+                            } else {
+                                $variables = [
+                                    'detail' => view('emails.failed_refund', ['transaction' => $order2])->render()
+                                ];
+                                app("Modules\Autocrm\Http\Controllers\ApiAutoCrm")->SendAutoCRM('Payment Void Failed', $order->phone, $variables, null, true);
+                            }
+                        }
+                    }
+                }
+
+                // don't use elseif / else because in the if block there are conditions that should be included in this process too
+                if (!$doRefundPayment) {
+                    $order->update([
+                        'reject_type'   => 'point',
+                    ]);
+                    $refund = app($this->balance)->addLogBalance($order['id_user'], $point = $payOvo['amount'], $order['id_transaction'], 'Rejected Order Ovo', $order['transaction_grandtotal']);
+                    if ($refund == false) {
+                        return [
+                            'status'   => 'fail',
+                            'messages' => ['Insert Cashback Failed'],
+                        ];
+                    }
+                    $rejectBalance = true;
+                }
+            } elseif ($payIpay) {
+                $point = 0;
+                $doRefundPayment = strtolower($payIpay['payment_method']) == 'ovo' && MyHelper::setting('refund_ipay88');
+                if ($doRefundPayment) {
+                    $refund = \Modules\IPay88\Lib\IPay88::create()->void($payIpay);
+                    $order->update([
+                        'reject_type'   => 'refund',
+                    ]);
+                    if (!$refund) {
+                        if ($refund_failed_process_balance) {
+                            $doRefundPayment = false;
+                        } else {
+                            $order->update(['need_manual_void' => 1]);
+                            $order2 = clone $order;
+                            $order2->payment_method = 'Ipay88';
+                            $order2->payment_detail = $payIpay['payment_method'];
+                            $order2->manual_refund = $payIpay['amount']/100;
+                            $order2->payment_reference_number = $payIpay['trans_id'];
+                            if ($shared['reject_batch'] ?? false) {
+                                $shared['void_failed'][] = $order2;
+                            } else {
+                                $variables = [
+                                    'detail' => view('emails.failed_refund', ['transaction' => $order2])->render()
+                                ];
+                                app("Modules\Autocrm\Http\Controllers\ApiAutoCrm")->SendAutoCRM('Payment Void Failed', $order->phone, $variables, null, true);
+                            }
+                        }
+                    }
+                }
+
+                // don't use elseif / else because in the if block there are conditions that should be included in this process too
+                if (!$doRefundPayment) {
+                    $order->update([
+                        'reject_type'   => 'point',
+                    ]);
+                    $refund = app($this->balance)->addLogBalance($order['id_user'], $point = ($payIpay['amount']/100), $order['id_transaction'], 'Rejected Order', $order['transaction_grandtotal']);
+                    if ($refund == false) {
+                        return [
+                            'status'   => 'fail',
+                            'messages' => ['Insert Cashback Failed'],
+                        ];
+                    }
+                    $rejectBalance = true;
+                }
+            } else {
+                $payBalance = TransactionPaymentBalance::where('id_transaction', $order['id_transaction'])->first();
+                if ($payBalance) {
+                    $refund = app($this->balance)->addLogBalance($order['id_user'], $point = $payBalance['balance_nominal'], $order['id_transaction'], 'Rejected Order Point', $order['transaction_grandtotal']);
+                    if ($refund == false) {
+                        return [
+                            'status'   => 'fail',
+                            'messages' => ['Insert Cashback Failed'],
+                        ];
+                    }
+                    $rejectBalance = true;
+                }
+            }
+        }
+
+        //send notif point refund
+        if($rejectBalance == true){
+        	$outlet = Outlet::find($order->id_outlet);
+            $send = app($this->autocrm)->SendAutoCRM('Rejected Order Point Refund', $user['phone'],
+            [
+                "outlet_name"      => $outlet['outlet_name'],
+                "transaction_date" => $order['transaction_date'],
+                'id_transaction'   => $order['id_transaction'],
+                'receipt_number'   => $order['transaction_receipt_number'],
+                'received_point'   => (string) $point,
+                'order_id'         => $order->order_id,
+            ]);
+            if ($send != true) {
+                return [
+                    'status'   => 'fail',
+                    'messages' => ['Failed Send notification to customer'],
+                ];
+            }
+        }
+
+        return [
+        	'status' => 'success',
+        	'reject_balance' => $rejectBalance,
+        	'received_point' => (string) $point
+        ];
     }
 }

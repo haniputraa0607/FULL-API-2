@@ -11,6 +11,8 @@ use App\Http\Models\Setting;
 use App\Http\Models\Transaction;
 use App\Http\Models\TransactionProduct;
 
+use Illuminate\Support\Facades\Schema;
+use Modules\Balance\Http\Controllers\NewTopupController;
 use Modules\Product\Entities\ProductDetail;
 use Modules\Product\Entities\ProductStockLog;
 use Modules\ProductVariant\Entities\ProductVariantGroupDetail;
@@ -42,6 +44,12 @@ class MitraLogBalance extends Controller
 {
     public function insertLogBalance($data)
     {
+        // check balance data from hashed text
+        $checkHashBefore = $this->checkHash($data['id_user_hair_stylist']);
+        if (!$checkHashBefore) {
+            return false;
+        }
+
         DB::beginTransaction();
         $balanceBefore = HairstylistLogBalance::where('id_user_hair_stylist', $data['id_user_hair_stylist'])->sum('balance');
 
@@ -71,7 +79,7 @@ class MitraLogBalance extends Controller
         $dataLogBalance->update(['enc' => $enc]);
 
         $newBalance = HairstylistLogBalance::where('id_user_hair_stylist', $data['id_user_hair_stylist'])->sum('balance');
-        $updateUser = UserHairStylist::where('id_user_hair_stylist', $data['id_user_hair_stylist'])->update(['balance' => $newBalance]);
+        $updateUser = UserHairStylist::where('id_user_hair_stylist', $data['id_user_hair_stylist'])->update(['total_balance' => $newBalance]);
 
         if (!($dataLogBalance && $updateUser)) {
             DB::rollback();
@@ -80,5 +88,38 @@ class MitraLogBalance extends Controller
 
         DB::commit();
         return $dataLogBalance;
+    }
+
+    public function checkHash($id_user_hair_stylist)
+    {
+        $check = HairstylistLogBalance::where('id_user_hair_stylist', $id_user_hair_stylist)->orderBy('created_at', 'DESC')->first();
+        if (!$check) {
+            return true;
+        }
+
+        if (count($check->toArray()) < 1) {
+            return true;
+        }
+
+        if (!isset($check['enc'])) {
+            return true;
+        }
+
+        $dataHash = [
+            'id_hairstylist_log_balance'     => $check['id_hairstylist_log_balance'],
+            'id_user_hair_stylist'           => $check['id_user_hair_stylist'],
+            'balance'                        => $check['balance'],
+            'balance_before'                 => $check['balance_before'],
+            'balance_after'                  => $check['balance_after'],
+            'id_reference'                   => $check['id_reference'],
+            'source'                         => $check['source']
+        ];
+
+        $encodeCheck = json_encode($dataHash);
+
+        if (MyHelper::decrypt2019($check['enc']) == $encodeCheck) {
+            return true;
+        }
+        return false;
     }
 }

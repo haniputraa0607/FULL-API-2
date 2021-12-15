@@ -5,6 +5,9 @@ namespace Modules\Xendit\Http\Controllers;
 use App\Lib\MyHelper;
 use GuzzleHttp\Client as Guzzle;
 use Illuminate\Routing\Controller;
+use Modules\Transaction\Entities\TransactionAcademyInstallment;
+use Modules\Transaction\Entities\TransactionAcademyInstallmentPaymentMidtrans;
+use Modules\Xendit\Entities\TransactionAcademyInstallmentPaymentXendit;
 use Modules\Xendit\Lib\CustomHttpClient;
 use Xendit\Xendit;
 use DateTime;
@@ -19,6 +22,7 @@ use Illuminate\Http\Request;
 use Modules\Xendit\Entities\LogXendit;
 use Modules\Subscription\Entities\SubscriptionUser;
 use App\Http\Models\DealsUser;
+use App\Http\Models\Outlet;
 
 class XenditController extends Controller
 {
@@ -26,6 +30,7 @@ class XenditController extends Controller
     {
         $this->callback_url = env('XENDIT_CALLBACK_URL', route('notif_xendit'));
         $this->autocrm             = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
+        $this->redirect_url = env(optional(request()->user())->tokenCan('apps') ? 'XENDIT_REDIRECT_URL_NATIVE' : 'XENDIT_REDIRECT_URL');
 
         Xendit::setApiKey($this->key);
         Xendit::setHttpClient(
@@ -188,6 +193,47 @@ class XenditController extends Controller
                     'id_subscription_user' => $subs_payment->id_subscription_user,
                 ]
             );
+            $status_code = 200;
+            $response    = ['status' => 'success'];
+        } elseif (stristr($post['external_id'], 'INS')) {
+            $installment_payment = TransactionAcademyInstallmentPaymentXendit::where('external_id', $post['external_id'])->first();
+
+            if (!$installment_payment) {
+                $status_code = 404;
+                $response    = ['status' => 'fail', 'messages' => ['Transaction not found']];
+                goto end;
+            }
+            if ($installment_payment->amount != $post['amount']) {
+                $status_code = 422;
+                $response    = ['status' => 'fail', 'messages' => ['Invalid amount']];
+                goto end;
+            }
+
+            $installment = TransactionAcademyInstallment::where('id_transaction_academy_installment', $installment_payment['id_transaction_academy_installment'])->first();
+
+            if ($universalStatus == 'COMPLETED') {
+                $update = $installment->triggerPaymentCompleted();
+            } elseif ($universalStatus == 'FAILED') {
+                $update = $installment->triggerPaymentCancelled();
+            }
+
+            if (!$update) {
+                DB::rollBack();
+                $status_code = 500;
+                $response    = [
+                    'status'   => 'fail',
+                    'messages' => ['Failed update payment status'],
+                ];
+                goto end;
+            }
+
+            $installment_payment->update([
+                'status'         => $universalStatus,
+                'xendit_id'      => $post['id'] ?? null,
+                'expiration_date'=> $post['expiration_date'] ?? null,
+                'failure_code'   => $post['failure_code'] ?? null,
+            ]);
+            DB::commit();
             $status_code = 200;
             $response    = ['status' => 'success'];
         } else {
@@ -437,9 +483,10 @@ class XenditController extends Controller
         CustomHttpClient::setIdReference($external_id);
         $method = strtoupper($method);
 
+        $outlet_code = Outlet::join('transactions', 'transactions.id_outlet', 'outlets.id_outlet')->where('transaction_receipt_number', $external_id)->first()->outlet_code??null;
         $redirect_url = str_replace(
-            ['%order_id%', '%type%'],
-            [urlencode($options['order_id'] ?? $external_id), $options['type'] ?? 'trx'],
+            ['%order_id%', '%type%', '%outlet_code%'],
+            [urlencode($options['order_id'] ?? $external_id), $options['type'] ?? 'trx', $outlet_code],
             $this->redirect_url
         );
 

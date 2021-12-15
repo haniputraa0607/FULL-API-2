@@ -1913,9 +1913,9 @@ class ApiDeals extends Controller
             $result['next_page_url'] = ENV('APP_API_URL') . 'api/deals/list/v2?page=' . $next_page;
         }
 
-        if(!$result['total']){
-            $result=[];
-        }
+        // if(!$result['total']){
+        //     $result=[];
+        // }
 
         if(
             $request->json('voucher_type_point') ||

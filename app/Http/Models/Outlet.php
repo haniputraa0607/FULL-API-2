@@ -95,7 +95,9 @@ class Outlet extends Authenticatable
         'outlet_service_status',
 		'plastic_used_status',
         'outlet_special_fee',
-        'time_zone_utc'
+        'time_zone_utc',
+        'total_current_cash',
+        'total_cash_from_central'
 	];
 
 	protected $appends  = ['call', 'url'];
@@ -240,5 +242,10 @@ class Outlet extends Authenticatable
     public function outlet_box()
     {
         return $this->hasMany(\Modules\Outlet\Entities\OutletBox::class, 'id_outlet');
+    }
+
+    public function outlet_time_shifts()
+    {
+        return $this->hasMany(\Modules\Outlet\Entities\OutletTimeShift::class, 'id_outlet');
     }
 }

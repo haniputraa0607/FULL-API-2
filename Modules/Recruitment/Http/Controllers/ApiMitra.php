@@ -14,7 +14,7 @@ use Modules\Franchise\Entities\TransactionProduct;
 use Modules\Outlet\Entities\OutletTimeShift;
 
 use Modules\Recruitment\Entities\HairstylistLogBalance;
-use Modules\Recruitment\Entities\HairstylistTransferPayment;
+use Modules\Recruitment\Entities\OutletCash;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Recruitment\Entities\HairstylistSchedule;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
@@ -29,11 +29,13 @@ use Modules\UserRating\Entities\UserRatingSummary;
 use App\Http\Models\Transaction;
 
 use Modules\Recruitment\Http\Requests\ScheduleCreateRequest;
+use Modules\Recruitment\Entities\OutletCashattachment;
 
 use App\Lib\MyHelper;
 use DB;
 use DateTime;
 use DateTimeZone;
+use PharIo\Manifest\EmailTest;
 
 class ApiMitra extends Controller
 {
@@ -548,7 +550,7 @@ class ApiMitra extends Controller
 				        	user_hair_stylist.level,
 				        	user_hair_stylist.total_rating,
 				        	COUNT(DISTINCT user_ratings.id_user) as total_customer
-	        			'),
+	        			')
 			        )
 			        ->first();
 
@@ -631,13 +633,17 @@ class ApiMitra extends Controller
 
     public function getOutletShift($id_outlet, $dateTime = null)
     {
+    	$res = null;
     	$outlet = Outlet::find($id_outlet);
+    	if (!$outlet) {
+    		return $res;
+    	}
+
     	$timezone = $outlet->city->province->time_zone_utc;
     	$dateTime = $dateTime ?? date('Y-m-d H:i:s');
         $curTime = date('H:i:s', strtotime($dateTime));
     	$day = MyHelper::indonesian_date_v2($dateTime, 'l');
 
-    	$res = null;
     	$outletSchedule = OutletSchedule::where('id_outlet', $id_outlet)->where('day', $day)->first();
     	if (!$outletSchedule || $outletSchedule->is_closed) {
         	return $res;
@@ -692,6 +698,30 @@ class ApiMitra extends Controller
 
     }
 
+    public function getTodayShift($id_user_hair_stylist)
+    {
+    	$todayShift = null;
+    	$hs = UserHairStylist::find($id_user_hair_stylist);
+
+    	if (!$hs) {
+    		return  $todayShift;
+    	}
+
+    	$shift = $this->getOutletShift($hs->id_outlet);
+
+		$todayShift = HairstylistSchedule::join(
+					'hairstylist_schedule_dates', 
+					'hairstylist_schedules.id_hairstylist_schedule', 
+					'hairstylist_schedule_dates.id_hairstylist_schedule'
+				)
+		 		->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+		 		->where('date', date('Y-m-d'))
+		 		->where('shift', $shift)
+		 		->first();
+
+		return $todayShift;
+	}
+
     public function balanceDetail(Request $request){
         $user = $request->user();
         $outletName = Outlet::where('id_outlet', $user->id_outlet)->first()['outlet_name']??'';
@@ -701,7 +731,7 @@ class ApiMitra extends Controller
             'id_mitra' => $user->user_hair_stylist_code,
             'name' => $user->fullname,
             'outlet_name' => $outletName,
-            'current_balance' => $user->balance,
+            'current_balance' => $user->total_balance,
             'currency' => 'Rp'
         ];
 
@@ -782,30 +812,39 @@ class ApiMitra extends Controller
             return ['status' => 'fail', 'messages' => ['All cash already transfer']];
         }
 
-        $dt = [
-            'id_user_hair_stylist'    => $user->id_user_hair_stylist,
-            'balance'                 => -$totalWillTransfer,
-            'source'                  => 'Transfer To SPV'
-        ];
+        $update = HairstylistLogBalance::whereIn('id_hairstylist_log_balance', $idLogBalance)->update(['transfer_status' => 1]);
+        if($update){
+            $transferPayment = OutletCash::create([
+                'id_user_hair_stylist' => $user->id_user_hair_stylist,
+                'id_outlet' => $user->id_outlet,
+                'outlet_cash_type' => 'Transfer To Supervisor',
+                'outlet_cash_code' => 'TSPV-'.MyHelper::createrandom(4,'Angka').$user->id_user_hair_stylist.$user->id_outlet,
+                'outlet_cash_amount' => abs($totalWillTransfer)
+            ]);
+            if($transferPayment){
+                $update = TransactionPaymentCash::whereIn('id_transaction', $idTransaction)->update(['id_outlet_cash' => $transferPayment['id_outlet_cash']]);
 
-        $insertLogBalance = app($this->mitra_log_balance)->insertLogBalance($dt);
+                if($update){
+                    $dt = [
+                        'id_user_hair_stylist'    => $user->id_user_hair_stylist,
+                        'balance'                 => -$totalWillTransfer,
+                        'source'                  => 'Transfer To Supervisor',
+                        'id_reference'            => $transferPayment['id_outlet_cash']
+                    ];
 
-        $update = false;
-        if(!empty($insertLogBalance['id_hairstylist_log_balance'])){
-            $update = HairstylistLogBalance::whereIn('id_hairstylist_log_balance', $idLogBalance)->update(['transfer_status' => 1]);
-            if($update){
-                $transferPayment = HairstylistTransferPayment::create([
-                    'id_hairstylist_log_balance' => $insertLogBalance['id_hairstylist_log_balance'],
-                    'id_user_hair_stylist' => $user->id_user_hair_stylist,
-                    'id_outlet' => $user->id_outlet,
-                    'transfer_payment_code' => 'TSPV-'.MyHelper::createrandom(4,'Angka').$user->id_user_hair_stylist.$insertLogBalance['id_hairstylist_log_balance'],
-                    'total_amount' => abs($totalWillTransfer)
-                ]);
-                if($transferPayment){
-                    $update = TransactionPaymentCash::whereIn('id_transaction', $idTransaction)->update(['id_hairstylist_transfer_payment' => $transferPayment['id_hairstylist_transfer_payment']]);
-                }else{
-                    $update = false;
+                    $update = app($this->mitra_log_balance)->insertLogBalance($dt);
+
+                    if($user->level == 'Supervisor'){
+                        $update = OutletCash::where('id_outlet_cash', $transferPayment['id_outlet_cash'])
+                            ->update(['outlet_cash_status' => 'Confirm', 'confirm_at' => date('Y-m-d H:i:s'), 'confirm_by' => $user->id_user_hair_stylist]);
+                        if($update){
+                            $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
+                            $update = Outlet::where('id_outlet', $user->id_outlet)->update(['total_current_cash' => $outlet['total_current_cash'] + $transferPayment['outlet_cash_amount']]);
+                        }
+                    }
                 }
+            }else{
+                $update = false;
             }
         }
 
@@ -819,7 +858,7 @@ class ApiMitra extends Controller
             return ['status' => 'fail', 'messages' => ['Month and Year can not be empty']];
         }
 
-        $list = HairstylistTransferPayment::whereYear('created_at', '=', $post['year'])
+        $list = OutletCash::whereYear('created_at', '=', $post['year'])
                 ->whereMonth('created_at', '=', $post['month'])
                 ->where('id_outlet', $user->id_outlet)->where('id_user_hair_stylist', $user->id_user_hair_stylist)
                 ->get()->toArray();
@@ -830,11 +869,400 @@ class ApiMitra extends Controller
             $res[] = [
                 'date' => str_replace(' '.$post['year'], '', $date),
                 'time' => date('H:i', strtotime($value['created_at'])),
-                'transfer_code' => $value['transfer_payment_code'],
-                'amount' => $value['total_amount']
+                'outlet_cash_code' => $value['outlet_cash_code'],
+                'outlet_cash_amount' => $value['outlet_cash_amount']
             ];
         }
 
         return ['status' => 'success', 'result' => $res];
+    }
+
+    public function incomeDetail(Request $request){
+        $user = $request->user();
+        $post = $request->json()->all();
+        if(empty($post['date'])){
+            return ['status' => 'fail', 'messages' => ['Date can not be empty']];
+        }
+
+        if($user->level != 'Supervisor'){
+            return ['status' => 'fail', 'messages' => ['Your level not available for this detail']];
+        }
+
+        $date = date('Y-m-d', strtotime($post['date']));
+        $currency = 'Rp';
+        $listHS = UserHairStylist::where('id_outlet', $user->id_outlet)
+                    ->where('user_hair_stylist_status', 'Active')->select('id_user_hair_stylist', 'fullname as name')->get()->toArray();
+
+        $projection = Transaction::join('transaction_payment_cash', 'transaction_payment_cash.id_transaction', 'transactions.id_transaction')
+                    ->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_payment_cash.cash_received_by')
+                    ->whereDate('transactions.transaction_date', $date)
+                    ->where('transaction_payment_status', 'Completed')
+                    ->where('transactions.id_outlet', $user->id_outlet)
+                    ->select('transaction_grandtotal', 'transactions.id_transaction', 'transactions.transaction_receipt_number', 'transaction_payment_cash.*', 'user_hair_stylist.fullname');
+
+        $acceptance = OutletCash::join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'outlet_cash.id_user_hair_stylist')
+                    ->where('outlet_cash.id_outlet', $user->id_outlet)
+                    ->whereDate('outlet_cash.created_at', $date)
+                    ->where('outlet_cash_status', 'Pending')
+                    ->select('id_outlet_cash', DB::raw('DATE_FORMAT(outlet_cash.created_at, "%H:%i") as time'), 'fullname as hair_stylist_name',
+                        'outlet_cash_status', 'outlet_cash_code', 'outlet_cash_amount as amount');
+
+        $history = OutletCash::join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'outlet_cash.id_user_hair_stylist')
+            ->join('user_hair_stylist as confirm', 'confirm.id_user_hair_stylist', 'outlet_cash.confirm_by')
+            ->where('outlet_cash.id_outlet', $user->id_outlet)
+            ->whereDate('outlet_cash.confirm_at', $date)
+            ->where('outlet_cash_status', 'Confirm')
+            ->select('id_outlet_cash', DB::raw('DATE_FORMAT(outlet_cash.created_at, "%H:%i") as time'), 'user_hair_stylist.fullname as hair_stylist_name',
+                'outlet_cash_status', 'outlet_cash_code', 'outlet_cash_amount as amount', 'confirm.fullname as confirm_by_name');
+
+        if(!empty($post['id_user_hair_stylist'])){
+            $projection = $projection->where('id_user_hair_stylist', $post['id_user_hair_stylist']);
+            $acceptance = $acceptance->where('outlet_cash.id_user_hair_stylist', $post['id_user_hair_stylist']);
+            $history = $history->where('outlet_cash.id_user_hair_stylist', $post['id_user_hair_stylist']);
+        }
+
+        $projection = $projection->orderBy('transaction_date', 'desc')->get()->toArray();
+        $acceptance = $acceptance->orderBy('outlet_cash.created_at', 'desc')->get()->toArray();
+        $history = $history->orderBy('outlet_cash.confirm_at', 'desc')->get()->toArray();
+
+        $resProjection = [];
+        foreach ($projection as $value){
+            $resProjection[] = [
+                'id_transaction' => $value['id_transaction'],
+                'time' => date('H:i', strtotime($value['updated_at'])),
+                'hair_stylist_name' => $value['fullname'],
+                'receipt_number' => $value['transaction_receipt_number'],
+                'amount' => $value['transaction_grandtotal']
+            ];
+        }
+
+        $totalProjection = array_sum(array_column($resProjection, 'amount'));
+        $totalAcceptance = array_sum(array_column($history, 'amount'));
+        $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
+
+        $spvProjection = Transaction::join('transaction_payment_cash', 'transaction_payment_cash.id_transaction', 'transactions.id_transaction')
+            ->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_payment_cash.cash_received_by')
+            ->whereDate('transactions.transaction_date', $date)
+            ->where('transaction_payment_status', 'Completed')
+            ->where('cash_received_by', $user->id_user_hair_stylist)->sum('cash_nominal');
+
+        $spvAcceptance = OutletCash::where('outlet_cash.id_outlet', $user->id_outlet)
+                        ->where('id_user_hair_stylist', $user->id_user_hair_stylist)
+                        ->where('outlet_cash_type', 'Transfer To Supervisor')
+                        ->where('outlet_cash_status', 'Confirm')
+                        ->whereDate('outlet_cash.created_at', $date)->sum('outlet_cash_amount');
+
+        $result = [
+            'total_current_cash_outlet' => $outlet['total_current_cash'],
+            'total_projection' => $totalProjection,
+            'total_reception' => $totalAcceptance,
+            'currency' => $currency,
+            'spv_cash_projection' => (int)$spvProjection,
+            'spv_cash_acceptance' => (int)$spvAcceptance,
+            'list_hair_stylist' => $listHS,
+            'projection' => $resProjection,
+            'acceptance' => $acceptance,
+            'history' => $history
+        ];
+        return ['status' => 'success', 'result' => $result];
+    }
+
+    public function acceptanceDetail(Request $request){
+        $user = $request->user();
+        $post = $request->json()->all();
+        if(empty($post['id_outlet_cash'])){
+            return ['status' => 'fail', 'messages' => ['ID can not be empty']];
+        }
+
+        $detail = OutletCash::join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'outlet_cash.id_user_hair_stylist')
+                    ->leftJoin('user_hair_stylist as confirm', 'confirm.id_user_hair_stylist', 'outlet_cash.confirm_by')
+                    ->where('id_outlet_cash', $post['id_outlet_cash'])
+                    ->select('outlet_cash.*', 'user_hair_stylist.fullname', 'user_hair_stylist.user_hair_stylist_code', 'confirm.fullname as confirm_by_name')->first();
+
+        if(empty($detail)){
+            return ['status' => 'fail', 'messages' => ['Data not found']];
+        }
+
+        if($user->id_outlet != $detail['id_outlet']){
+            return ['status' => 'fail', 'messages' => ['You are not available for this transaction']];
+        }
+
+        $listTransaction = OutletCash::join('transaction_payment_cash', 'transaction_payment_cash.id_outlet_cash', 'outlet_cash.id_outlet_cash')
+                            ->join('transactions', 'transactions.id_transaction', 'transaction_payment_cash.id_transaction')
+                            ->where('transaction_payment_cash.id_outlet_cash', $post['id_outlet_cash'])
+                            ->select('transactions.transaction_receipt_number', 'transaction_payment_cash.cash_nominal as amount')->get()->toArray();
+
+        $result = [
+            'id_outlet_cash' => $detail['id_outlet_cash'],
+            'date' => MyHelper::dateFormatInd($detail['created_at'], true, false),
+            'time' => date('H:i', strtotime($detail['created_at'])),
+            'hair_stylist_name' => $detail['fullname'],
+            'hair_stylist_code' => $detail['user_hair_stylist_code'],
+            'outlet_cash_code' => $detail['outlet_cash_code'],
+            'status' => $detail['outlet_cash_status'],
+            'amount' => $detail['outlet_cash_amount'],
+            'currency' => 'Rp',
+            'confirm_at' => (!empty($detail['confirm_at'])? MyHelper::dateFormatInd($detail['confirm_at'], true): null),
+            'confirm_by_name' => $detail['confirm_by_name'],
+            'list_transaction' => $listTransaction
+        ];
+
+        return ['status' => 'success', 'result' => $result];
+    }
+
+    public function acceptanceConfirm(Request $request){
+        $user = $request->user();
+        $post = $request->json()->all();
+        if(empty($post['id_outlet_cash'])){
+            return ['status' => 'fail', 'messages' => ['ID can not be empty']];
+        }
+
+        $detail = OutletCash::where('id_outlet_cash', $post['id_outlet_cash'])->first();
+
+        if(empty($detail)){
+            return ['status' => 'fail', 'messages' => ['Data not found']];
+        }
+
+        if($detail['transfer_status'] == 'Confirm'){
+            return ['status' => 'fail', 'messages' => ['This transaction already confirm']];
+        }
+
+        if($user->id_outlet != $detail['id_outlet']){
+            return ['status' => 'fail', 'messages' => ['You are not available for this transaction']];
+        }
+
+        $update = OutletCash::where('id_outlet_cash', $post['id_outlet_cash'])
+            ->update(['outlet_cash_status' => 'Confirm', 'confirm_at' => date('Y-m-d H:i:s'), 'confirm_by' => $user->id_user_hair_stylist]);
+        if($update){
+            $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
+            $update = Outlet::where('id_outlet', $user->id_outlet)->update(['total_current_cash' => $outlet['total_current_cash'] + $detail['outlet_cash_amount']]);
+        }
+
+        return MyHelper::checkUpdate($update);
+    }
+
+    public function cashOutletTransfer(Request $request){
+        $user = $request->user();
+        $post = $request->json()->all();
+
+        if(!empty($post['amount']) && !empty($post['attachment'])){
+            if(empty($post['attachment_extention'])){
+                return ['status' => 'fail', 'messages' => ['attachment extention can not be empty']];
+            }
+
+            $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
+            if($outlet['total_current_cash'] < $post['amount']){
+                return ['status' => 'fail', 'messages' => ['Outlet balance is not sufficient']];
+            }
+
+            $save = OutletCash::create([
+                'id_user_hair_stylist' => $user->id_user_hair_stylist,
+                'id_outlet' => $user->id_outlet,
+                'outlet_cash_type' => 'Transfer Supervisor To Central',
+                'outlet_cash_code' => 'TSPV-'.MyHelper::createrandom(4,'Angka').$user->id_user_hair_stylist.$user->id_outlet,
+                'outlet_cash_amount' => $post['amount'],
+                'outlet_cash_description' => $post['description']??null,
+                'outlet_cash_status' => 'Confirm',
+                'confirm_at' => date('Y-m-d H:i:s'),
+                'confirm_by' => $user->id_user_hair_stylist
+            ]);
+
+            if($save){
+                if(!empty($post['attachment'])){
+                    $upload = MyHelper::uploadFile($post['attachment'], 'files/transfer_to_central/', $post['attachment_extention'], date('YmdHis').'_'.$user->id_outlet);
+                    if (isset($upload['status']) && $upload['status'] == "success") {
+                        $fileName = $upload['path'];
+                        OutletCashattachment::create([
+                            'id_outlet_cash' => $save['id_outlet_cash'],
+                            'outlet_cash_attachment' => $fileName
+                        ]);
+                    }
+                }
+
+                $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
+                $save = Outlet::where('id_outlet', $user->id_outlet)->update(['total_current_cash' => $outlet['total_current_cash'] - $post['amount']]);
+            }
+
+            return MyHelper::checkUpdate($save);
+        }else{
+            return ['status' => 'fail', 'messages' => ['Transfer amount or attachment can not be empty']];
+        }
+    }
+
+    public function outletIncomeCreate(Request $request){
+        $user = $request->user();
+        $post = $request->json()->all();
+
+        if(!empty($post['amount']) && !empty($post['attachment'])){
+            if(empty($post['attachment_extention'])){
+                return ['status' => 'fail', 'messages' => ['attachment extention can not be empty']];
+            }
+
+            $save = OutletCash::create([
+                'id_user_hair_stylist' => $user->id_user_hair_stylist,
+                'id_outlet' => $user->id_outlet,
+                'outlet_cash_type' => 'Income From Central',
+                'outlet_cash_code' => 'TSPV-'.MyHelper::createrandom(4,'Angka').$user->id_user_hair_stylist.$user->id_outlet,
+                'outlet_cash_amount' => $post['amount'],
+                'outlet_cash_description' => $post['description']??null,
+                'outlet_cash_status' => 'Confirm',
+                'confirm_at' => date('Y-m-d H:i:s'),
+                'confirm_by' => $user->id_user_hair_stylist
+            ]);
+
+            if($save){
+                $upload = MyHelper::uploadFile($post['attachment'], 'files/transfer_to_central/', $post['attachment_extention'], date('YmdHis').'_'.$user->id_outlet);
+                if (isset($upload['status']) && $upload['status'] == "success") {
+                    $fileName = $upload['path'];
+                    OutletCashattachment::create([
+                        'id_outlet_cash' => $save['id_outlet_cash'],
+                        'outlet_cash_attachment' => $fileName
+                    ]);
+                }
+
+                $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
+                $save = Outlet::where('id_outlet', $user->id_outlet)->update(['total_cash_from_central' => $outlet['total_cash_from_central'] + $post['amount']]);
+            }
+
+            return MyHelper::checkUpdate($save);
+        }else{
+            return ['status' => 'fail', 'messages' => ['Transfer amount or attachment can not be empty']];
+        }
+    }
+
+    public function cashOutletHistory(Request $request){
+        $user = $request->user();
+        $post = $request->json()->all();
+        if(empty($post['month']) && empty($post['year'])){
+            return ['status' => 'fail', 'messages' => ['Month and Year can not be empty']];
+        }
+
+        $list = OutletCash::where('id_outlet', $user->id_outlet)
+                ->whereYear('created_at', '=', $post['year'])
+                ->whereMonth('created_at', '=', $post['month'])
+                ->whereIn('outlet_cash_type', ['Transfer Supervisor To Central', 'Income From Central'])
+                ->orderBy('updated_at', 'desc')
+                ->get()->toArray();
+
+        $res = [];
+        foreach ($list as $value){
+            $type = strtok($value['outlet_cash_type'], " ");
+            $att = OutletCashattachment::where('id_outlet_cash', $value['id_outlet_cash'])->pluck('outlet_cash_attachment')->toArray();
+            $res[] = [
+                'id_outlet_cash' => $value['id_outlet_cash'],
+                'id_user_hair_stylist' => $value['id_user_hair_stylist'],
+                'outlet_cash_type' => ($type == 'Income' ? 'Kas Outlet' : 'Transfer'),
+                'outlet_cash_amount' => $value['outlet_cash_amount'],
+                'outlet_cash_description' => $value['outlet_cash_description'],
+                'date' => MyHelper::dateFormatInd($value['created_at'], true, false),
+                'outlet_cash_attachment' => $att
+            ];
+        }
+
+        $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
+
+        $result = [
+            'info' => [
+                'total_current_cash_outlet' => $outlet['total_current_cash'],
+                'total_cash_from_central' => $outlet['total_cash_from_central'],
+                'va_number' => ''
+            ],
+            'data' => $res
+        ];
+        return ['status' => 'success', 'result' => $result];
+    }
+
+    public function expenseOutletCreate(Request $request){
+        $user = $request->user();
+        $post = $request->all();
+
+        if(!empty($post['amount']) && !empty($post['total_attachment'])){
+            if($post['total_attachment'] > 3){
+                return ['status' => 'fail', 'messages' => ['You can upload maximum 3 file']];
+            }
+            $files = [];
+            for($i=1;$i<=$post['total_attachment'];$i++){
+                if(!empty($request->file('attachment_'.$i))){
+                    $encode = base64_encode(fread(fopen($request->file('attachment_'.$i), "r"), filesize($request->file('attachment_'.$i))));
+                    $ext = pathinfo($request->file('attachment_'.$i)->getClientOriginalName(), PATHINFO_EXTENSION);
+                    $upload = MyHelper::uploadFile($encode, 'files/outlet_expense/',$ext, date('YmdHis').'_'.$user->id_outlet);
+                    if (isset($upload['status']) && $upload['status'] == "success") {
+                        $files[] = $upload['path'];
+                    }
+                }
+            }
+
+            $save = OutletCash::create([
+                'id_user_hair_stylist' => $user->id_user_hair_stylist,
+                'id_outlet' => $user->id_outlet,
+                'outlet_cash_type' => 'Expense Outlet',
+                'outlet_cash_code' => 'TSPV-'.MyHelper::createrandom(4,'Angka').$user->id_user_hair_stylist.$user->id_outlet,
+                'outlet_cash_amount' => $post['amount'],
+                'outlet_cash_description' => $post['description']??null,
+                'outlet_cash_status' => 'Confirm',
+                'confirm_at' => date('Y-m-d H:i:s'),
+                'confirm_by' => $user->id_user_hair_stylist
+            ]);
+
+            if($save){
+                $insertattachment = [];
+                foreach ($files??[] as $file){
+                    $insertattachment[] = [
+                        'id_outlet_cash' => $save['id_outlet_cash'],
+                        'outlet_cash_attachment' => $file,
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s')
+                    ];
+                }
+
+                if(!empty($insertattachment)){
+                    OutletCashattachment::insert($insertattachment);
+                }
+
+                $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
+                $save = Outlet::where('id_outlet', $user->id_outlet)->update(['total_cash_from_central' => $outlet['total_cash_from_central'] - $post['amount']]);
+            }
+
+            return MyHelper::checkUpdate($save);
+        }else{
+            return ['status' => 'fail', 'messages' => ['Transfer amount or attachment can not be empty']];
+        }
+    }
+
+    public function expenseOutletHistory(Request $request){
+        $user = $request->user();
+        $post = $request->json()->all();
+        if(empty($post['month']) && empty($post['year'])){
+            return ['status' => 'fail', 'messages' => ['Month and Year can not be empty']];
+        }
+
+        $list = OutletCash::where('id_outlet', $user->id_outlet)
+            ->whereYear('created_at', '=', $post['year'])
+            ->whereMonth('created_at', '=', $post['month'])
+            ->whereIn('outlet_cash_type', ['Expense Outlet'])
+            ->orderBy('updated_at', 'desc')
+            ->get()->toArray();
+
+        $res = [];
+        foreach ($list as $value){
+            $att = OutletCashattachment::where('id_outlet_cash', $value['id_outlet_cash'])->pluck('outlet_cash_attachment')->toArray();
+            $res[] = [
+                'id_outlet_cash' => $value['id_outlet_cash'],
+                'id_user_hair_stylist' => $value['id_user_hair_stylist'],
+                'outlet_cash_amount' => $value['outlet_cash_amount'],
+                'outlet_cash_description' => $value['outlet_cash_description'],
+                'date' => MyHelper::dateFormatInd($value['created_at'], true, false),
+                'outlet_cash_attachment' => $att
+            ];
+        }
+
+        $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
+        $totalExpense = array_column($res, 'outlet_cash_amount');
+        $result = [
+            'total_cash_from_central' => $outlet['total_cash_from_central'],
+            'total_expense' => array_sum($totalExpense),
+            'data' => $res
+        ];
+        return ['status' => 'success', 'result' => $result];
     }
 }

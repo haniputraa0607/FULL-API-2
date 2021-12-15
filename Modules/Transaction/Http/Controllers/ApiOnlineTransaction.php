@@ -3322,7 +3322,10 @@ class ApiOnlineTransaction extends Controller
     }
     public function cancelTransaction(Request $request)
     {
-        if ($request->id) {
+        if (stristr($request->receipt_number, "INS")) {
+            $installment = app('Modules\Transaction\Http\Controllers\ApiTransactionAcademy')->cancelTransaction($request);
+            return $installment;
+        }elseif ($request->id) {
             $trx = Transaction::where(['id_transaction' => $request->id, 'id_user' => $request->user()->id])->where('transaction_payment_status', '<>', 'Completed')->first();
         } else {
             $trx = Transaction::where(['transaction_receipt_number' => $request->receipt_number, 'id_user' => $request->user()->id])->where('transaction_payment_status', '<>', 'Completed')->first();
@@ -3371,7 +3374,7 @@ class ApiOnlineTransaction extends Controller
         $availablePayment = config('payment_method');
 
         $setting  = json_decode(MyHelper::setting('active_payment_methods', 'value_text', '[]'), true) ?? [];
-        $payments = [];
+       $payments = [];
 
         $config = [
             'credit_card_payment_gateway' => MyHelper::setting('credit_card_payment_gateway', 'value', 'Ipay88'),
@@ -3407,13 +3410,14 @@ class ApiOnlineTransaction extends Controller
                 }
             }
             $payments[] = [
-                'code'            => $value['code'] ?? '',
-                'payment_gateway' => $payment['payment_gateway'] ?? '',
-                'payment_method'  => $payment['payment_method'] ?? '',
-                'logo'            => $payment['logo'] ?? '',
-                'text'            => $payment['text'] ?? '',
-                'description'     => $value['description'] ?? '',
-                'status'          => (int) $value['status'] ? 1 : 0
+                'code'                          => $value['code'] ?? '',
+                'payment_gateway'               => $payment['payment_gateway'] ?? '',
+                'payment_method'                => $payment['payment_method'] ?? '',
+                'logo'                          => $payment['logo'] ?? '',
+                'text'                          => $payment['text'] ?? '',
+                'id_chart_of_account'           => $value['id_chart_of_account'] ?? '',
+                'description'                   => $value['description'] ?? '',
+                'status'                        => (int) $value['status'] ? 1 : 0
             ];
             unset($availablePayment[$value['code']]);
         }
@@ -3433,6 +3437,7 @@ class ApiOnlineTransaction extends Controller
                     'payment_method'  => $payment['payment_method'] ?? '',
                     'logo'            => $payment['logo'] ?? '',
                     'text'            => $payment['text'] ?? '',
+                    'id_chart_of_account'            => $payment['id_chart_of_account'] ?? '',
                     'description'     => $payment['description'] ?? '',
                     'status'          => $status
                 ];
@@ -3462,6 +3467,7 @@ class ApiOnlineTransaction extends Controller
                 'code'     => $value['code'],
                 'status'   => $value['status'] ?? 0,
                 'position' => $key + 1,
+                'id_chart_of_account'=>$value['id_chart_of_account']
             ];
         }
         $update = Setting::updateOrCreate(['key' => 'active_payment_methods'], ['value_text' => json_encode($payments)]);

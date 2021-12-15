@@ -110,7 +110,10 @@ class Transaction extends Model
 		'failed_void_reason',
 		'shipment_method',
 		'shipment_courier',
-        'scope'
+        'scope',
+        'reject_at',
+        'reject_type',
+        'reject_reason'
 	];
 
 	public $manual_refund = 0;
@@ -338,6 +341,11 @@ class Transaction extends Model
     	return $this->hasMany(TransactionProduct::class, 'id_transaction', 'id_transaction');
 	}
 
+	public function hairstylist_not_available()
+	{
+		return $this->hasMany(\Modules\Transaction\Entities\HairstylistNotAvailable::class, 'id_transaction');
+	}
+
     /**
      * Called when payment completed
      * @return [type] [description]
@@ -360,19 +368,19 @@ class Transaction extends Model
     	// trigger payment complete -> service
     	switch ($this->transaction_from) {
     		case 'outlet-service':
-    			$this->transaction_outlet_service->triggerPaymentCompleted();
+    			$this->transaction_outlet_service->triggerPaymentCompleted($data);
     			break;
 
     		case 'home-service':
-    			$this->transaction_home_service->triggerPaymentCompleted();
+    			$this->transaction_home_service->triggerPaymentCompleted($data);
     			break;
 
     		case 'shop':
-    			$this->transaction_shop->triggerPaymentCompleted();
+    			$this->transaction_shop->triggerPaymentCompleted($data);
     			break;
 
     		case 'academy':
-    			$this->transaction_academy->triggerPaymentCompleted();
+    			$this->transaction_academy->triggerPaymentCompleted($data);
     			if ($this->transaction_academy->amount_not_completed == 0) {
 			    	$this->update([
 			    		'transaction_payment_status' => 'Completed', 
@@ -471,19 +479,77 @@ class Transaction extends Model
     	// trigger payment cancelled -> service
     	switch ($this->transaction_from) {
     		case 'outlet-service':
-    			$this->transaction_outlet_service->triggerPaymentCancelled();
+    			$this->transaction_outlet_service->triggerPaymentCancelled($data);
     			break;
 
     		case 'home-service':
-    			$this->transaction_home_service->triggerPaymentCancelled();
+    			$this->transaction_home_service->triggerPaymentCancelled($data);
     			break;
 
     		case 'shop':
-    			$this->transaction_shop->triggerPaymentCancelled();
+    			$this->transaction_shop->triggerPaymentCancelled($data);
     			break;
 
     		case 'academy':
-    			$this->transaction_academy->triggerPaymentCancelled();
+    			$this->transaction_academy->triggerPaymentCancelled($data);
+    			break;
+    	}
+
+    	// send notification
+    	// TODO write notification logic here
+
+    	\DB::commit();
+    	return true;
+    }
+
+    public function triggerReject($data = [])
+    {
+    	\DB::beginTransaction();
+
+    	if ($this->reject_at) {
+    		return true;
+    	}
+
+    	$this->update([
+    		'reject_at' => date('Y-m-d H:i:s'),
+    		'reject_reason' => $data['reject_reason'] ?? null
+    	]);
+
+    	$refundPayment = app('\Modules\OutletApp\Http\Controllers\ApiOutletApp')->refundPayment($this);
+    	if (empty($refundPayment['status']) || $refundPayment['status'] != 'success') {
+        	\DB::rollBack();
+        	return false;
+        }	
+
+    	// restore promo status
+        if ($this->id_promo_campaign_promo_code) {
+	        // delete promo campaign report
+        	$update_promo_report = app('\Modules\PromoCampaign\Http\Controllers\ApiPromoCampaign')->deleteReport($this->id_transaction, $this->id_promo_campaign_promo_code);
+        	if (!$update_promo_report) {
+            	\DB::rollBack();
+            	return false;
+            }	
+        }
+
+        // return voucher
+        $update_voucher = app('\Modules\Deals\Http\Controllers\ApiDealsVoucher')->returnVoucher($this->id_transaction);
+
+        // return subscription
+        $update_subscription = app('\Modules\Subscription\Http\Controllers\ApiSubscriptionVoucher')->returnSubscription($this->id_transaction);
+
+        // trigger reject -> service
+    	switch ($this->transaction_from) {
+    		case 'outlet-service':
+    			$this->transaction_outlet_service->triggerRejectOutletService($data);
+    			break;
+
+    		case 'home-service':
+    			break;
+
+    		case 'shop':
+    			break;
+
+    		case 'academy':
     			break;
     	}
 

@@ -172,5 +172,66 @@ class ApiHairStylistGroupController extends Controller
         }
         return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
     }
-
+    public function commission(Request $request) {
+        $post = $request->json()->all();
+        $data = HairstylistGroupCommission::where(array('id_hairstylist_group'=>$request->id_hairstylist_group))->join('products','products.id_product','hairstylist_group_commissions.id_product')->select('id_hairstylist_group_commission','product_name','product_code','commission_percent','id_hairstylist_group','percent');
+        if ($request->json('rule')){
+             $this->filterListCommission($data,$request->json('rule'),$request->json('operator')??'and');
+        }
+        $data = $data->paginate(10);
+        return response()->json(MyHelper::checkGet($data));
+    }
+    public function filterListCommission($query,$rules,$operator='and'){
+        $newRule=[];
+        foreach ($rules as $var) {
+            $rule=[$var['operator']??'=',$var['parameter']];
+            if($rule[0]=='like'){
+                $rule[1]='%'.$rule[1].'%';
+            }
+            $newRule[$var['subject']][]=$rule;
+        }
+        $where=$operator=='and'?'where':'orWhere';
+        $subjects=['product_name'];
+         $i = 1;
+        foreach ($subjects as $subject) {
+            if($rules2=$newRule[$subject]??false){
+                foreach ($rules2 as $rule) {
+                    if($i<=1){
+                    $query->where($subject,$rule[0],$rule[1]);
+                    }else{
+                    $query->$where($subject,$rule[0],$rule[1]);    
+                    }
+                    $i++;
+                }
+            }
+        }
+    }
+    public function list_hs(Request $request) {
+         $post = $request->json()->all();
+        if(isset($post['operator'])&&isset($post['value'])){ 
+            $operator = '=';
+        if($post['operator']=='like'){
+            $operator = 'like"';
+        }
+        if($post['value']!=''){
+            if($operator=='='){
+             $data =  UserHairStylist::where(array('id_hairstylist_group'=>$post['id_hairstylist_group']))
+                ->join('outlets','outlets.id_outlet','user_hair_stylist.id_outlet')
+                ->where('fullname',$post['value'])
+                ->paginate(10);
+            }else{
+                 $data =  UserHairStylist::where(array('id_hairstylist_group'=>$post['id_hairstylist_group']))
+                ->join('outlets','outlets.id_outlet','user_hair_stylist.id_outlet')
+                ->where('fullname','like','%'.$post['value'].'%')
+                ->paginate(10);
+            }
+        }
+        }else{
+            $data =  UserHairStylist::where(array('id_hairstylist_group'=>$post['id_hairstylist_group']))
+                ->join('outlets','outlets.id_outlet','user_hair_stylist.id_outlet')
+                ->paginate(10);
+        }
+        return response()->json(MyHelper::checkGet($data));
+    }
+    
 }

@@ -14,7 +14,7 @@ class UpdateGroupCommission extends FormRequest
         return [
             'id_hairstylist_group'        => 'required',
             'id_product'                  => 'required|unik',
-            'commission_percent'          => 'required',
+            'commission_percent'          => 'required|cek',
            ]; 
     }
     public function withValidator($validator)
@@ -26,6 +26,18 @@ class UpdateGroupCommission extends FormRequest
              return true;
          } return false;
         }); 
+        $validator->addExtension('cek', function ($attribute, $value, $parameters, $validator) {
+         $request = $validator->getData();
+         if($request['percent']=='on'){
+             if((int)$value>=1&&(int)$value<=99 ){
+                 return true;
+             }else{
+                 return false;
+             }
+         }else{
+                 return true;
+         }
+        }); 
 
     }
     public function messages()
@@ -33,6 +45,7 @@ class UpdateGroupCommission extends FormRequest
         return [
             'required' => ':attribute harus diisi',
             'unique' => 'Data tidak ada',
+            'cek' => 'Percent maksimal minimal 1% maksimal 99%. Nominal'
         ];
     }
     public function authorize()

@@ -37,15 +37,15 @@ class ChangeColumnProductIcountTable extends Migration
     public function down()
     {
         Schema::table('product_icounts', function (Blueprint $table) {
-            $table->double('buy_price_1',10,4)->change();
-            $table->double('buy_price_2',10,4)->change();
-            $table->double('buy_price_3',10,4)->change();
-            $table->double('unit_price_1',10,4)->change();
-            $table->double('unit_price_2',10,4)->change();
-            $table->double('unit_price_3',10,4)->change();
-            $table->double('unit_price_4',10,4)->change();
-            $table->double('unit_price_5',10,4)->change();
-            $table->double('unit_price_6',10,4)->change();
+            $table->decimal('buy_price_1',10,4)->change();
+            $table->decimal('buy_price_2',10,4)->change();
+            $table->decimal('buy_price_3',10,4)->change();
+            $table->decimal('unit_price_1',10,4)->change();
+            $table->decimal('unit_price_2',10,4)->change();
+            $table->decimal('unit_price_3',10,4)->change();
+            $table->decimal('unit_price_4',10,4)->change();
+            $table->decimal('unit_price_5',10,4)->change();
+            $table->decimal('unit_price_6',10,4)->change();
         });
     }
 }

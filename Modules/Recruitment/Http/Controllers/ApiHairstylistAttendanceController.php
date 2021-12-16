@@ -38,40 +38,21 @@ class ApiHairstylistAttendanceController extends Controller
             ];
         }
 
-        $attendance = $hairstylist->attendances()->where('attendance_date', date('Y-m-d'))->first();
-        if (!$attendance) {
-            $attendance = $hairstylist->attendances()->create([
-                'id_hairstylist_schedule_date' => $hairstylist->hairstylist_schedules()
-                    ->join('hairstylist_schedule_dates', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
-                    ->whereNotNull('approve_at')
-                    ->where([
-                        'schedule_month' => date('m'),
-                        'schedule_year' => date('y')
-                    ])
-                    ->whereDate('date', date('Y-m-d'))
-                    ->orderBy('is_overtime')
-                    ->first()
-                    ->id_hairstylist_schedule_date,
-                'attendance_date' => date('Y-m-d'),
-                'id_user_hair_stylist' => $hairstylist->id_user_hair_stylist,
-                'clock_in_requirement' => $todaySchedule->clock_in_requirement,
-                'clock_out_requirement' => $todaySchedule->clock_out_requirement,
-                'clock_in_tolerance' => MyHelper::setting('clock_in_tolerance', 'value', 15),
-                'clock_out_tolerance' => MyHelper::setting('clock_in_tolerance', 'value', 0),
-            ]);
-        }
+        $attendance = $hairstylist->getAttendanceByDate($todaySchedule);
 
         $logs = [];
-        if ($attendance->clock_in) {
+        $clock_in = $attendance->clock_in ?: $attendance->logs()->where('type', 'clock_in')->where('status', '<>', 'Rejected')->min('datetime');
+        $clock_out = $attendance->clock_out ?: $attendance->logs()->where('type', 'clock_out')->where('status', '<>', 'Rejected')->max('datetime');
+        if ($clock_in) {
             $logs[] = [
                 'name' => 'Clock In',
-                'value' => MyHelper::adjustTimezone($attendance->clock_in, null, 'H:i', true),
+                'value' => MyHelper::adjustTimezone($clock_in, null, 'H:i', true),
             ];
         }
-        if ($attendance->clock_out) {
+        if ($clock_out) {
             $logs[] = [
                 'name' => 'Clock Out',
-                'value' => MyHelper::adjustTimezone($attendance->clock_out, null, 'H:i', true),
+                'value' => MyHelper::adjustTimezone($clock_out, null, 'H:i', true),
             ];
         }
 
@@ -84,6 +65,57 @@ class ApiHairstylistAttendanceController extends Controller
     }
 
     /**
+     * Clock in / Clock Out
+     * @return [type] [description]
+     */
+    public function storeLiveAttendance(Request $request)
+    {
+        $request->validate([
+            'type' => 'string|required|in:clock_in,clock_out',
+            'latitude' => 'required|numeric',
+            'longitude' => 'required|numeric',
+            'location_name' => 'string',
+            'photo' => 'string|required',
+        ]);
+        $hairstylist = $request->user();
+        $outlet = $hairstylist->outlet;
+        $attendance = $hairstylist->getAttendanceByDate(date('Y-m-d'));
+
+        $maximumRadius = MyHelper::setting('hairstylist_attendance_max_radius', 'value', 50);
+        $distance = MyHelper::getDistance($request->latitude, $request->longitude, $outlet->outlet_latitude, $outlet->outlet_longitude);
+        $outsideRadius = $distance > $maximumRadius;
+
+        if ($outsideRadius && !$request->radius_confirmation) {
+            return MyHelper::checkGet([
+                'need_confirmation' => true,
+                'message' => 'Waktu Jam Masuk/Keluar Anda akan diproses sebagai permintaan kehadiran dan memerlukan persetujuan dari atasan Anda.',
+            ]);
+        }
+
+        $photoPath = null;
+        $upload = MyHelper::uploadPhoto($request->photo, 'upload/attendances/');
+        if ($upload['status'] == 'success') {
+            $photoPath = $upload['path'];
+        }
+
+        $attendance->storeClock([
+            'type' => $request->type,
+            'datetime' => date('Y-m-d H:i:s'),
+            'latitude' => $request->latitude,
+            'longitude' => $request->longitude,
+            'location_name' => $request->location_name,
+            'photo_path' => $photoPath,
+            'status' => $outsideRadius ? 'Pending' : '',
+            'approved_by' => null,
+        ]);
+
+        return MyHelper::checkGet([
+            'need_confirmation' => false,
+            'message' => 'Berhasil',
+        ]);
+    }
+
+    /**
      * Menampilkan riwayat attendance & attendance requirement
      * @param  Request $request [description]
      * @return [type]           [description]
@@ -93,12 +125,4 @@ class ApiHairstylistAttendanceController extends Controller
         // code...
     }
 
-    /**
-     * Clock in / Clock Out
-     * @return [type] [description]
-     */
-    public function storeLiveAttendance()
-    {
-        // code...
-    }
 }

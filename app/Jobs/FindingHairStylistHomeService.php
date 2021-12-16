@@ -47,7 +47,8 @@ class FindingHairStylistHomeService implements ShouldQueue
     public function handle()
     {
         $data = $this->data;
-        $arrHS = TransactionHomeServiceHairStylistFinding::where('id_transaction', $data['id_transaction'])->pluck('id_user_hair_stylist')->toArray();
+        $arrHS = TransactionHomeServiceHairStylistFinding::where('status', 'Pending')
+                ->where('id_transaction', $data['id_transaction'])->pluck('id_user_hair_stylist')->toArray();
         $trx = Transaction::where('id_transaction', $data['id_transaction'])->with('user')->first();
 
         if($trx['transaction_payment_status'] == 'Completed'){
@@ -62,7 +63,6 @@ class FindingHairStylistHomeService implements ShouldQueue
                 $updateStatus = TransactionHomeServiceStatusUpdate::create(['id_transaction' => $data['id_transaction'],'status' => 'Finding Hair Stylist']);
             }
 
-            $hsReject = TransactionHomeServiceHairStylistFinding::where('id_transaction', $data['id_transaction'])->where('status', 'Reject')->pluck('id_user_hair_stylist')->toArray();
             if($trxHomeService['preference_hair_stylist'] == 'Favorite'){
                 $getHs = $arrHS[0]??null;
             }else{
@@ -114,11 +114,8 @@ class FindingHairStylistHomeService implements ShouldQueue
                     }
 
                     if(empty($err)){
-                        $check = array_search($idHs,$hsReject);
-                        if($check === false){
-                            $getHs = $idHs;
-                            break;
-                        }
+                        $getHs = $idHs;
+                        break;
                     }
                 }
             }
@@ -170,7 +167,7 @@ class FindingHairStylistHomeService implements ShouldQueue
                         ]
                     );
 
-                    TransactionHomeService::where('id_transaction_home_service', $data['id_transaction_home_service'])->update([
+                    TransactionHomeService::where('id_transaction_home_service', $trxHomeService['id_transaction_home_service'])->update([
                         'id_user_hair_stylist' => null,
                         'status' => 'Cancelled'
                     ]);

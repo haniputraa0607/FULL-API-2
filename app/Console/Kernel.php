@@ -213,6 +213,12 @@ class Kernel extends ConsoleKernel
          */
         $schedule->call('Modules\Transaction\Http\Controllers\ApiTransaction@CronICountPOO')->dailyAt('00:05');
 
+        /**
+         * Cancel pending hair stylist for home service
+         * run every 15 minute
+         */
+        $schedule->call('Modules\Transaction\Http\Controllers\ApiTransactionHomeService@cronCancelHairStylist')->cron('*/15 * * * *');
+
     }
 
     /**

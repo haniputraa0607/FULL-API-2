@@ -122,7 +122,50 @@ class ApiHairstylistAttendanceController extends Controller
      */
     public function histories(Request $request)
     {
-        // code...
+        $request->validate([
+            'month' => 'numeric|min:1|max:12|required',
+            'year' => 'numeric|min:2020|max:3000',
+        ]);
+        $hairstylist = $request->user();
+        $scheduleMonth = $hairstylist->hairstylist_schedules()
+            ->where('schedule_year', $request->year)
+            ->where('schedule_month', $request->month)
+            ->first();
+        // $schedules = $scheduleMonth->hairstylist_schedule_dates()->leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_attendance', 'hairstylist_schedule_dates.id_hairstylist_attendance')->orderBy('is_overtime')->get();
+        $schedules = $scheduleMonth->hairstylist_schedule_dates()
+            ->leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+            ->get();
+        $numOfDays = cal_days_in_month(CAL_GREGORIAN, $request->month, $request->year);
+
+        $histories = [];
+        for ($i = 1; $i <= $numOfDays; $i++) { 
+            $date = "{$request->year}-{$request->month}-$i";
+            $histories[$i] = [
+                'date' => MyHelper::adjustTimezone($date, null, 'd M', true),
+                'clock_in' => null,
+                'clock_out' => null,
+                'is_holiday' => true,
+                'breakdown' => [],
+            ];
+        }
+
+        foreach ($schedules as $schedule) {
+            $history = &$histories[(int)date('d', strtotime($schedule->date))];
+            $history['clock_in'] = $schedule->clock_in ? MyHelper::adjustTimezone($schedule->clock_in, null, 'H:i') : null;
+            $history['clock_out'] = $schedule->clock_out ? MyHelper::adjustTimezone($schedule->clock_out, null, 'H:i') : null;
+            $history['is_holiday'] = false;
+            if ($schedule->is_overtime) {
+                $history['breakdown'][] = [
+                    'name' => 'Lembur',
+                    'time_start' => MyHelper::adjustTimezone($schedule->time_start, null, 'H:i'),
+                    'time_end' => MyHelper::adjustTimezone($schedule->time_end, null, 'H:i'),
+                ];
+            }
+        }
+
+        return MyHelper::checkGet([
+            'histories' => array_values($histories)
+        ]);
     }
 
 }

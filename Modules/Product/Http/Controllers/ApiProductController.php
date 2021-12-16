@@ -929,7 +929,7 @@ class ApiProductController extends Controller
      */
     function listProduct(Request $request) {
         $post = $request->json()->all();
-
+        
 		if (isset($post['id_outlet'])) {
             $product = Product::join('product_detail','product_detail.id_product','=','products.id_product')
                                 ->leftJoin('product_special_price','product_special_price.id_product','=','products.id_product')
@@ -1031,7 +1031,6 @@ class ApiProductController extends Controller
         }
 
         $product = $product->toArray();
-
         return response()->json(MyHelper::checkGet($product));
     }
 
@@ -3096,6 +3095,7 @@ class ApiProductController extends Controller
     public function syncIcount(){
         $icount = new Icount();
         $data = $icount->ItemList();
+        return $data;
         if(isset($data)){
             if($data['response']['Message']=='Success'){
                 $items = $data['response']['Data'];
@@ -3148,13 +3148,19 @@ class ApiProductController extends Controller
                 }
                 if (isset($item['BrandID']) && !empty($item['BrandID'])) {
                     $data[$key]['id_brand'] = $item['BrandID'];
-                }
+                }else{
+                    $data[$key]['id_brand'] = null;
+                }  
                 if (isset($item['CategoryID']) && !empty($item['CategoryID'])) {
                     $data[$key]['id_category'] = $item['CategoryID'];
-                }
+                }else{
+                    $data[$key]['id_category'] = null;
+                }  
                 if (isset($item['SubCategoryID']) && !empty($item['SubCategoryID'])) {
                     $data[$key]['id_sub_category'] = $item['SubCategoryID'];
-                }
+                }else{
+                    $data[$key]['id_sub_category'] = null;
+                }  
                 if (isset($item['GroupItem'])) {
                     $data[$key]['item_group'] = $item['GroupItem'];
                 }
@@ -3230,17 +3236,17 @@ class ApiProductController extends Controller
                 }else{
                     $data[$key]['notes'] = null;
                 }  
-                if (isset($item['IsSuspended']) && !empty($item['IsSuspended'])) {
+                if (isset($item['IsSuspended'])) {
                     $data[$key]['is_suspended'] = $item['IsSuspended'];
                 }else{
                     $data[$key]['is_suspended'] = null;
                 }  
-                if (isset($item['IsSellable']) && !empty($item['IsSellable'])) {
+                if (isset($item['IsSellable'])) {
                     $data[$key]['is_sellable'] = $item['IsSellable'];
                 }else{
                     $data[$key]['is_sellable'] = null;
                 }  
-                if (isset($item['IsBuyable']) && !empty($item['IsBuyable'])) {
+                if (isset($item['IsBuyable'])) {
                     $data[$key]['is_buyable'] = $item['IsBuyable'];
                 }else{
                     $data[$key]['is_buyable'] = null;
@@ -3260,7 +3266,7 @@ class ApiProductController extends Controller
                 }else{
                     $data[$key]['id_sales'] = null;
                 }  
-                if (isset($item['IsDeleted']) && !empty($item['IsDeleted'])) {
+                if (isset($item['IsDeleted'])) {
                     $data[$key]['id_deleted'] = $item['IsDeleted'];
                 }else{
                     $data[$key]['id_deleted'] = null;

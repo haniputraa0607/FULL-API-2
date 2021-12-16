@@ -29,7 +29,7 @@ use Modules\UserRating\Entities\UserRatingSummary;
 use App\Http\Models\Transaction;
 
 use Modules\Recruitment\Http\Requests\ScheduleCreateRequest;
-use Modules\Recruitment\Entities\OutletCashattachment;
+use Modules\Recruitment\Entities\OutletCashAttachment;
 
 use App\Lib\MyHelper;
 use DB;
@@ -1072,7 +1072,7 @@ class ApiMitra extends Controller
                     $upload = MyHelper::uploadFile($post['attachment'], 'files/transfer_to_central/', $post['attachment_extention'], date('YmdHis').'_'.$user->id_outlet);
                     if (isset($upload['status']) && $upload['status'] == "success") {
                         $fileName = $upload['path'];
-                        OutletCashattachment::create([
+                        OutletCashAttachment::create([
                             'id_outlet_cash' => $save['id_outlet_cash'],
                             'outlet_cash_attachment' => $fileName
                         ]);
@@ -1114,7 +1114,7 @@ class ApiMitra extends Controller
                 $upload = MyHelper::uploadFile($post['attachment'], 'files/transfer_to_central/', $post['attachment_extention'], date('YmdHis').'_'.$user->id_outlet);
                 if (isset($upload['status']) && $upload['status'] == "success") {
                     $fileName = $upload['path'];
-                    OutletCashattachment::create([
+                    OutletCashAttachment::create([
                         'id_outlet_cash' => $save['id_outlet_cash'],
                         'outlet_cash_attachment' => $fileName
                     ]);
@@ -1147,7 +1147,7 @@ class ApiMitra extends Controller
         $res = [];
         foreach ($list as $value){
             $type = strtok($value['outlet_cash_type'], " ");
-            $att = OutletCashattachment::where('id_outlet_cash', $value['id_outlet_cash'])->pluck('outlet_cash_attachment')->toArray();
+            $att = OutletCashAttachment::where('id_outlet_cash', $value['id_outlet_cash'])->pluck('outlet_cash_attachment')->toArray();
             $res[] = [
                 'id_outlet_cash' => $value['id_outlet_cash'],
                 'id_user_hair_stylist' => $value['id_user_hair_stylist'],
@@ -1216,7 +1216,7 @@ class ApiMitra extends Controller
                 }
 
                 if(!empty($insertattachment)){
-                    OutletCashattachment::insert($insertattachment);
+                    OutletCashAttachment::insert($insertattachment);
                 }
 
                 $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
@@ -1245,7 +1245,7 @@ class ApiMitra extends Controller
 
         $res = [];
         foreach ($list as $value){
-            $att = OutletCashattachment::where('id_outlet_cash', $value['id_outlet_cash'])->pluck('outlet_cash_attachment')->toArray();
+            $att = OutletCashAttachment::where('id_outlet_cash', $value['id_outlet_cash'])->pluck('outlet_cash_attachment')->toArray();
             $res[] = [
                 'id_outlet_cash' => $value['id_outlet_cash'],
                 'id_user_hair_stylist' => $value['id_user_hair_stylist'],

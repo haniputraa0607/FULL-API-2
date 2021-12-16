@@ -828,7 +828,7 @@ class ApiTransactionHomeService extends Controller
         DB::beginTransaction();
         $id=$request->user()->id;
         $transaction = [
-            'id_outlet'                   => $post['id_outlet'],
+            'id_outlet'                   => $outletHomeService,
             'id_user'                     => $id,
             'transaction_date'            => date('Y-m-d H:i:s'),
             'transaction_subtotal'        => $post['subtotal'],
@@ -1782,6 +1782,21 @@ class ApiTransactionHomeService extends Controller
                     }
                 }
             }
+        }
+
+        return true;
+    }
+
+    public function cronCancelHairStylist(){
+        $time = date('Y-m-d H:i:s',strtotime('-15 minutes'));
+
+        $getID = TransactionHomeService::where('updated_at', '<=', $time)
+            ->whereNotNull('id_user_hair_stylist')
+            ->where('status', 'Finding Hair Stylist')->get()->toArray();
+
+        foreach ($getID as $value){
+            TransactionHomeServiceHairStylistFinding::where('id_transaction', $value['id_transaction'])->where('id_user_hair_stylist', $value['id_user_hair_stylist'])->update(['status' => 'Reject']);
+            FindingHairStylistHomeService::dispatch(['id_transaction' => $value['id_transaction'], 'id_transaction_home_service' => $value['id_transaction_home_service']])->allOnConnection('findinghairstylistqueue');
         }
 
         return true;

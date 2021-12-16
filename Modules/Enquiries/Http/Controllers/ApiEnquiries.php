@@ -105,6 +105,18 @@ class ApiEnquiries extends Controller
 			$data['enquiry_device_token'] = null;
 		}
 
+        if (isset($post['enquiry_from'])) {
+            $data['enquiry_from'] = $post['enquiry_from'];
+        }else{
+            $data['enquiry_from'] = null;
+        }
+
+        if (isset($post['enquiry_category'])) {
+            $data['enquiry_category'] = $post['enquiry_category'];
+        }else{
+            $data['enquiry_category'] = null;
+        }
+
 		if (isset($post['enquiry_file'])) {
         	$dataUploadFile = [];
 
@@ -576,13 +588,16 @@ class ApiEnquiries extends Controller
         return $send;
     }
 
-	function listEnquirySubject(){
-		$list = Setting::where('key', 'enquiries_subject_list')->get()->first();
+	function listEnquirySubject(Request $request){
+        $post = $request->json()->all();
+		$list = (array)json_decode(Setting::where('key', 'enquiries_subject_list')->first()['value_text']??'');
 
-		$result = ['text' => $list['value'], 'value' => explode('| ' ,$list['value_text'])];
-		foreach ($result['value'] as $key => $value) {
-			$result['value'][$key] = explode('* ' ,$value);
-		}
+		if(empty($list)){
+            return response()->json(['status' => 'fail', 'messages' => ['Data not found']]);
+        }
+
+		$get = (array)$list[$post['enquiry_from']];
+        $result = (array)$get[$post['enquiry_category']];
 		return response()->json(MyHelper::checkGet($result));
 	}
 
@@ -599,6 +614,17 @@ class ApiEnquiries extends Controller
             unset($data['error']);
             return response()->json($data);
         }
+
+        $getCategory = Setting::where('key', 'category_contact_us')->first()['value_text']??"";
+        if(empty($getCategory)){
+            return response()->json(['status' => 'fail', 'messages' => ['Not']]);
+        }
+
+        $category = (array)json_decode($getCategory);
+        $parentCategory = (array)$category[$data['enquiry_from']];
+        $parentCategoryID = $parentCategory['id'];
+        $categoryId = (array)$parentCategory['child'];
+        $categoryId = $categoryId[$data['enquiry_category']];
 
         //get data user
         $user = User::where('id', $request->user()->id)->first();
@@ -617,6 +643,8 @@ class ApiEnquiries extends Controller
             $brand = null;
         }
 
+        $data['enquiry_category_id'] = $categoryId;
+        $data['enquiry_parent_category_id'] = $parentCategoryID;
         $save = Enquiry::create($data);
 
         if ($save) {
@@ -643,13 +671,11 @@ class ApiEnquiries extends Controller
                 'title' => $data['enquiry_subject'].' (send by :'.$data['enquiry_name'].')',
                 'guest_email' => $data['enquiry_email'],
                 'priority' => 1,
-                'catid' => 1,
-                'sub_catid' => 1,
+                'catid' => $parentCategoryID,
+                'sub_catid' => $categoryId,
                 'body' => $data['enquiry_content'],
                 'file_count' => $fileCount,
             ];
-
-
 
             foreach ($data['file']??[] as $key=>$file){
                 $dataSend['file_'.($key+1)] = $file;

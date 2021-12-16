@@ -131,6 +131,12 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
         Route::post('expense/outlet/history', 'ApiMitra@expenseOutletHistory');
 	});
 
+    Route::group(['middleware' => ['auth:mitra', 'scopes:mitra-apps'], 'prefix' => 'attendance'], function () {
+        Route::get('live','ApiHairstylistAttendanceController@liveAttendance');
+        Route::post('live','ApiHairstylistAttendanceController@storeLiveAttendance');
+        Route::any('histories','ApiHairstylistAttendanceController@histories');
+    });
+
     Route::group(['middleware' => ['auth:api'],'prefix' => 'request'], function () {
         Route::any('/', ['middleware'=>['feature_control:379','scopes:be'],'uses' => 'ApiRequestHairStylistController@index']);
         Route::any('/outlet', ['middleware'=>['feature_control:379','scopes:be'],'uses' => 'ApiRequestHairStylistController@listOutlet']);

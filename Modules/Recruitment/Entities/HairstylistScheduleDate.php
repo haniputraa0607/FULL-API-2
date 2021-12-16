@@ -39,7 +39,12 @@ class HairstylistScheduleDate extends Model
 		'date',
 		'shift',
 		'request_by',
-		'id_outlet_box'
+		'id_outlet_box',
+		'id_hairstylist_attendance',
+		'is_overtime',
+		'clock_in',
+		'clock_out',
+		'notes',
 	];
 
 	public function hairstylist_schedule()

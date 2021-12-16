@@ -21,7 +21,7 @@ class ApiHairstylistAttendanceController extends Controller
         $outlet->setHidden(['call', 'url']);
         // get current schedule
         $todaySchedule = $hairstylist->hairstylist_schedules()
-            ->selectRaw('date, min(clock_in) as clock_in_requirement, max(clock_out) as clock_out_requirement')
+            ->selectRaw('date, min(time_start) as clock_in_requirement, max(time_end) as clock_out_requirement')
             ->join('hairstylist_schedule_dates', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
             ->whereNotNull('approve_at')
             ->where([
@@ -29,7 +29,6 @@ class ApiHairstylistAttendanceController extends Controller
                 'schedule_year' => date('y')
             ])
             ->whereDate('date', date('Y-m-d'))
-            ->orderBy('clock_in')
             ->first();
         if (!$todaySchedule) {
             return [

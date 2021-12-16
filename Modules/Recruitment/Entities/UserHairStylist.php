@@ -108,7 +108,7 @@ class UserHairStylist extends Authenticatable
     {
         if (is_string($schedule)) {
             $schedule = $this->hairstylist_schedules()
-                ->selectRaw('id_hairstylist_attendance, date, min(clock_in) as clock_in_requirement, max(clock_out) as clock_out_requirement')
+                ->selectRaw('id_hairstylist_attendance, date, min(time_start) as clock_in_requirement, max(time_end) as clock_out_requirement')
                 ->join('hairstylist_schedule_dates', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
                 ->whereNotNull('approve_at')
                 ->where([
@@ -116,7 +116,6 @@ class UserHairStylist extends Authenticatable
                     'schedule_year' => date('y', strtotime($schedule))
                 ])
                 ->whereDate('date', $schedule)
-                ->orderBy('clock_in')
                 ->first();
             if (!$schedule) {
                 throw new \Exceptions('Tidak ada kehadiran dibutuhkan untuk hari ini');

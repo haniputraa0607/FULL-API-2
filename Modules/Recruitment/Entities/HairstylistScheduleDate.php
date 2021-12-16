@@ -42,8 +42,8 @@ class HairstylistScheduleDate extends Model
 		'id_outlet_box',
 		'id_hairstylist_attendance',
 		'is_overtime',
-		'clock_in',
-		'clock_out',
+		'time_start',
+		'time_end',
 		'notes',
 	];
 

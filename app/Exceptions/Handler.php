@@ -54,6 +54,12 @@ class Handler extends ExceptionHandler
         {
             return response()->json(['error' => 'Unauthenticated'], 403);
         }
+        if (request()->wantsJson()) {
+            return response()->json([
+                'status' => 'fail',
+                'messages' => [$exception->getMessage()]
+            ]);
+        }
         return parent::render($request, $exception);
     }
 

@@ -53,6 +53,8 @@ class Handler extends ExceptionHandler
         if ($exception instanceof \Laravel\Passport\Exceptions\MissingScopeException)
         {
             return response()->json(['error' => 'Unauthenticated'], 403);
+        } elseif ($exception instanceof \Illuminate\Auth\AuthenticationException) {
+            return response()->json(['error' => 'Unauthenticated.'], 401);
         }
         if (request()->wantsJson()) {
             return response()->json([

@@ -961,7 +961,6 @@ class ApiHome extends Controller
         if (!$featuredPromo) {
         	return MyHelper::checkGet($featuredPromo);
         }
-
         $featuredPromo = array_map(function($value) {
         	$used_code = PromoCampaignReport::where('id_promo_campaign',$value['id_promo_campaign'])->count();
             if ($value['promo_campaign']['total_coupon'] == "0") {

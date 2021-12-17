@@ -2478,7 +2478,7 @@ class ApiPromoCampaign extends Controller
         $device_type	= $request->device_type;
         $id_outlet		= $request->id_outlet;
 
-        $code=PromoCampaignPromoCode::where('promo_code',$request->promo_code)
+        $code = PromoCampaignPromoCode::where('promo_code',$request->promo_code)
                 ->join('promo_campaigns', 'promo_campaigns.id_promo_campaign', '=', 'promo_campaign_promo_codes.id_promo_campaign')
                 ->where('step_complete', '=', 1)
                 ->where( function($q){
@@ -3963,4 +3963,88 @@ class ApiPromoCampaign extends Controller
 
     	return MyHelper::checkGet($res);
     }
+    
+    public function onGoingPromoCampaign(Request $request){
+        $post = $request->all();
+        
+
+        $home_text = Setting::whereIn('key',['share_promo_code'])->get()->keyBy('key');
+        $text['share'] = $home_text['share_promo_code']['value'] ?? 'Bagikan %promo_code% ke teman-teman'; //dummy
+
+        $promo_campaign = PromoCampaign::select('id_promo_campaign', 'promo_title', 'promo_image', 'date_start', 'date_end', 'code_type', 'promo_description')
+                ->where('date_end','>=',DB::raw('CURRENT_TIMESTAMP()'))
+                ->where('date_start','<=',DB::raw('CURRENT_TIMESTAMP()'))
+                ->whereHas('brands',function($query){
+                    $query->where('brand_active',1);
+                })
+                ->OrderBy('id_promo_campaign', 'DESC');
+        
+        if(isset($post['page'])){
+            $promo_campaign = $promo_campaign->paginate($request->length ?: 10)->toArray();
+            $promo_map = $promo_campaign['data'];
+        }else{
+            $promo_campaign = $promo_campaign->get()->toArray();
+            $promo_map = $promo_campaign;
+        }
+
+        $promo_new = array_map(function($value)use($text){
+            $value['code'] = null;
+            $value['share_promo'] = null;
+            if($value['code_type'] == 'Single'){
+                $promo_code = PromoCampaignPromoCode::where('id_promo_campaign',$value['id_promo_campaign'])->select('promo_code')->first();
+                $value['code'] = $promo_code['promo_code'];
+                $value['share_promo'] = str_replace('%promo_code%',$value['code'],$text['share']);
+            }
+            return $value;
+        },$promo_map);
+
+        if(isset($post['page'])){
+            $promo_campaign['data'] = $promo_new;
+        }else{
+            $promo_campaign = $promo_new;
+        }
+
+        return [
+            'status' => 'success',
+            'result' => $promo_campaign
+        ];
+    }
+
+    public function detailOnGoingPromoCampaign(Request $request){
+        $post = $request->all();
+        if(isset($post['id_promo_campaign']) && !empty($post['id_promo_campaign'])){
+            $id_promo = $post['id_promo_campaign'];
+            $home_text = Setting::whereIn('key',['share_promo_code'])->get()->keyBy('key');
+            $text['share'] = $home_text['share_promo_code']['value'] ?? 'Bagikan %promo_code% ke teman-teman'; //dummy
+    
+            $promo_campaign = PromoCampaign::select('id_promo_campaign', 'promo_title', 'promo_image', 'date_start', 'date_end', 'code_type', 'promo_description')
+                    ->where('id_promo_campaign',$id_promo)
+                    ->where('date_end','>=',DB::raw('CURRENT_TIMESTAMP()'))
+                    ->where('date_start','<=',DB::raw('CURRENT_TIMESTAMP()'))
+                    ->whereHas('brands',function($query){
+                        $query->where('brand_active',1);
+                    })
+                    ->OrderBy('id_promo_campaign', 'DESC')
+                    ->get();
+    
+            $promo_campaign = array_map(function($value)use($text){
+                $value['code'] = null;
+                $value['share_promo'] = null;
+                if($value['code_type'] == 'Single'){
+                    $promo_code = PromoCampaignPromoCode::where('id_promo_campaign',$value['id_promo_campaign'])->select('promo_code')->first();
+                    $value['code'] = $promo_code['promo_code'];
+                    $value['share_promo'] = str_replace('%promo_code%',$value['code'],$text['share']);
+                }
+                return $value;
+            },$promo_campaign->toArray());
+            
+            return [
+                'status' => 'success',
+                'result' => $promo_campaign,
+            ];
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
+    }
+
 }

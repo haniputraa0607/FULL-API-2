@@ -107,9 +107,9 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
 	    Route::post('/', 'ApiTransactionHomeService@listHomeService');
 	    Route::post('detail', 'ApiTransactionHomeService@detailTransaction');
     	Route::group(['prefix' => 'manage'], function () {
-    		Route::post('/', ['uses' => 'ApiManageHomeService@manageList']);
-		    Route::post('detail', ['uses' => 'ApiManageHomeService@manageDetail']);
-		    Route::post('detail/update', ['uses' => 'ApiManageHomeService@manageDetailUpdate']);
+    		Route::post('/', ['middleware' => 'feature_control:407', 'uses' => 'ApiManageHomeService@manageList']);
+		    Route::post('detail', ['middleware' => 'feature_control:408', 'uses' => 'ApiManageHomeService@manageDetail']);
+		    Route::post('detail/update', ['middleware' => 'feature_control:409', 'uses' => 'ApiManageHomeService@manageDetailUpdate']);
 		    Route::post('find-hs', ['uses' => 'ApiManageHomeService@findHairstylist']);
     	});
     });

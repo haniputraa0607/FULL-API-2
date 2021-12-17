@@ -240,6 +240,7 @@ class ApiManageHomeService extends Controller
             'total_payment'                 => (int) $trxPayment['total_payment'],
             'timer_shopeepay'               => $trxPayment['timer_shopeepay'],
             'message_timeout_shopeepay'     => $trxPayment['message_timeout_shopeepay'],
+            'reject_at'     				=> $trx['reject_at'],
             'user'							=> [
                 'phone' => $trx['user']['phone'],
                 'name' 	=> $trx['user']['name'],
@@ -325,6 +326,10 @@ class ApiManageHomeService extends Controller
     {
     	$post = $request->all();
 
+    	if ($request->submit_type == 'reject') {
+    		return $this->rejectTransactionHomeService($request);
+    	}
+
     	$trxTemp = Transaction::with(
     		'transaction_home_service_hairstylist_finding',
     		'hairstylist_not_available',
@@ -338,6 +343,13 @@ class ApiManageHomeService extends Controller
 			return [
 				'status' => 'fail',
 				'messages' => ['Transaction not found']
+			];
+		}
+
+		if ($trx->reject_at) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Transaction rejected']
 			];
 		}
 
@@ -422,5 +434,44 @@ class ApiManageHomeService extends Controller
     	}
 
 		return MyHelper::checkCreate($logTrx);
+    }
+
+    public function rejectTransactionHomeService(Request $request)
+    {
+		$post = $request->json()->all();
+		$post['reject_reason'] = $post['note'] ?? null;
+
+    	$tempTrx = Transaction::with([
+			'transaction_home_service_hairstylist_finding',
+    		'hairstylist_not_available',
+    		'transaction_products.product',
+    		'transaction_home_service',
+		]);
+
+    	$trx = $tempTrx->find($request->id_transaction);
+    	if (!$trx) {
+    		return ['status' => 'fail', 'messages' => ['Transaction not found']];
+    	}
+
+    	if ($trx->reject_at) {
+    		return ['status' => 'fail', 'messages' => ['Transaction already rejected']];
+    	}
+
+    	$oldTrx = clone $trx;
+    	$trx->triggerReject($post);
+
+    	$newTrx = $tempTrx->find($request->id_transaction);
+
+
+    	$logTrx = LogTransactionUpdate::create([
+			'id_user' => $request->user()->id,
+	    	'id_transaction' => $request->id_transaction,
+	    	'transaction_from' => 'home-service',
+	        'old_data' => json_encode($oldTrx),
+	        'new_data' => json_encode($newTrx),
+	    	'note' => $post['reject_reason']
+		]);
+
+    	return MyHelper::checkCreate($logTrx);
     }
 }

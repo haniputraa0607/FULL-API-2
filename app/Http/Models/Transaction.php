@@ -554,6 +554,7 @@ class Transaction extends Model
     			break;
 
     		case 'home-service':
+    			$this->transaction_home_service->triggerRejectHomeService($data);
     			break;
 
     		case 'shop':

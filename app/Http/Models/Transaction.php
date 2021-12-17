@@ -346,6 +346,11 @@ class Transaction extends Model
 		return $this->hasMany(\Modules\Transaction\Entities\HairstylistNotAvailable::class, 'id_transaction');
 	}
 
+	public function transaction_home_service_hairstylist_finding()
+	{
+		return $this->hasMany(\Modules\Transaction\Entities\TransactionHomeServiceHairStylistFinding::class, 'id_transaction');
+	}
+
     /**
      * Called when payment completed
      * @return [type] [description]

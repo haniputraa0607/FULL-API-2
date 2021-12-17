@@ -103,8 +103,16 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     	Route::post('reject', ['middleware' => 'feature_control:399', 'uses' => 'ApiTransactionOutletService@rejectTransactionOutletService']);
     });
 
-    Route::post('home-service', 'ApiTransactionHomeService@listHomeService');
-    Route::post('home-service/detail', 'ApiTransactionHomeService@detailTransaction');
+    Route::group(['prefix' => 'home-service'], function () {
+	    Route::post('/', 'ApiTransactionHomeService@listHomeService');
+	    Route::post('detail', 'ApiTransactionHomeService@detailTransaction');
+    	Route::group(['prefix' => 'manage'], function () {
+    		Route::post('/', ['uses' => 'ApiManageHomeService@manageList']);
+		    Route::post('detail', ['uses' => 'ApiManageHomeService@manageDetail']);
+		    Route::post('detail/update', ['uses' => 'ApiManageHomeService@manageDetailUpdate']);
+		    Route::post('find-hs', ['uses' => 'ApiManageHomeService@findHairstylist']);
+    	});
+    });
 
     Route::post('academy', 'ApiTransactionAcademy@listAcademy');
     Route::post('academy/detail', 'ApiTransactionAcademy@detailTransaction');

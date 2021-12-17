@@ -26,11 +26,11 @@ class ApiHairstylistAttendanceController extends Controller
             ->whereNotNull('approve_at')
             ->where([
                 'schedule_month' => date('m'),
-                'schedule_year' => date('y')
+                'schedule_year' => date('Y')
             ])
             ->whereDate('date', date('Y-m-d'))
             ->first();
-        if (!$todaySchedule) {
+        if (!$todaySchedule || !$todaySchedule->date) {
             return [
                 'status' => 'fail',
                 'messages' => ['Tidak ada kehadiran dibutuhkan untuk hari ini']

@@ -7,6 +7,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use SMartins\PassportMultiauth\HasMultiAuthApiTokens;
 use Hash;
+use App\Lib\MyHelper;
 
 class UserHairStylist extends Authenticatable
 {
@@ -96,5 +97,52 @@ class UserHairStylist extends Authenticatable
     public function location()
     {
         return $this->hasOne(HairstylistLocation::class, 'id_user_hair_stylist');
+    }
+
+    public function attendances()
+    {
+        return $this->hasMany(\Modules\Recruitment\Entities\HairstylistAttendance::class, 'id_user_hair_stylist');
+    }
+
+    public function getAttendanceByDate($schedule)
+    {
+        if (is_string($schedule)) {
+            $schedule = $this->hairstylist_schedules()
+                ->selectRaw('id_hairstylist_attendance, date, min(time_start) as clock_in_requirement, max(time_end) as clock_out_requirement')
+                ->join('hairstylist_schedule_dates', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
+                ->whereNotNull('approve_at')
+                ->where([
+                    'schedule_month' => date('m', strtotime($schedule)),
+                    'schedule_year' => date('y', strtotime($schedule))
+                ])
+                ->whereDate('date', $schedule)
+                ->first();
+            if (!$schedule) {
+                throw new \Exceptions('Tidak ada kehadiran dibutuhkan untuk hari ini');
+            }
+        }
+        $attendance = $this->attendances()->where('attendance_date', $schedule->date)->first();
+        if (!$attendance) {
+            $attendance = $this->attendances()->create([
+                'id_hairstylist_schedule_date' => $this->hairstylist_schedules()
+                    ->join('hairstylist_schedule_dates', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
+                    ->whereNotNull('approve_at')
+                    ->where([
+                        'schedule_month' => date('m', strtotime($schedule->date)),
+                        'schedule_year' => date('y', strtotime($schedule->date))
+                    ])
+                    ->whereDate('date', $schedule->date)
+                    ->orderBy('is_overtime')
+                    ->first()
+                    ->id_hairstylist_schedule_date,
+                'attendance_date' => $schedule->date,
+                'id_user_hair_stylist' => $this->id_user_hair_stylist,
+                'clock_in_requirement' => $schedule->clock_in_requirement,
+                'clock_out_requirement' => $schedule->clock_out_requirement,
+                'clock_in_tolerance' => MyHelper::setting('clock_in_tolerance', 'value', 15),
+                'clock_out_tolerance' => MyHelper::setting('clock_in_tolerance', 'value', 0),
+            ]);
+        }
+        return $attendance;
     }
 }

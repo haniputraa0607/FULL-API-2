@@ -31,22 +31,31 @@ class Icount
         if ($method == 'get') {
             $response = MyHelper::getWithTimeout(self::getBaseUrl() . $url, null, $request, $header, 65, $fullResponse);
         }else{
-            
             $response = MyHelper::postWithTimeout(self::getBaseUrl() . $url, null, $request, 1, $header, 65, $fullResponse);
         }   
 
         try {
-            LogApiIcount::create([
+            if($method=='get'){
+                foreach($response['response']['Data'] as $key => $data){
+                    if(isset($data['ItemImage']) && !empty($data['ItemImage'])){
+                        $response['response']['Data'][$key]['ItemImage'] = "";
+                    }
+                }
+            }
+            $log_response = $response;
+            
+            $log_api_array = [
                 'type'              => $logType,
                 'id_reference'      => $orderId,
                 'request_url'       => self::getBaseUrl() . $url,
                 'request_method'    => strtoupper($method),
                 'request_parameter' => json_encode($request),
-                'response_body'     => json_encode($response),
+                'response_body'     => json_encode($log_response),
                 'response_header'   => json_encode($fullResponse->getHeaders()),
                 'response_code'     => $fullResponse->getStatusCode()
-            ]);
-        } catch (\Exception $e) {                          
+            ];
+            LogApiIcount::create($log_api_array);
+        } catch (\Exception $e) {                    
             \Illuminate\Support\Facades\Log::error('Failed write log to LogApiIcount: ' . $e->getMessage());
         }        
 
@@ -213,7 +222,7 @@ class Icount
             $availablePayment = config('payment_method');
             $setting  = json_decode(MyHelper::setting('active_payment_methods', 'value_text', '[]'), true) ?? [];
             foreach($setting as $s => $set){
-                $availablePayment[$set['code']]['chart_of_account_id'] = $set['chart_of_account_id'] ?? false;
+                $availablePayment[$set['code']]['chart_of_account_id'] = $set['id_chart_of_account'] ?? false;
             }
             // return $availablePayment;
             $data = [

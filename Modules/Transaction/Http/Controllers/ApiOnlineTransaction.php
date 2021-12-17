@@ -2728,7 +2728,15 @@ class ApiOnlineTransaction extends Controller
         $date = date('Y-m-d H:i:s');
         $currentDate = date('Y-m-d H:i', strtotime("+".$diffTimeZone." hour", strtotime($date)));
 
-        $idOutletSchedule = $outlet['today']['id_outlet_schedule']??null;
+        $day = [
+            'Mon' => 'Senin',
+            'Tue' => 'Selasa',
+            'Wed' => 'Rabu',
+            'Thu' => 'Kamis',
+            'Fri' => 'Jumat',
+            'Sat' => 'Sabtu',
+            'Sun' => 'Minggu'
+        ];
 
         $tempStock = [];
         foreach ($post['item_service']??[] as $key=>$item){
@@ -2840,6 +2848,9 @@ class ApiOnlineTransaction extends Controller
                 continue;
             }
 
+            $bookDay = $day[date('D', strtotime($item['booking_date']))];
+            $idOutletSchedule = OutletSchedule::where('id_outlet', $outlet['id_outlet'])
+                    ->where('day', $bookDay)->first()['id_outlet_schedule']??null;
             $getTimeShift = app($this->product)->getTimeShift(strtolower($shift), $post['id_outlet'],$idOutletSchedule);
             if(empty($getTimeShift['start']) && empty($getTimeShift['end'])){
                 $errorHsNotAvailable[] = $item['user_hair_stylist_name']." (".MyHelper::dateFormatInd($bookTime).')';
@@ -4810,7 +4821,17 @@ class ApiOnlineTransaction extends Controller
         $date = date('Y-m-d H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($date)));
         $currentDate = date('Y-m-d H:i', strtotime($date));
         $continueCheckOut = true;
-        $idOutletSchedule = $outlet['today']['id_outlet_schedule']??null;
+
+        $day = [
+            'Mon' => 'Senin',
+            'Tue' => 'Selasa',
+            'Wed' => 'Rabu',
+            'Thu' => 'Kamis',
+            'Fri' => 'Jumat',
+            'Sat' => 'Sabtu',
+            'Sun' => 'Minggu'
+        ];
+
         $day = [
             'Mon' => 'Senin',
             'Tue' => 'Selasa',
@@ -4917,6 +4938,9 @@ class ApiOnlineTransaction extends Controller
                 $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
             }
 
+            $bookDay = $day[date('D', strtotime($item['booking_date']))];
+            $idOutletSchedule = OutletSchedule::where('id_outlet', $outlet['id_outlet'])
+                    ->where('day', $bookDay)->first()['id_outlet_schedule']??null;
             $getTimeShift = app($this->product)->getTimeShift(strtolower($shift), $post['id_outlet'], $idOutletSchedule);
             if(empty($getTimeShift['start']) && empty($getTimeShift['end'])){
                 $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);

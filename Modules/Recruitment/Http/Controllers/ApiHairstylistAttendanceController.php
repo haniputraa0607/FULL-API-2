@@ -21,7 +21,7 @@ class ApiHairstylistAttendanceController extends Controller
         $outlet->setHidden(['call', 'url']);
         // get current schedule
         $todaySchedule = $hairstylist->hairstylist_schedules()
-            ->selectRaw('date, min(time_start) as clock_in_requirement, max(time_end) as clock_out_requirement')
+            ->selectRaw('date, min(time_start) as clock_in_requirement, max(time_end) as clock_out_requirement, shift')
             ->join('hairstylist_schedule_dates', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
             ->whereNotNull('approve_at')
             ->where([
@@ -55,7 +55,16 @@ class ApiHairstylistAttendanceController extends Controller
         //     ];
         // }
 
+        $shiftNameMap = [
+            'Morning' => 'Pagi',
+            'Middle' => 'Tengah',
+            'Evening' => 'Sore',
+        ];
+
         $result = [
+            'clock_in_requirement' => MyHelper::adjustTimezone($todaySchedule->clock_in_requirement, null, 'H:i', true),
+            'clock_out_requirement' => MyHelper::adjustTimezone($todaySchedule->clock_out_requirement, null, 'H:i', true),
+            'shift_name' => $shiftNameMap[$todaySchedule->shift] ?? $todaySchedule->shift,
             'outlet' => $outlet,
             'logs' => $attendance->logs()->get()->transform(function($item) {
                 return [
@@ -63,10 +72,11 @@ class ApiHairstylistAttendanceController extends Controller
                     'latitude' => $item->latitude,
                     'longitude' => $item->longitude,
                     'longitude' => $item->longitude,
+                    'type' => ucwords(str_replace('_', ' ',$item->type)),
                     'photo' => $item->photo_path ? config('url.storage_url_api') . $item->photo_path : null,
-                    'date' => MyHelper::adjustTimezone($item->datetime, null, 'l, d F Y'),
+                    'date' => MyHelper::adjustTimezone($item->datetime, null, 'l, d F Y', true),
                     'time' => MyHelper::adjustTimezone($item->datetime, null, 'H:i'),
-                    'notes' => $item->notes,
+                    'notes' => $item->notes ?: '',
                 ];
             }),
         ];

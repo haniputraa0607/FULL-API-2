@@ -2341,7 +2341,7 @@ class MyHelper{
 			'/November/','/December/',
 		);
 		$replace = array ( 'Sen','Sel','Rab','Kam','Jum','Sab','Min',
-			'Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu',
+			'Senin','Selasa','Rabu','Kamis','Jum\'at','Sabtu','Minggu',
 			'Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des',
 			'Januari','Februari','Maret','April','Juni','Juli','Agustus','September',
 			'Oktober','November','Desember',

@@ -113,12 +113,12 @@ class UserHairStylist extends Authenticatable
                 ->whereNotNull('approve_at')
                 ->where([
                     'schedule_month' => date('m', strtotime($schedule)),
-                    'schedule_year' => date('y', strtotime($schedule))
+                    'schedule_year' => date('Y', strtotime($schedule))
                 ])
                 ->whereDate('date', $schedule)
                 ->first();
-            if (!$schedule) {
-                throw new \Exceptions('Tidak ada kehadiran dibutuhkan untuk hari ini');
+            if (!$schedule || !$schedule->date) {
+                throw new \Exception('Tidak ada kehadiran dibutuhkan untuk hari ini');
             }
         }
         $attendance = $this->attendances()->where('attendance_date', $schedule->date)->first();
@@ -129,7 +129,7 @@ class UserHairStylist extends Authenticatable
                     ->whereNotNull('approve_at')
                     ->where([
                         'schedule_month' => date('m', strtotime($schedule->date)),
-                        'schedule_year' => date('y', strtotime($schedule->date))
+                        'schedule_year' => date('Y', strtotime($schedule->date))
                     ])
                     ->whereDate('date', $schedule->date)
                     ->orderBy('is_overtime')

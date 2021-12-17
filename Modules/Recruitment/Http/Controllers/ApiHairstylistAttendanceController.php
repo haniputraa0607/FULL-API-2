@@ -26,11 +26,11 @@ class ApiHairstylistAttendanceController extends Controller
             ->whereNotNull('approve_at')
             ->where([
                 'schedule_month' => date('m'),
-                'schedule_year' => date('y')
+                'schedule_year' => date('Y')
             ])
             ->whereDate('date', date('Y-m-d'))
             ->first();
-        if (!$todaySchedule) {
+        if (!$todaySchedule || !$todaySchedule->date) {
             return [
                 'status' => 'fail',
                 'messages' => ['Tidak ada kehadiran dibutuhkan untuk hari ini']
@@ -39,25 +39,36 @@ class ApiHairstylistAttendanceController extends Controller
 
         $attendance = $hairstylist->getAttendanceByDate($todaySchedule);
 
-        $logs = [];
-        $clock_in = $attendance->clock_in ?: $attendance->logs()->where('type', 'clock_in')->where('status', '<>', 'Rejected')->min('datetime');
-        $clock_out = $attendance->clock_out ?: $attendance->logs()->where('type', 'clock_out')->where('status', '<>', 'Rejected')->max('datetime');
-        if ($clock_in) {
-            $logs[] = [
-                'name' => 'Clock In',
-                'value' => MyHelper::adjustTimezone($clock_in, null, 'H:i', true),
-            ];
-        }
-        if ($clock_out) {
-            $logs[] = [
-                'name' => 'Clock Out',
-                'value' => MyHelper::adjustTimezone($clock_out, null, 'H:i', true),
-            ];
-        }
+        // $logs = [];
+        // $clock_in = $attendance->clock_in ?: $attendance->logs()->where('type', 'clock_in')->where('status', '<>', 'Rejected')->min('datetime');
+        // $clock_out = $attendance->clock_out ?: $attendance->logs()->where('type', 'clock_out')->where('status', '<>', 'Rejected')->max('datetime');
+        // if ($clock_in) {
+        //     $logs[] = [
+        //         'name' => 'Clock In',
+        //         'value' => MyHelper::adjustTimezone($clock_in, null, 'H:i', true),
+        //     ];
+        // }
+        // if ($clock_out) {
+        //     $logs[] = [
+        //         'name' => 'Clock Out',
+        //         'value' => MyHelper::adjustTimezone($clock_out, null, 'H:i', true),
+        //     ];
+        // }
 
         $result = [
             'outlet' => $outlet,
-            'logs' => $logs,
+            'logs' => $attendance->logs()->get()->transform(function($item) {
+                return [
+                    'location_name' => $item->location_name,
+                    'latitude' => $item->latitude,
+                    'longitude' => $item->longitude,
+                    'longitude' => $item->longitude,
+                    'photo' => $item->photo_path ? config('url.storage_url_api') . $item->photo_path : null,
+                    'date' => MyHelper::adjustTimezone($item->datetime, null, 'l, d F Y'),
+                    'time' => MyHelper::adjustTimezone($item->datetime, null, 'H:i'),
+                    'notes' => $item->notes,
+                ];
+            }),
         ];
 
         return MyHelper::checkGet($result);
@@ -106,6 +117,7 @@ class ApiHairstylistAttendanceController extends Controller
             'photo_path' => $photoPath,
             'status' => $outsideRadius ? 'Pending' : '',
             'approved_by' => null,
+            'notes' => $request->notes,
         ]);
 
         return MyHelper::checkGet([

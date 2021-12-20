@@ -358,6 +358,7 @@ class ApiTransactionShop extends Controller
 
         $finalRes = [
         	'items' => $result['items'],
+        	'point_earned' => $result['point_earned'] ?? null,
         	'continue_checkout' => $result['continue_checkout'],
         	'complete_profile' => $result['complete_profile']
         ];
@@ -744,6 +745,7 @@ class ApiTransactionShop extends Controller
         	'currency' => $result['currency'],
         	'complete_profile' => $result['complete_profile'],
         	'payment_detail' => $result['payment_detail'],
+            'point_earned' => $result['point_earned'] ?? null,
             'available_payment' => $result['available_payment'],
             'available_delivery' => $listDelivery,
             'selected_delivery' => $deliv

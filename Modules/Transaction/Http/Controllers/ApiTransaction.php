@@ -5964,6 +5964,7 @@ class ApiTransaction extends Controller
 			'product' => null,
 			'payment_detail' => $paymentDetail,
 			'payment_method' => $paymentMethodDetail,
+            'currency'       => 'Rp',
 			'home_service_detail' => $homeDetail
 		];
 		

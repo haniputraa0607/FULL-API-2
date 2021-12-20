@@ -208,6 +208,40 @@ class ApiTransactionHomeService extends Controller
             $continueCheckOut = false;
         }
 
+        $post['item_service'] = $itemService;
+        $grandTotal = app($this->setting_trx)->grandTotal();
+        foreach ($grandTotal as $keyTotal => $valueTotal) {
+            if ($valueTotal == 'subtotal') {
+                $post['sub'] = app($this->setting_trx)->countTransaction($valueTotal, $post);
+                if (gettype($post['sub']) != 'array') {
+                    $mes = ['Data Not Valid'];
+
+                    if (isset($post['sub']->original['messages'])) {
+                        $mes = $post['sub']->original['messages'];
+
+                        if ($post['sub']->original['messages'] == ['Product Service not found']) {
+                            if (isset($post['sub']->original['product'])) {
+                                $mes = ['Price Service Not Found with product '.$post['sub']->original['product']];
+                            }
+                        }
+
+                        if ($post['sub']->original['messages'] == ['Price Service Product Not Valid']) {
+                            if (isset($post['sub']->original['product'])) {
+                                $mes = ['Price Service Not Valid with product '.$post['sub']->original['product']];
+                            }
+                        }
+                    }
+
+                    return response()->json([
+                        'status'    => 'fail',
+                        'messages'  => $mes
+                    ]);
+                }
+
+                $post['subtotal'] = array_sum($post['sub']['subtotal']);
+            }
+        }
+
         unset($address['description']);
         $result['id_user_address'] = $address['id_user_address'];
         $result['notes'] = (empty($post['notes']) ? $address['description']:$post['notes']);
@@ -226,6 +260,14 @@ class ApiTransactionHomeService extends Controller
         $result['currency'] = 'Rp';
         $result['complete_profile'] = (empty($user->complete_profile) ?false:true);
         $result['continue_checkout'] = $continueCheckOut;
+        $earnedPoint = app($this->online_trx)->countTranscationPoint($post, $user);
+        $cashback = $earnedPoint['cashback'] ?? 0;
+        if ($cashback) {
+            $result['point_earned'] = [
+                'value' => MyHelper::requestNumber($cashback, '_CURRENCY'),
+                'text' => MyHelper::setting('cashback_earned_text', 'value', 'Point yang akan didapatkan')
+            ];
+        }
         $result['messages_all'] = (empty($errAll)? null:implode(".", array_unique($errAll)));
         return MyHelper::checkGet($result);
     }
@@ -535,13 +577,6 @@ class ApiTransactionHomeService extends Controller
                 'text' => MyHelper::setting('cashback_earned_text', 'value', 'Point yang akan didapatkan')
             ];
         }
-
-        $result['payment_detail'][] = [
-            'name'          => 'Subtotal ('.$totalItem.' item)',
-            "is_discount"   => 0,
-            'amount'        => MyHelper::requestNumber($result['subtotal'],'_CURRENCY')
-        ];
-
 
         $result['payment_detail'][] = [
             'name'          => 'Tax',

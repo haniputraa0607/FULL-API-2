@@ -16,7 +16,8 @@ class OutletCashAttachment extends Model
 
 	protected $fillable = [
         'id_outlet_cash',
-	    'outlet_cash_attachment'
+	    'outlet_cash_attachment',
+        'outlet_cash_attachment_name'
 	];
 
     public function getOutletCashAttachmentAttribute($value)

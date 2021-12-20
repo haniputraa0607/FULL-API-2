@@ -106,6 +106,9 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::post('home-service', 'ApiTransactionHomeService@listHomeService');
     Route::post('home-service/detail', 'ApiTransactionHomeService@detailTransaction');
 
+    Route::post('shop', 'ApiTransactionShop@listShop');
+    Route::post('shop/detail', 'ApiTransactionShop@shopDetail');
+
     Route::post('academy', 'ApiTransactionAcademy@listAcademy');
     Route::post('academy/detail', 'ApiTransactionAcademy@detailTransaction');
 });

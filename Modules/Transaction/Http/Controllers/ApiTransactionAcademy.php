@@ -162,31 +162,7 @@ class ApiTransactionAcademy extends Controller
                 }
 
                 $post['subtotal'] = array_sum($post['sub']['subtotal']);
-            } elseif($valueTotal == 'tax'){
-                $post['tax'] = app($this->setting_trx)->countTransaction($valueTotal, $post);
-
-                if (isset($post['tax']->original['messages'])) {
-                    $mes = $post['tax']->original['messages'];
-
-                    if ($post['tax']->original['messages'] == ['Product Service not found']) {
-                        if (isset($post['tax']->original['product'])) {
-                            $mes = ['Price Not Found with product '.$post['tax']->original['product']];
-                        }
-                    }
-
-                    if ($post['sub']->original['messages'] == ['Price Service Product Not Valid']) {
-                        if (isset($post['tax']->original['product'])) {
-                            $mes = ['Price Not Valid with product '.$post['tax']->original['product']];
-                        }
-                    }
-
-                    return response()->json([
-                        'status'    => 'fail',
-                        'messages'  => $mes
-                    ]);
-                }
-            }
-            else {
+            } else {
                 $post[$valueTotal] = app($this->setting_trx)->countTransaction($valueTotal, $post);
             }
         }
@@ -210,6 +186,7 @@ class ApiTransactionAcademy extends Controller
 
         $result['item_academy'] = $itemAcademy;
         $result['subtotal'] = $post['subtotal'];
+        $post['tax'] = ($outlet['is_tax']/100) * $post['subtotal'];
         $result['grandtotal'] = (int)$result['subtotal'] + (int)$post['tax'] ;
         $balance = app($this->balance)->balanceNow($user->id);
         $result['points'] = (int) $balance;
@@ -234,11 +211,13 @@ class ApiTransactionAcademy extends Controller
             'amount'        => MyHelper::requestNumber($result['subtotal'],'_CURRENCY')
         ];
 
-        $result['payment_detail'][] = [
-            'name'          => 'Tax',
-            "is_discount"   => 0,
-            'amount'        => MyHelper::requestNumber((int) $post['tax'],'_CURRENCY')
-        ];
+        if(!empty($outlet['is_tax'])){
+            $result['payment_detail'][] = [
+                'name'          => 'Tax',
+                "is_discount"   => 0,
+                'amount'        => MyHelper::requestNumber((int) $post['tax'],'_CURRENCY')
+            ];
+        }
 
         $result['currency'] = 'Rp';
         $result['complete_profile'] = (empty($user->complete_profile) ?false:true);
@@ -379,31 +358,7 @@ class ApiTransactionAcademy extends Controller
                 }
 
                 $post['subtotal'] = array_sum($post['sub']['subtotal']);
-            } elseif($valueTotal == 'tax'){
-                $post['tax'] = app($this->setting_trx)->countTransaction($valueTotal, $post);
-
-                if (isset($post['tax']->original['messages'])) {
-                    $mes = $post['tax']->original['messages'];
-
-                    if ($post['tax']->original['messages'] == ['Product Service not found']) {
-                        if (isset($post['tax']->original['product'])) {
-                            $mes = ['Price Not Found with product '.$post['tax']->original['product']];
-                        }
-                    }
-
-                    if ($post['sub']->original['messages'] == ['Price Service Product Not Valid']) {
-                        if (isset($post['tax']->original['product'])) {
-                            $mes = ['Price Not Valid with product '.$post['tax']->original['product']];
-                        }
-                    }
-
-                    return response()->json([
-                        'status'    => 'fail',
-                        'messages'  => $mes
-                    ]);
-                }
-            }
-            else {
+            } else {
                 $post[$valueTotal] = app($this->setting_trx)->countTransaction($valueTotal, $post);
             }
         }
@@ -435,6 +390,7 @@ class ApiTransactionAcademy extends Controller
             $earnedPoint = app($this->online_trx)->countTranscationPoint($post, $user);
         }
         $cashback = $earnedPoint['cashback'] ?? 0;
+        $post['tax'] = ($outlet['is_tax']/100) * $post['subtotal'];
 
         DB::beginTransaction();
         $id=$request->user()->id;

@@ -8,6 +8,7 @@
 namespace Modules\Recruitment\Entities;
 
 use Illuminate\Database\Eloquent\Model;
+use Modules\Outlet\Entities\OutletTimeShift;
 
 /**
  * Class HairstylistSchedule
@@ -65,5 +66,48 @@ class HairstylistSchedule extends Model
 	public function user_hair_stylist()
 	{
 		return $this->belongsTo(\Modules\Recruitment\Entities\UserHairStylist::class, 'id_user_hair_stylist');
+	}
+
+	public function refreshTimeShift()
+	{
+		$timeShift = OutletTimeShift::where('outlet_time_shift.id_outlet', $this->id_outlet)->join('outlet_schedules', 'outlet_schedules.id_outlet_schedule', 'outlet_time_shift.id_outlet_schedule')->get();
+		$schedules = [];
+		$oneDay = [
+			'senin' => '01',
+			'selasa' => '02',
+			'rabu' => '03',
+			'kamis' => '04',
+			'jumat' => '05',
+			'jum\'at' => '05',
+			'sabtu' => '06',
+			'minggu' => '07',
+			'monday' => '01',
+			'tuesday' => '02',
+			'wednesday' => '03',
+			'thursday' => '04',
+			'friday' => '05',
+			'saturday' => '06',
+			'sunday' => '07',
+		];
+		$timeShift->each(function ($item) use (&$schedules, $oneDay) {
+			$daycode = $oneDay[strtolower($item->day)] ?? $item->day;
+			if (!isset($schedules[$daycode])) {
+				$schedules[$daycode] = [];
+			}
+			$schedules[$daycode][$item->shift] = [
+				'time_start' => $item->shift_time_start,
+				'time_end' => $item->shift_time_end,
+			];
+		});
+
+		$this->hairstylist_schedule_dates->each(function ($item) use ($schedules, $oneDay) {
+			$daycode = $oneDay[strtolower(date('l', strtotime($item->date)))];
+			$item->update([
+				'time_start' => $schedules[$daycode][$item->shift]['time_start'] ?? '00:00:00',
+				'time_end' => $schedules[$daycode][$item->shift]['time_end'] ?? '00:00:00',
+			]);
+		});
+
+		return true;
 	}
 }

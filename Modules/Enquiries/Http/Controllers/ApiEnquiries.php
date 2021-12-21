@@ -709,15 +709,29 @@ class ApiEnquiries extends Controller
                 "text" => ucfirst(str_replace('-', ' ', $trx['transaction_from']))
             ];
 
+            $product = TransactionProduct::leftJoin('products', 'products.id_product', 'transaction_products.id_product')
+                ->where('id_transaction', $trx['id_transaction'])
+                ->select('transaction_products.id_product', 'transaction_product_qty', 'product_name')->get()->toArray();
+
             $transaction = [
                 'id_transaction' => $trx['id_transaction'],
                 'transaction_receipt_number' => $trx['transaction_receipt_number'],
-                'transaction_date' => date('d/m/Y', strtotime($trx['transaction_date']))
+                'transaction_date' => date('d/m/Y', strtotime($trx['transaction_date'])),
+                'products' => $product
             ];
+
+            //subject
+            $settingSubject = (array)json_decode(Setting::where('key', 'enquiries_subject_list')->first()['value_text']??'');
+            $subject = [];
+            if(!empty($settingSubject)){
+                $get = (array)$settingSubject[$post['enquiry_from']];
+                $subject = (array)$get[$trx['transaction_from']];
+            }
 
             $res = [
                 'category' => $detailCategory,
                 'transaction' => $transaction,
+                'subject' => $subject,
                 'enquiry_category' => $trx['transaction_from']
             ];
 
@@ -785,6 +799,7 @@ class ApiEnquiries extends Controller
                     unset($data['file']);
                     unset($data['enquiry_phone']);
                     unset($data['enquiry_device_token']);
+                    $data['message'] = 'Pesan Anda berhasil terkirim ke CS';
                     return response()->json(MyHelper::checkCreate($data));
                 }
             }

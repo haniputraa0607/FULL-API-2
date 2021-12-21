@@ -55,6 +55,7 @@ Route::group(['prefix' => 'api', 'middleware' => ['log_activities', 'user_agent'
     });
     Route::group(['middleware' => ['auth:api', 'user_agent', 'scopes:apps,web-apps'], 'prefix' => 'home', 'namespace' => 'Modules\Users\Http\Controllers'], function()
     {
+        Route::post('/scan-qr','ApiHome@scanQR');
         Route::post('/membership','ApiHome@membership');
         Route::any('/banner','ApiHome@banner');
         Route::any('/featured-deals','ApiHome@featuredDeals');

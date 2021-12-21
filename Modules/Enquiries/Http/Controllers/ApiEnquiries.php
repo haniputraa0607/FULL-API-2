@@ -14,7 +14,9 @@ use Illuminate\Routing\Controller;
 
 use App\Lib\MyHelper;
 use Modules\Enquiries\Entities\Ticket;
+use Modules\Transaction\Entities\TransactionHomeService;
 use Modules\Transaction\Entities\TransactionProductService;
+use Modules\Transaction\Entities\TransactionShop;
 use Validator;
 use App\Lib\classMaskingJson;
 use App\Lib\classJatisSMS;
@@ -659,12 +661,17 @@ class ApiEnquiries extends Controller
 
     function listTransaction(Request $request){
         $idUser = $request->user()->id;
+        $post = $request->json()->all();
+
+        if(empty($post['enquiry_category'])){
+            return response()->json(['status' => 'fail', 'messages' => ['Enquiry category can not be empty']]);
+        }
 
         $trx = Transaction::where('id_user', $idUser)->where('transaction_payment_status', 'Completed')
                 ->orderBy('transaction_date', 'desc')->select('id_transaction', 'transaction_receipt_number', 'transaction_date');
 
-        if(!empty($request->enquiry_category)){
-            $trx = $trx->where('transaction_from', $request->enquiry_category);
+        if(!empty($post['enquiry_category'])){
+            $trx = $trx->where('transaction_from', $post['enquiry_category']);
         }
 
         $trx = $trx->limit(10)->get()->toArray();
@@ -674,6 +681,44 @@ class ApiEnquiries extends Controller
             $product = TransactionProduct::leftJoin('products', 'products.id_product', 'transaction_products.id_product')
                         ->where('id_transaction', $value['id_transaction'])
                         ->select('transaction_products.id_product', 'transaction_product_qty', 'product_name')->get()->toArray();
+            $res[] = [
+                'id_transaction' => $value['id_transaction'],
+                'transaction_receipt_number' => $value['transaction_receipt_number'],
+                'transaction_date' => date('d/m/Y', strtotime($value['transaction_date'])),
+                'products' => $product
+            ];
+        }
+        return response()->json(['status' => 'success', 'result' => $res]);
+    }
+
+    function listTransactionMitra(Request $request){
+        $idUser = $request->user()->id_user_hair_stylist;
+        $post = $request->json()->all();
+        
+        if(empty($post['enquiry_category'])){
+            return response()->json(['status' => 'fail', 'messages' => ['Enquiry category can not be empty']]);
+        }
+
+        $trx = Transaction::where('transaction_payment_status', 'Completed')
+            ->orderBy('transaction_date', 'desc')->select('id_transaction', 'transaction_receipt_number', 'transaction_date');
+
+        if($post['enquiry_category'] == 'outlet-service'){
+            $idTransaction = TransactionProductService::where('id_user_hair_stylist', $idUser)->orderBy('created_at', 'desc')->limit(10)->pluck('id_transaction')->toArray();
+            $trx = $trx->whereIn('id_transaction', $idTransaction)->where('transaction_from', $post['enquiry_category']);
+        }elseif($post['enquiry_category'] == 'home-service'){
+            $idTransaction = TransactionHomeService::where('id_user_hair_stylist', $idUser)->orderBy('created_at', 'desc')->limit(10)->pluck('id_transaction')->toArray();
+            $trx = $trx->whereIn('id_transaction', $idTransaction)->where('transaction_from', $post['enquiry_category']);
+        }else{
+            return response()->json(['status' => 'success', 'result' => []]);
+        }
+
+        $trx = $trx->limit(10)->get()->toArray();
+
+        $res = [];
+        foreach ($trx as $value){
+            $product = TransactionProduct::leftJoin('products', 'products.id_product', 'transaction_products.id_product')
+                ->where('id_transaction', $value['id_transaction'])
+                ->select('transaction_products.id_product', 'transaction_product_qty', 'product_name')->get()->toArray();
             $res[] = [
                 'id_transaction' => $value['id_transaction'],
                 'transaction_receipt_number' => $value['transaction_receipt_number'],

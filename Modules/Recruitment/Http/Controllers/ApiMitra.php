@@ -435,6 +435,15 @@ class ApiMitra extends Controller
             ]);
         }
 
+        if ($request->device_id) {
+        	$user->devices()->updateOrCreate([
+        		'device_id' => $request->device_id
+        	], [
+		        'device_type' => $request->device_type,
+		        'device_token' => $request->device_token,
+        	]);
+        }
+
     	return MyHelper::checkGet($res);
     }
 

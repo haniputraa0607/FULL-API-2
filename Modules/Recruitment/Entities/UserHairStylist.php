@@ -145,4 +145,9 @@ class UserHairStylist extends Authenticatable
         }
         return $attendance;
     }
+
+    public function devices()
+    {
+        return $this->hasMany(UserHairStylistDevice::class, 'id_user_hair_stylist');
+    }
 }

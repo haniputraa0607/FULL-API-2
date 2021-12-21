@@ -13,7 +13,7 @@ use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 
 use App\Lib\MyHelper;
-use Modules\Enquiries\Entities\Tickets;
+use Modules\Enquiries\Entities\Ticket;
 use Validator;
 use App\Lib\classMaskingJson;
 use App\Lib\classJatisSMS;
@@ -30,6 +30,8 @@ use Modules\Enquiries\Http\Requests\Delete;
 use Modules\Enquiries\Entities\EnquiriesFile;
 use Modules\Brand\Entities\Brand;
 use App\Lib\Ticketing;
+use Modules\Franchise\Entities\Transaction;
+use Modules\Franchise\Entities\TransactionProduct;
 
 class ApiEnquiries extends Controller
 {
@@ -115,6 +117,18 @@ class ApiEnquiries extends Controller
             $data['enquiry_category'] = $post['enquiry_category'];
         }else{
             $data['enquiry_category'] = null;
+        }
+
+        if (isset($post['transaction_receipt_number'])) {
+            $data['transaction_receipt_number'] = $post['transaction_receipt_number'];
+        }else{
+            $data['transaction_receipt_number'] = null;
+        }
+
+        if (isset($post['id_outlet'])) {
+            $data['id_outlet'] = $post['id_outlet'];
+        }else{
+            $data['id_outlet'] = null;
         }
 
 		if (isset($post['enquiry_file'])) {
@@ -592,12 +606,12 @@ class ApiEnquiries extends Controller
         $post = $request->json()->all();
 		$list = (array)json_decode(Setting::where('key', 'enquiries_subject_list')->first()['value_text']??'');
 
-		if(empty($list)){
-            return response()->json(['status' => 'fail', 'messages' => ['Data not found']]);
+        $result = [];
+		if(!empty($list)){
+            $get = (array)$list[$post['enquiry_from']];
+            $result = (array)$get[$post['enquiry_category']];
         }
 
-		$get = (array)$list[$post['enquiry_from']];
-        $result = (array)$get[$post['enquiry_category']];
 		return response()->json(MyHelper::checkGet($result));
 	}
 
@@ -607,6 +621,68 @@ class ApiEnquiries extends Controller
 		$result = ['text' => $list['value'], 'value' => explode(', ' ,$list['value_text'])];
 		return response()->json(MyHelper::checkGet($result));
 	}
+
+    function listEnquiryCategory(Request $request){
+        $data = $request->json()->all();
+        $getCategory = Setting::where('key', 'category_contact_us')->first()['value_text']??"";
+        if(empty($getCategory)){
+            return response()->json(['status' => 'fail', 'messages' => ['Not']]);
+        }
+
+        $category = (array)json_decode($getCategory);
+        $parent = (array)$category[$data['enquiry_from']??''];
+        $data = (array)$parent['child'];
+
+        $result = [];
+        foreach ($data as $key=>$dt){
+            $text = ucfirst(str_replace('-', ' ', $key));
+            if($key == 'lain-lain'){
+                $text = ucfirst($key);
+            }
+            $result[] = [
+                'id' => $dt,
+                'key' => $key,
+                'text' => $text
+            ];
+        }
+        return response()->json(MyHelper::checkGet($result));
+    }
+
+    function ListOutlet(){
+        $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
+        $outlets = Outlet::where('outlets.outlet_status', 'Active')->whereNotIn('id_outlet', [$outletHomeService])
+                    ->select('id_outlet', 'outlet_code', 'outlet_name', 'outlet_address')->get()->toArray();
+
+        return response()->json(['status' => 'success', 'result' => (empty($outlets) ? []:$outlets)]);
+    }
+
+    function listTransaction(Request $request){
+        $idUser = $request->user()->id;
+
+        $trx = Transaction::where('id_user', $idUser)->where('transaction_payment_status', 'Completed')
+                ->orderBy('transaction_date', 'desc')->select('id_transaction', 'transaction_receipt_number', 'transaction_date');
+
+        if(!empty($request->enquiry_category)){
+            $trx = $trx->where('transaction_from', $request->enquiry_category);
+        }
+
+        $trx = $trx->limit(7)->get()->toArray();
+
+        $res = [];
+        foreach ($trx as $value){
+            $product = TransactionProduct::leftJoin('products', 'products.id_product', 'transaction_products.id_product')
+                        ->where('id_transaction', $value['id_transaction'])
+                        ->select('transaction_products.id_product', 'transaction_product_qty', 'product_name')->get()->toArray();
+            $res[] = [
+                'id_transaction' => $value['id_transaction'],
+                'transaction_receipt_number' => $value['transaction_receipt_number'],
+                'transaction_date' => date('d/m/Y', strtotime($value['transaction_date'])),
+                'products' => $product
+            ];
+        }
+        return response()->json(['status' => 'success', 'result' => $res]);
+    }
+
 
     function createV2(Request $request){
         $data = $this->cekInputan($request->json()->all());
@@ -626,60 +702,31 @@ class ApiEnquiries extends Controller
         $categoryId = (array)$parentCategory['child'];
         $categoryId = $categoryId[$data['enquiry_category']];
 
-        //get data user
-        $user = User::where('id', $request->user()->id)->first();
-        if (empty($user)) {
-            return response()->json(['status' => 'fail', 'messages' => ['User not found']]);
-        }
-        $data['enquiry_phone'] = $user['phone'];
-
-        //cek brand
-        if(isset($data['brand'])){
-            $brand = Brand::find($data['id_brand']);
-            if(!$brand){
-                $brand = null;
-            }
-        }else{
-            $brand = null;
-        }
-
-        $data['enquiry_category_id'] = $categoryId;
-        $data['enquiry_parent_category_id'] = $parentCategoryID;
-        $save = Enquiry::create($data);
-
-        if ($save) {
-
-            $data['attachment'] = [];
-            $data['id_enquiry'] =(string)$save->id_enquiry;
-            if (isset($data['many_upload_file'])) {
-                $files = $this->saveFiles($save->id_enquiry, $data['many_upload_file']);
-                $enquiryFile = EnquiriesFile::where('id_enquiry', $save->id_enquiry)->get();
-                foreach($enquiryFile as $dataFile){
-                    $data['attachment'][] = $dataFile->url_enquiry_file;
-                }
-                unset($data['enquiry_file']);
-            }
-            $data['brand'] = $brand;
-            $goCrm = $this->sendCrm($data);
-            $data['id_enquiry'] = $save->id_enquiry;
-        }
-
+        $data['enquiry_email'] = $request->user()->email;
+        $idUser = (!empty($request->user()->id) ? $request->user()->id:$request->user()->id_user_hair_stylist);
+        $phone = (!empty($request->user()->phone) ? $request->user()->phone:$request->user()->phone_number);
         if(!empty(env('TICKETING_BASE_URL')) && !empty(env('TICKETING_API_KEY')) && !empty(env('TICKETING_API_SECRET'))){
             $fileCount = count($data['file']??[]);
+            $content = 'Name: '.$data['enquiry_name'].'<br>';
+
+            if(!empty($data['transaction_receipt_number'])){
+                $content .= 'Receipt Number: '.$data['transaction_receipt_number'].'<br><br>';
+            }elseif (!empty($data['id_outlet'])){
+                $outlet = Outlet::where('id_outlet', $data['id_outlet'])->first();
+                $content .= 'Outlet code: '.$outlet['outlet_code'].'<br>';
+                $content .= 'Outlet name: '.$outlet['outlet_name'].'<br><br>';
+            }
+            $content .= $data['enquiry_content'];
 
             $dataSend = [
-                'title' => $data['enquiry_subject'].' (send by :'.$data['enquiry_name'].')',
+                'title' => $data['enquiry_subject'],
                 'guest_email' => $data['enquiry_email'],
                 'priority' => 1,
                 'catid' => $parentCategoryID,
                 'sub_catid' => $categoryId,
-                'body' => $data['enquiry_content'],
+                'body' => $content,
                 'file_count' => $fileCount,
             ];
-
-            foreach ($data['file']??[] as $key=>$file){
-                $dataSend['file_'.($key+1)] = $file;
-            }
 
             //insert data to ticketing third party
             $ticketing = new Ticketing();
@@ -688,10 +735,13 @@ class ApiEnquiries extends Controller
 
             if(isset($addTicket['status']) && $addTicket['status'] == 'success' &&
                 isset($addTicket['response']['ticket_id'])){
-                $create = Tickets::create(['phone' => $data['enquiry_phone'], 'id_user' => $user['id']??null, 'id_ticket_third_party' => $addTicket['response']['ticket_id']]);
+                $create = Ticket::create(['phone' => $phone, 'id_user' => $idUser, 'id_ticket_third_party' => $addTicket['response']['ticket_id']]);
 
                 if($create){
                     unset($data['file']);
+                    unset($data['id_outlet']);
+                    unset($data['enquiry_phone']);
+                    unset($data['enquiry_device_token']);
                     return response()->json(MyHelper::checkCreate($data));
                 }
             }
@@ -700,5 +750,43 @@ class ApiEnquiries extends Controller
         }
 
         return response()->json(MyHelper::checkCreate($data));
+    }
+
+    function settingSubject(Request $request){
+        $post = $request->json()->all();
+
+        if(empty($post)){
+            $getCategory = Setting::where('key', 'category_contact_us')->first()['value_text']??"";
+            if(empty($getCategory)){
+                return response()->json(['status' => 'fail', 'messages' => ['Category is empty']]);
+            }
+
+            $allSubject = (array)json_decode(Setting::where('key', 'enquiries_subject_list')->first()['value_text']??'');
+            $category = (array)json_decode($getCategory);
+
+            $result = [];
+            foreach ($category as $key=>$dt){
+                $parent = (array)$dt;
+                $child = (array)$parent['child'];
+
+                $resChild = [];
+                foreach ($child as $keyChild=>$value){
+                    $text = ucfirst(str_replace('-', ' ', $keyChild));
+                    if($keyChild == 'lain-lain'){
+                        $text = ucfirst($keyChild);
+                    }
+                    $subject = (array)$allSubject[$key]??[];
+                    $subject = $subject[$keyChild];
+                    $resChild[$keyChild]['name'] = $text;
+                    $resChild[$keyChild]['subject'] = $subject;
+                }
+                $result[$key] = $resChild;
+            }
+
+            return response()->json(MyHelper::checkCreate($result));
+        }else{
+            $update = Setting::updateOrCreate(['key' => 'enquiries_subject_list'], ['key' => 'enquiries_subject_list', 'value_text' => json_encode($post)]);
+            return response()->json(MyHelper::checkUpdate($update));
+        }
     }
 }

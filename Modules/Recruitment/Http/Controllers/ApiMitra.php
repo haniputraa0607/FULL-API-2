@@ -447,6 +447,15 @@ class ApiMitra extends Controller
     	return MyHelper::checkGet($res);
     }
 
+    public function logout(Request $request)
+    {
+    	$user = $request->user();
+    	$user->devices()->where('device_id', $request->device_id)->delete();
+    	return [
+    		'status' => 'success'
+    	];
+    }
+
     public function outletServiceScheduleStatus($id_user_hair_stylist, $date = null)
     {
     	$today = $date ?? date('Y-m-d H:i:s');

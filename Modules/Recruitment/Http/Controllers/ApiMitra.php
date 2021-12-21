@@ -904,6 +904,7 @@ class ApiMitra extends Controller
                     ->where('outlet_cash.id_outlet', $user->id_outlet)
                     ->whereDate('outlet_cash.created_at', $date)
                     ->where('outlet_cash_status', 'Pending')
+                    ->where('outlet_cash_type', 'Transfer To Supervisor')
                     ->select('id_outlet_cash', DB::raw('DATE_FORMAT(outlet_cash.created_at, "%H:%i") as time'), 'fullname as hair_stylist_name',
                         'outlet_cash_status', 'outlet_cash_code', 'outlet_cash_amount as amount');
 
@@ -912,6 +913,7 @@ class ApiMitra extends Controller
             ->where('outlet_cash.id_outlet', $user->id_outlet)
             ->whereDate('outlet_cash.confirm_at', $date)
             ->where('outlet_cash_status', 'Confirm')
+            ->where('outlet_cash_type', 'Transfer To Supervisor')
             ->select('id_outlet_cash', DB::raw('DATE_FORMAT(outlet_cash.created_at, "%H:%i") as time'), 'user_hair_stylist.fullname as hair_stylist_name',
                 'outlet_cash_status', 'outlet_cash_code', 'outlet_cash_amount as amount', 'confirm.fullname as confirm_by_name');
 
@@ -1043,13 +1045,9 @@ class ApiMitra extends Controller
 
     public function cashOutletTransfer(Request $request){
         $user = $request->user();
-        $post = $request->json()->all();
+        $post = $request->all();
 
         if(!empty($post['amount']) && !empty($post['attachment'])){
-            if(empty($post['attachment_extention'])){
-                return ['status' => 'fail', 'messages' => ['attachment extention can not be empty']];
-            }
-
             $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
             if($outlet['total_current_cash'] < $post['amount']){
                 return ['status' => 'fail', 'messages' => ['Outlet balance is not sufficient']];
@@ -1068,13 +1066,18 @@ class ApiMitra extends Controller
             ]);
 
             if($save){
-                if(!empty($post['attachment'])){
-                    $upload = MyHelper::uploadFile($post['attachment'], 'files/transfer_to_central/', $post['attachment_extention'], date('YmdHis').'_'.$user->id_outlet);
+                if(!empty($request->file('attachment'))){
+                    $encode = base64_encode(fread(fopen($request->file('attachment'), "r"), filesize($request->file('attachment'))));
+                    $originalName = $request->file('attachment')->getClientOriginalName();
+                    $name = pathinfo($originalName, PATHINFO_FILENAME);
+                    $ext = pathinfo($originalName, PATHINFO_EXTENSION);
+                    $upload = MyHelper::uploadFile($encode, 'files/transfer_to_central/',$ext, date('YmdHis').'_'.$name);
                     if (isset($upload['status']) && $upload['status'] == "success") {
                         $fileName = $upload['path'];
                         OutletCashAttachment::create([
                             'id_outlet_cash' => $save['id_outlet_cash'],
-                            'outlet_cash_attachment' => $fileName
+                            'outlet_cash_attachment' => $fileName,
+                            'outlet_cash_attachment_name' => $name.'.'.$ext
                         ]);
                     }
                 }
@@ -1091,13 +1094,9 @@ class ApiMitra extends Controller
 
     public function outletIncomeCreate(Request $request){
         $user = $request->user();
-        $post = $request->json()->all();
+        $post = $request->all();
 
         if(!empty($post['amount']) && !empty($post['attachment'])){
-            if(empty($post['attachment_extention'])){
-                return ['status' => 'fail', 'messages' => ['attachment extention can not be empty']];
-            }
-
             $save = OutletCash::create([
                 'id_user_hair_stylist' => $user->id_user_hair_stylist,
                 'id_outlet' => $user->id_outlet,
@@ -1111,13 +1110,20 @@ class ApiMitra extends Controller
             ]);
 
             if($save){
-                $upload = MyHelper::uploadFile($post['attachment'], 'files/transfer_to_central/', $post['attachment_extention'], date('YmdHis').'_'.$user->id_outlet);
-                if (isset($upload['status']) && $upload['status'] == "success") {
-                    $fileName = $upload['path'];
-                    OutletCashAttachment::create([
-                        'id_outlet_cash' => $save['id_outlet_cash'],
-                        'outlet_cash_attachment' => $fileName
-                    ]);
+                if(!empty($request->file('attachment'))){
+                    $encode = base64_encode(fread(fopen($request->file('attachment'), "r"), filesize($request->file('attachment'))));
+                    $originalName = $request->file('attachment')->getClientOriginalName();
+                    $name = pathinfo($originalName, PATHINFO_FILENAME);
+                    $ext = pathinfo($originalName, PATHINFO_EXTENSION);
+                    $upload = MyHelper::uploadFile($encode, 'files/income_from_central/',$ext, date('YmdHis').'_'.$name);
+                    if (isset($upload['status']) && $upload['status'] == "success") {
+                        $fileName = $upload['path'];
+                        OutletCashAttachment::create([
+                            'id_outlet_cash' => $save['id_outlet_cash'],
+                            'outlet_cash_attachment' => $fileName,
+                            'outlet_cash_attachment_name' => $name.'.'.$ext
+                        ]);
+                    }
                 }
 
                 $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
@@ -1147,7 +1153,7 @@ class ApiMitra extends Controller
         $res = [];
         foreach ($list as $value){
             $type = strtok($value['outlet_cash_type'], " ");
-            $att = OutletCashAttachment::where('id_outlet_cash', $value['id_outlet_cash'])->pluck('outlet_cash_attachment')->toArray();
+            $att = OutletCashAttachment::where('id_outlet_cash', $value['id_outlet_cash'])->select('outlet_cash_attachment', 'outlet_cash_attachment_name')->get()->toArray();
             $res[] = [
                 'id_outlet_cash' => $value['id_outlet_cash'],
                 'id_user_hair_stylist' => $value['id_user_hair_stylist'],
@@ -1165,7 +1171,7 @@ class ApiMitra extends Controller
             'info' => [
                 'total_current_cash_outlet' => $outlet['total_current_cash'],
                 'total_cash_from_central' => $outlet['total_cash_from_central'],
-                'va_number' => ''
+                'va_number' => '0000000000'
             ],
             'data' => $res
         ];
@@ -1177,17 +1183,27 @@ class ApiMitra extends Controller
         $post = $request->all();
 
         if(!empty($post['amount']) && !empty($post['total_attachment'])){
+            $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
+            if($outlet['total_cash_from_central'] < $post['amount']){
+                return ['status' => 'fail', 'messages' => ['Your balance is not enough']];
+            }
+
             if($post['total_attachment'] > 3){
                 return ['status' => 'fail', 'messages' => ['You can upload maximum 3 file']];
             }
             $files = [];
-            for($i=1;$i<=$post['total_attachment'];$i++){
+            for($i=0;$i<$post['total_attachment'];$i++){
                 if(!empty($request->file('attachment_'.$i))){
                     $encode = base64_encode(fread(fopen($request->file('attachment_'.$i), "r"), filesize($request->file('attachment_'.$i))));
-                    $ext = pathinfo($request->file('attachment_'.$i)->getClientOriginalName(), PATHINFO_EXTENSION);
-                    $upload = MyHelper::uploadFile($encode, 'files/outlet_expense/',$ext, date('YmdHis').'_'.$user->id_outlet);
+                    $originalName = $request->file('attachment_'.$i)->getClientOriginalName();
+                    $name = pathinfo($originalName, PATHINFO_FILENAME);
+                    $ext = pathinfo($originalName, PATHINFO_EXTENSION);
+                    $upload = MyHelper::uploadFile($encode, 'files/outlet_expense/',$ext, date('YmdHis').'_'.$name);
                     if (isset($upload['status']) && $upload['status'] == "success") {
-                        $files[] = $upload['path'];
+                        $files[] = [
+                            "outlet_cash_attachment" => $upload['path'],
+                            "outlet_cash_attachment_name" => $name.'.'.$ext
+                        ];
                     }
                 }
             }
@@ -1209,7 +1225,8 @@ class ApiMitra extends Controller
                 foreach ($files??[] as $file){
                     $insertattachment[] = [
                         'id_outlet_cash' => $save['id_outlet_cash'],
-                        'outlet_cash_attachment' => $file,
+                        'outlet_cash_attachment' => $file['outlet_cash_attachment'],
+                        'outlet_cash_attachment_name' => $file['outlet_cash_attachment_name'],
                         'created_at' => date('Y-m-d H:i:s'),
                         'updated_at' => date('Y-m-d H:i:s')
                     ];
@@ -1219,7 +1236,6 @@ class ApiMitra extends Controller
                     OutletCashAttachment::insert($insertattachment);
                 }
 
-                $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
                 $save = Outlet::where('id_outlet', $user->id_outlet)->update(['total_cash_from_central' => $outlet['total_cash_from_central'] - $post['amount']]);
             }
 
@@ -1245,7 +1261,7 @@ class ApiMitra extends Controller
 
         $res = [];
         foreach ($list as $value){
-            $att = OutletCashAttachment::where('id_outlet_cash', $value['id_outlet_cash'])->pluck('outlet_cash_attachment')->toArray();
+            $att = OutletCashAttachment::where('id_outlet_cash', $value['id_outlet_cash'])->select('outlet_cash_attachment', 'outlet_cash_attachment_name')->get()->toArray();
             $res[] = [
                 'id_outlet_cash' => $value['id_outlet_cash'],
                 'id_user_hair_stylist' => $value['id_user_hair_stylist'],

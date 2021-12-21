@@ -56,6 +56,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
 		    Route::post('invite_hs', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@invite_hs']);
 		    Route::post('commission', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@commission']);
 		    Route::post('list_hs', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@list_hs']);
+		    Route::any('list_group', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@list_group']);
     	});
     });
 });

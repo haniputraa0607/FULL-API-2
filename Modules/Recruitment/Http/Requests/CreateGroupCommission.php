@@ -31,14 +31,21 @@ class CreateGroupCommission extends FormRequest
         }); 
         $validator->addExtension('cek', function ($attribute, $value, $parameters, $validator) {
          $request = $validator->getData();
-         if($request['percent']=='on'){
+         $global = Product::where(array('products.id_product'=>$request['id_product']))->join('product_global_price','product_global_price.id_product','products.id_product')->first();
+         if(isset($request['percent'])){
              if($value>=1&& $value<=99 ){
                  return true;
              }else{
                  return false;
              }
          }else{
+             if($global){
+                 if($global->product_global_price > $value){
+                      return true;
+                 }return false;
+             }else{
                  return true;
+             }
          }
         }); 
 
@@ -48,7 +55,7 @@ class CreateGroupCommission extends FormRequest
         return [
             'required' => ':attribute harus diisi',
             'unik' => 'Produk sudah ada ',
-            'cek' => 'Percent maksimal minimal 1% maksimal 99%. Nominal'
+            'cek' => 'Percent maksimal minimal 1% maksimal 99%. Nominal commission lebih besar dari pada harga product'
         ];
     }
     public function authorize()

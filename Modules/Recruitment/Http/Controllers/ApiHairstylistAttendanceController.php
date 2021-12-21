@@ -21,16 +21,16 @@ class ApiHairstylistAttendanceController extends Controller
         $outlet->setHidden(['call', 'url']);
         // get current schedule
         $todaySchedule = $hairstylist->hairstylist_schedules()
-            ->selectRaw('date, min(time_start) as clock_in_requirement, max(time_end) as clock_out_requirement')
+            ->selectRaw('date, min(time_start) as clock_in_requirement, max(time_end) as clock_out_requirement, shift')
             ->join('hairstylist_schedule_dates', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
             ->whereNotNull('approve_at')
             ->where([
                 'schedule_month' => date('m'),
-                'schedule_year' => date('y')
+                'schedule_year' => date('Y')
             ])
             ->whereDate('date', date('Y-m-d'))
             ->first();
-        if (!$todaySchedule) {
+        if (!$todaySchedule || !$todaySchedule->date) {
             return [
                 'status' => 'fail',
                 'messages' => ['Tidak ada kehadiran dibutuhkan untuk hari ini']
@@ -39,25 +39,46 @@ class ApiHairstylistAttendanceController extends Controller
 
         $attendance = $hairstylist->getAttendanceByDate($todaySchedule);
 
-        $logs = [];
-        $clock_in = $attendance->clock_in ?: $attendance->logs()->where('type', 'clock_in')->where('status', '<>', 'Rejected')->min('datetime');
-        $clock_out = $attendance->clock_out ?: $attendance->logs()->where('type', 'clock_out')->where('status', '<>', 'Rejected')->max('datetime');
-        if ($clock_in) {
-            $logs[] = [
-                'name' => 'Clock In',
-                'value' => MyHelper::adjustTimezone($clock_in, null, 'H:i', true),
-            ];
-        }
-        if ($clock_out) {
-            $logs[] = [
-                'name' => 'Clock Out',
-                'value' => MyHelper::adjustTimezone($clock_out, null, 'H:i', true),
-            ];
-        }
+        // $logs = [];
+        // $clock_in = $attendance->clock_in ?: $attendance->logs()->where('type', 'clock_in')->where('status', '<>', 'Rejected')->min('datetime');
+        // $clock_out = $attendance->clock_out ?: $attendance->logs()->where('type', 'clock_out')->where('status', '<>', 'Rejected')->max('datetime');
+        // if ($clock_in) {
+        //     $logs[] = [
+        //         'name' => 'Clock In',
+        //         'value' => MyHelper::adjustTimezone($clock_in, null, 'H:i', true),
+        //     ];
+        // }
+        // if ($clock_out) {
+        //     $logs[] = [
+        //         'name' => 'Clock Out',
+        //         'value' => MyHelper::adjustTimezone($clock_out, null, 'H:i', true),
+        //     ];
+        // }
+
+        $shiftNameMap = [
+            'Morning' => 'Pagi',
+            'Middle' => 'Tengah',
+            'Evening' => 'Sore',
+        ];
 
         $result = [
+            'clock_in_requirement' => MyHelper::adjustTimezone($todaySchedule->clock_in_requirement, null, 'H:i', true),
+            'clock_out_requirement' => MyHelper::adjustTimezone($todaySchedule->clock_out_requirement, null, 'H:i', true),
+            'shift_name' => $shiftNameMap[$todaySchedule->shift] ?? $todaySchedule->shift,
             'outlet' => $outlet,
-            'logs' => $logs,
+            'logs' => $attendance->logs()->get()->transform(function($item) {
+                return [
+                    'location_name' => $item->location_name,
+                    'latitude' => $item->latitude,
+                    'longitude' => $item->longitude,
+                    'longitude' => $item->longitude,
+                    'type' => ucwords(str_replace('_', ' ',$item->type)),
+                    'photo' => $item->photo_path ? config('url.storage_url_api') . $item->photo_path : null,
+                    'date' => MyHelper::adjustTimezone($item->datetime, null, 'l, d F Y', true),
+                    'time' => MyHelper::adjustTimezone($item->datetime, null, 'H:i'),
+                    'notes' => $item->notes ?: '',
+                ];
+            }),
         ];
 
         return MyHelper::checkGet($result);
@@ -106,6 +127,7 @@ class ApiHairstylistAttendanceController extends Controller
             'photo_path' => $photoPath,
             'status' => $outsideRadius ? 'Pending' : '',
             'approved_by' => null,
+            'notes' => $request->notes,
         ]);
 
         return MyHelper::checkGet([

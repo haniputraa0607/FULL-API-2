@@ -2293,7 +2293,7 @@ class ApiOnlineTransaction extends Controller
         
         //subtotal
         $result['payment_detail'][] = [
-            'name'          => 'Subtotal ('.$totalItem.' item)',
+            'name'          => 'Total',
             "is_discount"   => 0,
             'amount'        => MyHelper::requestNumber($result['subtotal'],'_CURRENCY')
         ];

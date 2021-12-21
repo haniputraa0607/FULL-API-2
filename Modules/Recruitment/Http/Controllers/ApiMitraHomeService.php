@@ -190,6 +190,11 @@ class ApiMitraHomeService extends Controller
                     }
 
                     $update = TransactionHomeServiceHairStylistFinding::where('id_transaction', $detail['id_transaction'])->where('id_user_hair_stylist', $user['id_user_hair_stylist'])->update(['status' => 'Reject']);
+
+                    //cancel all booking
+                    app("Modules\Transaction\Http\Controllers\ApiOnlineTransaction")->cancelBookHS($detail['id_transaction']);
+                    app("Modules\Transaction\Http\Controllers\ApiTransactionHomeService")->cancelBookProductServiceStockHM($detail['id_transaction']);
+
                     FindingHairStylistHomeService::dispatch(['id_transaction' => $detail['id_transaction'], 'id_transaction_home_service' => $detail['id_transaction_home_service']])->allOnConnection('findinghairstylistqueue');
                     break;
                 case 'On The Way':

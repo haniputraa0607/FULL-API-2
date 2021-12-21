@@ -4078,18 +4078,21 @@ class ApiPromoCampaign extends Controller
                         $query->where('brand_active',1);
                     })
                     ->OrderBy('id_promo_campaign', 'DESC')
-                    ->get();
-    
-            $promo_campaign = array_map(function($value)use($text){
-                $value['code'] = null;
-                $value['share_promo'] = null;
-                if($value['code_type'] == 'Single'){
-                    $promo_code = PromoCampaignPromoCode::where('id_promo_campaign',$value['id_promo_campaign'])->select('promo_code')->first();
-                    $value['code'] = $promo_code['promo_code'];
-                    $value['share_promo'] = str_replace('%promo_code%',$value['code'],$text['share']);
-                }
-                return $value;
-            },$promo_campaign->toArray());
+                    ->first();
+
+            if (!$promo_campaign) {
+                return [
+                    'status' => 'fail',
+                    'messages' => ['Promo tidak ditemukan']
+                ];
+            }
+
+            $promo_campaign = $promo_campaign->toArray();
+            if ($promo_campaign['code_type'] == 'Single') {
+                $promo_code = PromoCampaignPromoCode::where('id_promo_campaign',$promo_campaign['id_promo_campaign'])->select('promo_code')->first();
+                $promo_campaign['code'] = $promo_code['promo_code'];
+                $promo_campaign['share_promo'] = str_replace('%promo_code%',$promo_campaign['code'],$text['share']);
+            }
             
             return [
                 'status' => 'success',

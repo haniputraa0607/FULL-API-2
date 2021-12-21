@@ -67,6 +67,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
     Route::group(['middleware' => ['auth:mitra', 'scopes:mitra-apps']], function () {
     	Route::get('announcement','ApiMitra@announcementList');
     	Route::any('home','ApiMitra@home');
+        Route::any('logout','ApiMitra@logout');
 
     	Route::group(['prefix' => 'schedule'], function () {
         	Route::post('/', 'ApiMitra@schedule');

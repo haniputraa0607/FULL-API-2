@@ -22,7 +22,13 @@ use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Project\Http\Requests\Project\UpdateProjectRequest;
 class ApiProjectController extends Controller
 {
-   
+   public function __construct()
+    {
+        date_default_timezone_set('Asia/Jakarta');
+        if (\Module::collections()->has('Autocrm')) {
+            $this->autocrm  = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
+        }
+    }
     public function create(CreateProjectRequest $request)
     {
                 $store = Project::create([
@@ -128,6 +134,23 @@ class ApiProjectController extends Controller
     {
          if($request->id_project){
         $project = Project::where('id_project', $request->id_project)->where(array('status'=>'Process'))->update(['status'=>'Reject']);
+        $data = Project::where(array('id_project'=>$request->id_project))->join('partners','partners.id_partner','projects.id_partner')->first();
+      if (\Module::collections()->has('Autocrm')) {
+                  $autocrm = app($this->autocrm)->SendAutoCRM(
+                      'Reject Project',
+                      $data->phone,
+                      [
+                          'name' => $data->name,
+                      ], null, null, null, null, null, null, null, 1,
+                  );
+                  // return $autocrm;
+                  if (!$autocrm) {
+                      return response()->json([
+                          'status'    => 'fail',
+                          'messages'  => ['Failed to send']
+                      ]);
+                  }
+              }
         return MyHelper::checkDelete($project);
         }
         return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
@@ -161,6 +184,22 @@ class ApiProjectController extends Controller
             'outlet_status' => 'Inactive',
             'is_tax' => $location->is_tax,
         ]);
+         if (\Module::collections()->has('Autocrm')) {
+                        $autocrm = app($this->autocrm)->SendAutoCRM(
+                            'New Project',
+                            $partner->phone,
+                            [
+                                'name' => $partner->name,
+                            ], null, null, null, null, null, null, null, 1,
+                        );
+                        // return $autocrm;
+                        if (!$autocrm) {
+                            return response()->json([
+                                'status'    => 'fail',
+                                'messages'  => ['Failed to send']
+                            ]);
+                        }
+                    }
         return response()->json(['status' => 'success','result'=>[
             'project'=>$project,
             'outlet'=>$outlet

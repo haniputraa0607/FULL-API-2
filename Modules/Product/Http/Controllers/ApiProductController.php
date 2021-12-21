@@ -65,6 +65,8 @@ use Modules\Subscription\Entities\Subscription;
 use App\Http\Models\OutletSchedule;
 use Modules\Product\Http\Requests\product\DeleteIcount;
 use Modules\ProductService\Entities\ProductServiceUse;
+use Modules\Product\Entities\ProductCommissionDefault;
+use Modules\Product\Http\Requests\product\Commission;
 
 class ApiProductController extends Controller
 {
@@ -3422,5 +3424,40 @@ class ApiProductController extends Controller
     	}
 
     }
-    
+    public function commission(Request $request){
+        if(isset($request->product_code)){
+         $product = Product::where(array('product_code'=>$request->product_code))->first();
+        
+        $commission = ProductCommissionDefault::where(array('id_product'=>$product->id_product))->first();
+         return MyHelper::checkGet($commission);
+        }
+        return MyHelper::checkGet(null);
+    }
+    public function commission_create(Commission $request){
+        if($request->percent == 'on'){
+            $percent = 1;
+        }else{
+            $percent = 0;
+        }
+        if(isset($request->product_code)){
+           $code = Product::where('product_code',$request->product_code)->first();
+           if($code){
+           $product = ProductCommissionDefault::where(array('id_product'=>$code->id_product))->first();
+           if($product){
+               $product->percent = $percent;
+               $product->commission = $request->commission;
+               $product->save();
+           }else{
+               $product = ProductCommissionDefault::create([
+                   'id_product'=>$code->id_product,
+                    'percent'=>$percent,
+                   'commission'=>$request->commission
+               ]);
+           }
+            return response()->json(MyHelper::checkCreate($product));
+            }
+        }
+          $result = ['status' => 'fail', 'messages' => ['failed to delete data']];
+        return response()->json($result);
+    }
 }

@@ -109,6 +109,23 @@ class ApiContractController extends Controller
                     "status"=>'Success',
                     "note"   =>  $note
                 ]);
+                 $project = Project::where(array('id_project'=>$request->id_project))->join('partners','partners.id_partner','projects.id_partner')->first();
+                if (\Module::collections()->has('Autocrm')) {
+                        $autocrm = app($this->autocrm)->SendAutoCRM(
+                            'Update Project',
+                            $project->phone,
+                            [
+                                'name' => $project->name,
+                            ], null, null, null, null, null, null, null, 1,
+                        );
+                        // return $autocrm;
+                        if (!$autocrm) {
+                            return response()->json([
+                                'status'    => 'fail',
+                                'messages'  => ['Failed to send']
+                            ]);
+                        }
+                    }
                 return response()->json(MyHelper::checkCreate($store));
          }
         }

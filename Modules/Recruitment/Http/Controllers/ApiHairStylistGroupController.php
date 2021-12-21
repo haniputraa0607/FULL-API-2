@@ -60,6 +60,11 @@ class ApiHairStylistGroupController extends Controller
             return response()->json(MyHelper::checkGet($data));
         }
     }
+    function list_group(Request $request) 
+    {
+        $data = HairstylistGroup::all();;
+            return response()->json(MyHelper::checkGet($data));
+    }
    
     public function filterList($query,$rules,$operator='and'){
         $newRule=[];
@@ -107,10 +112,15 @@ class ApiHairStylistGroupController extends Controller
     {
         $data = array();
         if($request->id_hairstylist_group){
-        $store = Product::select(['id_product','product_name'])->get();
+        $store = Product::select(['products.id_product','product_name'])->get();
         foreach ($store as $value) {
+            $global = Product::where(array('products.id_product'=>$value['id_product']))->join('product_global_price','product_global_price.id_product','products.id_product')->first();
             $cek = HairstylistGroupCommission::where(array('id_product'=>$value['id_product'],'id_hairstylist_group'=>$request->id_hairstylist_group))->first();
             if(!$cek){
+                $value['price'] = 0;
+                if($global){
+                    $value['price'] = $global->product_global_price;
+                }
                 array_push($data,$value);
             }
         }}
@@ -167,8 +177,8 @@ class ApiHairStylistGroupController extends Controller
     public function detail_commission(Request $request)
     {
         if($request->id_hairstylist_group_commission!=''){
-            $data = HairstylistGroupCommission::where(array('id_hairstylist_group_commission'=>$request->id_hairstylist_group_commission))->join('products','products.id_product','hairstylist_group_commissions.id_product')->join('hairstylist_groups','hairstylist_groups.id_hairstylist_group','hairstylist_group_commissions.id_hairstylist_group')->first();
-            return MyHelper::checkGet($data);
+           $data = HairstylistGroupCommission::where(array('id_hairstylist_group_commission'=>$request->id_hairstylist_group_commission))->join('products','products.id_product','hairstylist_group_commissions.id_product')->join('hairstylist_groups','hairstylist_groups.id_hairstylist_group','hairstylist_group_commissions.id_hairstylist_group')->first();
+           return MyHelper::checkGet($data);
         }
         return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
     }

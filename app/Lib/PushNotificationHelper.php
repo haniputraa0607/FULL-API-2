@@ -25,6 +25,7 @@ use LaravelFCM\Message\OptionsBuilder;
 use LaravelFCM\Message\PayloadDataBuilder;
 // use LaravelFCM\Message\PayloadNotificationBuilder;
 use App\Lib\CustomPayloadNotificationBuilder;
+use Modules\Recruitment\Entities\UserHairStylist;
 use FCM;
 
 class PushNotificationHelper{
@@ -65,9 +66,12 @@ class PushNotificationHelper{
     }
 
     // based on field Users Table
-    public static function searchDeviceToken($type, $value) {
+    public static function searchDeviceToken($type, $value, $recipient_type = null) {
         $result = [];
 
+        if ($recipient_type && $recipient_type == 'hairstylist') {
+            return static::searchHairstylistDeviceToken($type, $value, $recipient_type);
+        }
         $devUser = User::leftjoin('user_devices', 'user_devices.id_user', '=', 'users.id')
             ->select('id_device_user', 'users.id', 'user_devices.device_token', 'user_devices.device_id', 'phone');
 
@@ -107,6 +111,33 @@ class PushNotificationHelper{
         }
 
         return $result;
+    }
+
+    public static function searchHairstylistDeviceToken($type, $value)
+    {
+        $hs = UserHairStylist::with('devices');
+
+        if (is_array($type) && is_array($value)) {
+            for ($i=0; $i < count($type) ; $i++) { 
+                $hs->where($type[$i], $value[$i]);
+            }
+        }
+        else {
+            if (is_array($value)) {
+                $hs->whereIn($type, $value);
+            }
+            else {
+                $hs->where($type, $value);
+            }
+        }
+
+        $hs = $hs->first();
+
+        return [
+            'token' => $hs->devices->pluck('device_token')->unique()->toArray(),
+            'id_user' => [$hs->id_user_hair_stylist],
+            'mphone' => [$hs->phone]
+        ];
     }
 
     public static function getDeviceTokenAll() {

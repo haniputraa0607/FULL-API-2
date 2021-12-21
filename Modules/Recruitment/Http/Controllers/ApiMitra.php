@@ -435,7 +435,25 @@ class ApiMitra extends Controller
             ]);
         }
 
+        if ($request->device_id) {
+        	$user->devices()->updateOrCreate([
+        		'device_id' => $request->device_id
+        	], [
+		        'device_type' => $request->device_type,
+		        'device_token' => $request->device_token,
+        	]);
+        }
+
     	return MyHelper::checkGet($res);
+    }
+
+    public function logout(Request $request)
+    {
+    	$user = $request->user();
+    	$user->devices()->where('device_id', $request->device_id)->delete();
+    	return [
+    		'status' => 'success'
+    	];
     }
 
     public function outletServiceScheduleStatus($id_user_hair_stylist, $date = null)

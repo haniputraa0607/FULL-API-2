@@ -661,11 +661,9 @@ class ApiAutoCrm extends Controller
 							$dataOptional['header_label'] = $variables['header_label'];
 						}
 
-						$deviceToken = PushNotificationHelper::searchDeviceToken("phone", $user['phone']);
-						// print_r($deviceToken);exit;
 						$subject = $this->TextReplace($crm['autocrm_push_subject'], $receipient, $variables, null, $franchise, $partner, $recipient_type);
 						$content = $this->TextReplace($crm['autocrm_push_content'], $receipient, $variables, null, $franchise, $partner, $recipient_type);
-						$deviceToken = PushNotificationHelper::searchDeviceToken("phone", $user['phone']);
+						$deviceToken = PushNotificationHelper::searchDeviceToken("phone", $user['phone'], $recipient_type);
 
 						if (!empty($deviceToken)) {
 							if (isset($deviceToken['token']) && !empty($deviceToken['token'])) {

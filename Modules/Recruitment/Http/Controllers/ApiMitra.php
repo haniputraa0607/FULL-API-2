@@ -331,6 +331,7 @@ class ApiMitra extends Controller
 	    	}
 
 	    	$insert = HairstylistScheduleDate::insert($insertData);
+	    	$schedule->refreshTimeShift();
 
 	    	if (!$insert) {
 	    		DB::rollback();

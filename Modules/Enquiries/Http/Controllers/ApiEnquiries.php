@@ -799,6 +799,7 @@ class ApiEnquiries extends Controller
                     unset($data['file']);
                     unset($data['enquiry_phone']);
                     unset($data['enquiry_device_token']);
+                    $data['message'] = 'Pesan Anda berhasil terkirim ke CS';
                     return response()->json(MyHelper::checkCreate($data));
                 }
             }

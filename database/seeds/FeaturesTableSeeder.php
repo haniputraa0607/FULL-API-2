@@ -4097,6 +4097,56 @@ class FeaturesTableSeeder extends Seeder
 	                'created_at' => date('Y-m-d H:00:00'),
                         'updated_at' => date('Y-m-d H:00:00')
 	            ),
+            409 => 
+	            array (
+	                'id_feature' => 410,
+	                'feature_type' => 'Create',
+	                'feature_module' => 'Request Product',
+	                'show_hide' => 1,
+	                'order' => 147,
+	                'created_at' => date('Y-m-d H:00:00'),
+                        'updated_at' => date('Y-m-d H:00:00')
+	            ),
+            410 => 
+	            array (
+	                'id_feature' => 411,
+	                'feature_type' => 'List',
+	                'feature_module' => 'Request Product',
+	                'show_hide' => 1,
+	                'order' => 147,
+	                'created_at' => date('Y-m-d H:00:00'),
+                        'updated_at' => date('Y-m-d H:00:00')
+	            ),
+            411 => 
+	            array (
+	                'id_feature' => 412,
+	                'feature_type' => 'Detail',
+	                'feature_module' => 'Request Product',
+	                'show_hide' => 1,
+	                'order' => 147,
+	                'created_at' => date('Y-m-d H:00:00'),
+                        'updated_at' => date('Y-m-d H:00:00')
+	            ),
+            412 => 
+	            array (
+	                'id_feature' => 413,
+	                'feature_type' => 'Update',
+	                'feature_module' => 'Request Product',
+	                'show_hide' => 1,
+	                'order' => 147,
+	                'created_at' => date('Y-m-d H:00:00'),
+                        'updated_at' => date('Y-m-d H:00:00')
+	            ),
+            413 => 
+	            array (
+	                'id_feature' => 414,
+	                'feature_type' => 'Delete',
+	                'feature_module' => 'Request Product',
+	                'show_hide' => 1,
+	                'order' => 147,
+	                'created_at' => date('Y-m-d H:00:00'),
+                        'updated_at' => date('Y-m-d H:00:00')
+	            ),
         ));
         
         

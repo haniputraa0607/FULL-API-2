@@ -89,6 +89,11 @@ class UserHairStylist extends Authenticatable
 		return $this->belongsTo(\App\Http\Models\Outlet::class, 'id_outlet');
 	}
 
+    public function getPhoneAttribute()
+    {
+        return $this->phone_number;
+    }
+
     public function documents()
     {
         return $this->hasMany(\Modules\Recruitment\Entities\UserHairStylistDocuments::class, 'id_user_hair_stylist');
@@ -144,5 +149,10 @@ class UserHairStylist extends Authenticatable
             ]);
         }
         return $attendance;
+    }
+
+    public function devices()
+    {
+        return $this->hasMany(UserHairStylistDevice::class, 'id_user_hair_stylist');
     }
 }

@@ -22,6 +22,7 @@ use App\Http\Models\Banner;
 use Modules\SettingFraud\Entities\FraudSetting;
 use App\Http\Models\OauthAccessToken;
 use App\Http\Models\FeaturedDeal;
+use App\Http\Models\Outlet;
 use Modules\Subscription\Entities\FeaturedSubscription;
 use Modules\PromoCampaign\Entities\FeaturedPromoCampaign;
 use Modules\PromoCampaign\Entities\PromoCampaignReport;
@@ -1084,5 +1085,31 @@ class ApiHome extends Controller
         }
 
         return $array;
+    }
+
+    public function scanQR(Request $request)
+    {
+        $request->validate([
+            'qr_code' => 'string|required',
+        ]);
+        $qr = $request->qr_code;
+        $fragment = explode('/', trim($qr, '/'));
+        $outlet_code = end($fragment);
+        $outlet = Outlet::where('outlet_code', $outlet_code)->first();
+        if (!$outlet) {
+            return [
+                'status' => 'fail',
+                'messages' => [
+                    'Kode QR tidak valid'
+                ],
+            ];
+        }
+        return [
+            'status' => 'success',
+            'result' => [
+                'action' => 'outlet_service',
+                'id_reference' => $outlet->id_outlet
+            ],
+        ];
     }
 }

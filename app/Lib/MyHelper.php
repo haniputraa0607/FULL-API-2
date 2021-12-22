@@ -3005,15 +3005,25 @@ class MyHelper{
 		return $log;
 	}
 
-	public static function decryptPIN($encrypted, $phone)
+	public static function decryptPIN($encrypted, $phone, $scope = 'apps')
 	{
-		$user = User::select('password',\DB::raw('0 as challenge_key'))->where('phone', $phone)->first();
-		if (!$user) {
+        $phone = str_replace('+', '', $phone);
+        if(substr($phone, 0, 2) == 62){
+            $phone = str_replace('62', '0', $phone);
+        }
+
+        if($scope == 'mitra-apps'){
             $user = UserHairStylist::select('password',\DB::raw('0 as challenge_key'))->where('phone_number', $phone)->first();
             if (!$user) {
                 return false;
             }
-		}
+        }else{
+            $user = User::select('password',\DB::raw('0 as challenge_key'))->where('phone', $phone)->first();
+            if (!$user) {
+                return false;
+            }
+        }
+
 		$challengeKey = substr($user->challenge_key,0,32);
 		$iv = substr($user->challenge_key,32,16);
 		return openssl_decrypt(base64_decode($encrypted), 'AES-256-CBC', $challengeKey, OPENSSL_RAW_DATA, $iv);

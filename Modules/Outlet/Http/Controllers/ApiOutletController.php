@@ -767,6 +767,13 @@ class ApiOutletController extends Controller
             if(isset($var['outlet_schedules'])){
                 foreach($var['outlet_schedules'] as $index => $sch){
                     $var['outlet_schedules'][$index] = $this->getTimezone($var['outlet_schedules'][$index], $var['time_zone_utc']);
+
+                    if(!empty($sch['time_shift'])){
+                        foreach ($sch['time_shift'] as $i=>$shift){
+                            $var['outlet_schedules'][$index]['time_shift'][$i]['shift_time_start'] = $this->getOneTimezone($shift['shift_time_start'], $var['time_zone_utc']);
+                            $var['outlet_schedules'][$index]['time_shift'][$i]['shift_time_end'] = $this->getOneTimezone($shift['shift_time_end'], $var['time_zone_utc']);
+                        }
+                    }
                 }
             }
             if (isset($var['time_zone_utc'])) {
@@ -2552,8 +2559,8 @@ class ApiOutletController extends Controller
                     'id_outlet' => $post['id_outlet'],
                     'id_outlet_schedule' => $shift['id_outlet_schedule'],
                     'shift' => $shift['shift'],
-                    'shift_time_start' => date('H:i', strtotime($shift['start'])),
-                    'shift_time_end' => date('H:i', strtotime($shift['end'])),
+                    'shift_time_start' => $this->setOneTimezone(date('H:i', strtotime($shift['start'])), $outlet->time_zone_utc),
+                    'shift_time_end' => $this->setOneTimezone(date('H:i', strtotime($shift['end'])), $outlet->time_zone_utc),
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s'),
                 ];

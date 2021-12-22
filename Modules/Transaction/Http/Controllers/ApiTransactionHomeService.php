@@ -555,6 +555,7 @@ class ApiTransactionHomeService extends Controller
             ];
         }
 
+        $result['payment_detail'] = [];
         if(!empty($outlet['is_tax'])) {
             $result['payment_detail'][] = [
                 'name' => 'Tax',

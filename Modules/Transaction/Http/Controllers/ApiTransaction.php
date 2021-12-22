@@ -81,13 +81,13 @@ use Modules\Transaction\Http\Requests\MethodSave;
 use Modules\Transaction\Http\Requests\MethodDelete;
 use Modules\Transaction\Http\Requests\ManualPaymentConfirm;
 use Modules\Transaction\Http\Requests\ShippingGoSend;
-
+use Modules\Transaction\Entities\TransactionBreakdown;
 use Modules\ProductVariant\Entities\ProductVariantGroup;
 use Modules\ProductVariant\Entities\ProductVariantGroupSpecialPrice;
-
+use Modules\Transaction\Entities\SharingManagementFee;
 use Modules\UserRating\Entities\UserRatingLog;
 use Modules\Recruitment\Entities\UserHairStylist;
-
+use Modules\BusinessDevelopment\Entities\Partner;
 use App\Lib\MyHelper;
 use App\Lib\GoSend;
 use App\Lib\Midtrans;
@@ -6095,4 +6095,209 @@ class ApiTransaction extends Controller
             $log->fail($e->getMessage());
         }      
     }
+    public function revenue_sharing(){
+        $log = MyHelper::logCron('Revenue Sharing');
+        try{
+        $tanggal = 26;
+        $tanggal_awal = date('Y-m-d 00:00:00', strtotime(date('Y-m-'.$tanggal) . '- 1 month'));
+        $tanggal_akhir = date('Y-m-d 00:00:00', strtotime(date('Y-m-'.$tanggal)));
+        $partners = Partner::where(array('cooperation_scheme'=>'Profit Sharing'))
+                    ->join('locations','locations.id_partner','partners.id_partner')
+                    ->join('outlets','outlets.id_location','locations.id_location')
+                    ->join('transactions','transactions.id_outlet','outlets.id_outlet')
+                    ->where('transactions.transaction_payment_status','Completed')
+                    ->select('partners.id_partner')
+                    ->distinct()
+                    ->get();
+        $data = array();
+        foreach($partners as $value){
+            $total_transaksi = 0;
+            $beban_outlet = 0;
+            $disc = 0;
+            $partner = Partner::where(array('id_partner'=>$value['id_partner']))->first();
+            $location = Location::where(array('id_partner'=>$value['id_partner']))->first();
+            $tax = 0;
+            if($partner->is_tax == 1){
+            $tax = 10;   
+            }
+            $percent   = $partner->sharing_percent;
+            $sharing   = $partner->sharing_value;   
+            $transaksi = Transaction::wherebetween('transactions.completed_at',[$tanggal_awal,$tanggal_akhir])
+                    ->where('transactions.transaction_payment_status','Completed')
+                    ->join('outlets','outlets.id_outlet','transactions.id_outlet')
+                    ->join('locations','locations.id_location','outlets.id_location')
+                    ->where('locations.id_partner',$value['id_partner'])
+                    ->get();
+                $transaksi_id = array();
+                foreach ($transaksi as $va) {
+                    array_push($transaksi_id,array('id_transaction'=>$va['id_transaction']));
+                    $total_transaksi += $va['transaction_grandtotal'];
+                    $disc += $va['transaction_discount'];
+                    $disc += $va['transaction_discount_item'];
+                    $disc += $va['transaction_discount_bill'];
+                    $disc += $va['transaction_discount_delivery'];
+                   }
+                   $b = array(
+                        'partner'=>$partner,
+                        'location'=>$location,
+                        'tanggal_awal'=>$tanggal_awal,
+                        'tanggal_akhir'=>$tanggal_akhir,
+                        'total_transaksi'=>$total_transaksi,
+                        'beban_outlet'=>$beban_outlet,
+                        'tax'=>$tax,
+                        'percent'=>$percent,
+                        'sharing'=>$sharing,
+                        'disc'=>$disc,
+                        'id_transaction'=>$transaksi_id,
+                        'transfer'=> ($total_transaksi*$sharing/100)-$beban_outlet
+                    );  
+                    array_push($data,$b);
+        }
+        foreach($data as $n => $request){
+                $revenue_sharing = Icount::RevenueSharing($request);
+                if($revenue_sharing['response']['Status']=='1' && $revenue_sharing['response']['Message']=='success'){
+                      $store_data = [
+                        'id_partner'=>$request['partner']['id_partner'],
+                        'type'=>'Revenue Sharing',
+                        'start_date'=>$request['tanggal_awal'],
+                        'end_date'=>$request['tanggal_akhir'],
+                        'total_transaksi'=>$request['total_transaksi'],
+                        'total_beban'=>$request['beban_outlet'],
+                        'tax'=>$request['tax'],
+                        'percent'=>$request['percent'],
+                        'sharing'=>$request['sharing'],
+                        'disc'=>$request['disc'],
+                        'transfer'=>$request['transfer'],
+                        'data'=>json_encode($revenue_sharing['response']['Data']),
+                        'id_transaction'=>json_encode($request['id_transaction']),
+                    ];
+                    $store = SharingManagementFee::create($store_data);   
+                 }
+            }
+        $log->success('success');
+            return response()->json(['status' => 'success','data' => $revenue_sharing]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $log->fail($e->getMessage());
+             return response()->json(['status' => 'fail','message'=>$e->getMessage()]); 
+        }      
+    }
+    public function management_fee(){
+        $log = MyHelper::logCron('Management Fee');
+        try{
+        $tanggal = 26;
+        $tanggal_awal = date('Y-m-d 00:00:00', strtotime(date('Y-m-'.$tanggal) . '- 1 month'));
+        $tanggal_akhir = date('Y-m-d 00:00:00', strtotime(date('Y-m-'.$tanggal)));
+        $partners = Partner::where(array('cooperation_scheme'=>'Management Fee'))
+                    ->join('locations','locations.id_partner','partners.id_partner')
+                    ->join('outlets','outlets.id_location','locations.id_location')
+                    ->join('transactions','transactions.id_outlet','outlets.id_outlet')
+                    ->where('transactions.transaction_payment_status','Completed')
+                    ->select('partners.id_partner')
+                    ->distinct()
+                    ->get();
+        $data = array();
+        foreach($partners as $value){
+            $total_transaksi = 0;
+            $beban_outlet = 0;
+            $disc = 0;
+            $partner = Partner::where(array('id_partner'=>$value['id_partner']))->first();
+            $location = Location::where(array('id_partner'=>$value['id_partner']))->first();
+            $tax = 0;
+            if($partner->is_tax == 1){
+            $tax = 10;   
+            }
+            $percent   = $partner->sharing_percent;
+            $sharing   = $partner->sharing_value;   
+            $transaksi = Transaction::wherebetween('transactions.completed_at',[$tanggal_awal,$tanggal_akhir])
+                    ->where('transactions.transaction_payment_status','Completed')
+                    ->join('outlets','outlets.id_outlet','transactions.id_outlet')
+                    ->join('locations','locations.id_location','outlets.id_location')
+                    ->where('locations.id_partner',$value['id_partner'])
+                    ->get();
+            $transaksi_id = array();
+                foreach ($transaksi as $va) {
+                    array_push($transaksi_id,array('id_transaction'=>$va['id_transaction']));
+                    $total_transaksi += $va['transaction_grandtotal'];
+                    $disc += $va['transaction_discount'];
+                    $disc += $va['transaction_discount_item'];
+                    $disc += $va['transaction_discount_bill'];
+                    $disc += $va['transaction_discount_delivery'];
+                    $transaction_product = TransactionProduct::where('id_transaction',$va['id_transaction'])->get();
+                    foreach($transaction_product as $v){
+                        $hs_fee = 0;
+                     $transaction_breakdown = TransactionBreakdown::where(array('id_transaction_product'=>$v['id_transaction_product'],'type'=>'fee_hs'))->get();
+                     foreach($transaction_breakdown as $val){
+                         $hs_fee += $val['value'];
+                     }
+                    }
+                   }
+                   if($percent==1){
+                   $b = array(
+                        'partner'=>$partner,
+                        'location'=>$location,
+                        'tanggal_awal'=>$tanggal_awal,
+                        'tanggal_akhir'=>$tanggal_akhir,
+                        'total_transaksi'=>$total_transaksi,
+                        'beban_outlet'=>$beban_outlet,
+                        'tax'=>$tax,
+                        'percent'=>$percent,
+                        'sharing'=>$sharing,
+                        'disc'=>$disc,
+                        'id_transaction'=>$transaksi_id,
+                        'transfer'=> ($total_transaksi-$hs_fee)*$sharing/100
+                    );
+                  }else{
+                      $b = array(
+                        'partner'=>$partner,
+                        'location'=>$location,
+                        'tanggal_awal'=>$tanggal_awal,
+                        'tanggal_akhir'=>$tanggal_akhir,
+                        'total_transaksi'=>$total_transaksi,
+                        'beban_outlet'=>$beban_outlet,
+                        'tax'=>$tax,
+                        'percent'=>$percent,
+                        'sharing'=>$sharing,
+                        'disc'=>$disc,
+                        'id_transaction'=>$transaksi_id,
+                        'transfer'=> $total_transaksi-$hs_fee-$sharing
+                    );
+                  }
+                    array_push($data,$b);
+        }
+       
+        foreach($data as $n => $request){
+            
+                    $management_fee = Icount::ManagementFee($request);
+                    
+                    if($management_fee['response']['Status']=='1' && $management_fee['response']['Message']=='success'){
+                        $store_data = [
+                        'id_partner'=>$request['partner']['id_partner'],
+                        'type'=>'Management Fee',
+                        'start_date'=>$request['tanggal_awal'],
+                        'end_date'=>$request['tanggal_akhir'],
+                        'total_transaksi'=>$request['total_transaksi'],
+                        'total_beban'=>$request['beban_outlet'],
+                        'tax'=>$request['tax'],
+                        'percent'=>$request['percent'],
+                        'sharing'=>$request['sharing'],
+                        'disc'=>$request['disc'],
+                        'transfer'=>$request['transfer'],
+                        'data'=>json_encode($management_fee['response']['Data']),
+                        'id_transaction'=>json_encode($request['id_transaction']),
+                    ];
+                    $store = SharingManagementFee::create($store_data);    
+                }
+            }
+         $log->success('success');
+            return response()->json(['status' => 'success','data' => $management_fee]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $log->fail($e->getMessage());
+            return response()->json(['status' => 'fail']); 
+        }      
+    }
+    
 }

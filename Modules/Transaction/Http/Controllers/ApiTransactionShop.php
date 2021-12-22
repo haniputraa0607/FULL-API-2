@@ -570,6 +570,7 @@ class ApiTransactionShop extends Controller
             	'product_group_name' => $product['product_group']['product_group_name'],
             	'qty' => $product['qty'],
             	'product_stock_status' => $product['product_stock_status'],
+	            'product_price' => (int) $product['product_price'],
 	            'product_price_raw' => (int) $product['product_price'],
 	            'product_price_raw_total' => (int) $item['transaction_product_subtotal'],
 	            'product_price_total_pretty' => MyHelper::requestNumber((int) $item['transaction_product_subtotal'],'_CURRENCY'),

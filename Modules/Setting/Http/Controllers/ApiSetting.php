@@ -1953,7 +1953,8 @@ class ApiSetting extends Controller
                  
              ]);
              }else{
-                 $data = Setting::where('key','global_commission_product')->create([
+                 $data = Setting::create([
+                 'key'=>'global_commission_product',
                  'value'=>$percent,
                  'value_text'=>(int)$request->commission
                     

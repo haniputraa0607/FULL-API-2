@@ -317,6 +317,12 @@ class ApiPartnersController extends Controller
             if (isset($post['due_date'])) {
                 $data_update['due_date'] = $post['due_date'];
             }
+            if (isset($post['sharing_value'])) {
+                $data_update['sharing_value'] = $post['sharing_value'];
+            }
+            if (isset($post['sharing_percent'])) {
+                $data_update['sharing_percent'] = $post['sharing_percent'];
+            }
             if(isset($data_update['start_date']) && isset($data_update['end_date'])){
                 $start = explode('-', $data_update['start_date']);
                 $end = explode('-', $data_update['end_date']);

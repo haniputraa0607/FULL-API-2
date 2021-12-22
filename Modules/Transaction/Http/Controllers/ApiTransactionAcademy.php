@@ -205,6 +205,7 @@ class ApiTransactionAcademy extends Controller
             }
         }
 
+        $result['payment_detail'] = [];
         $result['payment_detail'][] = [
             'name'          => 'Subtotal',
             "is_discount"   => 0,

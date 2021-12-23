@@ -5411,7 +5411,7 @@ class ApiTransaction extends Controller
     	$list = Transaction::where('transaction_from', 'outlet-service')
     			->join('transaction_outlet_services','transactions.id_transaction', 'transaction_outlet_services.id_transaction')
     			->where('id_user', $user->id)
-    			->select('transaction_outlet_services.*', 'transactions.*')
+    			->select('transactions.*', 'transaction_outlet_services.*', 'transactions.reject_at')
     			->orderBy('transaction_date', 'desc')
     			->with('outlet.brands', 'products', 'transaction_outlet_service', 'user_feedbacks');
 
@@ -5423,7 +5423,8 @@ class ApiTransaction extends Controller
 
 				case 'ongoing':
 					$list->whereNull('transaction_outlet_services.completed_at')
-					->where('transaction_payment_status','Completed');
+					->where('transaction_payment_status','Completed')
+					->whereNull('transactions.reject_at');
 					break;
 
 				case 'complete':
@@ -5533,7 +5534,7 @@ class ApiTransaction extends Controller
     			->where('id_user', $user->id)
     			->where('transactions.id_transaction', $id_transaction)
     			->orderBy('transaction_date', 'desc')
-    			->select('transaction_outlet_services.*', 'transactions.*')
+    			->select('transactions.*', 'transaction_outlet_services.*', 'transactions.reject_at')
     			->with(
     				'outlet.brands', 
     				'transaction_outlet_service', 

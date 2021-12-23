@@ -5713,6 +5713,7 @@ class ApiTransaction extends Controller
     	$list = Transaction::where('transaction_from', 'home-service')
     			->join('transaction_home_services','transactions.id_transaction', 'transaction_home_services.id_transaction')
     			->where('id_user', $user->id)
+    			->select('transaction_home_services.*', 'transactions.*')
     			->orderBy('transaction_date', 'desc')
     			->with('outlet.brands', 'products', 'user_feedbacks');
 
@@ -5732,7 +5733,8 @@ class ApiTransaction extends Controller
 			case 'complete':
 				$list->where(function($q) {
 					$q->whereIn('transaction_home_services.status', ['Cancelled', 'Completed'])
-					->orWhere('transaction_payment_status','Cancelled');
+					->orWhere('transaction_payment_status','Cancelled')
+					->orWhereNotNull('transactions.reject_at');
 				});
 				break;
 			

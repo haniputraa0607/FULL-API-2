@@ -2,6 +2,7 @@
 
 namespace Modules\Academy\Http\Controllers;
 
+use App\Http\Models\TransactionProduct;
 use App\Lib\Midtrans;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -45,6 +46,7 @@ class ApiAcademyController extends Controller
     function __construct() {
         date_default_timezone_set('Asia/Jakarta');
         $this->online_trx      = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
+        $this->autocrm       = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
     }
 
     public function settingInstallment(){
@@ -906,5 +908,92 @@ class ApiAcademyController extends Controller
             'payment_detail' => $post['payment_detail'],
             'data' => $data,
         ];
+    }
+
+    public function paymentInstallmentReminder(){
+        $settingDeadline = Setting::where('key', 'transaction_academy_installment_deadline_date')->first()['value']??null;
+        if(empty($settingDeadline)){
+            DB::rollback();
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Deadline date is empty']
+            ]);
+        }
+
+        $deadlineDate = date('Y-m-d', strtotime(date('Y-m').'-'.$settingDeadline));
+        $currentDate = date('Y-m-d');
+
+        if($currentDate < $deadlineDate){
+            $now = strtotime($deadlineDate);
+            $your_date = strtotime($currentDate);
+            $datediff = $now - $your_date;
+            $diff = (int) ($datediff / (60 * 60 * 24));
+
+            if($diff == 7){
+                $transactions = Transaction::join('transaction_academy', 'transactions.id_transaction', 'transaction_academy.id_transaction')
+                    ->join('transaction_academy_installment', 'transaction_academy_installment.id_transaction_academy', 'transaction_academy.id_transaction_academy')
+                    ->where(function ($q){
+                        $q->whereNull('transaction_academy_installment.paid_status')
+                            ->orWhere('transaction_academy_installment.paid_status', 'Pending');
+                    })
+                    ->where('deadline', $deadlineDate)
+                    ->select('transaction_academy_installment.*', 'transactions.id_transaction', 'transactions.id_user')->with('user')->get()->toArray();
+
+                foreach ($transactions as $value){
+                    app($this->autocrm)->SendAutoCRM(
+                        'Payment Academy Installment Reminder',
+                        $value['user']['phone'],
+                        [
+                            'id_transaction' => $value['id_transaction'],
+                            'deadline'=> (!empty($value['deadline'])? date('d F Y', strtotime($value['deadline'])) : ''),
+                            'amount' => number_format($value['amount']),
+                            'installment_step' => MyHelper::numberToRomanRepresentation($value['installment_step'])
+                        ]
+                    );
+                }
+            }
+        }
+
+        return true;
+    }
+
+    public function paymentInstallmentDueDate(){
+        $settingDeadline = Setting::where('key', 'transaction_academy_installment_deadline_date')->first()['value']??null;
+        if(empty($settingDeadline)){
+            DB::rollback();
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Deadline date is empty']
+            ]);
+        }
+
+        $deadlineDate = date('Y-m-d', strtotime(date('Y-m').'-'.$settingDeadline));
+        $currentDate = date('Y-m-d');
+
+        if($currentDate == $deadlineDate){
+            $transactions = Transaction::join('transaction_academy', 'transactions.id_transaction', 'transaction_academy.id_transaction')
+                ->join('transaction_academy_installment', 'transaction_academy_installment.id_transaction_academy', 'transaction_academy.id_transaction_academy')
+                ->where(function ($q){
+                    $q->whereNull('transaction_academy_installment.paid_status')
+                        ->orWhere('transaction_academy_installment.paid_status', 'Pending');
+                })
+                ->where('deadline', $deadlineDate)
+                ->select('transaction_academy_installment.*', 'transactions.id_transaction', 'transactions.id_user')->with('user')->get()->toArray();
+
+            foreach ($transactions as $value){
+                app($this->autocrm)->SendAutoCRM(
+                    'Payment Academy Installment Due Date',
+                    $value['user']['phone'],
+                    [
+                        'id_transaction' => $value['id_transaction'],
+                        'deadline'=> (!empty($value['deadline'])? date('d F Y', strtotime($value['deadline'])) : ''),
+                        'amount' => number_format($value['amount']),
+                        'installment_step' => MyHelper::numberToRomanRepresentation($value['installment_step'])
+                    ]
+                );
+            }
+        }
+
+        return '1';
     }
 }

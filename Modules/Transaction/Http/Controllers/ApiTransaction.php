@@ -5411,6 +5411,7 @@ class ApiTransaction extends Controller
     	$list = Transaction::where('transaction_from', 'outlet-service')
     			->join('transaction_outlet_services','transactions.id_transaction', 'transaction_outlet_services.id_transaction')
     			->where('id_user', $user->id)
+    			->select('transaction_outlet_services.*', 'transactions.*')
     			->orderBy('transaction_date', 'desc')
     			->with('outlet.brands', 'products', 'transaction_outlet_service', 'user_feedbacks');
 
@@ -5428,7 +5429,8 @@ class ApiTransaction extends Controller
 				case 'complete':
 					$list->where(function($q) {
 						$q->whereNotNull('transaction_outlet_services.completed_at')
-						->orWhere('transaction_payment_status','Cancelled');
+						->orWhere('transaction_payment_status','Cancelled')
+						->orWhereNotNull('transactions.reject_at');
 					});
 					break;
 				
@@ -5475,14 +5477,21 @@ class ApiTransaction extends Controller
 				];
 			}
 
+			$cancelReason = null;
 			if ($val['transaction_payment_status'] == 'Pending') {
 				$status = 'unpaid';
 			} elseif ($val['transaction_payment_status'] == 'Cancelled') {
 				$status = 'cancelled';
+				$cancelReason = 'Pembayaran gagal';
 			} elseif (empty($val['completed_at']) && $val['transaction_payment_status'] == 'Completed') {
 				$status = 'ongoing';
 			} else {
 				$status = 'completed';
+			}
+
+			if ($val['reject_at']) {
+				$status = 'cancelled';
+				$cancelReason = $val['reject_reason'];
 			}
 
 			$resData[] = [
@@ -5493,6 +5502,7 @@ class ApiTransaction extends Controller
 				'customer_name' => $val['transaction_outlet_service']['customer_name'],
 				'color' => $val['outlet']['brands'][0]['color_brand'],
 				'status' => $status,
+				'cancel_reason' => $cancelReason,
 				'show_rate_popup' => $val['show_rate_popup'],
 				'outlet' => $outlet,
 				'brand' => $brand,
@@ -5523,6 +5533,7 @@ class ApiTransaction extends Controller
     			->where('id_user', $user->id)
     			->where('transactions.id_transaction', $id_transaction)
     			->orderBy('transaction_date', 'desc')
+    			->select('transaction_outlet_services.*', 'transactions.*')
     			->with(
     				'outlet.brands', 
     				'transaction_outlet_service', 
@@ -5599,14 +5610,21 @@ class ApiTransaction extends Controller
 			}
 		}
 
+		$cancelReason = null;
 		if ($detail['transaction_payment_status'] == 'Pending') {
 			$status = 'unpaid';
 		} elseif ($detail['transaction_payment_status'] == 'Cancelled') {
 			$status = 'cancelled';
+			$cancelReason = 'Pembayaran gagal';
 		} elseif (empty($detail['completed_at']) && $detail['transaction_payment_status'] == 'Completed') {
 			$status = 'ongoing';
 		} else {
 			$status = 'completed';
+		}
+
+		if ($detail['reject_at']) {
+			$status = 'cancelled';
+			$cancelReason = $detail['reject_reason'];
 		}
 
 		$paymentDetail = [];
@@ -5673,6 +5691,7 @@ class ApiTransaction extends Controller
 			'customer_name' => $detail['transaction_outlet_service']['customer_name'],
 			'color' => $detail['outlet']['brands'][0]['color_brand'],
 			'status' => $status,
+			'cancel_reason' => $cancelReason,
 			'transaction_payment_status' => $detail['transaction_payment_status'],
 			'payment_method' => $paymentMethod,
 			'payment_cash_code' => $paymentCashCode,
@@ -5694,6 +5713,7 @@ class ApiTransaction extends Controller
     	$list = Transaction::where('transaction_from', 'home-service')
     			->join('transaction_home_services','transactions.id_transaction', 'transaction_home_services.id_transaction')
     			->where('id_user', $user->id)
+    			->select('transaction_home_services.*', 'transactions.*')
     			->orderBy('transaction_date', 'desc')
     			->with('outlet.brands', 'products', 'user_feedbacks');
 
@@ -5713,7 +5733,8 @@ class ApiTransaction extends Controller
 			case 'complete':
 				$list->where(function($q) {
 					$q->whereIn('transaction_home_services.status', ['Cancelled', 'Completed'])
-					->orWhere('transaction_payment_status','Cancelled');
+					->orWhere('transaction_payment_status','Cancelled')
+					->orWhereNotNull('transactions.reject_at');
 				});
 				break;
 			
@@ -5757,14 +5778,26 @@ class ApiTransaction extends Controller
 				];
 			}
 
+			$cancelReason = null;
 			if ($val['transaction_payment_status'] == 'Pending') {
 				$status = 'unpaid';
 			} elseif ($val['transaction_payment_status'] == 'Cancelled') {
 				$status = 'cancelled';
+				$cancelReason = 'Pembayaran gagal';
 			} elseif (in_array($val['status'], ['Cancelled', 'Completed']) && $val['transaction_payment_status'] == 'Completed') {
 				$status = 'completed';
 			} else {
 				$status = 'ongoing';
+			}
+
+			if ($val['status'] == 'Cancelled') {
+				$status = 'cancelled';
+				$cancelReason = 'Hairstylist tidak ditemukan';
+			}
+
+			if ($val['reject_at']) {
+				$status = 'cancelled';
+				$cancelReason = $val['reject_reason'];
 			}
 
 			$resData[] = [
@@ -5776,6 +5809,7 @@ class ApiTransaction extends Controller
 				'customer_name' => null,
 				'color' => $val['outlet']['brands'][0]['color_brand'],
 				'status' => $status,
+				'cancel_reason' => $cancelReason,
                 'home_service_status' => $val['status'],
                 'home_service_status_text' => $this->home_service_status[$val['status']]['text']??'',
 				'home_service_status_code' => $this->home_service_status[$val['status']]['code']??0,
@@ -5872,14 +5906,26 @@ class ApiTransaction extends Controller
 			}
 		}
 
+		$cancelReason = null;
 		if ($detail['transaction_payment_status'] == 'Pending') {
 			$status = 'unpaid';
 		} elseif ($detail['transaction_payment_status'] == 'Cancelled') {
 			$status = 'cancelled';
+			$cancelReason = 'Pembayaran gagal';
 		} elseif (empty($detail['completed_at']) && $detail['transaction_payment_status'] == 'Completed') {
 			$status = 'ongoing';
 		} else {
 			$status = 'completed';
+		}
+
+		if ($detail['status'] == 'Cancelled') {
+			$status = 'cancelled';
+			$cancelReason = 'Hairstylist tidak ditemukan';
+		}
+
+		if ($detail['reject_at']) {
+			$status = 'cancelled';
+			$cancelReason = $detail['reject_reason'];
 		}
 
 		$paymentDetail = [];
@@ -5951,6 +5997,7 @@ class ApiTransaction extends Controller
 			'customer_name' => $detail['destination_name'],
 			'color' => $detail['outlet']['brands'][0]['color_brand'],
 			'status' => $status,
+            'cancel_reason' => $cancelReason,
             'home_service_status' => $detail['status'],
             'home_service_status_text' => $this->home_service_status[$detail['status']]['text']??'',
             'home_service_status_code' => $this->home_service_status[$detail['status']]['code']??0,

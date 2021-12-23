@@ -5757,14 +5757,26 @@ class ApiTransaction extends Controller
 				];
 			}
 
+			$cancelReason = null;
 			if ($val['transaction_payment_status'] == 'Pending') {
 				$status = 'unpaid';
 			} elseif ($val['transaction_payment_status'] == 'Cancelled') {
 				$status = 'cancelled';
+				$cancelReason = 'Pembayaran gagal';
 			} elseif (in_array($val['status'], ['Cancelled', 'Completed']) && $val['transaction_payment_status'] == 'Completed') {
 				$status = 'completed';
 			} else {
 				$status = 'ongoing';
+			}
+
+			if ($val['status'] == 'Cancelled') {
+				$status = 'cancelled';
+				$cancelReason = 'Hairstylist tidak ditemukan';
+			}
+
+			if ($val['reject_at']) {
+				$status = 'cancelled';
+				$cancelReason = $val['reject_reason'];
 			}
 
 			$resData[] = [
@@ -5776,6 +5788,7 @@ class ApiTransaction extends Controller
 				'customer_name' => null,
 				'color' => $val['outlet']['brands'][0]['color_brand'],
 				'status' => $status,
+				'cancel_reason' => $cancelReason,
                 'home_service_status' => $val['status'],
                 'home_service_status_text' => $this->home_service_status[$val['status']]['text']??'',
 				'home_service_status_code' => $this->home_service_status[$val['status']]['code']??0,
@@ -5872,14 +5885,26 @@ class ApiTransaction extends Controller
 			}
 		}
 
+		$cancelReason = null;
 		if ($detail['transaction_payment_status'] == 'Pending') {
 			$status = 'unpaid';
 		} elseif ($detail['transaction_payment_status'] == 'Cancelled') {
 			$status = 'cancelled';
+			$cancelReason = 'Pembayaran gagal';
 		} elseif (empty($detail['completed_at']) && $detail['transaction_payment_status'] == 'Completed') {
 			$status = 'ongoing';
 		} else {
 			$status = 'completed';
+		}
+
+		if ($detail['status'] == 'Cancelled') {
+			$status = 'cancelled';
+			$cancelReason = 'Hairstylist tidak ditemukan';
+		}
+
+		if ($detail['reject_at']) {
+			$status = 'cancelled';
+			$cancelReason = $detail['reject_reason'];
 		}
 
 		$paymentDetail = [];
@@ -5951,6 +5976,7 @@ class ApiTransaction extends Controller
 			'customer_name' => $detail['destination_name'],
 			'color' => $detail['outlet']['brands'][0]['color_brand'],
 			'status' => $status,
+            'cancel_reason' => $cancelReason,
             'home_service_status' => $detail['status'],
             'home_service_status_text' => $this->home_service_status[$detail['status']]['text']??'',
             'home_service_status_code' => $this->home_service_status[$detail['status']]['code']??0,

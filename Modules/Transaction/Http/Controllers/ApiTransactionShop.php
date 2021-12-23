@@ -1198,7 +1198,8 @@ class ApiTransactionShop extends Controller
 				'transaction_date' => $val['transaction_date'],
 				'customer_name' => $val['destination_name'],
 				'status' => $status,
-				'shop_status' => $shopStatus,
+				'shop_status' => $val['shop_status'],
+				'order_status' => $shopStatus,
 				'order' => $orders
 			];
 		}
@@ -1401,7 +1402,8 @@ class ApiTransactionShop extends Controller
 			'transaction_tax' => $detail['transaction_tax'],
 			'currency' => 'Rp',
 			'status' => $status,
-			'shop_status' => $shopStatus,
+			'shop_status' => $detail['shop_status'],
+			'order_status' => $shopStatus,
 			'transaction_payment_status' => $detail['transaction_payment_status'],
 			'customer_detail' => $custDetail,
 			'delivery_detail' => $delivDetail,

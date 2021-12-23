@@ -84,10 +84,11 @@ class ApiPromo extends Controller
     {
     	$user = auth()->user();
     	$datenow = date("Y-m-d H:i:s");
-    	$remove = 0;
     	$available_promo = $this->availablePromo();
+    	$dealsInfo = null;
+    	$promoCodeInfo = null;
 		DB::beginTransaction();
-    	$user_promo = UserPromo::where('id_user','=',$user->id)->first();
+    	$user_promo = UserPromo::where('id_user','=',$user->id)->get()->keyBy('promo_type');
     	if (!$user_promo) {
     		return response()->json([
     			'status' => 'fail', 
@@ -96,11 +97,12 @@ class ApiPromo extends Controller
     			]
     		]);
     	}
-    	if ($user_promo->promo_type == 'deals')
-    	{
+
+    	if (isset($user_promo['deals'])) {
     		$promo = app($this->promo_campaign)->checkVoucher(null, null, 1, 1);
 
     		if ($promo) {
+    			$remove = 0;
     			if ($promo->used_at) {
     				$remove = 1;
     			}elseif($promo->voucher_expired_at < $datenow){
@@ -108,14 +110,26 @@ class ApiPromo extends Controller
     			}elseif($promo->voucher_active_at > $datenow){
     				$remove = 1;
     			}
+
+    			$promo = $promo->toArray();
+
+		    	$getProduct = app($this->promo_campaign)->getProduct('deals', $promo['deal_voucher']['deals']);
+		    	$desc = app($this->promo_campaign)->getPromoDescription('deals', $promo['deal_voucher']['deals'], $getProduct['product'] ?? '');
+
+		    	$dealsInfo = [
+    				'id_deals_user' => $promo['id_deals_user']??'',
+		    		'title' => $promo['deal_voucher']['deals']['deals_title'] ?? null,
+		    		'description' => $desc,
+		    		'remove' => $remove
+		    	];
     		}
 
     	}
-    	elseif ( $user_promo->promo_type == 'promo_campaign' )
-    	{
-    		$promo = app($this->promo_campaign)->checkPromoCode(null, 1, 1, $user_promo->id_reference, 1);
-    		if ($promo) 
-			{
+
+    	if (isset($user_promo['promo_campaign'])) {
+    		$promo = app($this->promo_campaign)->checkPromoCode(null, 1, 1, $user_promo['promo_campaign']->id_reference, 1);
+    		if ($promo) {
+    			$remove = 0;
 				if ($promo->date_end < $datenow || $promo->date_start > $datenow) {
 					$remove = 1;
 				}else{
@@ -125,9 +139,22 @@ class ApiPromo extends Controller
 						$remove = 1;
 					}
 				}
+
+		    	$promo = $promo->toArray();
+
+		    	$getProduct = app($this->promo_campaign)->getProduct('promo_campaign', $promo['promo_campaign']);
+		    	$desc = app($this->promo_campaign)->getPromoDescription('promo_campaign', $promo['promo_campaign'], $getProduct['product']??'');
+
+		    	$promoCodeInfo = [
+		    		'promo_code' => $promo['promo_code'] ?? '',
+		    		'title' => $promo['promo_campaign']['promo_title'] ?? null,
+		    		'description' => $desc,
+		    		'remove' => $remove
+		    	];
 			}
     	}
-    	elseif ( $user_promo->promo_type == 'subscription' )
+
+    	if (isset($user_promo['subscription']))
     	{
     		$promo = app($this->subscription_use)->checkSubscription(null, null, 1, 1, null, $user_promo->id_reference, 1, 1);
 
@@ -144,8 +171,8 @@ class ApiPromo extends Controller
 		    	}
     		}
     	}
-    	else
-    	{
+
+    	if (empty($promo)) {
     		return response()->json([
     			'status' => 'fail', 
     			'result' => [
@@ -154,27 +181,10 @@ class ApiPromo extends Controller
     		]);
     	}
 
-    	if (!$promo) {
-    		return response()->json([
-    			'status' => 'fail', 
-    			'result' => [
-    				'total_promo'	=> $available_promo
-    			]
-    		]);
-    	}
-
-    	$promo = $promo->toArray();
-
-    	$getProduct = app($this->promo_campaign)->getProduct($user_promo->promo_type,$promo['deal_voucher']['deals']??$promo['promo_campaign']??$promo['subscription_user']['subscription']);
-    	$desc = app($this->promo_campaign)->getPromoDescription($user_promo->promo_type, $promo['deal_voucher']['deals']??$promo['promo_campaign']??$promo['subscription_user']['subscription'], $getProduct['product']??'');
 
     	$result = [
-    		'title'				=> $promo['deal_voucher']['deals']['deals_title']??$promo['promo_campaign']['promo_title']??$promo['subscription_user']['subscription']['subscription_title'],
-    		'description'		=> $desc,
-    		'id_deals_user'		=> $promo['id_deals_user']??'',
-    		'promo_code'		=> $promo['promo_code']??'',
-    		'id_subscription_user'		=> $promo['id_subscription_user']??'',
-    		'remove'			=> $remove,
+    		'deals' => $dealsInfo,
+    		'promo_code' => $promoCodeInfo,
     		'total_promo'		=> $available_promo
     	];
     	
@@ -187,7 +197,6 @@ class ApiPromo extends Controller
     	$user = auth()->user();
 		DB::beginTransaction();
 		// change is used flag to 0
-		$update = DealsUser::where('id_user','=',$user->id)->where('is_used','=',1)->update(['is_used' => 0]);
 		$update = SubscriptionUser::where('id_user','=',$user->id)->where('is_used','=',1)->update(['is_used' => 0]);
 
 		if ($status == 'use')
@@ -196,6 +205,7 @@ class ApiPromo extends Controller
 			if ($source == 'deals')
 			{
 				// change specific deals user is used to 1
+				$update = DealsUser::where('id_user','=',$user->id)->where('is_used','=',1)->update(['is_used' => 0]);
 				$update = DealsUser::where('id_deals_user','=',$id_promo)->update(['is_used' => 1]);
 			}
 			elseif($source == 'subscription')
@@ -203,11 +213,14 @@ class ApiPromo extends Controller
 				$update = SubscriptionUser::where('id_subscription_user','=',$query['id_subscription_user'])->update(['is_used' => 1]);
 			}
 
-			$update = UserPromo::updateOrCreate(['id_user' => $user->id], ['promo_type' => $source, 'id_reference' => $id_promo]);
+			$update = UserPromo::updateOrCreate(['id_user' => $user->id, 'promo_type' => $source], ['id_reference' => $id_promo]);
 		}
 		else
 		{
-			$update = UserPromo::where('id_user', '=', $user->id)->delete();
+			if ($source == 'deals') {
+				$update = DealsUser::where('id_user','=',$user->id)->where('is_used','=',1)->update(['is_used' => 0]);
+			}
+			$update = UserPromo::where('id_user', $user->id)->where('promo_type', $source)->delete();
 		}
 
 		if ($update) {

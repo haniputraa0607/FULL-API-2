@@ -4147,6 +4147,16 @@ class FeaturesTableSeeder extends Seeder
 	                'created_at' => date('Y-m-d H:00:00'),
                         'updated_at' => date('Y-m-d H:00:00')
 	            ),
+            414 => 
+	            array (
+	                'id_feature' => 415,
+	                'feature_type' => 'Update',
+	                'feature_module' => 'Approve Request Product',
+	                'show_hide' => 1,
+	                'order' => 148,
+	                'created_at' => date('Y-m-d H:00:00'),
+                        'updated_at' => date('Y-m-d H:00:00')
+	            ),
         ));
         
         

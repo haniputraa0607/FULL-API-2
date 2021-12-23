@@ -2240,10 +2240,11 @@ class ApiOnlineTransaction extends Controller
         $result['points'] = (int) $balance;
         $result['total_payment'] = $result['grandtotal'] - $result['used_point'];
         $result['discount'] = (int) $result['discount'];
-        $result['payment_detail'] = [];
+        $result['continue_checkout'] = true;
 
         $result = app($this->promo_trx)->applyPromoCheckout($result);
 
+        $result['payment_detail'] = [];
         if ($result['cashback']) {
             $result['point_earned'] = [
                 'value' => MyHelper::requestNumber($result['cashback'], '_CURRENCY'),
@@ -2274,8 +2275,12 @@ class ApiOnlineTransaction extends Controller
 
         $fake_request = new Request(['show_all' => 1]);
         $result['available_payment'] = $this->availablePayment($fake_request)['result'] ?? [];
+        $result['messages_all'] = $error_msg;
+        if (!empty($error_msg)) {
+        	$result['continue_checkout'] = false;
+        }
 
-        return MyHelper::checkGet($result)+['messages'=>$error_msg];
+        return MyHelper::checkGet($result);
     }
 
     public function checkBundlingProduct($post, $outlet, $subtotal_per_brand = []){

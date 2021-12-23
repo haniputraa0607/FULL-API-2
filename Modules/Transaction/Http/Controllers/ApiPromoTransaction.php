@@ -157,6 +157,7 @@ class ApiPromoTransaction extends Controller
     	$user = request()->user();
     	$resPromoCode = null;
     	$resDeals = null;
+    	$continueCheckOut = $data['continue_checkout'];
     	$userPromo = UserPromo::where('id_user', $user->id)->get()->keyBy('promo_type');
 
     	if (isset($userPromo['deals'])) {
@@ -172,6 +173,10 @@ class ApiPromoTransaction extends Controller
 				'text' => $applyDeals['result']['text'] ?? $applyDeals['messages'],
 				'is_error' => ($applyDeals['status'] == 'fail') ? true : false
 			];
+
+			if ($applyDeals['status'] == 'fail') {
+				$continueCheckOut = false;
+			}
 
 			$data = $this->reformatCheckout($data, $promoDeals ?? null);
     	}
@@ -198,6 +203,7 @@ class ApiPromoTransaction extends Controller
 			}
 		}
 		$data['available_voucher'] = $availableVoucher;
+		$data['continue_checkout'] = $continueCheckOut;
 		return $data;
     }
 

@@ -722,10 +722,12 @@ class ApiTransactionShop extends Controller
             'point_earned' => $result['point_earned'] ?? null,
             'available_payment' => $result['available_payment'],
             'available_delivery' => $listDelivery,
-            'selected_delivery' => $deliv
+            'selected_delivery' => $deliv,
+            'continue_checkout' => (empty($error_msg) ? true : false),
+            'messages_all' => implode('.', $error_msg)
         ];
 
-        return MyHelper::checkGet($finalRes)+['messages'=>$error_msg];
+        return MyHelper::checkGet($finalRes);
     }
 
     public function newTransactionShop(NewTransaction $request) {

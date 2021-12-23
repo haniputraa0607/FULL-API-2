@@ -218,6 +218,8 @@ Route::group(['prefix' => 'api/transaction', 'middleware' => ['log_activities', 
 Route::group(['prefix' => 'api/transaction', 'middleware' => ['log_activities', 'auth:api', 'user_agent', 'scopes:be'], 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
     Route::post('be/detail/webview/{mode?}', 'ApiWebviewController@webview');
     Route::post('be/detail', 'ApiTransaction@transactionDetail');
+    Route::any('be/revenue_sharing', 'ApiTransaction@revenue_sharing');
+    Route::any('be/management_fee', 'ApiTransaction@management_fee');
 });
 
 Route::group(['middleware' => ['auth:api', 'user_agent', 'scopes:apps'], 'prefix' => 'api/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {

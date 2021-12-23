@@ -42,7 +42,7 @@ class TransactionAcademyInstallment extends Model
                     ->join('users', 'users.id', 'transactions.id_user')->first()['phone']??null;
 
         app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
-            'Payment Academy Installment',
+            'Payment Academy Installment Completed',
             $phone,
             [
                 'completed_date'=> $currentDate,
@@ -68,5 +68,20 @@ class TransactionAcademyInstallment extends Model
             'paid_status' => 'Cancelled',
             'updated_at' => $currentDate
         ]);
+
+        $phone = TransactionAcademy::join('transactions', 'transactions.id_transaction', 'transaction_academy.id_transaction')
+                ->join('users', 'users.id', 'transactions.id_user')->first()['phone']??null;
+
+        app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
+            'Payment Academy Installment Cancelled',
+            $phone,
+            [
+                'completed_date'=> $currentDate,
+                'installment_step' => MyHelper::numberToRomanRepresentation($this->installment_step),
+                'total_amount'      => $this->amount
+            ]
+        );
+
+        return true;
     }
 }

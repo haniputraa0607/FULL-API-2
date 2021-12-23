@@ -279,6 +279,7 @@ class ApiHairStylistScheduleController extends Controller
         $resDate = [];
         foreach ($listDate as $date) {
         	$day = MyHelper::indonesian_date_v2($date, 'l');
+        	$day = str_replace('Jum\'at', 'Jumat', $day);
         	$y = date('Y', strtotime($date));
         	$m = date('m', strtotime($date));
         	$d = date('j', strtotime($date));

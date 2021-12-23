@@ -121,6 +121,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
             Route::post('detail-order', 'ApiMitraHomeService@detailOrder');
             Route::post('detail-service', 'ApiMitraHomeService@detailOrderService');
             Route::post('action', 'ApiMitraHomeService@action');
+            Route::post('history-order', 'ApiMitraHomeService@listHistoryOrder');
         });
 
         Route::get('balance-detail', 'ApiMitra@balanceDetail');

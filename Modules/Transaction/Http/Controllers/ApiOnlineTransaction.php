@@ -2280,6 +2280,12 @@ class ApiOnlineTransaction extends Controller
         	$result['continue_checkout'] = false;
         }
 
+        $result['continue_checkout'] = true;
+        $result['messages_all'] = null;
+        if(!empty($error_msg)){
+            $result['continue_checkout'] = false;
+            $result['messages_all'] = implode('.', $error_msg);
+        }
         return MyHelper::checkGet($result);
     }
 

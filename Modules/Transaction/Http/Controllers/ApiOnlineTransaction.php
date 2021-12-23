@@ -2263,7 +2263,13 @@ class ApiOnlineTransaction extends Controller
         $fake_request = new Request(['show_all' => 1]);
         $result['available_payment'] = $this->availablePayment($fake_request)['result'] ?? [];
 
-        return MyHelper::checkGet($result)+['messages'=>$error_msg];
+        $result['continue_checkout'] = true;
+        $result['messages_all'] = null;
+        if(!empty($error_msg)){
+            $result['continue_checkout'] = false;
+            $result['messages_all'] = implode('.', $error_msg);
+        }
+        return MyHelper::checkGet($result);
     }
 
     public function checkBundlingProduct($post, $outlet, $subtotal_per_brand = []){

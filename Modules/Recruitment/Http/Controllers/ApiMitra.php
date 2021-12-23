@@ -105,9 +105,11 @@ class ApiMitra extends Controller
 				'day'  => date('l', strtotime($date))
 			];
 
+			$tempDay = MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($date)), 'l');
+			$tempDay = str_replace('Jum\'at', 'Jumat', $tempDay);
 			$resDate[] = [
 				'date'	=> date('Y-m-d', strtotime($date)),
-				'day'	=> MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($date)), 'l'),
+				'day'	=> $tempDay,
 				'date_string'	=> MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($date)), 'D  d/m')
 			];
 			$date = date("Y-m-d", strtotime("+1 day", strtotime($date)));

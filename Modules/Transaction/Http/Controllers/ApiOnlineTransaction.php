@@ -94,6 +94,7 @@ use App\Lib\Midtrans;
 use App\Lib\GoSend;
 use App\Lib\WeHelpYou;
 use App\Lib\PushNotificationHelper;
+use App\Lib\TemporaryDataManager;
 
 use Modules\Transaction\Http\Requests\Transaction\NewTransaction;
 use Modules\Transaction\Http\Requests\Transaction\ConfirmPayment;
@@ -130,6 +131,7 @@ class ApiOnlineTransaction extends Controller
         $this->trx_home_service  = "Modules\Transaction\Http\Controllers\ApiTransactionHomeService";
         $this->trx_academy = "Modules\Transaction\Http\Controllers\ApiTransactionAcademy";
         $this->trx_shop = "Modules\Transaction\Http\Controllers\ApiTransactionShop";
+        $this->promo_trx = "Modules\Transaction\Http\Controllers\ApiPromoTransaction";
     }
 
     public function newTransaction(NewTransaction $request) {
@@ -2003,6 +2005,10 @@ class ApiOnlineTransaction extends Controller
             $post['discount'] = 0;
         }
 
+        if (!isset($post['discount_delivery'])) {
+            $post['discount_delivery'] = 0;
+        }
+
         if (!isset($post['service'])) {
             $post['service'] = 0;
         }
@@ -2218,17 +2224,15 @@ class ApiOnlineTransaction extends Controller
 
         $earnedPoint = $this->countTranscationPoint($post, $user);
         $cashback = $earnedPoint['cashback'] ?? 0;
-        if ($cashback) {
-            $result['point_earned'] = [
-                'value' => MyHelper::requestNumber($cashback, '_CURRENCY'),
-                'text' => MyHelper::setting('cashback_earned_text', 'value', 'Point yang akan didapatkan')
-            ];
-        }
 
         $post['tax'] = ($outlet['is_tax']/100) * $post['subtotal'];
         $result['subtotal'] = $subtotal;
         $result['shipping'] = $post['shipping']+$shippingGoSend;
         $result['discount'] = $post['discount'];
+        $result['discount_delivery'] = $post['discount_delivery'];
+        $result['cashback'] = $cashback;
+        $result['tax'] = $post['tax'];
+        $result['service'] = $post['service'];
         $result['grandtotal'] = (int)$result['subtotal'] + (int)(-$post['discount']) + (int)$post['service'] + (int)$post['tax'];
         $result['subscription'] = 0;
         $result['used_point'] = 0;
@@ -2236,8 +2240,17 @@ class ApiOnlineTransaction extends Controller
         $result['points'] = (int) $balance;
         $result['total_payment'] = $result['grandtotal'] - $result['used_point'];
         $result['discount'] = (int) $result['discount'];
-        $result['payment_detail'] = [];
+        $result['continue_checkout'] = true;
 
+        $result = app($this->promo_trx)->applyPromoCheckout($result);
+
+        $result['payment_detail'] = [];
+        if ($result['cashback']) {
+            $result['point_earned'] = [
+                'value' => MyHelper::requestNumber($result['cashback'], '_CURRENCY'),
+                'text' => MyHelper::setting('cashback_earned_text', 'value', 'Point yang akan didapatkan')
+            ];
+        }
         //subtotal
         $result['payment_detail'][] = [
             'name'          => 'Total',
@@ -2262,8 +2275,18 @@ class ApiOnlineTransaction extends Controller
 
         $fake_request = new Request(['show_all' => 1]);
         $result['available_payment'] = $this->availablePayment($fake_request)['result'] ?? [];
+        $result['messages_all'] = $error_msg;
+        if (!empty($error_msg)) {
+        	$result['continue_checkout'] = false;
+        }
 
-        return MyHelper::checkGet($result)+['messages'=>$error_msg];
+        $result['continue_checkout'] = true;
+        $result['messages_all'] = null;
+        if(!empty($error_msg)){
+            $result['continue_checkout'] = false;
+            $result['messages_all'] = implode('.', $error_msg);
+        }
+        return MyHelper::checkGet($result);
     }
 
     public function checkBundlingProduct($post, $outlet, $subtotal_per_brand = []){

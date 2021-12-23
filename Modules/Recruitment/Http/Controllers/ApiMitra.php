@@ -384,6 +384,7 @@ class ApiMitra extends Controller
 			$res[] = [
 				'id_hairstylist_announcement' => $ann['id_hairstylist_announcement'],
 				'date' => $ann['date'],
+				'date_indo' => MyHelper::indonesian_date_v2($ann['date'], 'd F Y'),
 				'content' => $ann['content']
 			];
 		}

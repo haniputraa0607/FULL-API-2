@@ -3097,7 +3097,6 @@ class ApiProductController extends Controller
     public function syncIcount(){
         $icount = new Icount();
         $data = $icount->ItemList();
-        return $data;
         if(isset($data)){
             if($data['response']['Message']=='Success'){
                 $items = $data['response']['Data'];

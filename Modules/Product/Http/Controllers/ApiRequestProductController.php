@@ -249,6 +249,8 @@ class ApiRequestProductController extends Controller
                             DB::rollback();
                             return response()->json(['status' => 'fail', 'messages' => ['Failed add request hair stylist']]);
                         }
+                    }else{
+                        RequestProductDetail::where('product_icount', $post['product_icount'])->delete();
                     }
                 }   
             } else {
@@ -341,9 +343,16 @@ class ApiRequestProductController extends Controller
     public function all(Request $request)
     {
         $post = $request->all();
-        $request_product = RequestProduct::where('status','!=', 'Pending')->where('id_outlet',$post['id_outlet'])->where('type',$post['type'])->get()->toArray();
+        $request_product = RequestProduct::where('status','!=', 'Pending');
+        if(isset($post['id_outlet'])){
+            $request_product = $request_product->where('id_outlet',$post['id_outlet']);
+        }
+        if(isset($post['type'])){
+            $request_product = $request_product->where('type',$post['type']);
+        }
+        $request_product = $request_product->get()->toArray();
         if($request_product==null){
-            return response()->json(['status' => 'success', 'result' => 'Empty']);
+            return response()->json(['status' => 'success']);
         } else {
             return response()->json(['status' => 'success', 'result' => $request_product]);
         }
@@ -433,5 +442,191 @@ class ApiRequestProductController extends Controller
         }
 
         return true;
+    }
+
+    public function indexDev(Request $request)
+    {
+        $post = $request->all();
+
+        $delivery_product = DeliveryProduct::join('users','users.id','=','delivery_products.id_user_delivery')
+                                         ->join('outlets','outlets.id_outlet','=','delivery_products.id_outlet')
+                                         ->select(
+                                            'delivery_products.*',
+                                            'outlets.outlet_name',
+                                            'users.name',
+                                         );
+
+        if(isset($post['conditions']) && !empty($post['conditions'])){
+            $rule = 'and';
+            if(isset($post['rule'])){
+                $rule = $post['rule'];
+            }
+            if($rule == 'and'){
+                foreach ($post['conditions'] as $condition){
+                    if(isset($condition['subject'])){                
+                        if($condition['operator'] == '='){
+                            $delivery_product = $delivery_product->where($condition['subject'], $condition['parameter']);
+                        }else{
+                            $delivery_product = $delivery_product->where($condition['subject'], 'like', '%'.$condition['parameter'].'%');
+                        }
+                    }
+                }
+            }else{
+                $delivery_product = $delivery_product->where(function ($q) use ($post){
+                    foreach ($post['conditions'] as $condition){
+                        if(isset($condition['subject'])){
+                            if($condition['operator'] == '='){
+                                $q->orWhere($condition['subject'], $condition['parameter']);
+                            }else{
+                                $q->orWhere($condition['subject'], 'like', '%'.$condition['parameter'].'%');
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        if(isset($post['order']) && isset($post['order_type'])){
+            if(isset($post['page'])){
+                $delivery_product = $delivery_product->orderBy($post['order'], $post['order_type'])->paginate($request->length ?: 10);
+            }else{
+                $delivery_product = $delivery_product->orderBy($post['order'], $post['order_type'])->get()->toArray();
+            }
+        }else{
+            if(isset($post['page'])){
+                $delivery_product = $delivery_product->orderBy('created_at', 'desc')->paginate($request->length ?: 10);
+            }else{
+                $delivery_product = $delivery_product->orderBy('created_at', 'desc')->get()->toArray();
+            }
+        }
+        return MyHelper::checkGet($delivery_product);
+    }
+
+    public function destroyDev(Request $request)
+    {
+        $id_delivery_product  = $request->json('id_delivery_product');
+        $delivery_product = DeliveryProduct::where('id_delivery_product', $id_delivery_product)->get();
+        if($delivery_product){
+            $delete = $this->deleteDetailDev($id_delivery_product);
+            $delete = $this->deleteRequestDev($id_delivery_product);
+        }
+        if($delete){
+            $delete = DeliveryProduct::where('id_delivery_product', $id_delivery_product)->delete();
+            return MyHelper::checkDelete($delete);
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
+    }
+
+    public function deleteDetailDev($id){
+        $get = DeliveryProductDetail::where('id_delivery_product', $id)->first();
+        if($get){
+            $delete = DeliveryProductDetail::where('id_delivery_product', $id)->delete();
+            $this->deleteDetailDev($id);
+            return $delete;
+        }else{
+            return true;
+        }
+    }
+    
+    public function deleteRequestDev($id){
+        $get = DeliveryRequestProduct::where('id_delivery_product', $id)->first();
+        if($get){
+            $delete = DeliveryRequestProduct::where('id_delivery_product', $id)->delete();
+            $this->deleteRequestDev($id);
+            return $delete;
+        }else{
+            return true;
+        }
+    }
+
+    public function detailDev(Request $request)
+    {
+        $post = $request->all();
+        if(isset($post['id_delivery_product']) && !empty($post['id_delivery_product'])){
+            $delivery_product = DeliveryProduct::where('id_delivery_product', $post['id_delivery_product'])->with(['delivery_product_detail','delivery_product_user_delivery','delivery_product_user_accept','delivery_product_outlet','delivery_request_products','request'])->first();
+            if($delivery_product==null){
+                return response()->json(['status' => 'success', 'result' => [
+                    'delivery_product' => 'Empty',
+                ]]);
+            } else {
+                return response()->json(['status' => 'success', 'result' => [
+                    'delivery_product' => $delivery_product,
+                ]]);
+            }
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
+    }
+
+    public function updateDev(Request $request)
+    {
+        $post = $request->all();
+        if (!empty($post)) {
+            $cek_input = $this->checkInputUpdateDev($post);
+            $store_request = $cek_input['store_request'];
+            $cek_outlet = Outlet::where(['id_outlet'=>$store_request['id_outlet']])->first();
+            if ($cek_outlet) {
+                DB::beginTransaction();
+                $update = DeliveryProduct::where('id_delivery_product',$post['id_delivery_product'])->update($store_request);
+                if($update) {
+                    if (isset($post['product_icount'])) {
+                        $save_detail = $this->saveDetail($post, $post['product_icount']);
+                        if (!$save_detail) {
+                            DB::rollback();
+                            return response()->json(['status' => 'fail', 'messages' => ['Failed add request product']]);
+                        }
+                    }else{
+                        DeliveryProductDetail::where('id_delivery_product', $post['id_delivery_product'])->delete();
+                    }
+                    if (isset($post['request'])) {
+                        $save_request = $this->saveDeliveryRequest($post, $post['request']);
+                        if (!$save_request) {
+                            DB::rollback();
+                            return response()->json(['status' => 'fail', 'messages' => ['Failed add delivery']]);
+                        }
+                    }else{
+                        DeliveryRequestProduct::where('id_delivery_product', $post['id_delivery_product'])->delete();
+                    }
+                }   
+            } else {
+                return response()->json(['status' => 'fail', 'messages' => ['Id Outlet not found']]);
+            }
+            DB::commit();
+            return response()->json(MyHelper::checkUpdate($update));
+        } else {
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
+    }
+
+    public function checkInputUpdateDev($data){
+        if (isset($data['code'])) {
+            $store_request['code'] = $data['code'];
+        }
+        if (isset($data['id_user_delivery'])) {
+            $store_request['id_user_delivery'] = $data['id_user_delivery'];
+        }
+        if (isset($data['id_outlet'])) {
+            $store_request['id_outlet'] = $data['id_outlet'];
+        }
+        if (isset($data['type'])) {
+            $store_request['type'] = $data['type'];
+        }
+        if (isset($data['charged'])) {
+            $store_request['charged'] = $data['charged'];
+        }
+        if (isset($data['product_icount'])) {
+            $status = 'Draft';
+            $v_status = true;
+            foreach($data['product_icount'] as $product){
+                if($product['status'] == 'Approved' || $product['status'] == 'Rejected'){
+                    $status = 'On Progress';
+                }
+            }
+            $store_request['status'] = $status;
+        }
+        return [
+            'store_request' => $store_request,
+        ];
+
     }
 }

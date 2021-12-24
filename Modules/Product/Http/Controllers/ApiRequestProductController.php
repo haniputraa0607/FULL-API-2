@@ -614,6 +614,9 @@ class ApiRequestProductController extends Controller
         if (isset($data['charged'])) {
             $store_request['charged'] = $data['charged'];
         }
+        if (isset($data['delivery_date'])) {
+            $store_request['delivery_date'] = date('Y-m-d', strtotime($data['delivery_date']));
+        }
         if (isset($data['product_icount'])) {
             $status = 'Draft';
             $v_status = true;

@@ -207,3 +207,7 @@ Route::group(['prefix' => 'api/dev-product','middleware' => ['log_activities','a
     Route::post('/', 'ApiRequestProductController@indexDev');
     Route::post('all', 'ApiRequestProductController@all');
 });
+
+Route::group(['prefix' => 'api/mitra/req-product','middleware' => ['log_activities','user_agent','auth:mitra', 'scopes:mitra-apps'], 'namespace' => 'Modules\Product\Http\Controllers'], function(){
+    Route::post('/', 'ApiMitraRequestProductController@index');
+});

@@ -19,6 +19,7 @@ class DeliveryProduct extends Model
         'id_user_delivery',
         'id_user_accept',
         'status',
+        'delivery_date'
 	];
 
     public function delivery_product_detail(){

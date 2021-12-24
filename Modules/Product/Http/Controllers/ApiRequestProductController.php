@@ -10,6 +10,9 @@ use Modules\Product\Entities\RequestProduct;
 use Modules\Product\Entities\RequestProductDetail;
 use App\Lib\MyHelper;
 use DB;
+use Modules\Product\Entities\DeliveryProduct;
+use Modules\Product\Entities\DeliveryProductDetail;
+use Modules\Product\Entities\DeliveryRequestProduct;
 
 class ApiRequestProductController extends Controller
 {
@@ -137,10 +140,21 @@ class ApiRequestProductController extends Controller
 
     public function saveDetail($data,$detail){
     	
-        $table = new RequestProductDetail;
-    	$id_req = $data['id_request_product'];
+        if(isset($data['id_request_product'])){
 
-    	$delete = $table::where('id_request_product', $id_req)->delete();
+            $table = new RequestProductDetail;
+            $id_req = $data['id_request_product'];
+            $col = 'id_request_product';
+
+        }elseif(isset($data['id_delivery_product'])){
+
+            $table = new DeliveryProductDetail;
+            $id_req = $data['id_delivery_product'];
+            $col = 'id_delivery_product';
+
+        }
+
+    	$delete = $table::where($col, $id_req)->delete();
 
         $data_detail = [];
 
@@ -149,7 +163,7 @@ class ApiRequestProductController extends Controller
                 $value['status'] = 'Pending';   
             }
             array_push($data_detail, [
-                'id_request_product' 	=> $id_req,
+                $col 	=> $id_req,
                 'id_product_icount'  => $value['id_product_icount'],
                 'unit'  => $value['unit'],
                 'value'  => $value['qty'],
@@ -322,5 +336,102 @@ class ApiRequestProductController extends Controller
         }else{
             return true;
         }
+    }
+
+    public function all(Request $request)
+    {
+        $post = $request->all();
+        $request_product = RequestProduct::where('status','!=', 'Pending')->where('id_outlet',$post['id_outlet'])->where('type',$post['type'])->get()->toArray();
+        if($request_product==null){
+            return response()->json(['status' => 'success', 'result' => 'Empty']);
+        } else {
+            return response()->json(['status' => 'success', 'result' => $request_product]);
+        }
+        
+    }
+
+    public function createDev(Request $request)
+    {
+        $post = $request->all();
+        if (!empty($post)) {
+            if (isset($post['id_outlet'])) {
+                $store_delivery['id_outlet'] = $post['id_outlet'];
+            }
+            if (isset($post['type'])) {
+                $store_delivery['type'] = $post['type'];
+            }
+            if (isset($post['charged'])) {
+                $store_delivery['charged'] = $post['charged'];
+            }
+            $store_delivery['id_user_delivery'] = auth()->user()->id;
+            $store_delivery['code'] = $this->codeGenerateDev();
+            $cek_outlet = Outlet::where(['id_outlet'=>$store_delivery['id_outlet']])->first();
+            if ($cek_outlet) {
+                DB::beginTransaction();
+                $store = DeliveryProduct::create($store_delivery); 
+                if($store) {
+                    if (isset($post['product_icount'])) {
+                        $save_detail = $this->saveDetail($store, $post['product_icount']);
+                        if (!$save_detail) {
+                            DB::rollback();
+                            return response()->json(['status' => 'fail', 'messages' => ['Failed add delivery']]);
+                        }
+                    }
+
+                    if (isset($post['request'])) {
+                        $save_request = $this->saveDeliveryRequest($store, $post['request']);
+                        if (!$save_request) {
+                            DB::rollback();
+                            return response()->json(['status' => 'fail', 'messages' => ['Failed add delivery']]);
+                        }
+                    }
+                }   
+            } else {
+                return response()->json(['status' => 'fail', 'messages' => ['Id Outlet not found']]);
+            }
+            DB::commit();
+            return response()->json(MyHelper::checkCreate($store));
+        } else {
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
+    }
+
+    public function codeGenerateDev(){
+        $date = date('ymd');
+        $random = rand(100,999);
+        $code = 'DEV-'.$date.$random;
+        $cek_code = DeliveryProduct::where('code',$code)->first();
+        if($cek_code){
+            $this->codeGenerateDev();
+        }
+        return $code;
+    }
+
+    public function saveDeliveryRequest($data,$request){
+        
+        $table = new DeliveryRequestProduct;
+        $id = $data['id_delivery_product'];
+        $col = 'id_delivery_product';
+
+    	$delete = $table::where('id_delivery_product', $id)->delete();
+
+        $data_request = [];
+
+        foreach ($request as $value) {
+            array_push($data_request, [
+                'id_delivery_product'  => $id,
+                'id_request_product'  => $value,
+            ]);
+        }
+
+        if (!empty($data_request)) {
+            $save = $table::insert($data_request);
+
+            return $save;
+        } else {
+            return false;
+        }
+
+        return true;
     }
 }

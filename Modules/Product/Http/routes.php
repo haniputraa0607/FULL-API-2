@@ -196,4 +196,14 @@ Route::group(['prefix' => 'api/req-product','middleware' => ['log_activities','a
     Route::post('detail', 'ApiRequestProductController@detail');
     Route::post('update', 'ApiRequestProductController@update');
     Route::post('/', 'ApiRequestProductController@index');
+    Route::post('all', 'ApiRequestProductController@all');
+});
+
+Route::group(['prefix' => 'api/dev-product','middleware' => ['log_activities','auth:api', 'scopes:be'], 'namespace' => 'Modules\Product\Http\Controllers'], function(){
+    Route::post('create', 'ApiRequestProductController@createDev');
+    Route::post('delete', 'ApiRequestProductController@destroy');
+    Route::post('detail', 'ApiRequestProductController@detail');
+    Route::post('update', 'ApiRequestProductController@update');
+    Route::post('/', 'ApiRequestProductController@index');
+    Route::post('all', 'ApiRequestProductController@all');
 });

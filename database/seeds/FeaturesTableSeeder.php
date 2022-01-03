@@ -4207,6 +4207,26 @@ class FeaturesTableSeeder extends Seeder
 	                'created_at' => date('Y-m-d H:00:00'),
                         'updated_at' => date('Y-m-d H:00:00')
 	            ),
+            420 =>
+                array (
+                    'feature_module' => 'Home Service Transaction',
+                    'feature_type' => 'Detail',
+                    'id_feature' => 421,
+                    'order' => 150,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            421 =>
+                array (
+                    'feature_module' => 'Home Service Transaction',
+                    'feature_type' => 'Update',
+                    'id_feature' => 422,
+                    'order' => 150,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
         ));
         
         

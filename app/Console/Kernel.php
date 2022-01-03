@@ -219,6 +219,13 @@ class Kernel extends ConsoleKernel
          */
         $schedule->call('Modules\Transaction\Http\Controllers\ApiTransactionHomeService@cronCancelHairStylist')->cron('*/15 * * * *');
 
+        /**
+         * Academy reminder payment
+         * run every 10:00 AM and 14:00 PM
+         */
+        $schedule->call('Modules\Academy\Http\Controllers\ApiAcademyController@paymentInstallmentReminder')->dailyAt('10:00');
+        $schedule->call('Modules\Academy\Http\Controllers\ApiAcademyController@paymentInstallmentDueDate')->dailyAt('14:00');
+
     }
 
     /**

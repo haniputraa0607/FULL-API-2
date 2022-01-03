@@ -173,9 +173,6 @@ class FindingHairStylistHomeService implements ShouldQueue
                     ]);
 
                     TransactionHomeServiceHairStylistFinding::where('id_transaction', $data['id_transaction'])->delete();
-                    app("Modules\Transaction\Http\Controllers\ApiOnlineTransaction")->cancelBookHS($data['id_transaction']);
-                    app("Modules\Transaction\Http\Controllers\ApiTransactionHomeService")->cancelBookProductServiceStockHM($data['id_transaction']);
-
                     //refund payment
                     app('Modules\Transaction\Http\Controllers\ApiTransactionHomeService')->rejectOrder($data['id_transaction']);
                 }

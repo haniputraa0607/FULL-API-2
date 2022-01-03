@@ -358,6 +358,7 @@ class ApiTransactionShop extends Controller
 
         $finalRes = [
         	'items' => $result['items'],
+        	'point_earned' => $result['point_earned'] ?? null,
         	'continue_checkout' => $result['continue_checkout'],
         	'complete_profile' => $result['complete_profile']
         ];
@@ -569,6 +570,7 @@ class ApiTransactionShop extends Controller
             	'product_group_name' => $product['product_group']['product_group_name'],
             	'qty' => $product['qty'],
             	'product_stock_status' => $product['product_stock_status'],
+	            'product_price' => (int) $product['product_price'],
 	            'product_price_raw' => (int) $product['product_price'],
 	            'product_price_raw_total' => (int) $item['transaction_product_subtotal'],
 	            'product_price_total_pretty' => MyHelper::requestNumber((int) $item['transaction_product_subtotal'],'_CURRENCY'),
@@ -584,33 +586,7 @@ class ApiTransactionShop extends Controller
             $items[] = $tempItem;
         }
 
-        foreach ($grandTotal as $keyTotal => $valueTotal) {
-            if($valueTotal == 'tax'){
-                $post['subtotal'] = $subtotalProduct;
-                $post['tax'] = app($this->setting_trx)->countTransaction($valueTotal, $post);
-
-                if (isset($post['tax']->original['messages'])) {
-                    $mes = $post['tax']->original['messages'];
-
-                    if ($post['tax']->original['messages'] == ['Price Product Not Found']) {
-                        if (isset($post['tax']->original['product'])) {
-                            $mes = ['Price Product Not Found with product '.$post['tax']->original['product'].' at outlet '.$outlet['outlet_name']];
-                        }
-                    }
-
-                    if ($post['sub']->original['messages'] == ['Price Product Not Valid']) {
-                        if (isset($post['tax']->original['product'])) {
-                            $mes = ['Price Product Not Valid with product '.$post['tax']->original['product'].' at outlet '.$outlet['outlet_name']];
-                        }
-                    }
-
-                    return response()->json([
-                        'status'    => 'fail',
-                        'messages'  => $mes
-                    ]);
-                }
-            }
-        }
+        $post['tax'] = ($outlet['is_tax']/100) * $post['subtotal'];
 
         if ($post['id_user_address'] ?? null) {
             $address = UserAddress::where('id_user', $user->id)->where('id_user_address', $post['id_user_address'])->first();
@@ -744,12 +720,15 @@ class ApiTransactionShop extends Controller
         	'currency' => $result['currency'],
         	'complete_profile' => $result['complete_profile'],
         	'payment_detail' => $result['payment_detail'],
+            'point_earned' => $result['point_earned'] ?? null,
             'available_payment' => $result['available_payment'],
             'available_delivery' => $listDelivery,
-            'selected_delivery' => $deliv
+            'selected_delivery' => $deliv,
+            'continue_checkout' => (empty($error_msg) ? true : false),
+            'messages_all' => implode('.', $error_msg)
         ];
 
-        return MyHelper::checkGet($finalRes)+['messages'=>$error_msg];
+        return MyHelper::checkGet($finalRes);
     }
 
     public function newTransactionShop(NewTransaction $request) {
@@ -931,20 +910,7 @@ class ApiTransactionShop extends Controller
                 }
 
                 $post['subtotal'] = array_sum($post['sub']['subtotal']);
-            } elseif($valueTotal == 'tax'){
-                $post['tax'] = app($this->setting_trx)->countTransaction($valueTotal, $post);
-
-                if (isset($post['tax']->original['messages'])) {
-                    $mes = $post['tax']->original['messages'];
-
-                    DB::rollback();
-                    return response()->json([
-                        'status'    => 'fail',
-                        'messages'  => $mes
-                    ]);
-                }
-            }
-            else {
+            } else {
                 $post[$valueTotal] = app($this->setting_trx)->countTransaction($valueTotal, $post);
             }
         }
@@ -985,7 +951,7 @@ class ApiTransactionShop extends Controller
             ]);
         }
         $post['shipping'] = $deliv['price'];
-        
+        $post['tax'] = ($outlet['is_tax']/100) * $post['subtotal'];
         $grandTotal = (int)$post['subtotal'] + (int)$post['tax'] + (int)$post['shipping'];
 
         DB::beginTransaction();
@@ -1234,7 +1200,8 @@ class ApiTransactionShop extends Controller
 				'transaction_date' => $val['transaction_date'],
 				'customer_name' => $val['destination_name'],
 				'status' => $status,
-				'shop_status' => $shopStatus,
+				'shop_status' => $val['shop_status'],
+				'order_status' => $shopStatus,
 				'order' => $orders
 			];
 		}
@@ -1437,7 +1404,8 @@ class ApiTransactionShop extends Controller
 			'transaction_tax' => $detail['transaction_tax'],
 			'currency' => 'Rp',
 			'status' => $status,
-			'shop_status' => $shopStatus,
+			'shop_status' => $detail['shop_status'],
+			'order_status' => $shopStatus,
 			'transaction_payment_status' => $detail['transaction_payment_status'],
 			'customer_detail' => $custDetail,
 			'delivery_detail' => $delivDetail,
@@ -1492,5 +1460,125 @@ class ApiTransactionShop extends Controller
     	}
 
     	return $res;
+    }
+
+    public function listShop(Request $request)
+    {
+        $list = Transaction::where('transaction_from', 'shop')
+            ->join('transaction_shops','transactions.id_transaction', 'transaction_shops.id_transaction')
+            ->join('users','transactions.id_user','=','users.id')
+            ->join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')
+            ->leftJoin('transaction_products','transactions.id_transaction','=','transaction_products.id_transaction')
+            ->leftJoin('products','products.id_product','=','transaction_products.id_product')
+            ->with('user')
+            ->select(
+                'transaction_shops.*',
+                'products.*',
+                'transaction_products.*',
+                'outlets.*',
+                'users.*',
+                'transactions.*'
+	            )
+            ->groupBy('transactions.id_transaction');
+
+        $countTotal = null;
+
+        if ($request->rule) {
+            $countTotal = $list->getQuery()->getCountForPagination();
+            $this->filterList($list, $request->rule, $request->operator ?: 'and');
+        }
+
+        if (is_array($orders = $request->order)) {
+            $columns = [
+                'id_transaction',
+                'transaction_date',
+                'outlet_code',
+                'transaction_receipt_number',
+                'name',
+                'phone',
+                'transaction_grandtotal',
+                'transaction_payment_status',
+            ];
+
+            foreach ($orders as $column) {
+                if ($colname = ($columns[$column['column']] ?? false)) {
+                    $list->orderBy($colname, $column['dir']);
+                }
+            }
+        }
+        $list->orderBy('transactions.id_transaction', $column['dir'] ?? 'DESC');
+
+        if ($request->page) {
+            $list = $list->paginate($request->length ?: 15);
+            $list->each(function($item) {
+                $item->images = array_map(function($item) {
+                    return config('url.storage_url_api').$item;
+                }, json_decode($item->images) ?? []);
+            });
+            $list = $list->toArray();
+            if (is_null($countTotal)) {
+                $countTotal = $list['total'];
+            }
+            // needed by datatables
+            $list['recordsTotal'] = $countTotal;
+            $list['recordsFiltered'] = $list['total'];
+        } else {
+            $list = $list->get();
+        }
+        return MyHelper::checkGet($list);
+    }
+
+    public function filterList($model, $rule, $operator = 'and')
+    {
+        $new_rule = [];
+        $where    = $operator == 'and' ? 'where' : 'orWhere';
+        foreach ($rule as $var) {
+            $var1 = ['operator' => $var['operator'] ?? '=', 'parameter' => $var['parameter'] ?? null, 'hide' => $var['hide'] ?? false];
+            if ($var1['operator'] == 'like') {
+                $var1['parameter'] = '%' . $var1['parameter'] . '%';
+            }
+            $new_rule[$var['subject']][] = $var1;
+        }
+        $model->where(function($model2) use ($model, $where, $new_rule){
+            $inner = [
+                'transaction_receipt_number',
+                'order_id',
+                'outlet_name',
+                'outlet_code',
+                'transaction_grandtotal',
+                'transaction_payment_status'
+            ];
+            foreach ($inner as $col_name) {
+                if ($rules = $new_rule[$col_name] ?? false) {
+                    foreach ($rules as $rul) {
+                        $model2->$where($col_name, $rul['operator'], $rul['parameter']);
+                    }
+                }
+            }
+
+            $inner = ['name', 'phone', 'email'];
+            foreach ($inner as $col_name) {
+                if ($rules = $new_rule[$col_name] ?? false) {
+                    foreach ($rules as $rul) {
+                        $model2->$where('users.'.$col_name, $rul['operator'], $rul['parameter']);
+                    }
+                }
+            }
+
+            $inner = ['id_outlet'];
+            foreach ($inner as $col_name) {
+                if ($rules = $new_rule[$col_name] ?? false) {
+                    foreach ($rules as $rul) {
+                        $model2->$where('transactions.'.$col_name, $rul['operator'], $rul['parameter']);
+                    }
+                }
+            }
+        });
+
+        if ($rules = $new_rule['transaction_date'] ?? false) {
+            foreach ($rules as $rul) {
+                $model->where(\DB::raw('DATE(transaction_date)'), $rul['operator'], $rul['parameter']);
+            }
+        }
     }
 }

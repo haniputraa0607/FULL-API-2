@@ -240,6 +240,11 @@ class PromoCampaign extends Eloquent
 		return $this->belongsToMany(\Modules\Brand\Entities\Brand::class,'promo_campaign_brands','id_promo_campaign','id_brand');
 	}
 
+    public function promo_campaign_services()
+    {
+			return $this->hasMany(\Modules\PromoCampaign\Entities\PromoCampaignService::class, 'id_promo_campaign', 'id_promo_campaign');
+	}
+
 	public function promo_campaign_brands()
 	{
         return $this->hasMany(\Modules\PromoCampaign\Entities\PromoCampaignBrand::class, 'id_promo_campaign', 'id_promo_campaign');

@@ -208,6 +208,40 @@ class ApiTransactionHomeService extends Controller
             $continueCheckOut = false;
         }
 
+        $post['item_service'] = $itemService;
+        $grandTotal = app($this->setting_trx)->grandTotal();
+        foreach ($grandTotal as $keyTotal => $valueTotal) {
+            if ($valueTotal == 'subtotal') {
+                $post['sub'] = app($this->setting_trx)->countTransaction($valueTotal, $post);
+                if (gettype($post['sub']) != 'array') {
+                    $mes = ['Data Not Valid'];
+
+                    if (isset($post['sub']->original['messages'])) {
+                        $mes = $post['sub']->original['messages'];
+
+                        if ($post['sub']->original['messages'] == ['Product Service not found']) {
+                            if (isset($post['sub']->original['product'])) {
+                                $mes = ['Price Service Not Found with product '.$post['sub']->original['product']];
+                            }
+                        }
+
+                        if ($post['sub']->original['messages'] == ['Price Service Product Not Valid']) {
+                            if (isset($post['sub']->original['product'])) {
+                                $mes = ['Price Service Not Valid with product '.$post['sub']->original['product']];
+                            }
+                        }
+                    }
+
+                    return response()->json([
+                        'status'    => 'fail',
+                        'messages'  => $mes
+                    ]);
+                }
+
+                $post['subtotal'] = array_sum($post['sub']['subtotal']);
+            }
+        }
+
         unset($address['description']);
         $result['id_user_address'] = $address['id_user_address'];
         $result['notes'] = (empty($post['notes']) ? $address['description']:$post['notes']);
@@ -226,6 +260,14 @@ class ApiTransactionHomeService extends Controller
         $result['currency'] = 'Rp';
         $result['complete_profile'] = (empty($user->complete_profile) ?false:true);
         $result['continue_checkout'] = $continueCheckOut;
+        $earnedPoint = app($this->online_trx)->countTranscationPoint($post, $user);
+        $cashback = $earnedPoint['cashback'] ?? 0;
+        if ($cashback) {
+            $result['point_earned'] = [
+                'value' => MyHelper::requestNumber($cashback, '_CURRENCY'),
+                'text' => MyHelper::setting('cashback_earned_text', 'value', 'Point yang akan didapatkan')
+            ];
+        }
         $result['messages_all'] = (empty($errAll)? null:implode(".", array_unique($errAll)));
         return MyHelper::checkGet($result);
     }
@@ -457,32 +499,7 @@ class ApiTransactionHomeService extends Controller
                 }
 
                 $post['subtotal'] = array_sum($post['sub']['subtotal']);
-            } elseif($valueTotal == 'tax'){
-                $post['tax'] = app($this->setting_trx)->countTransaction($valueTotal, $post);
-
-                if (isset($post['tax']->original['messages'])) {
-                    $mes = $post['tax']->original['messages'];
-
-                    if ($post['tax']->original['messages'] == ['Product Service not found']) {
-                        if (isset($post['tax']->original['product'])) {
-                            $mes = ['Price Service Not Found with product '.$post['tax']->original['product']];
-                        }
-                    }
-
-                    if ($post['sub']->original['messages'] == ['Price Service Product Not Valid']) {
-                        if (isset($post['tax']->original['product'])) {
-                            $mes = ['Price Service Not Valid with product '.$post['tax']->original['product']];
-                        }
-                    }
-
-                    DB::rollback();
-                    return response()->json([
-                        'status'    => 'fail',
-                        'messages'  => $mes
-                    ]);
-                }
-            }
-            else {
+            } else {
                 $post[$valueTotal] = app($this->setting_trx)->countTransaction($valueTotal, $post);
             }
         }
@@ -509,6 +526,8 @@ class ApiTransactionHomeService extends Controller
         if(!empty($errAll)){
             $continueCheckOut = false;
         }
+
+        $post['tax'] = ($outlet['is_tax']/100) * $post['subtotal'];
         $result['id_user_address'] = $address['id_user_address'];
         $result['notes'] = (empty($post['notes']) ? $address['description']:$post['notes']);
         $result['preference_hair_stylist'] = $post['preference_hair_stylist'];
@@ -536,18 +555,14 @@ class ApiTransactionHomeService extends Controller
             ];
         }
 
-        $result['payment_detail'][] = [
-            'name'          => 'Subtotal ('.$totalItem.' item)',
-            "is_discount"   => 0,
-            'amount'        => MyHelper::requestNumber($result['subtotal'],'_CURRENCY')
-        ];
-
-
-        $result['payment_detail'][] = [
-            'name'          => 'Tax',
-            "is_discount"   => 0,
-            'amount'        => MyHelper::requestNumber((int) $post['tax'],'_CURRENCY')
-        ];
+        $result['payment_detail'] = [];
+        if(!empty($outlet['is_tax'])) {
+            $result['payment_detail'][] = [
+                'name' => 'Tax',
+                "is_discount" => 0,
+                'amount' => MyHelper::requestNumber((int)$post['tax'], '_CURRENCY')
+            ];
+        }
 
         $result['currency'] = 'Rp';
         $result['complete_profile'] = (empty($user->complete_profile) ?false:true);
@@ -770,35 +785,11 @@ class ApiTransactionHomeService extends Controller
                 }
 
                 $post['subtotal'] = array_sum($post['sub']['subtotal']);
-            } elseif($valueTotal == 'tax'){
-                $post['tax'] = app($this->setting_trx)->countTransaction($valueTotal, $post);
-
-                if (isset($post['tax']->original['messages'])) {
-                    $mes = $post['tax']->original['messages'];
-
-                    if ($post['tax']->original['messages'] == ['Product Service not found']) {
-                        if (isset($post['tax']->original['product'])) {
-                            $mes = ['Price Service Not Found with product '.$post['tax']->original['product']];
-                        }
-                    }
-
-                    if ($post['sub']->original['messages'] == ['Price Service Product Not Valid']) {
-                        if (isset($post['tax']->original['product'])) {
-                            $mes = ['Price Service Not Valid with product '.$post['tax']->original['product']];
-                        }
-                    }
-
-                    DB::rollback();
-                    return response()->json([
-                        'status'    => 'fail',
-                        'messages'  => $mes
-                    ]);
-                }
-            }
-            else {
+            } else {
                 $post[$valueTotal] = app($this->setting_trx)->countTransaction($valueTotal, $post);
             }
         }
+        $post['tax'] = ($outlet['is_tax']/100) * $post['subtotal'];
 
         $address = UserAddress::where('id_user', $user->id)->where('id_user_address', $post['id_user_address'])->first();
         if(empty($address)){

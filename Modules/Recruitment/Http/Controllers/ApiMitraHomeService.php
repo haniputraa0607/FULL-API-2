@@ -73,7 +73,7 @@ class ApiMitraHomeService extends Controller
 
         $dateNow = new DateTime("now");
         if(!empty($post['page'])){
-            $list = $list->paginate($post['total_data']??10)->toArray();
+            $list = $list->paginate($post['per_page']??10)->toArray();
             foreach ($list['data'] as $key=>$data){
                 $timerText = "";
                 $dateSchedule = new DateTime($data['schedule_date'] . ' ' .$data['schedule_time']);
@@ -190,6 +190,11 @@ class ApiMitraHomeService extends Controller
                     }
 
                     $update = TransactionHomeServiceHairStylistFinding::where('id_transaction', $detail['id_transaction'])->where('id_user_hair_stylist', $user['id_user_hair_stylist'])->update(['status' => 'Reject']);
+
+                    //cancel all booking
+                    app("Modules\Transaction\Http\Controllers\ApiOnlineTransaction")->cancelBookHS($detail['id_transaction']);
+                    app("Modules\Transaction\Http\Controllers\ApiTransactionHomeService")->cancelBookProductServiceStockHM($detail['id_transaction']);
+
                     FindingHairStylistHomeService::dispatch(['id_transaction' => $detail['id_transaction'], 'id_transaction_home_service' => $detail['id_transaction_home_service']])->allOnConnection('findinghairstylistqueue');
                     break;
                 case 'On The Way':
@@ -315,5 +320,47 @@ class ApiMitraHomeService extends Controller
         ];
 
         return MyHelper::checkGet($detail);
+    }
+
+    public function listHistoryOrder(Request $request){
+        $post = $request->all();
+        $user = $request->user();
+        $currentDate = date('Y-m-d H:i:s');
+
+        $list = Transaction::join('transaction_home_services', 'transaction_home_services.id_transaction', 'transactions.id_transaction')
+            ->leftJoin('users', 'transactions.id_user', 'users.id')
+            ->where('status', 'Completed')
+            ->where('id_user_hair_stylist', $user['id_user_hair_stylist'])
+            ->select('transactions.id_transaction', 'id_transaction_home_service', 'schedule_date', 'users.name as customer_name');
+
+        if(!empty($post['filter']) && $post['filter'] == 'last 7 days'){
+            $dateFilter = date("Y-m-d", strtotime($currentDate." -7 days"));
+            $list = $list->whereDate('schedule_date', '>=', $dateFilter)->whereDate('schedule_date', '<=', $currentDate);
+        }elseif(!empty($post['filter']) && $post['filter'] == 'last 30 days'){
+            $dateFilter = date("Y-m-d", strtotime($currentDate." -30 days"));
+            $list = $list->whereDate('schedule_date', '>=', $dateFilter)->whereDate('schedule_date', '<=', $currentDate);
+        }elseif(!empty($post['filter']) && $post['filter'] == 'today'){
+            $list = $list->whereDate('schedule_date', $currentDate);
+        }
+
+        if((!empty($post['sort']) && $post['sort'] == 'desc') || empty($post['sort'])){
+            $list = $list->orderBy('schedule_date', 'desc')->orderBy('schedule_time', 'desc');
+        }elseif(!empty($post['sort']) && $post['sort'] == 'asc'){
+            $list = $list->orderBy('schedule_date', 'asc')->orderBy('schedule_time', 'asc');
+        }
+
+        $list = $list->paginate($post['per_page']??10)->toArray();
+        foreach ($list['data'] as $key=>$data){
+            $statusStart = TransactionHomeServiceStatusUpdate::where('id_transaction', $data['id_transaction'])->where('status', 'Start Service')->first()['created_at']??'';
+            $statusCompleted = TransactionHomeServiceStatusUpdate::where('id_transaction', $data['id_transaction'])->where('status', 'Completed')->first()['created_at']??'';
+            $services = TransactionProduct::join('products', 'products.id_product', 'transaction_products.id_product')
+                ->where('id_transaction', $data['id_transaction'])->select('products.id_product', 'product_name', 'transaction_product_qty as qty')->get()->toArray();
+            $list['data'][$key]['schedule_date_display'] = MyHelper::dateFormatInd($data['schedule_date'], true, false);
+            $list['data'][$key]['services'] = $services;
+            $list['data'][$key]['start_service'] = (empty($statusStart)? '':date('H:i', strtotime($statusStart)));
+            $list['data'][$key]['end_service'] = (empty($statusCompleted)? '':date('H:i', strtotime($statusCompleted)));
+        }
+
+        return MyHelper::checkGet($list);
     }
 }

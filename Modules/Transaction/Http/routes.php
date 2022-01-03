@@ -103,8 +103,19 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     	Route::post('reject', ['middleware' => 'feature_control:399', 'uses' => 'ApiTransactionOutletService@rejectTransactionOutletService']);
     });
 
-    Route::post('home-service', 'ApiTransactionHomeService@listHomeService');
-    Route::post('home-service/detail', 'ApiTransactionHomeService@detailTransaction');
+    Route::group(['prefix' => 'home-service'], function () {
+	    Route::post('/', 'ApiTransactionHomeService@listHomeService');
+	    Route::post('detail', 'ApiTransactionHomeService@detailTransaction');
+    	Route::group(['prefix' => 'manage'], function () {
+    		Route::post('/', ['middleware' => 'feature_control:407', 'uses' => 'ApiManageHomeService@manageList']);
+		    Route::post('detail', ['middleware' => 'feature_control:408', 'uses' => 'ApiManageHomeService@manageDetail']);
+		    Route::post('detail/update', ['middleware' => 'feature_control:409', 'uses' => 'ApiManageHomeService@manageDetailUpdate']);
+		    Route::post('find-hs', ['uses' => 'ApiManageHomeService@findHairstylist']);
+    	});
+    });
+
+    Route::post('shop', 'ApiTransactionShop@listShop');
+    Route::post('shop/detail', 'ApiTransactionShop@shopDetail');
 
     Route::post('academy', 'ApiTransactionAcademy@listAcademy');
     Route::post('academy/detail', 'ApiTransactionAcademy@detailTransaction');
@@ -207,6 +218,8 @@ Route::group(['prefix' => 'api/transaction', 'middleware' => ['log_activities', 
 Route::group(['prefix' => 'api/transaction', 'middleware' => ['log_activities', 'auth:api', 'user_agent', 'scopes:be'], 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
     Route::post('be/detail/webview/{mode?}', 'ApiWebviewController@webview');
     Route::post('be/detail', 'ApiTransaction@transactionDetail');
+    Route::any('be/revenue_sharing', 'ApiTransaction@revenue_sharing');
+    Route::any('be/management_fee', 'ApiTransaction@management_fee');
 });
 
 Route::group(['middleware' => ['auth:api', 'user_agent', 'scopes:apps'], 'prefix' => 'api/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {

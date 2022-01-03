@@ -2,6 +2,8 @@
 
 namespace Modules\Recruitment\Http\Controllers;
 
+use App\Http\Models\OauthAccessToken;
+use App\Http\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
@@ -35,7 +37,10 @@ use App\Lib\MyHelper;
 use DB;
 use DateTime;
 use DateTimeZone;
+use Modules\Users\Http\Requests\users_forgot;
+use Modules\Users\Http\Requests\users_phone_pin_new_v2;
 use PharIo\Manifest\EmailTest;
+use Auth;
 
 class ApiMitra extends Controller
 {
@@ -44,6 +49,9 @@ class ApiMitra extends Controller
         $this->announcement = "Modules\Recruitment\Http\Controllers\ApiAnnouncement";
         $this->outlet = "Modules\Outlet\Http\Controllers\ApiOutletController";
         $this->mitra_log_balance = "Modules\Recruitment\Http\Controllers\MitraLogBalance";
+        if (\Module::collections()->has('Autocrm')) {
+            $this->autocrm  = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
+        }
     }
 
     public function splash(Request $request){
@@ -97,9 +105,11 @@ class ApiMitra extends Controller
 				'day'  => date('l', strtotime($date))
 			];
 
+			$tempDay = MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($date)), 'l');
+			$tempDay = str_replace('Jum\'at', 'Jumat', $tempDay);
 			$resDate[] = [
 				'date'	=> date('Y-m-d', strtotime($date)),
-				'day'	=> MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($date)), 'l'),
+				'day'	=> $tempDay,
 				'date_string'	=> MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($date)), 'D  d/m')
 			];
 			$date = date("Y-m-d", strtotime("+1 day", strtotime($date)));
@@ -331,6 +341,7 @@ class ApiMitra extends Controller
 	    	}
 
 	    	$insert = HairstylistScheduleDate::insert($insertData);
+	    	$schedule->refreshTimeShift();
 
 	    	if (!$insert) {
 	    		DB::rollback();
@@ -373,6 +384,7 @@ class ApiMitra extends Controller
 			$res[] = [
 				'id_hairstylist_announcement' => $ann['id_hairstylist_announcement'],
 				'date' => $ann['date'],
+				'date_indo' => MyHelper::indonesian_date_v2($ann['date'], 'd F Y'),
 				'content' => $ann['content']
 			];
 		}
@@ -435,7 +447,25 @@ class ApiMitra extends Controller
             ]);
         }
 
+        if ($request->device_id) {
+        	$user->devices()->updateOrCreate([
+        		'device_id' => $request->device_id
+        	], [
+		        'device_type' => $request->device_type,
+		        'device_token' => $request->device_token,
+        	]);
+        }
+
     	return MyHelper::checkGet($res);
+    }
+
+    public function logout(Request $request)
+    {
+    	$user = $request->user();
+    	$user->devices()->where('device_id', $request->device_id)->delete();
+    	return [
+    		'status' => 'success'
+    	];
     }
 
     public function outletServiceScheduleStatus($id_user_hair_stylist, $date = null)
@@ -904,6 +934,7 @@ class ApiMitra extends Controller
                     ->where('outlet_cash.id_outlet', $user->id_outlet)
                     ->whereDate('outlet_cash.created_at', $date)
                     ->where('outlet_cash_status', 'Pending')
+                    ->where('outlet_cash_type', 'Transfer To Supervisor')
                     ->select('id_outlet_cash', DB::raw('DATE_FORMAT(outlet_cash.created_at, "%H:%i") as time'), 'fullname as hair_stylist_name',
                         'outlet_cash_status', 'outlet_cash_code', 'outlet_cash_amount as amount');
 
@@ -912,6 +943,7 @@ class ApiMitra extends Controller
             ->where('outlet_cash.id_outlet', $user->id_outlet)
             ->whereDate('outlet_cash.confirm_at', $date)
             ->where('outlet_cash_status', 'Confirm')
+            ->where('outlet_cash_type', 'Transfer To Supervisor')
             ->select('id_outlet_cash', DB::raw('DATE_FORMAT(outlet_cash.created_at, "%H:%i") as time'), 'user_hair_stylist.fullname as hair_stylist_name',
                 'outlet_cash_status', 'outlet_cash_code', 'outlet_cash_amount as amount', 'confirm.fullname as confirm_by_name');
 
@@ -1043,13 +1075,9 @@ class ApiMitra extends Controller
 
     public function cashOutletTransfer(Request $request){
         $user = $request->user();
-        $post = $request->json()->all();
+        $post = $request->all();
 
         if(!empty($post['amount']) && !empty($post['attachment'])){
-            if(empty($post['attachment_extention'])){
-                return ['status' => 'fail', 'messages' => ['attachment extention can not be empty']];
-            }
-
             $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
             if($outlet['total_current_cash'] < $post['amount']){
                 return ['status' => 'fail', 'messages' => ['Outlet balance is not sufficient']];
@@ -1068,13 +1096,18 @@ class ApiMitra extends Controller
             ]);
 
             if($save){
-                if(!empty($post['attachment'])){
-                    $upload = MyHelper::uploadFile($post['attachment'], 'files/transfer_to_central/', $post['attachment_extention'], date('YmdHis').'_'.$user->id_outlet);
+                if(!empty($request->file('attachment'))){
+                    $encode = base64_encode(fread(fopen($request->file('attachment'), "r"), filesize($request->file('attachment'))));
+                    $originalName = $request->file('attachment')->getClientOriginalName();
+                    $name = pathinfo($originalName, PATHINFO_FILENAME);
+                    $ext = pathinfo($originalName, PATHINFO_EXTENSION);
+                    $upload = MyHelper::uploadFile($encode, 'files/transfer_to_central/',$ext, date('YmdHis').'_'.$name);
                     if (isset($upload['status']) && $upload['status'] == "success") {
                         $fileName = $upload['path'];
                         OutletCashAttachment::create([
                             'id_outlet_cash' => $save['id_outlet_cash'],
-                            'outlet_cash_attachment' => $fileName
+                            'outlet_cash_attachment' => $fileName,
+                            'outlet_cash_attachment_name' => $name.'.'.$ext
                         ]);
                     }
                 }
@@ -1091,13 +1124,9 @@ class ApiMitra extends Controller
 
     public function outletIncomeCreate(Request $request){
         $user = $request->user();
-        $post = $request->json()->all();
+        $post = $request->all();
 
         if(!empty($post['amount']) && !empty($post['attachment'])){
-            if(empty($post['attachment_extention'])){
-                return ['status' => 'fail', 'messages' => ['attachment extention can not be empty']];
-            }
-
             $save = OutletCash::create([
                 'id_user_hair_stylist' => $user->id_user_hair_stylist,
                 'id_outlet' => $user->id_outlet,
@@ -1111,13 +1140,20 @@ class ApiMitra extends Controller
             ]);
 
             if($save){
-                $upload = MyHelper::uploadFile($post['attachment'], 'files/transfer_to_central/', $post['attachment_extention'], date('YmdHis').'_'.$user->id_outlet);
-                if (isset($upload['status']) && $upload['status'] == "success") {
-                    $fileName = $upload['path'];
-                    OutletCashAttachment::create([
-                        'id_outlet_cash' => $save['id_outlet_cash'],
-                        'outlet_cash_attachment' => $fileName
-                    ]);
+                if(!empty($request->file('attachment'))){
+                    $encode = base64_encode(fread(fopen($request->file('attachment'), "r"), filesize($request->file('attachment'))));
+                    $originalName = $request->file('attachment')->getClientOriginalName();
+                    $name = pathinfo($originalName, PATHINFO_FILENAME);
+                    $ext = pathinfo($originalName, PATHINFO_EXTENSION);
+                    $upload = MyHelper::uploadFile($encode, 'files/income_from_central/',$ext, date('YmdHis').'_'.$name);
+                    if (isset($upload['status']) && $upload['status'] == "success") {
+                        $fileName = $upload['path'];
+                        OutletCashAttachment::create([
+                            'id_outlet_cash' => $save['id_outlet_cash'],
+                            'outlet_cash_attachment' => $fileName,
+                            'outlet_cash_attachment_name' => $name.'.'.$ext
+                        ]);
+                    }
                 }
 
                 $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
@@ -1147,7 +1183,7 @@ class ApiMitra extends Controller
         $res = [];
         foreach ($list as $value){
             $type = strtok($value['outlet_cash_type'], " ");
-            $att = OutletCashAttachment::where('id_outlet_cash', $value['id_outlet_cash'])->pluck('outlet_cash_attachment')->toArray();
+            $att = OutletCashAttachment::where('id_outlet_cash', $value['id_outlet_cash'])->select('outlet_cash_attachment', 'outlet_cash_attachment_name')->get()->toArray();
             $res[] = [
                 'id_outlet_cash' => $value['id_outlet_cash'],
                 'id_user_hair_stylist' => $value['id_user_hair_stylist'],
@@ -1165,7 +1201,7 @@ class ApiMitra extends Controller
             'info' => [
                 'total_current_cash_outlet' => $outlet['total_current_cash'],
                 'total_cash_from_central' => $outlet['total_cash_from_central'],
-                'va_number' => ''
+                'va_number' => '0000000000'
             ],
             'data' => $res
         ];
@@ -1177,17 +1213,27 @@ class ApiMitra extends Controller
         $post = $request->all();
 
         if(!empty($post['amount']) && !empty($post['total_attachment'])){
+            $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
+            if($outlet['total_cash_from_central'] < $post['amount']){
+                return ['status' => 'fail', 'messages' => ['Your balance is not enough']];
+            }
+
             if($post['total_attachment'] > 3){
                 return ['status' => 'fail', 'messages' => ['You can upload maximum 3 file']];
             }
             $files = [];
-            for($i=1;$i<=$post['total_attachment'];$i++){
+            for($i=0;$i<$post['total_attachment'];$i++){
                 if(!empty($request->file('attachment_'.$i))){
                     $encode = base64_encode(fread(fopen($request->file('attachment_'.$i), "r"), filesize($request->file('attachment_'.$i))));
-                    $ext = pathinfo($request->file('attachment_'.$i)->getClientOriginalName(), PATHINFO_EXTENSION);
-                    $upload = MyHelper::uploadFile($encode, 'files/outlet_expense/',$ext, date('YmdHis').'_'.$user->id_outlet);
+                    $originalName = $request->file('attachment_'.$i)->getClientOriginalName();
+                    $name = pathinfo($originalName, PATHINFO_FILENAME);
+                    $ext = pathinfo($originalName, PATHINFO_EXTENSION);
+                    $upload = MyHelper::uploadFile($encode, 'files/outlet_expense/',$ext, date('YmdHis').'_'.$name);
                     if (isset($upload['status']) && $upload['status'] == "success") {
-                        $files[] = $upload['path'];
+                        $files[] = [
+                            "outlet_cash_attachment" => $upload['path'],
+                            "outlet_cash_attachment_name" => $name.'.'.$ext
+                        ];
                     }
                 }
             }
@@ -1209,7 +1255,8 @@ class ApiMitra extends Controller
                 foreach ($files??[] as $file){
                     $insertattachment[] = [
                         'id_outlet_cash' => $save['id_outlet_cash'],
-                        'outlet_cash_attachment' => $file,
+                        'outlet_cash_attachment' => $file['outlet_cash_attachment'],
+                        'outlet_cash_attachment_name' => $file['outlet_cash_attachment_name'],
                         'created_at' => date('Y-m-d H:i:s'),
                         'updated_at' => date('Y-m-d H:i:s')
                     ];
@@ -1219,7 +1266,6 @@ class ApiMitra extends Controller
                     OutletCashAttachment::insert($insertattachment);
                 }
 
-                $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
                 $save = Outlet::where('id_outlet', $user->id_outlet)->update(['total_cash_from_central' => $outlet['total_cash_from_central'] - $post['amount']]);
             }
 
@@ -1245,7 +1291,7 @@ class ApiMitra extends Controller
 
         $res = [];
         foreach ($list as $value){
-            $att = OutletCashAttachment::where('id_outlet_cash', $value['id_outlet_cash'])->pluck('outlet_cash_attachment')->toArray();
+            $att = OutletCashAttachment::where('id_outlet_cash', $value['id_outlet_cash'])->select('outlet_cash_attachment', 'outlet_cash_attachment_name')->get()->toArray();
             $res[] = [
                 'id_outlet_cash' => $value['id_outlet_cash'],
                 'id_user_hair_stylist' => $value['id_user_hair_stylist'],
@@ -1264,5 +1310,306 @@ class ApiMitra extends Controller
             'data' => $res
         ];
         return ['status' => 'success', 'result' => $result];
+    }
+
+    function phoneCheck(Request $request)
+    {
+        $phone = $request->json('phone');
+
+        $phoneOld = $phone;
+        $phone = preg_replace("/[^0-9]/", "", $phone);
+
+        $checkPhoneFormat = MyHelper::phoneCheckFormat($phone);
+
+        if (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'fail') {
+            return response()->json([
+                'status' => 'fail',
+                'messages' => $checkPhoneFormat['messages']
+            ]);
+        } elseif (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'success') {
+            $phone = $checkPhoneFormat['phone'];
+        }
+
+        $data = UserHairStylist::select('*',\DB::raw('0 as challenge_key'))->where('phone_number', '=', $phone)->get()->toArray();
+
+        if($data){
+            $result['challenge_key'] = $data[0]['challenge_key'];
+            return response()->json([
+                'status' => 'success',
+                'result' => $result
+            ]);
+        }else{
+            return response()->json([
+                'status' => 'fail',
+                'messages' => ['Akun tidak ditemukan']]);
+        }
+    }
+
+    function forgotPin(users_forgot $request)
+    {
+        $phone = $request->json('phone');
+
+        $phoneOld = $phone;
+        $phone = preg_replace("/[^0-9]/", "", $phone);
+
+        $checkPhoneFormat = MyHelper::phoneCheckFormat($phone);
+
+        //get setting rule otp
+        $setting = Setting::where('key', 'otp_rule_request')->first();
+
+        $holdTime = 30;//set default hold time if setting not exist. hold time in second
+        if($setting && isset($setting['value_text'])){
+            $setting = json_decode($setting['value_text']);
+            $holdTime = (int)$setting->hold_time;
+        }
+
+        if (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'fail') {
+            return response()->json([
+                'status' => 'fail',
+                'otp_timer' => $holdTime,
+                'messages' => $checkPhoneFormat['messages']
+            ]);
+        } elseif (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'success') {
+            $phone = $checkPhoneFormat['phone'];
+        }
+
+        $user = UserHairStylist::where('phone_number', '=', $phone)->first();
+
+        if (!$user) {
+            $result = [
+                'status'    => 'fail',
+                'otp_timer' => $holdTime,
+                'messages'    => ['User not found.']
+            ];
+            return response()->json($result);
+        }
+
+        $user->sms_increment = 0;
+        $user->save();
+
+        $data = UserHairStylist::select('*',\DB::raw('0 as challenge_key'))->where('phone_number', '=', $phone)
+            ->get()
+            ->toArray();
+
+        if ($data) {
+            //First check rule for request otp
+            $checkRuleRequest = MyHelper::checkRuleForRequestOTP($data);
+            if(isset($checkRuleRequest['status']) && $checkRuleRequest['status'] == 'fail'){
+                return response()->json($checkRuleRequest);
+            }
+
+            if(!isset($checkRuleRequest['otp_timer']) && $checkRuleRequest == true){
+                $pin = MyHelper::createRandomPIN(6, 'angka');
+                $password = bcrypt($pin);
+
+                //get setting to set expired time for otp, if setting not exist expired default is 30 minutes
+                $getSettingTimeExpired = Setting::where('key', 'setting_expired_otp')->first();
+                if($getSettingTimeExpired){
+                    $dateOtpTimeExpired = date("Y-m-d H:i:s", strtotime("+".$getSettingTimeExpired['value']." minutes"));
+                }else{
+                    $dateOtpTimeExpired = date("Y-m-d H:i:s", strtotime("+30 minutes"));
+                }
+
+                $update = UserHairStylist::where('id_user_hair_stylist', '=', $data[0]['id_user_hair_stylist'])->update(['otp_forgot' => $password, 'otp_valid_time' => $dateOtpTimeExpired]);
+
+                if (!empty($request->header('user-agent-view'))) {
+                    $useragent = $request->header('user-agent-view');
+                } else {
+                    $useragent = $_SERVER['HTTP_USER_AGENT'];
+                }
+
+                $del = OauthAccessToken::join('oauth_access_token_providers', 'oauth_access_tokens.id', 'oauth_access_token_providers.oauth_access_token_id')
+                    ->where('oauth_access_tokens.user_id', $data[0]['id_user_hair_stylist'])->where('oauth_access_token_providers.provider', 'mitra')->delete();
+
+                if (stristr($useragent, 'iOS')) $useragent = 'iOS';
+                if (stristr($useragent, 'okhttp')) $useragent = 'Android';
+                if (stristr($useragent, 'GuzzleHttp')) $useragent = 'Browser';
+
+                $autocrm = app($this->autocrm)->SendAutoCRM(
+                    'Pin Forgot',
+                    $phone,
+                    [
+                        'pin' => $pin,
+                        'useragent' => $useragent,
+                        'now' => date('Y-m-d H:i:s'),
+                        'date_sent' => date('d-m-y H:i:s'),
+                        'expired_time' => (string) MyHelper::setting('setting_expired_otp','value', 30),
+                    ],
+                    $useragent,
+                    false, false, 'hairstylist', null, true, $request->request_type
+                );
+            }elseif(isset($checkRuleRequest['otp_timer']) && $checkRuleRequest['otp_timer'] !== false){
+                $holdTime = $checkRuleRequest['otp_timer'];
+            }
+
+            switch (env('OTP_TYPE', 'PHONE')) {
+                case 'MISSCALL':
+                    $msg_otp = str_replace('%phone%', $phoneOld, MyHelper::setting('message_sent_otp_miscall', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui Missed Call.'));
+                    break;
+
+                case 'WA':
+                    $msg_otp = str_replace('%phone%', $phoneOld, MyHelper::setting('message_sent_otp_wa', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui Whatsapp.'));
+                    break;
+
+                default:
+                    $msg_otp = str_replace('%phone%', $phoneOld, MyHelper::setting('message_sent_otp_sms', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui SMS.'));
+                    break;
+            }
+
+            $user = UserHairStylist::select('*',\DB::raw('0 as challenge_key'))->where('phone_number', '=', $phone)->first();
+
+            if (env('APP_ENV') == 'production') {
+                $result = [
+                    'status'    => 'success',
+                    'result'    => [
+                        'otp_timer' => $holdTime,
+                        'phone'    =>    $phone,
+                        'message'  =>    $msg_otp,
+                        'challenge_key' => $user->challenge_key
+                    ]
+                ];
+            } else {
+                $result = [
+                    'status'    => 'success',
+                    'result'    => [
+                        'otp_timer' => $holdTime,
+                        'phone'    =>    $phone,
+                        'message'  =>    $msg_otp,
+                        'challenge_key' => $user->challenge_key
+                    ]
+                ];
+            }
+            return response()->json($result);
+        } else {
+            $result = [
+                'status'    => 'fail',
+                'messages'  => ['Data yang kamu masukkan kurang tepat']
+            ];
+            return response()->json($result);
+        }
+    }
+
+    function verifyPin(Request $request)
+    {
+        $phone = $request->json('phone');
+
+        $phone = preg_replace("/[^0-9]/", "", $phone);
+
+        $checkPhoneFormat = MyHelper::phoneCheckFormat($phone);
+
+        if (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'fail') {
+            return response()->json([
+                'status' => 'fail',
+                'messages' => [$checkPhoneFormat['messages']]
+            ]);
+        } elseif (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'success') {
+            $phone = $checkPhoneFormat['phone'];
+        }
+
+        $data = UserHairStylist::where('phone_number', '=', $phone)->get()->toArray();
+
+        if ($data) {
+            if(!password_verify($request->json('pin'), $data[0]['otp_forgot'])){
+                return response()->json([
+                    'status'    => 'fail',
+                    'messages'    => ['OTP yang kamu masukkan salah']
+                ]);
+            }
+
+            /*first if --> check if otp have expired and the current time exceeds the expiration time*/
+            if(!is_null($data[0]['otp_valid_time']) && strtotime(date('Y-m-d H:i:s')) > strtotime($data[0]['otp_valid_time'])){
+                return response()->json(['status' => 'fail', 'otp_check'=> 1, 'messages' => ['This OTP is expired, please re-request OTP from apps']]);
+            }
+
+            $update = UserHairStylist::where('id_user_hair_stylist', '=', $data[0]['id_user_hair_stylist'])->update(['otp_valid_time' => NULL]);
+            if ($update) {
+                if (\Module::collections()->has('Autocrm')) {
+                    $autocrm = app($this->autocrm)->SendAutoCRM('Pin Verify', $phone, null, null, false, false, 'hairstylist');
+                }
+                $result = [
+                    'status'    => 'success',
+                    'result'    => [
+                        'phone'    =>    $data[0]['phone_number']
+                    ]
+                ];
+            }else{
+                $result = [
+                    'status'    => 'fail',
+                    'messages'    => ['Failed to Update Data']
+                ];
+            }
+        } else {
+            $result = [
+                'status'    => 'fail',
+                'messages'    => ['This phone number isn\'t registered']
+            ];
+        }
+        return response()->json($result??['status' => 'fail','messages' => ['No Process']]);
+    }
+
+    function changePin(Request $request)
+    {
+
+        $phone = $request->json('phone');
+
+        $phone = preg_replace("/[^0-9]/", "", $phone);
+
+        $checkPhoneFormat = MyHelper::phoneCheckFormat($phone);
+
+        if (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'fail') {
+            return response()->json([
+                'status' => 'fail',
+                'messages' => $checkPhoneFormat['messages']
+            ]);
+        } elseif (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'success') {
+            $phone = $checkPhoneFormat['phone'];
+        }
+
+        $data = UserHairStylist::where('phone_number', '=', $phone)->first();
+
+        if ($data) {
+            if(!empty($data['otp_forgot']) && !password_verify($request->json('pin_old'), $data['otp_forgot'])){
+                return response()->json([
+                    'status'    => 'fail',
+                    'messages'    => ['Current PIN doesn\'t match']
+                ]);
+            }elseif(empty($data['otp_forgot']) && !password_verify($request->json('pin_old'), $data['password'])){
+                return response()->json([
+                    'status'    => 'fail',
+                    'messages'    => ['Current PIN doesn\'t match']
+                ]);
+            }
+
+            $pin     = bcrypt($request->json('pin_new'));
+            $update = UserHairStylist::where('id_user_hair_stylist', '=', $data['id_user_hair_stylist'])->update(['password' => $pin, 'otp_forgot' => null]);
+            if (\Module::collections()->has('Autocrm')) {
+                if ($data['first_update_password'] < 1) {
+                    $autocrm = app($this->autocrm)->SendAutoCRM('Pin Changed', $phone, null, null, false, false, 'hairstylist');
+                    $changepincount = $data['first_update_password'] + 1;
+                    $update = UserHairStylist::where('id_user_hair_stylist', '=', $data['id_user_hair_stylist'])->update(['first_update_password' => $changepincount]);
+                } else {
+                    $autocrm = app($this->autocrm)->SendAutoCRM('Pin Changed Forgot Password', $phone, null, null, false, false, 'hairstylist');
+
+                    $del = OauthAccessToken::join('oauth_access_token_providers', 'oauth_access_tokens.id', 'oauth_access_token_providers.oauth_access_token_id')
+                        ->where('oauth_access_tokens.user_id', $data['id_user_hair_stylist'])->where('oauth_access_token_providers.provider', 'mitra')->delete();
+                }
+            }
+
+            $user = UserHairStylist::select('password',\DB::raw('0 as challenge_key'))->where('phone_number', $phone)->first();
+
+            $result = [
+                'status'    => 'success',
+                'result'    => [
+                    'phone'    =>    $data['phone_number'],
+                    'challenge_key' => $user->challenge_key
+                ]
+            ];
+        } else {
+            $result = [
+                'status'    => 'fail',
+                'messages'    => ['This phone number isn\'t registered']
+            ];
+        }
+        return response()->json($result);
     }
 }

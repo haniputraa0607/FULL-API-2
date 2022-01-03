@@ -69,7 +69,18 @@ class UserHairStylist extends Authenticatable
         'home_service_status',
         'balance',
         'id_hairstylist_groups',
+        'otp_forgot',
+        'otp_request_status',
+        'otp_valid_time',
+        'otp_available_time_request',
+        'otp_increment'
 	];
+
+    public function getChallengeKeyAttribute()
+    {
+        $password = md5($this->password);
+        return $password.'15F1AB77951B5JAO';
+    }
 
     public function getUserHairStylistPhotoAttribute($value)
     {
@@ -88,6 +99,11 @@ class UserHairStylist extends Authenticatable
 	{
 		return $this->belongsTo(\App\Http\Models\Outlet::class, 'id_outlet');
 	}
+
+    public function getPhoneAttribute()
+    {
+        return $this->phone_number;
+    }
 
     public function documents()
     {
@@ -144,5 +160,10 @@ class UserHairStylist extends Authenticatable
             ]);
         }
         return $attendance;
+    }
+
+    public function devices()
+    {
+        return $this->hasMany(UserHairStylistDevice::class, 'id_user_hair_stylist');
     }
 }

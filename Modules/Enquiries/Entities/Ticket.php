@@ -4,7 +4,7 @@ namespace Modules\Enquiries\Entities;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Tickets extends Model
+class Ticket extends Model
 {
     protected $primaryKey = 'id_ticket';
 

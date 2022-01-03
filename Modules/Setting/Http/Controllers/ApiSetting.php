@@ -1933,4 +1933,35 @@ class ApiSetting extends Controller
         }
         return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
     }
+    public function global_commission_product_setting(){
+        $data = Setting::where('key','global_commission_product')->first();
+         return response()->json($data);
+    }
+  
+    public function global_commission_product_create(Request $request){
+        if($request->percent == 'on'){
+            $percent = 1;
+        }else{
+            $percent = 0;
+        }
+        if(isset($request->commission)){
+             $global_commission_product = Setting::where('key','global_commission_product')->first();
+             if($global_commission_product){
+                 $data = Setting::where('key','global_commission_product')->update([
+                  'value'=>$percent,
+                  'value_text'=>(int)$request->commission
+                 
+             ]);
+             }else{
+                 $data = Setting::create([
+                 'key'=>'global_commission_product',
+                 'value'=>$percent,
+                 'value_text'=>(int)$request->commission
+                    
+             ]);
+             }
+              return response()->json(MyHelper::checkCreate($data));
+        }
+        return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
+    }
 }

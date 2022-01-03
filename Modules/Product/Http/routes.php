@@ -52,7 +52,8 @@ Route::group(['prefix' => 'api/product','middleware' => ['log_activities','auth:
     Route::post('ajax-product-brand', 'ApiProductController@ajaxProductBrand');
     Route::post('product-brand', 'ApiProductController@getProductByBrand');
     Route::get('list/ajax', 'ApiProductController@listProductAjaxSimple');
-
+    Route::any('be/commission', 'ApiProductController@commission');
+    Route::any('be/commission/create', 'ApiProductController@commission_create');
     /* photo */
     Route::group(['prefix' => 'photo'], function() {
         Route::post('create', 'ApiProductController@uploadPhotoProduct');
@@ -187,4 +188,12 @@ Route::group(['prefix' => 'api/shop/product','middleware' => ['log_activities','
 {
     Route::post('list', 'ApiProductController@shopListProduct');
     Route::post('detail', 'ApiProductController@shopDetailProduct');
+});
+
+Route::group(['prefix' => 'api/req-product','middleware' => ['log_activities','auth:api', 'scopes:be'], 'namespace' => 'Modules\Product\Http\Controllers'], function(){
+    Route::post('create', 'ApiRequestProductController@create');
+    Route::post('delete', 'ApiRequestProductController@destroy');
+    Route::post('detail', 'ApiRequestProductController@detail');
+    Route::post('update', 'ApiRequestProductController@update');
+    Route::post('/', 'ApiRequestProductController@index');
 });

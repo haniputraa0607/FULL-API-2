@@ -19,6 +19,7 @@ use Modules\PromoCampaign\Entities\PromoCampaignTag;
 use Modules\PromoCampaign\Entities\PromoCampaignReport;
 use Modules\PromoCampaign\Entities\UserReferralCode;
 use Modules\PromoCampaign\Entities\UserPromo;;
+use Modules\PromoCampaign\Entities\TransactionPromo;
 
 use Modules\Deals\Entities\DealsProductDiscount;
 use Modules\Deals\Entities\DealsProductDiscountRule;
@@ -45,6 +46,9 @@ use App\Http\Models\Treatment;
 use App\Http\Models\Deal;
 use App\Http\Models\DealsUser;
 use App\Http\Models\DealsPromotionTemplate;
+use App\Http\Models\Transaction;
+use App\Http\Models\TransactionProduct;
+use App\Http\Models\TransactionVoucher;
 
 use Modules\PromoCampaign\Http\Requests\Step1PromoCampaignRequest;
 use Modules\PromoCampaign\Http\Requests\Step2PromoCampaignRequest;
@@ -259,6 +263,7 @@ class ApiPromoTransaction extends Controller
     	$desc = app($this->promo_campaign)->getPromoDescription('deals', $deals, $getProduct['product']??'');
 
     	$res = [
+    		'id_deals' => $deals->id_deals,
     		'id_deals_user' => $id_deals_user,
     		'title' => $deals->deals_title,
     		'discount' => $getDiscount['result']['discount'] ?? 0,
@@ -276,6 +281,10 @@ class ApiPromoTransaction extends Controller
     	$dealsUser = DealsUser::find($id_deals_user);
     	if (!$dealsUser) {
     		return $this->failResponse('Voucher tidak ditemukan');
+    	}
+
+    	if ($dealsUser['used_at']) {
+    		return $this->failResponse('Voucher sudah pernah digunakan');
     	}
 
     	if ($dealsUser['voucher_expired_at'] < date('Y-m-d H:i:s')) {
@@ -385,17 +394,17 @@ class ApiPromoTransaction extends Controller
 
     public function productDiscount($promoSource, $promoQuery, $data)
     {
-    	// code...
+    	return $this->failResponse('Promo belum tersedia');
     }
 
     public function tierDiscount($promoSource, $promoQuery, $data)
     {
-    	// code...
+    	return $this->failResponse('Promo belum tersedia');
     }
 
     public function bxgyDiscount($promoSource, $promoQuery, $data)
     {
-    	// code...
+    	return $this->failResponse('Promo belum tersedia');
     }
 
     public function billDiscount($promoSource, $promoQuery, $data)
@@ -466,7 +475,7 @@ class ApiPromoTransaction extends Controller
 
     public function deliveryDiscount($promoSource, $promoQuery, $data)
     {
-    	// code...
+    	return $this->failResponse('Promo belum tersedia');
     }
 
     public function createSharedPromoTrx($dataTrx)
@@ -484,27 +493,28 @@ class ApiPromoTransaction extends Controller
     	$items = array_merge($items, ($dataTrx['transaction_products'] ?? []));
 
     	$promoItems = [];
-    	if (request()->transaction_from == 'academy') {
+    	if (request()->transaction_from == 'academy' && isset($items['id_product'])) {
     		$promoItems[] = [
     			'id_product' => $items['id_product'],
     			'id_brand' => $items['id_brand'],
     			'product_price' => $items['product_price'],
-    			'product_type' => 'academy',
+    			'product_type' => 'Academy',
     			'qty' => $items['qty']
     		];
     	} else {
 	    	foreach ($items as $val) {
-	    		$productType = 'product';
+	    		$productType = 'Product';
 	    		if (isset($val['id_user_hair_stylist'])
 	    			|| request()->transaction_from == 'home-service'
 	    		) {
-	    			$productType = 'service';
+	    			$productType = 'Service';
 	    		}
 	    		$promoItems[] = [
+	    			'id_transaction_product' => $val['id_transaction_product'] ?? null,
 	    			'id_product' => $val['id_product'] ?? null,
     				'id_brand' => $val['id_brand'],
-    				'product_price' => $val['product_price'],
-    				'product_type' => $productType,
+    				'product_price' => $val['product_price'] ?? $val['transaction_product_price'],
+    				'product_type' => $val['type'] ?? $productType,
 	    			'qty' => $val['qty'] ?? $val['transaction_product_qty'] ?? 1
 	    		];
 	    	}
@@ -524,5 +534,124 @@ class ApiPromoTransaction extends Controller
     {
     	$sharedPromoTrx = TemporaryDataManager::create('promo_trx');
     	return $sharedPromoTrx;
+    }
+
+    public function applyPromoNewTrx(Transaction $trxQuery)
+    {	
+    	$data = clone $trxQuery;
+    	$data->load('transaction_products');
+    	$data = $data->toArray();
+    	$user = request()->user();
+    	$resPromoCode = null;
+    	$resDeals = null;
+    	$userPromo = UserPromo::where('id_user', $user->id)->get()->keyBy('promo_type');
+
+    	if (isset($userPromo['deals'])) {
+    		$this->createSharedPromoTrx($data);
+
+    		$applyDeals = $this->applyDeals($userPromo['deals']->id_reference, $data);
+
+    		$promoDeals = $applyDeals['result'] ?? null;
+
+			if ($applyDeals['status'] == 'fail') {
+				return $applyDeals;
+			}
+
+			$data = $this->reformatNewTrx($trxQuery, $promoDeals ?? null);
+    	}
+
+    	if (isset($userPromo['promo_campaign'])) {
+    		$this->createSharedPromoTrx($data);
+			$dataDiscount['promo_source'] = 'promo_code';
+    		$resPromo['promo_campaign'] = PromoCampaign::find($userPromo['promo_campaign']['id_reference']);
+    	}
+
+		
+		$trxQuery = Transaction::find($trxQuery->id_transaction);
+
+		return MyHelper::checkGet($trxQuery);
+    }
+
+    public function reformatNewTrx(Transaction $trxQuery, $dataDiscount)
+    {
+    	if (empty($dataDiscount['discount']) && empty($dataDiscount['discount_delivery'])) {
+    		return $trxQuery;
+    	}
+
+    	$user = request()->user();
+    	$promoCashback = ($dataDiscount['promo_source'] == 'deals') ? 'voucher_online' : 'promo_code';
+    	$discountValue = (int) abs($dataDiscount['discount'] ?? $dataDiscount['discount_delivery']);
+    	$sharedPromo = $this->getSharedPromoTrx();
+		$outlet = OUtlet::find($sharedPromo['id_outlet']);
+
+		$subtotal = $sharedPromo['subtotal'];
+		$discount = (int) abs($dataDiscount['discount'] ?? 0);
+		$discount_delivery = (int) abs($dataDiscount['discount_delivery'] ?? 0);
+		$tax = ($outlet['is_tax'] / 100) * ($sharedPromo['subtotal'] - $discount);
+		$grandtotal = (int) $sharedPromo['subtotal'] + (int) $sharedPromo['service'] + (int) $tax - $discount - $discount_delivery;
+
+		$promoGetPoint = app($this->online_trx)->checkPromoGetPoint($promoCashback);
+		$cashback_earned = $promoGetPoint ? $cashback : 0;
+
+		$totalDiscount = abs($trxQuery->transaction_discount) + $discount;
+		$totalDiscountDelivery = abs($trxQuery->transaction_discount_delivery) + $discount_delivery;
+		$totalDiscountItem = abs($trxQuery->transaction_discount_item) + $discount;
+		$totalDiscountBill = abs($trxQuery->transaction_discount_bill) + $discount;
+
+		$trxQuery->update([
+			'transaction_discount' => - $totalDiscount,
+			'transaction_discount_delivery' => - $totalDiscountDelivery,
+			'transaction_discount_item' => $totalDiscountItem,
+			'transaction_discount_bill' => $totalDiscountBill,
+	    	'transaction_tax' => $tax,
+	    	'transaction_cashback_earned' => $cashback_earned,
+	    	'transaction_grandtotal' => $grandtotal
+		]);
+
+		TransactionPromo::create([
+			'id_transaction' => $trxQuery->id_transaction,
+			'promo_name' => $dataDiscount['title'],
+			'promo_type' => ($dataDiscount['promo_source'] == 'deals') ? 'Deals' : 'Promo Campaign',
+			'id_deals_user' => $dataDiscount['id_deals_user'] ?? null,
+			'id_promo_campaign_promo_code' => $dataDiscount['id_promo_campaign_promo_code'] ?? null,
+			'discount_value' => $discount ?: $discount_delivery
+		]);
+		if ($dataDiscount['promo_source'] == 'deals') {
+			$insertPromo = $this->insertUsedVoucher($trxQuery, $dataDiscount);
+		} else {
+			$insertPromo = $this->insertUsedCOde($trxQuery, $dataDiscount);
+		}
+
+		if ($insertPromo['status'] == 'fail') {
+			return $insertPromo;
+		}
+
+        return ['status' => 'success'];
+    }
+
+    public function insertUsedVoucher(Transaction $trx, $dataDiscount)
+    {
+    	$dealsUser = DealsUser::find($dataDiscount['id_deals_user']);
+    	$dealsUser->update(['used_at' => date('Y-m-d H:i:s'), 'is_used' => 0]);
+
+    	$deals = Deal::find($dataDiscount['id_deals']);
+    	$deals->update(['deals_total_used' => $deals->deals_total_used + 1]);
+
+        $createTrxVoucher = TransactionVoucher::create([
+            'id_deals_voucher' => $dealsUser->id_deals_user,
+            'id_user' => $trx->id_user,
+            'id_transaction' => $trx->id_transaction
+        ]);
+
+        if (!$createTrxVoucher) {
+        	return $this->failResponse('Insert Voucher Failed');
+        }
+
+        return ['status' => 'success'];
+    }
+
+    public function insertUsedCode(Transaction $trx, $dataDiscount)
+    {
+        return ['status' => 'success'];
     }
 }

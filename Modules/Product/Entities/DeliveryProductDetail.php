@@ -21,6 +21,6 @@ class DeliveryProductDetail extends Model
     }
 
     public function delivery_product_icount(){
-        return $this->belongsTo(ProductIcount::class, 'id_product_icount');
+        return $this->belongsTo(\Modules\Product\Entities\ProductIcount::class, 'id_product_icount');
     }
 }

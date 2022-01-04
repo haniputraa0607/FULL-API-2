@@ -19,11 +19,17 @@ class DeliveryProduct extends Model
         'id_user_delivery',
         'id_user_accept',
         'status',
-        'delivery_date'
+        'delivery_date',
+        'confirmation_date',
+        'confirmation_note'
 	];
 
     public function delivery_product_detail(){
         return $this->hasMany(deliveryProductDetail::class, 'id_delivery_product');
+    }
+
+    public function delivery_product_images(){
+        return $this->hasMany(DeliveryProductImage::class, 'id_delivery_product');
     }
 
     public function delivery_product_user_delivery(){

@@ -62,6 +62,7 @@ use Modules\PromoCampaign\Entities\PromoCampaignReferral;
 use Modules\PromoCampaign\Entities\PromoCampaignReferralTransaction;
 use Modules\PromoCampaign\Entities\UserReferralCode;
 use Modules\PromoCampaign\Entities\UserPromo;
+use Modules\PromoCampaign\Entities\TransactionPromo;
 use Modules\Subscription\Entities\TransactionPaymentSubscription;
 use Modules\Subscription\Entities\Subscription;
 use Modules\Subscription\Entities\SubscriptionUser;
@@ -434,114 +435,7 @@ class ApiOnlineTransaction extends Controller
             if($request->json('promo_code') || $request->json('id_deals_user') || $request->json('id_subscription_user')){
                 // change is used flag to 0
                 $update_deals 	= DealsUser::where('id_user','=',$request->user()->id)->where('is_used','=',1)->update(['is_used' => 0]);
-                $update_subs 	= SubscriptionUser::where('id_user','=',$request->user()->id)->where('is_used','=',1)->update(['is_used' => 0]);
                 $removePromo 	= UserPromo::where('id_user',$request->user()->id)->delete();
-            }
-
-            if($request->json('promo_code') && !$request->json('id_deals_user')){
-                $code=PromoCampaignPromoCode::where('promo_code',$request->promo_code)
-                    ->join('promo_campaigns', 'promo_campaigns.id_promo_campaign', '=', 'promo_campaign_promo_codes.id_promo_campaign')
-                    ->where( function($q){
-                        $q->where(function($q2) {
-                            $q2->where('code_type', 'Multiple')
-                                ->where(function($q3) {
-                                    $q3->whereColumn('usage','<','code_limit')
-                                        ->orWhere('code_limit',0);
-                                });
-
-                        })
-                            ->orWhere(function($q2) {
-                                $q2->where('code_type','Single')
-                                    ->where(function($q3) {
-                                        $q3->whereColumn('total_coupon','>','used_code')
-                                            ->orWhere('total_coupon',0);
-                                    });
-                            });
-                    })
-                    ->first();
-                if ($code)
-                {
-                    $promo_type = $code->promo_type;
-                    $post['id_promo_campaign_promo_code'] = $code->id_promo_campaign_promo_code;
-                    if ($code->promo_type != 'Discount delivery' && $code->promo_type != 'Discount bill') {
-                        if($code->promo_type == "Referral"){
-                            $promo_code_ref = $request->json('promo_code');
-                            $use_referral = true;
-                        }
-
-                        $validate_user=$pct->validateUser($code->id_promo_campaign, $request->user()->id, $request->user()->phone, $request->device_type, $request->device_id, $errore,$code->id_promo_campaign_promo_code);
-
-                        $discount_promo=$pct->validatePromo($request, $code->id_promo_campaign, $request->id_outlet, $post['item'], $errors);
-
-                        if ( !empty($errore) || !empty($errors)) {
-                            $errors = array_merge($errore??[], $errors??[]);
-                            DB::rollback();
-                            return [
-                                'status'=>'fail',
-                                'messages'=>$errors??['Promo code not valid']
-                            ];
-                        }
-
-                        $promo_source 	= 'promo_code';
-                        $promo_valid 	= true;
-                        $promo_discount	= $discount_promo['discount'];
-                        $promo_discount_item = abs($promo_discount);
-                    }
-                    else{
-                        $promo_source 	= 'promo_code';
-                        $promo_valid 	= true;
-                    }
-                }
-                else
-                {
-                    return [
-                        'status'=>'fail',
-                        'messages'=>['Promo code not valid']
-                    ];
-                }
-            }
-            elseif($request->json('id_deals_user') && !$request->json('promo_code'))
-            {
-                $deals = app($this->promo_campaign)->checkVoucher($request->id_deals_user, 1);
-
-                if($deals)
-                {
-                    $promo_type = $deals->dealVoucher->deals->promo_type;
-                    if ($promo_type != 'Discount delivery' && $promo_type != 'Discount bill') {
-                        $discount_promo=$pct->validatePromo($request, $deals->dealVoucher->id_deals, $request->id_outlet, $post['item'], $errors, 'deals');
-
-                        if ( !empty($errors) ) {
-                            DB::rollback();
-                            return [
-                                'status'=>'fail',
-                                'messages'=> $errors??['Voucher is not valid']
-                            ];
-                        }
-
-                        $promo_source = 'voucher_online';
-                        $promo_valid = true;
-                        $promo_discount = $discount_promo['discount'];
-                        $promo_discount_item = abs($promo_discount);
-                    }
-                    else{
-                        $promo_source = 'voucher_online';
-                        $promo_valid = true;
-                    }
-                }
-                else
-                {
-                    return [
-                        'status'=>'fail',
-                        'messages'=>['Voucher is not valid']
-                    ];
-                }
-            }
-            elseif($request->json('id_deals_user') && $request->json('promo_code'))
-            {
-                return [
-                    'status'=>'fail',
-                    'messages'=>['Promo is not valid']
-                ];
             }
         }
 
@@ -622,50 +516,48 @@ class ApiOnlineTransaction extends Controller
         }
 
         $post['discount'] = ($scopeUser == 'apps'? $post['discount'] + $promo_discount:0);
-        $post['point'] = ($scopeUser == 'apps'? app($this->setting_trx)->countTransaction('point', $post):0);
-        $post['cashback'] = ($scopeUser == 'apps'? app($this->setting_trx)->countTransaction('cashback', $post):0);
+        $post['point'] = app($this->setting_trx)->countTransaction('point', $post);
+        $post['cashback'] = app($this->setting_trx)->countTransaction('cashback', $post);
 
         //count some trx user
         $countUserTrx = Transaction::where('id_user', $id)->where('transaction_payment_status', 'Completed')->count();
 
-        if($scopeUser == 'apps'){
-            $countSettingCashback = TransactionSetting::get();
+        $countSettingCashback = TransactionSetting::get();
 
-            // return $countSettingCashback;
-            if ($countUserTrx < count($countSettingCashback)) {
-                // return $countUserTrx;
-                $post['cashback'] = $post['cashback'] * $countSettingCashback[$countUserTrx]['cashback_percent'] / 100;
+        // return $countSettingCashback;
+        if ($countUserTrx < count($countSettingCashback)) {
+            // return $countUserTrx;
+            $post['cashback'] = $post['cashback'] * $countSettingCashback[$countUserTrx]['cashback_percent'] / 100;
 
-                if ($post['cashback'] > $countSettingCashback[$countUserTrx]['cashback_maximum']) {
-                    $post['cashback'] = $countSettingCashback[$countUserTrx]['cashback_maximum'];
+            if ($post['cashback'] > $countSettingCashback[$countUserTrx]['cashback_maximum']) {
+                $post['cashback'] = $countSettingCashback[$countUserTrx]['cashback_maximum'];
+            }
+        } else {
+
+            $maxCash = Setting::where('key', 'cashback_maximum')->first();
+
+            if (count($user['memberships']) > 0) {
+                $post['point'] = $post['point'] * ($user['memberships'][0]['benefit_point_multiplier']) / 100;
+                $post['cashback'] = $post['cashback'] * ($user['memberships'][0]['benefit_cashback_multiplier']) / 100;
+
+                if($user['memberships'][0]['cashback_maximum']){
+                    $maxCash['value'] = $user['memberships'][0]['cashback_maximum'];
+                }
+            }
+
+            $statusCashMax = 'no';
+
+            if (!empty($maxCash) && !empty($maxCash['value'])) {
+                $statusCashMax = 'yes';
+                $totalCashMax = $maxCash['value'];
+            }
+
+            if ($statusCashMax == 'yes') {
+                if ($totalCashMax < $post['cashback']) {
+                    $post['cashback'] = $totalCashMax;
                 }
             } else {
-
-                $maxCash = Setting::where('key', 'cashback_maximum')->first();
-
-                if (count($user['memberships']) > 0) {
-                    $post['point'] = $post['point'] * ($user['memberships'][0]['benefit_point_multiplier']) / 100;
-                    $post['cashback'] = $post['cashback'] * ($user['memberships'][0]['benefit_cashback_multiplier']) / 100;
-
-                    if($user['memberships'][0]['cashback_maximum']){
-                        $maxCash['value'] = $user['memberships'][0]['cashback_maximum'];
-                    }
-                }
-
-                $statusCashMax = 'no';
-
-                if (!empty($maxCash) && !empty($maxCash['value'])) {
-                    $statusCashMax = 'yes';
-                    $totalCashMax = $maxCash['value'];
-                }
-
-                if ($statusCashMax == 'yes') {
-                    if ($totalCashMax < $post['cashback']) {
-                        $post['cashback'] = $totalCashMax;
-                    }
-                } else {
-                    $post['cashback'] = $post['cashback'];
-                }
+                $post['cashback'] = $post['cashback'];
             }
         }
 
@@ -714,46 +606,6 @@ class ApiOnlineTransaction extends Controller
         if (isset($post['payment_type']) && $post['payment_type'] == 'Balance') {
             $post['cashback'] = 0;
             $post['point']    = 0;
-        }
-
-        if($scopeUser == 'apps') {
-            $post['discount'] = -$post['discount'];
-            $post['discount_delivery'] = -$post['discount_delivery'];
-
-            if ($request->json('promo_code') || $request->json('id_deals_user') || $request->json('id_subscription_user')) {
-                if ($request->json('id_subscription_user')) {
-                    $promo_source = 'subscription';
-                }
-                $check = $this->checkPromoGetPoint($promo_source);
-                if ( $check == 0 ) {
-                    $post['cashback'] = 0;
-                    $post['point']    = 0;
-                }
-            }
-
-            // apply cashback
-            if ($use_referral){
-                $referral_rule = PromoCampaignReferral::where('id_promo_campaign',$code->id_promo_campaign)->first();
-                if(!$referral_rule){
-                    DB::rollback();
-                    return response()->json([
-                        'status'    => 'fail',
-                        'messages'  => ['Insert Referrer Cashback Failed']
-                    ]);
-                }
-                $referred_cashback = 0;
-                if($referral_rule->referred_promo_type == 'Cashback'){
-                    if($referral_rule->referred_promo_unit == 'Percent'){
-                        $referred_discount_percent = $referral_rule->referred_promo_value<=100?$referral_rule->referred_promo_value:100;
-                        $referred_cashback = $post['subtotal']*$referred_discount_percent/100;
-                    }else{
-                        if($post['subtotal'] >= $referral_rule->referred_min_value){
-                            $referred_cashback = $referral_rule->referred_promo_value<=$post['subtotal']?$referral_rule->referred_promo_value:$post['subtotal'];
-                        }
-                    }
-                }
-                $post['cashback'] = $referred_cashback;
-            }
         }
 
         $detailPayment = [
@@ -947,55 +799,6 @@ class ApiOnlineTransaction extends Controller
             ];
         }
 
-        if($scopeUser == 'apps'){
-            if ($promo_valid) {
-                if (isset($promo_type) && ($promo_type == 'Discount delivery' || $promo_type == 'Discount bill')) {
-                    $check_promo = app($this->promo)->checkPromo($request, $request->user(), $promo_source, $code ?? $deals, $request->id_outlet, $post['item'], $post['shipping']+$shippingGoSend, $post['sub']['subtotal_per_brand'], $promo_error_product);
-
-                    if ($check_promo['status'] == 'fail') {
-                        DB::rollback();
-                        return $check_promo;
-                    }
-                    $post['discount_delivery'] = (-$check_promo['data']['discount_delivery'])??0;
-                    $post['discount'] = (-$check_promo['data']['discount']) ?? 0;
-                    $promo_discount_bill = abs($check_promo['data']['discount']) ?? 0 ;
-                    $post['grandTotal'] = $post['grandTotal'] + (int) $post['discount_delivery'] + (int) $post['discount'];
-                }
-                // check minimum subtotal
-                $check_min_basket = app($this->promo)->checkMinBasketSize($promo_source, $code??$deals, $post['sub']['subtotal_per_brand']);
-
-                if (!$check_min_basket) {
-                    DB::rollback();
-                    return [
-                        'status'=>'fail',
-                        'messages'=>['Total pembelian minimum belum terpenuhi']
-                    ];
-                }
-            }
-            // check promo subscription type discount and discount delivery
-            if ( $request->json('id_subscription_user') )
-            {
-                // $post_subs['delivery_fee'] = $shippingGoSend+$post['transaction_shipments'];
-                $post_subs['delivery_fee'] = $shippingGoSend;
-                $post_subs = $post+$post_subs;
-
-                $check_subs = app($this->subscription_use)->checkDiscount($request, $post_subs);
-
-                if ($check_subs['status'] == 'fail') {
-                    return $check_subs;
-                }
-
-                if ($check_subs['result']['type'] == 'discount_delivery') {
-                    $post['discount_delivery'] = -$check_subs['result']['value'];
-                    $post['grandTotal'] = $post['grandTotal'] + (int) $post['discount_delivery'];
-                }elseif ($check_subs['result']['type'] == 'discount') {
-                    $post['discount'] = -$check_subs['result']['value'];
-                    $promo_discount_bill = abs($check_subs['result']['value']) ?? 0 ;
-                    $post['grandTotal'] = $post['grandTotal'] + (int) $post['discount'];
-                }
-            }
-        }
-
         DB::beginTransaction();
         $transaction = [
             'id_outlet'                   => $post['id_outlet'],
@@ -1111,93 +914,6 @@ class ApiOnlineTransaction extends Controller
                 }
 
                 $promo_code_ref = $request->promo_code;
-            }
-
-            // add transaction voucher
-            if($request->json('id_deals_user')){
-                $update_voucher = DealsUser::where('id_deals_user','=',$request->id_deals_user)->update(['used_at' => date('Y-m-d H:i:s'), 'is_used' => 0]);
-                $update_deals = Deal::where('id_deals','=',$deals->dealVoucher['deals']['id_deals'])->update(['deals_total_used' => $deals->dealVoucher['deals']['deals_total_used']+1]);
-                $addTransactionVoucher = TransactionVoucher::create([
-                    'id_deals_voucher' => $deals['id_deals_voucher'],
-                    'id_user' => $insertTransaction['id_user'],
-                    'id_transaction' => $insertTransaction['id_transaction']
-                ]);
-                if(!$addTransactionVoucher){
-                    DB::rollback();
-                    return response()->json([
-                        'status'    => 'fail',
-                        'messages'  => ['Insert Transaction Failed']
-                    ]);
-                }
-            }
-
-            // add payment subscription
-            if ( $request->json('id_subscription_user') )
-            {
-                $subscription_total = app($this->subscription_use)->calculate($request, $request->id_subscription_user, $insertTransaction['transaction_subtotal'], $post['sub']['subtotal_per_brand'], $post['item'], $post['id_outlet'], $subs_error, $errorProduct, $subs_product, $subs_applied_product);
-
-                if (!empty($subs_error)) {
-                    DB::rollback();
-                    return response()->json([
-                        'status'    => 'fail',
-                        'messages'  => $subs_error??['Promo not valid']
-                    ]);
-                }
-                $subscription_type = $subscription_total['type'];
-                $subscription_total = $subscription_total['value'];
-                $subscription['grandtotal'] = $insertTransaction['transaction_grandtotal'] - $subscription_total;
-                $data_subs = app($this->subscription_use)->checkSubscription( $request->json('id_subscription_user') );
-                $data_subs_detail = $data_subs->load(['subscription_user.subscription' => function($q){
-                    $q->select('id_subscription', 'subscription_discount_type');
-                }]);
-                $subs_discount_type = $data_subs_detail->subscription_user->subscription->subscription_discount_type ?? null;
-
-
-                if ($subs_discount_type == 'payment_method') {
-
-                    $insert_subs_data['id_transaction'] = $insertTransaction['id_transaction'];
-                    $insert_subs_data['id_subscription_user_voucher'] = $data_subs->id_subscription_user_voucher;
-                    $insert_subs_data['subscription_nominal'] = $subscription_total;
-                    $insert_subs_trx = TransactionPaymentSubscription::create($insert_subs_data);
-
-                    if (!$insert_subs_trx) {
-                        DB::rollback();
-                        return response()->json([
-                            'status'    => 'fail',
-                            'messages'  => ['Insert Transaction Failed']
-                        ]);
-                    }
-                }
-
-                $update_trx = Transaction::where('id_transaction', $insertTransaction['id_transaction'])->update([
-                    'id_subscription_user_voucher' => $data_subs->id_subscription_user_voucher
-                ]);
-
-                $update_subs_voucher = SubscriptionUserVoucher::where('id_subscription_user_voucher','=',$data_subs->id_subscription_user_voucher)
-                    ->update([
-                        'used_at' => date('Y-m-d H:i:s'),
-                        'id_transaction' => $insertTransaction['id_transaction']
-                    ]);
-
-                if (!$update_subs_voucher) {
-                    DB::rollback();
-                    return response()->json([
-                        'status'    => 'fail',
-                        'messages'  => ['Insert Transaction Failed']
-                    ]);
-                }
-
-                if ($subs_discount_type == 'payment_method') {
-                    //update when total = 0
-                    if(($transaction['transaction_grandtotal'] - $subscription_total) == 0){
-                        $updateTrx = Transaction::where('id_transaction', $insertTransaction['id_transaction'])->update([
-                            'transaction_payment_status' => 'Completed',
-                            'completed_at' => date('Y-m-d H:i:s')
-                        ]);
-                        $insertTransaction['transaction_payment_status'] = 'Completed';
-                        $insertTransaction['transaction_grandtotal'] = 0;
-                    }
-                }
             }
 
             // add promo campaign report
@@ -1517,6 +1233,16 @@ class ApiOnlineTransaction extends Controller
             $totalProductQty += $valueProduct['qty'];
         }
 
+        if ($scopeUser == 'apps') {
+	        $applyPromo = app($this->promo_trx)->applyPromoNewTrx($insertTransaction);
+	        if ($applyPromo['status'] == 'fail') {
+	        	DB::rollback();
+	            return $applyPromo;
+	        }
+
+	        $insertTransaction = $applyPromo['result'] ?? $insertTransaction;
+	    }
+        
         array_push($dataDetailProduct, $productMidtrans);
 
         $dataShip = [
@@ -1644,19 +1370,16 @@ class ApiOnlineTransaction extends Controller
 
                     $insertTransaction = Transaction::with('user.memberships', 'outlet', 'productTransaction')->where('transaction_receipt_number', $insertTransaction['transaction_receipt_number'])->first();
 
-                    if($request->json('id_deals_user') && !$request->json('promo_code'))
-			        {
-			        	$check_trx_voucher = TransactionVoucher::where('id_deals_voucher', $deals['id_deals_voucher'])->where('status','success')->count();
-
-						if(($check_trx_voucher??false) > 1)
-						{
-							DB::rollBack();
-				            return [
-				                'status'=>'fail',
-				                'messages'=>['Voucher is not valid']
-				            ];
-				        }
-			        }
+                    if ($request->id_deals_user && $scopeUser == 'apps') {
+		            	$voucherUsage = TransactionPromo::where('id_deals_user', $request->id_deals_user)->count();
+		                if (($voucherUsage ?? false) > 1) {
+		                    DB::rollBack();
+		                    return [
+		                        'status' => 'fail',
+		                        'messages' => ['Voucher sudah pernah digunakan']
+		                    ];
+		                }
+		            }
 
                     if ($configAdminOutlet && $configAdminOutlet['is_active'] == '1') {
                         $sendAdmin = app($this->notif)->sendNotif($insertTransaction);
@@ -1848,10 +1571,9 @@ class ApiOnlineTransaction extends Controller
             'referral_code'     => NULL
         ];
         $createDailyTrx = DailyTransactions::create($dataDailyTrx);
-
-        if($scopeUser == 'apps'){
+        if ($scopeUser == 'apps') {
             /* Fraud Referral*/
-            if($promo_code_ref){
+            if ($promo_code_ref) {
                 //======= Start Check Fraud Referral User =======//
                 $data = [
                     'id_user' => $insertTransaction['id_user'],
@@ -1859,26 +1581,23 @@ class ApiOnlineTransaction extends Controller
                     'referral_code_use_date' => $insertTransaction['transaction_date'],
                     'id_transaction' => $insertTransaction['id_transaction']
                 ];
-                if($config_fraud_use_queue == 1){
+                if ($config_fraud_use_queue == 1) {
                     FraudJob::dispatch($user, $data, 'referral user')->onConnection('fraudqueue');
                     FraudJob::dispatch($user, $data, 'referral')->onConnection('fraudqueue');
-                }else{
+                } else {
                     app($this->setting_fraud)->fraudCheckReferralUser($data);
                     app($this->setting_fraud)->fraudCheckReferral($data);
                 }
                 //======= End Check Fraud Referral User =======//
             }
 
-            if($request->json('id_deals_user') && !$request->json('promo_code'))
-            {
-                $check_trx_voucher = TransactionVoucher::where('id_deals_voucher', $deals['id_deals_voucher'])->where('status','success')->count();
-
-                if(($check_trx_voucher??false) > 1)
-                {
+            if ($request->id_deals_user) {
+            	$voucherUsage = TransactionPromo::where('id_deals_user', $request->id_deals_user)->count();
+                if (($voucherUsage ?? false) > 1) {
                     DB::rollBack();
                     return [
-                        'status'=>'fail',
-                        'messages'=>['Voucher is not valid']
+                        'status' => 'fail',
+                        'messages' => ['Voucher sudah pernah digunakan']
                     ];
                 }
             }
@@ -2241,37 +1960,26 @@ class ApiOnlineTransaction extends Controller
         $result['total_payment'] = $result['grandtotal'] - $result['used_point'];
         $result['discount'] = (int) $result['discount'];
         $result['continue_checkout'] = true;
-
-        $result = app($this->promo_trx)->applyPromoCheckout($result);
-
+        $result['currency'] = 'Rp';
+        $result['complete_profile'] = true;
+        $result['point_earned'] = null;
         $result['payment_detail'] = [];
+
+    	$result = app($this->promo_trx)->applyPromoCheckout($result);
+
         if ($result['cashback']) {
             $result['point_earned'] = [
                 'value' => MyHelper::requestNumber($result['cashback'], '_CURRENCY'),
                 'text' => MyHelper::setting('cashback_earned_text', 'value', 'Point yang akan didapatkan')
             ];
         }
-        //subtotal
-        $result['payment_detail'][] = [
-            'name'          => 'Total',
-            "is_discount"   => 0,
-            'amount'        => MyHelper::requestNumber($result['subtotal'],'_CURRENCY')
-        ];
 
-        if(!empty($outlet['is_tax'])){
-            $result['payment_detail'][] = [
-                'name'          => 'Tax',
-                "is_discount"   => 0,
-                'amount'        => MyHelper::requestNumber((int) $post['tax'],'_CURRENCY')
-            ];
-        }
+        $result['payment_detail'] = $this->paymentDetailCheckout($result);
 
         if (count($error_msg) > 1 && (!empty($post['item']) || !empty($post['item_service']))) {
             $error_msg = ['Produk atau Service yang anda pilih tidak tersedia. Silakan cek kembali pesanan anda'];
         }
 
-        $result['currency'] = 'Rp';
-        $result['complete_profile'] = true;
 
         $fake_request = new Request(['show_all' => 1]);
         $result['available_payment'] = $this->availablePayment($fake_request)['result'] ?? [];
@@ -5111,5 +4819,53 @@ class ApiOnlineTransaction extends Controller
         }
 
         return $updateDetail??true;
+    }
+
+    public function paymentDetailCheckout($result)
+    {
+		$paymentDetail = [];
+
+        //subtotal
+        $paymentDetail[] = [
+            'name'          => 'Total',
+            "is_discount"   => 0,
+            'amount'        => MyHelper::requestNumber($result['subtotal'],'_CURRENCY')
+        ];
+
+        if (!empty($result['tax'])) {
+            $paymentDetail[] = [
+                'name'          => 'Tax',
+                "is_discount"   => 0,
+                'amount'        => MyHelper::requestNumber((int) $result['tax'],'_CURRENCY')
+            ];
+        }
+
+        if ((!empty($result['promo_deals']) && !$result['promo_deals']['is_error'])
+        	|| (!empty($result['promo_code']) && !$result['promo_code']['is_error'])
+    	) {
+    		$paymentDetail[] = [
+                'name'          => 'Promo / Discount',
+                "is_discount"   => 0,
+                'amount'        => null
+            ];
+
+	        if (!empty($result['promo_deals'])) {
+	            $paymentDetail[] = [
+	                'name'          => $result['promo_deals']['title'],
+	                "is_discount"   => 1,
+	                'amount'        => MyHelper::requestNumber((int) $result['promo_deals']['discount'] ?: $result['promo_deals']['discount_delivery'],'_CURRENCY')
+	            ];
+	        }
+
+	        if (!empty($result['promo_code'])) {
+	            $paymentDetail[] = [
+	                'name'          => $result['promo_code']['title'],
+	                "is_discount"   => 1,
+	                'amount'        => MyHelper::requestNumber((int) $result['promo_code']['discount'] ?: $result['promo_code']['discount_delivery'],'_CURRENCY')
+	            ];
+	        }
+        }
+
+        return $paymentDetail;
     }
 }

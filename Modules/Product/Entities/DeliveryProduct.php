@@ -3,6 +3,8 @@
 namespace Modules\Product\Entities;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Http\Models\User;
+use App\Http\Models\Outlet;
 
 class DeliveryProduct extends Model
 {
@@ -17,6 +19,7 @@ class DeliveryProduct extends Model
         'id_user_delivery',
         'id_user_accept',
         'status',
+        'delivery_date'
 	];
 
     public function delivery_product_detail(){
@@ -35,13 +38,13 @@ class DeliveryProduct extends Model
         return $this->belongsTo(Outlet::class, 'id_outlet');
     }
     
-    public function delivery_request()
+    public function delivery_request_products()
     {
         return $this->hasMany(DeliveryRequestProduct::class, 'id_delivery_product', 'id_delivery_product');
     }
 
     public function request(){
-		return $this->belongsToMany(RequestProduct::class,'delivery_request','id_delivery_product','id_request_product');
+		return $this->belongsToMany(RequestProduct::class,'delivery_request_products','id_delivery_product','id_request_product');
 	}
 
 }

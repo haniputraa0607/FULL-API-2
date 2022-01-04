@@ -1658,7 +1658,7 @@ class ApiDeals extends Controller
     {
         $post = $request->json()->all();
         $user = $request->user();
-
+        
         $deals = $this->getDealsData($post['id_deals'], $post['step'], $post['deals_type']);
 
         if (isset($deals)) {

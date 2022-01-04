@@ -196,4 +196,18 @@ Route::group(['prefix' => 'api/req-product','middleware' => ['log_activities','a
     Route::post('detail', 'ApiRequestProductController@detail');
     Route::post('update', 'ApiRequestProductController@update');
     Route::post('/', 'ApiRequestProductController@index');
+    Route::any('all', 'ApiRequestProductController@all');
+});
+
+Route::group(['prefix' => 'api/dev-product','middleware' => ['log_activities','auth:api', 'scopes:be'], 'namespace' => 'Modules\Product\Http\Controllers'], function(){
+    Route::post('create', 'ApiRequestProductController@createDev');
+    Route::post('delete', 'ApiRequestProductController@destroyDev');
+    Route::post('detail', 'ApiRequestProductController@detailDev');
+    Route::post('update', 'ApiRequestProductController@updateDev');
+    Route::post('/', 'ApiRequestProductController@indexDev');
+    Route::post('all', 'ApiRequestProductController@all');
+});
+
+Route::group(['prefix' => 'api/mitra/req-product','middleware' => ['log_activities','user_agent','auth:mitra', 'scopes:mitra-apps'], 'namespace' => 'Modules\Product\Http\Controllers'], function(){
+    Route::post('/', 'ApiMitraRequestProductController@index');
 });

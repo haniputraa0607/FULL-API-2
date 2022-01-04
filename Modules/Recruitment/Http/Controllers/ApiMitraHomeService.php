@@ -347,7 +347,7 @@ class ApiMitraHomeService extends Controller
             ->leftJoin('users', 'transactions.id_user', 'users.id')
             ->where('status', 'Completed')
             ->where('transaction_home_services.id_user_hair_stylist', $user['id_user_hair_stylist'])
-            ->select('transactions.id_transaction', 'id_transaction_home_service', 'transaction_receipt_number', 'user_hair_stylist.fullname as hair_stylist_name',
+            ->select('transactions.id_transaction', 'id_transaction_home_service', 'transaction_receipt_number', 'user_hair_stylist.fullname as hairstylist_name',
                 'schedule_date', 'schedule_time', 'users.name as customer_name');
 
         if(!empty($post['filter']) && $post['filter'] == 'last 7 days'){
@@ -384,6 +384,7 @@ class ApiMitraHomeService extends Controller
             }
 
             $list['data'][$key]['schedule_date_display'] = MyHelper::dateFormatInd($data['schedule_date'], true, false);
+            $list['data'][$key]['schedule_time'] = date('H:i', strtotime($data['schedule_time']));
             $list['data'][$key]['services'] = $services;
             $list['data'][$key]['service_start'] = (empty($statusStart)? '':date('H:i', strtotime($statusStart)));
             $list['data'][$key]['service_end'] = (empty($statusCompleted)? '':date('H:i', strtotime($statusCompleted)));

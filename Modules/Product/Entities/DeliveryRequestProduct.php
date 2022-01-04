@@ -18,4 +18,8 @@ class DeliveryRequestProduct extends Model
 	{
         return $this->belongsTo(\Modules\Product\Entities\DeliveryProduct::class, 'id_delivery_product', 'id_delivery_product');
 	}
+    public function request_product()
+	{
+        return $this->belongsTo(\Modules\Product\Entities\RequestProduct::class, 'id_request_product', 'id_request_product');
+	}
 }

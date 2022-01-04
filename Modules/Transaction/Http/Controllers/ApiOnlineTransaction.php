@@ -516,50 +516,48 @@ class ApiOnlineTransaction extends Controller
         }
 
         $post['discount'] = ($scopeUser == 'apps'? $post['discount'] + $promo_discount:0);
-        $post['point'] = ($scopeUser == 'apps'? app($this->setting_trx)->countTransaction('point', $post):0);
-        $post['cashback'] = ($scopeUser == 'apps'? app($this->setting_trx)->countTransaction('cashback', $post):0);
+        $post['point'] = app($this->setting_trx)->countTransaction('point', $post);
+        $post['cashback'] = app($this->setting_trx)->countTransaction('cashback', $post);
 
         //count some trx user
         $countUserTrx = Transaction::where('id_user', $id)->where('transaction_payment_status', 'Completed')->count();
 
-        if($scopeUser == 'apps'){
-            $countSettingCashback = TransactionSetting::get();
+        $countSettingCashback = TransactionSetting::get();
 
-            // return $countSettingCashback;
-            if ($countUserTrx < count($countSettingCashback)) {
-                // return $countUserTrx;
-                $post['cashback'] = $post['cashback'] * $countSettingCashback[$countUserTrx]['cashback_percent'] / 100;
+        // return $countSettingCashback;
+        if ($countUserTrx < count($countSettingCashback)) {
+            // return $countUserTrx;
+            $post['cashback'] = $post['cashback'] * $countSettingCashback[$countUserTrx]['cashback_percent'] / 100;
 
-                if ($post['cashback'] > $countSettingCashback[$countUserTrx]['cashback_maximum']) {
-                    $post['cashback'] = $countSettingCashback[$countUserTrx]['cashback_maximum'];
+            if ($post['cashback'] > $countSettingCashback[$countUserTrx]['cashback_maximum']) {
+                $post['cashback'] = $countSettingCashback[$countUserTrx]['cashback_maximum'];
+            }
+        } else {
+
+            $maxCash = Setting::where('key', 'cashback_maximum')->first();
+
+            if (count($user['memberships']) > 0) {
+                $post['point'] = $post['point'] * ($user['memberships'][0]['benefit_point_multiplier']) / 100;
+                $post['cashback'] = $post['cashback'] * ($user['memberships'][0]['benefit_cashback_multiplier']) / 100;
+
+                if($user['memberships'][0]['cashback_maximum']){
+                    $maxCash['value'] = $user['memberships'][0]['cashback_maximum'];
+                }
+            }
+
+            $statusCashMax = 'no';
+
+            if (!empty($maxCash) && !empty($maxCash['value'])) {
+                $statusCashMax = 'yes';
+                $totalCashMax = $maxCash['value'];
+            }
+
+            if ($statusCashMax == 'yes') {
+                if ($totalCashMax < $post['cashback']) {
+                    $post['cashback'] = $totalCashMax;
                 }
             } else {
-
-                $maxCash = Setting::where('key', 'cashback_maximum')->first();
-
-                if (count($user['memberships']) > 0) {
-                    $post['point'] = $post['point'] * ($user['memberships'][0]['benefit_point_multiplier']) / 100;
-                    $post['cashback'] = $post['cashback'] * ($user['memberships'][0]['benefit_cashback_multiplier']) / 100;
-
-                    if($user['memberships'][0]['cashback_maximum']){
-                        $maxCash['value'] = $user['memberships'][0]['cashback_maximum'];
-                    }
-                }
-
-                $statusCashMax = 'no';
-
-                if (!empty($maxCash) && !empty($maxCash['value'])) {
-                    $statusCashMax = 'yes';
-                    $totalCashMax = $maxCash['value'];
-                }
-
-                if ($statusCashMax == 'yes') {
-                    if ($totalCashMax < $post['cashback']) {
-                        $post['cashback'] = $totalCashMax;
-                    }
-                } else {
-                    $post['cashback'] = $post['cashback'];
-                }
+                $post['cashback'] = $post['cashback'];
             }
         }
 
@@ -1235,13 +1233,15 @@ class ApiOnlineTransaction extends Controller
             $totalProductQty += $valueProduct['qty'];
         }
 
-        $applyPromo = app($this->promo_trx)->applyPromoNewTrx($insertTransaction);
-        if ($applyPromo['status'] == 'fail') {
-        	DB::rollback();
-            return $applyPromo;
-        }
+        if ($scopeUser == 'apps') {
+	        $applyPromo = app($this->promo_trx)->applyPromoNewTrx($insertTransaction);
+	        if ($applyPromo['status'] == 'fail') {
+	        	DB::rollback();
+	            return $applyPromo;
+	        }
 
-        $insertTransaction = $applyPromo['result'] ?? $insertTransaction;
+	        $insertTransaction = $applyPromo['result'] ?? $insertTransaction;
+	    }
         
         array_push($dataDetailProduct, $productMidtrans);
 
@@ -1370,7 +1370,7 @@ class ApiOnlineTransaction extends Controller
 
                     $insertTransaction = Transaction::with('user.memberships', 'outlet', 'productTransaction')->where('transaction_receipt_number', $insertTransaction['transaction_receipt_number'])->first();
 
-                    if ($request->id_deals_user) {
+                    if ($request->id_deals_user && $scopeUser == 'apps') {
 		            	$voucherUsage = TransactionPromo::where('id_deals_user', $request->id_deals_user)->count();
 		                if (($voucherUsage ?? false) > 1) {
 		                    DB::rollBack();
@@ -1960,37 +1960,26 @@ class ApiOnlineTransaction extends Controller
         $result['total_payment'] = $result['grandtotal'] - $result['used_point'];
         $result['discount'] = (int) $result['discount'];
         $result['continue_checkout'] = true;
-
-        $result = app($this->promo_trx)->applyPromoCheckout($result);
-
+        $result['currency'] = 'Rp';
+        $result['complete_profile'] = true;
+        $result['point_earned'] = null;
         $result['payment_detail'] = [];
+
+    	$result = app($this->promo_trx)->applyPromoCheckout($result);
+
         if ($result['cashback']) {
             $result['point_earned'] = [
                 'value' => MyHelper::requestNumber($result['cashback'], '_CURRENCY'),
                 'text' => MyHelper::setting('cashback_earned_text', 'value', 'Point yang akan didapatkan')
             ];
         }
-        //subtotal
-        $result['payment_detail'][] = [
-            'name'          => 'Total',
-            "is_discount"   => 0,
-            'amount'        => MyHelper::requestNumber($result['subtotal'],'_CURRENCY')
-        ];
 
-        if(!empty($outlet['is_tax'])){
-            $result['payment_detail'][] = [
-                'name'          => 'Tax',
-                "is_discount"   => 0,
-                'amount'        => MyHelper::requestNumber((int) $post['tax'],'_CURRENCY')
-            ];
-        }
+        $result['payment_detail'] = $this->paymentDetailCheckout($result);
 
         if (count($error_msg) > 1 && (!empty($post['item']) || !empty($post['item_service']))) {
             $error_msg = ['Produk atau Service yang anda pilih tidak tersedia. Silakan cek kembali pesanan anda'];
         }
 
-        $result['currency'] = 'Rp';
-        $result['complete_profile'] = true;
 
         $fake_request = new Request(['show_all' => 1]);
         $result['available_payment'] = $this->availablePayment($fake_request)['result'] ?? [];
@@ -4830,5 +4819,53 @@ class ApiOnlineTransaction extends Controller
         }
 
         return $updateDetail??true;
+    }
+
+    public function paymentDetailCheckout($result)
+    {
+		$paymentDetail = [];
+
+        //subtotal
+        $paymentDetail[] = [
+            'name'          => 'Total',
+            "is_discount"   => 0,
+            'amount'        => MyHelper::requestNumber($result['subtotal'],'_CURRENCY')
+        ];
+
+        if (!empty($result['tax'])) {
+            $paymentDetail[] = [
+                'name'          => 'Tax',
+                "is_discount"   => 0,
+                'amount'        => MyHelper::requestNumber((int) $result['tax'],'_CURRENCY')
+            ];
+        }
+
+        if ((!empty($result['promo_deals']) && !$result['promo_deals']['is_error'])
+        	|| (!empty($result['promo_code']) && !$result['promo_code']['is_error'])
+    	) {
+    		$paymentDetail[] = [
+                'name'          => 'Promo / Discount',
+                "is_discount"   => 0,
+                'amount'        => null
+            ];
+
+	        if (!empty($result['promo_deals'])) {
+	            $paymentDetail[] = [
+	                'name'          => $result['promo_deals']['title'],
+	                "is_discount"   => 1,
+	                'amount'        => MyHelper::requestNumber((int) $result['promo_deals']['discount'] ?: $result['promo_deals']['discount_delivery'],'_CURRENCY')
+	            ];
+	        }
+
+	        if (!empty($result['promo_code'])) {
+	            $paymentDetail[] = [
+	                'name'          => $result['promo_code']['title'],
+	                "is_discount"   => 1,
+	                'amount'        => MyHelper::requestNumber((int) $result['promo_code']['discount'] ?: $result['promo_code']['discount_delivery'],'_CURRENCY')
+	            ];
+	        }
+        }
+
+        return $paymentDetail;
     }
 }

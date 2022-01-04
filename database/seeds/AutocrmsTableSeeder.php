@@ -3031,7 +3031,7 @@ Message :
                     'custom_text_replace'=>'%pin%;',
                     'created_at' => '2021-09-16 15:21:17',
                     'updated_at' => '2021-09-16 15:21:17',
-                ),
+                ), 
             96 =>
                 array (
                     'id_autocrm' => 97,

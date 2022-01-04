@@ -2625,9 +2625,9 @@ class PromoCampaignTools{
 
     	if (empty($product_name)) {
 	    	if ($product_rule === 'and') {
-				$product_name = 'semua produk bertanda khusus';
+				$product_name = 'semua produk tertentu';
 			}else {
-				$product_name = 'produk bertanda khusus';
+				$product_name = 'produk tertentu';
 			}
     	}
 

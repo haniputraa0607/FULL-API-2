@@ -351,6 +351,11 @@ class Transaction extends Model
 		return $this->hasMany(\Modules\Transaction\Entities\TransactionHomeServiceHairStylistFinding::class, 'id_transaction');
 	}
 
+	public function transaction_promos() 
+    {
+    	return $this->hasMany(\Modules\PromoCampaign\Entities\TransactionPromo::class, 'id_transaction', 'id_transaction');
+	}
+
     /**
      * Called when payment completed
      * @return [type] [description]

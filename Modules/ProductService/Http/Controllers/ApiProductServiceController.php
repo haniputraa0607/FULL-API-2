@@ -60,7 +60,7 @@ class ApiProductServiceController extends Controller
             }elseif(isset($post['product_setting_type']) && $post['product_setting_type'] == 'outlet_product_detail'){
                 $product = Product::with(['category', 'discount', 'product_detail'])->where('products.product_type', 'service');
             }else{
-                $product = Product::with(['category', 'discount', 'product_service_use'])->where('products.product_type', 'service');
+                $product = Product::with(['category', 'discount', 'product_icount_use'])->where('products.product_type', 'service');
             }
         }
 

@@ -225,6 +225,7 @@ class Kernel extends ConsoleKernel
          */
         $schedule->call('Modules\Academy\Http\Controllers\ApiAcademyController@paymentInstallmentReminder')->dailyAt('10:00');
         $schedule->call('Modules\Academy\Http\Controllers\ApiAcademyController@paymentInstallmentDueDate')->dailyAt('14:00');
+        $schedule->call('Modules\Academy\Http\Controllers\ApiAcademyController@courseReminder')->dailyAt('11:00');
 
     }
 

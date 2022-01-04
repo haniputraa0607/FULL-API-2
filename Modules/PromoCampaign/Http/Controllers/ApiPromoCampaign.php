@@ -2896,7 +2896,7 @@ class ApiPromoCampaign extends Controller
 
     public function getProduct($source, $query, $id_outlet=null)
     {
-    	$default_product = $query['product_rule'] === 'and' ? 'semua produk bertanda khusus' : 'produk bertanda khusus';
+    	$default_product = $query['product_rule'] === 'and' ? 'semua produk tertentu' : 'produk tertentu';
 
     	if ($source == 'subscription') 
     	{

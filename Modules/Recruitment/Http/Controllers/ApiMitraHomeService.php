@@ -385,8 +385,8 @@ class ApiMitraHomeService extends Controller
 
             $list['data'][$key]['schedule_date_display'] = MyHelper::dateFormatInd($data['schedule_date'], true, false);
             $list['data'][$key]['services'] = $services;
-            $list['data'][$key]['start_service'] = (empty($statusStart)? '':date('H:i', strtotime($statusStart)));
-            $list['data'][$key]['end_service'] = (empty($statusCompleted)? '':date('H:i', strtotime($statusCompleted)));
+            $list['data'][$key]['service_start'] = (empty($statusStart)? '':date('H:i', strtotime($statusStart)));
+            $list['data'][$key]['service_end'] = (empty($statusCompleted)? '':date('H:i', strtotime($statusCompleted)));
             $list['data'][$key]['payment_method'] = $paymentMethod;
         }
 

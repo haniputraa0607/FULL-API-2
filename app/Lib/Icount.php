@@ -276,29 +276,59 @@ class Icount
         }
     }
 
-    public static function SharingManagementFee($request, $logType = null, $orderId = null){
+    public static function RevenueSharing($request, $logType = null, $orderId = null){
+        $management_fee = Setting::where('key','revenue_sharing')->first();
         $data = [
-            "VoucherNo" => $request['partner']['voucher_no'],
-            "TransDate" => $request['location']['trans_date'],
-            "DueDate" => $request['location']['due_date'],
+            "VoucherNo" => "[AUTO]",
+            "TransDate" => $request['tanggal_akhir'],
+            "DueDate" => $request['tanggal_akhir'],
+            "TermOfPaymentID" => $request['partner']['id_term_payment'],
             "BusinessPartnerID" => $request['partner']['id_business_partner'],
             "BranchID" => $request['location']['id_branch'],
             "ReferenceNo" => '',
-            'Tax'=>10,
-            'TaxN0'=>'',
+            'Tax'=>$request['tax'],
+            'TaxNo'=>'',
             "Notes" => $request['partner']['notes'],
-            "AddressInvoice" => '',
             "Detail" => [
                 [
-                    "Name" => "Management Fee",
-                    "ItemID" => "013",
+                    "Name" => "Revenue Sharing",
+                    "ItemID" =>$management_fee['value'],
                     "Qty" => 1,
                     "Unit" =>"PCS",
                     "Ratio" => 1,
-                    'Price'=>1000000,
-                    'Disc'=>0,
-                    'DiscRp'=>10000,
-                    "Description" => "Beli lampu"
+                    'Price'=>$request['transfer'],
+                    'Disc'=>$request['disc'],
+                    'DiscRp'=>($request['disc']*100)/($request['disc']+$request['transfer']),
+                    "Description" => ""
+                ],
+            ]
+        ];
+        return self::sendRequest('POST', '/sales/sharing_management_fee', $data, $logType, $orderId);
+    }
+    public static function ManagementFee($request, $logType = null, $orderId = null){
+        $management_fee = Setting::where('key','management_fee')->first();
+        $data = [
+            "VoucherNo" => "[AUTO]",
+            "TransDate" => $request['tanggal_akhir'],
+            "DueDate" => $request['tanggal_akhir'],
+            "TermOfPaymentID" => $request['partner']['id_term_payment'],
+            "BusinessPartnerID" => $request['partner']['id_business_partner'],
+            "BranchID" => $request['location']['id_branch'],
+            "ReferenceNo" => '',
+            'Tax'=>$request['tax'],
+            'TaxNo'=>'',
+            "Notes" => $request['partner']['notes'],
+            "Detail" => [
+                [
+                    "Name" => "Management Fee",
+                    "ItemID" =>$management_fee['value'],
+                    "Qty" => 1,
+                    "Unit" =>"PCS",
+                    "Ratio" => 1,
+                    'Price'=>$request['transfer'],
+                    'Disc'=>$request['disc'],
+                    'DiscRp'=>($request['disc']*100)/($request['disc']+$request['transfer']),
+                    "Description" => ""
                 ],
             ]
         ];

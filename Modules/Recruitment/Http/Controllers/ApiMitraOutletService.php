@@ -460,7 +460,14 @@ class ApiMitraOutletService extends Controller
     	}
 
 
-		return ['status' => 'success'];
+		return [
+			'status' => 'success',
+			'result' => [
+				'id_outlet_box' => $box->id_outlet_box,
+		        'outlet_box_name' => $box->outlet_box_name,
+				'outlet_box_url' => $box->outlet_box_url,
+			]
+		];
     }
 
     public function stopService(Request $request)
@@ -723,7 +730,14 @@ class ApiMitraOutletService extends Controller
 			];	
     	}
 
-		return ['status' => 'success'];
+		return [
+			'status' => 'success',
+			'result' => [
+				'id_outlet_box' => $box->id_outlet_box,
+		        'outlet_box_name' => $box->outlet_box_name,
+				'outlet_box_url' => $box->outlet_box_url,
+			]
+		];
     }
 
     public function completeTransaction($id_transaction)

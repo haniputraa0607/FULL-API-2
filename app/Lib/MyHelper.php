@@ -46,6 +46,7 @@ use LaravelFCM\Message\PayloadDataBuilder;
 use LaravelFCM\Message\PayloadNotificationBuilder;
 use FCM;
 use Illuminate\Support\Facades\Crypt;
+use Modules\Recruitment\Entities\UserHairStylist;
 
 class MyHelper{
 	public static function  checkGet($data, $message = null){
@@ -2759,7 +2760,12 @@ class MyHelper{
                     'otp_timer' => $different
                 ];
             }elseif (isset($data_user[0]['otp_increment']) && ($data_user[0]['otp_increment'] + 1) > $maxValueRequest) {
-                $updateFlag = User::where('id', $data_user[0]['id'])->update(['otp_request_status' => 'Can Not Request']);
+                if(!empty($data_user[0]['id'])){
+                    User::where('id', $data_user[0]['id'])->update(['otp_request_status' => 'Can Not Request']);
+                }else{
+                    UserHairStylist::where('id_user_hair_stylist', $data_user[0]['id_user_hair_stylist'])->update(['otp_request_status' => 'Can Not Request']);
+                }
+
                 return [
                     'status' => 'fail',
                     'otp_check' => 1,
@@ -2767,11 +2773,19 @@ class MyHelper{
                 ];
             }elseif ($check == 0){
                 $availebleTime = date('Y-m-d H:i:s',strtotime('+'.$holdTime.' seconds',strtotime(date('Y-m-d H:i:s'))));
-                $update = User::where('id', $data_user[0]['id'])->update(['otp_available_time_request' => $availebleTime]);
+                if(!empty($data_user[0]['id'])){
+                    User::where('id', $data_user[0]['id'])->update(['otp_available_time_request' => $availebleTime]);
+                }else{
+                    UserHairStylist::where('id_user_hair_stylist', $data_user[0]['id_user_hair_stylist'])->update(['otp_available_time_request' => $availebleTime]);
+                }
             }
         }elseif($check == 0){
             $availebleTime = date('Y-m-d H:i:s',strtotime('+'.$holdTime.' seconds',strtotime(date('Y-m-d H:i:s'))));
-            $update = User::where('id', $data_user[0]['id'])->update(['otp_available_time_request' => $availebleTime]);
+            if(!empty($data_user[0]['id'])){
+                User::where('id', $data_user[0]['id'])->update(['otp_available_time_request' => $availebleTime]);
+            }else{
+                UserHairStylist::where('id_user_hair_stylist', $data_user[0]['id_user_hair_stylist'])->update(['otp_available_time_request' => $availebleTime]);
+            }
         }
 
         return true;
@@ -2991,12 +3005,25 @@ class MyHelper{
 		return $log;
 	}
 
-	public static function decryptPIN($encrypted, $phone)
+	public static function decryptPIN($encrypted, $phone, $scope = 'apps')
 	{
-		$user = User::select('password',\DB::raw('0 as challenge_key'))->where('phone', $phone)->first();
-		if (!$user) {
-			return false;
-		}
+        $phone = str_replace('+', '', $phone);
+        if(substr($phone, 0, 2) == 62){
+            $phone = str_replace('62', '0', $phone);
+        }
+
+        if($scope == 'mitra-apps'){
+            $user = UserHairStylist::select('password',\DB::raw('0 as challenge_key'))->where('phone_number', $phone)->first();
+            if (!$user) {
+                return false;
+            }
+        }else{
+            $user = User::select('password',\DB::raw('0 as challenge_key'))->where('phone', $phone)->first();
+            if (!$user) {
+                return false;
+            }
+        }
+
 		$challengeKey = substr($user->challenge_key,0,32);
 		$iv = substr($user->challenge_key,32,16);
 		return openssl_decrypt(base64_decode($encrypted), 'AES-256-CBC', $challengeKey, OPENSSL_RAW_DATA, $iv);

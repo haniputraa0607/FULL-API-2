@@ -279,6 +279,7 @@ class ApiHairStylistScheduleController extends Controller
         $resDate = [];
         foreach ($listDate as $date) {
         	$day = MyHelper::indonesian_date_v2($date, 'l');
+        	$day = str_replace('Jum\'at', 'Jumat', $day);
         	$y = date('Y', strtotime($date));
         	$m = date('m', strtotime($date));
         	$d = date('j', strtotime($date));
@@ -423,6 +424,7 @@ class ApiHairStylistScheduleController extends Controller
         $update = HairstylistSchedule::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->update(['last_updated_by' => $request->user()->id]);
         $delete = HairstylistScheduleDate::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->delete();
         $save 	= HairstylistScheduleDate::insert($newData);
+    	HairstylistSchedule::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->first()->refreshTimeShift();
 
         if ($save) {
         	DB::commit();

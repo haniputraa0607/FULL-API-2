@@ -94,6 +94,7 @@ use App\Lib\Midtrans;
 use App\Lib\GoSend;
 use App\Lib\WeHelpYou;
 use App\Lib\PushNotificationHelper;
+use App\Lib\TemporaryDataManager;
 
 use Modules\Transaction\Http\Requests\Transaction\NewTransaction;
 use Modules\Transaction\Http\Requests\Transaction\ConfirmPayment;
@@ -130,6 +131,7 @@ class ApiOnlineTransaction extends Controller
         $this->trx_home_service  = "Modules\Transaction\Http\Controllers\ApiTransactionHomeService";
         $this->trx_academy = "Modules\Transaction\Http\Controllers\ApiTransactionAcademy";
         $this->trx_shop = "Modules\Transaction\Http\Controllers\ApiTransactionShop";
+        $this->promo_trx = "Modules\Transaction\Http\Controllers\ApiPromoTransaction";
     }
 
     public function newTransaction(NewTransaction $request) {
@@ -614,33 +616,7 @@ class ApiOnlineTransaction extends Controller
 
                 // $post['discount'] = $post['dis'] + $totalDisProduct; 
                 $post['discount'] = $totalDisProduct;
-            }elseif($valueTotal == 'tax'){
-                $post['tax'] = app($this->setting_trx)->countTransaction($valueTotal, $post);
-                $mes = ['Data Not Valid'];
-
-                    if (isset($post['tax']->original['messages'])) {
-                        $mes = $post['tax']->original['messages'];
-
-                        if ($post['tax']->original['messages'] == ['Price Product Not Found']) {
-                            if (isset($post['tax']->original['product'])) {
-                                $mes = ['Price Product Not Found with product '.$post['tax']->original['product'].' at outlet '.$outlet['outlet_name']];
-                            }
-                        }
-
-                        if ($post['sub']->original['messages'] == ['Price Product Not Valid']) {
-                            if (isset($post['tax']->original['product'])) {
-                                $mes = ['Price Product Not Valid with product '.$post['tax']->original['product'].' at outlet '.$outlet['outlet_name']];
-                            }
-                        }
-
-                        DB::rollback();
-                        return response()->json([
-                            'status'    => 'fail',
-                            'messages'  => $mes
-                        ]);
-                    }
-            }
-            else {
+            }else {
                 $post[$valueTotal] = app($this->setting_trx)->countTransaction($valueTotal, $post);
             }
         }
@@ -788,7 +764,7 @@ class ApiOnlineTransaction extends Controller
             'discount' => $post['discount'],
         ];
 
-        // return $detailPayment;
+        $post['tax'] = ($outlet['is_tax']/100) * $post['subtotal'];
         $post['grandTotal'] = (int)$post['subtotal'] + (int)$post['discount'] + (int)$post['service'] + (int)$post['tax'] + (int)$post['shipping'] + (int)$post['discount_delivery'];
         // return $post;
         if ($post['type'] == 'Delivery') {
@@ -2029,6 +2005,10 @@ class ApiOnlineTransaction extends Controller
             $post['discount'] = 0;
         }
 
+        if (!isset($post['discount_delivery'])) {
+            $post['discount_delivery'] = 0;
+        }
+
         if (!isset($post['service'])) {
             $post['service'] = 0;
         }
@@ -2199,34 +2179,6 @@ class ApiOnlineTransaction extends Controller
             $items[] = $product;
         }
 
-        foreach ($grandTotal as $keyTotal => $valueTotal) {
-            if($valueTotal == 'tax'){
-                $post['subtotal'] = $subtotalProduct + ($itemServices['subtotal_service']??0);
-                $post['tax'] = app($this->setting_trx)->countTransaction($valueTotal, $post);
-
-                if (isset($post['tax']->original['messages'])) {
-                    $mes = $post['tax']->original['messages'];
-
-                    if ($post['tax']->original['messages'] == ['Price Product Not Found']) {
-                        if (isset($post['tax']->original['product'])) {
-                            $mes = ['Price Product Not Found with product '.$post['tax']->original['product'].' at outlet '.$outlet['outlet_name']];
-                        }
-                    }
-
-                    if ($post['sub']->original['messages'] == ['Price Product Not Valid']) {
-                        if (isset($post['tax']->original['product'])) {
-                            $mes = ['Price Product Not Valid with product '.$post['tax']->original['product'].' at outlet '.$outlet['outlet_name']];
-                        }
-                    }
-
-                    return response()->json([
-                        'status'    => 'fail',
-                        'messages'  => $mes
-                    ]);
-                }
-            }
-        }
-
         if(empty($post['customer']) || empty($post['customer']['name'])){
             $id = $request->user()->id;
 
@@ -2272,16 +2224,15 @@ class ApiOnlineTransaction extends Controller
 
         $earnedPoint = $this->countTranscationPoint($post, $user);
         $cashback = $earnedPoint['cashback'] ?? 0;
-        if ($cashback) {
-            $result['point_earned'] = [
-                'value' => MyHelper::requestNumber($cashback, '_CURRENCY'),
-                'text' => MyHelper::setting('cashback_earned_text', 'value', 'Point yang akan didapatkan')
-            ];
-        }
 
+        $post['tax'] = ($outlet['is_tax']/100) * $post['subtotal'];
         $result['subtotal'] = $subtotal;
         $result['shipping'] = $post['shipping']+$shippingGoSend;
         $result['discount'] = $post['discount'];
+        $result['discount_delivery'] = $post['discount_delivery'];
+        $result['cashback'] = $cashback;
+        $result['tax'] = $post['tax'];
+        $result['service'] = $post['service'];
         $result['grandtotal'] = (int)$result['subtotal'] + (int)(-$post['discount']) + (int)$post['service'] + (int)$post['tax'];
         $result['subscription'] = 0;
         $result['used_point'] = 0;
@@ -2289,8 +2240,17 @@ class ApiOnlineTransaction extends Controller
         $result['points'] = (int) $balance;
         $result['total_payment'] = $result['grandtotal'] - $result['used_point'];
         $result['discount'] = (int) $result['discount'];
+        $result['continue_checkout'] = true;
+
+        $result = app($this->promo_trx)->applyPromoCheckout($result);
+
         $result['payment_detail'] = [];
-        
+        if ($result['cashback']) {
+            $result['point_earned'] = [
+                'value' => MyHelper::requestNumber($result['cashback'], '_CURRENCY'),
+                'text' => MyHelper::setting('cashback_earned_text', 'value', 'Point yang akan didapatkan')
+            ];
+        }
         //subtotal
         $result['payment_detail'][] = [
             'name'          => 'Total',
@@ -2298,11 +2258,13 @@ class ApiOnlineTransaction extends Controller
             'amount'        => MyHelper::requestNumber($result['subtotal'],'_CURRENCY')
         ];
 
-        $result['payment_detail'][] = [
-            'name'          => 'Tax',
-            "is_discount"   => 0,
-            'amount'        => MyHelper::requestNumber((int) $post['tax'],'_CURRENCY')
-        ];
+        if(!empty($outlet['is_tax'])){
+            $result['payment_detail'][] = [
+                'name'          => 'Tax',
+                "is_discount"   => 0,
+                'amount'        => MyHelper::requestNumber((int) $post['tax'],'_CURRENCY')
+            ];
+        }
 
         if (count($error_msg) > 1 && (!empty($post['item']) || !empty($post['item_service']))) {
             $error_msg = ['Produk atau Service yang anda pilih tidak tersedia. Silakan cek kembali pesanan anda'];
@@ -2313,8 +2275,18 @@ class ApiOnlineTransaction extends Controller
 
         $fake_request = new Request(['show_all' => 1]);
         $result['available_payment'] = $this->availablePayment($fake_request)['result'] ?? [];
+        $result['messages_all'] = $error_msg;
+        if (!empty($error_msg)) {
+        	$result['continue_checkout'] = false;
+        }
 
-        return MyHelper::checkGet($result)+['messages'=>$error_msg];
+        $result['continue_checkout'] = true;
+        $result['messages_all'] = null;
+        if(!empty($error_msg)){
+            $result['continue_checkout'] = false;
+            $result['messages_all'] = implode('.', $error_msg);
+        }
+        return MyHelper::checkGet($result);
     }
 
     public function checkBundlingProduct($post, $outlet, $subtotal_per_brand = []){

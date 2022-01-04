@@ -14,6 +14,9 @@ use Illuminate\Routing\Controller;
 
 use App\Lib\MyHelper;
 use Modules\Enquiries\Entities\Ticket;
+use Modules\Transaction\Entities\TransactionHomeService;
+use Modules\Transaction\Entities\TransactionProductService;
+use Modules\Transaction\Entities\TransactionShop;
 use Validator;
 use App\Lib\classMaskingJson;
 use App\Lib\classJatisSMS;
@@ -645,7 +648,7 @@ class ApiEnquiries extends Controller
                 'text' => $text
             ];
         }
-        return response()->json(MyHelper::checkGet($result));
+        return MyHelper::checkGet($result);
     }
 
     function ListOutlet(){
@@ -658,15 +661,20 @@ class ApiEnquiries extends Controller
 
     function listTransaction(Request $request){
         $idUser = $request->user()->id;
+        $post = $request->json()->all();
+
+        if(empty($post['enquiry_category'])){
+            return response()->json(['status' => 'fail', 'messages' => ['Enquiry category can not be empty']]);
+        }
 
         $trx = Transaction::where('id_user', $idUser)->where('transaction_payment_status', 'Completed')
                 ->orderBy('transaction_date', 'desc')->select('id_transaction', 'transaction_receipt_number', 'transaction_date');
 
-        if(!empty($request->enquiry_category)){
-            $trx = $trx->where('transaction_from', $request->enquiry_category);
+        if(!empty($post['enquiry_category'])){
+            $trx = $trx->where('transaction_from', $post['enquiry_category']);
         }
 
-        $trx = $trx->limit(7)->get()->toArray();
+        $trx = $trx->limit(10)->get()->toArray();
 
         $res = [];
         foreach ($trx as $value){
@@ -683,6 +691,100 @@ class ApiEnquiries extends Controller
         return response()->json(['status' => 'success', 'result' => $res]);
     }
 
+    function listTransactionMitra(Request $request){
+        $idUser = $request->user()->id_user_hair_stylist;
+        $post = $request->json()->all();
+        
+        if(empty($post['enquiry_category'])){
+            return response()->json(['status' => 'fail', 'messages' => ['Enquiry category can not be empty']]);
+        }
+
+        $trx = Transaction::where('transaction_payment_status', 'Completed')
+            ->orderBy('transaction_date', 'desc')->select('id_transaction', 'transaction_receipt_number', 'transaction_date');
+
+        if($post['enquiry_category'] == 'outlet-service'){
+            $idTransaction = TransactionProductService::where('id_user_hair_stylist', $idUser)->orderBy('created_at', 'desc')->limit(10)->pluck('id_transaction')->toArray();
+            $trx = $trx->whereIn('id_transaction', $idTransaction)->where('transaction_from', $post['enquiry_category']);
+        }elseif($post['enquiry_category'] == 'home-service'){
+            $idTransaction = TransactionHomeService::where('id_user_hair_stylist', $idUser)->orderBy('created_at', 'desc')->limit(10)->pluck('id_transaction')->toArray();
+            $trx = $trx->whereIn('id_transaction', $idTransaction)->where('transaction_from', $post['enquiry_category']);
+        }else{
+            return response()->json(['status' => 'success', 'result' => []]);
+        }
+
+        $trx = $trx->limit(10)->get()->toArray();
+
+        $res = [];
+        foreach ($trx as $value){
+            $product = TransactionProduct::leftJoin('products', 'products.id_product', 'transaction_products.id_product')
+                ->where('id_transaction', $value['id_transaction'])
+                ->select('transaction_products.id_product', 'transaction_product_qty', 'product_name')->get()->toArray();
+            $res[] = [
+                'id_transaction' => $value['id_transaction'],
+                'transaction_receipt_number' => $value['transaction_receipt_number'],
+                'transaction_date' => date('d/m/Y', strtotime($value['transaction_date'])),
+                'products' => $product
+            ];
+        }
+        return response()->json(['status' => 'success', 'result' => $res]);
+    }
+
+    function detail(Request $request){
+        $post = $request->json()->all();
+
+        if(!empty($post['id_transaction'])){
+            $trx = Transaction::where('id_transaction', $post['id_transaction'])->first();
+            if(empty($trx)){
+                return response()->json(['status' => 'fail', 'messages' => ['Transaction not found']]);
+            }
+
+            //get category
+            $getCategory = Setting::where('key', 'category_contact_us')->first()['value_text']??"";
+            if(empty($getCategory)){
+                return response()->json(['status' => 'fail', 'messages' => ['Not found']]);
+            }
+            $category = (array)json_decode($getCategory);
+            $parentCategory = (array)$category[$post['enquiry_from']];
+            $categoryChild = (array)$parentCategory['child'];
+            $categoryChildID = $categoryChild[$trx['transaction_from']];
+
+            $detailCategory = [
+                "id" => $categoryChildID,
+                "key" => $trx['transaction_from'],
+                "text" => ucfirst(str_replace('-', ' ', $trx['transaction_from']))
+            ];
+
+            $product = TransactionProduct::leftJoin('products', 'products.id_product', 'transaction_products.id_product')
+                ->where('id_transaction', $trx['id_transaction'])
+                ->select('transaction_products.id_product', 'transaction_product_qty', 'product_name')->get()->toArray();
+
+            $transaction = [
+                'id_transaction' => $trx['id_transaction'],
+                'transaction_receipt_number' => $trx['transaction_receipt_number'],
+                'transaction_date' => date('d/m/Y', strtotime($trx['transaction_date'])),
+                'products' => $product
+            ];
+
+            //subject
+            $settingSubject = (array)json_decode(Setting::where('key', 'enquiries_subject_list')->first()['value_text']??'');
+            $subject = [];
+            if(!empty($settingSubject)){
+                $get = (array)$settingSubject[$post['enquiry_from']];
+                $subject = (array)$get[$trx['transaction_from']];
+            }
+
+            $res = [
+                'category' => $detailCategory,
+                'transaction' => $transaction,
+                'subject' => $subject,
+                'enquiry_category' => $trx['transaction_from']
+            ];
+
+            return response()->json(['status' => 'success', 'result' => $res]);
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID transaction can not be empty']]);
+        }
+    }
 
     function createV2(Request $request){
         $data = $this->cekInputan($request->json()->all());
@@ -693,7 +795,7 @@ class ApiEnquiries extends Controller
 
         $getCategory = Setting::where('key', 'category_contact_us')->first()['value_text']??"";
         if(empty($getCategory)){
-            return response()->json(['status' => 'fail', 'messages' => ['Not']]);
+            return response()->json(['status' => 'fail', 'messages' => ['Not found']]);
         }
 
         $category = (array)json_decode($getCategory);
@@ -703,6 +805,7 @@ class ApiEnquiries extends Controller
         $categoryId = $categoryId[$data['enquiry_category']];
 
         $data['enquiry_email'] = $request->user()->email;
+        $data['enquiry_name'] = (!empty($request->user()->name) ? $request->user()->name:$request->user()->fullname);
         $idUser = (!empty($request->user()->id) ? $request->user()->id:$request->user()->id_user_hair_stylist);
         $phone = (!empty($request->user()->phone) ? $request->user()->phone:$request->user()->phone_number);
         if(!empty(env('TICKETING_BASE_URL')) && !empty(env('TICKETING_API_KEY')) && !empty(env('TICKETING_API_SECRET'))){
@@ -719,7 +822,7 @@ class ApiEnquiries extends Controller
             $content .= $data['enquiry_content'];
 
             $dataSend = [
-                'title' => $data['enquiry_subject'],
+                'title' => $data['enquiry_subject']??'Global',
                 'guest_email' => $data['enquiry_email'],
                 'priority' => 1,
                 'catid' => $parentCategoryID,
@@ -739,9 +842,9 @@ class ApiEnquiries extends Controller
 
                 if($create){
                     unset($data['file']);
-                    unset($data['id_outlet']);
                     unset($data['enquiry_phone']);
                     unset($data['enquiry_device_token']);
+                    $data['message'] = 'Pesan Anda berhasil terkirim ke CS';
                     return response()->json(MyHelper::checkCreate($data));
                 }
             }
@@ -775,8 +878,12 @@ class ApiEnquiries extends Controller
                     if($keyChild == 'lain-lain'){
                         $text = ucfirst($keyChild);
                     }
-                    $subject = (array)$allSubject[$key]??[];
-                    $subject = $subject[$keyChild];
+                    $subject = [];
+                    if(!empty($allSubject[$key])){
+                        $subject = (array)$allSubject[$key];
+                        $subject = $subject[$keyChild]??[];
+                    }
+
                     $resChild[$keyChild]['name'] = $text;
                     $resChild[$keyChild]['subject'] = $subject;
                 }

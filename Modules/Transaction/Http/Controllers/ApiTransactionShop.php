@@ -570,6 +570,7 @@ class ApiTransactionShop extends Controller
             	'product_group_name' => $product['product_group']['product_group_name'],
             	'qty' => $product['qty'],
             	'product_stock_status' => $product['product_stock_status'],
+	            'product_price' => (int) $product['product_price'],
 	            'product_price_raw' => (int) $product['product_price'],
 	            'product_price_raw_total' => (int) $item['transaction_product_subtotal'],
 	            'product_price_total_pretty' => MyHelper::requestNumber((int) $item['transaction_product_subtotal'],'_CURRENCY'),
@@ -585,33 +586,7 @@ class ApiTransactionShop extends Controller
             $items[] = $tempItem;
         }
 
-        foreach ($grandTotal as $keyTotal => $valueTotal) {
-            if($valueTotal == 'tax'){
-                $post['subtotal'] = $subtotalProduct;
-                $post['tax'] = app($this->setting_trx)->countTransaction($valueTotal, $post);
-
-                if (isset($post['tax']->original['messages'])) {
-                    $mes = $post['tax']->original['messages'];
-
-                    if ($post['tax']->original['messages'] == ['Price Product Not Found']) {
-                        if (isset($post['tax']->original['product'])) {
-                            $mes = ['Price Product Not Found with product '.$post['tax']->original['product'].' at outlet '.$outlet['outlet_name']];
-                        }
-                    }
-
-                    if ($post['sub']->original['messages'] == ['Price Product Not Valid']) {
-                        if (isset($post['tax']->original['product'])) {
-                            $mes = ['Price Product Not Valid with product '.$post['tax']->original['product'].' at outlet '.$outlet['outlet_name']];
-                        }
-                    }
-
-                    return response()->json([
-                        'status'    => 'fail',
-                        'messages'  => $mes
-                    ]);
-                }
-            }
-        }
+        $post['tax'] = ($outlet['is_tax']/100) * $post['subtotal'];
 
         if ($post['id_user_address'] ?? null) {
             $address = UserAddress::where('id_user', $user->id)->where('id_user_address', $post['id_user_address'])->first();
@@ -748,10 +723,12 @@ class ApiTransactionShop extends Controller
             'point_earned' => $result['point_earned'] ?? null,
             'available_payment' => $result['available_payment'],
             'available_delivery' => $listDelivery,
-            'selected_delivery' => $deliv
+            'selected_delivery' => $deliv,
+            'continue_checkout' => (empty($error_msg) ? true : false),
+            'messages_all' => implode('.', $error_msg)
         ];
 
-        return MyHelper::checkGet($finalRes)+['messages'=>$error_msg];
+        return MyHelper::checkGet($finalRes);
     }
 
     public function newTransactionShop(NewTransaction $request) {
@@ -933,20 +910,7 @@ class ApiTransactionShop extends Controller
                 }
 
                 $post['subtotal'] = array_sum($post['sub']['subtotal']);
-            } elseif($valueTotal == 'tax'){
-                $post['tax'] = app($this->setting_trx)->countTransaction($valueTotal, $post);
-
-                if (isset($post['tax']->original['messages'])) {
-                    $mes = $post['tax']->original['messages'];
-
-                    DB::rollback();
-                    return response()->json([
-                        'status'    => 'fail',
-                        'messages'  => $mes
-                    ]);
-                }
-            }
-            else {
+            } else {
                 $post[$valueTotal] = app($this->setting_trx)->countTransaction($valueTotal, $post);
             }
         }
@@ -987,7 +951,7 @@ class ApiTransactionShop extends Controller
             ]);
         }
         $post['shipping'] = $deliv['price'];
-        
+        $post['tax'] = ($outlet['is_tax']/100) * $post['subtotal'];
         $grandTotal = (int)$post['subtotal'] + (int)$post['tax'] + (int)$post['shipping'];
 
         DB::beginTransaction();
@@ -1236,7 +1200,8 @@ class ApiTransactionShop extends Controller
 				'transaction_date' => $val['transaction_date'],
 				'customer_name' => $val['destination_name'],
 				'status' => $status,
-				'shop_status' => $shopStatus,
+				'shop_status' => $val['shop_status'],
+				'order_status' => $shopStatus,
 				'order' => $orders
 			];
 		}
@@ -1439,7 +1404,8 @@ class ApiTransactionShop extends Controller
 			'transaction_tax' => $detail['transaction_tax'],
 			'currency' => 'Rp',
 			'status' => $status,
-			'shop_status' => $shopStatus,
+			'shop_status' => $detail['shop_status'],
+			'order_status' => $shopStatus,
 			'transaction_payment_status' => $detail['transaction_payment_status'],
 			'customer_detail' => $custDetail,
 			'delivery_detail' => $delivDetail,

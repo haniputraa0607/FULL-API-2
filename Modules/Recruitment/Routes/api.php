@@ -44,8 +44,8 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
 		    Route::post('delete', ['middleware' => 'feature_control:372', 'uses' =>'ApiAnnouncement@deleteAnnouncement']);
     	});
     	Route::group(['prefix' => 'group'], function () {
-                    Route::any('/', ['middleware' => 'feature_control:393','uses' =>'ApiHairStylistGroupController@index']);
-                    Route::post('create', ['middleware' => 'feature_control:394','uses' =>'ApiHairStylistGroupController@create']);
+            Route::any('/', ['middleware' => 'feature_control:393','uses' =>'ApiHairStylistGroupController@index']);
+            Route::post('create', ['middleware' => 'feature_control:394','uses' =>'ApiHairStylistGroupController@create']);
 		    Route::post('update', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupController@update']);
 		    Route::post('detail', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@detail']);
 		    Route::post('create_commission', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@create_commission']);
@@ -63,10 +63,18 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
 
 Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mitra'], function () {
     Route::get('splash','ApiMitra@splash');
+    Route::group(['middleware' => ['auth_client', 'scopes:mitra-apps']], function()
+    {
+        Route::post('phone/check', 'ApiMitra@phoneCheck');
+        Route::post('pin/forgot', 'ApiMitra@forgotPin');
+        Route::post('pin/verify', 'ApiMitra@verifyPin')->middleware('decrypt_pin');
+        Route::post('pin/change', 'ApiMitra@changePin')->middleware(['decrypt_pin:pin_new','decrypt_pin:pin_old']);
+    });
 
     Route::group(['middleware' => ['auth:mitra', 'scopes:mitra-apps']], function () {
     	Route::get('announcement','ApiMitra@announcementList');
     	Route::any('home','ApiMitra@home');
+        Route::any('logout','ApiMitra@logout');
 
     	Route::group(['prefix' => 'schedule'], function () {
         	Route::post('/', 'ApiMitra@schedule');
@@ -113,6 +121,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
             Route::post('detail-order', 'ApiMitraHomeService@detailOrder');
             Route::post('detail-service', 'ApiMitraHomeService@detailOrderService');
             Route::post('action', 'ApiMitraHomeService@action');
+            Route::post('history-order', 'ApiMitraHomeService@listHistoryOrder');
         });
 
         Route::get('balance-detail', 'ApiMitra@balanceDetail');

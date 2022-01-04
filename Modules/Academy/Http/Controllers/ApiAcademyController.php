@@ -945,7 +945,7 @@ class ApiAcademyController extends Controller
                         $value['user']['phone'],
                         [
                             'id_transaction' => $value['id_transaction'],
-                            'deadline'=> (!empty($value['deadline'])? date('d F Y', strtotime($value['deadline'])) : ''),
+                            'deadline'=> (!empty($value['deadline'])? MyHelper::dateFormatInd($value['deadline'], true, false) : ''),
                             'amount' => number_format($value['amount']),
                             'installment_step' => MyHelper::numberToRomanRepresentation($value['installment_step'])
                         ]
@@ -986,7 +986,7 @@ class ApiAcademyController extends Controller
                     $value['user']['phone'],
                     [
                         'id_transaction' => $value['id_transaction'],
-                        'deadline'=> (!empty($value['deadline'])? date('d F Y', strtotime($value['deadline'])) : ''),
+                        'deadline'=> (!empty($value['deadline'])? MyHelper::dateFormatInd($value['deadline'], true, false) : ''),
                         'amount' => number_format($value['amount']),
                         'installment_step' => MyHelper::numberToRomanRepresentation($value['installment_step'])
                     ]
@@ -994,6 +994,37 @@ class ApiAcademyController extends Controller
             }
         }
 
-        return '1';
+        return true;
+    }
+
+    public function courseReminder(){
+        $currentDate = date('Y-m-d');
+        $date = date("Y-m-d", strtotime($currentDate." +2 days"));
+
+        $transactions = Transaction::join('transaction_academy', 'transactions.id_transaction', 'transaction_academy.id_transaction')
+            ->join('transaction_academy_schedules', 'transaction_academy_schedules.id_transaction_academy', 'transaction_academy.id_transaction_academy')
+            ->where('amount_completed', '>', 0)
+            ->whereDate('schedule_date', $date)
+            ->where('transaction_academy_schedule_status', 'Not Started')
+            ->select('transaction_academy_schedules.*', 'transactions.id_transaction', 'transactions.id_user')->with('user')->get()->toArray();
+
+        foreach ($transactions as $value){
+            $courseName = TransactionProduct::where('id_transaction', $value['id_transaction'])
+                            ->join('products', 'products.id_product', 'transaction_products.id_product')
+                            ->first()['product_name']??'';
+
+            app($this->autocrm)->SendAutoCRM(
+                'Academy Course Reminder',
+                $value['user']['phone'],
+                [
+                    'id_transaction' => $value['id_transaction'],
+                    'course_name'=> $courseName,
+                    'schedule_date' => MyHelper::dateFormatInd($value['schedule_date'], true, true),
+                    'meeting' => MyHelper::numberToRomanRepresentation($value['meeting'])
+                ]
+            );
+        }
+
+        return true;
     }
 }

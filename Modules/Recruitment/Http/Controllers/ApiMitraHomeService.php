@@ -26,6 +26,8 @@ class ApiMitraHomeService extends Controller
         date_default_timezone_set('Asia/Jakarta');
 
         $this->autocrm       = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
+        $this->trx_outlet_service = "Modules\Transaction\Http\Controllers\ApiTransactionOutletService";
+        $this->getNotif         = "Modules\Transaction\Http\Controllers\ApiNotification";
     }
 
     public function activeInactiveHomeService(Request $request)
@@ -213,6 +215,19 @@ class ApiMitraHomeService extends Controller
                         }
                     }
 
+                    if($status == 'Completed'){
+                        $newTrx	= Transaction::with('user.memberships', 'outlet')
+                            ->where('id_transaction', $detail['id_transaction'])
+                            ->first();
+                        $savePoint = app($this->getNotif)->savePoint($newTrx);
+                        if (!$savePoint) {
+                            return [
+                                'status'   => 'fail',
+                                'messages' => ['Transaction failed'],
+                            ];
+                        }
+                    }
+
                     app($this->autocrm)->SendAutoCRM(
                         'Home Service Update Status',
                         $detail['user']['phone'],
@@ -328,10 +343,12 @@ class ApiMitraHomeService extends Controller
         $currentDate = date('Y-m-d H:i:s');
 
         $list = Transaction::join('transaction_home_services', 'transaction_home_services.id_transaction', 'transactions.id_transaction')
+            ->leftJoin('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_home_services.id_user_hair_stylist')
             ->leftJoin('users', 'transactions.id_user', 'users.id')
             ->where('status', 'Completed')
-            ->where('id_user_hair_stylist', $user['id_user_hair_stylist'])
-            ->select('transactions.id_transaction', 'id_transaction_home_service', 'schedule_date', 'users.name as customer_name');
+            ->where('transaction_home_services.id_user_hair_stylist', $user['id_user_hair_stylist'])
+            ->select('transactions.id_transaction', 'id_transaction_home_service', 'transaction_receipt_number', 'user_hair_stylist.fullname as hairstylist_name',
+                'schedule_date', 'schedule_time', 'users.name as customer_name');
 
         if(!empty($post['filter']) && $post['filter'] == 'last 7 days'){
             $dateFilter = date("Y-m-d", strtotime($currentDate." -7 days"));
@@ -354,11 +371,24 @@ class ApiMitraHomeService extends Controller
             $statusStart = TransactionHomeServiceStatusUpdate::where('id_transaction', $data['id_transaction'])->where('status', 'Start Service')->first()['created_at']??'';
             $statusCompleted = TransactionHomeServiceStatusUpdate::where('id_transaction', $data['id_transaction'])->where('status', 'Completed')->first()['created_at']??'';
             $services = TransactionProduct::join('products', 'products.id_product', 'transaction_products.id_product')
-                ->where('id_transaction', $data['id_transaction'])->select('products.id_product', 'product_name', 'transaction_product_qty as qty')->get()->toArray();
+                ->where('id_transaction', $data['id_transaction'])->select('products.id_product', 'product_name', 'transaction_product_qty as qty', 'transaction_product_subtotal as amount')->get()->toArray();
+
+            $trx = Transaction::where('id_transaction', $data['id_transaction'])->first();
+            $trxPayment = app($this->trx_outlet_service)->transactionPayment($trx);
+            $paymentMethod = null;
+            foreach ($trxPayment['payment'] as $p) {
+                $paymentMethod = $p['name'];
+                if (strtolower($p['name']) != 'balance') {
+                    break;
+                }
+            }
+
             $list['data'][$key]['schedule_date_display'] = MyHelper::dateFormatInd($data['schedule_date'], true, false);
+            $list['data'][$key]['schedule_time'] = date('H:i', strtotime($data['schedule_time']));
             $list['data'][$key]['services'] = $services;
-            $list['data'][$key]['start_service'] = (empty($statusStart)? '':date('H:i', strtotime($statusStart)));
-            $list['data'][$key]['end_service'] = (empty($statusCompleted)? '':date('H:i', strtotime($statusCompleted)));
+            $list['data'][$key]['service_start'] = (empty($statusStart)? '':date('H:i', strtotime($statusStart)));
+            $list['data'][$key]['service_end'] = (empty($statusCompleted)? '':date('H:i', strtotime($statusCompleted)));
+            $list['data'][$key]['payment_method'] = $paymentMethod;
         }
 
         return MyHelper::checkGet($list);

@@ -807,9 +807,9 @@ class ApiHome extends Controller
         $deals=FeaturedDeal::select('id_featured_deals','id_deals')->with(['deals'=>function($query){
             $query->select('deals_title','deals_image','deals_total_voucher','deals_total_claimed','deals_publish_end','deals_start','deals_end','id_deals','deals_voucher_price_point','deals_voucher_price_cash','deals_voucher_type');
         }])
-            ->whereHas('deals',function($query){
-                $query->where('deals_publish_end','>=',DB::raw('CURRENT_TIMESTAMP()'));
-                $query->where('deals_publish_start','<=',DB::raw('CURRENT_TIMESTAMP()'));
+            ->whereHas('deals',function($query) use ($now) {
+                $query->where('deals_publish_end','>=',$now);
+                $query->where('deals_publish_start','<=',$now);
                 $query->whereHas('brands',function($query){
                     $query->where('brand_active',1);
                 });
@@ -947,9 +947,9 @@ class ApiHome extends Controller
         		->with(['promo_campaign' => function($query) {
             		$query->select('id_promo_campaign', 'promo_title', 'promo_image', 'total_coupon', 'date_start', 'date_end', 'is_all_outlet', 'used_code', 'limitation_usage', 'min_basket_size', 'is_all_shipment', 'is_all_payment', 'promo_description', 'user_limit', 'code_limit', 'device_limit');
         		}])
-	            ->whereHas('promo_campaign',function($query){
-	                $query->where('date_end','>=',DB::raw('CURRENT_TIMESTAMP()'));
-	                $query->where('date_start','<=',DB::raw('CURRENT_TIMESTAMP()'));
+	            ->whereHas('promo_campaign',function($query) use ($now){
+	                $query->where('date_end','>=',$now);
+	                $query->where('date_start','<=',$now);
 	                $query->whereHas('brands',function($query){
 	                    $query->where('brand_active',1);
 	                });

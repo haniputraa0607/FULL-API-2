@@ -48,7 +48,7 @@ use App\Http\Models\UserTrxProduct;
 use Modules\Brand\Entities\Brand;
 use Modules\Product\Entities\ProductGlobalPrice;
 use Modules\Product\Entities\ProductSpecialPrice;
-
+use Modules\Transaction\Http\Requests\CallbackFromIcount;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
@@ -6216,6 +6216,8 @@ class ApiTransaction extends Controller
                         'sharing'=>$request['sharing'],
                         'disc'=>$request['disc'],
                         'transfer'=>$request['transfer'],
+                        'status'=>'Proccess',
+                        'PurchaseInvoiceID'=>$revenue_sharing['response']['Data'][0]['PurchaseInvoiceID'],
                         'data'=>json_encode($revenue_sharing['response']['Data']),
                         'id_transaction'=>json_encode($request['id_transaction']),
                     ];
@@ -6331,6 +6333,8 @@ class ApiTransaction extends Controller
                         'percent'=>$request['percent'],
                         'sharing'=>$request['sharing'],
                         'disc'=>$request['disc'],
+                        'status'=>'Proccess',
+                        'PurchaseInvoiceID'=>$management_fee['response']['Data'][0]['PurchaseInvoiceID'],
                         'transfer'=>$request['transfer'],
                         'data'=>json_encode($management_fee['response']['Data']),
                         'id_transaction'=>json_encode($request['id_transaction']),
@@ -6344,8 +6348,14 @@ class ApiTransaction extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             $log->fail($e->getMessage());
-            return response()->json(['status' => 'fail']); 
+            return response()->json(['status' => 'fail','message'=>$e->getMessage()]); 
         }      
+    }
+    public function callbacksharing(CallbackFromIcount $request){
+        $data = SharingManagementFee::where(array('PurchaseInvoiceID'=>$request->PurchaseInvoiceID))->update([
+            'status'=>$request->status
+        ]);
+        return response()->json(['status' => 'success','code'=>$data]); 
     }
     
 }

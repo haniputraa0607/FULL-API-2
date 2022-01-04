@@ -272,3 +272,8 @@ Route::group(['prefix' => 'api/transaction', 'middleware' => ['log_activities', 
 
     Route::post('/detail/webview/success', 'ApiWebviewController@trxSuccess');
 });
+
+//callback for icount
+Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefix' => 'api/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function() {
+    Route::post('/callback','ApiTransaction@callbacksharing');
+});

@@ -10,6 +10,7 @@ use Illuminate\Routing\Controller;
 use App\Http\Models\Transaction;
 use App\Http\Models\TransactionProduct;
 
+use Modules\UserRating\Entities\UserRatingLog;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Transaction\Entities\HairstylistNotAvailable;
 use Modules\Transaction\Entities\TransactionHomeService;
@@ -212,6 +213,17 @@ class ApiMitraHomeService extends Controller
                         $update = TransactionHomeService::where('id_transaction', $detail['id_transaction'])->update(['status' => $status]);
                         if($status == 'Completed'){
                             HairstylistNotAvailable::where('id_transaction', $detail['id_transaction'])->delete();
+
+				            UserRatingLog::updateOrCreate([
+				                'id_user' => $detail['id_user'],
+				                'id_transaction' => $detail['id_transaction'],
+				                'id_user_hair_stylist' => $detail['id_user_hair_stylist']
+				            ],[
+				                'refuse_count' => 0,
+				                'last_popup' => date('Y-m-d H:i:s', time() - MyHelper::setting('popup_min_interval', 'value', 900))
+				            ]);
+
+				            Transaction::where('id_transaction', $detail['id_transaction'])->update(['show_rate_popup' => '1']);
                         }
                     }
 

@@ -551,6 +551,9 @@ class ApiAutoCrm extends Controller
 							$image = config('url.storage_url_api').$crm['autocrm_push_image'];
 						}
 
+                        if (empty($recipient_type) && isset($variables['id_transaction']) && !empty($variables['id_transaction'])) {
+                            $inboxFrom = Transaction::where('transactions.id_transaction', $variables['id_transaction'])->pluck('transaction_from')->first();
+                        }
                         //======set id reference and type
                         switch ($crm['autocrm_push_clickto']){
                             case 'No Action':
@@ -564,17 +567,17 @@ class ApiAutoCrm extends Controller
                                     $dataOptional['id_reference'] = 0;
                                 }
                                 break;
-                            case  'history_outlet_service' :
-                            case  'history_home_service' :
-                            case  'history_online_shop' :
-                            case  'history_academy' :
+                            case 'history_outlet_service' :
+                            case 'history_home_service' :
+                            case 'history_online_shop' :
+                            case 'history_academy' :
                             case 'history_payment':
-                            case  'History Transaction' :
-                                if (isset($variables['id_transaction'])) {
-                                    $dataOptional['id_reference'] = $variables['id_transaction'];
-                                } else {
-                                    $dataOptional['id_reference'] = 0;
+                            case 'History Transaction' :
+                                if($crm['autocrm_push_clickto'] == 'History Transaction'){
+                                    $crm['autocrm_push_clickto'] = 'history_'.str_replace('-', '_', $inboxFrom);
                                 }
+
+                                $dataOptional['id_reference'] = (!empty($variables['id_transaction']) ? $variables['id_transaction'] : 0);
                                 break;
                             case 'History Point' :
                                 if (isset($variables['id_log_balance'])) {
@@ -741,6 +744,11 @@ class ApiAutoCrm extends Controller
 						$inbox['inboxes_link'] = $crm['autocrm_inbox_link'];
 					}
 
+                    if (empty($recipient_type) && isset($variables['id_transaction']) && !empty($variables['id_transaction'])) {
+                        $inboxFrom = Transaction::where('transactions.id_transaction', $variables['id_transaction'])->pluck('transaction_from')->first();
+                        $inbox['inboxes_from'] = $inboxFrom;
+                    }
+
                     //===== set id reference and click to
                     switch ($crm['autocrm_push_clickto']){
                         case "News" :
@@ -750,17 +758,17 @@ class ApiAutoCrm extends Controller
                                 $inbox['inboxes_id_reference'] = 0;
                             }
                             break;
-                        case  'history_outlet_service' :
-                        case  'history_home_service' :
-                        case  'history_online_shop' :
-                        case  'history_academy' :
+                        case 'history_outlet_service' :
+                        case 'history_home_service' :
+                        case 'history_online_shop' :
+                        case 'history_academy' :
                         case 'history_payment':
                         case 'History Transaction' :
-                            if (isset($variables['id_transaction'])) {
-                                $inbox['inboxes_id_reference'] = $variables['id_transaction'];
-                            } else {
-                                $inbox['inboxes_id_reference'] = 0;
+                            if($crm['autocrm_push_clickto'] == 'History Transaction'){
+                                $inbox['inboxes_clickto'] = 'history_'.str_replace('-', '_', $inboxFrom);
                             }
+
+                            $inbox['inboxes_id_reference'] = (!empty($variables['id_transaction']) ? $variables['id_transaction'] : 0);
                             break;
                         case 'History Point' :
                             if (isset($variables['id_log_balance'])) {
@@ -809,11 +817,6 @@ class ApiAutoCrm extends Controller
 					if (isset($crm['autocrm_inbox_id_reference']) && $crm['autocrm_inbox_id_reference'] != null) {
 						$inbox['inboxes_id_reference'] = (int)$crm['autocrm_inbox_id_reference'];
 					}
-
-                    if (empty($recipient_type) && isset($variables['id_transaction']) && !empty($variables['id_transaction'])) {
-                        $inboxFrom = Transaction::where('transactions.id_transaction', $variables['id_transaction'])->pluck('transaction_from')->first();
-                        $inbox['inboxes_from'] = $inboxFrom;
-                    }
 
 					$inbox['inboxes_send_at'] = date("Y-m-d H:i:s");
 					$inbox['created_at'] = date("Y-m-d H:i:s");

@@ -46,17 +46,31 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
     	Route::group(['prefix' => 'group'], function () {
             Route::any('/', ['middleware' => 'feature_control:393','uses' =>'ApiHairStylistGroupController@index']);
             Route::post('create', ['middleware' => 'feature_control:394','uses' =>'ApiHairStylistGroupController@create']);
-		    Route::post('update', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupController@update']);
-		    Route::post('detail', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@detail']);
-		    Route::post('create_commission', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@create_commission']);
-		    Route::post('update_commission', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@update_commission']);
-		    Route::post('detail_commission', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@detail_commission']);
-		    Route::post('product', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@product']);
-                    Route::post('hs', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@hs']);
-		    Route::post('invite_hs', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@invite_hs']);
-		    Route::post('commission', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@commission']);
-		    Route::post('list_hs', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@list_hs']);
-		    Route::any('list_group', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@list_group']);
+            Route::post('update', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupController@update']);
+            Route::post('detail', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@detail']);
+            Route::post('create_commission', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@create_commission']);
+            Route::post('update_commission', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@update_commission']);
+            Route::post('detail_commission', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@detail_commission']);
+            Route::post('product', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@product']);
+            Route::post('hs', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@hs']);
+            Route::post('invite_hs', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@invite_hs']);
+            Route::post('commission', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@commission']);
+            Route::post('list_hs', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@list_hs']);
+            Route::any('list_group', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@list_group']);
+            Route::group(['prefix' => 'insentif'], function () {
+                Route::post('create', ['middleware' => 'feature_control:394','uses' =>'ApiHairStylistGroupInsentifController@create']);
+                Route::post('update', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupInsentifController@update']);
+                Route::post('detail', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupInsentifController@detail']);
+                Route::post('delete', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupInsentifController@delete']);
+                Route::post('/', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupInsentifController@index']);
+            });
+            Route::group(['prefix' => 'potongan'], function () {
+                Route::post('create', ['middleware' => 'feature_control:394','uses' =>'ApiHairStylistGroupPotonganController@create']);
+                Route::post('update', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupPotonganController@update']);
+                Route::post('detail', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupPotonganController@detail']);
+                Route::post('delete', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupPotonganController@delete']);
+                Route::post('/', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupPotonganController@index']);
+            });
     	});
     });
 });

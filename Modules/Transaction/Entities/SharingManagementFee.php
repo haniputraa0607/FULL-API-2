@@ -13,6 +13,8 @@ class SharingManagementFee extends \App\Http\Models\Template\TransactionService
 	protected $fillable = [
 		'id_partner',
                 'type',
+                'PurchaseInvoiceID',
+                'status',
 		'start_date',
 		'end_date',
 		'total_transaksi',

@@ -2896,7 +2896,7 @@ class ApiPromoCampaign extends Controller
 
     public function getProduct($source, $query, $id_outlet=null)
     {
-    	$default_product = $query['product_rule'] === 'and' ? 'semua produk bertanda khusus' : 'produk bertanda khusus';
+    	$default_product = $query['product_rule'] === 'and' ? 'semua produk tertentu' : 'produk tertentu';
 
     	if ($source == 'subscription') 
     	{
@@ -2940,6 +2940,14 @@ class ApiPromoCampaign extends Controller
     	}
     	else
     	{
+    		if (!is_array($query)) {
+    			$query = $query->load(
+    				$source.'_product_discount.product', 
+    				$source.'_tier_discount_product.product', 
+    				$source.'_buyxgety_product_requirement.product', 
+    				$source.'_discount_bill_products.product'
+    			)->toArray();
+    		}
     		if ( ($query[$source.'_product_discount_rules']['is_all_product']??false) == 1 
     			|| ($query['promo_type']??false) == 'Referral' 
     			|| ($query[$source.'_discount_bill_rules']['is_all_product']??false) == 1

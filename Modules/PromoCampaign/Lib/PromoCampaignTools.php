@@ -1479,6 +1479,8 @@ class PromoCampaignTools{
 
     public function checkOutletBrandRule($id_outlet, $all_outlet, $promo_outlets, $promo_brands, $brand_rule = 'and', $promo_outlet_groups = [])
     {
+    	$brand_rule = 'or'; // not support multibrand, only support 1 outlet 1 brand
+
     	if (!is_array($promo_outlets)) {
     		$promo_outlets = $promo_outlets->toArray();
     	}
@@ -2062,6 +2064,7 @@ class PromoCampaignTools{
 		$merge_product_variant 	= []; // for product + variant
 		$merge_product = [];
 		foreach ($trxs as $key => $value) {
+			$value['id_product_variant_group'] = $value['id_product_variant_group'] ?? null;
 
 			if (isset($merge_product_variant[$value['id_brand'].'-'.$value['id_product'].'-'.$value['id_product_variant_group']])) {
 				$merge_product_variant[$value['id_brand'].'-'.$value['id_product'].'-'.$value['id_product_variant_group']] += $value['qty'];
@@ -2622,9 +2625,9 @@ class PromoCampaignTools{
 
     	if (empty($product_name)) {
 	    	if ($product_rule === 'and') {
-				$product_name = 'semua produk bertanda khusus';
+				$product_name = 'semua produk tertentu';
 			}else {
-				$product_name = 'produk bertanda khusus';
+				$product_name = 'produk tertentu';
 			}
     	}
 

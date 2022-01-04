@@ -48,7 +48,7 @@ use App\Http\Models\UserTrxProduct;
 use Modules\Brand\Entities\Brand;
 use Modules\Product\Entities\ProductGlobalPrice;
 use Modules\Product\Entities\ProductSpecialPrice;
-
+use Modules\Transaction\Http\Requests\CallbackFromIcount;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
@@ -81,13 +81,13 @@ use Modules\Transaction\Http\Requests\MethodSave;
 use Modules\Transaction\Http\Requests\MethodDelete;
 use Modules\Transaction\Http\Requests\ManualPaymentConfirm;
 use Modules\Transaction\Http\Requests\ShippingGoSend;
-
+use Modules\Transaction\Entities\TransactionBreakdown;
 use Modules\ProductVariant\Entities\ProductVariantGroup;
 use Modules\ProductVariant\Entities\ProductVariantGroupSpecialPrice;
-
+use Modules\Transaction\Entities\SharingManagementFee;
 use Modules\UserRating\Entities\UserRatingLog;
 use Modules\Recruitment\Entities\UserHairStylist;
-
+use Modules\BusinessDevelopment\Entities\Partner;
 use App\Lib\MyHelper;
 use App\Lib\GoSend;
 use App\Lib\Midtrans;
@@ -5411,6 +5411,7 @@ class ApiTransaction extends Controller
     	$list = Transaction::where('transaction_from', 'outlet-service')
     			->join('transaction_outlet_services','transactions.id_transaction', 'transaction_outlet_services.id_transaction')
     			->where('id_user', $user->id)
+    			->select('transactions.*', 'transaction_outlet_services.*', 'transactions.reject_at')
     			->orderBy('transaction_date', 'desc')
     			->with('outlet.brands', 'products', 'transaction_outlet_service', 'user_feedbacks');
 
@@ -5422,13 +5423,15 @@ class ApiTransaction extends Controller
 
 				case 'ongoing':
 					$list->whereNull('transaction_outlet_services.completed_at')
-					->where('transaction_payment_status','Completed');
+					->where('transaction_payment_status','Completed')
+					->whereNull('transactions.reject_at');
 					break;
 
 				case 'complete':
 					$list->where(function($q) {
 						$q->whereNotNull('transaction_outlet_services.completed_at')
-						->orWhere('transaction_payment_status','Cancelled');
+						->orWhere('transaction_payment_status','Cancelled')
+						->orWhereNotNull('transactions.reject_at');
 					});
 					break;
 				
@@ -5475,14 +5478,21 @@ class ApiTransaction extends Controller
 				];
 			}
 
+			$cancelReason = null;
 			if ($val['transaction_payment_status'] == 'Pending') {
 				$status = 'unpaid';
 			} elseif ($val['transaction_payment_status'] == 'Cancelled') {
 				$status = 'cancelled';
+				$cancelReason = 'Pembayaran gagal';
 			} elseif (empty($val['completed_at']) && $val['transaction_payment_status'] == 'Completed') {
 				$status = 'ongoing';
 			} else {
 				$status = 'completed';
+			}
+
+			if ($val['reject_at']) {
+				$status = 'cancelled';
+				$cancelReason = $val['reject_reason'];
 			}
 
 			$resData[] = [
@@ -5493,6 +5503,7 @@ class ApiTransaction extends Controller
 				'customer_name' => $val['transaction_outlet_service']['customer_name'],
 				'color' => $val['outlet']['brands'][0]['color_brand'],
 				'status' => $status,
+				'cancel_reason' => $cancelReason,
 				'show_rate_popup' => $val['show_rate_popup'],
 				'outlet' => $outlet,
 				'brand' => $brand,
@@ -5523,6 +5534,7 @@ class ApiTransaction extends Controller
     			->where('id_user', $user->id)
     			->where('transactions.id_transaction', $id_transaction)
     			->orderBy('transaction_date', 'desc')
+    			->select('transactions.*', 'transaction_outlet_services.*', 'transactions.reject_at')
     			->with(
     				'outlet.brands', 
     				'transaction_outlet_service', 
@@ -5599,14 +5611,21 @@ class ApiTransaction extends Controller
 			}
 		}
 
+		$cancelReason = null;
 		if ($detail['transaction_payment_status'] == 'Pending') {
 			$status = 'unpaid';
 		} elseif ($detail['transaction_payment_status'] == 'Cancelled') {
 			$status = 'cancelled';
+			$cancelReason = 'Pembayaran gagal';
 		} elseif (empty($detail['completed_at']) && $detail['transaction_payment_status'] == 'Completed') {
 			$status = 'ongoing';
 		} else {
 			$status = 'completed';
+		}
+
+		if ($detail['reject_at']) {
+			$status = 'cancelled';
+			$cancelReason = $detail['reject_reason'];
 		}
 
 		$paymentDetail = [];
@@ -5673,6 +5692,7 @@ class ApiTransaction extends Controller
 			'customer_name' => $detail['transaction_outlet_service']['customer_name'],
 			'color' => $detail['outlet']['brands'][0]['color_brand'],
 			'status' => $status,
+			'cancel_reason' => $cancelReason,
 			'transaction_payment_status' => $detail['transaction_payment_status'],
 			'payment_method' => $paymentMethod,
 			'payment_cash_code' => $paymentCashCode,
@@ -5694,6 +5714,7 @@ class ApiTransaction extends Controller
     	$list = Transaction::where('transaction_from', 'home-service')
     			->join('transaction_home_services','transactions.id_transaction', 'transaction_home_services.id_transaction')
     			->where('id_user', $user->id)
+    			->select('transaction_home_services.*', 'transactions.*')
     			->orderBy('transaction_date', 'desc')
     			->with('outlet.brands', 'products', 'user_feedbacks');
 
@@ -5713,7 +5734,8 @@ class ApiTransaction extends Controller
 			case 'complete':
 				$list->where(function($q) {
 					$q->whereIn('transaction_home_services.status', ['Cancelled', 'Completed'])
-					->orWhere('transaction_payment_status','Cancelled');
+					->orWhere('transaction_payment_status','Cancelled')
+					->orWhereNotNull('transactions.reject_at');
 				});
 				break;
 			
@@ -5757,14 +5779,26 @@ class ApiTransaction extends Controller
 				];
 			}
 
+			$cancelReason = null;
 			if ($val['transaction_payment_status'] == 'Pending') {
 				$status = 'unpaid';
 			} elseif ($val['transaction_payment_status'] == 'Cancelled') {
 				$status = 'cancelled';
+				$cancelReason = 'Pembayaran gagal';
 			} elseif (in_array($val['status'], ['Cancelled', 'Completed']) && $val['transaction_payment_status'] == 'Completed') {
 				$status = 'completed';
 			} else {
 				$status = 'ongoing';
+			}
+
+			if ($val['status'] == 'Cancelled') {
+				$status = 'cancelled';
+				$cancelReason = 'Hairstylist tidak ditemukan';
+			}
+
+			if ($val['reject_at']) {
+				$status = 'cancelled';
+				$cancelReason = $val['reject_reason'];
 			}
 
 			$resData[] = [
@@ -5776,6 +5810,7 @@ class ApiTransaction extends Controller
 				'customer_name' => null,
 				'color' => $val['outlet']['brands'][0]['color_brand'],
 				'status' => $status,
+				'cancel_reason' => $cancelReason,
                 'home_service_status' => $val['status'],
                 'home_service_status_text' => $this->home_service_status[$val['status']]['text']??'',
 				'home_service_status_code' => $this->home_service_status[$val['status']]['code']??0,
@@ -5872,14 +5907,26 @@ class ApiTransaction extends Controller
 			}
 		}
 
+		$cancelReason = null;
 		if ($detail['transaction_payment_status'] == 'Pending') {
 			$status = 'unpaid';
 		} elseif ($detail['transaction_payment_status'] == 'Cancelled') {
 			$status = 'cancelled';
+			$cancelReason = 'Pembayaran gagal';
 		} elseif (empty($detail['completed_at']) && $detail['transaction_payment_status'] == 'Completed') {
 			$status = 'ongoing';
 		} else {
 			$status = 'completed';
+		}
+
+		if ($detail['status'] == 'Cancelled') {
+			$status = 'cancelled';
+			$cancelReason = 'Hairstylist tidak ditemukan';
+		}
+
+		if ($detail['reject_at']) {
+			$status = 'cancelled';
+			$cancelReason = $detail['reject_reason'];
 		}
 
 		$paymentDetail = [];
@@ -5951,6 +5998,7 @@ class ApiTransaction extends Controller
 			'customer_name' => $detail['destination_name'],
 			'color' => $detail['outlet']['brands'][0]['color_brand'],
 			'status' => $status,
+            'cancel_reason' => $cancelReason,
             'home_service_status' => $detail['status'],
             'home_service_status_text' => $this->home_service_status[$detail['status']]['text']??'',
             'home_service_status_code' => $this->home_service_status[$detail['status']]['code']??0,
@@ -6095,4 +6143,219 @@ class ApiTransaction extends Controller
             $log->fail($e->getMessage());
         }      
     }
+    public function revenue_sharing(){
+        $log = MyHelper::logCron('Revenue Sharing');
+        try{
+        $tanggal = 26;
+        $tanggal_awal = date('Y-m-d 00:00:00', strtotime(date('Y-m-'.$tanggal) . '- 1 month'));
+        $tanggal_akhir = date('Y-m-d 00:00:00', strtotime(date('Y-m-'.$tanggal)));
+        $partners = Partner::where(array('cooperation_scheme'=>'Profit Sharing'))
+                    ->join('locations','locations.id_partner','partners.id_partner')
+                    ->join('outlets','outlets.id_location','locations.id_location')
+                    ->join('transactions','transactions.id_outlet','outlets.id_outlet')
+                    ->where('transactions.transaction_payment_status','Completed')
+                    ->select('partners.id_partner')
+                    ->distinct()
+                    ->get();
+        $data = array();
+        foreach($partners as $value){
+            $total_transaksi = 0;
+            $beban_outlet = 0;
+            $disc = 0;
+            $partner = Partner::where(array('id_partner'=>$value['id_partner']))->first();
+            $location = Location::where(array('id_partner'=>$value['id_partner']))->first();
+            $tax = 0;
+            if($partner->is_tax == 1){
+            $tax = 10;   
+            }
+            $percent   = $partner->sharing_percent;
+            $sharing   = $partner->sharing_value;   
+            $transaksi = Transaction::wherebetween('transactions.completed_at',[$tanggal_awal,$tanggal_akhir])
+                    ->where('transactions.transaction_payment_status','Completed')
+                    ->join('outlets','outlets.id_outlet','transactions.id_outlet')
+                    ->join('locations','locations.id_location','outlets.id_location')
+                    ->where('locations.id_partner',$value['id_partner'])
+                    ->get();
+                $transaksi_id = array();
+                foreach ($transaksi as $va) {
+                    array_push($transaksi_id,array('id_transaction'=>$va['id_transaction']));
+                    $total_transaksi += $va['transaction_grandtotal'];
+                    $disc += $va['transaction_discount'];
+                    $disc += $va['transaction_discount_item'];
+                    $disc += $va['transaction_discount_bill'];
+                    $disc += $va['transaction_discount_delivery'];
+                   }
+                   $b = array(
+                        'partner'=>$partner,
+                        'location'=>$location,
+                        'tanggal_awal'=>$tanggal_awal,
+                        'tanggal_akhir'=>$tanggal_akhir,
+                        'total_transaksi'=>$total_transaksi,
+                        'beban_outlet'=>$beban_outlet,
+                        'tax'=>$tax,
+                        'percent'=>$percent,
+                        'sharing'=>$sharing,
+                        'disc'=>$disc,
+                        'id_transaction'=>$transaksi_id,
+                        'transfer'=> ($total_transaksi*$sharing/100)-$beban_outlet
+                    );  
+                    array_push($data,$b);
+        }
+        foreach($data as $n => $request){
+                $revenue_sharing = Icount::RevenueSharing($request);
+                if($revenue_sharing['response']['Status']=='1' && $revenue_sharing['response']['Message']=='success'){
+                      $store_data = [
+                        'id_partner'=>$request['partner']['id_partner'],
+                        'type'=>'Revenue Sharing',
+                        'start_date'=>$request['tanggal_awal'],
+                        'end_date'=>$request['tanggal_akhir'],
+                        'total_transaksi'=>$request['total_transaksi'],
+                        'total_beban'=>$request['beban_outlet'],
+                        'tax'=>$request['tax'],
+                        'percent'=>$request['percent'],
+                        'sharing'=>$request['sharing'],
+                        'disc'=>$request['disc'],
+                        'transfer'=>$request['transfer'],
+                        'status'=>'Proccess',
+                        'PurchaseInvoiceID'=>$revenue_sharing['response']['Data'][0]['PurchaseInvoiceID'],
+                        'data'=>json_encode($revenue_sharing['response']['Data']),
+                        'id_transaction'=>json_encode($request['id_transaction']),
+                    ];
+                    $store = SharingManagementFee::create($store_data);   
+                 }
+            }
+        $log->success('success');
+            return response()->json(['status' => 'success','data' => $revenue_sharing]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $log->fail($e->getMessage());
+             return response()->json(['status' => 'fail','message'=>$e->getMessage()]); 
+        }      
+    }
+    public function management_fee(){
+        $log = MyHelper::logCron('Management Fee');
+        try{
+        $tanggal = 26;
+        $tanggal_awal = date('Y-m-d 00:00:00', strtotime(date('Y-m-'.$tanggal) . '- 1 month'));
+        $tanggal_akhir = date('Y-m-d 00:00:00', strtotime(date('Y-m-'.$tanggal)));
+        $partners = Partner::where(array('cooperation_scheme'=>'Management Fee'))
+                    ->join('locations','locations.id_partner','partners.id_partner')
+                    ->join('outlets','outlets.id_location','locations.id_location')
+                    ->join('transactions','transactions.id_outlet','outlets.id_outlet')
+                    ->where('transactions.transaction_payment_status','Completed')
+                    ->select('partners.id_partner')
+                    ->distinct()
+                    ->get();
+        $data = array();
+        foreach($partners as $value){
+            $total_transaksi = 0;
+            $beban_outlet = 0;
+            $disc = 0;
+            $partner = Partner::where(array('id_partner'=>$value['id_partner']))->first();
+            $location = Location::where(array('id_partner'=>$value['id_partner']))->first();
+            $tax = 0;
+            if($partner->is_tax == 1){
+            $tax = 10;   
+            }
+            $percent   = $partner->sharing_percent;
+            $sharing   = $partner->sharing_value;   
+            $transaksi = Transaction::wherebetween('transactions.completed_at',[$tanggal_awal,$tanggal_akhir])
+                    ->where('transactions.transaction_payment_status','Completed')
+                    ->join('outlets','outlets.id_outlet','transactions.id_outlet')
+                    ->join('locations','locations.id_location','outlets.id_location')
+                    ->where('locations.id_partner',$value['id_partner'])
+                    ->get();
+            $transaksi_id = array();
+                foreach ($transaksi as $va) {
+                    array_push($transaksi_id,array('id_transaction'=>$va['id_transaction']));
+                    $total_transaksi += $va['transaction_grandtotal'];
+                    $disc += $va['transaction_discount'];
+                    $disc += $va['transaction_discount_item'];
+                    $disc += $va['transaction_discount_bill'];
+                    $disc += $va['transaction_discount_delivery'];
+                    $transaction_product = TransactionProduct::where('id_transaction',$va['id_transaction'])->get();
+                    foreach($transaction_product as $v){
+                        $hs_fee = 0;
+                     $transaction_breakdown = TransactionBreakdown::where(array('id_transaction_product'=>$v['id_transaction_product'],'type'=>'fee_hs'))->get();
+                     foreach($transaction_breakdown as $val){
+                         $hs_fee += $val['value'];
+                     }
+                    }
+                   }
+                   if($percent==1){
+                   $b = array(
+                        'partner'=>$partner,
+                        'location'=>$location,
+                        'tanggal_awal'=>$tanggal_awal,
+                        'tanggal_akhir'=>$tanggal_akhir,
+                        'total_transaksi'=>$total_transaksi,
+                        'beban_outlet'=>$beban_outlet,
+                        'tax'=>$tax,
+                        'percent'=>$percent,
+                        'sharing'=>$sharing,
+                        'disc'=>$disc,
+                        'id_transaction'=>$transaksi_id,
+                        'transfer'=> ($total_transaksi-$hs_fee)*$sharing/100
+                    );
+                  }else{
+                      $b = array(
+                        'partner'=>$partner,
+                        'location'=>$location,
+                        'tanggal_awal'=>$tanggal_awal,
+                        'tanggal_akhir'=>$tanggal_akhir,
+                        'total_transaksi'=>$total_transaksi,
+                        'beban_outlet'=>$beban_outlet,
+                        'tax'=>$tax,
+                        'percent'=>$percent,
+                        'sharing'=>$sharing,
+                        'disc'=>$disc,
+                        'id_transaction'=>$transaksi_id,
+                        'transfer'=> $total_transaksi-$hs_fee-$sharing
+                    );
+                  }
+                    array_push($data,$b);
+        }
+       
+        foreach($data as $n => $request){
+            
+                    $management_fee = Icount::ManagementFee($request);
+                    
+                    if($management_fee['response']['Status']=='1' && $management_fee['response']['Message']=='success'){
+                        $store_data = [
+                        'id_partner'=>$request['partner']['id_partner'],
+                        'type'=>'Management Fee',
+                        'start_date'=>$request['tanggal_awal'],
+                        'end_date'=>$request['tanggal_akhir'],
+                        'total_transaksi'=>$request['total_transaksi'],
+                        'total_beban'=>$request['beban_outlet'],
+                        'tax'=>$request['tax'],
+                        'percent'=>$request['percent'],
+                        'sharing'=>$request['sharing'],
+                        'disc'=>$request['disc'],
+                        'status'=>'Proccess',
+                        'PurchaseInvoiceID'=>$management_fee['response']['Data'][0]['PurchaseInvoiceID'],
+                        'transfer'=>$request['transfer'],
+                        'data'=>json_encode($management_fee['response']['Data']),
+                        'id_transaction'=>json_encode($request['id_transaction']),
+                    ];
+                    $store = SharingManagementFee::create($store_data);    
+                }
+            }
+         $log->success('success');
+            return response()->json(['status' => 'success','data' => $management_fee]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $log->fail($e->getMessage());
+            return response()->json(['status' => 'fail','message'=>$e->getMessage()]); 
+        }      
+    }
+    public function callbacksharing(CallbackFromIcount $request){
+        $data = SharingManagementFee::where(array('PurchaseInvoiceID'=>$request->PurchaseInvoiceID))->update([
+            'status'=>$request->status
+        ]);
+        return response()->json(['status' => 'success','code'=>$data]); 
+    }
+    
 }

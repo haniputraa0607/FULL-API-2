@@ -37,6 +37,8 @@ class Partner extends Authenticatable
 
 	protected $fillable = [
 		'name',
+                'sharing_percent',
+                'sharing_value',
 		'phone',
 		'email',
 		'address',

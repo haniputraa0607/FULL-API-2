@@ -57,6 +57,8 @@ use Illuminate\Support\Facades\Schema;
 use Image;
 
 use App\Jobs\SendDealsJob;
+use Modules\Deals\Entities\DealsPromotionTemplateService;
+use Modules\Deals\Entities\DealsService;
 
 class ApiDeals extends Controller
 {
@@ -290,6 +292,10 @@ class ApiDeals extends Controller
         	$data['brand_rule'] = $post['brand_rule'];
         }
 
+        if (isset($post['service'])) {
+        	$data['service'] = $post['service'];
+        }
+
         if (isset($post['product_type'])) {
         	$data['product_type'] = $post['product_type'];
         }
@@ -348,6 +354,9 @@ class ApiDeals extends Controller
         	unset($data['id_brand']);
         }
 
+        $data_service = $data['service'];
+        unset($data['service']);
+
         if ($data['deals_type'] == 'Promotion') {
         	$save = DealsPromotionTemplate::create($data);
         }else{
@@ -377,6 +386,13 @@ class ApiDeals extends Controller
             if (isset($data_brand)) {
             	$save_brand = $this->saveBrand($save, $data_brand);
             	if (!$save_brand) {
+                    return false;
+                }
+            }
+
+            if (isset($data_service)) {
+            	$save_service = $this->saveService($save, $data_service);
+            	if (!$save_service) {
                     return false;
                 }
             }
@@ -1149,6 +1165,17 @@ class ApiDeals extends Controller
        			$del_rule = true;
        		}
         }
+        if ($data['service'] && is_array($data['service'])) {
+           	$service_now 	= $deals->deals_services->pluck('service')->toArray();
+           	$service_new	= $data['service'];
+        	$data_service = $service_new;
+
+           	$check_service = array_merge(array_diff($service_now, $service_new), array_diff($service_new, $service_now));
+
+       		if (!empty($check_service)) {
+       			$del_rule = true;
+       		}
+        }
 
         if ( $data['is_online'] == 0 
     		|| (isset($data['id_brand']) 
@@ -1203,6 +1230,14 @@ class ApiDeals extends Controller
         	$save_brand = $this->saveBrand($deals, $data['id_brand']);
         	unset($data['id_brand']);
         	if (!$save_brand) {
+                return false;
+            }
+        }
+
+        if (isset($data['service'])) {
+        	$save_service = $this->saveService($deals, $data['service']);
+        	unset($data['service']);
+        	if (!$save_service) {
                 return false;
             }
         }
@@ -1469,6 +1504,39 @@ class ApiDeals extends Controller
         return true;
     }
 
+    function saveService($deals, $service)
+    {
+
+    	if (isset($deals->id_deals_promotion_template)) {
+    		$table = new DealsPromotionTemplateService;
+    		$id_deals = $deals->id_deals_promotion_template;
+
+    	}else{
+    		$table = new DealsService;
+    		$id_deals = $deals->id_deals;
+    	}
+    	$delete = $table::where('id_deals', $id_deals)->delete();
+
+        $data_service = [];
+
+        foreach ($service as $value) {
+            array_push($data_service, [
+                'service' 	=> $value,
+                'id_deals'  => $id_deals
+            ]);
+        }
+
+        if (!empty($data_service)) {
+            $save = $table::insert($data_service);
+
+            return $save;
+        } else {
+            return false;
+        }
+
+        return true;
+    }
+
     /*Welcome Voucher*/
     function listDealsWelcomeVoucher(Request $request){
         $configUseBrand = Configs::where('config_name', 'use brand')->first();
@@ -1590,7 +1658,7 @@ class ApiDeals extends Controller
     {
         $post = $request->json()->all();
         $user = $request->user();
-
+        
         $deals = $this->getDealsData($post['id_deals'], $post['step'], $post['deals_type']);
 
         if (isset($deals)) {
@@ -1636,7 +1704,7 @@ class ApiDeals extends Controller
         }
 
         if ( ($post['step'] == 1 || $post['step'] == 'all') ){
-			$deals = $deals->with([$table.'_brands']);
+			$deals = $deals->with([$table.'_brands',$table.'_services']);
         }
 
         if ($post['step'] == 2 || $post['step'] == 'all') {
@@ -1665,6 +1733,7 @@ class ApiDeals extends Controller
                 $table.'_payment_method',
                 'brand',
                 'brands',
+                $table.'_services',
                 'created_by_user' => function($q) {
                 	$q->select('id', 'name', 'level');
                 }
@@ -2074,6 +2143,19 @@ class ApiDeals extends Controller
        			$del_rule = true;
        		}
         }
+
+        if ($data['service'] && is_array($data['service'])) {
+            $service_now 	= $deals->deals_promotion_services->pluck('service')->toArray();
+            $service_new	= $data['service'];
+            $data_service = $service_new;
+
+            $check_service = array_merge(array_diff($service_now, $service_new), array_diff($service_new, $service_now));
+
+            if (!empty($check_service)) {
+                $del_rule = true;
+            }
+        }
+
         if ( $data['is_online'] == 0 
     		|| (isset($data['id_brand']) 
 	    		&& ((!is_array($data['id_brand']) && $data['id_brand'] != $deals['id_brand']) 
@@ -2098,6 +2180,14 @@ class ApiDeals extends Controller
         	$save_brand = $this->saveBrand($deals, $data['id_brand']);
         	unset($data['id_brand']);
         	if (!$save_brand) {
+                return false;
+            }
+        }
+
+        if (isset($data['service']) && is_array($data['service'])) {
+        	$service = $this->saveService($deals, $data['service']);
+        	unset($data['service']);
+        	if (!$service) {
                 return false;
             }
         }

@@ -292,7 +292,7 @@ class ApiPromoTransaction extends Controller
     		'discount' => $getDiscount['result']['discount'] ?? 0,
     		'discount_delivery' => $getDiscount['result']['discount_delivery'] ?? 0,
     		'promo_type' => $getDiscount['result']['promo_type'],
-    		'text' => $desc,
+    		'text' => [$desc],
     		'promo_source' => 'deals'
     	];
 

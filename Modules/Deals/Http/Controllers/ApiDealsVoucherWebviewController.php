@@ -172,6 +172,7 @@ class ApiDealsVoucherWebviewController extends Controller
             'header_offline_voucher'=> 'Offline Transaction',
             'title_offline_voucher' => 'Redeem directly at Cashier',
             'button_text'           => $data['is_used'] ? 'GUNAKAN NANTI' : 'GUNAKAN',
+            'confirmation_text'     => $data['is_used'] ? 'Batalkan penggunaan <b>' . $data['deals_voucher']['deal']['deals_title'] . '</b>' : '<b>' . $data['deals_voucher']['deal']['deals_title'] . '</b> akan digunakan pada transaksi selanjutnya',
             'popup_message'         => [
                 $data['deals_voucher']['deal']['deals_title'],
                 'akan digunakan pada transaksi selanjutnya'

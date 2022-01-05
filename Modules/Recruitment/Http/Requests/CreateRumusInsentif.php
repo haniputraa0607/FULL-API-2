@@ -6,21 +6,20 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Modules\Recruitment\Entities\HairstylistGroup;
-use Modules\Recruitment\Entities\HairstylistGroupPotongan;
-class UpdatePotongan extends FormRequest
+class CreateInsentif extends FormRequest
 {
     public function rules()
     {
         return [
-            'id_hairstylist_group_potongan'  => 'required|unik',
-            'name_potongan'               => 'required',
-            'price_potongan'              => 'required',
+            'id_hairstylist_group'        => 'required|unik',
+            'name_insentif'               => 'required',
+            'price_insentif'              => 'required',
            ]; 
     }
     public function withValidator($validator)
     {
         $validator->addExtension('unik', function ($attribute, $value, $parameters, $validator) {
-         $survey = HairstylistGroupPotongan::where(array('id_hairstylist_group_Potongan'=>$value))->first();
+         $survey = HairstylistGroup::where(array('id_hairstylist_group'=>$value))->first();
          if($survey){
              return true;
          } return false;
@@ -31,7 +30,7 @@ class UpdatePotongan extends FormRequest
     {
         return [
             'required' => ':attribute harus diisi',
-            'unik' => 'Potongan tidak ada',
+            'unik' => 'Group Hairstylist tidak ada',
         ];
     }
     public function authorize()

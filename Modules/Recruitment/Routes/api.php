@@ -62,6 +62,10 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
                 Route::post('update', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupInsentifController@update']);
                 Route::post('detail', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupInsentifController@detail']);
                 Route::post('delete', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupInsentifController@delete']);
+                Route::post('list_insentif', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupInsentifController@list_insentif']);
+                Route::post('create-rumus-insentif', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupInsentifController@create_rumus_insentif']);
+                Route::post('list-rumus-insentif', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupInsentifController@list_rumus_insentif']);
+                Route::post('delete-rumus-insentif', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupInsentifController@delete_rumus_insentif']);
                 Route::post('/', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupInsentifController@index']);
             });
             Route::group(['prefix' => 'potongan'], function () {
@@ -70,6 +74,11 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
                 Route::post('detail', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupPotonganController@detail']);
                 Route::post('delete', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupPotonganController@delete']);
                 Route::post('/', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupPotonganController@index']);
+                Route::post('list_potongan', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupPotonganController@list_potongan']);
+                Route::post('create-rumus-potongan', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupPotonganController@create_rumus_potongan']);
+                Route::post('list-rumus-potongan', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupPotonganController@list_rumus_potongan']);
+                Route::post('delete-rumus-potongan', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupPotonganController@delete_rumus_potongan']);
+                
             });
     	});
     });

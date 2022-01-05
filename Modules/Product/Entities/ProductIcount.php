@@ -161,7 +161,7 @@ class ProductIcount extends Model
                             }
 
                             if($service){
-                                $value = 0;
+                                $value = null;
                                 $stock_status = 'Available';
                             }
                         }

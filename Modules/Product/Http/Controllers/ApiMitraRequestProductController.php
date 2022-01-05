@@ -29,28 +29,87 @@ class ApiMitraRequestProductController extends Controller
         $this->deliv_path = "img/product/delivery_product/";
     }
 
-    public function index(Request $request)
+    public function index($type = null, Request $request)
     {
         $post = $request->all();
         $id_outlet =  auth()->user()->id_outlet;
         
-        $delivery_product = DeliveryProduct::join('delivery_product_details','delivery_product_details.id_delivery_product','=','delivery_products.id_delivery_product')
-                            ->where('delivery_products.id_outlet',$id_outlet)
-                            ->where('delivery_products.status','!=','Draft')
-                            ->select(
-                                'delivery_products.id_delivery_product',
-                                'delivery_products.code',
-                                'delivery_products.type',
-                                'delivery_products.delivery_date',
-                                DB::raw('
-                                        COUNT(delivery_product_details.id_delivery_product_detail) as total_trx
-                                    ')
-                            )->OrderBy('id_delivery_product', 'DESC');
+        if($type){
+            $status = 'Completed';
+        }else{
+            $status = 'On Progress';
+        }
+        
+        $delivery_product = DeliveryProduct::where('delivery_products.id_outlet',$id_outlet)
+                        ->where('delivery_products.status','=',$status)
+                        ->with('delivery_product_detail')
+                        ->select(
+                            'delivery_products.id_delivery_product',
+                            'delivery_products.code as kode_pengiriman',
+                            'delivery_products.type as jenis_stok',
+                            'delivery_products.delivery_date as tanggal_dikirim',
+                            'delivery_products.confirmation_date as tanggal_dikonfirmasi'
+                        );
+
+        if(isset($post['code'])){
+            // return ['as'];
+            $delivery_product = $delivery_product->where('code', 'like', '%'.$post['code'].'%');
+        }
+        
+        if(isset($post['order'])){
+
+            if($post['order']=='code_desc'){
+                $order = 'code';
+                $sort = 'desc';
+            }elseif($post['order']=='code_asc'){
+                $order = 'code';
+                $sort = 'asc';
+            }elseif($post['order']=='delivery_date_desc'){
+                $order = 'delivery_date';
+                $sort = 'desc';
+            }elseif($post['order']=='delivery_date_asc'){
+                $order = 'delivery_date';
+                $sort = 'asc';
+            }elseif($post['order']=='confirmation_date_desc'){
+                $order = 'confirmation_date';
+                $sort = 'desc';
+            }elseif($post['order']=='confirmation_date_asc'){
+                $order = 'confirmation_date';
+                $sort = 'asc';
+            }
+
+            if(isset($post['page'])){
+                $delivery_product = $delivery_product->orderBy($order, $sort)->paginate($request->length ?: 10)->toArray();
+                $delivery_map = $delivery_product['data'];
+            }else{
+                $delivery_product = $delivery_product->orderBy($order, $sort)->get()->toArray();
+                $delivery_map = $delivery_product;
+
+            }
+        }else{
+            if(isset($post['page'])){
+                $delivery_product = $delivery_product->orderBy('confirmation_date', 'desc')->paginate($request->length ?: 10)->toArray();
+                $delivery_map = $delivery_product['data'];
+            }else{
+                $delivery_product = $delivery_product->orderBy('confirmation_date', 'desc')->get()->toArray();
+                $delivery_map = $delivery_product;
+            }
+        }
+
+        $deliv_new = array_map(function($value){
+            $count = 0;
+            foreach($value['delivery_product_detail'] as $item){
+                $count = $count + $item['value'];
+            }
+            $value['total_jumlah_barang'] = $count;
+            unset($value['delivery_product_detail']);
+            return $value;
+        },$delivery_map);
 
         if(isset($post['page'])){
-            $delivery_product = $delivery_product->paginate($request->length ?: 10)->toArray();
+            $delivery_product['data'] = $deliv_new;
         }else{
-            $delivery_product = $delivery_product->get()->toArray();
+            $delivery_product = $deliv_new;
         }
 
         return [
@@ -91,19 +150,28 @@ class ApiMitraRequestProductController extends Controller
 
             $delivery_product = DeliveryProduct::join('delivery_product_details','delivery_product_details.id_delivery_product','=','delivery_products.id_delivery_product')
                             ->where('delivery_products.id_outlet',$id_outlet)
-                            ->where('delivery_products.status','!=','Draft')
+                            // ->where('delivery_products.status','=','On Progress')
                             ->where('delivery_products.id_delivery_product', $post['id_delivery_product'])
                             ->with('delivery_product_images')
+                            ->with('delivery_product_detail')
                             ->select(
                                 'delivery_products.id_delivery_product',
-                                'delivery_products.code',
-                                'delivery_products.type',
-                                'delivery_products.delivery_date',
-                                DB::raw('
-                                        COUNT(delivery_product_details.id_delivery_product_detail) as total_trx
-                                    ')
+                            'delivery_products.code as kode_pengiriman',
+                            'delivery_products.type as jenis_stok',
+                            'delivery_products.delivery_date as tanggal_dikirim',
+                            'delivery_products.confirmation_date as tanggal_dikonfirmasi'
                             )->first();
-            
+
+            $delivery_product = array_map(function($value){
+                $count = 0;
+                foreach($value['delivery_product_detail'] as $item){
+                    $count = $count + $item['value'];
+                }
+                $value['total_jumlah_barang'] = $count;
+                unset($value['delivery_product_detail']);
+                return $value;
+            },array($delivery_product))[0];   
+
             if($delivery_product['id_delivery_product']){
                 $products = DeliveryRequestProduct::with(['delivery_product' => function($query) {
                                 $query->select('id_delivery_product');
@@ -247,6 +315,7 @@ class ApiMitraRequestProductController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }
     }
+    
 
     /**
      * Show the form for editing the specified resource.

@@ -1964,4 +1964,28 @@ class ApiSetting extends Controller
         }
         return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
     }
+    public function salary_formula(){
+        $data = Setting::where('key','salary_formula')->first();
+         return response()->json($data);
+    }
+  
+    public function salary_formula_create(Request $request){
+        if(isset($request->value)){
+             $salary_formula = Setting::where('key','salary_formula')->first();
+             if($salary_formula){
+                 $data = Setting::where('key','salary_formula')->update([
+                  'value'=>$request->value,
+                 
+             ]);
+             }else{
+                 $data = Setting::create([
+                 'key'=>'salary_formula',
+                 'value'=> $request->value
+                    
+             ]);
+             }
+              return response()->json(MyHelper::checkCreate($data));
+        }
+        return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
+    }
 }

@@ -194,6 +194,9 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::get('global_commission_product', 'ApiSetting@global_commission_product_setting');
     Route::post('global_commission_product_create', 'ApiSetting@global_commission_product_create');
     
+    Route::get('salary_formula', 'ApiSetting@salary_formula');
+    Route::post('salary_formula_create', 'ApiSetting@salary_formula_create');
+    
 });
 
 Route::group(['prefix' => 'api/timesetting', 'namespace' => 'Modules\Setting\Http\Controllers'], function()

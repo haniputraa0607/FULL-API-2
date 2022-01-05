@@ -146,9 +146,9 @@ class ApiFitOutController extends Controller
         $project->save();
          return response()->json(['status' => 'success']);
          }
-         return response()->json(['status' => 'fail', 'messages' => ['Tidak dalam proses fit out']]);
+         return response()->json(['status' => 'fail', 'messages' => 'Tidak dalam proses fit out']);
         }else{
-            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+            return response()->json(['status' => 'fail', 'messages' => 'Incompleted Data']);
         }
     }
     public function destroy(Request $request)

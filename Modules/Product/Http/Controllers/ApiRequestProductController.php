@@ -20,6 +20,9 @@ class ApiRequestProductController extends Controller
     public function __construct()
     {
         date_default_timezone_set('Asia/Jakarta');
+        if (\Module::collections()->has('Autocrm')) {
+            $this->autocrm  = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
+        }
     }
 
     public function index(Request $request)
@@ -118,6 +121,20 @@ class ApiRequestProductController extends Controller
                 return response()->json(['status' => 'fail', 'messages' => ['Id Outlet not found']]);
             }
             DB::commit();
+            if (\Module::collections()->has('Autocrm')) {
+                
+                $autocrm = app($this->autocrm)->SendAutoCRM(
+                    'Create Request Product',
+                    auth()->user()->phone,
+                );
+                // return $autocrm;
+                if (!$autocrm) {
+                    return response()->json([
+                        'status'    => 'fail',
+                        'messages'  => ['Failed to send']
+                    ]);
+                }
+            }
             return response()->json(MyHelper::checkCreate($store));
         } else {
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);

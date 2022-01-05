@@ -1085,6 +1085,14 @@ class ApiTransactionShop extends Controller
             ]);
         }
 
+        $applyPromo = app($this->promo_trx)->applyPromoNewTrx($insertTransaction);
+        if ($applyPromo['status'] == 'fail') {
+        	DB::rollback();
+            return $applyPromo;
+        }
+
+        $insertTransaction = $applyPromo['result'] ?? $insertTransaction;
+
         DB::commit();
 
         return response()->json([

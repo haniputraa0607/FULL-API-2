@@ -6146,7 +6146,7 @@ class ApiTransaction extends Controller
     public function revenue_sharing(){
         $log = MyHelper::logCron('Revenue Sharing');
         try{
-        $tanggal = 26;
+        $tanggal = 25;
         $tanggal_awal = date('Y-m-d 00:00:00', strtotime(date('Y-m-'.$tanggal) . '- 1 month'));
         $tanggal_akhir = date('Y-m-d 00:00:00', strtotime(date('Y-m-'.$tanggal)));
         $partners = Partner::where(array('cooperation_scheme'=>'Profit Sharing'))
@@ -6165,11 +6165,11 @@ class ApiTransaction extends Controller
             $partner = Partner::where(array('id_partner'=>$value['id_partner']))->first();
             $location = Location::where(array('id_partner'=>$value['id_partner']))->first();
             $tax = 0;
-            if($partner->is_tax == 1){
+            if($partner->is_tax??0 == 1){
             $tax = 10;   
             }
-            $percent   = $partner->sharing_percent;
-            $sharing   = $partner->sharing_value;   
+            $percent   = $partner->sharing_percent??0;
+            $sharing   = $partner->sharing_value??0;   
             $transaksi = Transaction::wherebetween('transactions.completed_at',[$tanggal_awal,$tanggal_akhir])
                     ->where('transactions.transaction_payment_status','Completed')
                     ->join('outlets','outlets.id_outlet','transactions.id_outlet')
@@ -6179,11 +6179,11 @@ class ApiTransaction extends Controller
                 $transaksi_id = array();
                 foreach ($transaksi as $va) {
                     array_push($transaksi_id,array('id_transaction'=>$va['id_transaction']));
-                    $total_transaksi += $va['transaction_grandtotal'];
-                    $disc += $va['transaction_discount'];
-                    $disc += $va['transaction_discount_item'];
-                    $disc += $va['transaction_discount_bill'];
-                    $disc += $va['transaction_discount_delivery'];
+                    $total_transaksi += $va['transaction_grandtotal']??0;
+                    $disc += $va['transaction_discount']??0;
+                    $disc += $va['transaction_discount_item']??0;
+                    $disc += $va['transaction_discount_bill']??0;
+                    $disc += $va['transaction_discount_delivery']??0;
                    }
                    $b = array(
                         'partner'=>$partner,
@@ -6236,7 +6236,7 @@ class ApiTransaction extends Controller
     public function management_fee(){
         $log = MyHelper::logCron('Management Fee');
         try{
-        $tanggal = 26;
+        $tanggal = 25;
         $tanggal_awal = date('Y-m-d 00:00:00', strtotime(date('Y-m-'.$tanggal) . '- 1 month'));
         $tanggal_akhir = date('Y-m-d 00:00:00', strtotime(date('Y-m-'.$tanggal)));
         $partners = Partner::where(array('cooperation_scheme'=>'Management Fee'))
@@ -6255,11 +6255,11 @@ class ApiTransaction extends Controller
             $partner = Partner::where(array('id_partner'=>$value['id_partner']))->first();
             $location = Location::where(array('id_partner'=>$value['id_partner']))->first();
             $tax = 0;
-            if($partner->is_tax == 1){
+            if($partner->is_tax??0 == 1){
             $tax = 10;   
             }
-            $percent   = $partner->sharing_percent;
-            $sharing   = $partner->sharing_value;   
+            $percent   = $partner->sharing_percent??0;
+            $sharing   = $partner->sharing_value??0;   
             $transaksi = Transaction::wherebetween('transactions.completed_at',[$tanggal_awal,$tanggal_akhir])
                     ->where('transactions.transaction_payment_status','Completed')
                     ->join('outlets','outlets.id_outlet','transactions.id_outlet')
@@ -6269,17 +6269,17 @@ class ApiTransaction extends Controller
             $transaksi_id = array();
                 foreach ($transaksi as $va) {
                     array_push($transaksi_id,array('id_transaction'=>$va['id_transaction']));
-                    $total_transaksi += $va['transaction_grandtotal'];
-                    $disc += $va['transaction_discount'];
-                    $disc += $va['transaction_discount_item'];
-                    $disc += $va['transaction_discount_bill'];
-                    $disc += $va['transaction_discount_delivery'];
+                    $total_transaksi += $va['transaction_grandtotal']??0;
+                    $disc += $va['transaction_discount']??0;
+                    $disc += $va['transaction_discount_item']??0;
+                    $disc += $va['transaction_discount_bill']??0;
+                    $disc += $va['transaction_discount_delivery']??0;
                     $transaction_product = TransactionProduct::where('id_transaction',$va['id_transaction'])->get();
                     foreach($transaction_product as $v){
                         $hs_fee = 0;
                      $transaction_breakdown = TransactionBreakdown::where(array('id_transaction_product'=>$v['id_transaction_product'],'type'=>'fee_hs'))->get();
                      foreach($transaction_breakdown as $val){
-                         $hs_fee += $val['value'];
+                         $hs_fee += $val['value']??0;
                      }
                     }
                    }
@@ -6320,7 +6320,6 @@ class ApiTransaction extends Controller
         foreach($data as $n => $request){
             
                     $management_fee = Icount::ManagementFee($request);
-                    
                     if($management_fee['response']['Status']=='1' && $management_fee['response']['Message']=='success'){
                         $store_data = [
                         'id_partner'=>$request['partner']['id_partner'],

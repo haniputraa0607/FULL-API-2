@@ -511,6 +511,14 @@ class ApiTransactionAcademy extends Controller
             ];
         }
 
+        $applyPromo = app($this->promo_trx)->applyPromoNewTrx($insertTransaction);
+        if ($applyPromo['status'] == 'fail') {
+        	DB::rollback();
+            return $applyPromo;
+        }
+
+        $insertTransaction = $applyPromo['result'] ?? $insertTransaction;
+
         $createTransactionAcademy = TransactionAcademy::create([
             'id_transaction' => $insertTransaction['id_transaction'],
             'payment_method' => $post['payment_method'],

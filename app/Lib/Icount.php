@@ -278,6 +278,11 @@ class Icount
 
     public static function RevenueSharing($request, $logType = null, $orderId = null){
         $management_fee = Setting::where('key','revenue_sharing')->first();
+        if($request['disc']??0 != 0){
+            $disc = ($request['disc']*100)/($request['disc']+$request['transfer']);
+        }else{
+            $disc = 0;
+        }
         $data = [
             "VoucherNo" => "[AUTO]",
             "TransDate" => $request['tanggal_akhir'],
@@ -298,7 +303,7 @@ class Icount
                     "Ratio" => 1,
                     'Price'=>$request['transfer'],
                     'Disc'=>$request['disc'],
-                    'DiscRp'=>($request['disc']*100)/($request['disc']+$request['transfer']),
+                    'DiscRp'=>$disc,
                     "Description" => ""
                 ],
             ]
@@ -307,6 +312,11 @@ class Icount
     }
     public static function ManagementFee($request, $logType = null, $orderId = null){
         $management_fee = Setting::where('key','management_fee')->first();
+        if($request['disc']??0 != 0){
+            $disc = ($request['disc']*100)/($request['disc']+$request['transfer']);
+        }else{
+            $disc = 0;
+        }
         $data = [
             "VoucherNo" => "[AUTO]",
             "TransDate" => $request['tanggal_akhir'],
@@ -327,7 +337,7 @@ class Icount
                     "Ratio" => 1,
                     'Price'=>$request['transfer'],
                     'Disc'=>$request['disc'],
-                    'DiscRp'=>($request['disc']*100)/($request['disc']+$request['transfer']),
+                    'DiscRp'=>$disc,
                     "Description" => ""
                 ],
             ]

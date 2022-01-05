@@ -6185,6 +6185,7 @@ class ApiTransaction extends Controller
                     $disc += $va['transaction_discount_bill']??0;
                     $disc += $va['transaction_discount_delivery']??0;
                    }
+                   if(count($transaksi)!=0){
                    $b = array(
                         'partner'=>$partner,
                         'location'=>$location,
@@ -6200,6 +6201,7 @@ class ApiTransaction extends Controller
                         'transfer'=> ($total_transaksi*$sharing/100)-$beban_outlet
                     );  
                     array_push($data,$b);
+                   }
         }
         foreach($data as $n => $request){
                 $revenue_sharing = Icount::RevenueSharing($request);
@@ -6225,7 +6227,7 @@ class ApiTransaction extends Controller
                  }
             }
         $log->success('success');
-            return response()->json(['status' => 'success','data' => $revenue_sharing]);
+            return response()->json(['status' => 'success']);
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -6252,6 +6254,7 @@ class ApiTransaction extends Controller
             $total_transaksi = 0;
             $beban_outlet = 0;
             $disc = 0;
+             $hs_fee = 0;
             $partner = Partner::where(array('id_partner'=>$value['id_partner']))->first();
             $location = Location::where(array('id_partner'=>$value['id_partner']))->first();
             $tax = 0;
@@ -6283,6 +6286,7 @@ class ApiTransaction extends Controller
                      }
                     }
                    }
+                    if(count($transaksi)!=0){
                    if($percent==1){
                    $b = array(
                         'partner'=>$partner,
@@ -6315,6 +6319,7 @@ class ApiTransaction extends Controller
                     );
                   }
                     array_push($data,$b);
+                    }
         }
        
         foreach($data as $n => $request){
@@ -6342,7 +6347,7 @@ class ApiTransaction extends Controller
                 }
             }
          $log->success('success');
-            return response()->json(['status' => 'success','data' => $management_fee]);
+            return response()->json(['status' => 'success']);
 
         } catch (\Exception $e) {
             DB::rollBack();

@@ -14,6 +14,7 @@ use Modules\Product\Entities\DeliveryRequestProduct;
 use DB;
 use App\Lib\MyHelper;
 use Modules\Product\Entities\DeliveryProductImage;
+use Modules\Product\Entities\ProductIcount;
 
 class ApiMitraRequestProductController extends Controller
 {
@@ -129,6 +130,7 @@ class ApiMitraRequestProductController extends Controller
                 if ($products[0]['delivery_product']) {
                     foreach ($products[0]['delivery_product']['delivery_product_detail'] as $detail) {
                         $delivery[$dev] = [
+                            "id_product_icount" => $detail['delivery_product_icount']['id_product_icount'],
                             "name" => $detail['delivery_product_icount']['name'],
                             "delivery" => $detail['value'],
                         ];
@@ -139,7 +141,9 @@ class ApiMitraRequestProductController extends Controller
                     if($product['request_product']){
                         foreach ($product['request_product']['request_product_detail'] as $detail) {
                             $new_products[$new_pro] = [
+                                "id_product_icount" => $detail['request_product_icount']['id_product_icount'],
                                 "name" => $detail['request_product_icount']['name'],
+                                "unit" => $detail['unit'],
                                 "request" => $detail['value'],
                                 "delivery" => 0,
                                 "status" => "Kurang"
@@ -152,7 +156,9 @@ class ApiMitraRequestProductController extends Controller
                     foreach($new_products as $key2 => $cek){
                         if($new_product['name'] == $cek['name'] && $key < $key2){
                             $new_products[$key] = [
+                                "id_product_icount" => $new_product['id_product_icount'],
                                 "name" => $new_product['name'],
+                                "unit" => $new_product['unit'],
                                 "request" => $new_products[$key]['request']+$cek['request'],
                                 "delivery" => 0,
                                 "status" => "Kurang"
@@ -188,6 +194,7 @@ class ApiMitraRequestProductController extends Controller
     public function confirm(Request $request){
         $post = $request->all();
         if (isset($post['id_delivery_product']) && !empty($post['id_delivery_product'])) {
+            
             $update = [
                 'status'            => 'Completed',
                 'id_user_accept'    => auth()->user()->id_user_hair_stylist,
@@ -196,6 +203,7 @@ class ApiMitraRequestProductController extends Controller
             if(isset($post['note'])){
                 $update['confirmation_note'] = $post['note'];
             }
+
             if(isset($post['images'])){
                 DB::beginTransaction();
                 $delete_image = DeliveryProductImage::where('id_delivery_product',$post['id_delivery_product'])->delete();
@@ -219,12 +227,21 @@ class ApiMitraRequestProductController extends Controller
                     }
                 }
             }
+
+            if($post['detail']){
+                foreach($post['detail'] as $key => $product){
+                    $product_icount = new ProductIcount();
+                    $update_stock = $product_icount->find($product['id_product_icount'])->addLogStockProductIcount($product['delivery'],$product['unit'],'Delivery Product',$post['id_delivery_product']);
+                }
+            }
+
             $update_status = DeliveryProduct::where('id_delivery_product',$post['id_delivery_product'])->update($update);
             if(!$update_status){
                 DB::rollback();
                 return response()->json(['status' => 'fail', 'messages' => ['Failed to confirm delivery product']]);
             }
             DB::commit();
+
             return response()->json(['status' => 'success']);
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);

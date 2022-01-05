@@ -1,4 +1,3 @@
-@@ -0,0 +1,67 @@
 <?php
 
 namespace Modules\Transaction\Http\Requests;
@@ -46,7 +45,7 @@ class CallbackFromIcount extends FormRequest
     public function messages()
     {
         return [
-            'cek' => 'Invalid PurchaseInvoiceID or PurchaseInvoiceID status already in proccess',
+            'cek' => 'Invalid PurchaseInvoiceID or PurchaseInvoiceID status has been processed',
             'status' => "Invalid status, status must be Success or Fail",
             'signature' => 'Signature doesnt match'
         ];

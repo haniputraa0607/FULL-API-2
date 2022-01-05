@@ -239,11 +239,11 @@ class ApiPromoTransaction extends Controller
     	$sharedPromo = $this->getSharedPromoTrx();
 		$outlet = OUtlet::find($sharedPromo['id_outlet']);
 		$dataTrx['subtotal'] = $sharedPromo['subtotal'];
-		$dataTrx['discount'] = $dataDiscount['discount'] ?? 0;
-		$dataTrx['discount_delivery'] = $dataDiscount['discount_delivery'] ?? 0;
+		$dataTrx['discount'] = ($dataTrx['discount'] ?? 0) + ($dataDiscount['discount'] ?? 0);
+		$dataTrx['discount_delivery'] = ($dataTrx['discount_delivery'] ?? 0) + ($dataDiscount['discount_delivery'] ?? 0);
 		$dataTrx['tax'] = ($outlet['is_tax'] / 100) * ($sharedPromo['subtotal'] - $dataTrx['discount']);
 		$dataTrx['grandtotal'] = (int) $sharedPromo['subtotal'] + (int) $sharedPromo['service'] + (int) $dataTrx['tax'] - $discount;
-		$dataTrx['total_payment'] = $dataTrx['grandtotal'] - $dataTrx['used_point'];
+		$dataTrx['total_payment'] = $dataTrx['grandtotal'] - ($dataTrx['used_point'] ?? 0);
 
 		$promoGetPoint = app($this->online_trx)->checkPromoGetPoint($promoCashback);
         if ($promoGetPoint) {
@@ -959,7 +959,7 @@ class ApiPromoTransaction extends Controller
     	$sharedPromoTrx['items'] = $promoItems;
     	$sharedPromoTrx['subtotal'] = $dataTrx['subtotal'] ?? $dataTrx['transaction_subtotal'];
     	$sharedPromoTrx['tax'] = $dataTrx['tax'] ?? $dataTrx['transaction_tax'];
-    	$sharedPromoTrx['service'] = $dataTrx['service'] ?? $dataTrx['transaction_service'];
+    	$sharedPromoTrx['service'] = $dataTrx['service'] ?? $dataTrx['transaction_service'] ?? null;
     	$sharedPromoTrx['cashback'] = $dataTrx['cashback'] ?? $dataTrx['transaction_cashback_earned'];
     	$sharedPromoTrx['grandtotal'] = $dataTrx['grandtotal'] ?? $dataTrx['transaction_grandtotal'];
 

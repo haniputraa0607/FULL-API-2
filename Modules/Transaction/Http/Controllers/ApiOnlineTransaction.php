@@ -1974,7 +1974,22 @@ class ApiOnlineTransaction extends Controller
             ];
         }
 
-        $result['payment_detail'] = $this->paymentDetailCheckout($result);
+        $result['payment_detail'][] = [
+            'name'          => 'Total:',
+            "is_discount"   => 0,
+            'amount'        => MyHelper::requestNumber($result['subtotal'],'_CURRENCY')
+        ];
+
+        if (!empty($result['tax'])) {
+            $result['payment_detail'][] = [
+                'name'          => 'Tax:',
+                "is_discount"   => 0,
+                'amount'        => MyHelper::requestNumber((int) $result['tax'],'_CURRENCY')
+            ];
+        }
+
+        $paymentDetailPromo = app($this->promo_trx)->paymentDetailPromo($result);
+        $result['payment_detail'] = array_merge($result['payment_detail'], $paymentDetailPromo);
 
         if (count($error_msg) > 1 && (!empty($post['item']) || !empty($post['item_service']))) {
             $error_msg = ['Produk atau Service yang anda pilih tidak tersedia. Silakan cek kembali pesanan anda'];
@@ -4772,53 +4787,5 @@ class ApiOnlineTransaction extends Controller
         }
 
         return $updateDetail??true;
-    }
-
-    public function paymentDetailCheckout($result)
-    {
-		$paymentDetail = [];
-
-        //subtotal
-        $paymentDetail[] = [
-            'name'          => 'Total:',
-            "is_discount"   => 0,
-            'amount'        => MyHelper::requestNumber($result['subtotal'],'_CURRENCY')
-        ];
-
-        if (!empty($result['tax'])) {
-            $paymentDetail[] = [
-                'name'          => 'Tax:',
-                "is_discount"   => 0,
-                'amount'        => MyHelper::requestNumber((int) $result['tax'],'_CURRENCY')
-            ];
-        }
-
-        if ((!empty($result['promo_deals']) && !$result['promo_deals']['is_error'])
-        	|| (!empty($result['promo_code']) && !$result['promo_code']['is_error'])
-    	) {
-    		$paymentDetail[] = [
-                'name'          => 'Promo / Discount:',
-                "is_discount"   => 0,
-                'amount'        => null
-            ];
-
-	        if (!empty($result['promo_deals'])) {
-	            $paymentDetail[] = [
-	                'name'          => $result['promo_deals']['title'],
-	                "is_discount"   => 1,
-	                'amount'        => MyHelper::requestNumber((int) $result['promo_deals']['discount'] ?: $result['promo_deals']['discount_delivery'],'_CURRENCY')
-	            ];
-	        }
-
-	        if (!empty($result['promo_code'])) {
-	            $paymentDetail[] = [
-	                'name'          => $result['promo_code']['title'],
-	                "is_discount"   => 1,
-	                'amount'        => MyHelper::requestNumber((int) $result['promo_code']['discount'] ?: $result['promo_code']['discount_delivery'],'_CURRENCY')
-	            ];
-	        }
-        }
-
-        return $paymentDetail;
     }
 }

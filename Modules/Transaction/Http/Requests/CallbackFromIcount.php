@@ -1,3 +1,4 @@
+@@ -0,0 +1,67 @@
 <?php
 
 namespace Modules\Transaction\Http\Requests;
@@ -13,7 +14,9 @@ class CallbackFromIcount extends FormRequest
     {
         return [
             'PurchaseInvoiceID'    => 'required|cek',
-            'status'                => 'required|status'
+            'status'               => 'required|status',
+            'date_disburse'        => 'required|date_format:Y-m-d H:i:s',
+            'signature'            => 'required|signature'
            ]; 
     }
     public function withValidator($validator)
@@ -30,12 +33,22 @@ class CallbackFromIcount extends FormRequest
              return true; 
          } return false;
         }); 
+        $validator->addExtension('signature', function ($attribute, $value, $parameters, $validator) {
+              $request = $validator->getData();
+              if(isset($request['PurchaseInvoiceID'])&&isset($request['status'])&&isset($request['date_disburse'])){
+              $enkrip = hash_hmac('sha256', $request['PurchaseInvoiceID'].$request['status'].$request['date_disburse'], true);
+              if($enkrip == $value){
+                    return true; 
+              }
+           }return false;
+        }); 
     }
     public function messages()
     {
         return [
             'cek' => 'Invalid PurchaseInvoiceID or PurchaseInvoiceID status already in proccess',
             'status' => "Invalid status, status must be Success or Fail",
+            'signature' => 'Signature doesnt match'
         ];
     }
     public function authorize()

@@ -29,6 +29,20 @@ return [
         'logo'            => env('STORAGE_URL_API').'default_image/payment_method/ic_banktransfer.png',
         'text'            => 'Bank Transfer'
     ],
+    'midtrans_akulaku'    => [
+        'payment_gateway' => 'Midtrans',
+        'payment_method'  => 'akulaku',
+        'status'          => 1,
+        'logo'            => env('STORAGE_URL_API').'default_image/payment_method/ic_akulaku.png',
+        'text'            => 'Akulaku'
+    ],
+    'midtrans_qris'    => [
+        'payment_gateway' => 'Midtrans',
+        'payment_method'  => 'shopeepay-qris',
+        'status'          => 1,
+        'logo'            => env('STORAGE_URL_API').'default_image/payment_method/ic_shopeepay-qris.png',
+        'text'            => 'ShopeePay/e-Wallet Lainnya'
+    ],
     'ipay88_cc'      => [
         'payment_gateway' => 'Ipay88',
         'payment_method'  => 'Credit Card',

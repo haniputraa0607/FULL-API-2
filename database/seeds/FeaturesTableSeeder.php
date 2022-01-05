@@ -4227,6 +4227,26 @@ class FeaturesTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00')
                 ),
+            422 =>
+                array (
+                    'feature_module' => 'Setting Global Commission',
+                    'feature_type' => 'List',
+                    'id_feature' => 423,
+                    'order' => 151,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            423 =>
+                array (
+                    'feature_module' => 'Setting Salary Formula',
+                    'feature_type' => 'List',
+                    'id_feature' => 424,
+                    'order' => 151,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
         ));
         
         

@@ -260,6 +260,7 @@ class ApiMitraOutletService extends Controller
 		$scheduleTime = date('H:i', strtotime($scheduleTime));
 
 		$res = [
+			'id_transaction' => $queue['id_transaction'],
 			'id_transaction_product_service' => $queue['id_transaction_product_service'],
 			'order_id' => $queue['order_id'] ?? null,
 			'transaction_receipt_number' => $queue['transaction_receipt_number'] ?? null,

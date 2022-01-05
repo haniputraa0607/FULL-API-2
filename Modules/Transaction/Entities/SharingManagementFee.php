@@ -14,6 +14,7 @@ class SharingManagementFee extends \App\Http\Models\Template\TransactionService
 		'id_partner',
                 'type',
                 'PurchaseInvoiceID',
+                'date_disburse',
                 'status',
 		'start_date',
 		'end_date',

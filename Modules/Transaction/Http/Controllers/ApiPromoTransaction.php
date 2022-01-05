@@ -116,7 +116,9 @@ class ApiPromoTransaction extends Controller
                 'url_deals_image' => $var['deal_voucher']['deal']['url_deals_image'],
                 'is_used' => $var['is_used'],
                 'date_expired_indo' => MyHelper::adjustTimezone($var['voucher_expired_at'], $user->user_time_zone_utc ?? 7, 'd F Y', true),
-                'time_expired_indo' => 'pukul '.date('H:i', strtotime($var['voucher_expired_at']))
+                'time_expired_indo' => 'pukul '.date('H:i', strtotime($var['voucher_expired_at'])),
+                'text' => null,
+				'is_error' => false
             ];
         }, $voucher);
         
@@ -180,6 +182,9 @@ class ApiPromoTransaction extends Controller
     	if ($scopeUser != 'web-apps') {
     		$userPromo = UserPromo::where('id_user', $user->id)->get()->keyBy('promo_type');
     	}
+
+    	$data['discount'] = 0;
+		$data['discount_delivery'] = 0;
 
     	if (isset($userPromo['deals'])) {
     		$this->createSharedPromoTrx($data);
@@ -246,11 +251,7 @@ class ApiPromoTransaction extends Controller
 		$dataTrx['total_payment'] = $dataTrx['grandtotal'] - ($dataTrx['used_point'] ?? 0);
 
 		$promoGetPoint = app($this->online_trx)->checkPromoGetPoint($promoCashback);
-        if ($promoGetPoint) {
-			$earnedPoint = app($this->online_trx)->countTranscationPoint($dataTrx, $user);
-	        $cashback = $earnedPoint['cashback'] ?? 0;
-			$dataTrx['cashback'] = $cashback;
-        } else {
+        if (!$promoGetPoint) {
 			$dataTrx['cashback'] = 0;
         }
 
@@ -959,8 +960,8 @@ class ApiPromoTransaction extends Controller
     	$sharedPromoTrx['items'] = $promoItems;
     	$sharedPromoTrx['subtotal'] = $dataTrx['subtotal'] ?? $dataTrx['transaction_subtotal'];
     	$sharedPromoTrx['tax'] = $dataTrx['tax'] ?? $dataTrx['transaction_tax'];
-    	$sharedPromoTrx['service'] = $dataTrx['service'] ?? $dataTrx['transaction_service'] ?? null;
-    	$sharedPromoTrx['cashback'] = $dataTrx['cashback'] ?? $dataTrx['transaction_cashback_earned'];
+    	$sharedPromoTrx['service'] = $dataTrx['service'] ?? $dataTrx['transaction_service'] ?? 0;
+    	$sharedPromoTrx['cashback'] = $dataTrx['cashback'] ?? $dataTrx['transaction_cashback_earned'] ?? 0;
     	$sharedPromoTrx['grandtotal'] = $dataTrx['grandtotal'] ?? $dataTrx['transaction_grandtotal'];
 
     	return true;

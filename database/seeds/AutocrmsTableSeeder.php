@@ -2882,9 +2882,69 @@ Message :
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s')
                 ),
-            91 =>
+           91 =>
                 array (
                     'id_autocrm' => 92,
+                    'autocrm_type' => 'Response',
+                    'autocrm_trigger' => 'Daily',
+                    'autocrm_cron_reference' => NULL,
+                    'autocrm_title' => 'Approve Day Off User Academy',
+                    'autocrm_email_toogle' => '1',
+                    'autocrm_sms_toogle' => '0',
+                    'autocrm_push_toogle' => '1',
+                    'autocrm_inbox_toogle' => '1',
+                    'autocrm_forward_toogle' => '0',
+                    'autocrm_email_subject' => 'aa %schedule_old% %schedule_new%',
+                    'autocrm_email_content' => '<p>%schedule_old%%schedule_new%<br></p>',
+                    'autocrm_sms_content' => NULL,
+                    'autocrm_push_subject' => 'Approve Day Off',
+                    'autocrm_push_content' => 'Disetujui',
+                    'autocrm_push_image' => NULL,
+                    'autocrm_push_clickto' => 'Home',
+                    'autocrm_push_link' => NULL,
+                    'autocrm_push_id_reference' => NULL,
+                    'autocrm_inbox_subject' => 'Approve Day Off',
+                    'autocrm_inbox_content' => '<p>Disetujui<br></p>',
+                    'autocrm_forward_email' => NULL,
+                    'autocrm_forward_email_subject' => NULL,
+                    'autocrm_forward_email_content' => NULL,
+                    'custom_text_replace'=>'%schedule_old%;%schedule_new%;',
+                    'created_at' => '2021-09-16 15:21:17',
+                    'updated_at' => '2021-09-16 15:21:17',
+                ),
+            92 =>
+                array (
+                    'id_autocrm' => 93,
+                    'autocrm_type' => 'Response',
+                    'autocrm_trigger' => 'Daily',
+                    'autocrm_cron_reference' => NULL,
+                    'autocrm_title' => 'Reject Day Off User Academy',
+                    'autocrm_email_toogle' => '1',
+                    'autocrm_sms_toogle' => '0',
+                    'autocrm_push_toogle' => '1',
+                    'autocrm_inbox_toogle' => '1',
+                    'autocrm_forward_toogle' => '0',
+                    'autocrm_email_subject' => 'aa',
+                    'autocrm_email_content' => '<p>aa</p>',
+                    'autocrm_sms_content' => NULL,
+                    'autocrm_push_subject' => 'Reject Day Off',
+                    'autocrm_push_content' => 'Tidak bisa mengubah jadwal',
+                    'autocrm_push_image' => NULL,
+                    'autocrm_push_clickto' => 'Home',
+                    'autocrm_push_link' => NULL,
+                    'autocrm_push_id_reference' => NULL,
+                    'autocrm_inbox_subject' => 'Reject Day Off',
+                    'autocrm_inbox_content' => '<p>Tidak bisa mengubah jadwal<br></p>',
+                    'autocrm_forward_email' => NULL,
+                    'autocrm_forward_email_subject' => NULL,
+                    'autocrm_forward_email_content' => NULL,
+                    'custom_text_replace'=>'%schedule_old%;%schedule_new%;',
+                    'created_at' => '2021-09-16 15:21:17',
+                    'updated_at' => '2021-09-16 15:21:17',
+                ),
+            93 =>
+                array (
+                    'id_autocrm' => 94,
                     'autocrm_type' => 'Response',
                     'autocrm_trigger' => 'Daily',
                     'autocrm_cron_reference' => NULL,
@@ -2912,9 +2972,9 @@ Message :
                     'created_at' => '2021-09-16 15:21:17',
                     'updated_at' => '2021-09-16 15:21:17',
                 ),
-            92 =>
+            94 =>
                 array (
-                    'id_autocrm' => 93,
+                    'id_autocrm' => 95,
                     'autocrm_type' => 'Response',
                     'autocrm_trigger' => 'Daily',
                     'autocrm_cron_reference' => NULL,
@@ -2942,9 +3002,9 @@ Message :
                     'created_at' => '2021-09-16 15:21:17',
                     'updated_at' => '2021-09-16 15:21:17',
                 ),
-            93 =>
+            95 =>
                 array (
-                    'id_autocrm' => 94,
+                    'id_autocrm' => 96,
                     'autocrm_type' => 'Response',
                     'autocrm_trigger' => 'Daily',
                     'autocrm_cron_reference' => NULL,
@@ -2971,10 +3031,10 @@ Message :
                     'custom_text_replace'=>'%pin%;',
                     'created_at' => '2021-09-16 15:21:17',
                     'updated_at' => '2021-09-16 15:21:17',
-                ),
-            94 =>
+                ), 
+            96 =>
                 array (
-                    'id_autocrm' => 95,
+                    'id_autocrm' => 97,
                     'autocrm_type' => 'Response',
                     'autocrm_trigger' => 'Daily',
                     'autocrm_cron_reference' => NULL,

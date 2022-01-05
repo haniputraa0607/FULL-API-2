@@ -240,7 +240,7 @@ class ApiPromoTransaction extends Controller
     	}
     	$user = request()->user();
     	$promoCashback = ($dataDiscount['promo_source'] == 'deals') ? 'voucher_online' : 'promo_code';
-    	$discount = (int) abs($dataDiscount['discount'] ?? $dataDiscount['discount_delivery']);
+    	$discount = (int) abs($dataDiscount['discount'] ?? 0) ?: ($dataDiscount['discount_delivery'] ?? 0);
     	$sharedPromo = $this->getSharedPromoTrx();
 		$outlet = OUtlet::find($sharedPromo['id_outlet']);
 		$dataTrx['subtotal'] = $sharedPromo['subtotal'];
@@ -858,7 +858,37 @@ class ApiPromoTransaction extends Controller
 
     public function deliveryDiscount($promoSource, $promoQuery, $data)
     {
-    	return $this->failResponse('Promo belum tersedia');
+    	$promo 			= $promoQuery;
+    	$pct 			= new PromoCampaignTools;
+    	$promo_rules 	= $promo->{$promoSource . '_discount_delivery_rules'};
+		$promo_brand 	= $promo->{$promoSource . '_brands'}->pluck('id_brand')->toArray();
+		$shared_promo 	= TemporaryDataManager::create('promo_trx');
+		$delivery_fee 	= $shared_promo['shipping'];
+		$discount 		= 0;
+
+		$discount_type	= $promo_rules->discount_type;
+		$discount_value	= $promo_rules->discount_value;
+		$discount_max	= $promo_rules->max_percent_discount;
+
+		if ($promo_rules) {
+	    	if ($discount_type == 'Percent') {
+				$discount = ($delivery_fee * $discount_value) /100;
+				if (!empty($discount_max) && $discount > $discount_max) {
+					$discount = $discount_max;
+				}
+			} else {
+				if ($discount_value < $delivery_fee) {
+					$discount = $discount_value;
+				} else {
+					$discount = $delivery_fee;
+				}
+			}
+		}
+
+		return MyHelper::checkGet([
+			'discount_delivery'	=> $discount,
+			'promo_type'=> $promo->promo_type
+		]);
     }
 
     public function discountPerItem(&$item, $promo_rules){
@@ -959,6 +989,7 @@ class ApiPromoTransaction extends Controller
 
     	$sharedPromoTrx['items'] = $promoItems;
     	$sharedPromoTrx['subtotal'] = $dataTrx['subtotal'] ?? $dataTrx['transaction_subtotal'];
+    	$sharedPromoTrx['shipping'] = $dataTrx['shipping'] ?? $dataTrx['transaction_shipment'] ?? 0;
     	$sharedPromoTrx['tax'] = $dataTrx['tax'] ?? $dataTrx['transaction_tax'];
     	$sharedPromoTrx['service'] = $dataTrx['service'] ?? $dataTrx['transaction_service'] ?? 0;
     	$sharedPromoTrx['cashback'] = $dataTrx['cashback'] ?? $dataTrx['transaction_cashback_earned'] ?? 0;

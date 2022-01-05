@@ -3079,6 +3079,9 @@ class ApiPromoCampaign extends Controller
     	$shipment_text = null;
     	if (!empty($query[$source.'_shipment_method']) && $query['is_all_shipment'] != 1) {
     		$online_trx = app($this->online_transaction);
+    		if (!is_array($query)) {
+    			$query = $query->toArray();
+    		}
     		$shipment_list = array_column($query[$source.'_shipment_method'], 'shipment_method');
 
     		$shipment_list = array_flip($shipment_list);

@@ -55,14 +55,15 @@ class ApiTransactionHomeService extends Controller
         ini_set('max_execution_time', 0);
         date_default_timezone_set('Asia/Jakarta');
 
-        $this->product      = "Modules\Product\Http\Controllers\ApiProductController";
-        $this->online_trx      = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
+        $this->product       = "Modules\Product\Http\Controllers\ApiProductController";
+        $this->online_trx    = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
         $this->setting_trx   = "Modules\Transaction\Http\Controllers\ApiSettingTransactionV2";
         $this->balance       = "Modules\Balance\Http\Controllers\BalanceController";
         $this->membership    = "Modules\Membership\Http\Controllers\ApiMembership";
         $this->autocrm       = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
         $this->transaction   = "Modules\Transaction\Http\Controllers\ApiTransaction";
-        $this->outlet       = "Modules\Outlet\Http\Controllers\ApiOutletController";
+        $this->outlet        = "Modules\Outlet\Http\Controllers\ApiOutletController";
+        $this->promo_trx 	 = "Modules\Transaction\Http\Controllers\ApiPromoTransaction";
     }
 
     public function cart(Request $request){
@@ -504,29 +505,62 @@ class ApiTransactionHomeService extends Controller
         $balance = app($this->balance)->balanceNow($user->id);
         $result['points'] = (int) $balance;
         $result['total_payment'] = $result['grandtotal'];
+        $result['tax'] = $post['tax'];
+        $result['service'] = $post['service'] ?? 0;
 
         $earnedPoint = app($this->online_trx)->countTranscationPoint($post, $user);
-        $cashback = $earnedPoint['cashback'] ?? 0;
-        if ($cashback) {
-            $result['point_earned'] = [
-                'value' => MyHelper::requestNumber($cashback, '_CURRENCY'),
-                'text' => MyHelper::setting('cashback_earned_text', 'value', 'Point yang akan didapatkan')
-            ];
-        }
+        $result['cashback'] = $earnedPoint['cashback'] ?? 0;
 
+        $result['currency'] = 'Rp';
         $result['payment_detail'] = [];
-        if(!empty($outlet['is_tax'])) {
-            $result['payment_detail'][] = [
-                'name' => 'Tax',
-                "is_discount" => 0,
-                'amount' => MyHelper::requestNumber((int)$post['tax'], '_CURRENCY')
-            ];
-        }
-
+        $result['point_earned'] = null;
         $result['currency'] = 'Rp';
         $result['complete_profile'] = (empty($user->complete_profile) ?false:true);
         $result['continue_checkout'] = $continueCheckOut;
         $result['messages_all'] = (empty($errAll)? null:implode(".", array_unique($errAll)));
+
+        $result = app($this->promo_trx)->applyPromoCheckout($result);
+
+        if ($result['cashback']) {
+            $result['point_earned'] = [
+                'value' => MyHelper::requestNumber($result['cashback'], '_CURRENCY'),
+                'text' => MyHelper::setting('cashback_earned_text', 'value', 'Point yang akan didapatkan')
+            ];
+        }
+
+        if ((!empty($result['promo_deals']) && !$result['promo_deals']['is_error'])
+        	|| (!empty($result['promo_code']) && !$result['promo_code']['is_error'])
+    	) {
+    		$result['payment_detail'][] = [
+                'name'          => 'Promo / Discount:',
+                "is_discount"   => 0,
+                'amount'        => null
+            ];
+
+	        if (!empty($result['promo_deals'])) {
+	            $result['payment_detail'][] = [
+	                'name'          => $result['promo_deals']['title'],
+	                "is_discount"   => 1,
+	                'amount'        => MyHelper::requestNumber((int) $result['promo_deals']['discount'] ?: $result['promo_deals']['discount_delivery'],'_CURRENCY')
+	            ];
+	        }
+
+	        if (!empty($result['promo_code'])) {
+	            $result['payment_detail'][] = [
+	                'name'          => $result['promo_code']['title'],
+	                "is_discount"   => 1,
+	                'amount'        => MyHelper::requestNumber((int) $result['promo_code']['discount'] ?: $result['promo_code']['discount_delivery'],'_CURRENCY')
+	            ];
+	        }
+        }
+
+        if(!empty($outlet['is_tax'])) {
+            $result['payment_detail'][] = [
+                'name' => 'Tax:',
+                "is_discount" => 0,
+                'amount' => MyHelper::requestNumber((int)$post['tax'], '_CURRENCY')
+            ];
+        }
 
         $fake_request = new Request(['show_all' => 1]);
         $result['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
@@ -903,6 +937,14 @@ class ApiTransactionHomeService extends Controller
                 'messages'  => ['Insert Product Transaction Failed']
             ]);
         }
+
+        $applyPromo = app($this->promo_trx)->applyPromoNewTrx($insertTransaction);
+        if ($applyPromo['status'] == 'fail') {
+        	DB::rollback();
+            return $applyPromo;
+        }
+
+        $insertTransaction = $applyPromo['result'] ?? $insertTransaction;
 
         DB::commit();
         if(!empty($arrHs)){

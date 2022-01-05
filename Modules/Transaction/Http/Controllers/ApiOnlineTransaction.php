@@ -4780,14 +4780,14 @@ class ApiOnlineTransaction extends Controller
 
         //subtotal
         $paymentDetail[] = [
-            'name'          => 'Total',
+            'name'          => 'Total:',
             "is_discount"   => 0,
             'amount'        => MyHelper::requestNumber($result['subtotal'],'_CURRENCY')
         ];
 
         if (!empty($result['tax'])) {
             $paymentDetail[] = [
-                'name'          => 'Tax',
+                'name'          => 'Tax:',
                 "is_discount"   => 0,
                 'amount'        => MyHelper::requestNumber((int) $result['tax'],'_CURRENCY')
             ];
@@ -4797,7 +4797,7 @@ class ApiOnlineTransaction extends Controller
         	|| (!empty($result['promo_code']) && !$result['promo_code']['is_error'])
     	) {
     		$paymentDetail[] = [
-                'name'          => 'Promo / Discount',
+                'name'          => 'Promo / Discount:',
                 "is_discount"   => 0,
                 'amount'        => null
             ];

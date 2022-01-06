@@ -29,9 +29,12 @@ class ApiFeaturedDeal extends Controller
     }
 
 
-    public function create(CreateRequest $request)
+    public function create(Request $request)
     {
-        $post=$request->except('_token');
+		$post = $request->except('_token');
+		$post['start_date'] = date('Y-m-d H:i:s', strtotime($post['start_date']));
+		$post['end_date'] = date('Y-m-d H:i:s', strtotime($post['end_date']));
+
         $create = FeaturedDeal::create($post);
 
         return response()->json(MyHelper::checkCreate($create));

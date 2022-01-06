@@ -10,7 +10,7 @@ use Modules\Product\Entities\RequestProductDetail;
 use Modules\Product\Entities\DeliveryProduct;
 use Modules\Product\Entities\DeliveryProductDetail;
 use Modules\Product\Entities\DeliveryRequestProduct;
-
+use App\Http\Models\User;
 use DB;
 use App\Lib\MyHelper;
 use Modules\Product\Entities\DeliveryProductImage;
@@ -45,11 +45,14 @@ class ApiMitraRequestProductController extends Controller
                         ->with('delivery_product_detail')
                         ->select(
                             'delivery_products.id_delivery_product',
-                            'delivery_products.code as kode_pengiriman',
-                            'delivery_products.type as jenis_stok',
-                            'delivery_products.delivery_date as tanggal_dikirim',
-                            'delivery_products.confirmation_date as tanggal_dikonfirmasi'
+                            'delivery_products.code as delivery_code',
+                            'delivery_products.type as stock_type',
+                            'delivery_products.delivery_date as date_delivered'
                         );
+
+        if($status=='Completed'){
+            $delivery_product = $delivery_product->addSelect('delivery_products.confirmation_date as date_confirmed');
+        }
 
         if(isset($post['code'])){
             // return ['as'];
@@ -101,7 +104,7 @@ class ApiMitraRequestProductController extends Controller
             foreach($value['delivery_product_detail'] as $item){
                 $count = $count + $item['value'];
             }
-            $value['total_jumlah_barang'] = $count;
+            $value['total_items'] = $count;
             unset($value['delivery_product_detail']);
             return $value;
         },$delivery_map);
@@ -163,11 +166,16 @@ class ApiMitraRequestProductController extends Controller
                             ->with('delivery_product_detail')
                             ->select(
                                 'delivery_products.id_delivery_product',
-                            'delivery_products.code as kode_pengiriman',
-                            'delivery_products.type as jenis_stok',
-                            'delivery_products.delivery_date as tanggal_dikirim',
-                            'delivery_products.confirmation_date as tanggal_dikonfirmasi'
-                            )->first();   
+                                'delivery_products.code as delivery_code',
+                                'delivery_products.type as stock_type',
+                                'delivery_products.delivery_date as date_delivered'
+                            );   
+                 
+                            if($status=='Completed'){
+                                $delivery_product = $delivery_product->addSelect('delivery_products.confirmation_date as date_confirmed')->first();
+                            }else{
+                                $delivery_product = $delivery_product->first();
+                            }
 
             if($delivery_product){
 
@@ -176,7 +184,7 @@ class ApiMitraRequestProductController extends Controller
                     foreach($value['delivery_product_detail'] as $item){
                         $count = $count + $item['value'];
                     }
-                    $value['total_jumlah_barang'] = $count;
+                    $value['total_items'] = $count;
                     unset($value['delivery_product_detail']);
                     return $value;
                 },array($delivery_product))[0];
@@ -208,8 +216,8 @@ class ApiMitraRequestProductController extends Controller
                         foreach ($products[0]['delivery_product']['delivery_product_detail'] as $detail) {
                             $delivery[$dev] = [
                                 "id_product_icount" => $detail['delivery_product_icount']['id_product_icount'],
-                                "barang" => $detail['delivery_product_icount']['name'],
-                                "datang" => $detail['value'],
+                                "product_name" => $detail['delivery_product_icount']['name'],
+                                "delivered" => $detail['value'],
                             ];
                             $dev++;
                         }
@@ -219,10 +227,10 @@ class ApiMitraRequestProductController extends Controller
                             foreach ($product['request_product']['request_product_detail'] as $detail) {
                                 $new_products[$new_pro] = [
                                     "id_product_icount" => $detail['request_product_icount']['id_product_icount'],
-                                    "barang" => $detail['request_product_icount']['name'],
+                                    "product_name" => $detail['request_product_icount']['name'],
                                     "unit" => $detail['unit'],
-                                    "jumlah" => $detail['value'],
-                                    "datang" => 0,
+                                    "requested" => $detail['value'],
+                                    "delivered" => 0,
                                     "status" => "Kurang"
                                 ];
                                 $new_pro++;
@@ -231,13 +239,13 @@ class ApiMitraRequestProductController extends Controller
                     }
                     foreach($new_products as $key => $new_product){
                         foreach($new_products as $key2 => $cek){
-                            if($new_product['barang'] == $cek['barang'] && $key < $key2){
+                            if($new_product['product_name'] == $cek['product_name'] && $key < $key2){
                                 $new_products[$key] = [
                                     "id_product_icount" => $new_product['id_product_icount'],
-                                    "barang" => $new_product['barang'],
+                                    "product_name" => $new_product['product_name'],
                                     "unit" => $new_product['unit'],
-                                    "jumlah" => $new_products[$key]['jumlah']+$cek['jumlah'],
-                                    "datang" => 0,
+                                    "requested" => $new_products[$key]['requested']+$cek['requested'],
+                                    "delivered" => 0,
                                     "status" => "Kurang"
                                 ];
                                 unset($new_products[$key2]);
@@ -246,9 +254,9 @@ class ApiMitraRequestProductController extends Controller
                     }
                     foreach($new_products as $key => $new_product){
                         foreach($delivery as $dev => $deliv){
-                            if($new_product['barang'] == $deliv['barang']){
-                                $new_products[$key]['datang'] = $deliv['datang'];
-                                if($new_product['jumlah'] <= $deliv['datang']){
+                            if($new_product['product_name'] == $deliv['product_name']){
+                                $new_products[$key]['delivered'] = $deliv['delivered'];
+                                if($new_product['requested'] <= $deliv['delivered']){
                                     $new_products[$key]['status'] = 'Lengkap';
                                 }
                             }
@@ -257,8 +265,7 @@ class ApiMitraRequestProductController extends Controller
                     $delivery_product['detail'] = $new_products;
                     if($status=='Completed'){
                         $delivery_product['detail'] = array_map(function($value){
-                            $value['jumlah'] = $value['datang'];
-                            unset($value['datang']);
+                            unset($value['requested']);
                             return $value;
                         },$delivery_product['detail']);
                     }
@@ -316,7 +323,7 @@ class ApiMitraRequestProductController extends Controller
             if($post['detail']){
                 foreach($post['detail'] as $key => $product){
                     $product_icount = new ProductIcount();
-                    $update_stock = $product_icount->find($product['id_product_icount'])->addLogStockProductIcount($product['datang'],$product['unit'],'Delivery Product',$post['id_delivery_product']);
+                    $update_stock = $product_icount->find($product['id_product_icount'])->addLogStockProductIcount($product['delivered'],$product['unit'],'Delivery Product',$post['id_delivery_product']);
                 }
             }
 
@@ -326,7 +333,22 @@ class ApiMitraRequestProductController extends Controller
                 return response()->json(['status' => 'fail', 'messages' => ['Failed to confirm delivery product']]);
             }
             DB::commit();
-
+            if($store_request['status']!='Pending'){
+                if (\Module::collections()->has('Autocrm')) {
+                
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Confirmation Delivery Product',
+                        User::first()->phone,
+                    );
+                    // return $autocrm;
+                    if (!$autocrm) {
+                        return response()->json([
+                            'status'    => 'fail',
+                            'messages'  => ['Failed to send']
+                        ]);
+                    }
+                }
+            }
             return response()->json(['status' => 'success']);
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);

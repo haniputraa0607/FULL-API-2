@@ -165,7 +165,9 @@ class ApiMitraRequestProductController extends Controller
                             ->where('delivery_products.id_outlet',$id_outlet)
                             ->where('delivery_products.status','=',$status)
                             ->where('delivery_products.id_delivery_product', $post['id_delivery_product'])
-                            ->with('delivery_product_images')
+                            ->with(['delivery_product_images' => function($query) {
+                                    $query->select('id_delivery_product','path');
+                                }])
                             ->with('delivery_product_detail')
                             ->select(
                                 'delivery_products.id_delivery_product',
@@ -266,11 +268,14 @@ class ApiMitraRequestProductController extends Controller
                         }
                     }
                     $delivery_product['detail'] = $new_products;
+
                     if($status=='Completed'){
                         $delivery_product['detail'] = array_map(function($value){
                             unset($value['requested']);
                             return $value;
                         },$delivery_product['detail']);
+                    }else{
+                        unset($delivery_product['delivery_product_images']);
                     }
                 }else{
                     $delivery_product['detail'] = [];
@@ -299,26 +304,31 @@ class ApiMitraRequestProductController extends Controller
                 $update['confirmation_note'] = $post['note'];
             }
 
-            if(isset($post['images'])){
+            if(isset($post['total_attachment'])){
                 DB::beginTransaction();
                 $delete_image = DeliveryProductImage::where('id_delivery_product',$post['id_delivery_product'])->delete();
-                foreach($post['images'] as $key => $image){
-                    $name_file = 'attachment_'.$post['id_delivery_product'].'_'.$key;
-                    $path_full = $this->deliv_path.$name_file;
-                    $delete_path = MyHelper::deletePhoto($path_full);
-                    $upload = MyHelper::uploadPhoto($image, $this->deliv_path, null, $name_file);
-                    if (isset($upload['status']) && $upload['status'] == "success") {
-                        $save_image = [
-                            "id_delivery_product" => $post['id_delivery_product'],
-                            "path"                => $upload['path']
-                        ];
-                        $storage_image = DeliveryProductImage::create($save_image);
-                    }else {
-                        DB::rollback();
-                        return response()->json([
-                            'status'=>'fail',
-                            'messages'=>['Failed to confirm delivery product']
-                        ]);
+
+                $files = [];
+                for($i=0;$i<$post['total_attachment'];$i++){
+                    if(!empty($request->file('attachment_'.$i))){
+                        $encode = base64_encode(fread(fopen($request->file('attachment_'.$i), "r"), filesize($request->file('attachment_'.$i))));
+                        $name_file = 'attachment_'.$post['id_delivery_product'].'_'.$i;
+                        $path_full = $this->deliv_path.$name_file;
+                        $delete_path = MyHelper::deletePhoto($path_full);
+                        $upload = MyHelper::uploadPhoto($encode, $this->deliv_path, null, $name_file);
+                        if (isset($upload['status']) && $upload['status'] == "success") {
+                            $save_image = [
+                                "id_delivery_product" => $post['id_delivery_product'],
+                                "path"                => $upload['path']
+                            ];
+                            $storage_image = DeliveryProductImage::create($save_image);
+                        }else {
+                            DB::rollback();
+                            return response()->json([
+                                'status'=>'fail',
+                                'messages'=>['Failed to confirm delivery product']
+                            ]);
+                        }
                     }
                 }
             }

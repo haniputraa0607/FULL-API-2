@@ -210,7 +210,7 @@ Route::group(['prefix' => 'api/dev-product','middleware' => ['log_activities','a
 
 Route::group(['prefix' => 'api/mitra/req-product','middleware' => ['log_activities','user_agent','auth:mitra', 'scopes:mitra-apps'], 'namespace' => 'Modules\Product\Http\Controllers'], function(){
     // Route::post('{history}', 'ApiMitraRequestProductController@index');
-    Route::post('detail', 'ApiMitraRequestProductController@show');
+    Route::post('detail/{type?}', 'ApiMitraRequestProductController@show');
     Route::post('confirm', 'ApiMitraRequestProductController@confirm');
     Route::post('/{type?}', 'ApiMitraRequestProductController@index');
 });

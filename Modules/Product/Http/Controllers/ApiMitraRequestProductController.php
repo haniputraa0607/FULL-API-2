@@ -142,15 +142,22 @@ class ApiMitraRequestProductController extends Controller
      * @param int $id
      * @return Response
      */
-    public function show(Request $request)
+    public function show(Request $request, $type = null)
     {
         $post = $request->all();
+        
+        if($type){
+            $status = 'Completed';
+        }else{
+            $status = 'On Progress';
+        }
+
         if (isset($post['id_delivery_product']) && !empty($post['id_delivery_product'])) {
             $id_outlet =  auth()->user()->id_outlet;
 
             $delivery_product = DeliveryProduct::join('delivery_product_details','delivery_product_details.id_delivery_product','=','delivery_products.id_delivery_product')
                             ->where('delivery_products.id_outlet',$id_outlet)
-                            // ->where('delivery_products.status','=','On Progress')
+                            ->where('delivery_products.status','=',$status)
                             ->where('delivery_products.id_delivery_product', $post['id_delivery_product'])
                             ->with('delivery_product_images')
                             ->with('delivery_product_detail')
@@ -160,94 +167,104 @@ class ApiMitraRequestProductController extends Controller
                             'delivery_products.type as jenis_stok',
                             'delivery_products.delivery_date as tanggal_dikirim',
                             'delivery_products.confirmation_date as tanggal_dikonfirmasi'
-                            )->first();
+                            )->first();   
 
-            $delivery_product = array_map(function($value){
-                $count = 0;
-                foreach($value['delivery_product_detail'] as $item){
-                    $count = $count + $item['value'];
-                }
-                $value['total_jumlah_barang'] = $count;
-                unset($value['delivery_product_detail']);
-                return $value;
-            },array($delivery_product))[0];   
+            if($delivery_product){
 
-            if($delivery_product['id_delivery_product']){
-                $products = DeliveryRequestProduct::with(['delivery_product' => function($query) {
-                                $query->select('id_delivery_product');
-                                $query->with(['delivery_product_detail' => function($query) {
-                                    $query->where('status','Approved');
-                                    $query->with(['delivery_product_icount' => function($query){
-                                            $query->select('id_product_icount','name');
-                                    }]);
-                                }]);
-                            }])
-                            ->with(['request_product' => function($query) {
-                                $query->select('id_request_product');
-                                $query->with(['request_product_detail' => function($query) {
-                                    $query->where('status','Approved');
-                                    $query->with(['request_product_icount' => function($query){
-                                            $query->select('id_product_icount','name');
-                                    }]);
-                                }]);
-                            }])
-                            ->where('id_delivery_product',$post['id_delivery_product'])->get()->toArray();
-                
-                $new_pro = 0;
-                $dev = 0;
-                if ($products[0]['delivery_product']) {
-                    foreach ($products[0]['delivery_product']['delivery_product_detail'] as $detail) {
-                        $delivery[$dev] = [
-                            "id_product_icount" => $detail['delivery_product_icount']['id_product_icount'],
-                            "name" => $detail['delivery_product_icount']['name'],
-                            "delivery" => $detail['value'],
-                        ];
-                        $dev++;
+                $delivery_product = array_map(function($value){
+                    $count = 0;
+                    foreach($value['delivery_product_detail'] as $item){
+                        $count = $count + $item['value'];
                     }
-                }
-                foreach($products as $key => $product){
-                    if($product['request_product']){
-                        foreach ($product['request_product']['request_product_detail'] as $detail) {
-                            $new_products[$new_pro] = [
-                                "id_product_icount" => $detail['request_product_icount']['id_product_icount'],
-                                "name" => $detail['request_product_icount']['name'],
-                                "unit" => $detail['unit'],
-                                "request" => $detail['value'],
-                                "delivery" => 0,
-                                "status" => "Kurang"
+                    $value['total_jumlah_barang'] = $count;
+                    unset($value['delivery_product_detail']);
+                    return $value;
+                },array($delivery_product))[0];
+
+                if($delivery_product['id_delivery_product']){
+                    $products = DeliveryRequestProduct::with(['delivery_product' => function($query) {
+                                    $query->select('id_delivery_product');
+                                    $query->with(['delivery_product_detail' => function($query) {
+                                        $query->where('status','Approved');
+                                        $query->with(['delivery_product_icount' => function($query){
+                                                $query->select('id_product_icount','name');
+                                        }]);
+                                    }]);
+                                }])
+                                ->with(['request_product' => function($query) {
+                                    $query->select('id_request_product');
+                                    $query->with(['request_product_detail' => function($query) {
+                                        $query->where('status','Approved');
+                                        $query->with(['request_product_icount' => function($query){
+                                                $query->select('id_product_icount','name');
+                                        }]);
+                                    }]);
+                                }])
+                                ->where('id_delivery_product',$post['id_delivery_product'])->get()->toArray();
+                    
+                    $new_pro = 0;
+                    $dev = 0;
+                    if ($products[0]['delivery_product']) {
+                        foreach ($products[0]['delivery_product']['delivery_product_detail'] as $detail) {
+                            $delivery[$dev] = [
+                                "id_product_icount" => $detail['delivery_product_icount']['id_product_icount'],
+                                "barang" => $detail['delivery_product_icount']['name'],
+                                "datang" => $detail['value'],
                             ];
-                            $new_pro++;
+                            $dev++;
                         }
                     }
-                }
-                foreach($new_products as $key => $new_product){
-                    foreach($new_products as $key2 => $cek){
-                        if($new_product['name'] == $cek['name'] && $key < $key2){
-                            $new_products[$key] = [
-                                "id_product_icount" => $new_product['id_product_icount'],
-                                "name" => $new_product['name'],
-                                "unit" => $new_product['unit'],
-                                "request" => $new_products[$key]['request']+$cek['request'],
-                                "delivery" => 0,
-                                "status" => "Kurang"
-                            ];
-                            unset($new_products[$key2]);
-                        }
-                    }
-                }
-                foreach($new_products as $key => $new_product){
-                    foreach($delivery as $dev => $deliv){
-                        if($new_product['name'] == $deliv['name']){
-                            $new_products[$key]['delivery'] = $deliv['delivery'];
-                            if($new_product['request'] <= $deliv['delivery']){
-                                $new_products[$key]['status'] = 'Lengkap';
+                    foreach($products as $key => $product){
+                        if($product['request_product']){
+                            foreach ($product['request_product']['request_product_detail'] as $detail) {
+                                $new_products[$new_pro] = [
+                                    "id_product_icount" => $detail['request_product_icount']['id_product_icount'],
+                                    "barang" => $detail['request_product_icount']['name'],
+                                    "unit" => $detail['unit'],
+                                    "jumlah" => $detail['value'],
+                                    "datang" => 0,
+                                    "status" => "Kurang"
+                                ];
+                                $new_pro++;
                             }
                         }
                     }
+                    foreach($new_products as $key => $new_product){
+                        foreach($new_products as $key2 => $cek){
+                            if($new_product['barang'] == $cek['barang'] && $key < $key2){
+                                $new_products[$key] = [
+                                    "id_product_icount" => $new_product['id_product_icount'],
+                                    "barang" => $new_product['barang'],
+                                    "unit" => $new_product['unit'],
+                                    "jumlah" => $new_products[$key]['jumlah']+$cek['jumlah'],
+                                    "datang" => 0,
+                                    "status" => "Kurang"
+                                ];
+                                unset($new_products[$key2]);
+                            }
+                        }
+                    }
+                    foreach($new_products as $key => $new_product){
+                        foreach($delivery as $dev => $deliv){
+                            if($new_product['barang'] == $deliv['barang']){
+                                $new_products[$key]['datang'] = $deliv['datang'];
+                                if($new_product['jumlah'] <= $deliv['datang']){
+                                    $new_products[$key]['status'] = 'Lengkap';
+                                }
+                            }
+                        }
+                    }
+                    $delivery_product['detail'] = $new_products;
+                    if($status=='Completed'){
+                        $delivery_product['detail'] = array_map(function($value){
+                            $value['jumlah'] = $value['datang'];
+                            unset($value['datang']);
+                            return $value;
+                        },$delivery_product['detail']);
+                    }
+                }else{
+                    $delivery_product['detail'] = [];
                 }
-                $delivery_product['detail'] = $new_products;
-            }else{
-                $delivery_product['detail'] = [];
             }
             
             return [
@@ -299,7 +316,7 @@ class ApiMitraRequestProductController extends Controller
             if($post['detail']){
                 foreach($post['detail'] as $key => $product){
                     $product_icount = new ProductIcount();
-                    $update_stock = $product_icount->find($product['id_product_icount'])->addLogStockProductIcount($product['delivery'],$product['unit'],'Delivery Product',$post['id_delivery_product']);
+                    $update_stock = $product_icount->find($product['id_product_icount'])->addLogStockProductIcount($product['datang'],$product['unit'],'Delivery Product',$post['id_delivery_product']);
                 }
             }
 

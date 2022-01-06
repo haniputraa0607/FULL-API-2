@@ -26,6 +26,9 @@ class ApiMitraRequestProductController extends Controller
     public function __construct()
     {
         date_default_timezone_set('Asia/Jakarta');
+        if (\Module::collections()->has('Autocrm')) {
+            $this->autocrm  = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
+        }
         $this->deliv_path = "img/product/delivery_product/";
     }
 
@@ -333,20 +336,18 @@ class ApiMitraRequestProductController extends Controller
                 return response()->json(['status' => 'fail', 'messages' => ['Failed to confirm delivery product']]);
             }
             DB::commit();
-            if($store_request['status']!='Pending'){
-                if (\Module::collections()->has('Autocrm')) {
-                
-                    $autocrm = app($this->autocrm)->SendAutoCRM(
-                        'Confirmation Delivery Product',
-                        User::first()->phone,
-                    );
-                    // return $autocrm;
-                    if (!$autocrm) {
-                        return response()->json([
-                            'status'    => 'fail',
-                            'messages'  => ['Failed to send']
-                        ]);
-                    }
+            if (\Module::collections()->has('Autocrm')) {
+            
+                $autocrm = app($this->autocrm)->SendAutoCRM(
+                    'Confirmation Delivery Product',
+                    User::first()->phone,
+                );
+                // return $autocrm;
+                if (!$autocrm) {
+                    return response()->json([
+                        'status'    => 'fail',
+                        'messages'  => ['Failed to send']
+                    ]);
                 }
             }
             return response()->json(['status' => 'success']);

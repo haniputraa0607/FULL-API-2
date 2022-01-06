@@ -337,6 +337,11 @@ class ApiPromoTransaction extends Controller
     		return $this->failResponse($promoName . ' hanya dapat digunakan untuk transaksi ' . $promoServices);
     	}
     	
+    	$ruleTrx = $this->ruleTrx($promo->promo_type);
+    	if (!in_array($trxFrom, $ruleTrx)) {
+    		return $this->failResponse($promoName . ' tidak dapat digunakan untuk jenis layanan ini');
+    	}
+
     	switch ($trxFrom) {
     		case 'Home Service':
     			$id_outlet = Setting::where('key', 'default_outlet_home_service')->first()['value'] ?? null;
@@ -531,7 +536,7 @@ class ApiPromoTransaction extends Controller
 
 		if ($discount <= 0) {
 			$message = $pct->getMessage('error_product_discount')['value_text'] = 'Promo hanya berlaku jika membeli <b>%product%</b>.'; 
-			$message = MyHelper::simpleReplace($message,['product'=>'produk bertanda khusus']);
+			$message = MyHelper::simpleReplace($message,['product'=>'produk tertentu']);
 
 			return $this->failResponse($message);
 		}
@@ -846,7 +851,7 @@ class ApiPromoTransaction extends Controller
 
 		if ($discount <= 0) {
 			$message = $pct->getMessage('error_product_discount')['value_text'] = 'Promo hanya berlaku jika membeli <b>%product%</b>.'; 
-			$message = MyHelper::simpleReplace($message,['product'=>'produk bertanda khusus']);
+			$message = MyHelper::simpleReplace($message,['product'=>'produk tertentu']);
 			return $this->failResponse($message);;
 		}
 
@@ -1180,5 +1185,18 @@ class ApiPromoTransaction extends Controller
         }
 
         return $paymentDetail;
+    }
+
+    public function ruleTrx($rule)
+    {
+    	$ruleArr = [
+    		'Product discount' => ['Outlet Service','Home Service','Online Shop','Academy'],
+    		'Tier discount' => ['Outlet Service','Home Service','Online Shop'],
+    		// 'Buy X Get Y' => ['Outlet Service','Home Service','Online Shop','Academy'],
+    		'Discount bill' => ['Outlet Service','Home Service','Online Shop','Academy'],
+    		'Discount delivery' => ['Online Shop']
+    	];
+
+    	return $ruleArr[$rule] ?? [];
     }
 }

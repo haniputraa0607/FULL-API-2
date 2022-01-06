@@ -842,7 +842,7 @@ class ApiHome extends Controller
             }
 
             $data_home['text'] = $text;
-            $data_home['featured_list'] = $deals;
+            $data_home['featured_list'] = array_values($deals);
             return [
                 'status'=>'success',
                 'result'=>$data_home
@@ -914,7 +914,7 @@ class ApiHome extends Controller
 
             }
             $data_home['text'] = $text;
-            $data_home['featured_list'] = $featuredList;
+            $data_home['featured_list'] = array_values($featuredList);
             return [
                 'status'=>'success',
                 'result'=> $data_home
@@ -986,7 +986,7 @@ class ApiHome extends Controller
         }
 
         $data_home['text'] = $text;
-        $data_home['featured_list'] = $featuredPromo;
+        $data_home['featured_list'] = array_values($featuredPromo);
         return [
             'status' => 'success',
             'result' => $data_home
@@ -1017,7 +1017,7 @@ class ApiHome extends Controller
         });
 
         $data_home['text'] = $text;
-        $data_home['featured_list'] = $news;
+        $data_home['featured_list'] = array_values($news);
 
         return response()->json(MyHelper::checkGet($data_home));
     }

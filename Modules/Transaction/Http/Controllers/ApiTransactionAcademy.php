@@ -38,14 +38,15 @@ class ApiTransactionAcademy extends Controller
         ini_set('max_execution_time', 0);
         date_default_timezone_set('Asia/Jakarta');
 
-        $this->product      = "Modules\Product\Http\Controllers\ApiProductController";
-        $this->online_trx      = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
+        $this->product       = "Modules\Product\Http\Controllers\ApiProductController";
+        $this->online_trx    = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
         $this->setting_trx   = "Modules\Transaction\Http\Controllers\ApiSettingTransactionV2";
         $this->balance       = "Modules\Balance\Http\Controllers\BalanceController";
         $this->membership    = "Modules\Membership\Http\Controllers\ApiMembership";
         $this->autocrm       = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
         $this->transaction   = "Modules\Transaction\Http\Controllers\ApiTransaction";
-        $this->outlet       = "Modules\Outlet\Http\Controllers\ApiOutletController";
+        $this->outlet        = "Modules\Outlet\Http\Controllers\ApiOutletController";
+        $this->promo_trx 	 = "Modules\Transaction\Http\Controllers\ApiPromoTransaction";
     }
 
     public function check(Request $request) {
@@ -187,50 +188,61 @@ class ApiTransactionAcademy extends Controller
         $result['item_academy'] = $itemAcademy;
         $result['subtotal'] = $post['subtotal'];
         $post['tax'] = ($outlet['is_tax']/100) * $post['subtotal'];
+        $result['tax'] = $post['tax'];
         $result['grandtotal'] = (int)$result['subtotal'] + (int)$post['tax'] ;
         $balance = app($this->balance)->balanceNow($user->id);
         $result['points'] = (int) $balance;
         $result['total_payment'] = $result['grandtotal'];
+        $result['cashback'] = 0;
 
         $settingGetPoint = Configs::where('config_name', 'transaction academy get point')->first()['is_active']??0;
         $result['point_earned'] = null;
         if($settingGetPoint == 1){
             $earnedPoint = app($this->online_trx)->countTranscationPoint($post, $user);
-            $cashback = $earnedPoint['cashback'] ?? 0;
-            if ($cashback) {
-                $result['point_earned'] = [
-                    'value' => MyHelper::requestNumber($cashback, '_CURRENCY'),
-                    'text' => MyHelper::setting('cashback_earned_text', 'value', 'Point yang akan didapatkan')
-                ];
-            }
+            $result['cashback'] = $earnedPoint['cashback'] ?? 0;
         }
 
+        $result['currency'] = 'Rp';
+        $result['complete_profile'] = (empty($user->complete_profile) ?false:true);
+        $result['continue_checkout'] = $continueCheckOut;
         $result['payment_detail'] = [];
+        $result['point_earned'] = null;
+
+        $result['payment_method'] = [
+            ['type' => 'one_time_payment', 'text' => 'One-time Payment'],
+            ['type' => 'installment', 'text' => 'Cicilan Bertahap']
+        ];
+
+        $result = app($this->promo_trx)->applyPromoCheckout($result);
+
+        if ($result['cashback']) {
+            $result['point_earned'] = [
+                'value' => MyHelper::requestNumber($result['cashback'], '_CURRENCY'),
+                'text' => MyHelper::setting('cashback_earned_text', 'value', 'Point yang akan didapatkan')
+            ];
+        }
+
         $result['payment_detail'][] = [
-            'name'          => 'Subtotal',
+            'name'          => 'Subtotal:',
             "is_discount"   => 0,
             'amount'        => MyHelper::requestNumber($result['subtotal'],'_CURRENCY')
         ];
 
         if(!empty($outlet['is_tax'])){
             $result['payment_detail'][] = [
-                'name'          => 'Tax',
+                'name'          => 'Tax:',
                 "is_discount"   => 0,
                 'amount'        => MyHelper::requestNumber((int) $post['tax'],'_CURRENCY')
             ];
         }
 
-        $result['currency'] = 'Rp';
-        $result['complete_profile'] = (empty($user->complete_profile) ?false:true);
-        $result['continue_checkout'] = $continueCheckOut;
-        $result['payment_method'] = [
-            ['type' => 'one_time_payment', 'text' => 'One-time Payment'],
-            ['type' => 'installment', 'text' => 'Cicilan Bertahap']
-        ];
+        $paymentDetailPromo = app($this->promo_trx)->paymentDetailPromo($result);
+        $result['payment_detail'] = array_merge($result['payment_detail'], $paymentDetailPromo);
 
         $fake_request = new Request(['show_all' => 1]);
         $result['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
         $result['messages_all'] = (empty($errAll)? null:implode(".", array_unique($errAll)));
+
         return MyHelper::checkGet($result);
     }
 
@@ -475,6 +487,14 @@ class ApiTransactionAcademy extends Controller
                 'messages'  => ['Insert Product Academy Transaction Failed']
             ];
         }
+
+        $applyPromo = app($this->promo_trx)->applyPromoNewTrx($insertTransaction);
+        if ($applyPromo['status'] == 'fail') {
+        	DB::rollback();
+            return $applyPromo;
+        }
+
+        $insertTransaction = $applyPromo['result'] ?? $insertTransaction;
 
         $createTransactionAcademy = TransactionAcademy::create([
             'id_transaction' => $insertTransaction['id_transaction'],

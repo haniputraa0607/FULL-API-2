@@ -39,14 +39,15 @@ class ApiTransactionShop extends Controller
         ini_set('max_execution_time', 0);
         date_default_timezone_set('Asia/Jakarta');
 
-        $this->product      = "Modules\Product\Http\Controllers\ApiProductController";
-        $this->online_trx      = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
+        $this->product       = "Modules\Product\Http\Controllers\ApiProductController";
+        $this->online_trx    = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
         $this->setting_trx   = "Modules\Transaction\Http\Controllers\ApiSettingTransactionV2";
         $this->balance       = "Modules\Balance\Http\Controllers\BalanceController";
         $this->membership    = "Modules\Membership\Http\Controllers\ApiMembership";
         $this->autocrm       = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
         $this->transaction   = "Modules\Transaction\Http\Controllers\ApiTransaction";
-        $this->outlet       = "Modules\Outlet\Http\Controllers\ApiOutletController";
+        $this->outlet        = "Modules\Outlet\Http\Controllers\ApiOutletController";
+        $this->promo_trx 	 = "Modules\Transaction\Http\Controllers\ApiPromoTransaction";
         $this->trx_outlet_service = "Modules\Transaction\Http\Controllers\ApiTransactionOutletService";
     }
 
@@ -662,6 +663,7 @@ class ApiTransactionShop extends Controller
 
         $result['id_user_address'] = $address['id_user_address'] ?? null;
         $result['subtotal'] = $subtotal;
+        $result['tax'] = $post['tax'];
         $result['shipping'] = $post['shipping'];
         $result['discount'] = $post['discount'];
         $result['grandtotal'] = (int)$result['subtotal'] + (int)(-$post['discount']) + (int)$post['service'] + (int)$post['tax'] + $post['shipping'];
@@ -671,35 +673,40 @@ class ApiTransactionShop extends Controller
         $result['points'] = (int) $balance;
         $result['total_payment'] = $result['grandtotal'] - $result['used_point'];
         $result['discount'] = (int) $result['discount'];
+        $result['currency'] = 'Rp';
+        $result['complete_profile'] = true;
         $result['payment_detail'] = [];
+        $result['continue_checkout'] = (empty($error_msg) ? true : false);
         
+        $result = app($this->promo_trx)->applyPromoCheckout($result);
+
         $result['payment_detail'][] = [
-            'name'          => 'Subtotal Order ('.$totalItem.' item)',
+            'name'          => 'Subtotal Order ('.$totalItem.' item):',
             "is_discount"   => 0,
             'amount'        => number_format(((int) $result['subtotal']),0,',','.')
         ];
 
         $result['payment_detail'][] = [
-            'name'          => 'Pengiriman',
+            'name'          => 'Pengiriman:',
             "is_discount"   => 0,
             'amount'        => number_format(((int) $result['shipping']),0,',','.')
         ];
 
-        if (!empty($post['tax'])) {
+        if (!empty($result['tax'])) {
 	        $result['payment_detail'][] = [
-	            'name'          => 'Tax',
+	            'name'          => 'Tax:',
 	            "is_discount"   => 0,
-	            'amount'        => number_format(((int) $post['tax']),0,',','.')
+	            'amount'        => number_format(((int) $result['tax']),0,',','.')
 
 	        ];
         }
 
+        $paymentDetailPromo = app($this->promo_trx)->paymentDetailPromo($result);
+        $result['payment_detail'] = array_merge($result['payment_detail'], $paymentDetailPromo);
+
         if (count($error_msg) > 1 && (!empty($post['item']) || !empty($post['item_service']))) {
             $error_msg = ['Produk yang anda pilih tidak tersedia. Silakan cek kembali pesanan anda'];
         }
-
-        $result['currency'] = 'Rp';
-        $result['complete_profile'] = true;
 
         $fake_request = new Request(['show_all' => 1]);
         $result['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
@@ -712,6 +719,7 @@ class ApiTransactionShop extends Controller
         	'shipping' => $result['shipping'],
         	'tax' => $post['tax'],
         	'discount' => $result['discount'],
+        	'discount_delivery' => $result['discount_delivery'],
         	'grandtotal' => $result['grandtotal'],
         	'subscription' => $result['subscription'],
         	'used_point' => $result['used_point'],
@@ -721,10 +729,13 @@ class ApiTransactionShop extends Controller
         	'complete_profile' => $result['complete_profile'],
         	'payment_detail' => $result['payment_detail'],
             'point_earned' => $result['point_earned'] ?? null,
+            'continue_checkout' => $result['continue_checkout'],
             'available_payment' => $result['available_payment'],
             'available_delivery' => $listDelivery,
             'selected_delivery' => $deliv,
-            'continue_checkout' => (empty($error_msg) ? true : false),
+            'available_voucher' => $result['available_voucher'],
+            'promo_deals' => $result['promo_deals'],
+            'promo_code' => $result['promo_code'],
             'messages_all' => implode('.', $error_msg)
         ];
 
@@ -1073,6 +1084,14 @@ class ApiTransactionShop extends Controller
                 'messages'  => ['Insert Product Transaction Failed']
             ]);
         }
+
+        $applyPromo = app($this->promo_trx)->applyPromoNewTrx($insertTransaction);
+        if ($applyPromo['status'] == 'fail') {
+        	DB::rollback();
+            return $applyPromo;
+        }
+
+        $insertTransaction = $applyPromo['result'] ?? $insertTransaction;
 
         DB::commit();
 

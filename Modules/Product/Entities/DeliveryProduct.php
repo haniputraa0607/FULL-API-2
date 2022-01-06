@@ -25,7 +25,7 @@ class DeliveryProduct extends Model
 	];
 
     public function delivery_product_detail(){
-        return $this->hasMany(deliveryProductDetail::class, 'id_delivery_product');
+        return $this->hasMany(DeliveryProductDetail::class, 'id_delivery_product');
     }
 
     public function delivery_product_images(){

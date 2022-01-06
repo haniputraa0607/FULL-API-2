@@ -116,7 +116,9 @@ class ApiPromoTransaction extends Controller
                 'url_deals_image' => $var['deal_voucher']['deal']['url_deals_image'],
                 'is_used' => $var['is_used'],
                 'date_expired_indo' => MyHelper::adjustTimezone($var['voucher_expired_at'], $user->user_time_zone_utc ?? 7, 'd F Y', true),
-                'time_expired_indo' => 'pukul '.date('H:i', strtotime($var['voucher_expired_at']))
+                'time_expired_indo' => 'pukul '.date('H:i', strtotime($var['voucher_expired_at'])),
+                'text' => null,
+				'is_error' => false
             ];
         }, $voucher);
         
@@ -181,6 +183,9 @@ class ApiPromoTransaction extends Controller
     		$userPromo = UserPromo::where('id_user', $user->id)->get()->keyBy('promo_type');
     	}
 
+    	$data['discount'] = 0;
+		$data['discount_delivery'] = 0;
+
     	if (isset($userPromo['deals'])) {
     		$this->createSharedPromoTrx($data);
     		$applyDeals = $this->applyDeals($userPromo['deals']->id_reference, $data);
@@ -235,22 +240,18 @@ class ApiPromoTransaction extends Controller
     	}
     	$user = request()->user();
     	$promoCashback = ($dataDiscount['promo_source'] == 'deals') ? 'voucher_online' : 'promo_code';
-    	$discount = (int) abs($dataDiscount['discount'] ?? $dataDiscount['discount_delivery']);
+    	$discount = (int) abs($dataDiscount['discount'] ?? 0) ?: ($dataDiscount['discount_delivery'] ?? 0);
     	$sharedPromo = $this->getSharedPromoTrx();
 		$outlet = OUtlet::find($sharedPromo['id_outlet']);
 		$dataTrx['subtotal'] = $sharedPromo['subtotal'];
 		$dataTrx['discount'] = ($dataTrx['discount'] ?? 0) + ($dataDiscount['discount'] ?? 0);
 		$dataTrx['discount_delivery'] = ($dataTrx['discount_delivery'] ?? 0) + ($dataDiscount['discount_delivery'] ?? 0);
 		$dataTrx['tax'] = ($outlet['is_tax'] / 100) * ($sharedPromo['subtotal'] - $dataTrx['discount']);
-		$dataTrx['grandtotal'] = (int) $sharedPromo['subtotal'] + (int) $sharedPromo['service'] + (int) $dataTrx['tax'] - $discount;
+		$dataTrx['grandtotal'] = (int) $sharedPromo['subtotal'] + (int) $sharedPromo['service'] + (int) $dataTrx['tax'] + (int) ($dataTrx['shipping'] ?? 0) - $discount;
 		$dataTrx['total_payment'] = $dataTrx['grandtotal'] - ($dataTrx['used_point'] ?? 0);
 
 		$promoGetPoint = app($this->online_trx)->checkPromoGetPoint($promoCashback);
-        if ($promoGetPoint) {
-			$earnedPoint = app($this->online_trx)->countTranscationPoint($dataTrx, $user);
-	        $cashback = $earnedPoint['cashback'] ?? 0;
-			$dataTrx['cashback'] = $cashback;
-        } else {
+        if (!$promoGetPoint) {
 			$dataTrx['cashback'] = 0;
         }
 
@@ -857,7 +858,37 @@ class ApiPromoTransaction extends Controller
 
     public function deliveryDiscount($promoSource, $promoQuery, $data)
     {
-    	return $this->failResponse('Promo belum tersedia');
+    	$promo 			= $promoQuery;
+    	$pct 			= new PromoCampaignTools;
+    	$promo_rules 	= $promo->{$promoSource . '_discount_delivery_rules'};
+		$promo_brand 	= $promo->{$promoSource . '_brands'}->pluck('id_brand')->toArray();
+		$shared_promo 	= TemporaryDataManager::create('promo_trx');
+		$delivery_fee 	= $shared_promo['shipping'];
+		$discount 		= 0;
+
+		$discount_type	= $promo_rules->discount_type;
+		$discount_value	= $promo_rules->discount_value;
+		$discount_max	= $promo_rules->max_percent_discount;
+
+		if ($promo_rules) {
+	    	if ($discount_type == 'Percent') {
+				$discount = ($delivery_fee * $discount_value) /100;
+				if (!empty($discount_max) && $discount > $discount_max) {
+					$discount = $discount_max;
+				}
+			} else {
+				if ($discount_value < $delivery_fee) {
+					$discount = $discount_value;
+				} else {
+					$discount = $delivery_fee;
+				}
+			}
+		}
+
+		return MyHelper::checkGet([
+			'discount_delivery'	=> $discount,
+			'promo_type'=> $promo->promo_type
+		]);
     }
 
     public function discountPerItem(&$item, $promo_rules){
@@ -958,9 +989,10 @@ class ApiPromoTransaction extends Controller
 
     	$sharedPromoTrx['items'] = $promoItems;
     	$sharedPromoTrx['subtotal'] = $dataTrx['subtotal'] ?? $dataTrx['transaction_subtotal'];
+    	$sharedPromoTrx['shipping'] = $dataTrx['shipping'] ?? $dataTrx['transaction_shipment'] ?? 0;
     	$sharedPromoTrx['tax'] = $dataTrx['tax'] ?? $dataTrx['transaction_tax'];
-    	$sharedPromoTrx['service'] = $dataTrx['service'] ?? $dataTrx['transaction_service'] ?? null;
-    	$sharedPromoTrx['cashback'] = $dataTrx['cashback'] ?? $dataTrx['transaction_cashback_earned'];
+    	$sharedPromoTrx['service'] = $dataTrx['service'] ?? $dataTrx['transaction_service'] ?? 0;
+    	$sharedPromoTrx['cashback'] = $dataTrx['cashback'] ?? $dataTrx['transaction_cashback_earned'] ?? 0;
     	$sharedPromoTrx['grandtotal'] = $dataTrx['grandtotal'] ?? $dataTrx['transaction_grandtotal'];
 
     	return true;
@@ -1022,8 +1054,9 @@ class ApiPromoTransaction extends Controller
 		$cashback = $sharedPromo['cashback'];
 		$discount = (int) abs($dataDiscount['discount'] ?? 0);
 		$discount_delivery = (int) abs($dataDiscount['discount_delivery'] ?? 0);
+		$shipping = $trxQuery->transaction_shipment;
 		$tax = ($outlet['is_tax'] / 100) * ($subtotal - $discount);
-		$grandtotal = (int) $subtotal + (int) $sharedPromo['service'] + (int) $tax - $discount - $discount_delivery;
+		$grandtotal = (int) $subtotal + (int) $sharedPromo['service'] + (int) $tax + (int) $shipping - $discount - $discount_delivery;
 
 		$promoGetPoint = app($this->online_trx)->checkPromoGetPoint($promoCashback);
 		$cashback_earned = $promoGetPoint ? $cashback : 0;
@@ -1115,5 +1148,37 @@ class ApiPromoTransaction extends Controller
     public function insertUsedCode(Transaction $trx, $dataDiscount)
     {
         return ['status' => 'success'];
+    }
+
+    public function paymentDetailPromo($result)
+    {
+    	$paymentDetail = [];
+    	if ((!empty($result['promo_deals']) && !$result['promo_deals']['is_error'])
+        	|| (!empty($result['promo_code']) && !$result['promo_code']['is_error'])
+    	) {
+    		$paymentDetail[] = [
+                'name'          => 'Promo / Discount:',
+                "is_discount"   => 0,
+                'amount'        => null
+            ];
+
+	        if (!empty($result['promo_deals']) && !$result['promo_deals']['is_error']) {
+	            $paymentDetail[] = [
+	                'name'          => $result['promo_deals']['title'],
+	                "is_discount"   => 1,
+	                'amount'        => '-' . number_format(((int) $result['promo_deals']['discount'] ?: $result['promo_deals']['discount_delivery']),0,',','.')
+	            ];
+	        }
+
+	        if (!empty($result['promo_code']) && !$result['promo_code']['is_error']) {
+	            $paymentDetail[] = [
+	                'name'          => $result['promo_code']['title'],
+	                "is_discount"   => 1,
+	                'amount'        => '-' . number_format(((int) $result['promo_code']['discount'] ?: $result['promo_code']['discount_delivery']),0,',','.')
+	            ];
+	        }
+        }
+
+        return $paymentDetail;
     }
 }

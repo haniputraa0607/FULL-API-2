@@ -528,31 +528,8 @@ class ApiTransactionHomeService extends Controller
             ];
         }
 
-        if ((!empty($result['promo_deals']) && !$result['promo_deals']['is_error'])
-        	|| (!empty($result['promo_code']) && !$result['promo_code']['is_error'])
-    	) {
-    		$result['payment_detail'][] = [
-                'name'          => 'Promo / Discount:',
-                "is_discount"   => 0,
-                'amount'        => null
-            ];
-
-	        if (!empty($result['promo_deals'])) {
-	            $result['payment_detail'][] = [
-	                'name'          => $result['promo_deals']['title'],
-	                "is_discount"   => 1,
-	                'amount'        => MyHelper::requestNumber((int) $result['promo_deals']['discount'] ?: $result['promo_deals']['discount_delivery'],'_CURRENCY')
-	            ];
-	        }
-
-	        if (!empty($result['promo_code'])) {
-	            $result['payment_detail'][] = [
-	                'name'          => $result['promo_code']['title'],
-	                "is_discount"   => 1,
-	                'amount'        => MyHelper::requestNumber((int) $result['promo_code']['discount'] ?: $result['promo_code']['discount_delivery'],'_CURRENCY')
-	            ];
-	        }
-        }
+        $paymentDetailPromo = app($this->promo_trx)->paymentDetailPromo($result);
+        $result['payment_detail'] = array_merge($result['payment_detail'], $paymentDetailPromo);
 
         if(!empty($outlet['is_tax'])) {
             $result['payment_detail'][] = [

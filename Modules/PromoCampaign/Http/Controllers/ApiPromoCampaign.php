@@ -3079,6 +3079,9 @@ class ApiPromoCampaign extends Controller
     	$shipment_text = null;
     	if (!empty($query[$source.'_shipment_method']) && $query['is_all_shipment'] != 1) {
     		$online_trx = app($this->online_transaction);
+    		if (!is_array($query)) {
+    			$query = $query->toArray();
+    		}
     		$shipment_list = array_column($query[$source.'_shipment_method'], 'shipment_method');
 
     		$shipment_list = array_flip($shipment_list);
@@ -4027,14 +4030,14 @@ class ApiPromoCampaign extends Controller
     
     public function onGoingPromoCampaign(Request $request){
         $post = $request->all();
-        $now = date('Y-m-d H-i-s');
         
+
         $home_text = Setting::whereIn('key',['share_promo_code'])->get()->keyBy('key');
         $text['share'] = $home_text['share_promo_code']['value_text'] ?? 'Bagikan %promo_code% ke teman-teman'; //dummy
 
         $promo_campaign = PromoCampaign::select('id_promo_campaign', 'promo_title', 'promo_image', 'date_start', 'date_end', 'code_type', 'promo_description')
-                ->where('date_end','>=',$now)
-                ->where('date_start','<=',$now)
+                ->where('date_end','>=',DB::raw('CURRENT_TIMESTAMP()'))
+                ->where('date_start','<=',DB::raw('CURRENT_TIMESTAMP()'))
                 ->whereHas('brands',function($query){
                     $query->where('brand_active',1);
                 })
@@ -4073,8 +4076,6 @@ class ApiPromoCampaign extends Controller
 
     public function detailOnGoingPromoCampaign(Request $request){
         $post = $request->all();
-        $now = date('Y-m-d H-i-s');
-        
         if(isset($post['id_promo_campaign']) && !empty($post['id_promo_campaign'])){
             $id_promo = $post['id_promo_campaign'];
             $home_text = Setting::whereIn('key',['share_promo_code'])->get()->keyBy('key');
@@ -4082,8 +4083,8 @@ class ApiPromoCampaign extends Controller
     
             $promo_campaign = PromoCampaign::select('id_promo_campaign', 'promo_title', 'promo_image', 'date_start', 'date_end', 'code_type', 'promo_description')
                     ->where('id_promo_campaign',$id_promo)
-                    ->where('date_end','>=',$now)
-                    ->where('date_start','<=',$now)
+                    ->where('date_end','>=',DB::raw('CURRENT_TIMESTAMP()'))
+                    ->where('date_start','<=',DB::raw('CURRENT_TIMESTAMP()'))
                     ->whereHas('brands',function($query){
                         $query->where('brand_active',1);
                     })

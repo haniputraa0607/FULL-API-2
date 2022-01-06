@@ -493,32 +493,32 @@ class XenditController extends Controller
         $params = [
             'external_id'  => (string) $external_id,
             'amount'       => (int) $amount,
-            'phone'        => (string) $options['phone'],
-            'callback_url' => $this->callback_url,
-            'redirect_url' => $redirect_url,
+            'success_redirect_url' => $redirect_url,
+            'payment_methods' => [$method],
         ];
 
         try {
-            switch ($method) {
-                case 'OVO':
-                    $params['ewallet_type'] = 'OVO';
-                    break;
+            // switch ($method) {
+            //     case 'OVO':
+            //         $params['ewallet_type'] = 'OVO';
+            //         break;
 
-                case 'DANA':
-                    $validity_period = (int) MyHelper::setting('xendit_validity_period', 'value', 300);
-                    $params['ewallet_type'] = 'DANA';
-                    $params['expiration_date'] = (new DateTime("+ $validity_period seconds"))->format('c');
-                    break;
+            //     case 'DANA':
+            //         $validity_period = (int) MyHelper::setting('xendit_validity_period', 'value', 300);
+            //         $params['ewallet_type'] = 'DANA';
+            //         $params['expiration_date'] = (new DateTime("+ $validity_period seconds"))->format('c');
+            //         break;
 
-                case 'LINKAJA':
-                    $params['ewallet_type'] = 'LINKAJA';
-                    $params['items'] = $options['items'] ?? [];
-                    break;
-                default:
-                    throw new \Exception('Invalid payment method');
-                    break;
-            }
-            return \Xendit\EWallets::create($params);
+            //     case 'LINKAJA':
+            //         $params['ewallet_type'] = 'LINKAJA';
+            //         $params['items'] = $options['items'] ?? [];
+            //         break;
+            //     default:
+            //         throw new \Exception('Invalid payment method');
+            //         break;
+            // }
+            $result = \Xendit\Invoice::create($params);
+            return $result;
         } catch (\Exception $e) {
             $errors[] = $e->getMessage();
             return false;

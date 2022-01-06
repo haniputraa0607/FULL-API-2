@@ -111,4 +111,32 @@ return [
         'logo'            => env('STORAGE_URL_API').'default_image/payment_method/ic_linkaja.png',
         'text'            => 'LinkAJa'
     ],
+    'xendit_shopeepay'      => [
+        'payment_gateway' => 'Xendit',
+        'payment_method'  => 'SHOPEEPAY',
+        'status'          => 1,
+        'logo'            => env('STORAGE_URL_API').'default_image/payment_method/ic_shopee_pay.png',
+        'text'            => 'ShopeePay'
+    ],
+    'xendit_kredivo'      => [
+        'payment_gateway' => 'Xendit',
+        'payment_method'  => 'KREDIVO',
+        'status'          => 1,
+        'logo'            => env('STORAGE_URL_API').'default_image/payment_method/ic_shopee_pay.png',
+        'text'            => 'Kredivo'
+    ],
+    'xendit_qris'      => [
+        'payment_gateway' => 'Xendit',
+        'payment_method'  => 'QRIS',
+        'status'          => 1,
+        'logo'            => env('STORAGE_URL_API').'default_image/payment_method/ic_qris.png',
+        'text'            => 'QRIS'
+    ],
+    'xendit_credit_card'      => [
+        'payment_gateway' => 'Xendit',
+        'payment_method'  => 'CREDIT_CARD',
+        'status'          => 1,
+        'logo'            => env('STORAGE_URL_API').'default_image/payment_method/ic_creditcard.png',
+        'text'            => 'Credit Card'
+    ],
 ];

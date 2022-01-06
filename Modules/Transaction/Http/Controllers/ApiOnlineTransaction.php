@@ -1954,12 +1954,7 @@ class ApiOnlineTransaction extends Controller
 
         $fake_request = new Request(['show_all' => 1]);
         $result['available_payment'] = $this->availablePayment($fake_request)['result'] ?? [];
-        $result['messages_all'] = $error_msg;
-        if (!empty($error_msg)) {
-        	$result['continue_checkout'] = false;
-        }
 
-        $result['continue_checkout'] = true;
         $result['messages_all'] = null;
         if(!empty($error_msg)){
             $result['continue_checkout'] = false;

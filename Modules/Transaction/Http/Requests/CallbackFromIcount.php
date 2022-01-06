@@ -35,7 +35,7 @@ class CallbackFromIcount extends FormRequest
         $validator->addExtension('signature', function ($attribute, $value, $parameters, $validator) {
               $request = $validator->getData();
               if(isset($request['PurchaseInvoiceID'])&&isset($request['status'])&&isset($request['date_disburse'])){
-              $enkrip = hash_hmac('sha256', $request['PurchaseInvoiceID'].$request['status'].$request['date_disburse'], true);
+              $enkrip = hash_hmac('sha256',$request['PurchaseInvoiceID'].$request['status'].$request['date_disburse'],true);
               if($enkrip == $value){
                     return true; 
               }

@@ -96,6 +96,7 @@ class ApiUserV2 extends Controller
                 $result['register'] = false;
                 $result['forgot'] = false;
                 $result['challenge_key'] = $data[0]['challenge_key'];
+                $result['confirmation_message'] = $msg_check;
                 return response()->json([
                     'status' => 'success',
                     'result' => $result

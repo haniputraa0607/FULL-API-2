@@ -237,7 +237,7 @@ class ApiUserV2 extends Controller
                 ]);
             }
 
-            switch (env('OTP_TYPE', 'PHONE')) {
+            switch (strtoupper($request->request_type)) {
                 case 'MISSCALL':
                     $msg_otp = str_replace('%phone%', $phoneOld, MyHelper::setting('message_sent_otp_miscall', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui Missed Call.'));
                     break;
@@ -332,7 +332,7 @@ class ApiUserV2 extends Controller
                 $holdTime = $checkRuleRequest['otp_timer'];
             }
 
-            switch (env('OTP_TYPE', 'PHONE')) {
+            switch (strtoupper($request->request_type)) {
                 case 'MISSCALL':
                     $msg_otp = str_replace('%phone%', $phoneOld, MyHelper::setting('message_sent_otp_miscall', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui Missed Call.'));
                     break;
@@ -540,7 +540,7 @@ class ApiUserV2 extends Controller
                 $holdTime = $checkRuleRequest['otp_timer'];
             }
 
-            switch (env('OTP_TYPE', 'PHONE')) {
+            switch (strtoupper($request->request_type)) {
                 case 'MISSCALL':
                     $msg_otp = str_replace('%phone%', $phoneOld, MyHelper::setting('message_sent_otp_miscall', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui Missed Call.'));
                     break;

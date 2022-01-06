@@ -40,7 +40,7 @@ class TransactionPaymentXendit extends Model
         ], $errors);
         if ($create) {
             $this->business_id = $create['business_id'] ?? null;
-            $this->checkout_url = $create['checkout_url'] ?? null;
+            $this->checkout_url = $create['invoice_url'] ?? null;
             $this->external_id = $create['external_id'] ?? $this->external_id;
             $this->status = $create['status'] ?? null;
             $result = true;

@@ -209,6 +209,24 @@ class ApiPromoTransaction extends Controller
 
     	if (isset($userPromo['promo_campaign'])) {
     		$this->createSharedPromoTrx($data);
+    		$applyCode = $this->applyPromoCode($userPromo['promo_campaign']->id_reference, $data);
+    		$promoCode = $applyCode['result'] ?? null;
+
+			$resPromoCode = [
+				'promo_code' => $applyCode['result']['promo_code'] ?? null,
+				'title' => $applyCode['result']['title'] ?? null,
+				'discount' => $applyCode['result']['discount'] ?? 0,
+				'discount_delivery' => $applyCode['result']['discount_delivery'] ?? 0,
+				'text' => $applyCode['result']['text'] ?? $applyCode['messages'],
+				'is_error' => ($applyCode['status'] == 'fail') ? true : false
+			];
+
+			if ($applyCode['status'] == 'fail') {
+				$continueCheckOut = false;
+			}
+
+			$data = $this->reformatCheckout($data, $promoCode ?? null);
+
 			$dataDiscount['promo_source'] = 'promo_code';
     		$resPromo['promo_campaign'] = PromoCampaign::find($userPromo['promo_campaign']['id_reference']);
     	}
@@ -321,6 +339,135 @@ class ApiPromoTransaction extends Controller
     	}
 
     	return MyHelper::checkGet($dealsUser);
+    }
+
+    public function applyPromoCode($id_code, $data = [])
+    {
+    	$validateCode = $this->validatePromoCode($id_code);
+    	if ($validateCode['status'] == 'fail') {
+    		return $validateCode;
+    	}
+    	$promoCode = $validateCode['result'];
+    	$promoCampaign = $promoCode->promo_campaign;
+
+    	$validateGlobalRules = $this->validateGlobalRules('promo_campaign', $promoCampaign, $data);
+    	if ($validateGlobalRules['status'] == 'fail') {
+    		return $validateGlobalRules;
+    	}
+
+    	$getDiscount = $this->getDiscount('promo_campaign', $promoCampaign, $data);
+    	if ($getDiscount['status'] == 'fail') {
+    		return $getDiscount;
+    	}
+
+    	$validateGlobalRulesAfter = $this->validateGlobalRulesAfter('promo_campaign', $promoCampaign, $data);
+    	if ($validateGlobalRulesAfter['status'] == 'fail') {
+    		return $validateGlobalRulesAfter;
+    	}
+
+    	$getProduct = app($this->promo_campaign)->getProduct('promo_campaign',$promoCampaign);
+    	$desc = app($this->promo_campaign)->getPromoDescription('promo_campaign', $promoCampaign, $getProduct['product']??'');
+
+    	$res = [
+    		'id_promo_campaign' => $promoCampaign->id_promo_campaign,
+    		'promo_code' => $promoCode->promo_code,
+    		'title' => $promoCampaign->promo_title,
+    		'discount' => $getDiscount['result']['discount'] ?? 0,
+    		'discount_delivery' => $getDiscount['result']['discount_delivery'] ?? 0,
+    		'promo_type' => $getDiscount['result']['promo_type'],
+    		'text' => [$desc],
+    		'promo_source' => 'promo_campaign'
+    	];
+
+    	return MyHelper::checkGet($res);
+    }
+
+    public function validatePromoCode($id_code)
+    {
+    	$promoCode = PromoCampaignPromoCode::find($id_code);
+    	if (!$promoCode) {
+    		return $this->failResponse('Kode promo tidak ditemukan');
+		}
+
+    	$promo = $promoCode->promo_campaign;
+		if (!$promo) {
+    		return $this->failResponse('Promo tidak ditemukan');
+		}
+
+		if (!$promo->step_complete || !$promo->user_type) {
+    		return $this->failResponse('Terdapat kesalahan pada promo');
+		}
+	
+		$pct = new PromoCampaignTools;
+		$user = Request()->user();
+		if ($promo->user_type == 'New user') {
+    		$check = Transaction::where('id_user', '=', $user->id)->first();
+    		if ($check) {
+    			return $this->failResponse('Promo hanya berlaku untuk pengguna baru');
+    		}
+    	} elseif ($promo->user_type == 'Specific user') {
+    		$validPhone = explode(',', $promo->specific_user);
+    		if (!in_array($user->phone, $validPhone)) {
+    			return $this->failResponse('Promo tidak berlaku untuk akun Anda');
+    		}
+    	}
+
+        if ($promo->code_type == 'Single') {
+        	if ($promo->limitation_usage) {
+        		$usedCode = PromoCampaignReport::where('id_promo_campaign',$promo->id_promo_campaign)->where('id_user', $user->id)->count();
+	        	if ($usedCode >= $promo->limitation_usage) {
+    				return $this->failResponse('Promo tidak tersedia');
+	        	}
+        	}
+
+        	// limit usage device
+        	/*if (PromoCampaignReport::where('id_promo_campaign',$promo->id_promo_campaign)->where('device_id',$device_id)->count()>=$promo->limitation_usage) {
+	        	$errors[]='Kuota device anda untuk penggunaan kode promo ini telah habis';
+	    		return false;
+        	}*/
+        } else {
+       		$used_by_other_user = PromoCampaignReport::where('id_promo_campaign',$promo->id_promo_campaign)
+       							->where('id_user', '!=', $user->id)
+       							->where('id_promo_campaign_promo_code', $id_code)
+       							->first();
+
+       		if ($used_by_other_user) {
+    			return $this->failResponse('Promo tidak berlaku untuk akun Anda');
+       		}
+
+	       	$used_code = PromoCampaignReport::where('id_promo_campaign',$promo->id_promo_campaign)
+	       				->where('id_user',$user->id)
+	       				->where('id_promo_campaign_promo_code', $id_code)
+	       				->count();
+
+        	if ($code_limit = $promo->code_limit) {
+        		if ($used_code >= $code_limit) {
+    				return $this->failResponse('Promo tidak tersedia');
+        		}
+        	}
+
+        	if ($promo->user_limit && !$used_code) {
+        		$used_diff_code = PromoCampaignReport::where('id_promo_campaign', $id_promo)
+        						->where('id_user', $user->id)
+        						->distinct()
+        						->count('id_promo_campaign_promo_code');
+
+        		if ($used_diff_code >= $promo->user_limit) {
+    				return $this->failResponse('Promo tidak tersedia');
+        		}
+        	}
+        }
+
+    	if ($promo['date_end'] < date('Y-m-d H:i:s')) {
+    		return $this->failResponse('Kode promo sudah melewati batas waktu penggunaan');
+    	}
+
+    	if (!empty($promo['date_start']) && $promo['date_start'] > date('Y-m-d H:i:s')) {
+    		$dateStart = MyHelper::adjustTimezone($promo['date_start'], null, 'l, d F Y H:i', true);
+    		return $this->failResponse('Kode promo mulai dapat digunakan pada ' . $dateStart);
+    	}
+
+    	return MyHelper::checkGet($promoCode);
     }
 
     public function validateGlobalRules($promoSource, $promoQuery, $data)

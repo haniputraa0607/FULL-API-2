@@ -263,9 +263,17 @@ class ApiPromoTransaction extends Controller
 		$outlet = OUtlet::find($sharedPromo['id_outlet']);
 		$dataTrx['subtotal'] = $sharedPromo['subtotal'];
 		$dataTrx['discount'] = ($dataTrx['discount'] ?? 0) + ($dataDiscount['discount'] ?? 0);
+		$dataTrx['subtotal_discount'] = $sharedPromo['subtotal_discount'] - $dataTrx['discount'];
 		$dataTrx['discount_delivery'] = ($dataTrx['discount_delivery'] ?? 0) + ($dataDiscount['discount_delivery'] ?? 0);
+		$dataTrx['shipping_discount'] = $sharedPromo['shipping_discount'] - $dataTrx['discount_delivery'];
 		$dataTrx['tax'] = ($outlet['is_tax'] / 100) * ($sharedPromo['subtotal'] - $dataTrx['discount']);
-		$dataTrx['grandtotal'] = (int) $sharedPromo['subtotal'] + (int) $sharedPromo['service'] + (int) $dataTrx['tax'] + (int) ($dataTrx['shipping'] ?? 0) - $discount;
+		$dataTrx['grandtotal'] =  (int) $sharedPromo['subtotal_discount'] 
+								+ (int) $sharedPromo['service'] 
+								+ (int) $dataTrx['tax'] 
+								+ (int) ($dataTrx['shipping_discount'] ?? 0) 
+								- $dataTrx['discount'] 
+								- $dataTrx['discount_delivery'];
+
 		$dataTrx['total_payment'] = $dataTrx['grandtotal'] - ($dataTrx['used_point'] ?? 0);
 
 		$promoGetPoint = app($this->online_trx)->checkPromoGetPoint($promoCashback);
@@ -370,6 +378,7 @@ class ApiPromoTransaction extends Controller
 
     	$res = [
     		'id_promo_campaign' => $promoCampaign->id_promo_campaign,
+    		'id_promo_campaign_promo_code' => $promoCode->id_promo_campaign_promo_code,
     		'promo_code' => $promoCode->promo_code,
     		'title' => $promoCampaign->promo_title,
     		'discount' => $getDiscount['result']['discount'] ?? 0,
@@ -1141,7 +1150,9 @@ class ApiPromoTransaction extends Controller
 
     	$sharedPromoTrx['items'] = $promoItems;
     	$sharedPromoTrx['subtotal'] = $dataTrx['subtotal'] ?? $dataTrx['transaction_subtotal'];
+    	$sharedPromoTrx['subtotal_discount'] = $dataTrx['subtotal_discount'] ?? $dataTrx['subtotal'] ?? $dataTrx['transaction_subtotal'];
     	$sharedPromoTrx['shipping'] = $dataTrx['shipping'] ?? $dataTrx['transaction_shipment'] ?? 0;
+    	$sharedPromoTrx['shipping_discount'] = $dataTrx['shipping_discount'] ?? $dataTrx['transaction_shipment'] ?? 0;
     	$sharedPromoTrx['tax'] = $dataTrx['tax'] ?? $dataTrx['transaction_tax'];
     	$sharedPromoTrx['service'] = $dataTrx['service'] ?? $dataTrx['transaction_service'] ?? 0;
     	$sharedPromoTrx['cashback'] = $dataTrx['cashback'] ?? $dataTrx['transaction_cashback_earned'] ?? 0;
@@ -1182,11 +1193,17 @@ class ApiPromoTransaction extends Controller
 
     	if (isset($userPromo['promo_campaign'])) {
     		$this->createSharedPromoTrx($data);
-			$dataDiscount['promo_source'] = 'promo_code';
-    		$resPromo['promo_campaign'] = PromoCampaign::find($userPromo['promo_campaign']['id_reference']);
+
+    		$applyCode = $this->applyPromoCode($userPromo['promo_campaign']->id_reference, $data);
+
+    		$promoCode = $applyCode['result'] ?? null;
+			if ($applyCode['status'] == 'fail') {
+				return $applyCode;
+			}
+
+			$data = $this->reformatNewTrx($trxQuery, $promoCode ?? null);
     	}
 
-		
 		$trxQuery = Transaction::find($trxQuery->id_transaction);
 
 		return MyHelper::checkGet($trxQuery);
@@ -1244,6 +1261,7 @@ class ApiPromoTransaction extends Controller
 		}
 
 		$trxQuery->update([
+			'id_promo_campaign_promo_code' => $dataDiscount['id_promo_campaign_promo_code'] ?? $trxQuery->id_promo_campaign_promo_code,
 			'transaction_discount' => - $totalDiscount,
 			'transaction_discount_delivery' => - $totalDiscountDelivery,
 			'transaction_discount_item' => $totalDiscountItem,
@@ -1261,11 +1279,12 @@ class ApiPromoTransaction extends Controller
 			'id_promo_campaign_promo_code' => $dataDiscount['id_promo_campaign_promo_code'] ?? null,
 			'discount_value' => $discount ?: $discount_delivery
 		]);
+
 		if ($dataDiscount['promo_source'] == 'deals') {
 			$insertPromo = $this->insertUsedVoucher($trxQuery, $dataDiscount);
 			UserPromo::where('id_user', $user->id)->where('promo_type', 'deals')->delete();
 		} else {
-			$insertPromo = $this->insertUsedCOde($trxQuery, $dataDiscount);
+			$insertPromo = $this->insertUsedCode($trxQuery, $dataDiscount);
 			UserPromo::where('id_user', $user->id)->where('promo_type', 'promo_campaign')->delete();
 		}
 
@@ -1299,6 +1318,19 @@ class ApiPromoTransaction extends Controller
 
     public function insertUsedCode(Transaction $trx, $dataDiscount)
     {
+    	$promo_campaign_report = app($this->promo_campaign)->addReport(
+            $dataDiscount['id_promo_campaign'],
+            $dataDiscount['id_promo_campaign_promo_code'],
+            $trx['id_transaction'],
+            $trx['id_outlet'],
+            Request()->device_id ?: '',
+            Request()->device_type ?: null
+        );
+
+        if (!$promo_campaign_report) {
+        	return $this->failResponse('Insert Promo Failed');
+        }
+
         return ['status' => 'success'];
     }
 

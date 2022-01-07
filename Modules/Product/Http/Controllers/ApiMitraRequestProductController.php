@@ -162,6 +162,7 @@ class ApiMitraRequestProductController extends Controller
             $id_outlet =  auth()->user()->id_outlet;
 
             $delivery_product = DeliveryProduct::join('delivery_product_details','delivery_product_details.id_delivery_product','=','delivery_products.id_delivery_product')
+                            ->join('user_hair_stylist','user_hair_stylist.id_user_hair_stylist','=','delivery_products.id_user_accept')
                             ->where('delivery_products.id_outlet',$id_outlet)
                             ->where('delivery_products.status','=',$status)
                             ->where('delivery_products.id_delivery_product', $post['id_delivery_product'])
@@ -173,7 +174,8 @@ class ApiMitraRequestProductController extends Controller
                                 'delivery_products.id_delivery_product',
                                 'delivery_products.code as delivery_code',
                                 'delivery_products.type as stock_type',
-                                'delivery_products.delivery_date as date_delivered'
+                                'delivery_products.delivery_date as date_delivered',
+                                'user_hair_stylist.fullname as confirmed_by'
                             );   
                  
                             if($status=='Completed'){

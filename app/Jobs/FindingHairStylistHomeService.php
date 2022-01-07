@@ -13,6 +13,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 
 use Modules\Product\Entities\ProductDetail;
+use Modules\Product\Entities\ProductProductIcount;
 use Modules\ProductService\Entities\ProductServiceUse;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Transaction\Entities\TransactionHomeService;
@@ -72,6 +73,7 @@ class FindingHairStylistHomeService implements ShouldQueue
                         $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
                             ->select('products.*', 'product_global_price as product_price')
                             ->where('products.id_product', $item['id_product'])
+                            ->with('product_icount_use')
                             ->first();
 
                         $hs = UserHairStylist::where('id_user_hair_stylist', $idHs)->where('user_hair_stylist_status', 'Active')->first();
@@ -80,15 +82,27 @@ class FindingHairStylistHomeService implements ShouldQueue
                             continue;
                         }
 
+                        if(!empty($service['product_icount_use'])){
+                            $getProductUse = ProductProductIcount::join('product_detail', 'product_detail.id_product', 'product_product_icounts.id_product')
+                                ->where('product_product_icounts.id_product', $service['id_product'])
+                                ->where('product_detail.id_outlet', $outlet['id_outlet'])->select('product_product_icounts.qty', 'product_detail.*')->get()->toArray();
+                            if(empty($getProductUse) || (count($service['product_icount_use']) != count($getProductUse))){
+                                $err[] = 'Stok habis';
+                            }
+
+                            foreach ($getProductUse as $stock){
+                                $use = $stock['qty'] * $item['qty'];
+                                if($use > $stock['product_detail_stock_item']){
+                                    $err[] = 'Stok habis';
+                                    break;
+                                }
+                            }
+                        }
+
                         $getProductDetail = ProductDetail::where('id_product', $service['id_product'])->where('id_outlet', $outlet['id_outlet'])->first();
                         $service['visibility_outlet'] = $getProductDetail['product_detail_visibility']??null;
 
                         if($service['visibility_outlet'] == 'Hidden' || (empty($service['visibility_outlet']) && $service['product_visibility'] == 'Hidden')){
-                            $err[] = 'Service tidak tersedia';
-                            continue;
-                        }
-
-                        if($item['transaction_product_qty'] > $getProductDetail['product_detail_stock_item']){
                             $err[] = 'Service tidak tersedia';
                             continue;
                         }
@@ -134,7 +148,7 @@ class FindingHairStylistHomeService implements ShouldQueue
                     );
 
                     app("Modules\Transaction\Http\Controllers\ApiOnlineTransaction")->bookHS($data['id_transaction']);
-                    app("Modules\Transaction\Http\Controllers\ApiTransactionHomeService")->bookProductServiceStockHM($data['id_transaction']);
+                    app("Modules\Transaction\Http\Controllers\ApiOnlineTransaction")->bookProductStock($data['id_transaction']);
                 }
             }else{
                 $updateStatus = TransactionHomeServiceStatusUpdate::create([

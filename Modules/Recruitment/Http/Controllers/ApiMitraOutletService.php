@@ -935,9 +935,7 @@ class ApiMitraOutletService extends Controller
 	    			$q->where('trasaction_payment_type', 'Cash')
 	    			->orWhere('transaction_payment_status', 'Completed');
 				})
-    			->where('transaction_payment_status', '!=', 'Cancelled')
-    			->orderBy('schedule_date', 'asc')
-    			->orderBy('schedule_time', 'asc');
+    			->where('transaction_payment_status', '!=', 'Cancelled');
 
     	if ($filter_range = $request->filter_range) {
     		if (is_array($filter_range)) {
@@ -949,8 +947,16 @@ class ApiMitraOutletService extends Controller
     			$tps->whereDate('schedule_date', '>=', date('Y-m-d', strtotime('-30 days')));
     		} elseif ($filter_range == 'this_month') {
     			$tps->whereDate('schedule_date', '>=', date('Y-m-01'));
-    		}
+    		} elseif ($filter_range == 'today'){
+                $tps->whereDate('schedule_date', date('Y-m-d'));
+            }
     	}
+
+        if((!empty($post['sort']) && $post['sort'] == 'desc') || empty($post['sort'])){
+            $tps = $tps->orderBy('schedule_date', 'desc')->orderBy('schedule_time', 'desc');
+        }elseif(!empty($post['sort']) && $post['sort'] == 'asc'){
+            $tps = $tps->orderBy('schedule_date', 'asc')->orderBy('schedule_time', 'asc');
+        }
 
 		$tps = $tps->paginate(10);
 

@@ -327,7 +327,8 @@ class ApiMitraHomeService extends Controller
         }
 
         $services = TransactionProduct::join('products', 'products.id_product', 'transaction_products.id_product')
-            ->where('id_transaction', $detail['id_transaction'])->select(DB::raw('SUM(processing_time_service * transaction_product_qty) as processing_time'), 'products.id_product', 'product_name', 'transaction_product_qty as qty')->get()->toArray();
+            ->where('id_transaction', $detail['id_transaction'])
+            ->select(DB::raw('(processing_time_service * transaction_product_qty) as processing_time'), 'products.id_product', 'product_name', 'transaction_product_qty as qty')->get()->toArray();
 
         $processingTime = array_sum(array_column($services, 'processing_time'));
         $detail = [

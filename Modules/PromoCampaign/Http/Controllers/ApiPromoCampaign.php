@@ -2796,7 +2796,7 @@ class ApiPromoCampaign extends Controller
         {
         	return [
                 'status'=>'fail',
-                'messages'=>['Can only use Subscription, Promo Code, or Voucher']
+                'messages'=>['Only Promo Code and Voucher']
             ];
         }
         

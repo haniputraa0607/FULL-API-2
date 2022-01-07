@@ -897,50 +897,6 @@ class ApiOnlineTransaction extends Controller
             }
         }
 
-        if($scopeUser == 'apps'){
-            // add report referral
-            if($use_referral){
-                $addPromoCounter = PromoCampaignReferralTransaction::create([
-                    'id_promo_campaign_promo_code' =>$code->id_promo_campaign_promo_code,
-                    'id_user' => $insertTransaction['id_user'],
-                    'id_referrer' => UserReferralCode::select('id_user')->where('id_promo_campaign_promo_code',$code->id_promo_campaign_promo_code)->pluck('id_user')->first(),
-                    'id_transaction' => $insertTransaction['id_transaction'],
-                    'referred_bonus_type' => $promo_discount?'Product Discount':'Cashback',
-                    'referred_bonus' => $promo_discount?:$insertTransaction['transaction_cashback_earned']
-                ]);
-                if(!$addPromoCounter){
-                    DB::rollback();
-                    return response()->json([
-                        'status'    => 'fail',
-                        'messages'  => ['Insert Transaction Failed']
-                    ]);
-                }
-
-                $promo_code_ref = $request->promo_code;
-            }
-
-            // add promo campaign report
-            if($request->json('promo_code'))
-            {
-                $promo_campaign_report = app($this->promo_campaign)->addReport(
-                    $code->id_promo_campaign,
-                    $code->id_promo_campaign_promo_code,
-                    $insertTransaction['id_transaction'],
-                    $insertTransaction['id_outlet'],
-                    $request->device_id?:'',
-                    $request->device_type?:''
-                );
-
-                if (!$promo_campaign_report) {
-                    DB::rollBack();
-                    return response()->json([
-                        'status'    => 'fail',
-                        'messages'  => ['Insert Transaction Failed']
-                    ]);
-                }
-            }
-        }
-
         //update receipt
         $receipt = config('configs.PREFIX_TRANSACTION_NUMBER').'-'.MyHelper::createrandom(4,'Angka').time().substr($insertTransaction['id_outlet'], 0, 4);
         $updateReceiptNumber = Transaction::where('id_transaction', $insertTransaction['id_transaction'])->update([
@@ -1950,12 +1906,7 @@ class ApiOnlineTransaction extends Controller
 
         $fake_request = new Request(['show_all' => 1]);
         $result['available_payment'] = $this->availablePayment($fake_request)['result'] ?? [];
-        $result['messages_all'] = $error_msg;
-        if (!empty($error_msg)) {
-        	$result['continue_checkout'] = false;
-        }
 
-        $result['continue_checkout'] = true;
         $result['messages_all'] = null;
         if(!empty($error_msg)){
             $result['continue_checkout'] = false;

@@ -20,6 +20,8 @@ use Modules\PromoCampaign\Entities\PromoCampaignReport;
 use Modules\PromoCampaign\Entities\UserReferralCode;
 use Modules\PromoCampaign\Entities\UserPromo;;
 use Modules\PromoCampaign\Entities\TransactionPromo;
+use Modules\PromoCampaign\Entities\PromoCampaignShipmentMethod;
+use Modules\PromoCampaign\Entities\PromoCampaignPaymentMethod;
 
 use Modules\Deals\Entities\DealsProductDiscount;
 use Modules\Deals\Entities\DealsProductDiscountRule;
@@ -27,6 +29,8 @@ use Modules\Deals\Entities\DealsTierDiscountProduct;
 use Modules\Deals\Entities\DealsTierDiscountRule;
 use Modules\Deals\Entities\DealsBuyxgetyProductRequirement;
 use Modules\Deals\Entities\DealsBuyxgetyRule;
+use Modules\Deals\Entities\DealsShipmentMethod;
+use Modules\Deals\Entities\DealsPaymentMethod;
 
 use Modules\Subscription\Entities\Subscription;
 use Modules\Subscription\Entities\SubscriptionUser;
@@ -174,71 +178,131 @@ class ApiPromoTransaction extends Controller
     {	
     	$user = request()->user();
     	$scopeUser = $this->getScope();
-    	$resPromoCode = null;
-    	$resDeals = null;
-    	$continueCheckOut = $data['continue_checkout'];
     	$sharedPromoTrx = TemporaryDataManager::create('promo_trx');
+		$availableVoucher = $this->availableVoucher();
+    	$continueCheckOut = $data['continue_checkout'];
+
+    	$data['discount'] = 0;
+		$data['discount_delivery'] = 0;
+		$data['promo_deals'] = null;
+		$data['promo_code'] = null;
+		$data['available_voucher'] = $availableVoucher;
+		$data['continue_checkout'] = $continueCheckOut;
 
     	$userPromo = null;
     	if ($scopeUser != 'web-apps') {
     		$userPromo = UserPromo::where('id_user', $user->id)->get()->keyBy('promo_type');
     	}
 
-    	$data['discount'] = 0;
-		$data['discount_delivery'] = 0;
-
-    	if (isset($userPromo['deals'])) {
-    		$this->createSharedPromoTrx($data);
-    		$applyDeals = $this->applyDeals($userPromo['deals']->id_reference, $data);
-    		$promoDeals = $applyDeals['result'] ?? null;
-
-			$resDeals = [
-				'id_deals_user' => $userPromo['deals']->id_reference,
-				'title' => $applyDeals['result']['title'] ?? null,
-				'discount' => $applyDeals['result']['discount'] ?? 0,
-				'discount_delivery' => $applyDeals['result']['discount_delivery'] ?? 0,
-				'text' => $applyDeals['result']['text'] ?? $applyDeals['messages'],
-				'is_error' => ($applyDeals['status'] == 'fail') ? true : false
-			];
-
-			if ($applyDeals['status'] == 'fail') {
-				$continueCheckOut = false;
-			}
-
-			$data = $this->reformatCheckout($data, $promoDeals ?? null);
+    	if ($userPromo->isEmpty()) {
+    		return $data;
     	}
 
+    	$resDeals = null;
+    	$dealsType = null;
+		$dealsErr = [];
+    	if (isset($userPromo['deals'])) {
+    		$dealsUser = $this->validateDeals($userPromo['deals']->id_reference);
+    		if ($dealsUser['status'] == 'fail') {
+    			$dealsErr = $dealsUser['messages'];
+    		} else {
+    			$deals = $dealsUser['result']->dealVoucher->deal;
+    			$sharedPromoTrx['deals'] = $deals;
+    			$sharedPromoTrx['deals']['id_deals_user'] = $dealsUser['result']->id_deals_user;
+    			$dealsPayment = DealsPaymentMethod::where('id_deals', $deals['id_deals'])->pluck('payment_method')->toArray();
+    			$dealsType = $deals->promo_type;
+    		}
+    	}
+
+    	$resPromoCode = null;
+    	$codeType = null;
+		$codeErr = [];
     	if (isset($userPromo['promo_campaign'])) {
-    		$this->createSharedPromoTrx($data);
-    		$applyCode = $this->applyPromoCode($userPromo['promo_campaign']->id_reference, $data);
-    		$promoCode = $applyCode['result'] ?? null;
+    		$promoCode = $this->validatePromoCode($userPromo['promo_campaign']->id_reference);
+    		if ($promoCode['status'] == 'fail') {
+    			$codeErr = $promoCode['messages'];
+    		} else {
+    			$promoCampaign = $promoCode['result']->promo_campaign;
+    			$sharedPromoTrx['promo_campaign'] = $promoCampaign;
+    			$sharedPromoTrx['promo_campaign']['promo_code'] = $promoCode['result']->promo_code;
+    			$sharedPromoTrx['promo_campaign']['id_promo_campaign_promo_code'] = $promoCode['result']->id_promo_campaign_promo_code;
+    			$codePayment = PromoCampaignPaymentMethod::where('id_promo_campaign', $promoCampaign['id_promo_campaign'])->pluck('payment_method')->toArray();
+    			$codeType = $promoCampaign->promo_type;
+    		}
+    	}
 
-			$resPromoCode = [
-				'promo_code' => $sharedPromoTrx['promo_campaign']['promo_code'] ?? null,
-				'title' => $applyCode['result']['title'] ?? null,
-				'discount' => $applyCode['result']['discount'] ?? 0,
-				'discount_delivery' => $applyCode['result']['discount_delivery'] ?? 0,
-				'text' => $applyCode['result']['text'] ?? $applyCode['messages'],
-				'remove_text' => 'Batalkan penggunaan <b>' . ($sharedPromoTrx['promo_campaign']['promo_title'] ?? null) . '</b>',
-				'is_error' => ($applyCode['status'] == 'fail') ? true : false
-			];
+    	$applyOrder = ['deals', 'promo_campaign'];
 
-			if ($applyCode['status'] == 'fail') {
-				$continueCheckOut = false;
-			}
+    	$rulePriority = [
+    		'Product discount' => 1,
+    		'Tier discount' => 1,
+    		// 'Buy X Get Y' => 1,
+    		'Discount bill' => 2,
+    		'Discount delivery' => 2
+    	];
 
-			$data = $this->reformatCheckout($data, $promoCode ?? null);
+    	if (empty($dealsErr) && empty($codeErr) && isset($dealsType) && isset($codeType)) {
+    		if ($rulePriority[$codeType] > $rulePriority[$dealsType]) {
+    			$applyOrder = ['promo_campaign', 'deals'];
+    		}
+    	}
 
-			$dataDiscount['promo_source'] = 'promo_code';
-    		$resPromo['promo_campaign'] = PromoCampaign::find($userPromo['promo_campaign']['id_reference']);
+    	foreach ($applyOrder as $apply) {
+	    	if ($apply == 'deals' && isset($userPromo['deals'])) {
+	    		$this->createSharedPromoTrx($data);
+
+	    		if (empty($dealsErr)) {
+	    			$applyDeals = $this->applyDeals($userPromo['deals']->id_reference, $data);
+	    			$dealsErr = $applyDeals['messages'] ?? $dealsErr;
+	    		}
+
+				$resDeals = [
+					'id_deals_user' 	=> $userPromo['deals']->id_reference,
+					'title' 			=> $applyDeals['result']['title'] ?? null,
+					'discount' 			=> $applyDeals['result']['discount'] ?? 0,
+					'discount_delivery' => $applyDeals['result']['discount_delivery'] ?? 0,
+					'text' 				=> $applyDeals['result']['text'] ?? $dealsErr,
+					'is_error' 			=> $dealsErr ? true : false
+				];
+
+				if ($resDeals['is_error']) {
+					$continueCheckOut = false;
+				}
+
+				$data = $this->reformatCheckout($data, $applyDeals['result'] ?? null);
+	    	}
+
+	    	if ($apply == 'promo_campaign' && isset($userPromo['promo_campaign'])) {
+	    		$this->createSharedPromoTrx($data);
+
+	    		if (empty($codeErr)) {
+		    		$applyCode = $this->applyPromoCode($userPromo['promo_campaign']->id_reference, $data);
+		    		$codeErr = $applyCode['messages'] ?? $codeErr;
+	    		}
+
+				$resPromoCode = [
+					'promo_code' 		=> $sharedPromoTrx['promo_campaign']['promo_code'] ?? null,
+					'title' 			=> $applyCode['result']['title'] ?? null,
+					'discount' 			=> $applyCode['result']['discount'] ?? 0,
+					'discount_delivery' => $applyCode['result']['discount_delivery'] ?? 0,
+					'text' 				=> $applyCode['result']['text'] ?? $codeErr,
+					'remove_text' 		=> 'Batalkan penggunaan <b>' . ($sharedPromoTrx['promo_campaign']['promo_title'] ?? null) . '</b>',
+					'is_error' 			=> $codeErr ? true : false
+				];
+
+				if ($resPromoCode['is_error']) {
+					$continueCheckOut = false;
+				}
+
+				$data = $this->reformatCheckout($data, $applyCode['result'] ?? null);
+	    	}
     	}
     	
 		$data['promo_deals'] = $resDeals;
 		$data['promo_code'] = $resPromoCode;
-		$availableVoucher = $this->availableVoucher();
 
 		if ($resDeals) {
-			foreach ($availableVoucher as &$voucher) {
+			foreach ($data['available_voucher'] as &$voucher) {
 				if ($resDeals['id_deals_user'] == $voucher['id_deals_user']) {
 					$voucher['text'] = $resDeals['text'];
 					$voucher['is_error'] = $resDeals['is_error'];
@@ -248,7 +312,7 @@ class ApiPromoTransaction extends Controller
 				}
 			}
 		}
-		$data['available_voucher'] = $availableVoucher;
+
 		$data['continue_checkout'] = $continueCheckOut;
 		return $data;
     }
@@ -263,6 +327,7 @@ class ApiPromoTransaction extends Controller
     	$discount = (int) abs($dataDiscount['discount'] ?? 0) ?: ($dataDiscount['discount_delivery'] ?? 0);
     	$sharedPromo = $this->getSharedPromoTrx();
 		$outlet = OUtlet::find($sharedPromo['id_outlet']);
+
 		$dataTrx['subtotal'] = $sharedPromo['subtotal'];
 		$dataTrx['discount'] = ($dataTrx['discount'] ?? 0) + ($dataDiscount['discount'] ?? 0);
 		$dataTrx['subtotal_discount'] = $sharedPromo['subtotal_discount'] - $dataTrx['discount'];
@@ -289,12 +354,8 @@ class ApiPromoTransaction extends Controller
 
     public function applyDeals($id_deals_user, $data = [])
     {
-    	$validateDeals = $this->validateDeals($id_deals_user);
-    	if ($validateDeals['status'] == 'fail') {
-    		return $validateDeals;
-    	}
-
-    	$deals = $validateDeals['result']->dealVoucher->deal;
+    	$sharedPromoTrx = TemporaryDataManager::create('promo_trx');
+    	$deals = $sharedPromoTrx['deals'];
 
     	$validateGlobalRules = $this->validateGlobalRules('deals', $deals, $data);
     	if ($validateGlobalRules['status'] == 'fail') {
@@ -354,14 +415,7 @@ class ApiPromoTransaction extends Controller
     public function applyPromoCode($id_code, $data = [])
     {
     	$sharedPromoTrx = TemporaryDataManager::create('promo_trx');
-    	$validateCode = $this->validatePromoCode($id_code);
-    	if ($validateCode['status'] == 'fail') {
-    		return $validateCode;
-    	}
-    	$promoCode = $validateCode['result'];
-    	$promoCampaign = $promoCode->promo_campaign;
-    	$sharedPromoTrx['promo_campaign'] = $promoCampaign;
-    	$sharedPromoTrx['promo_campaign']['promo_code'] = $promoCode['promo_code'];
+    	$promoCampaign = $sharedPromoTrx['promo_campaign'];
 
     	$validateGlobalRules = $this->validateGlobalRules('promo_campaign', $promoCampaign, $data);
     	if ($validateGlobalRules['status'] == 'fail') {
@@ -383,8 +437,8 @@ class ApiPromoTransaction extends Controller
 
     	$res = [
     		'id_promo_campaign' => $promoCampaign->id_promo_campaign,
-    		'id_promo_campaign_promo_code' => $promoCode->id_promo_campaign_promo_code,
-    		'promo_code' => $promoCode->promo_code,
+    		'id_promo_campaign_promo_code' => $promoCampaign->id_promo_campaign_promo_code,
+    		'promo_code' => $promoCampaign->promo_code,
     		'title' => $promoCampaign->promo_title,
     		'discount' => $getDiscount['result']['discount'] ?? 0,
     		'discount_delivery' => $getDiscount['result']['discount_delivery'] ?? 0,
@@ -413,7 +467,7 @@ class ApiPromoTransaction extends Controller
 		}
 	
 		$pct = new PromoCampaignTools;
-		$user = Request()->user();
+		$user = request()->user();
 		if ($promo->user_type == 'New user') {
     		$check = Transaction::where('id_user', '=', $user->id)->first();
     		if ($check) {
@@ -1328,8 +1382,8 @@ class ApiPromoTransaction extends Controller
             $dataDiscount['id_promo_campaign_promo_code'],
             $trx['id_transaction'],
             $trx['id_outlet'],
-            Request()->device_id ?: '',
-            Request()->device_type ?: null
+            request()->device_id ?: '',
+            request()->device_type ?: null
         );
 
         if (!$promo_campaign_report) {

@@ -2152,7 +2152,7 @@ class FeaturesTableSeeder extends Seeder
                 'id_feature' => 214,
                 'feature_type' => 'Report',
                 'feature_module' => 'Report Fraud Transaction Point',
-                'show_hide' => 1,
+                'show_hide' => 0,
                 'order' => 84,
                 'created_at' => '2021-09-29 10:00:00',
                 'updated_at' => '2021-09-29 10:00:00',

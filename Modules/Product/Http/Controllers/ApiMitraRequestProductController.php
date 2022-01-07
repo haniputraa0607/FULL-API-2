@@ -274,6 +274,12 @@ class ApiMitraRequestProductController extends Controller
                             unset($value['requested']);
                             return $value;
                         },$delivery_product['detail']);
+
+                        foreach($delivery_product['delivery_product_images'] as $key => $image){
+                            unset($delivery_product['delivery_product_images'][$key]['id_delivery_product']);
+                            $delivery_product['delivery_product_images'][$key]['path'] = env('STORAGE_URL_API').$image['path'];
+                        }
+                        
                     }else{
                         unset($delivery_product['delivery_product_images']);
                     }

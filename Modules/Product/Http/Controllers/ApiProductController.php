@@ -2186,7 +2186,8 @@ class ApiProductController extends Controller
                         WHEN (select outlets.outlet_different_price from outlets  where outlets.id_outlet = ' . $outlet['id_outlet'] . ' ) = 1 
                         THEN (select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $outlet['id_outlet'] . ' )
                         ELSE product_global_price.product_global_price
-                    END) as product_price')
+                    END) as product_price'),
+            DB::raw('(select product_detail.product_detail_stock_item from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . ' order by id_product_detail desc limit 1) as product_stock_status')
         ])
             ->join('brand_product', 'brand_product.id_product', '=', 'products.id_product')
             ->leftJoin('product_global_price', 'product_global_price.id_product', '=', 'products.id_product')
@@ -2221,20 +2222,8 @@ class ApiProductController extends Controller
 
         $resProdService = [];
         foreach ($productServie as $val){
-            if(!empty($val['product_service_use'])){
-                $getProductUse = ProductServiceUse::join('product_detail', 'product_detail.id_product', 'product_service_use.id_product')
-                    ->where('product_service_use.id_product_service', $val['id_product'])
-                    ->where('product_detail.id_outlet', $outlet['id_outlet'])->get()->toArray();
-                if(count($val['product_service_use']) != count($getProductUse)){
-                    continue;
-                }
-
-                foreach ($getProductUse as $stock){
-                    $use = $stock['quantity_use'] * 1;
-                    if($use > $stock['product_detail_stock_service']){
-                        continue 2;
-                    }
-                }
+            if($val['product_stock_status'] <= 0){
+                continue;
             }
 
             $resProdService[] = [
@@ -2299,7 +2288,7 @@ class ApiProductController extends Controller
             }
 
             $stock = 'Available';
-            if(empty($val['product_stock_status']) || $val['product_stock_status'] <= 0){
+            if($val['product_stock_status'] <= 0){
                 $stock = 'Sold Out';
             }
 

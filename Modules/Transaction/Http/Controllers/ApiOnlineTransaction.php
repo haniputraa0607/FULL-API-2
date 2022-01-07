@@ -25,6 +25,9 @@ use App\Http\Models\Outlet;
 use App\Http\Models\Transaction;
 use App\Http\Models\TransactionProduct;
 use App\Http\Models\TransactionProductModifier;
+use Modules\Product\Entities\ProductIcount;
+use Modules\Product\Entities\ProductIcountOutletStockLog;
+use Modules\Product\Entities\ProductProductIcount;
 use Modules\Product\Entities\ProductStockLog;
 use Modules\ProductBundling\Entities\BundlingOutlet;
 use Modules\ProductBundling\Entities\BundlingProduct;
@@ -894,50 +897,6 @@ class ApiOnlineTransaction extends Controller
             }
         }
 
-        if($scopeUser == 'apps'){
-            // add report referral
-            if($use_referral){
-                $addPromoCounter = PromoCampaignReferralTransaction::create([
-                    'id_promo_campaign_promo_code' =>$code->id_promo_campaign_promo_code,
-                    'id_user' => $insertTransaction['id_user'],
-                    'id_referrer' => UserReferralCode::select('id_user')->where('id_promo_campaign_promo_code',$code->id_promo_campaign_promo_code)->pluck('id_user')->first(),
-                    'id_transaction' => $insertTransaction['id_transaction'],
-                    'referred_bonus_type' => $promo_discount?'Product Discount':'Cashback',
-                    'referred_bonus' => $promo_discount?:$insertTransaction['transaction_cashback_earned']
-                ]);
-                if(!$addPromoCounter){
-                    DB::rollback();
-                    return response()->json([
-                        'status'    => 'fail',
-                        'messages'  => ['Insert Transaction Failed']
-                    ]);
-                }
-
-                $promo_code_ref = $request->promo_code;
-            }
-
-            // add promo campaign report
-            if($request->json('promo_code'))
-            {
-                $promo_campaign_report = app($this->promo_campaign)->addReport(
-                    $code->id_promo_campaign,
-                    $code->id_promo_campaign_promo_code,
-                    $insertTransaction['id_transaction'],
-                    $insertTransaction['id_outlet'],
-                    $request->device_id?:'',
-                    $request->device_type?:''
-                );
-
-                if (!$promo_campaign_report) {
-                    DB::rollBack();
-                    return response()->json([
-                        'status'    => 'fail',
-                        'messages'  => ['Insert Transaction Failed']
-                    ]);
-                }
-            }
-        }
-
         //update receipt
         $receipt = config('configs.PREFIX_TRANSACTION_NUMBER').'-'.MyHelper::createrandom(4,'Angka').time().substr($insertTransaction['id_outlet'], 0, 4);
         $updateReceiptNumber = Transaction::where('id_transaction', $insertTransaction['id_transaction'])->update([
@@ -977,30 +936,6 @@ class ApiOnlineTransaction extends Controller
                 ]);
             }
 
-            if(!$checkProduct['product_variant_status']){
-                $checkDetailProduct = ProductDetail::where(['id_product' => $checkProduct['id_product'], 'id_outlet' => $post['id_outlet']])->first();
-                $currentProductStock = $checkDetailProduct['product_detail_stock_item']??0;
-                $currentProductServiceStock = $checkDetailProduct['product_detail_stock_service']??0;
-                $stockItem = 1;
-                if ($valueProduct['qty'] > $currentProductStock) {
-                    DB::rollback();
-                    return response()->json([
-                        'status'    => 'fail',
-                        'product_sold_out_status' => true,
-                        'messages'  => ['Product '.$checkProduct['product_name'].' tidak tersedia dan akan terhapus dari cart.']
-                    ]);
-                }
-
-                if ($checkDetailProduct['product_detail_visibility'] == 'Hidden' || (empty($checkDetailProduct) && $checkProduct['product_visibility'] == 'Hidden')) {
-                    DB::rollback();
-                    return response()->json([
-                        'status'    => 'fail',
-                        'product_sold_out_status' => true,
-                        'messages'  => ['Product '.$checkProduct['product_name'].' tidak tersedia dan akan terhapus dari cart.']
-                    ]);
-                }
-            }
-
             if(!isset($valueProduct['note'])){
                 $valueProduct['note'] = null;
             }
@@ -1027,33 +962,6 @@ class ApiOnlineTransaction extends Controller
                     return response()->json([
                         'status'    => 'fail',
                         'messages'  => ['Product Price Not Valid']
-                    ]);
-                }
-            }
-
-            if($checkProduct['product_variant_status'] && !empty($valueProduct['id_product_variant_group'])){
-                $productVariantGroup = ProductVariantGroup::where('id_product_variant_group', $valueProduct['id_product_variant_group'])->first();
-                $detailProductVariantGroup = ProductVariantGroupDetail::where('id_product_variant_group', $valueProduct['id_product_variant_group'])
-                    ->where('id_outlet', $post['id_outlet'])
-                    ->first();
-                $currentProductStock = $detailProductVariantGroup['product_variant_group_detail_stock_item']??0;
-                $currentProductServiceStock = $detailProductVariantGroup['product_variant_group_detail_stock_service']??0;
-                $stockItemVariant = 1;
-                if($valueProduct['qty'] > $currentProductStock){
-                    DB::rollback();
-                    return response()->json([
-                        'status'    => 'fail',
-                        'product_sold_out_status' => true,
-                        'messages'  => ['Product '.$checkProduct['product_name'].' tidak tersedia dan akan terhapus dari cart.']
-                    ]);
-                }
-
-                if($detailProductVariantGroup['product_variant_group_visibility'] == 'Hidden' || (empty($detailProductVariantGroup) && $productVariantGroup['product_variant_group_visibility'] == 'Hidden')){
-                    DB::rollback();
-                    return response()->json([
-                        'status'    => 'fail',
-                        'product_sold_out_status' => true,
-                        'messages'  => ['Product '.$checkProduct['product_name'].' tidak tersedia dan akan terhapus dari cart.']
                     ]);
                 }
             }
@@ -1998,12 +1906,7 @@ class ApiOnlineTransaction extends Controller
 
         $fake_request = new Request(['show_all' => 1]);
         $result['available_payment'] = $this->availablePayment($fake_request)['result'] ?? [];
-        $result['messages_all'] = $error_msg;
-        if (!empty($error_msg)) {
-        	$result['continue_checkout'] = false;
-        }
 
-        $result['continue_checkout'] = true;
         $result['messages_all'] = null;
         if(!empty($error_msg)){
             $result['continue_checkout'] = false;
@@ -2459,6 +2362,7 @@ class ApiOnlineTransaction extends Controller
                         ->where('products.id_product', $item['id_product'])
                         ->select('products.*', 'product_global_price as product_price', 'brand_product.id_brand')
                         ->where('product_type', 'service')
+                        ->with('product_icount_use')
                         ->first();
 
             if(empty($service)){
@@ -2467,18 +2371,32 @@ class ApiOnlineTransaction extends Controller
                 continue;
             }
 
+            if(!empty($service['product_icount_use'])){
+                $getProductUse = ProductProductIcount::join('product_detail', 'product_detail.id_product', 'product_product_icounts.id_product')
+                    ->where('product_product_icounts.id_product', $service['id_product'])
+                    ->where('product_detail.id_outlet', $outlet['id_outlet'])->get()->toArray();
+                if(count($service['product_icount_use']) != count($getProductUse)){
+                    $errorServiceName[] = $item['product_name'];
+                    unset($post['item_service'][$key]);
+                    continue;
+                }
+
+                foreach ($getProductUse as $stock){
+                    $use = $stock['qty'] * 1;
+                    $allUse = ($tempStock[$stock['id_product']]??0) + $use;
+                    if(!is_null($stock['product_detail_stock_item']) && $allUse > $stock['product_detail_stock_item']){
+                        $errorServiceName[] = $item['product_name'];
+                        unset($post['item_service'][$key]);
+                        continue 2;
+                    }
+                    $tempStock[$stock['id_product']] = $allUse;
+                }
+            }
+
             $getProductDetail = ProductDetail::where('id_product', $service['id_product'])->where('id_outlet', $post['id_outlet'])->first();
             $service['visibility_outlet'] = $getProductDetail['product_detail_visibility']??null;
 
             if($service['visibility_outlet'] == 'Hidden' || (empty($service['visibility_outlet']) && $service['product_visibility'] == 'Hidden')){
-                $errorServiceName[] = $item['product_name'];
-                unset($post['item_service'][$key]);
-                continue;
-            }
-
-            $allUse = ($tempStock[$service['id_product']]??0) + 1;
-            $tempStock[$service['id_product']] = $allUse;
-            if($allUse > $getProductDetail['product_detail_stock_item']){
                 $errorServiceName[] = $item['product_name'];
                 unset($post['item_service'][$key]);
                 continue;
@@ -2564,7 +2482,10 @@ class ApiOnlineTransaction extends Controller
 
             //checking same time
             foreach ($itemService as $s){
-                if(strtotime($s['booking_time']) >= strtotime($bookTimeStart) && strtotime($s['booking_time']) <= strtotime($bookTimeEnd)){
+                if($item['id_user_hair_stylist'] == $s['id_user_hair_stylist'] &&
+                    ((strtotime($s['booking_start']) >= strtotime($bookTimeStart) && strtotime($s['booking_start']) <= strtotime($bookTimeEnd)) ||
+                        (strtotime($s['booking_end']) > strtotime($bookTimeStart) && strtotime($s['booking_end']) < strtotime($bookTimeEnd)))){
+
                     $errorHsNotAvailable[] = $item['user_hair_stylist_name']." (".MyHelper::dateFormatInd($bookTime).')';
                     unset($post['item_service'][$key]);
                     continue 2;
@@ -2582,7 +2503,9 @@ class ApiOnlineTransaction extends Controller
                 "user_hair_stylist_name" => $hs['fullname'],
                 "booking_date" => $item['booking_date'],
                 "booking_date_display" => MyHelper::dateFormatInd($item['booking_date'], true, false),
-                "booking_time" => $item['booking_time']
+                "booking_time" => $item['booking_time'],
+                "booking_start" => $bookTimeStart,
+                "booking_end" => $bookTimeEnd,
             ];
             $subTotalService = $subTotalService + $service['product_price'];
         }
@@ -3748,6 +3671,7 @@ class ApiOnlineTransaction extends Controller
             $product = Product::leftJoin('brand_product', 'brand_product.id_product', 'products.id_product')
                             ->where('products.id_product', $itemProduct['id_product'])
                             ->where('product_type', 'service')
+                            ->with('product_icount_use')
                             ->select('products.*', 'brand_product.id_brand')->first();
 
             if (empty($product)) {
@@ -3756,6 +3680,32 @@ class ApiOnlineTransaction extends Controller
                     'status'    => 'fail',
                     'messages'  => ['Product Service Not Found '.$itemProduct['product_name']]
                 ];
+            }
+
+            if(!empty($product['product_icount_use'])){
+                $getProductUse = ProductProductIcount::join('product_detail', 'product_detail.id_product', 'product_product_icounts.id_product')
+                    ->where('product_product_icounts.id_product', $product['id_product'])
+                    ->where('product_detail.id_outlet', $outlet['id_outlet'])->select('product_product_icounts.qty', 'product_detail.*')->get()->toArray();
+                if(empty($getProductUse) || (count($product['product_icount_use']) != count($getProductUse))){
+                    DB::rollback();
+                    return [
+                        'status'    => 'fail',
+                        'messages'  => ['Product use in service '.$itemProduct['product_name']. ' not available']
+                    ];
+                }
+
+                foreach ($getProductUse as $stock){
+                    $use = $stock['qty'] * 1;
+                    $allUse = ($tempStock[$stock['id_product']]??0) + $use;
+                    if(!is_null($stock['product_detail_stock_item']) && $allUse > $stock['product_detail_stock_item']){
+                        DB::rollback();
+                        return [
+                            'status'    => 'fail',
+                            'messages'  => ['Product use in service '.$itemProduct['product_name']. ' not available']
+                        ];
+                    }
+                    $tempStock[$stock['id_product']] = $allUse;
+                }
             }
 
             $getProductDetail = ProductDetail::where('id_product', $itemProduct['id_product'])->where('id_outlet', $post['id_outlet'])->first();
@@ -3767,16 +3717,6 @@ class ApiOnlineTransaction extends Controller
                     'status'    => 'fail',
                     'product_sold_out_status' => true,
                     'messages'  => ['Product '.$itemProduct['product_name'].' tidak tersedia']
-                ];
-            }
-
-            $allUse = ($tempStock[$product['id_product']]??0) + 1;
-            $tempStock[$product['id_product']] = $allUse;
-            if($allUse > $getProductDetail['product_detail_stock_item']){
-                DB::rollback();
-                return [
-                    'status'    => 'fail',
-                    'messages'  => ['Product use in service '.$itemProduct['product_name']. ' not available']
                 ];
             }
 
@@ -4534,10 +4474,29 @@ class ApiOnlineTransaction extends Controller
                 ->leftJoin('brand_product', 'brand_product.id_product', 'products.id_product')
                 ->where('products.id_product', $item['id_product'])
                 ->select('products.*', 'product_global_price as product_price', 'brand_product.id_brand')
+                ->with(['product_icount_use'])
                 ->first();
 
             if(empty($service)){
                 $err[] = 'Service tidak tersedia';
+            }
+
+            if(!empty($service['product_icount_use'])){
+                $getProductUse = ProductProductIcount::join('product_detail', 'product_detail.id_product', 'product_product_icounts.id_product')
+                    ->where('product_product_icounts.id_product', $service['id_product'])
+                    ->where('product_detail.id_outlet', $outlet['id_outlet'])->select('product_product_icounts.qty', 'product_detail.*')->get()->toArray();
+                if(empty($getProductUse) || (count($service['product_icount_use']) != count($getProductUse))){
+                    $err[] = 'Stock tidak tersedia';
+                }
+
+                foreach ($getProductUse as $stock){
+                    $use = $stock['qty'] * 1;
+                    $allUse = ($tempStock[$stock['id_product']]??0) + $use;
+                    if(!is_null($stock['product_detail_stock_item']) && $allUse > $stock['product_detail_stock_item']){
+                        $err[] = 'Stock tidak tersedia';
+                    }
+                    $tempStock[$stock['id_product']] = $allUse;
+                }
             }
 
             $getProductDetail = ProductDetail::where('id_product', $service['id_product'])->where('id_outlet', $post['id_outlet'])->first();
@@ -4545,12 +4504,6 @@ class ApiOnlineTransaction extends Controller
 
             if($service['visibility_outlet'] == 'Hidden' || (empty($service['visibility_outlet']) && $service['product_visibility'] == 'Hidden')){
                 $err[] = 'Service tidak tersedia';
-            }
-
-            $allUse = ($tempStock[$service['id_product']]??0) + 1;
-            $tempStock[$service['id_product']] = $allUse;
-            if($allUse > $getProductDetail['product_detail_stock_item']){
-                $err[] = 'Stok habis';
             }
 
             if($outlet['outlet_special_status'] == 1){
@@ -4616,7 +4569,9 @@ class ApiOnlineTransaction extends Controller
 
             //checking same time
             foreach ($itemService as $s){
-                if(strtotime($s['booking_time']) >= strtotime($bookTimeStart) && strtotime($s['booking_time']) <= strtotime($bookTimeEnd)){
+                if($item['id_user_hair_stylist'] == $s['id_user_hair_stylist'] &&
+                    ((strtotime($s['booking_start']) >= strtotime($bookTimeStart) && strtotime($s['booking_start']) <= strtotime($bookTimeEnd)) ||
+                    (strtotime($s['booking_end']) > strtotime($bookTimeStart) && strtotime($s['booking_end']) < strtotime($bookTimeEnd)))){
                     $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
                 }
             }
@@ -4633,6 +4588,8 @@ class ApiOnlineTransaction extends Controller
                 "booking_date" => $item['booking_date'],
                 "booking_date_display" => MyHelper::dateFormatInd($item['booking_date'], true, false),
                 "booking_time" => $item['booking_time'],
+                "booking_start" => $bookTimeStart,
+                "booking_end" => $bookTimeEnd,
                 "error_msg" => (empty($err)? null:implode(".", array_unique($err)))
             ];
             $subTotalService = $subTotalService + $service['product_price'];
@@ -4713,79 +4670,37 @@ class ApiOnlineTransaction extends Controller
         $data = TransactionProduct::where('transactions.id_transaction', $id_transaction)
             ->join('transactions', 'transactions.id_transaction', 'transaction_products.id_transaction')
             ->select('transaction_products.*', 'transactions.id_outlet')
-            ->where('type', 'Product')
             ->get()->toArray();
 
         foreach ($data as $dt){
-            $stock = ProductDetail::where(['id_product' => $dt['id_product'], 'id_outlet' => $dt['id_outlet']])->first();
-            ProductStockLog::create([
-                'id_product' => $dt['id_product'],
-                'id_transaction' => $dt['id_transaction'],
-                'stock_item' => -$dt['transaction_product_qty'],
-                'stock_item_before' => $stock['product_detail_stock_item'],
-                'stock_service_before' => (empty($stock['product_detail_stock_service']) ? 0 :$stock['product_detail_stock_service']),
-                'stock_item_after' => $stock['product_detail_stock_item'] - $dt['transaction_product_qty'],
-                'stock_service_after' => (empty($stock['product_detail_stock_service']) ? 0 :$stock['product_detail_stock_service'])
-            ]);
+            $getProductUse = ProductProductIcount::join('product_detail', 'product_detail.id_product', 'product_product_icounts.id_product')
+                ->where('product_product_icounts.id_product', $dt['id_product'])
+                ->where('product_detail.id_outlet', $dt['id_outlet'])->get()->toArray();
 
-            $stock->product_detail_stock_item = $stock['product_detail_stock_item'] - $dt['transaction_product_qty'];
-            $stock->save();
+            foreach ($getProductUse as $productUse){
+                $product_icount = new ProductIcount();
+                $update = $product_icount->find($productUse['id_product_icount'])->addLogStockProductIcount(-($productUse['qty']*$dt['transaction_product_qty']), $productUse['unit'], 'Book Product', $dt['id_transaction'], null, $dt['id_outlet']);
+            }
         }
 
         return $update??true;
     }
 
     function cancelBookProductStock($id_transaction){
-        $data = TransactionProduct::where('transactions.id_transaction', $id_transaction)
-            ->join('transactions', 'transactions.id_transaction', 'transaction_products.id_transaction')
-            ->select('transaction_products.*', 'transactions.id_outlet')
-            ->where('type', 'Product')
-            ->get()->toArray();
+        $id_outlet = Transaction::where('id_transaction', $id_transaction)->first()['id_outlet']??null;
+        $data = ProductIcountOutletStockLog::where('id_reference', $id_transaction)->where('source', 'Book Product')->get()->toArray();
 
         foreach ($data as $dt){
-            $stock = ProductDetail::where(['id_product' => $dt['id_product'], 'id_outlet' => $dt['id_outlet']])->first();
-            ProductStockLog::create([
-                'id_product' => $dt['id_product'],
-                'id_transaction' => $dt['id_transaction'],
-                'stock_item' => $dt['transaction_product_qty'],
-                'stock_item_before' => $stock['product_detail_stock_item'],
-                'stock_service_before' => (empty($stock['product_detail_stock_service']) ? 0 :$stock['product_detail_stock_service']),
-                'stock_item_after' => $stock['product_detail_stock_item'] + $dt['transaction_product_qty'],
-                'stock_service_after' => (empty($stock['product_detail_stock_service']) ? 0 :$stock['product_detail_stock_service'])
-            ]);
-
-            $stock->product_detail_stock_item = $stock['product_detail_stock_item'] + $dt['transaction_product_qty'];
-            $stock->save();
+            $product_icount = new ProductIcount();
+            $update = $product_icount->find($dt['id_product_icount'])->addLogStockProductIcount(abs($dt['qty']), 'Cancelled Book Product', $dt['id_transaction'], null, $id_outlet);
         }
 
         return $update??true;
     }
 
-    function bookProductServiceStock($trx,$id_transaction_product){
-        $getProduct = TransactionProductServiceUse::where('id_transaction_product', $id_transaction_product)->get()->toArray();
-        foreach ($getProduct as $p){
-            $productStock = ProductDetail::where(['id_product' => $p['id_product'], 'id_outlet' => $trx['id_outlet']])->first();
-            $currentStock = $productStock['product_detail_stock_item'];
-            $currentStockService = $productStock['product_detail_stock_service'];
-            $updateDetail = $productStock->update(['product_detail_stock_service' => $currentStockService - $p['quantity_use']]);
-            if(!$updateDetail){
-                DB::rollback();
-                return response()->json([
-                    'status'    => 'fail',
-                    'messages'  => ['Gagal memperbarui stok']
-                ]);
-            }
-            ProductStockLog::create([
-                'id_product' => $p['id_product'],
-                'id_transaction' => $trx['id_transaction'],
-                'stock_service' => -$p['quantity_use'],
-                'stock_item_before' => $currentStock,
-                'stock_service_before' => $currentStockService,
-                'stock_item_after' => $currentStock,
-                'stock_service_after' => $currentStockService - $p['quantity_use']
-            ]);
-        }
+    function checkAvailableNewData($data, $start, $end){
+        foreach ($data as $dt){
 
-        return $updateDetail??true;
+        }
     }
 }

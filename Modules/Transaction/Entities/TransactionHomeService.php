@@ -65,7 +65,7 @@ class TransactionHomeService extends \App\Http\Models\Template\TransactionServic
 
             TransactionHomeServiceHairStylistFinding::where('id_transaction', $this->id_transaction)->delete();
             app("Modules\Transaction\Http\Controllers\ApiOnlineTransaction")->cancelBookHS($this->id_transaction);
-            app("Modules\Transaction\Http\Controllers\ApiTransactionHomeService")->cancelBookProductServiceStockHM($this->id_transaction);
+            app("Modules\Transaction\Http\Controllers\ApiOnlineTransaction")->cancelBookProductStock($this->id_transaction);
 
             // reject product
             $trxProducts = TransactionProduct::where('id_transaction', $this->id_transaction)->get();

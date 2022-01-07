@@ -342,7 +342,7 @@ class ApiAutoCrm extends Controller
 					//input env to log
 					$gateway = env('SMS_GATEWAY');
 
-					if(env('OTP_TYPE') == 'MISSCALL'){
+					if($otp_type == 'misscall'){
 						$gateway = env('MISSCALL_GATEWAY');
 					}else{
 						if (in_array($autocrm_title, ['Pin Sent', 'Pin Forgot'])) {
@@ -481,7 +481,7 @@ class ApiAutoCrm extends Controller
 				}
 			}
 
-			if($crm['autocrm_whatsapp_toogle'] == 1 && !$forward_only && (is_null($otp_type) || $otp_type == 'whatsapp')){
+			if($crm['autocrm_whatsapp_toogle'] == 1 && !$forward_only){
 				if(!empty($user['phone'])){
 					//cek api key whatsapp
 					$api_key = Setting::where('key', 'api_key_whatsapp')->first();

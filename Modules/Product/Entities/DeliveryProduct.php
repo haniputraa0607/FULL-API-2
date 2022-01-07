@@ -5,6 +5,7 @@ namespace Modules\Product\Entities;
 use Illuminate\Database\Eloquent\Model;
 use App\Http\Models\User;
 use App\Http\Models\Outlet;
+use Modules\Recruitment\Entities\UserHairStylist;
 
 class DeliveryProduct extends Model
 {
@@ -37,7 +38,7 @@ class DeliveryProduct extends Model
     }
 
     public function delivery_product_user_accept(){
-        return $this->belongsTo(User::class,  'id_user_accept', 'id');
+        return $this->belongsTo(UserHairStylist::class,  'id_user_accept', 'id_user_hair_stylist');
     }
 
     public function delivery_product_outlet(){

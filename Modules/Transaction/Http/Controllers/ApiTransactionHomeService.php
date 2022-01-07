@@ -142,28 +142,10 @@ class ApiTransactionHomeService extends Controller
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
                 ->where('products.id_product', $item['id_product'])
                 ->select('products.*', 'product_global_price as product_price')
-                ->with('product_icount_use')
                 ->first();
 
             if(empty($service)){
                 $err[] = 'Service tidak tersedia';
-            }
-
-            if(!empty($service['product_icount_use'])){
-                $getProductUse = ProductProductIcount::join('product_detail', 'product_detail.id_product', 'product_product_icounts.id_product')
-                    ->where('product_product_icounts.id_product', $service['id_product'])
-                    ->where('product_detail.id_outlet', $outlet['id_outlet'])->select('product_product_icounts.qty', 'product_detail.*')->get()->toArray();
-                if(empty($getProductUse) || (count($service['product_icount_use']) != count($getProductUse))){
-                    $err[] = 'Stok habis';
-                }
-
-                foreach ($getProductUse as $stock){
-                    $use = $stock['qty'] * $item['qty'];
-                    if($use > $stock['product_detail_stock_item']){
-                        $err[] = 'Stok habis';
-                        break;
-                    }
-                }
             }
 
             $getProductDetail = ProductDetail::where('id_product', $service['id_product'])->where('id_outlet', $outlet['id_outlet'])->first();
@@ -171,6 +153,10 @@ class ApiTransactionHomeService extends Controller
 
             if($service['visibility_outlet'] == 'Hidden' || (empty($service['visibility_outlet']) && $service['product_visibility'] == 'Hidden')){
                 $err[] = 'Service tidak tersedia';
+            }
+
+            if(!is_null($getProductDetail['product_detail_stock_item']) && $item['qty'] > $getProductDetail['product_detail_stock_item']){
+                $err[] = 'Stok habis';
             }
 
             $itemService[$key] = [
@@ -381,7 +367,6 @@ class ApiTransactionHomeService extends Controller
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
                 ->where('products.id_product', $item['id_product'])
                 ->select('products.*', 'product_global_price as product_price')
-                ->with('product_service_use')
                 ->first();
 
             if(empty($service)){
@@ -389,28 +374,6 @@ class ApiTransactionHomeService extends Controller
                 $errAll[] = 'Service tidak tersedia';
                 unset($item[$key]);
                 continue;
-            }
-
-            if(!empty($service['product_icount_use'])){
-                $getProductUse = ProductProductIcount::join('product_detail', 'product_detail.id_product', 'product_product_icounts.id_product')
-                    ->where('product_product_icounts.id_product', $service['id_product'])
-                    ->where('product_detail.id_outlet', $outlet['id_outlet'])->select('product_product_icounts.qty', 'product_detail.*')->get()->toArray();
-                if(empty($getProductUse) || (count($service['product_icount_use']) != count($getProductUse))){
-                    $err[] = 'Stok habis';
-                    $errAll[] = 'Stok habis';
-                    unset($item[$key]);
-                    continue;
-                }
-
-                foreach ($getProductUse as $stock){
-                    $use = $stock['qty'] * $item['qty'];
-                    if($use > $stock['product_detail_stock_item']){
-                        $err[] = 'Stok habis';
-                        $errAll[] = 'Stok habis';
-                        unset($item[$key]);
-                        continue;
-                    }
-                }
             }
 
             if(!empty($idHs) && $post['preference_hair_stylist'] == 'favorite'){
@@ -421,23 +384,30 @@ class ApiTransactionHomeService extends Controller
                     unset($item[$key]);
                     continue;
                 }
+            }
 
-                $getProductDetail = ProductDetail::where('id_product', $service['id_product'])->where('id_outlet', $outlet['id_outlet'])->first();
-                $service['visibility_outlet'] = $getProductDetail['product_detail_visibility']??null;
+            $getProductDetail = ProductDetail::where('id_product', $service['id_product'])->where('id_outlet', $outlet['id_outlet'])->first();
+            $service['visibility_outlet'] = $getProductDetail['product_detail_visibility']??null;
 
-                if($service['visibility_outlet'] == 'Hidden' || (empty($service['visibility_outlet']) && $service['product_visibility'] == 'Hidden')){
-                    $err[] = 'Service tidak tersedia';
-                    $errAll[] = 'Service tidak tersedia';
-                    unset($item[$key]);
-                    continue;
-                }
+            if($service['visibility_outlet'] == 'Hidden' || (empty($service['visibility_outlet']) && $service['product_visibility'] == 'Hidden')){
+                $err[] = 'Service tidak tersedia';
+                $errAll[] = 'Service tidak tersedia';
+                unset($item[$key]);
+                continue;
+            }
 
-                if(empty($service['product_price'])){
-                    $err[] = 'Service tidak tersedia';
-                    $errAll[] = 'Service tidak tersedia';
-                    unset($item[$key]);
-                    continue;
-                }
+            if(!is_null($getProductDetail['product_detail_stock_item']) && $item['qty'] > $getProductDetail['product_detail_stock_item']){
+                $err[] = 'Service tidak tersedia';
+                $errAll[] = 'Service tidak tersedia';
+                unset($item[$key]);
+                continue;
+            }
+
+            if(empty($service['product_price'])){
+                $err[] = 'Service tidak tersedia';
+                $errAll[] = 'Service tidak tersedia';
+                unset($item[$key]);
+                continue;
             }
 
             $itemService[$key] = [
@@ -687,28 +657,10 @@ class ApiTransactionHomeService extends Controller
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
                 ->where('products.id_product', $item['id_product'])
                 ->select('products.*', 'product_global_price as product_price')
-                ->with('product_icount_use')
                 ->first();
 
             if(empty($service)){
                 $errItem[] = 'Service tidak tersedia';
-            }
-
-            if(!empty($service['product_icount_use'])){
-                $getProductUse = ProductProductIcount::join('product_detail', 'product_detail.id_product', 'product_product_icounts.id_product')
-                    ->where('product_product_icounts.id_product', $service['id_product'])
-                    ->where('product_detail.id_outlet', $outlet['id_outlet'])->select('product_product_icounts.qty', 'product_detail.*')->get()->toArray();
-                if(empty($getProductUse) || (count($service['product_icount_use']) != count($getProductUse))){
-                    $errItem[] = 'Stok habis';
-                }
-
-                foreach ($getProductUse as $stock){
-                    $use = $stock['qty'] * $item['qty'];
-                    if($use > $stock['product_detail_stock_item']){
-                        $errItem[] = 'Stok habis';
-                        break;
-                    }
-                }
             }
 
             $getProductDetail = ProductDetail::where('id_product', $service['id_product'])->where('id_outlet', $outlet['id_outlet'])->first();
@@ -716,6 +668,10 @@ class ApiTransactionHomeService extends Controller
 
             if($service['visibility_outlet'] == 'Hidden' || (empty($service['visibility_outlet']) && $service['product_visibility'] == 'Hidden')){
                 $errItem[] = 'Service tidak tersedia';
+            }
+
+            if(!is_null($getProductDetail['product_detail_stock_item']) && $item['qty'] > $getProductDetail['product_detail_stock_item']){
+                $errItem[] = 'Stok habis';
             }
 
             if(empty($service['product_price'])){

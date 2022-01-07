@@ -177,6 +177,7 @@ class ApiPromoTransaction extends Controller
     	$resPromoCode = null;
     	$resDeals = null;
     	$continueCheckOut = $data['continue_checkout'];
+    	$sharedPromoTrx = TemporaryDataManager::create('promo_trx');
 
     	$userPromo = null;
     	if ($scopeUser != 'web-apps') {
@@ -213,7 +214,7 @@ class ApiPromoTransaction extends Controller
     		$promoCode = $applyCode['result'] ?? null;
 
 			$resPromoCode = [
-				'promo_code' => $applyCode['result']['promo_code'] ?? null,
+				'promo_code' => $sharedPromoTrx['promo_campaign']['promo_code'] ?? null,
 				'title' => $applyCode['result']['title'] ?? null,
 				'discount' => $applyCode['result']['discount'] ?? 0,
 				'discount_delivery' => $applyCode['result']['discount_delivery'] ?? 0,
@@ -351,12 +352,15 @@ class ApiPromoTransaction extends Controller
 
     public function applyPromoCode($id_code, $data = [])
     {
+    	$sharedPromoTrx = TemporaryDataManager::create('promo_trx');
     	$validateCode = $this->validatePromoCode($id_code);
     	if ($validateCode['status'] == 'fail') {
     		return $validateCode;
     	}
     	$promoCode = $validateCode['result'];
     	$promoCampaign = $promoCode->promo_campaign;
+    	$sharedPromoTrx['promo_campaign'] = $promoCampaign;
+    	$sharedPromoTrx['promo_campaign']['promo_code'] = $promoCode['promo_code'];
 
     	$validateGlobalRules = $this->validateGlobalRules('promo_campaign', $promoCampaign, $data);
     	if ($validateGlobalRules['status'] == 'fail') {

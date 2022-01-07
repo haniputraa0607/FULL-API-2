@@ -362,6 +362,13 @@ class ApiMitraHomeService extends Controller
             ->select('transactions.id_transaction', 'id_transaction_home_service', 'transaction_receipt_number', 'user_hair_stylist.fullname as hairstylist_name',
                 'schedule_date', 'schedule_time', 'users.name as customer_name');
 
+        if(!empty($post['key_search'])){
+            $list = $list->where(function ($q) use ($post){
+                $q->where('transaction_receipt_number', 'like', '%'.$post['key_search'].'%')
+                    ->orWhere('users.name', 'like', '%'.$post['key_search'].'%');
+            });
+        }
+
         if(!empty($post['filter']) && $post['filter'] == 'last 7 days'){
             $dateFilter = date("Y-m-d", strtotime($currentDate." -7 days"));
             $list = $list->whereDate('schedule_date', '>=', $dateFilter)->whereDate('schedule_date', '<=', $currentDate);

@@ -219,6 +219,7 @@ class ApiPromoTransaction extends Controller
 				'discount' => $applyCode['result']['discount'] ?? 0,
 				'discount_delivery' => $applyCode['result']['discount_delivery'] ?? 0,
 				'text' => $applyCode['result']['text'] ?? $applyCode['messages'],
+				'remove_text' => 'Batalkan penggunaan <b>' . ($sharedPromoTrx['promo_campaign']['promo_title'] ?? null) . '</b>',
 				'is_error' => ($applyCode['status'] == 'fail') ? true : false
 			];
 

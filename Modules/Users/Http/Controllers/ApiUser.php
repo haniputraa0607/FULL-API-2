@@ -1601,7 +1601,7 @@ class ApiUser extends Controller
 
                         if ($deviceCus && count($deviceCus) > (int) $fraud['parameter_detail'] && array_search($datauser[0]['id'], $check) !== false) {
                             $emailSender = Setting::where('key', 'email_sender')->first();
-                            $sendFraud = app($this->setting_fraud)->checkFraud($fraud, $datauser[0], ['device_id' => $device_id, 'device_type' => $request->json('device_type')], 0, 0, null, 0);
+                            $sendFraud = app($this->setting_fraud)->checkFraud($fraud, $datauser[0], ['device_id' => $device_id, 'device_type' => $useragent??null], 0, 0, null, 0);
                             $data = User::with('city')->where('phone', '=', $datauser[0]['phone'])->get()->toArray();
 
                             if ($data[0]['is_suspended'] == 1) {
@@ -2065,7 +2065,7 @@ class ApiUser extends Controller
 
                         if ($deviceCus && count($deviceCus) > (int) $fraud['parameter_detail'] && array_search($data[0]['id'], $check) !== false) {
                             $emailSender = Setting::where('key', 'email_sender')->first();
-                            $sendFraud = app($this->setting_fraud)->checkFraud($fraud, $data[0], ['device_id' => $device_id, 'device_type' => $request->json('device_type')], 0, 0, null, 0);
+                            $sendFraud = app($this->setting_fraud)->checkFraud($fraud, $data[0], ['device_id' => $device_id, 'device_type' => $useragent??null], 0, 0, null, 0);
                             $data = User::with('city')->where('phone', '=', $phone)->get()->toArray();
 
                             if ($data[0]['is_suspended'] == 1) {

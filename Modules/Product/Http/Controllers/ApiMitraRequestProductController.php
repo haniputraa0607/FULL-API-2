@@ -304,14 +304,14 @@ class ApiMitraRequestProductController extends Controller
                 $update['confirmation_note'] = $post['note'];
             }
 
-            if(isset($post['total_attachment'])){
+            if(isset($post['attachment'])){
                 DB::beginTransaction();
                 $delete_image = DeliveryProductImage::where('id_delivery_product',$post['id_delivery_product'])->delete();
 
                 $files = [];
-                for($i=0;$i<$post['total_attachment'];$i++){
-                    if(!empty($request->file('attachment_'.$i))){
-                        $encode = base64_encode(fread(fopen($request->file('attachment_'.$i), "r"), filesize($request->file('attachment_'.$i))));
+                foreach ($post['attachment'] as $i => $attachment){
+                    if(!empty($attachment)){
+                        $encode = base64_encode(fread(fopen($attachment, "r"), filesize($attachment)));
                         $name_file = 'attachment_'.$post['id_delivery_product'].'_'.$i;
                         $path_full = $this->deliv_path.$name_file;
                         $delete_path = MyHelper::deletePhoto($path_full);

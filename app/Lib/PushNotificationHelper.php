@@ -123,6 +123,7 @@ class PushNotificationHelper{
             }
         }
         else {
+            $type = str_replace('phone', 'phone_number', $type);
             if (is_array($value)) {
                 $hs->whereIn($type, $value);
             }

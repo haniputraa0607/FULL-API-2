@@ -6355,6 +6355,7 @@ class ApiTransaction extends Controller
             return response()->json(['status' => 'fail','message'=>$e->getMessage()]); 
         }      
     }
+
     public function callbacksharing(CallbackFromIcount $request){
         $data = SharingManagementFee::where(array('PurchaseInvoiceID'=>$request->PurchaseInvoiceID))->update([
             'status'=>$request->status,
@@ -6362,58 +6363,60 @@ class ApiTransaction extends Controller
         ]);
         return response()->json(['status' => 'success','code'=>$data]); 
     }
+
     function api_secret($length = 40) {
-    $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    $charactersLength = strlen($characters);
-    $randomStrings = '';
-    for ($a = 0; $a < 5; $a++) {
-        $random = '';
-       for ($i = 0; $i < 5; $i++) {
-            $random .= $characters[rand(0, $charactersLength - 1)];
+        $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        $charactersLength = strlen($characters);
+        $randomStrings = '';
+        for ($a = 0; $a < 5; $a++) {
+            $random = '';
+            for ($i = 0; $i < 5; $i++) {
+                $random .= $characters[rand(0, $charactersLength - 1)];
+            }
+            if($a == 0){
+                $randomStrings .= $random;
+            }else{
+                $randomStrings .= '-'.$random;
+            }
         }
-        if($a == 0){
-            $randomStrings .= $random;
+        $api_key = Setting::where('key','api_secret')->first();
+        if($api_key){
+            $data = Setting::where('key','api_secret')->update([
+              'value'=>$randomStrings,
+          ]);
         }else{
-            $randomStrings .= '-'.$random;
+            $data = Setting::create([
+               'key'=>'api_secret',
+               'value'=>$randomStrings
+               
+           ]);
         }
-    }
-    $api_key = Setting::where('key','api_secret')->first();
-    if($api_key){
-        $data = Setting::where('key','api_secret')->update([
-                  'value'=>$randomStrings,
-             ]);
-    }else{
-        $data = Setting::create([
-                 'key'=>'api_secret',
-                 'value'=>$randomStrings
-                    
-             ]);
-    }
-    return $randomStrings;
+        return $randomStrings;
     }   
+
     function api_key($length = 40) {
-    $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    $charactersLength = strlen($characters);
-    $randomString = '';
-    for ($i = 0; $i < $length; $i++) {
-        $randomString .= $characters[rand(0, $charactersLength - 1)];
-    }
-    $api_secret = Setting::where('key','api_key')->first();
-    if($api_secret){
-        $data = Setting::where('key','api_key')->update([
-                  'value'=>$randomString,
-             ]);
-    }else{
-        $data = Setting::create([
-                 'key'=>'api_key',
-                 'value'=>$randomString
-                    
-             ]);
-    }
-    return $randomString;
+        $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        $charactersLength = strlen($characters);
+        $randomString = '';
+        for ($i = 0; $i < $length; $i++) {
+            $randomString .= $characters[rand(0, $charactersLength - 1)];
+        }
+        $api_secret = Setting::where('key','api_key')->first();
+        if($api_secret){
+            $data = Setting::where('key','api_key')->update([
+              'value'=>$randomString,
+          ]);
+        }else{
+            $data = Setting::create([
+               'key'=>'api_key',
+               'value'=>$randomString
+               
+           ]);
+        }
+        return $randomString;
     } 
     function signature(Signature $request) {
-    $data = hash_hmac('sha256',$request->PurchaseInvoiceID.$request->status.$request->date_disburse,$request->api_secret);
-    return $data;
+        $data = hash_hmac('sha256',$request->PurchaseInvoiceID.$request->status.$request->date_disburse,$request->api_secret);
+        return $data;
     }
 }

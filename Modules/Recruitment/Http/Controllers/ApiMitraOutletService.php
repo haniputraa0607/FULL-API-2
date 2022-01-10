@@ -952,9 +952,9 @@ class ApiMitraOutletService extends Controller
             }
     	}
 
-        if((!empty($post['sort']) && $post['sort'] == 'desc') || empty($post['sort'])){
+        if((!empty($request->sort) && $request->sort == 'desc') || empty($request->sort)){
             $tps = $tps->orderBy('schedule_date', 'desc')->orderBy('schedule_time', 'desc');
-        }elseif(!empty($post['sort']) && $post['sort'] == 'asc'){
+        }elseif(!empty($request->sort) && $request->sort == 'asc'){
             $tps = $tps->orderBy('schedule_date', 'asc')->orderBy('schedule_time', 'asc');
         }
 

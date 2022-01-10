@@ -647,7 +647,7 @@ class ApiMitra extends Controller
     					'user_ratings.suggestion',
     					'user_ratings.created_at'
     				)
-    				->paginate(10)
+    				->paginate($request->per_page ?? 10)
     				->toArray();
 
 		$resData = [];

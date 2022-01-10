@@ -331,17 +331,18 @@ class ApiPromoTransaction extends Controller
 		$outlet = Outlet::find($sharedPromo['id_outlet']);
 
 		$dataTrx['subtotal'] = $sharedPromo['subtotal'];
+		
 		$dataTrx['discount'] = ($dataTrx['discount'] ?? 0) + ($dataDiscount['discount'] ?? 0);
-		$dataTrx['subtotal_discount'] = $sharedPromo['subtotal_discount'] - $dataTrx['discount'];
+		$dataTrx['subtotal_promo'] = $dataTrx['subtotal'] - $dataTrx['discount'];
+
 		$dataTrx['discount_delivery'] = ($dataTrx['discount_delivery'] ?? 0) + ($dataDiscount['discount_delivery'] ?? 0);
-		$dataTrx['shipping_discount'] = $sharedPromo['shipping_discount'] - $dataTrx['discount_delivery'];
-		$dataTrx['tax'] = ($outlet['is_tax'] / 100) * ($sharedPromo['subtotal'] - $dataTrx['discount']);
-		$dataTrx['grandtotal'] =  (int) $sharedPromo['subtotal_discount'] 
+		$dataTrx['shipping_promo'] = $sharedPromo['shipping_promo'] - ($dataDiscount['discount_delivery'] ?? 0);
+
+		$dataTrx['tax'] = ($outlet['is_tax'] / 100) * $dataTrx['subtotal_promo'];
+		$dataTrx['grandtotal'] =  (int) $dataTrx['subtotal_promo'] 
 								+ (int) $sharedPromo['service'] 
 								+ (int) $dataTrx['tax'] 
-								+ (int) ($dataTrx['shipping_discount'] ?? 0) 
-								- $dataTrx['discount'] 
-								- $dataTrx['discount_delivery'];
+								+ (int) $dataTrx['shipping_promo'];
 
 		$dataTrx['total_payment'] = $dataTrx['grandtotal'] - ($dataTrx['used_point'] ?? 0);
 
@@ -1227,9 +1228,9 @@ class ApiPromoTransaction extends Controller
 
     	$sharedPromoTrx['items'] = $sharedPromoTrx['items'] ?? $promoItems;
     	$sharedPromoTrx['subtotal'] = $dataTrx['subtotal'] ?? $dataTrx['transaction_subtotal'];
-    	$sharedPromoTrx['subtotal_discount'] = $dataTrx['subtotal_discount'] ?? $dataTrx['subtotal'] ?? $dataTrx['transaction_subtotal'];
+    	$sharedPromoTrx['subtotal_promo'] = $dataTrx['subtotal_promo'] ?? $dataTrx['subtotal'] ?? $dataTrx['transaction_subtotal'];
     	$sharedPromoTrx['shipping'] = $dataTrx['shipping'] ?? $dataTrx['transaction_shipment'] ?? 0;
-    	$sharedPromoTrx['shipping_discount'] = $dataTrx['shipping_discount'] ?? $dataTrx['transaction_shipment'] ?? 0;
+    	$sharedPromoTrx['shipping_promo'] = $dataTrx['shipping_promo'] ?? $dataTrx['transaction_shipment'] ?? 0;
     	$sharedPromoTrx['tax'] = $dataTrx['tax'] ?? $dataTrx['transaction_tax'];
     	$sharedPromoTrx['service'] = $dataTrx['service'] ?? $dataTrx['transaction_service'] ?? 0;
     	$sharedPromoTrx['cashback'] = $dataTrx['cashback'] ?? $dataTrx['transaction_cashback_earned'] ?? 0;

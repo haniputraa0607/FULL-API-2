@@ -62,6 +62,8 @@ use Modules\PromoCampaign\Http\Requests\ValidateCode;
 use Modules\PromoCampaign\Http\Requests\UpdateCashBackRule;
 use Modules\PromoCampaign\Http\Requests\CheckUsed;
 
+use Modules\Transaction\Entities\TransactionProductPromo;
+
 use Modules\PromoCampaign\Lib\PromoCampaignTools;
 use App\Lib\MyHelper;
 use App\Jobs\GeneratePromoCode;
@@ -177,7 +179,6 @@ class ApiPromoTransaction extends Controller
     public function applyPromoCheckout($data)
     {	
     	$user = request()->user();
-    	$scopeUser = $this->getScope();
     	$sharedPromoTrx = TemporaryDataManager::create('promo_trx');
 		$availableVoucher = $this->availableVoucher();
     	$continueCheckOut = $data['continue_checkout'];
@@ -189,10 +190,12 @@ class ApiPromoTransaction extends Controller
 		$data['available_voucher'] = $availableVoucher;
 		$data['continue_checkout'] = $continueCheckOut;
 
-    	$userPromo = null;
-    	if ($scopeUser != 'web-apps') {
-    		$userPromo = UserPromo::where('id_user', $user->id)->get()->keyBy('promo_type');
+    	$scopeUser = $this->getScope();
+    	if ($scopeUser == 'web-apps') {
+    		return $data;
     	}
+
+    	$userPromo = UserPromo::where('id_user', $user->id)->get()->keyBy('promo_type');
 
     	if ($userPromo->isEmpty()) {
     		return $data;
@@ -242,7 +245,7 @@ class ApiPromoTransaction extends Controller
     	];
 
     	if (empty($dealsErr) && empty($codeErr) && isset($dealsType) && isset($codeType)) {
-    		if ($rulePriority[$codeType] > $rulePriority[$dealsType]) {
+    		if ($rulePriority[$codeType] < $rulePriority[$dealsType]) {
     			$applyOrder = ['promo_campaign', 'deals'];
     		}
     	}
@@ -270,9 +273,8 @@ class ApiPromoTransaction extends Controller
 				}
 
 				$data = $this->reformatCheckout($data, $applyDeals['result'] ?? null);
-	    	}
 
-	    	if ($apply == 'promo_campaign' && isset($userPromo['promo_campaign'])) {
+	    	} elseif ($apply == 'promo_campaign' && isset($userPromo['promo_campaign'])) {
 	    		$this->createSharedPromoTrx($data);
 
 	    		if (empty($codeErr)) {
@@ -326,7 +328,7 @@ class ApiPromoTransaction extends Controller
     	$promoCashback = ($dataDiscount['promo_source'] == 'deals') ? 'voucher_online' : 'promo_code';
     	$discount = (int) abs($dataDiscount['discount'] ?? 0) ?: ($dataDiscount['discount_delivery'] ?? 0);
     	$sharedPromo = $this->getSharedPromoTrx();
-		$outlet = OUtlet::find($sharedPromo['id_outlet']);
+		$outlet = Outlet::find($sharedPromo['id_outlet']);
 
 		$dataTrx['subtotal'] = $sharedPromo['subtotal'];
 		$dataTrx['discount'] = ($dataTrx['discount'] ?? 0) + ($dataDiscount['discount'] ?? 0);
@@ -394,6 +396,10 @@ class ApiPromoTransaction extends Controller
     	$dealsUser = DealsUser::find($id_deals_user);
     	if (!$dealsUser) {
     		return $this->failResponse('Voucher tidak ditemukan');
+    	}
+
+    	if ($dealsUser['id_user'] != request()->user()->id) {
+    		return $this->failResponse('Voucher tidak tersedia');
     	}
 
     	if ($dealsUser['used_at']) {
@@ -1111,11 +1117,12 @@ class ApiPromoTransaction extends Controller
 		]);
     }
 
-    public function discountPerItem(&$item, $promo_rules){
+    public function discountPerItem(&$item, $promo_rules)
+    {
 		$discount 		= 0;
 		$prev_discount 	= $item['discount'] ?? 0;
 		$discount_qty 	= $item['promo_qty'];
-		$product_price 	= $item['product_price'];
+		$product_price 	= ($item['new_price'] ?? 0) ?: $item['product_price'];
 
 		$item['discount']		= 0;
 		$item['new_price']		= $product_price;
@@ -1228,56 +1235,120 @@ class ApiPromoTransaction extends Controller
 
     public function applyPromoNewTrx(Transaction $trxQuery)
     {	
+    	$user = request()->user();
+    	$sharedPromoTrx = TemporaryDataManager::create('promo_trx');
     	$data = clone $trxQuery;
     	$data->load('transaction_products');
     	$data = $data->toArray();
-    	$user = request()->user();
-    	$resPromoCode = null;
-    	$resDeals = null;
+    	
+    	$scopeUser = $this->getScope();
+    	if ($scopeUser == 'web-apps') {
+    		return MyHelper::checkGet($trxQuery);
+    	}
+
     	$userPromo = UserPromo::where('id_user', $user->id)->get()->keyBy('promo_type');
 
+    	if ($userPromo->isEmpty()) {
+    		return MyHelper::checkGet($trxQuery);
+    	}
+
+    	$dealsType = null;
     	if (isset($userPromo['deals'])) {
-    		$this->createSharedPromoTrx($data);
-
-    		$applyDeals = $this->applyDeals($userPromo['deals']->id_reference, $data);
-
-    		$promoDeals = $applyDeals['result'] ?? null;
-
-			if ($applyDeals['status'] == 'fail') {
-				return $applyDeals;
-			}
-
-			$data = $this->reformatNewTrx($trxQuery, $promoDeals ?? null);
+    		$dealsUser = $this->validateDeals($userPromo['deals']->id_reference);
+    		if ($dealsUser['status'] == 'fail') {
+    			return $dealsUser;
+    		} else {
+    			$deals = $dealsUser['result']->dealVoucher->deal;
+    			$sharedPromoTrx['deals'] = $deals;
+    			$sharedPromoTrx['deals']['id_deals_user'] = $dealsUser['result']->id_deals_user;
+    			$dealsPayment = DealsPaymentMethod::where('id_deals', $deals['id_deals'])->pluck('payment_method')->toArray();
+    			$dealsType = $deals->promo_type;
+    		}
     	}
 
+    	$codeType = null;
     	if (isset($userPromo['promo_campaign'])) {
-    		$this->createSharedPromoTrx($data);
-
-    		$applyCode = $this->applyPromoCode($userPromo['promo_campaign']->id_reference, $data);
-
-    		$promoCode = $applyCode['result'] ?? null;
-			if ($applyCode['status'] == 'fail') {
-				return $applyCode;
-			}
-
-			$data = $this->reformatNewTrx($trxQuery, $promoCode ?? null);
+    		$promoCode = $this->validatePromoCode($userPromo['promo_campaign']->id_reference);
+    		if ($promoCode['status'] == 'fail') {
+    			return $promoCode;
+    		} else {
+    			$promoCampaign = $promoCode['result']->promo_campaign;
+    			$sharedPromoTrx['promo_campaign'] = $promoCampaign;
+    			$sharedPromoTrx['promo_campaign']['promo_code'] = $promoCode['result']->promo_code;
+    			$sharedPromoTrx['promo_campaign']['id_promo_campaign_promo_code'] = $promoCode['result']->id_promo_campaign_promo_code;
+    			$codePayment = PromoCampaignPaymentMethod::where('id_promo_campaign', $promoCampaign['id_promo_campaign'])->pluck('payment_method')->toArray();
+    			$codeType = $promoCampaign->promo_type;
+    		}
     	}
+
+    	$applyOrder = ['deals', 'promo_campaign'];
+
+    	$rulePriority = [
+    		'Product discount' => 1,
+    		'Tier discount' => 1,
+    		// 'Buy X Get Y' => 1,
+    		'Discount bill' => 2,
+    		'Discount delivery' => 2
+    	];
+
+    	if (isset($dealsType) && isset($codeType)) {
+    		if ($rulePriority[$codeType] < $rulePriority[$dealsType]) {
+    			$applyOrder = ['promo_campaign', 'deals'];
+    		}
+    	}
+
+    	foreach ($applyOrder as $apply) {
+	    	if ($apply == 'deals' && isset($userPromo['deals'])) {
+	    		$this->createSharedPromoTrx($data);
+
+	    		$applyDeals = $this->applyDeals($userPromo['deals']->id_reference, $data);
+	    		$promoDeals = $applyDeals['result'] ?? null;
+				if ($applyDeals['status'] == 'fail') {
+					return $applyDeals;
+				}
+
+				$data = $this->reformatNewTrx($trxQuery, $promoDeals ?? null);
+				if ($data['status'] == 'fail') {
+					return $data;
+				}
+				$data = $data['result'];
+
+	    	} elseif ($apply == 'promo_campaign' && isset($userPromo['promo_campaign'])) {
+	    		$this->createSharedPromoTrx($data);
+
+	    		$applyCode = $this->applyPromoCode($userPromo['promo_campaign']->id_reference, $data);
+
+	    		$promoCode = $applyCode['result'] ?? null;
+				if ($applyCode['status'] == 'fail') {
+					return $applyCode;
+				}
+
+				$data = $this->reformatNewTrx($trxQuery, $promoCode ?? null);
+				if ($data['status'] == 'fail') {
+					return $data;
+				}
+				$data = $data['result'];
+	    	}
+	    }
 
 		$trxQuery = Transaction::find($trxQuery->id_transaction);
-
 		return MyHelper::checkGet($trxQuery);
     }
 
-    public function reformatNewTrx(Transaction $trxQuery, $dataDiscount)
+    public function reformatNewTrx(Transaction $trx, $dataDiscount)
     {
+    	$trxQuery = clone $trx;
+
     	if (empty($dataDiscount['discount']) && empty($dataDiscount['discount_delivery'])) {
-    		return $trxQuery;
+    		return MyHelper::checkGet($trxQuery->load('transaction_products')->toArray());
     	}
+
     	$user = request()->user();
     	$promoCashback = ($dataDiscount['promo_source'] == 'deals') ? 'voucher_online' : 'promo_code';
     	$discountValue = (int) abs($dataDiscount['discount'] ?? $dataDiscount['discount_delivery']);
     	$sharedPromo = $this->getSharedPromoTrx();
-		$outlet = OUtlet::find($sharedPromo['id_outlet']);
+
+		$outlet = Outlet::find($sharedPromo['id_outlet']);
 		$subtotal = $sharedPromo['subtotal'];
 		$cashback = $sharedPromo['cashback'];
 		$discount = (int) abs($dataDiscount['discount'] ?? 0);
@@ -1351,7 +1422,7 @@ class ApiPromoTransaction extends Controller
 			return $insertPromo;
 		}
 
-        return ['status' => 'success'];
+		return MyHelper::checkGet($trxQuery->load('transaction_products')->toArray());
     }
 
     public function insertUsedVoucher(Transaction $trx, $dataDiscount)

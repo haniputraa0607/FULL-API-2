@@ -689,7 +689,11 @@ class ApiPromoTransaction extends Controller
 
 		// sort product by price desc
 		uasort($product, function($a, $b){
-			return $b['product_price'] - $a['product_price'];
+			if (isset($a['new_price'])) {
+				return $b['new_price'] - $a['new_price'];
+			} else {
+				return $b['product_price'] - $a['product_price'];
+			}
 		});
 
 		$merge_product = [];
@@ -924,7 +928,11 @@ class ApiPromoTransaction extends Controller
 
 		// sort product price desc
 		uasort($product, function($a, $b){
-			return $b['product_price'] - $a['product_price'];
+			if (isset($a['new_price'])) {
+				return $b['new_price'] - $a['new_price'];
+			} else {
+				return $b['product_price'] - $a['product_price'];
+			}
 		});
 
 		// get max qty of product that can get promo
@@ -1120,10 +1128,11 @@ class ApiPromoTransaction extends Controller
     public function discountPerItem(&$item, $promo_rules)
     {
 		$discount 		= 0;
-		$prev_discount 	= $item['discount'] ?? 0;
+		$prev_discount 	= $item['total_discount'] ?? 0;
 		$discount_qty 	= $item['promo_qty'];
 		$product_price 	= ($item['new_price'] ?? 0) ?: $item['product_price'];
 
+		$item['total_discount']	= $prev_discount;
 		$item['discount']		= 0;
 		$item['new_price']		= $product_price;
 		$item['base_discount']	= 0;
@@ -1141,9 +1150,9 @@ class ApiPromoTransaction extends Controller
 				$discount = $product_price_total;
 			}
 
-			$item['discount']		= $prev_discount + $discount;
-			$item['new_price']		= ($product_price * $item['qty']) - $item['discount'];
-			$item['base_discount']	= $product_price < $promo_rules->discount_value ? $product_price : $promo_rules->discount_value;
+			$item['total_discount']	= $prev_discount + $discount;
+			$item['new_price']		= ($item['product_price'] * $item['qty']) - $item['total_discount'];
+			$item['base_discount']	= ($product_price < $promo_rules->discount_value) ? $product_price : $promo_rules->discount_value;
 		} else {
 			// percent
 			$discount_per_item = ($promo_rules->discount_value / 100) * $product_price;
@@ -1152,21 +1161,23 @@ class ApiPromoTransaction extends Controller
 			}
 			$discount = (int) ($discount_per_item * $discount_qty);
 
-			$item['discount']		= ($prev_discount + $discount);
-			$item['new_price']		= ($product_price * $item['qty']) - $item['discount'];
+			$item['total_discount']	= $prev_discount + $discount;
+			$item['new_price']		= ($item['product_price'] * $item['qty']) - $item['total_discount'];
 			$item['base_discount']	= $discount_per_item;
 		}
 
 		// if new price is negative
 		if ($item['new_price'] < 0) {
+			$discount 				= $product_price * $discount_qty;
+
+			$item['total_discount']	= $prev_discount + $discount;
 			$item['new_price']		= 0;
-			$item['discount']		= $product_price * $discount_qty;
 			$item['base_discount']	= $product_price;
-			$discount 				= $item['discount'] - $prev_discount;
 		}
 
 		$item['is_promo']		= 1;
 		$item['qty_discount']	= $discount_qty;
+		$item['discount']		= $discount;
 		unset($item['promo_qty']);
 
 		return $discount;
@@ -1214,7 +1225,7 @@ class ApiPromoTransaction extends Controller
 	    	}
     	}
 
-    	$sharedPromoTrx['items'] = $promoItems;
+    	$sharedPromoTrx['items'] = $sharedPromoTrx['items'] ?? $promoItems;
     	$sharedPromoTrx['subtotal'] = $dataTrx['subtotal'] ?? $dataTrx['transaction_subtotal'];
     	$sharedPromoTrx['subtotal_discount'] = $dataTrx['subtotal_discount'] ?? $dataTrx['subtotal'] ?? $dataTrx['transaction_subtotal'];
     	$sharedPromoTrx['shipping'] = $dataTrx['shipping'] ?? $dataTrx['transaction_shipment'] ?? 0;
@@ -1379,12 +1390,25 @@ class ApiPromoTransaction extends Controller
 					if (empty($item['is_promo'])) {
 						continue;
 					}
-					TransactionProduct::where('id_transaction_product', $item['id_transaction_product'])
-					->update([
-						'transaction_product_discount' => $item['discount'],
-						'transaction_product_discount_all' => $item['discount'],
-						'transaction_product_qty_discount' => $item['qty_discount'],
-						'transaction_product_base_discount' => $item['base_discount'],
+
+					$tp = TransactionProduct::find($item['id_transaction_product']);
+					if (!$tp) {
+						return $this->failResponse('Insert product promo failed');
+					}
+					
+					$tp->update([
+						'transaction_product_discount' => $tp->transaction_product_discount + $item['discount'],
+						'transaction_product_discount_all' => $tp->transaction_product_discount_all + $item['discount']
+					]);
+
+					TransactionProductPromo::create([
+						'id_transaction_product' => $item['id_transaction_product'],
+				        'id_deals' => $dataDiscount['id_deals'] ?? null,
+				        'id_promo_campaign' => $dataDiscount['id_promo_campaign'] ?? null,
+				        'promo_type' => ($dataDiscount['promo_source'] == 'deals') ? 'Deals' : 'Promo Campaign',
+				        'total_discount' => $item['discount'],
+				        'base_discount' => $item['base_discount'],
+				        'qty_discount' => $item['qty_discount']
 					]);
 				}
 				break;

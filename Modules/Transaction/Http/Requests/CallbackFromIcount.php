@@ -12,9 +12,7 @@ class CallbackFromIcount extends FormRequest
     public function rules()
     {
         return [
-            'PurchaseInvoiceID'    => 'required|cek',
-            'status'               => 'required|status',
-            'date_disburse'        => 'required|date_format:Y-m-d H:i:s',
+          
             'api_key'              => 'required|api_key',
             'signature'            => 'required|signature'
            ]; 

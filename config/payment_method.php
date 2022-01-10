@@ -122,7 +122,7 @@ return [
         'payment_gateway' => 'Xendit',
         'payment_method'  => 'KREDIVO',
         'status'          => 1,
-        'logo'            => env('STORAGE_URL_API').'default_image/payment_method/ic_shopee_pay.png',
+        'logo'            => env('STORAGE_URL_API').'default_image/payment_method/ic_kredivo.png',
         'text'            => 'Kredivo'
     ],
     'xendit_qris'      => [

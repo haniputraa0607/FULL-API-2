@@ -1057,9 +1057,10 @@ class ApiTransactionHomeService extends Controller
                     $idOutletSchedule = OutletSchedule::where('id_outlet', $val['id_outlet'])
                             ->where('day', $bookDay)->first()['id_outlet_schedule']??null;
                     $getTimeShift = app($this->product)->getTimeShift(strtolower($shift),$val['id_outlet'], $idOutletSchedule);
-                    if(!empty($getTimeShift['end'])){
+                    if(!empty($getTimeShift['start']) && !empty($getTimeShift['end'])){
+                        $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
                         $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
-                        if(strtotime($shiftTimeEnd) > strtotime($bookTime)){
+                        if(($bookTime >= $shiftTimeStart) && ($bookTime <= $shiftTimeEnd)){
                             continue;
                         }
                     }

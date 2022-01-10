@@ -1234,7 +1234,6 @@ class ApiTransactionShop extends Controller
     	$user = $request->user();
     	$detail = Transaction::where('transaction_from', 'shop')
     			->join('transaction_shops','transactions.id_transaction', 'transaction_shops.id_transaction')
-    			->where('id_user', $user->id)
     			->where(function ($q) use ($request) {
     				$q->where('transactions.id_transaction', $request->id_transaction);
     				$q->orWhere('transactions.transaction_receipt_number', $request->transaction_receipt_number);
@@ -1250,8 +1249,13 @@ class ApiTransactionShop extends Controller
     				'transaction_shops.*', 
     				'transactions.completed_at as trx_completed_at',
     				'transaction_shops.completed_at as shop_completed_at'
-    			)
-    			->first();
+    			);
+
+    	if(empty($request->admin)){
+            $detail = $detail->where('id_user', $user->id);
+        }
+
+    	$detail = $detail->first();
 
 		if (!$detail) {
 			return [

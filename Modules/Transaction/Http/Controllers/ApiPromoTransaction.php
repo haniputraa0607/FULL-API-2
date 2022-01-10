@@ -331,12 +331,12 @@ class ApiPromoTransaction extends Controller
 		$outlet = Outlet::find($sharedPromo['id_outlet']);
 
 		$dataTrx['subtotal'] = $sharedPromo['subtotal'];
-		
+
 		$dataTrx['discount'] = ($dataTrx['discount'] ?? 0) + ($dataDiscount['discount'] ?? 0);
 		$dataTrx['subtotal_promo'] = $dataTrx['subtotal'] - $dataTrx['discount'];
 
 		$dataTrx['discount_delivery'] = ($dataTrx['discount_delivery'] ?? 0) + ($dataDiscount['discount_delivery'] ?? 0);
-		$dataTrx['shipping_promo'] = $sharedPromo['shipping_promo'] - ($dataDiscount['discount_delivery'] ?? 0);
+		$dataTrx['shipping_promo'] = $sharedPromo['shipping'] - $dataTrx['discount_delivery'];
 
 		$dataTrx['tax'] = ($outlet['is_tax'] / 100) * $dataTrx['subtotal_promo'];
 		$dataTrx['grandtotal'] =  (int) $dataTrx['subtotal_promo'] 
@@ -352,7 +352,6 @@ class ApiPromoTransaction extends Controller
         }
 
     	return $dataTrx;
-
     }
 
     public function applyDeals($id_deals_user, $data = [])
@@ -1064,7 +1063,7 @@ class ApiPromoTransaction extends Controller
 			return $this->failResponse($message);
 		}
 
-		$total_price = $shared_promo['subtotal'];
+		$total_price = $shared_promo['subtotal_promo'];
 
 		if ($promo_rules->discount_type == 'Percent') {
 			$discount += ($total_price * $promo_rules->discount_value) / 100;
@@ -1098,7 +1097,7 @@ class ApiPromoTransaction extends Controller
     	$promo_rules 	= $promo->{$promoSource . '_discount_delivery_rules'};
 		$promo_brand 	= $promo->{$promoSource . '_brands'}->pluck('id_brand')->toArray();
 		$shared_promo 	= TemporaryDataManager::create('promo_trx');
-		$delivery_fee 	= $shared_promo['shipping'];
+		$delivery_fee 	= $shared_promo['shipping_promo'];
 		$discount 		= 0;
 
 		$discount_type	= $promo_rules->discount_type;
@@ -1358,16 +1357,23 @@ class ApiPromoTransaction extends Controller
     	$user = request()->user();
     	$promoCashback = ($dataDiscount['promo_source'] == 'deals') ? 'voucher_online' : 'promo_code';
     	$discountValue = (int) abs($dataDiscount['discount'] ?? $dataDiscount['discount_delivery']);
-    	$sharedPromo = $this->getSharedPromoTrx();
+    	$sharedPromo = TemporaryDataManager::create('promo_trx');
 
 		$outlet = Outlet::find($sharedPromo['id_outlet']);
 		$subtotal = $sharedPromo['subtotal'];
 		$cashback = $sharedPromo['cashback'];
+
 		$discount = (int) abs($dataDiscount['discount'] ?? 0);
 		$discount_delivery = (int) abs($dataDiscount['discount_delivery'] ?? 0);
+
 		$shipping = $trxQuery->transaction_shipment;
 		$tax = ($outlet['is_tax'] / 100) * ($subtotal - $discount);
-		$grandtotal = (int) $subtotal + (int) $sharedPromo['service'] + (int) $tax + (int) $shipping - $discount - $discount_delivery;
+		$grandtotal = (int) $subtotal 
+					+ (int) $sharedPromo['service'] 
+					+ (int) $tax 
+					+ (int) $shipping 
+					- $discount 
+					- $discount_delivery;
 
 		$promoGetPoint = app($this->online_trx)->checkPromoGetPoint($promoCashback);
 		$cashback_earned = $promoGetPoint ? $cashback : 0;
@@ -1376,6 +1382,9 @@ class ApiPromoTransaction extends Controller
 		$totalDiscountDelivery = abs($trxQuery->transaction_discount_delivery) + $discount_delivery;
 		$totalDiscountItem = abs($trxQuery->transaction_discount_item);
 		$totalDiscountBill = abs($trxQuery->transaction_discount_bill);
+
+		$sharedPromo['subtotal_promo'] = $subtotal - $totalDiscount;
+		$sharedPromo['shipping_promo'] = $shipping - $totalDiscountDelivery;
 
 		switch ($dataDiscount['promo_type']) {
 			case 'Discount bill':

@@ -710,128 +710,126 @@ class ApiConfirm extends Controller
                 ]);
             }
 
-            if ($payment_id == 'LINKAJA') {
-                $check->load('transactions.productTransaction.product');
+            $check->load('transactions.productTransaction.product');
 
-                $dataDetailProduct = [];
-                $checkPayment = TransactionMultiplePayment::where('id_transaction', $check['id_transaction'])->first();
-                foreach ($check['transactions'] as $subtrx) {
-                    foreach ($subtrx['productTransaction'] as $key => $value) {
-                        $dataProductMidtrans = [
-                            'id'       => (string) $value['id_product'],
-                            'price'    => abs($value['transaction_product_price']+$value['transaction_variant_subtotal']+$value['transaction_modifier_subtotal']-($value['transaction_product_discount']/$value['transaction_product_qty'])),
-                            'name'     => $value['product']['product_name'],
-                            'quantity' => $value['transaction_product_qty'],
-                        ];
-
-                        $dataDetailProduct[] = $dataProductMidtrans;
-                    }
-                }
-
-                if ($check['transaction_shipment'] > 0) {
-                    $dataShip = [
-                        'id'       => 'shipment',
-                        'price'    => abs($check['transaction_shipment']),
-                        'name'     => 'Shipping',
-                        'quantity' => 1,
+            $dataDetailProduct = [];
+            $checkPayment = TransactionMultiplePayment::where('id_transaction', $check['id_transaction'])->first();
+            foreach ($check['transactions'] as $subtrx) {
+                foreach ($subtrx['productTransaction'] as $key => $value) {
+                    $dataProductMidtrans = [
+                        'id'       => (string) $value['id_product'],
+                        'price'    => abs($value['transaction_product_price']+$value['transaction_variant_subtotal']+$value['transaction_modifier_subtotal']-($value['transaction_product_discount']/$value['transaction_product_qty'])),
+                        'name'     => $value['product']['product_name'],
+                        'quantity' => $value['transaction_product_qty'],
                     ];
-                    array_push($dataDetailProduct, $dataShip);
+
+                    $dataDetailProduct[] = $dataProductMidtrans;
                 }
-
-                if ($check['transaction_shipment_go_send'] > 0) {
-                    $dataShip = [
-                        'id'       => 'shipment_go_send',
-                        'price'    => abs($check['transaction_shipment_go_send']),
-                        'name'     => 'Shipping',
-                        'quantity' => 1,
-                    ];
-                    array_push($dataDetailProduct, $dataShip);
-                }
-
-                if ($check['transaction_shipment_grab'] > 0) {
-                    $dataShip = [
-                        'id'       => 'shipment_grab',
-                        'price'    => abs($check['transaction_shipment_grab']),
-                        'name'     => 'Shipping',
-                        'quantity' => 1,
-                    ];
-                    array_push($dataDetailProduct, $dataShip);
-                }
-
-                if ($check['transaction_service'] > 0) {
-                    $dataService = [
-                        'id'       => 'transaction_service',
-                        'price'    => abs($check['transaction_service']),
-                        'name'     => 'Service',
-                        'quantity' => 1,
-                    ];
-                    array_push($dataDetailProduct, $dataService);
-                }
-
-                if ($check['transaction_tax'] > 0) {
-                    $dataTax = [
-                        'id'       => 'transaction_tax',
-                        'price'    => abs($check['transaction_tax']),
-                        'name'     => 'Tax',
-                        'quantity' => 1,
-                    ];
-                    array_push($dataDetailProduct, $dataTax);
-                }
-
-                if ($check['transaction_discount'] > 0) {
-                    $dataDis = [
-                        'id'       => 'transaction_discount',
-                        'price'    => -abs($check['transaction_discount']),
-                        'name'     => 'Discount',
-                        'quantity' => 1,
-                    ];
-                    array_push($dataDetailProduct, $dataDis);
-                }
-
-                if ($check['transaction_payment_subscription']) {
-                    $dataDis = [
-                        'id'       => 'transaction_payment_subscription',
-                        'price'    => -abs($check['transaction_payment_subscription']['subscription_nominal']),
-                        'name'     => 'Subscription',
-                        'quantity' => 1,
-                    ];
-                    array_push($dataDetailProduct, $dataDis);
-                }
-
-                if ($check['transaction_discount_delivery'] != 0) {
-                    $dataDis = [
-                        'id'       => 'transaction_discount_delivery',
-                        'price'    => -abs($check['transaction_discount_delivery']),
-                        'name'     => 'Discount',
-                        'quantity' => 1,
-                    ];
-                    array_push($dataDetailProduct, $dataDis);
-                }
-
-                if (!empty($checkPayment)) {
-                    if ($checkPayment['type'] == 'Balance') {
-                        if (empty($checkPaymentBalance)) {
-                            DB::rollback();
-                            return response()->json([
-                                'status'   => 'fail',
-                                'messages' => ['Transaction is invalid'],
-                            ]);
-                        }
-
-                        $dataBalance     = [
-                            'id'       => 'balance',
-                            'price'    => -abs($checkPaymentBalance['balance_nominal']),
-                            'name'     => 'Balance',
-                            'quantity' => 1,
-                        ];
-
-                        array_push($dataDetailProduct, $dataBalance);
-
-                        $detailPayment['balance'] = -$checkPaymentBalance['balance_nominal'];
-                    }
-                }
-                $paymentXendit->items = $dataDetailProduct;
             }
+
+            if ($check['transaction_shipment'] > 0) {
+                $dataShip = [
+                    'id'       => 'shipment',
+                    'price'    => abs($check['transaction_shipment']),
+                    'name'     => 'Shipping',
+                    'quantity' => 1,
+                ];
+                array_push($dataDetailProduct, $dataShip);
+            }
+
+            if ($check['transaction_shipment_go_send'] > 0) {
+                $dataShip = [
+                    'id'       => 'shipment_go_send',
+                    'price'    => abs($check['transaction_shipment_go_send']),
+                    'name'     => 'Shipping',
+                    'quantity' => 1,
+                ];
+                array_push($dataDetailProduct, $dataShip);
+            }
+
+            if ($check['transaction_shipment_grab'] > 0) {
+                $dataShip = [
+                    'id'       => 'shipment_grab',
+                    'price'    => abs($check['transaction_shipment_grab']),
+                    'name'     => 'Shipping',
+                    'quantity' => 1,
+                ];
+                array_push($dataDetailProduct, $dataShip);
+            }
+
+            if ($check['transaction_service'] > 0) {
+                $dataService = [
+                    'id'       => 'transaction_service',
+                    'price'    => abs($check['transaction_service']),
+                    'name'     => 'Service',
+                    'quantity' => 1,
+                ];
+                array_push($dataDetailProduct, $dataService);
+            }
+
+            if ($check['transaction_tax'] > 0) {
+                $dataTax = [
+                    'id'       => 'transaction_tax',
+                    'price'    => abs($check['transaction_tax']),
+                    'name'     => 'Tax',
+                    'quantity' => 1,
+                ];
+                array_push($dataDetailProduct, $dataTax);
+            }
+
+            if ($check['transaction_discount'] > 0) {
+                $dataDis = [
+                    'id'       => 'transaction_discount',
+                    'price'    => -abs($check['transaction_discount']),
+                    'name'     => 'Discount',
+                    'quantity' => 1,
+                ];
+                array_push($dataDetailProduct, $dataDis);
+            }
+
+            if ($check['transaction_payment_subscription']) {
+                $dataDis = [
+                    'id'       => 'transaction_payment_subscription',
+                    'price'    => -abs($check['transaction_payment_subscription']['subscription_nominal']),
+                    'name'     => 'Subscription',
+                    'quantity' => 1,
+                ];
+                array_push($dataDetailProduct, $dataDis);
+            }
+
+            if ($check['transaction_discount_delivery'] != 0) {
+                $dataDis = [
+                    'id'       => 'transaction_discount_delivery',
+                    'price'    => -abs($check['transaction_discount_delivery']),
+                    'name'     => 'Discount',
+                    'quantity' => 1,
+                ];
+                array_push($dataDetailProduct, $dataDis);
+            }
+
+            if (!empty($checkPayment)) {
+                if ($checkPayment['type'] == 'Balance') {
+                    if (empty($checkPaymentBalance)) {
+                        DB::rollback();
+                        return response()->json([
+                            'status'   => 'fail',
+                            'messages' => ['Transaction is invalid'],
+                        ]);
+                    }
+
+                    $dataBalance     = [
+                        'id'       => 'balance',
+                        'price'    => -abs($checkPaymentBalance['balance_nominal']),
+                        'name'     => 'Balance',
+                        'quantity' => 1,
+                    ];
+
+                    array_push($dataDetailProduct, $dataBalance);
+
+                    $detailPayment['balance'] = -$checkPaymentBalance['balance_nominal'];
+                }
+            }
+            $paymentXendit->items = $dataDetailProduct;
 
             if ($paymentXendit->pay($errors)) {
                 $dataMultiple = [

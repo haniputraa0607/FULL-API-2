@@ -98,7 +98,8 @@ class ApiHairStylistController extends Controller
                 if ($upload_id_card['status'] == "success") {
                     $create_doc = UserHairStylistDocuments::create([
                         "id_user_hair_stylist" => $create['id_user_hair_stylist'],
-                        "document_type"        => 'ID Card',
+                        "document_type"        => 'Registration',
+                        "process_name_by"      => 'ID Card',
                         "process_date"         => date('Y-m-d H:i:s'),
                         "attachment"           => $upload_id_card['path'],
                     ]);
@@ -342,13 +343,19 @@ class ApiHairStylistController extends Controller
                         		$q->limit(2)->orderBy('created_at', 'desc');
 	                        },
 	                        'hairstylist_schedules.hairstylist_schedule_dates',
-                            'documents'
+                            'documents',
+                            'experiences'
 	                    ])
                         ->first();
 
             if ($detail) {
             	$detail['today_shift'] = app($this->mitra)->getTodayShift($detail->id_user_hair_stylist);
             	$detail['shift_box'] = app('Modules\Recruitment\Http\Controllers\ApiMitraOutletService')->shiftBox($detail->id_outlet);
+                if(isset($detail['experiences']) && !empty(isset($detail['experiences']))){
+                    $value_experinces =  json_decode($detail['experiences']['value']??'' , true);
+                    unset($detail['experiences']);
+                    $detail['experiences'] = $value_experinces;
+                }
             }
             return response()->json(MyHelper::checkGet($detail));
         }else{

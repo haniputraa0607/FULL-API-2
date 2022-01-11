@@ -231,6 +231,9 @@ class ApiTransactionOutletService extends Controller
             return MyHelper::checkGet($trx);
         }
 
+        // $trxPromo = $this->transactionPromo($trx);
+        // return $trxPromo;
+
         $trxProducts = $this->transactionProduct($trx);
         $trx['product_transaction'] = $trxProducts['product'];
         $productCount = $trxProducts['count'];
@@ -374,6 +377,11 @@ class ApiTransactionOutletService extends Controller
         	'product_service' => $trxProductService,
         	'count' => $productServiceCount
         ];
+    }
+
+    public function transactionPromo(Transaction $trx){
+        $trx = clone $trx;
+        return $trx;
     }
 
     public function transactionPayment(Transaction $trx)

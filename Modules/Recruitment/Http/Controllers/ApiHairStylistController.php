@@ -15,6 +15,7 @@ use App\Http\Models\LogOutletBox;
 use Modules\Recruitment\Http\Requests\user_hair_stylist_create;
 use Image;
 use DB;
+use Modules\Recruitment\Entities\UserHairStylistExperience;
 
 class ApiHairStylistController extends Controller
 {
@@ -53,7 +54,7 @@ class ApiHairStylistController extends Controller
         if(!empty($check)){
             return response()->json(['status' => 'fail', 'messages' => ['Email or phone already use']]);
         }
-
+        
         if (isset($post['photo']) && !empty($post['photo'])) {
             $img = Image::make(base64_decode($post['photo']));
             $imgwidth = $img->width();
@@ -88,6 +89,29 @@ class ApiHairStylistController extends Controller
 
         $create = UserHairStylist::create($dataCreate);
         if($create){
+            
+            if (isset($post['photo_id_card']) && !empty($post['photo_id_card'])) {
+                $img = Image::make(base64_decode($post['photo_id_card']));
+                $imgwidth = $img->width();
+                $imgheight = $img->height();
+                $upload_id_card = MyHelper::uploadPhotoStrict($post['photo_id_card'], 'img/hs/id_card/', $imgwidth, $imgheight, time());
+                if ($upload_id_card['status'] == "success") {
+                    $create_doc = UserHairStylistDocuments::create([
+                        "id_user_hair_stylist" => $create['id_user_hair_stylist'],
+                        "document_type"        => 'ID Card',
+                        "process_date"         => date('Y-m-d H:i:s'),
+                        "attachment"           => $upload_id_card['path'],
+                    ]);
+                }
+            }
+
+            if (isset($post['experience']) && !empty($post['experience'])) {
+                $create_experience = UserHairStylistExperience::create([
+                    "id_user_hair_stylist" => $create['id_user_hair_stylist'],
+                    "value"                => json_encode($post['experience']) 
+                ]);
+            }
+
             $autocrm = app($this->autocrm)->SendAutoCRM(
                 'Register Candidate Hair Stylist',
                 $create['phone_number'],

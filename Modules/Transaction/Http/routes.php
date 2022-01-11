@@ -276,7 +276,7 @@ Route::group(['prefix' => 'api/transaction', 'middleware' => ['log_activities', 
 });
 
 //callback for icount
-Route::group(['prefix' => 'api/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function() {
+Route::group(['prefix' => 'api/icount/disburse', 'namespace' => 'Modules\Transaction\Http\Controllers'], function() {
     Route::post('/callback','ApiTransaction@callbacksharing');
     Route::post('/signature','ApiTransaction@signature');
 });

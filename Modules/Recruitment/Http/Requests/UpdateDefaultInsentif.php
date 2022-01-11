@@ -6,13 +6,14 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Modules\Recruitment\Entities\HairstylistGroup;
-class CreateInsentif extends FormRequest
+use Modules\Recruitment\Entities\HairstylistGroupInsentif;
+class UpdateDefaultInsentif extends FormRequest
 {
     public function rules()
     {
         return [
-            'id_hairstylist_group'        => 'required|unik',
-            'id_hairstylist_group_default_insentifs'        => 'required',
+              'id_hairstylist_group_default_insentifs'        => 'required',
+              'name'        => 'required',
             'value'               => 'required',
             'formula'              => 'required',
            ]; 
@@ -20,7 +21,7 @@ class CreateInsentif extends FormRequest
     public function withValidator($validator)
     {
         $validator->addExtension('unik', function ($attribute, $value, $parameters, $validator) {
-         $survey = HairstylistGroup::where(array('id_hairstylist_group'=>$value))->first();
+         $survey = HairstylistGroupInsentif::where(array('id_hairstylist_group_insentif'=>$value))->first();
          if($survey){
              return true;
          } return false;
@@ -31,7 +32,7 @@ class CreateInsentif extends FormRequest
     {
         return [
             'required' => ':attribute harus diisi',
-            'unik' => 'Group Hairstylist tidak ada',
+            'unik' => 'Insentif tidak ada',
         ];
     }
     public function authorize()

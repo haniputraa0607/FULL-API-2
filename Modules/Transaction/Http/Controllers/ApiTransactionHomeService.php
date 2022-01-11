@@ -28,6 +28,7 @@ use Modules\Brand\Entities\Brand;
 use Modules\Favorite\Entities\FavoriteUserHiarStylist;
 use Modules\IPay88\Entities\TransactionPaymentIpay88;
 use Modules\Product\Entities\ProductDetail;
+use Modules\Product\Entities\ProductProductIcount;
 use Modules\Product\Entities\ProductStockLog;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use Modules\Recruitment\Entities\UserHairStylist;
@@ -154,7 +155,7 @@ class ApiTransactionHomeService extends Controller
                 $err[] = 'Service tidak tersedia';
             }
 
-            if($item['qty'] > $getProductDetail['product_detail_stock_item']){
+            if(!is_null($getProductDetail['product_detail_stock_item']) && $item['qty'] > $getProductDetail['product_detail_stock_item']){
                 $err[] = 'Stok habis';
             }
 
@@ -383,30 +384,30 @@ class ApiTransactionHomeService extends Controller
                     unset($item[$key]);
                     continue;
                 }
+            }
 
-                $getProductDetail = ProductDetail::where('id_product', $service['id_product'])->where('id_outlet', $outlet['id_outlet'])->first();
-                $service['visibility_outlet'] = $getProductDetail['product_detail_visibility']??null;
+            $getProductDetail = ProductDetail::where('id_product', $service['id_product'])->where('id_outlet', $outlet['id_outlet'])->first();
+            $service['visibility_outlet'] = $getProductDetail['product_detail_visibility']??null;
 
-                if($service['visibility_outlet'] == 'Hidden' || (empty($service['visibility_outlet']) && $service['product_visibility'] == 'Hidden')){
-                    $err[] = 'Service tidak tersedia';
-                    $errAll[] = 'Service tidak tersedia';
-                    unset($item[$key]);
-                    continue;
-                }
+            if($service['visibility_outlet'] == 'Hidden' || (empty($service['visibility_outlet']) && $service['product_visibility'] == 'Hidden')){
+                $err[] = 'Service tidak tersedia';
+                $errAll[] = 'Service tidak tersedia';
+                unset($item[$key]);
+                continue;
+            }
 
-                if($item['qty'] > $getProductDetail['product_detail_stock_item']){
-                    $err[] = 'Service tidak tersedia';
-                    $errAll[] = 'Service tidak tersedia';
-                    unset($item[$key]);
-                    continue;
-                }
+            if(!is_null($getProductDetail['product_detail_stock_item']) && $item['qty'] > $getProductDetail['product_detail_stock_item']){
+                $err[] = 'Service tidak tersedia';
+                $errAll[] = 'Service tidak tersedia';
+                unset($item[$key]);
+                continue;
+            }
 
-                if(empty($service['product_price'])){
-                    $err[] = 'Service tidak tersedia';
-                    $errAll[] = 'Service tidak tersedia';
-                    unset($item[$key]);
-                    continue;
-                }
+            if(empty($service['product_price'])){
+                $err[] = 'Service tidak tersedia';
+                $errAll[] = 'Service tidak tersedia';
+                unset($item[$key]);
+                continue;
             }
 
             $itemService[$key] = [
@@ -669,7 +670,7 @@ class ApiTransactionHomeService extends Controller
                 $errItem[] = 'Service tidak tersedia';
             }
 
-            if($item['qty'] > $getProductDetail['product_detail_stock_item']){
+            if(!is_null($getProductDetail['product_detail_stock_item']) && $item['qty'] > $getProductDetail['product_detail_stock_item']){
                 $errItem[] = 'Stok habis';
             }
 
@@ -1056,9 +1057,10 @@ class ApiTransactionHomeService extends Controller
                     $idOutletSchedule = OutletSchedule::where('id_outlet', $val['id_outlet'])
                             ->where('day', $bookDay)->first()['id_outlet_schedule']??null;
                     $getTimeShift = app($this->product)->getTimeShift(strtolower($shift),$val['id_outlet'], $idOutletSchedule);
-                    if(!empty($getTimeShift['end'])){
+                    if(!empty($getTimeShift['start']) && !empty($getTimeShift['end'])){
+                        $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
                         $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
-                        if(strtotime($shiftTimeEnd) > strtotime($bookTime)){
+                        if(($bookTime >= $shiftTimeStart) && ($bookTime <= $shiftTimeEnd)){
                             continue;
                         }
                     }

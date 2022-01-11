@@ -31,7 +31,8 @@ class FraudDetectionLogDevice extends Model
     function usersFraud(){
         return $this->hasMany(\App\Http\Models\UsersDeviceLogin::class, 'device_id', 'device_id')
             ->join('users', 'users_device_login.id_user', '=', 'users.id')
-            ->join('fraud_detection_log_device', 'users.id', '=', 'fraud_detection_log_device.id_user')
+            ->join('fraud_detection_log_device', 'users_device_login.device_id', '=', 'fraud_detection_log_device.device_id')
+            ->whereRaw('users_device_login.id_user in (Select id_user from fraud_detection_log_device where users_device_login.device_id = fraud_detection_log_device.device_id)')
             ->addSelect('users_device_login.*', 'users.*', 'fraud_detection_log_device.created_at as log_date')
             ->orderBy('users_device_login.last_login','desc');
     }

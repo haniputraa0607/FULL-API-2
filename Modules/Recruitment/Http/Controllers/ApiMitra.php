@@ -647,7 +647,7 @@ class ApiMitra extends Controller
     					'user_ratings.suggestion',
     					'user_ratings.created_at'
     				)
-    				->paginate(10)
+    				->paginate($request->per_page ?? 10)
     				->toArray();
 
 		$resData = [];
@@ -1212,20 +1212,21 @@ class ApiMitra extends Controller
         $user = $request->user();
         $post = $request->all();
 
-        if(!empty($post['amount']) && !empty($post['total_attachment'])){
+        if(!empty($post['amount']) && !empty($post['attachment'])){
+            $countAttach = count($post['attachment']);
             $outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
             if($outlet['total_cash_from_central'] < $post['amount']){
                 return ['status' => 'fail', 'messages' => ['Your balance is not enough']];
             }
 
-            if($post['total_attachment'] > 3){
+            if($countAttach > 3){
                 return ['status' => 'fail', 'messages' => ['You can upload maximum 3 file']];
             }
             $files = [];
-            for($i=0;$i<$post['total_attachment'];$i++){
-                if(!empty($request->file('attachment_'.$i))){
-                    $encode = base64_encode(fread(fopen($request->file('attachment_'.$i), "r"), filesize($request->file('attachment_'.$i))));
-                    $originalName = $request->file('attachment_'.$i)->getClientOriginalName();
+            foreach ($post['attachment'] as $attachment){
+                if(!empty($attachment)){
+                    $encode = base64_encode(fread(fopen($attachment, "r"), filesize($attachment)));
+                    $originalName = $attachment->getClientOriginalName();
                     $name = pathinfo($originalName, PATHINFO_FILENAME);
                     $ext = pathinfo($originalName, PATHINFO_EXTENSION);
                     $upload = MyHelper::uploadFile($encode, 'files/outlet_expense/',$ext, date('YmdHis').'_'.$name);

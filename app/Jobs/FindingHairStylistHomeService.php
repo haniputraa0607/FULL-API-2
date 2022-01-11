@@ -13,6 +13,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 
 use Modules\Product\Entities\ProductDetail;
+use Modules\Product\Entities\ProductProductIcount;
 use Modules\ProductService\Entities\ProductServiceUse;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Transaction\Entities\TransactionHomeService;
@@ -88,8 +89,8 @@ class FindingHairStylistHomeService implements ShouldQueue
                             continue;
                         }
 
-                        if($item['transaction_product_qty'] > $getProductDetail['product_detail_stock_item']){
-                            $err[] = 'Service tidak tersedia';
+                        if(!is_null($getProductDetail['product_detail_stock_item']) && $item['qty'] > $getProductDetail['product_detail_stock_item']){
+                            $err[] = 'Stok habis';
                             continue;
                         }
 
@@ -134,7 +135,7 @@ class FindingHairStylistHomeService implements ShouldQueue
                     );
 
                     app("Modules\Transaction\Http\Controllers\ApiOnlineTransaction")->bookHS($data['id_transaction']);
-                    app("Modules\Transaction\Http\Controllers\ApiTransactionHomeService")->bookProductServiceStockHM($data['id_transaction']);
+                    app("Modules\Transaction\Http\Controllers\ApiOnlineTransaction")->bookProductStock($data['id_transaction']);
                 }
             }else{
                 $updateStatus = TransactionHomeServiceStatusUpdate::create([

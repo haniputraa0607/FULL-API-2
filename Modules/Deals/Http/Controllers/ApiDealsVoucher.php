@@ -821,6 +821,9 @@ class ApiDealsVoucher extends Controller
 
         $voucher = $voucher->paginate(10);
         // get pagination attributes
+        $voucherPaginate = clone $voucher;
+        $voucherPaginate = $voucherPaginate->toArray();
+
         $current_page = $voucher->currentPage();
         $next_page_url = $voucher->nextPageUrl();
         $per_page = $voucher->perPage();
@@ -921,7 +924,8 @@ class ApiDealsVoucher extends Controller
         // if(!$result['total']){
         //     $result=[];
         // }
-
+        $voucherPaginate['data'] = $result['data'];
+        $result = $voucherPaginate;
         if (empty($result)) {
             $empty_text = Setting::where('key','=','message_myvoucher_empty_header')
                 ->orWhere('key','=','message_myvoucher_empty_content')

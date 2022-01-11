@@ -220,6 +220,8 @@ Route::group(['prefix' => 'api/transaction', 'middleware' => ['log_activities', 
     Route::post('be/detail', 'ApiTransaction@transactionDetail');
     Route::any('be/revenue_sharing', 'ApiTransaction@revenue_sharing');
     Route::any('be/management_fee', 'ApiTransaction@management_fee');
+    Route::post('/api_key','ApiTransaction@api_key');
+    Route::post('/api_secret','ApiTransaction@api_secret');
 });
 
 Route::group(['middleware' => ['auth:api', 'user_agent', 'scopes:apps'], 'prefix' => 'api/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
@@ -274,6 +276,7 @@ Route::group(['prefix' => 'api/transaction', 'middleware' => ['log_activities', 
 });
 
 //callback for icount
-Route::group(['prefix' => 'api/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function() {
+Route::group(['prefix' => 'api/icount/disburse', 'namespace' => 'Modules\Transaction\Http\Controllers'], function() {
     Route::post('/callback','ApiTransaction@callbacksharing');
+    Route::post('/signature','ApiTransaction@signature');
 });

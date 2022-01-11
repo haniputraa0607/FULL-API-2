@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use App\Lib\MyHelper;
+use Modules\Product\Entities\ProductIcount;
+use Modules\Product\Entities\ProductProductIcount;
 use Modules\Transaction\Entities\ManualRefund;
 use Modules\Transaction\Entities\TransactionPaymentCash;
 use Modules\Transaction\Entities\TransactionOutletService;
@@ -1423,19 +1425,14 @@ class ApiTransactionOutletService extends Controller
             ->first();
 
         if ($dt) {
-            $stock = ProductDetail::where(['id_product' => $dt['id_product'], 'id_outlet' => $dt['id_outlet']])->first();
-            ProductStockLog::create([
-                'id_product' => $dt['id_product'],
-                'id_transaction' => $dt['id_transaction'],
-                'stock_item' => $dt['transaction_product_qty'],
-                'stock_item_before' => $stock['product_detail_stock_item'],
-                'stock_service_before' => (empty($stock['product_detail_stock_service']) ? 0 :$stock['product_detail_stock_service']),
-                'stock_item_after' => $stock['product_detail_stock_item'] + $dt['transaction_product_qty'],
-                'stock_service_after' => (empty($stock['product_detail_stock_service']) ? 0 :$stock['product_detail_stock_service'])
-            ]);
+            $getProductUse = ProductProductIcount::join('product_detail', 'product_detail.id_product', 'product_product_icounts.id_product')
+                ->where('product_product_icounts.id_product', $dt['id_product'])
+                ->where('product_detail.id_outlet', $dt['id_outlet'])->get()->toArray();
 
-            $stock->product_detail_stock_item = $stock['product_detail_stock_item'] + $dt['transaction_product_qty'];
-            $stock->save();
+            foreach ($getProductUse as $productUse){
+                $product_icount = new ProductIcount();
+                $product_icount->find($productUse['id_product_icount'])->addLogStockProductIcount(($productUse['qty']*$dt['transaction_product_qty']), $productUse['unit'], 'Cancelled Book Product', $dt['id_transaction'], null, $dt['id_outlet']);
+            }
         }
 
         return true;

@@ -1933,9 +1933,9 @@ class ApiDeals extends Controller
                 $deals->orderBy('deals_end', 'asc');
             }
         }
-        $deals = $deals->with('brand')->get()->toArray();
+        $deals = $deals->with('brand')->paginate(10)->toArray();
 
-        if (!empty($deals)) {
+        if (!empty($deals['data'])) {
             $city = "";
 
             // jika ada id city yg faq
@@ -1943,44 +1943,17 @@ class ApiDeals extends Controller
                 $city = $request->json('id_city');
             }
 
-            $deals = $this->kotacuks($deals, $city,$request->json('admin'));
+            $deals['data'] = $this->kotacuks($deals['data'], $city,$request->json('admin'));
         }
 
-        if ($request->get('page')) {
-            $page = $request->get('page');
-        } else {
-            $page = 1;
+        foreach ($deals['data'] as $key => &$val) {
+        	$val['time_to_end']		= strtotime($val['deals_end'])-time();
+            $val['deals_start_indo']	= MyHelper::dateFormatInd($val['deals_start'], false, false).' pukul '.date('H:i', strtotime($val['deals_start']));
+            $val['deals_end_indo']	= MyHelper::dateFormatInd($val['deals_end'], false, false).' pukul '.date('H:i', strtotime($val['deals_end']));
+            $val['time_server_indo']  = MyHelper::dateFormatInd(date('Y-m-d H:i:s'), false, false).' pukul '.date('H:i', strtotime(date('Y-m-d H:i:s')));
         }
 
-        $resultData = [];
-        $paginate   = 10;
-        $start      = $paginate * ($page - 1);
-        $all        = $paginate * $page;
-        $end        = $all;
-        $next       = true;
-
-        if ($all >= count($deals)) {
-            $end = count($deals);
-            $next = false;
-        }
-
-
-        for ($i=$start; $i < $end; $i++) {
-            $deals[$i]['time_to_end']		= strtotime($deals[$i]['deals_end'])-time();
-            $deals[$i]['deals_start_indo']	= MyHelper::dateFormatInd($deals[$i]['deals_start'], false, false).' pukul '.date('H:i', strtotime($deals[$i]['deals_start']));
-            $deals[$i]['deals_end_indo']	= MyHelper::dateFormatInd($deals[$i]['deals_end'], false, false).' pukul '.date('H:i', strtotime($deals[$i]['deals_end']));
-            $deals[$i]['time_server_indo']  = MyHelper::dateFormatInd(date('Y-m-d H:i:s'), false, false).' pukul '.date('H:i', strtotime(date('Y-m-d H:i:s')));
-            array_push($resultData, $deals[$i]);
-        }
-
-        $result['current_page']  = $page;
-        $result['data']          = $resultData;
-        $result['total']         = count($resultData);
-        $result['next_page_url'] = null;
-        if ($next == true) {
-            $next_page = (int) $page + 1;
-            $result['next_page_url'] = ENV('APP_API_URL') . 'api/deals/list/v2?page=' . $next_page;
-        }
+        $result = $deals;
 
         // if(!$result['total']){
         //     $result=[];

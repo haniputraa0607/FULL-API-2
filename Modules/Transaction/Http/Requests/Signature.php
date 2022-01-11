@@ -7,14 +7,15 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Modules\Transaction\Entities\SharingManagementFee;
 use App\Http\Models\Setting;
-class CallbackFromIcount extends FormRequest
+class Signature extends FormRequest
 {
     public function rules()
     {
         return [
-          
-            'api_key'              => 'required|api_key',
-            'signature'            => 'required|signature'
+            'PurchaseInvoiceID'    => 'required',
+            'status'               => 'required',
+            'date_disburse'        => 'required',
+            'api_secret'    => 'required',
            ]; 
     }
     public function withValidator($validator)

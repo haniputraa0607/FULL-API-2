@@ -177,6 +177,7 @@ class ApiPromoTransaction extends Controller
     	$resPromoCode = null;
     	$resDeals = null;
     	$continueCheckOut = $data['continue_checkout'];
+    	$sharedPromoTrx = TemporaryDataManager::create('promo_trx');
 
     	$userPromo = null;
     	if ($scopeUser != 'web-apps') {
@@ -209,6 +210,25 @@ class ApiPromoTransaction extends Controller
 
     	if (isset($userPromo['promo_campaign'])) {
     		$this->createSharedPromoTrx($data);
+    		$applyCode = $this->applyPromoCode($userPromo['promo_campaign']->id_reference, $data);
+    		$promoCode = $applyCode['result'] ?? null;
+
+			$resPromoCode = [
+				'promo_code' => $sharedPromoTrx['promo_campaign']['promo_code'] ?? null,
+				'title' => $applyCode['result']['title'] ?? null,
+				'discount' => $applyCode['result']['discount'] ?? 0,
+				'discount_delivery' => $applyCode['result']['discount_delivery'] ?? 0,
+				'text' => $applyCode['result']['text'] ?? $applyCode['messages'],
+				'remove_text' => 'Batalkan penggunaan <b>' . ($sharedPromoTrx['promo_campaign']['promo_title'] ?? null) . '</b>',
+				'is_error' => ($applyCode['status'] == 'fail') ? true : false
+			];
+
+			if ($applyCode['status'] == 'fail') {
+				$continueCheckOut = false;
+			}
+
+			$data = $this->reformatCheckout($data, $promoCode ?? null);
+
 			$dataDiscount['promo_source'] = 'promo_code';
     		$resPromo['promo_campaign'] = PromoCampaign::find($userPromo['promo_campaign']['id_reference']);
     	}
@@ -245,9 +265,17 @@ class ApiPromoTransaction extends Controller
 		$outlet = OUtlet::find($sharedPromo['id_outlet']);
 		$dataTrx['subtotal'] = $sharedPromo['subtotal'];
 		$dataTrx['discount'] = ($dataTrx['discount'] ?? 0) + ($dataDiscount['discount'] ?? 0);
+		$dataTrx['subtotal_discount'] = $sharedPromo['subtotal_discount'] - $dataTrx['discount'];
 		$dataTrx['discount_delivery'] = ($dataTrx['discount_delivery'] ?? 0) + ($dataDiscount['discount_delivery'] ?? 0);
+		$dataTrx['shipping_discount'] = $sharedPromo['shipping_discount'] - $dataTrx['discount_delivery'];
 		$dataTrx['tax'] = ($outlet['is_tax'] / 100) * ($sharedPromo['subtotal'] - $dataTrx['discount']);
-		$dataTrx['grandtotal'] = (int) $sharedPromo['subtotal'] + (int) $sharedPromo['service'] + (int) $dataTrx['tax'] + (int) ($dataTrx['shipping'] ?? 0) - $discount;
+		$dataTrx['grandtotal'] =  (int) $sharedPromo['subtotal_discount'] 
+								+ (int) $sharedPromo['service'] 
+								+ (int) $dataTrx['tax'] 
+								+ (int) ($dataTrx['shipping_discount'] ?? 0) 
+								- $dataTrx['discount'] 
+								- $dataTrx['discount_delivery'];
+
 		$dataTrx['total_payment'] = $dataTrx['grandtotal'] - ($dataTrx['used_point'] ?? 0);
 
 		$promoGetPoint = app($this->online_trx)->checkPromoGetPoint($promoCashback);
@@ -323,6 +351,139 @@ class ApiPromoTransaction extends Controller
     	return MyHelper::checkGet($dealsUser);
     }
 
+    public function applyPromoCode($id_code, $data = [])
+    {
+    	$sharedPromoTrx = TemporaryDataManager::create('promo_trx');
+    	$validateCode = $this->validatePromoCode($id_code);
+    	if ($validateCode['status'] == 'fail') {
+    		return $validateCode;
+    	}
+    	$promoCode = $validateCode['result'];
+    	$promoCampaign = $promoCode->promo_campaign;
+    	$sharedPromoTrx['promo_campaign'] = $promoCampaign;
+    	$sharedPromoTrx['promo_campaign']['promo_code'] = $promoCode['promo_code'];
+
+    	$validateGlobalRules = $this->validateGlobalRules('promo_campaign', $promoCampaign, $data);
+    	if ($validateGlobalRules['status'] == 'fail') {
+    		return $validateGlobalRules;
+    	}
+
+    	$getDiscount = $this->getDiscount('promo_campaign', $promoCampaign, $data);
+    	if ($getDiscount['status'] == 'fail') {
+    		return $getDiscount;
+    	}
+
+    	$validateGlobalRulesAfter = $this->validateGlobalRulesAfter('promo_campaign', $promoCampaign, $data);
+    	if ($validateGlobalRulesAfter['status'] == 'fail') {
+    		return $validateGlobalRulesAfter;
+    	}
+
+    	$getProduct = app($this->promo_campaign)->getProduct('promo_campaign',$promoCampaign);
+    	$desc = app($this->promo_campaign)->getPromoDescription('promo_campaign', $promoCampaign, $getProduct['product']??'');
+
+    	$res = [
+    		'id_promo_campaign' => $promoCampaign->id_promo_campaign,
+    		'id_promo_campaign_promo_code' => $promoCode->id_promo_campaign_promo_code,
+    		'promo_code' => $promoCode->promo_code,
+    		'title' => $promoCampaign->promo_title,
+    		'discount' => $getDiscount['result']['discount'] ?? 0,
+    		'discount_delivery' => $getDiscount['result']['discount_delivery'] ?? 0,
+    		'promo_type' => $getDiscount['result']['promo_type'],
+    		'text' => [$desc],
+    		'promo_source' => 'promo_campaign'
+    	];
+
+    	return MyHelper::checkGet($res);
+    }
+
+    public function validatePromoCode($id_code)
+    {
+    	$promoCode = PromoCampaignPromoCode::find($id_code);
+    	if (!$promoCode) {
+    		return $this->failResponse('Kode promo tidak ditemukan');
+		}
+
+    	$promo = $promoCode->promo_campaign;
+		if (!$promo) {
+    		return $this->failResponse('Promo tidak ditemukan');
+		}
+
+		if (!$promo->step_complete || !$promo->user_type) {
+    		return $this->failResponse('Terdapat kesalahan pada promo');
+		}
+	
+		$pct = new PromoCampaignTools;
+		$user = Request()->user();
+		if ($promo->user_type == 'New user') {
+    		$check = Transaction::where('id_user', '=', $user->id)->first();
+    		if ($check) {
+    			return $this->failResponse('Promo hanya berlaku untuk pengguna baru');
+    		}
+    	} elseif ($promo->user_type == 'Specific user') {
+    		$validPhone = explode(',', $promo->specific_user);
+    		if (!in_array($user->phone, $validPhone)) {
+    			return $this->failResponse('Promo tidak berlaku untuk akun Anda');
+    		}
+    	}
+
+        if ($promo->code_type == 'Single') {
+        	if ($promo->limitation_usage) {
+        		$usedCode = PromoCampaignReport::where('id_promo_campaign',$promo->id_promo_campaign)->where('id_user', $user->id)->count();
+	        	if ($usedCode >= $promo->limitation_usage) {
+    				return $this->failResponse('Promo tidak tersedia');
+	        	}
+        	}
+
+        	// limit usage device
+        	/*if (PromoCampaignReport::where('id_promo_campaign',$promo->id_promo_campaign)->where('device_id',$device_id)->count()>=$promo->limitation_usage) {
+	        	$errors[]='Kuota device anda untuk penggunaan kode promo ini telah habis';
+	    		return false;
+        	}*/
+        } else {
+       		$used_by_other_user = PromoCampaignReport::where('id_promo_campaign',$promo->id_promo_campaign)
+       							->where('id_user', '!=', $user->id)
+       							->where('id_promo_campaign_promo_code', $id_code)
+       							->first();
+
+       		if ($used_by_other_user) {
+    			return $this->failResponse('Promo tidak berlaku untuk akun Anda');
+       		}
+
+	       	$used_code = PromoCampaignReport::where('id_promo_campaign',$promo->id_promo_campaign)
+	       				->where('id_user',$user->id)
+	       				->where('id_promo_campaign_promo_code', $id_code)
+	       				->count();
+
+        	if ($code_limit = $promo->code_limit) {
+        		if ($used_code >= $code_limit) {
+    				return $this->failResponse('Promo tidak tersedia');
+        		}
+        	}
+
+        	if ($promo->user_limit && !$used_code) {
+        		$used_diff_code = PromoCampaignReport::where('id_promo_campaign', $id_promo)
+        						->where('id_user', $user->id)
+        						->distinct()
+        						->count('id_promo_campaign_promo_code');
+
+        		if ($used_diff_code >= $promo->user_limit) {
+    				return $this->failResponse('Promo tidak tersedia');
+        		}
+        	}
+        }
+
+    	if ($promo['date_end'] < date('Y-m-d H:i:s')) {
+    		return $this->failResponse('Kode promo sudah melewati batas waktu penggunaan');
+    	}
+
+    	if (!empty($promo['date_start']) && $promo['date_start'] > date('Y-m-d H:i:s')) {
+    		$dateStart = MyHelper::adjustTimezone($promo['date_start'], null, 'l, d F Y H:i', true);
+    		return $this->failResponse('Kode promo mulai dapat digunakan pada ' . $dateStart);
+    	}
+
+    	return MyHelper::checkGet($promoCode);
+    }
+
     public function validateGlobalRules($promoSource, $promoQuery, $data)
     {
     	$promo = $promoQuery;
@@ -337,6 +498,11 @@ class ApiPromoTransaction extends Controller
     		return $this->failResponse($promoName . ' hanya dapat digunakan untuk transaksi ' . $promoServices);
     	}
     	
+    	$ruleTrx = $this->ruleTrx($promo->promo_type);
+    	if (!in_array($trxFrom, $ruleTrx)) {
+    		return $this->failResponse($promoName . ' tidak dapat digunakan untuk jenis layanan ini');
+    	}
+
     	switch ($trxFrom) {
     		case 'Home Service':
     			$id_outlet = Setting::where('key', 'default_outlet_home_service')->first()['value'] ?? null;
@@ -531,7 +697,7 @@ class ApiPromoTransaction extends Controller
 
 		if ($discount <= 0) {
 			$message = $pct->getMessage('error_product_discount')['value_text'] = 'Promo hanya berlaku jika membeli <b>%product%</b>.'; 
-			$message = MyHelper::simpleReplace($message,['product'=>'produk bertanda khusus']);
+			$message = MyHelper::simpleReplace($message,['product'=>'produk tertentu']);
 
 			return $this->failResponse($message);
 		}
@@ -846,7 +1012,7 @@ class ApiPromoTransaction extends Controller
 
 		if ($discount <= 0) {
 			$message = $pct->getMessage('error_product_discount')['value_text'] = 'Promo hanya berlaku jika membeli <b>%product%</b>.'; 
-			$message = MyHelper::simpleReplace($message,['product'=>'produk bertanda khusus']);
+			$message = MyHelper::simpleReplace($message,['product'=>'produk tertentu']);
 			return $this->failResponse($message);;
 		}
 
@@ -989,7 +1155,9 @@ class ApiPromoTransaction extends Controller
 
     	$sharedPromoTrx['items'] = $promoItems;
     	$sharedPromoTrx['subtotal'] = $dataTrx['subtotal'] ?? $dataTrx['transaction_subtotal'];
+    	$sharedPromoTrx['subtotal_discount'] = $dataTrx['subtotal_discount'] ?? $dataTrx['subtotal'] ?? $dataTrx['transaction_subtotal'];
     	$sharedPromoTrx['shipping'] = $dataTrx['shipping'] ?? $dataTrx['transaction_shipment'] ?? 0;
+    	$sharedPromoTrx['shipping_discount'] = $dataTrx['shipping_discount'] ?? $dataTrx['transaction_shipment'] ?? 0;
     	$sharedPromoTrx['tax'] = $dataTrx['tax'] ?? $dataTrx['transaction_tax'];
     	$sharedPromoTrx['service'] = $dataTrx['service'] ?? $dataTrx['transaction_service'] ?? 0;
     	$sharedPromoTrx['cashback'] = $dataTrx['cashback'] ?? $dataTrx['transaction_cashback_earned'] ?? 0;
@@ -1030,11 +1198,17 @@ class ApiPromoTransaction extends Controller
 
     	if (isset($userPromo['promo_campaign'])) {
     		$this->createSharedPromoTrx($data);
-			$dataDiscount['promo_source'] = 'promo_code';
-    		$resPromo['promo_campaign'] = PromoCampaign::find($userPromo['promo_campaign']['id_reference']);
+
+    		$applyCode = $this->applyPromoCode($userPromo['promo_campaign']->id_reference, $data);
+
+    		$promoCode = $applyCode['result'] ?? null;
+			if ($applyCode['status'] == 'fail') {
+				return $applyCode;
+			}
+
+			$data = $this->reformatNewTrx($trxQuery, $promoCode ?? null);
     	}
 
-		
 		$trxQuery = Transaction::find($trxQuery->id_transaction);
 
 		return MyHelper::checkGet($trxQuery);
@@ -1092,6 +1266,7 @@ class ApiPromoTransaction extends Controller
 		}
 
 		$trxQuery->update([
+			'id_promo_campaign_promo_code' => $dataDiscount['id_promo_campaign_promo_code'] ?? $trxQuery->id_promo_campaign_promo_code,
 			'transaction_discount' => - $totalDiscount,
 			'transaction_discount_delivery' => - $totalDiscountDelivery,
 			'transaction_discount_item' => $totalDiscountItem,
@@ -1109,11 +1284,12 @@ class ApiPromoTransaction extends Controller
 			'id_promo_campaign_promo_code' => $dataDiscount['id_promo_campaign_promo_code'] ?? null,
 			'discount_value' => $discount ?: $discount_delivery
 		]);
+
 		if ($dataDiscount['promo_source'] == 'deals') {
 			$insertPromo = $this->insertUsedVoucher($trxQuery, $dataDiscount);
 			UserPromo::where('id_user', $user->id)->where('promo_type', 'deals')->delete();
 		} else {
-			$insertPromo = $this->insertUsedCOde($trxQuery, $dataDiscount);
+			$insertPromo = $this->insertUsedCode($trxQuery, $dataDiscount);
 			UserPromo::where('id_user', $user->id)->where('promo_type', 'promo_campaign')->delete();
 		}
 
@@ -1147,6 +1323,19 @@ class ApiPromoTransaction extends Controller
 
     public function insertUsedCode(Transaction $trx, $dataDiscount)
     {
+    	$promo_campaign_report = app($this->promo_campaign)->addReport(
+            $dataDiscount['id_promo_campaign'],
+            $dataDiscount['id_promo_campaign_promo_code'],
+            $trx['id_transaction'],
+            $trx['id_outlet'],
+            Request()->device_id ?: '',
+            Request()->device_type ?: null
+        );
+
+        if (!$promo_campaign_report) {
+        	return $this->failResponse('Insert Promo Failed');
+        }
+
         return ['status' => 'success'];
     }
 
@@ -1180,5 +1369,18 @@ class ApiPromoTransaction extends Controller
         }
 
         return $paymentDetail;
+    }
+
+    public function ruleTrx($rule)
+    {
+    	$ruleArr = [
+    		'Product discount' => ['Outlet Service','Home Service','Online Shop','Academy'],
+    		'Tier discount' => ['Outlet Service','Home Service','Online Shop'],
+    		// 'Buy X Get Y' => ['Outlet Service','Home Service','Online Shop','Academy'],
+    		'Discount bill' => ['Outlet Service','Home Service','Online Shop','Academy'],
+    		'Discount delivery' => ['Online Shop']
+    	];
+
+    	return $ruleArr[$rule] ?? [];
     }
 }

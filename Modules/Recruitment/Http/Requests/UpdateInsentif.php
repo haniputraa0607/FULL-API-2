@@ -13,8 +13,8 @@ class UpdateInsentif extends FormRequest
     {
         return [
             'id_hairstylist_group_insentif'  => 'required|unik',
-            'name_insentif'               => 'required',
-            'price_insentif'              => 'required',
+            'value'               => 'required',
+            'formula'              => 'required',
            ]; 
     }
     public function withValidator($validator)

@@ -9,15 +9,16 @@ namespace Modules\Recruitment\Entities;
 
 use Illuminate\Database\Eloquent\Model;
 
-class HairstylistGroupInsentifRumus extends Model
+class HairstylistGroupInsentifDefault extends Model
 {
-	protected $table = 'hairstylist_group_insentif_rumus';
-	protected $primaryKey = 'id_hairstylist_group_insentif_rumus';
+	protected $table = 'hairstylist_group_default_insentifs';
+	protected $primaryKey = 'id_hairstylist_group_default_insentifs';
 
 
 	protected $fillable = [
-		'id_hairstylist_group',
-		'id_hairstylist_group_insentif',
+		'name',
+		'value',
+		'formula',
                 'created_at',   
                 'updated_at'
 	];

@@ -710,21 +710,19 @@ class ApiConfirm extends Controller
                 ]);
             }
 
-            $check->load('transactions.productTransaction.product');
+            $check->load('productTransaction.product');
 
             $dataDetailProduct = [];
             $checkPayment = TransactionMultiplePayment::where('id_transaction', $check['id_transaction'])->first();
-            foreach ($check['transactions'] as $subtrx) {
-                foreach ($subtrx['productTransaction'] as $key => $value) {
-                    $dataProductMidtrans = [
-                        'id'       => (string) $value['id_product'],
-                        'price'    => abs($value['transaction_product_price']+$value['transaction_variant_subtotal']+$value['transaction_modifier_subtotal']-($value['transaction_product_discount']/$value['transaction_product_qty'])),
-                        'name'     => $value['product']['product_name'],
-                        'quantity' => $value['transaction_product_qty'],
-                    ];
+            foreach ($check['productTransaction'] as $key => $value) {
+                $dataProductMidtrans = [
+                    'id'       => (string) $value['id_product'],
+                    'price'    => abs($value['transaction_product_price']+$value['transaction_variant_subtotal']+$value['transaction_modifier_subtotal']-($value['transaction_product_discount']/$value['transaction_product_qty'])),
+                    'name'     => $value['product']['product_name'],
+                    'quantity' => $value['transaction_product_qty'],
+                ];
 
-                    $dataDetailProduct[] = $dataProductMidtrans;
-                }
+                $dataDetailProduct[] = $dataProductMidtrans;
             }
 
             if ($check['transaction_shipment'] > 0) {

@@ -17,6 +17,12 @@ use Image;
 use Modules\Recruitment\Entities\HairstylistGroup;
 use Modules\Recruitment\Entities\HairstylistGroupCommission;
 use App\Http\Models\Product;
+use Modules\Recruitment\Entities\HairstylistGroupInsentifDefault;
+use Modules\Recruitment\Entities\HairstylistGroupPotonganDefault;
+use Modules\Recruitment\Entities\HairstylistGroupInsentif;
+use Modules\Recruitment\Entities\HairstylistGroupPotongan;
+
+
 class ApiHairStylistGroupController extends Controller
 {
     public function __construct()
@@ -242,6 +248,33 @@ class ApiHairStylistGroupController extends Controller
                 ->paginate(10);
         }
         return response()->json(MyHelper::checkGet($data));
+    }
+    
+    public function list_default_insentif(Request $request) {
+        $data = array();
+        if($request->id_hairstylist_group){
+         $query = HairstylistGroupInsentifDefault::get();
+         foreach ($query as $value) {
+             $cek = HairstylistGroupInsentif::where(array('id_hairstylist_group'=>$request->id_hairstylist_group,'id_hairstylist_group_default_insentifs'=>$value['id_hairstylist_group_default_insentifs']))->first();
+             if(!$cek){
+                 array_push($data,$value);
+             }
+         }
+        }
+         return response()->json($data);
+    }
+    public function list_default_potongan(Request $request) {
+        $data = array();
+         if($request->id_hairstylist_group){
+         $query = HairstylistGroupPotonganDefault::get();
+         foreach ($query as $value) {
+             $cek = HairstylistGroupPotongan::where(array('id_hairstylist_group'=>$request->id_hairstylist_group,'id_hairstylist_group_default_potongans'=>$value['id_hairstylist_group_default_potongans']))->first();
+             if(!$cek){
+                 array_push($data,$value);
+             }
+         }
+        }
+         return response()->json($data);
     }
     
 }

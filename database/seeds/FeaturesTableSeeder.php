@@ -4267,6 +4267,16 @@ class FeaturesTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00')
                 ),
+            426 =>
+                array (
+                    'feature_module' => 'Setting Attendances Start Date',
+                    'feature_type' => 'List',
+                    'id_feature' => 427,
+                    'order' => 153,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
         ));
         
         

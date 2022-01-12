@@ -771,23 +771,6 @@ class ApiPromoTransaction extends Controller
 			}
 
 			$product_per_price[$k]['promo_qty'] = $promo_qty;
-			foreach ($product as $key => $val) {
-				if ($val['id_product'] == $p['id_product'] && $val['id_brand'] == $p['id_brand']) {
-					$product[$key]['promo_qty'] = ($product[$key]['promo_qty'] ?? 0) + $promo_qty;
-					if (!isset($product[$key]['promo_detail'])) {
-						$product[$key]['promo_detail'] = [];
-					}
-
-					if ($promo_qty < 1) {
-						break;
-					}
-					$product[$key]['promo_detail'][] = [
-						'price' => $p['new_price'],
-						'promo_qty' => $promo_qty
-					];
-					break;
-				}
-			}
 		}
 
 		foreach ($product_per_price as $key => &$item) {
@@ -843,7 +826,7 @@ class ApiPromoTransaction extends Controller
 			$check_product = $this->checkProductRule($promo, $promo_brand, $promo_product, $trxs);
 
 			if (!$check_product) {
-				$message = $this->getMessage('error_tier_discount')['value_text'] = 'Promo hanya berlaku jika membeli <b>%product%</b> sebanyak %minmax%.'; 
+				$message = $pct->getMessage('error_tier_discount')['value_text'] = 'Promo hanya berlaku jika membeli <b>%product%</b> sebanyak %minmax%.'; 
 				$message = MyHelper::simpleReplace($message,['product'=>$product_name, 'minmax'=>$minmax]);
 				return $this->failResponse($message);
 			}
@@ -955,49 +938,72 @@ class ApiPromoTransaction extends Controller
 
 		if (!$promo_rule) {
 			$minmax = ($min_qty != $max_qty ? "$min_qty sampai $max_qty" : $min_qty) . " item";
-			$message = $this->getMessage('error_tier_discount')['value_text'] = 'Promo hanya berlaku jika membeli <b>%product%</b> sebanyak %minmax%.'; 
+			$message = $pct->getMessage('error_tier_discount')['value_text'] = 'Promo hanya berlaku jika membeli <b>%product%</b> sebanyak %minmax%.'; 
 			$message = MyHelper::simpleReplace($message, ['product' => $product_name, 'minmax' => $minmax]);
 
 			return $this->failResponse($message);
 		}
 
-		// sort product price desc
-		uasort($product, function($a, $b){
-			if (isset($a['new_price'])) {
-				return $b['new_price'] - $a['new_price'];
-			} else {
-				return $b['product_price'] - $a['product_price'];
+		$product_per_price = [];
+		foreach ($product as $p) {
+			$product_qty = $p['qty'];
+			if (isset($p['new_price'])) {
+				$qty_discount = $p['qty_discount'];
+				$index = $p['new_price'] . '-' . $p['id_brand'] . '-' . $p['id_product'] . '-' . $p['id_transaction_product'];
+				$product_per_price[$index] = $p;
+				$product_per_price[$index]['qty'] = $p['qty_discount'];
+				$product_per_price[$index]['qty'] = $p['qty_discount'];
+
+				$product_qty -= $p['qty_discount'];
+				if ($product_qty < 1) {
+					continue;
+				}
 			}
+
+			$index = $p['product_price'] . '-' . $p['id_brand'] . '-' . $p['id_product'] . '-' . $p['id_transaction_product'];
+			if (isset($product_per_price[$index])) {
+				$product_per_price[$index]['qty'] += $product_qty;
+				continue;
+			}
+
+			$product_per_price[$index] = $p;
+			$product_per_price[$index]['qty'] = $product_qty;
+			$product_per_price[$index]['new_price'] = $p['product_price'];
+		}
+
+		// sort by most expensive product price 
+		uasort($product_per_price, function($a, $b){
+			return $b['new_price'] - $a['new_price'];
 		});
 
 		// get max qty of product that can get promo
 		$total_promo_qty = $promo_rule->max_qty < $total_product ? $promo_rule->max_qty : $total_product;
-		foreach ($product as $key => $value) {
+		foreach ($product_per_price as $k => $p) {
 
 			if (!empty($promo_qty_each)) {
-				if (!isset($qty_each[$value['id_brand']][$value['id_product']])) {
-					$qty_each[$value['id_brand']][$value['id_product']] = $promo_qty_each;
+				if (!isset($qty_each[$p['id_brand']][$p['id_product']])) {
+					$qty_each[$p['id_brand']][$p['id_product']] = $promo_qty_each;
 				}
 
-				if ($qty_each[$value['id_brand']][$value['id_product']] < 0) {
-					$qty_each[$value['id_brand']][$value['id_product']] = 0;
+				if ($qty_each[$p['id_brand']][$p['id_product']] < 0) {
+					$qty_each[$p['id_brand']][$p['id_product']] = 0;
 				}
 
-				if ($qty_each[$value['id_brand']][$value['id_product']] > $value['qty']) {
-					$promo_qty = $value['qty'];
+				if ($qty_each[$p['id_brand']][$p['id_product']] > $p['qty']) {
+					$promo_qty = $p['qty'];
 				}else{
-					$promo_qty = $qty_each[$value['id_brand']][$value['id_product']];
+					$promo_qty = $qty_each[$p['id_brand']][$p['id_product']];
 				}
 
-				$qty_each[$value['id_brand']][$value['id_product']] -= $value['qty'];
+				$qty_each[$p['id_brand']][$p['id_product']] -= $p['qty'];
 				
 			} else {
 				if ($total_promo_qty < 0) {
 					$total_promo_qty = 0;
 				}
 
-				if ($total_promo_qty > $value['qty']) {
-					$promo_qty = $value['qty'];
+				if ($total_promo_qty > $p['qty']) {
+					$promo_qty = $p['qty'];
 				} else {
 					$promo_qty = $total_promo_qty;
 				}
@@ -1005,15 +1011,12 @@ class ApiPromoTransaction extends Controller
 				$total_promo_qty -= $promo_qty;
 			}
 
-			$product[$key]['promo_qty'] = $promo_qty;
+			$product_per_price[$k]['promo_qty'] = $promo_qty;
 		}
+
 		// count discount
 		$product_id = array_column($product, 'id_product');
-		foreach ($promo_item as $key => &$item) {
-
-			if (!isset($product[$key])) {
-				continue;
-			}
+		foreach ($product_per_price as $key => &$item) {
 
 			if (!in_array($item['id_brand'], $promo_brand)) {
 				continue;
@@ -1021,12 +1024,12 @@ class ApiPromoTransaction extends Controller
 
 			if (in_array($item['id_product'], $product_id)) {
 				// add discount
-				$item['promo_qty'] = $product[$key]['promo_qty'];
 				$discount += $this->discountPerItem($item, $promo_rule);
 			}
 		}
 
-		$shared_promo['items'] = $promo_item;
+		$shared_promo['items'] = $product_per_price;
+
 		return MyHelper::checkGet([
 			'discount'	=> $discount,
 			'promo_type'=> $promo->promo_type
@@ -1157,6 +1160,7 @@ class ApiPromoTransaction extends Controller
 		}
 
 		if (strtolower($promo_rules->discount_type) == 'nominal') {
+			$discount_per_item = $promo_rules->discount_value;
 			$discount = $promo_rules->discount_value * $discount_qty;
 			$product_price_total = $product_price * $discount_qty;
 			if ($discount > $product_price_total) {
@@ -1164,7 +1168,7 @@ class ApiPromoTransaction extends Controller
 			}
 
 			$item['total_discount']	= $prev_discount + $discount;
-			$item['new_price']		= $product_price - $discount;
+			$item['new_price']		= $product_price - $discount_per_item;
 			$item['base_discount']	= ($product_price < $promo_rules->discount_value) ? $product_price : $promo_rules->discount_value;
 		} else {
 			// percent
@@ -1175,7 +1179,7 @@ class ApiPromoTransaction extends Controller
 			$discount = (int) ($discount_per_item * $discount_qty);
 
 			$item['total_discount']	= $prev_discount + $discount;
-			$item['new_price']		= $product_price - $discount;
+			$item['new_price']		= $product_price - $discount_per_item;
 			$item['base_discount']	= $discount_per_item;
 		}
 
@@ -1191,7 +1195,7 @@ class ApiPromoTransaction extends Controller
 		$item['is_promo']		= 1;
 		$item['qty_discount']	= $discount_qty;
 		$item['discount']		= $discount;
-		unset($item['promo_qty'], $item['promo_detail']);
+		unset($item['promo_qty']);
 
 		return $discount;
 	}

@@ -1488,7 +1488,7 @@ class ApiTransactionShop extends Controller
                     "name"  => $promo['promo_name'],
                     "desc"  => "",
                     "is_discount" => 1,
-                    "amount" => $promo['discount_value'] 
+                    "amount" => '- '.MyHelper::requestNumber($promo['discount_value'],'_CURRENCY')
                 ];
             }
         }

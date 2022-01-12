@@ -32,6 +32,8 @@ use Modules\PromoCampaign\Lib\PromoCampaignTools;
 use DB;
 use DateTime;
 use App\Lib\WeHelpYou;
+use Modules\Franchise\Entities\PromoCampaign;
+use Modules\PromoCampaign\Entities\TransactionPromo;
 
 class ApiTransactionShop extends Controller
 {
@@ -1264,6 +1266,8 @@ class ApiTransactionShop extends Controller
 			];
 		}
 
+        $trxPromo = $this->transactionPromo($detail);
+
 		$products = [];
 		$subtotalProduct = 0;
 		$totalProductQty = 0;
@@ -1316,6 +1320,14 @@ class ApiTransactionShop extends Controller
 	            'amount'        => number_format(((int) $detail['transaction_tax']),0,',','.')
 
 	        ];
+        }
+
+        if($paymentDetail && isset($trxPromo)){
+            $lastKey = array_key_last($paymentDetail);
+            for($i = 0; $i < count($trxPromo); $i++){
+                $KeyPosition = 1 + $i;
+                $paymentDetail[$lastKey+$KeyPosition] = $trxPromo[$i];
+            }
         }
 
         $trx = Transaction::where('id_transaction', $detail['id_transaction'])->first();
@@ -1455,6 +1467,32 @@ class ApiTransactionShop extends Controller
 	    ];
 
 	    return $arr[$status] ?? $status;
+    }
+
+    public function transactionPromo(Transaction $trx){
+        $trx = clone $trx;
+        $promo_discount = [];
+        $promos = TransactionPromo::where('id_transaction', $trx['id_transaction'])->get()->toArray();
+        if($promos){
+            $promo_discount[0]=[
+                "name"  => "Promo / Discount:",
+                "desc"  => "",
+                "is_discount" => 0,
+                "amount" => null 
+            ];
+            foreach($promos as $p => $promo){
+                if($promo['promo_type']=='Promo Campaign'){
+                    $promo['promo_name'] = PromoCampaign::where('promo_title',$promo['promo_name'])->select('campaign_name')->first()['campaign_name'];
+                }
+                $promo_discount[$p+1] = [
+                    "name"  => $promo['promo_name'],
+                    "desc"  => "",
+                    "is_discount" => 1,
+                    "amount" => $promo['discount_value'] 
+                ];
+            }
+        }
+        return $promo_discount;
     }
 
     public function listDelivery()

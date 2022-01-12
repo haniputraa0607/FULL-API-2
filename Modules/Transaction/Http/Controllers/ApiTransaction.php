@@ -6072,11 +6072,11 @@ class ApiTransaction extends Controller
         try{
             $date_now = date('Y-m-d');
             $date_trans = date('Y-m-d', strtotime('-1 days', strtotime($date_now)));
-            $outlets_mid = Outlet::join('locations','locations.id_branch','=','outlets.id_branch')
+            $outlets_mid = Outlet::join('locations','locations.id_location','=','outlets.id_location')
                             ->join('transactions','transactions.id_outlet','=','outlets.id_outlet')
-                            ->leftJoin('partners','partners.id_partner','=','locations.id_partner'); 
+                            ->leftJoin('partners','partners.id_partner','=','locations.id_partner');
 
-            $outlets_xen = Outlet::join('locations','locations.id_branch','=','outlets.id_branch')
+            $outlets_xen = Outlet::join('locations','locations.id_location','=','outlets.id_location')
                             ->join('transactions','transactions.id_outlet','=','outlets.id_outlet')
                             ->leftJoin('partners','partners.id_partner','=','locations.id_partner'); 
 
@@ -6179,6 +6179,7 @@ class ApiTransaction extends Controller
                 }
                 $new++;
             }
+
             foreach($new_outlets as $n => $new_outlet){
                     $create_order_poo[$n] = Icount::ApiCreateOrderPOO($new_outlet);
             }
@@ -6189,7 +6190,8 @@ class ApiTransaction extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             $log->fail($e->getMessage());
-        }      
+            return $e;
+        }    
     }
     public function revenue_sharing(){
         $log = MyHelper::logCron('Revenue Sharing');

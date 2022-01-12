@@ -721,9 +721,10 @@ class ApiPromoTransaction extends Controller
 			$product_qty = $p['qty'];
 			if (isset($p['new_price'])) {
 				$qty_discount = $p['qty_discount'];
-				$product_per_price[$p['new_price']] = $p;
-				$product_per_price[$p['new_price']]['qty'] = $p['qty_discount'];
-				$product_per_price[$p['new_price']]['qty'] = $p['qty_discount'];
+				$index = $p['new_price'] . '-' . $p['id_brand'] . '-' . $p['id_product'] . '-' . $p['id_transaction_product'];
+				$product_per_price[$index] = $p;
+				$product_per_price[$index]['qty'] = $p['qty_discount'];
+				$product_per_price[$index]['qty'] = $p['qty_discount'];
 
 				$product_qty -= $p['qty_discount'];
 				if ($product_qty < 1) {
@@ -731,15 +732,23 @@ class ApiPromoTransaction extends Controller
 				}
 			}
 
-			$product_per_price[$p['product_price']] = $p;
-			$product_per_price[$p['product_price']]['qty'] = $product_qty;
-			$product_per_price[$p['product_price']]['new_price'] = $p['product_price'];
-		}	
+			$index = $p['product_price'] . '-' . $p['id_brand'] . '-' . $p['id_product'] . '-' . $p['id_transaction_product'];
+			if (isset($product_per_price[$index])) {
+				$product_per_price[$index]['qty'] += $product_qty;
+				continue;
+			}
+
+			$product_per_price[$index] = $p;
+			$product_per_price[$index]['qty'] = $product_qty;
+			$product_per_price[$index]['new_price'] = $p['product_price'];
+		}
 
 		// sort by most expensive product price 
-		krsort($product_per_price);
+		uasort($product_per_price, function($a, $b){
+			return $b['new_price'] - $a['new_price'];
+		});
 
-		foreach ($product_per_price as $price => $p) {
+		foreach ($product_per_price as $k => $p) {
 			if (!empty($promo_qty_each)) {
 				if (!isset($qty_each[$p['id_brand']][$p['id_product']])) {
 					$qty_each[$p['id_brand']][$p['id_product']] = $promo_qty_each;
@@ -761,7 +770,7 @@ class ApiPromoTransaction extends Controller
 				$promo_qty = $p['qty'];
 			}
 
-			$product_per_price[$price]['promo_qty'] = $promo_qty;
+			$product_per_price[$k]['promo_qty'] = $promo_qty;
 			foreach ($product as $key => $val) {
 				if ($val['id_product'] == $p['id_product'] && $val['id_brand'] == $p['id_brand']) {
 					$product[$key]['promo_qty'] = ($product[$key]['promo_qty'] ?? 0) + $promo_qty;
@@ -773,7 +782,7 @@ class ApiPromoTransaction extends Controller
 						break;
 					}
 					$product[$key]['promo_detail'][] = [
-						'price' => $price,
+						'price' => $p['new_price'],
 						'promo_qty' => $promo_qty
 					];
 					break;

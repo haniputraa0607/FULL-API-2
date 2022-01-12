@@ -204,6 +204,7 @@ class ApiPromoTransaction extends Controller
     	$resDeals = null;
     	$dealsType = null;
 		$dealsErr = [];
+		$dealsPayment = [];
     	if (isset($userPromo['deals'])) {
     		$dealsUser = $this->validateDeals($userPromo['deals']->id_reference);
     		if ($dealsUser['status'] == 'fail') {
@@ -220,6 +221,7 @@ class ApiPromoTransaction extends Controller
     	$resPromoCode = null;
     	$codeType = null;
 		$codeErr = [];
+		$codePayment = [];
     	if (isset($userPromo['promo_campaign'])) {
     		$promoCode = $this->validatePromoCode($userPromo['promo_campaign']->id_reference);
     		if ($promoCode['status'] == 'fail') {
@@ -231,6 +233,59 @@ class ApiPromoTransaction extends Controller
     			$sharedPromoTrx['promo_campaign']['id_promo_campaign_promo_code'] = $promoCode['result']->id_promo_campaign_promo_code;
     			$codePayment = PromoCampaignPaymentMethod::where('id_promo_campaign', $promoCampaign['id_promo_campaign'])->pluck('payment_method')->toArray();
     			$codeType = $promoCampaign->promo_type;
+    		}
+    	}
+
+    	if (!empty($dealsPayment) || !empty($codePayment)) {
+
+    		if (!empty($dealsPayment)) {
+    			$validPayment = [];
+    			foreach ($data['available_payment'] as $payment) {
+	    			if (!in_array($payment['payment_method'], $dealsPayment)) {
+	    				$payment['status'] = 0;
+	    				continue;
+	    			}
+	    			if (!empty($payment['status'])) {
+		    			$validPayment[] = $payment['payment_method'];
+	    			}
+	    		}
+	    		$dealsPayment = $validPayment;
+	    		if (empty($validPayment)) {
+	    			$dealsErr = 'Metode pembayaran tidak tersedia';
+	    		}
+    		}
+
+    		if (!empty($codePayment)) {
+    			$validPayment = [];
+    			foreach ($data['available_payment'] as $payment) {
+	    			if (!in_array($payment['payment_method'], $codePayment)) {
+	    				$payment['status'] = 0;
+	    				continue;
+	    			}
+	    			if (!empty($payment['status'])) {
+		    			$validPayment[] = $payment['payment_method'];
+	    			}
+	    		}
+	    		$codePayment = $validPayment;
+	    		if (empty($validPayment)) {
+	    			$codeErr = 'Metode pembayaran tidak tersedia';
+	    		}
+    		}
+
+    		if (!empty($dealsPayment) && !empty($codePayment)) {
+    			$promoPayment = array_intersect($dealsPayment, $codePayment);
+    			if (empty($promoPayment)) {
+    				$promoPayment = $dealsPayment;
+    				$codeErr = 'Kode promo tidak dapat digunakan bersamaan dengan voucher yang dipilih';
+    			}
+    		} else {
+    			$promoPayment = $dealsPayment ?: $codePayment;
+    		}
+
+    		foreach ($data['available_payment'] as &$payment) {
+    			if (!in_array($payment['payment_method'], $promoPayment)) {
+    				$payment['status'] = 0;
+    			}
     		}
     	}
 
@@ -594,9 +649,9 @@ class ApiPromoTransaction extends Controller
 			}
 		}
 
-		if (request()->payment_method) {
+		if (request()->payment_detail) {
 			$promoPayment = $promo->{$promoSource . '_payment_method'}->pluck('payment_method');
-			$checkPayment = $pct->checkPaymentRule($promo->is_all_payment ?? 0, request()->payment_method, $promoPayment);
+			$checkPayment = $pct->checkPaymentRule($promo->is_all_payment ?? 0, request()->payment_detail, $promoPayment);
 			if (!$checkPayment) {
     			return $this->failResponse($promoName . ' tidak dapat digunakan untuk metode pembayaran ini');
 			}

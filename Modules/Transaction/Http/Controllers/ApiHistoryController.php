@@ -1474,8 +1474,8 @@ class ApiHistoryController extends Controller
 
     public function paymentHistory(Request $request)
     {
-        $transactions = Transaction::join('transaction_payment_midtrans', 'transactions.id_transaction', 'transaction_payment_midtrans.id_transaction')
-            ->join('transaction_payment_xendits', 'transactions.id_transaction', 'transaction_payment_xendits.id_transaction')
+        $transactions = Transaction::leftJoin('transaction_payment_midtrans', 'transactions.id_transaction', 'transaction_payment_midtrans.id_transaction')
+            ->leftJoin('transaction_payment_xendits', 'transactions.id_transaction', 'transaction_payment_xendits.id_transaction')
             ->select([
                 'transactions.id_transaction',
                 'transactions.id_outlet',
@@ -1496,7 +1496,7 @@ class ApiHistoryController extends Controller
             $transactions->whereYear('transaction_date', $request->year);
         }
 
-        $transaction->orderBy('transactions.id_transaction', 'DESC');
+        $transactions->orderBy('transactions.id_transaction', 'DESC');
 
         $transactions = $transactions->paginate();
 
@@ -1510,7 +1510,7 @@ class ApiHistoryController extends Controller
                 'transaction_date' => MyHelper::adjustTimezone($transaction->transaction_date, null, 'd F Y', true),
                 'transaction_receipt_number' => $transaction->transaction_receipt_number,
                 'transaction_grandtotal' => $transaction->transaction_grandtotal,
-                'payment_method' => $paymentConfigs[str_replace(' ', '_', strtolower($transaction->payment_type ?: $transaction->type))] ?? ($transaction->payment_type ?: $transaction->type),
+                'payment_method' => $paymentConfigs[str_replace(' ', '_', strtolower($transaction->payment_type ?: $transaction->type))] ?? ($transaction->payment_type ?: $transaction->type ?: '-'),
                 'transaction_payment_status' => $transaction->transaction_payment_status,
                 'transaction_payment_status_text' => $transaction->transaction_payment_status == 'Completed' ? 'Sukses' : $transaction->transaction_payment_status == 'Pending' ? 'Menunggu Pembayaran' : 'Gagal',
                 'outlet_name' => $transaction->outlet->outlet_name,

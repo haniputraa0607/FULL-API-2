@@ -688,15 +688,7 @@ class ApiPromoTransaction extends Controller
 			return $this->failResponse($message);
 		}
 
-		// sort product by price desc
-		uasort($product, function($a, $b){
-			if (isset($a['new_price'])) {
-				return $b['new_price'] - $a['new_price'];
-			} else {
-				return $b['product_price'] - $a['product_price'];
-			}
-		});
-
+		// get max promo qty for 1 product
 		$merge_product = [];
 		foreach ($product as $key => $value) {
 			if (isset($merge_product[$value['id_product']])) {
@@ -724,39 +716,72 @@ class ApiPromoTransaction extends Controller
 			$promo_qty_each = $promo_rules->max_product;
 		}
 
-		// get max qty of product that can get promo
-		foreach ($product as $key => $value) {
+		$product_per_price = [];
+		foreach ($product as $p) {
+			$product_qty = $p['qty'];
+			if (isset($p['new_price'])) {
+				$qty_discount = $p['qty_discount'];
+				$product_per_price[$p['new_price']] = $p;
+				$product_per_price[$p['new_price']]['qty'] = $p['qty_discount'];
+				$product_per_price[$p['new_price']]['qty'] = $p['qty_discount'];
 
+				$product_qty -= $p['qty_discount'];
+				if ($product_qty < 1) {
+					continue;
+				}
+			}
+
+			$product_per_price[$p['product_price']] = $p;
+			$product_per_price[$p['product_price']]['qty'] = $product_qty;
+			$product_per_price[$p['product_price']]['new_price'] = $p['product_price'];
+		}	
+
+		// sort by most expensive product price 
+		krsort($product_per_price);
+
+		foreach ($product_per_price as $price => $p) {
 			if (!empty($promo_qty_each)) {
-				if (!isset($qty_each[$value['id_brand']][$value['id_product']])) {
-					$qty_each[$value['id_brand']][$value['id_product']] = $promo_qty_each;
+				if (!isset($qty_each[$p['id_brand']][$p['id_product']])) {
+					$qty_each[$p['id_brand']][$p['id_product']] = $promo_qty_each;
 				}
 
-				if ($qty_each[$value['id_brand']][$value['id_product']] < 0) {
-					$qty_each[$value['id_brand']][$value['id_product']] = 0;
+				if ($qty_each[$p['id_brand']][$p['id_product']] < 0) {
+					$qty_each[$p['id_brand']][$p['id_product']] = 0;
 				}
 
-				if ($qty_each[$value['id_brand']][$value['id_product']] > $value['qty']) {
-					$promo_qty = $value['qty'];
+				if ($qty_each[$p['id_brand']][$p['id_product']] > $p['qty']) {
+					$promo_qty = $p['qty'];
 				}else{
-					$promo_qty = $qty_each[$value['id_brand']][$value['id_product']];
+					$promo_qty = $qty_each[$p['id_brand']][$p['id_product']];
 				}
 
-				$qty_each[$value['id_brand']][$value['id_product']] -= $value['qty'];
+				$qty_each[$p['id_brand']][$p['id_product']] -= $p['qty'];
 				
 			}else{
-				$promo_qty = $value['qty'];
+				$promo_qty = $p['qty'];
 			}
 
-			$product[$key]['promo_qty'] = $promo_qty;
+			$product_per_price[$price]['promo_qty'] = $promo_qty;
+			foreach ($product as $key => $val) {
+				if ($val['id_product'] == $p['id_product'] && $val['id_brand'] == $p['id_brand']) {
+					$product[$key]['promo_qty'] = ($product[$key]['promo_qty'] ?? 0) + $promo_qty;
+					if (!isset($product[$key]['promo_detail'])) {
+						$product[$key]['promo_detail'] = [];
+					}
+
+					if ($promo_qty < 1) {
+						break;
+					}
+					$product[$key]['promo_detail'][] = [
+						'price' => $price,
+						'promo_qty' => $promo_qty
+					];
+					break;
+				}
+			}
 		}
 
-		foreach ($promo_item as $key => &$item) {
-			if (!isset($product[$key])) {
-				continue;
-			}
-
-			$item['promo_qty'] = $product[$key]['promo_qty'];
+		foreach ($product_per_price as $key => &$item) {
 			$discount += $this->discountPerItem($item, $promo_rules);
 		}
 
@@ -767,7 +792,7 @@ class ApiPromoTransaction extends Controller
 			return $this->failResponse($message);
 		}
 
-		$shared_promo['items'] = $promo_item;
+		$shared_promo['items'] = $product_per_price;
 
 		return MyHelper::checkGet([
 			'discount'	=> $discount,
@@ -941,43 +966,21 @@ class ApiPromoTransaction extends Controller
 		foreach ($product as $key => $value) {
 
 			if (!empty($promo_qty_each)) {
-
-				if ($value['product_type'] == 'variant') {
-
-					if (!isset($qty_each[$value['id_brand']][$value['id_product']][$value['id_product_variant_group']])) {
-						$qty_each[$value['id_brand']][$value['id_product']][$value['id_product_variant_group']] = $promo_qty_each;
-					}
-
-					if ($qty_each[$value['id_brand']][$value['id_product']][$value['id_product_variant_group']] < 0) {
-						$qty_each[$value['id_brand']][$value['id_product']][$value['id_product_variant_group']] = 0;
-					}
-
-					if ($qty_each[$value['id_brand']][$value['id_product']][$value['id_product_variant_group']] > $value['qty']) {
-						$promo_qty = $value['qty'];
-					}else{
-						$promo_qty = $qty_each[$value['id_brand']][$value['id_product']][$value['id_product_variant_group']];
-					}
-
-					$qty_each[$value['id_brand']][$value['id_product']][$value['id_product_variant_group']] -= $value['qty'];
-
-				} else {
-
-					if (!isset($qty_each[$value['id_brand']][$value['id_product']])) {
-						$qty_each[$value['id_brand']][$value['id_product']] = $promo_qty_each;
-					}
-
-					if ($qty_each[$value['id_brand']][$value['id_product']] < 0) {
-						$qty_each[$value['id_brand']][$value['id_product']] = 0;
-					}
-
-					if ($qty_each[$value['id_brand']][$value['id_product']] > $value['qty']) {
-						$promo_qty = $value['qty'];
-					}else{
-						$promo_qty = $qty_each[$value['id_brand']][$value['id_product']];
-					}
-
-					$qty_each[$value['id_brand']][$value['id_product']] -= $value['qty'];
+				if (!isset($qty_each[$value['id_brand']][$value['id_product']])) {
+					$qty_each[$value['id_brand']][$value['id_product']] = $promo_qty_each;
 				}
+
+				if ($qty_each[$value['id_brand']][$value['id_product']] < 0) {
+					$qty_each[$value['id_brand']][$value['id_product']] = 0;
+				}
+
+				if ($qty_each[$value['id_brand']][$value['id_product']] > $value['qty']) {
+					$promo_qty = $value['qty'];
+				}else{
+					$promo_qty = $qty_each[$value['id_brand']][$value['id_product']];
+				}
+
+				$qty_each[$value['id_brand']][$value['id_product']] -= $value['qty'];
 				
 			} else {
 				if ($total_promo_qty < 0) {
@@ -1152,7 +1155,7 @@ class ApiPromoTransaction extends Controller
 			}
 
 			$item['total_discount']	= $prev_discount + $discount;
-			$item['new_price']		= $item['product_price'] - $discount;
+			$item['new_price']		= $product_price - $discount;
 			$item['base_discount']	= ($product_price < $promo_rules->discount_value) ? $product_price : $promo_rules->discount_value;
 		} else {
 			// percent
@@ -1163,7 +1166,7 @@ class ApiPromoTransaction extends Controller
 			$discount = (int) ($discount_per_item * $discount_qty);
 
 			$item['total_discount']	= $prev_discount + $discount;
-			$item['new_price']		= $item['product_price'] - $discount;
+			$item['new_price']		= $product_price - $discount;
 			$item['base_discount']	= $discount_per_item;
 		}
 
@@ -1179,7 +1182,7 @@ class ApiPromoTransaction extends Controller
 		$item['is_promo']		= 1;
 		$item['qty_discount']	= $discount_qty;
 		$item['discount']		= $discount;
-		unset($item['promo_qty']);
+		unset($item['promo_qty'], $item['promo_detail']);
 
 		return $discount;
 	}

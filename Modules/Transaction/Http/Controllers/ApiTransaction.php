@@ -104,6 +104,9 @@ use Lcobucci\JWT\Parser;
 use App\Http\Models\OauthAccessToken;
 use Modules\BusinessDevelopment\Entities\Location;
 use Modules\Transaction\Http\Requests\Signature;
+use Modules\Franchise\Entities\PromoCampaign;
+use Modules\PromoCampaign\Entities\TransactionPromo;
+
 class ApiTransaction extends Controller
 {
     public $saveImage = "img/transaction/manual-payment/";
@@ -5552,6 +5555,8 @@ class ApiTransaction extends Controller
 			];
 		}
 
+        $trxPromo = $this->transactionPromo($detail);
+
 		$outlet = [
 			'id_outlet' => $detail['outlet']['id_outlet'],
 			'outlet_code' => $detail['outlet']['outlet_code'],
@@ -5643,6 +5648,14 @@ class ApiTransaction extends Controller
 	            "is_discount"   => 0,
 	            'amount'        => MyHelper::requestNumber($detail['transaction_tax'],'_CURRENCY')
 	        ];
+        }
+
+        if($paymentDetail && isset($trxPromo)){
+            $lastKey = array_key_last($paymentDetail);
+            for($i = 0; $i < count($trxPromo); $i++){
+                $KeyPosition = 1 + $i;
+                $paymentDetail[$lastKey+$KeyPosition] = $trxPromo[$i];
+            }
         }
 
     	$show_rate_popup = 0;
@@ -5852,6 +5865,8 @@ class ApiTransaction extends Controller
 			];
 		}
 
+        $trxPromo = $this->transactionPromo($detail);
+
 		$hairstylist = UserHairStylist::where('id_user_hair_stylist', $detail['id_user_hair_stylist'])->first();
 		if (!empty($detail['outlet'])) {
 			$outlet = [
@@ -5945,6 +5960,14 @@ class ApiTransaction extends Controller
 	        ];
         }
 
+        if($paymentDetail && isset($trxPromo)){
+            $lastKey = array_key_last($paymentDetail);
+            for($i = 0; $i < count($trxPromo); $i++){
+                $KeyPosition = 1 + $i;
+                $paymentDetail[$lastKey+$KeyPosition] = $trxPromo[$i];
+            }
+        }
+
     	$show_rate_popup = 0;
         $logRating = UserRatingLog::where([
         	'id_user' => $user->id,
@@ -6018,6 +6041,30 @@ class ApiTransaction extends Controller
 		];
 		
 		return MyHelper::checkGet($res);
+    }
+
+    public function transactionPromo(Transaction $trx){
+        $trx = clone $trx;
+        $promo_discount = [];
+        $promos = TransactionPromo::where('id_transaction', $trx['id_transaction'])->get()->toArray();
+        if($promos){
+            $promo_discount[0]=[
+                "name"  => "Promo / Discount:",
+                "is_discount" => 0,
+                "amount" => null 
+            ];
+            foreach($promos as $p => $promo){
+                if($promo['promo_type']=='Promo Campaign'){
+                    $promo['promo_name'] = PromoCampaign::where('promo_title',$promo['promo_name'])->select('campaign_name')->first()['campaign_name'];
+                }
+                $promo_discount[$p+1] = [
+                    "name"  => $promo['promo_name'],
+                    "is_discount" => 1,
+                    "amount" => '- '.MyHelper::requestNumber($promo['discount_value'],'_CURRENCY')
+                ];
+            }
+        }
+        return $promo_discount;
     }
 
     public function CronICountPOO(Request $request) {

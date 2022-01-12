@@ -110,6 +110,11 @@ class UserHairStylist extends Authenticatable
         return $this->hasMany(\Modules\Recruitment\Entities\UserHairStylistDocuments::class, 'id_user_hair_stylist');
     }
 
+    public function experiences()
+    {
+        return $this->hasOne(\Modules\Recruitment\Entities\UserHairStylistExperience::class, 'id_user_hair_stylist');
+    }
+
     public function location()
     {
         return $this->hasOne(HairstylistLocation::class, 'id_user_hair_stylist');

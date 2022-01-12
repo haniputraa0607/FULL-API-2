@@ -13,8 +13,8 @@ class UpdatePotongan extends FormRequest
     {
         return [
             'id_hairstylist_group_potongan'  => 'required|unik',
-            'name_potongan'               => 'required',
-            'price_potongan'              => 'required',
+            'value'               => 'required',
+            'formula'              => 'required',
            ]; 
     }
     public function withValidator($validator)

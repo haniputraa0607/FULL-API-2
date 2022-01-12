@@ -36,6 +36,8 @@ use Modules\BusinessDevelopment\Entities\PartnersBecomesIxoboxDocument;
 use Modules\BusinessDevelopment\Entities\PartnersBecomesIxoboxOutlet;
 use Modules\Project\Entities\Project;
 use App\Http\Models\Product;
+use App\Http\Models\Province;
+use Maatwebsite\Excel\Concerns\ToArray;
 
 use function GuzzleHttp\json_decode;
 
@@ -132,10 +134,14 @@ class ApiPartnersController extends Controller
         if (!empty($data_request_partner)) {
             DB::beginTransaction();
             $store = Partner::create([
-                "name"   => $data_request_partner['name'],
-                "phone"   => $data_request_partner['phone'],
-                "email"   => $data_request_partner['email'],
-                "address"   => $data_request_partner['address'],
+                "title"          => $data_request_partner['title'],
+                "name"           => $data_request_partner['name'],
+                "contact_person" => $data_request_partner['contact_person'],
+                "phone"          => $data_request_partner['phone'],
+                "mobile"         => $data_request_partner['mobile'],
+                "email"          => $data_request_partner['email'],
+                "address"        => $data_request_partner['address'],
+                "notes"          => $data_request_partner['notes'],
             ]);
             if ($store) {
                 if (isset($post['location'])) {
@@ -164,6 +170,29 @@ class ApiPartnersController extends Controller
         } else {
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }    
+    }
+
+    public function new(Request $request){
+        $post = $request->all();
+
+        $provinces = Province::select('id_province','province_name');
+        
+        $cities = City::select('id_city','city_name','city_type','city_postal_code');
+
+        if(isset($post['id_province'])){
+            $provinces = $provinces->where('id_province',$post['id_province']);
+            $cities = $cities->where('id_province',$post['id_province']);
+        }
+
+        $provinces = $provinces->get()->toArray();
+        $cities = $cities->get()->toArray();
+
+        $data = [
+            "provinces" => $provinces,
+            "cities"    => $cities,
+        ];
+
+        return response()->json(['status' => 'success', 'result' => $data]);
     }
 
     /**

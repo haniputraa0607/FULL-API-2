@@ -3,6 +3,7 @@
 namespace Modules\Xendit\Entities;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Http\Models\Transaction;
 
 class TransactionPaymentXendit extends Model
 {
@@ -28,6 +29,11 @@ class TransactionPaymentXendit extends Model
         'LINKAJA' => 'LinkAja',
     ];
 
+    public function transaction()
+    {
+        return $this->belongsTo(Transaction::class, 'id_transaction');
+    }
+
     public function pay(&$errors = [])
     {
         if ($this->checkout_url || $this->business_id) {
@@ -37,6 +43,7 @@ class TransactionPaymentXendit extends Model
         $create = $xenditController->create($this->type, $this->external_id, $this->amount, [
             'phone' => $this->phone,
             'items' => $this->items,
+            'transaction_from' => $this->transaction->transaction_from,
         ], $errors);
         if ($create) {
             $this->business_id = $create['business_id'] ?? null;

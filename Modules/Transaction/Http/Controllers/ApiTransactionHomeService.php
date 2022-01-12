@@ -49,6 +49,8 @@ use Modules\Transaction\Http\Requests\Transaction\NewTransaction;
 use Modules\UserFeedback\Entities\UserFeedbackLog;
 use Modules\Transaction\Entities\TransactionHomeServiceHairStylistFinding;
 use DB;
+use Modules\Franchise\Entities\PromoCampaign;
+use Modules\PromoCampaign\Entities\TransactionPromo;
 
 class ApiTransactionHomeService extends Controller
 {
@@ -1283,6 +1285,8 @@ class ApiTransactionHomeService extends Controller
             return MyHelper::checkGet($trx);
         }
 
+        $trxPromo = $this->transactionPromo($trx);
+
         $trxPayment = $this->transactionPayment($trx);
         $trx['payment'] = $trxPayment['payment'];
 
@@ -1348,6 +1352,14 @@ class ApiTransactionHomeService extends Controller
         $result['flag_reason'] =  $lastLog['reason'] ?? '';
         $result['payment_detail'] = $this->transactionPaymentDetail($trx);
 
+        if($result['payment_detail'] && isset($trxPromo)){
+            $lastKey = array_key_last($result['payment_detail']);
+            for($i = 0; $i < count($trxPromo); $i++){
+                $KeyPosition = 1 + $i;
+                $result['payment_detail'][$lastKey+$KeyPosition] = $trxPromo[$i];
+            }
+        }
+
         if(!isset($trx['payment'])){
             $result['transaction_payment'] = null;
         }else{
@@ -1368,6 +1380,30 @@ class ApiTransactionHomeService extends Controller
         }
 
         return MyHelper::checkGet($result);
+    }
+
+    public function transactionPromo(Transaction $trx){
+        $trx = clone $trx;
+        $promo_discount = [];
+        $promos = TransactionPromo::where('id_transaction', $trx['id_transaction'])->get()->toArray();
+        if($promos){
+            $promo_discount[0]=[
+                "name"  => "Promo / Discount:",
+                "is_discount" => 0,
+                "amount" => null 
+            ];
+            foreach($promos as $p => $promo){
+                if($promo['promo_type']=='Promo Campaign'){
+                    $promo['promo_name'] = PromoCampaign::where('promo_title',$promo['promo_name'])->select('campaign_name')->first()['campaign_name'];
+                }
+                $promo_discount[$p+1] = [
+                    "name"  => $promo['promo_name'],
+                    "is_discount" => 1,
+                    "amount" => '- '.MyHelper::requestNumber($promo['discount_value'],'_CURRENCY')
+                ];
+            }
+        }
+        return $promo_discount;
     }
 
     public function transactionPayment(Transaction $trx)
@@ -1655,40 +1691,40 @@ class ApiTransactionHomeService extends Controller
             'amount'    => MyHelper::requestNumber($trx['transaction_tax'],'_CURRENCY')
         ];
 
-        if ($trx['transaction_discount']) {
-            $discount = abs($trx['transaction_discount']);
-            $p = 0;
-            if (!empty($trx['transaction_vouchers'])) {
-                foreach ($trx['transaction_vouchers'] as $valueVoc) {
-                    $result['promo']['code'][$p++]   = $valueVoc['deals_voucher']['voucher_code'];
-                    $paymentDetail[] = [
-                        'name'          => 'Diskon',
-                        'desc'          => 'Promo',
-                        "is_discount"   => 1,
-                        'amount'        => '- '.MyHelper::requestNumber($discount,'_CURRENCY')
-                    ];
-                }
-            }
+        // if ($trx['transaction_discount']) {
+        //     $discount = abs($trx['transaction_discount']);
+        //     $p = 0;
+        //     if (!empty($trx['transaction_vouchers'])) {
+        //         foreach ($trx['transaction_vouchers'] as $valueVoc) {
+        //             $result['promo']['code'][$p++]   = $valueVoc['deals_voucher']['voucher_code'];
+        //             $paymentDetail[] = [
+        //                 'name'          => 'Diskon',
+        //                 'desc'          => 'Promo',
+        //                 "is_discount"   => 1,
+        //                 'amount'        => '- '.MyHelper::requestNumber($discount,'_CURRENCY')
+        //             ];
+        //         }
+        //     }
 
-            if (!empty($trx['promo_campaign_promo_code'])) {
-                $result['promo']['code'][$p++]   = $trx['promo_campaign_promo_code']['promo_code'];
-                $paymentDetail[] = [
-                    'name'          => 'Diskon',
-                    'desc'          => 'Promo',
-                    "is_discount"   => 1,
-                    'amount'        => '- '.MyHelper::requestNumber($discount,'_CURRENCY')
-                ];
-            }
+        //     if (!empty($trx['promo_campaign_promo_code'])) {
+        //         $result['promo']['code'][$p++]   = $trx['promo_campaign_promo_code']['promo_code'];
+        //         $paymentDetail[] = [
+        //             'name'          => 'Diskon',
+        //             'desc'          => 'Promo',
+        //             "is_discount"   => 1,
+        //             'amount'        => '- '.MyHelper::requestNumber($discount,'_CURRENCY')
+        //         ];
+        //     }
 
-            if (!empty($trx['id_subscription_user_voucher']) && !empty($trx['transaction_discount'])) {
-                $paymentDetail[] = [
-                    'name'          => 'Subscription',
-                    'desc'          => 'Diskon',
-                    "is_discount"   => 1,
-                    'amount'        => '- '.MyHelper::requestNumber($discount,'_CURRENCY')
-                ];
-            }
-        }
+        //     if (!empty($trx['id_subscription_user_voucher']) && !empty($trx['transaction_discount'])) {
+        //         $paymentDetail[] = [
+        //             'name'          => 'Subscription',
+        //             'desc'          => 'Diskon',
+        //             "is_discount"   => 1,
+        //             'amount'        => '- '.MyHelper::requestNumber($discount,'_CURRENCY')
+        //         ];
+        //     }
+        // }
 
         return $paymentDetail;
     }

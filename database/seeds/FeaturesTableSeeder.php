@@ -4269,7 +4269,7 @@ class FeaturesTableSeeder extends Seeder
                 ),
             426 =>
                 array (
-                    'feature_module' => 'Setting Attendances Start Date',
+                    'feature_module' => 'Setting Attendances Date',
                     'feature_type' => 'List',
                     'id_feature' => 427,
                     'order' => 153,

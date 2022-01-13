@@ -14,5 +14,6 @@ class HairstylistAttendanceRequest extends Model
         'clock_out',
         'notes',
         'status',
+        'id_outlet',
     ];
 }

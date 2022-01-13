@@ -19,6 +19,7 @@ class HairstylistAttendance extends Model
         'clock_in_tolerance',
         'clock_out_tolerance',
         'is_on_time',
+        'id_outlet',
     ];
 
     public function logs()

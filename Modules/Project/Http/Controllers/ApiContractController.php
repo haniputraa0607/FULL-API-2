@@ -96,6 +96,9 @@ class ApiContractController extends Controller
                     "id_project"   =>  $request->id_project,
                     "first_party"   =>  $request->first_party,
                     "second_party"   =>  $request->second_party,
+                    "nama_kontraktor"   =>  $request->nama_kontraktor,
+                    "cp_kontraktor"   =>  $request->cp_kontraktor,
+                    "renovation_cost"   =>  $request->renovation_cost,
                     "attachment"   =>  $attachment,
                     "nomor_loi"   =>   $request->nomor_loi,
                     "nomor_spk"   =>   $request->nomor_spk,
@@ -204,6 +207,42 @@ class ApiContractController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         
     }
-   
+    
+    public function no_spk() {
+        $no = ProjectContract::latest()->first();
+        $nomer = $no->id_projects_contract??1;
+        $nomer++;
+        $x = 1;
+        $s = 2;
+         while($x <= $s) {
+            $no_spk = 'SPK/'.$nomer.'/'.date('m').'/'.date('Y');
+             $no = ProjectContract::where('nomor_spk',$no_spk)->first();
+            if(!$no){
+                  break;
+            }
+            $nomer++;
+            $x++;
+             $s++;
+          } 
+        return response()->json(['status' => 'success', 'result' => $no_spk]);
+    }
+    public function no_loi() {
+        $no = ProjectContract::latest()->first();
+        $nomer = $no->id_projects_contract??1;
+        $nomer++;
+        $x = 1;
+        $s = 2;
+         while($x <= $s) {
+            $no_spk = 'LOI/'.$nomer.'/'.date('m').'/'.date('Y');
+            $no = ProjectContract::where('nomor_loi',$no_spk)->first();
+            if(!$no){
+                  break;
+            }
+            $nomer++;
+            $x++;
+            $s++;
+          } 
+        return response()->json(['status' => 'success', 'result' => $no_spk]);
+    }
     
 }

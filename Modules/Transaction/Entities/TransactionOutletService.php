@@ -83,7 +83,7 @@ class TransactionOutletService extends \App\Http\Models\Template\TransactionServ
                     [
                     	'date' => $trx['transaction_date'],
                     	'outlet_name' => $trx['outlet']['outlet_name'],
-                    	'detail' => $trx['transaction_date'],
+                    	'detail' => $detail ?? null,
                     	'receipt_number' => $trx['transaction_receipt_number'],
                     	'order_id' => $tp['transaction_product_service']['order_id']
                     ], null, false, false, 'hairstylist'
@@ -100,7 +100,7 @@ class TransactionOutletService extends \App\Http\Models\Template\TransactionServ
                     [
                         'date' => $trx['transaction_date'],
                     	'outlet_name' => $trx['outlet']['outlet_name'],
-                    	'detail' => $trx['transaction_date'],
+                    	'detail' => $detail ?? null,
                     	'receipt_number' => $trx['transaction_receipt_number']
                     ], null, false, false, 'hairstylist'
                 );

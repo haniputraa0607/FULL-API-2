@@ -434,12 +434,6 @@ class ApiOnlineTransaction extends Controller
             $promo_source = null;
             $promo_valid = false;
             $promo_type = null;
-
-            if($request->json('promo_code') || $request->json('id_deals_user') || $request->json('id_subscription_user')){
-                // change is used flag to 0
-                $update_deals 	= DealsUser::where('id_user','=',$request->user()->id)->where('is_used','=',1)->update(['is_used' => 0]);
-                $removePromo 	= UserPromo::where('id_user',$request->user()->id)->delete();
-            }
         }
 
         $error_msg=[];
@@ -1872,6 +1866,8 @@ class ApiOnlineTransaction extends Controller
         $result['complete_profile'] = true;
         $result['point_earned'] = null;
         $result['payment_detail'] = [];
+        $fake_request = new Request(['show_all' => 1]);
+        $result['available_payment'] = $this->availablePayment($fake_request)['result'] ?? [];
 
     	$result = app($this->promo_trx)->applyPromoCheckout($result);
 
@@ -1902,10 +1898,6 @@ class ApiOnlineTransaction extends Controller
         if (count($error_msg) > 1 && (!empty($post['item']) || !empty($post['item_service']))) {
             $error_msg = ['Produk atau Service yang anda pilih tidak tersedia. Silakan cek kembali pesanan anda'];
         }
-
-
-        $fake_request = new Request(['show_all' => 1]);
-        $result['available_payment'] = $this->availablePayment($fake_request)['result'] ?? [];
 
         $result['messages_all'] = null;
         if(!empty($error_msg)){

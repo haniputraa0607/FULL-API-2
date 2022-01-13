@@ -6190,7 +6190,6 @@ class ApiTransaction extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             $log->fail($e->getMessage());
-            return $e;
         }    
     }
     public function revenue_sharing(){

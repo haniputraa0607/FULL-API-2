@@ -33,7 +33,7 @@ class ApiHairStylistController extends Controller
     public function create(user_hair_stylist_create $request)
     {
         $post = $request->json()->all();
-
+        
         $phone = $request->json('phone_number');
 
         $phone = preg_replace("/[^0-9]/", "", $phone);
@@ -43,7 +43,7 @@ class ApiHairStylistController extends Controller
         if (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'fail') {
             return response()->json([
                 'status' => 'fail',
-                'messages' => $checkPhoneFormat['messages']
+                'messages' => 'Invalid number phone format'
             ]);
         } elseif (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'success') {
             $phone = $checkPhoneFormat['phone'];

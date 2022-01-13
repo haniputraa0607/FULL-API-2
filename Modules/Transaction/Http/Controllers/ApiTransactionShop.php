@@ -679,6 +679,8 @@ class ApiTransactionShop extends Controller
         $result['complete_profile'] = true;
         $result['payment_detail'] = [];
         $result['continue_checkout'] = (empty($error_msg) ? true : false);
+        $fake_request = new Request(['show_all' => 1]);
+        $result['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
         
         $result = app($this->promo_trx)->applyPromoCheckout($result);
 
@@ -710,8 +712,6 @@ class ApiTransactionShop extends Controller
             $error_msg = ['Produk yang anda pilih tidak tersedia. Silakan cek kembali pesanan anda'];
         }
 
-        $fake_request = new Request(['show_all' => 1]);
-        $result['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
 
         $finalRes = [
         	'customer' => $result['customer'],

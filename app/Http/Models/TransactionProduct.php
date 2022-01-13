@@ -140,6 +140,11 @@ class TransactionProduct extends Model
 		return $this->hasOne(\Modules\Transaction\Entities\TransactionProductService::class, 'id_transaction_product');
 	}
 
+	public function transaction_product_promos()
+	{
+		return $this->hasMany(\Modules\Transaction\Entities\TransactionProductPromo::class, 'id_transaction_product');
+	}
+
     public function transaction_breakdown()
     {
         return $this->hasMany(\Modules\Transaction\Entities\TransactionBreakdown::class, 'id_transaction_product');

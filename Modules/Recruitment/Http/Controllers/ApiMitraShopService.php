@@ -153,6 +153,30 @@ class ApiMitraShopService extends Controller
 
     	app($this->mitra_outlet_service)->completeTransaction($trx->id_transaction);
 
+    	// notif hairstylist
+        app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
+            'Mitra SPV - Transaction Product Taken',
+            $user['phone_number'],
+            [
+            	'date' => $trx['transaction_date'],
+            	'outlet_name' => $trx['outlet']['outlet_name'],
+            	'detail' => $detail ?? null,
+            	'receipt_number' => $trx['transaction_receipt_number']
+            ], null, false, false, 'hairstylist'
+        );
+
+        // notif user customer
+        app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
+        	'Transaction Product Taken', 
+        	$trx->user->phone, 
+        	[
+	            'date' => $trx['transaction_date'],
+            	'outlet_name' => $trx['outlet']['outlet_name'],
+            	'detail' => $detail ?? null,
+            	'receipt_number' => $trx['transaction_receipt_number']
+	        ]
+	    );
+
     	DB::commit();
 
     	return ['status' => 'success'];

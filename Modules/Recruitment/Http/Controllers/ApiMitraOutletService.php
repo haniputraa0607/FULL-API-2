@@ -746,7 +746,6 @@ class ApiMitraOutletService extends Controller
 		        ]
 		    );
 
-
 			DB::commit();
     	} catch (\Exception $e) {
 

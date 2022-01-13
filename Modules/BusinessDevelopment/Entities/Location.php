@@ -29,11 +29,17 @@ class Location extends Model
         'income',
         'notes',
         'step_loc',
-        'is_tax'
+        'is_tax',
+        'date_loi',
+        'no_loi',
+        'submited_by'
 
     ];
     public function location_partner(){
         return $this->belongsTo(Partner::class, 'id_partner');
+    }
+    public function submited(){
+        return $this->belongsTo(Partner::class, 'submited_by');
     }
     public function location_city(){
         return $this->belongsTo(City::class, 'id_city');

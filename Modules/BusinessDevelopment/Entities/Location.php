@@ -32,7 +32,11 @@ class Location extends Model
         'is_tax',
         'date_loi',
         'no_loi',
-        'submited_by'
+        'submited_by',
+        "width",
+        "height",
+        "location_type",
+        "location_image"
 
     ];
     public function location_partner(){

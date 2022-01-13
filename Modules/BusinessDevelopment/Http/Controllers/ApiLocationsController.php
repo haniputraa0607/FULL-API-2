@@ -664,7 +664,21 @@ class ApiLocationsController extends Controller
                 "id_city"   => $data_request['id_city'],
                 "latitude"   => $data_request['latitude'],
                 "longitude"   => $data_request['longitude'],
+                "width"   => $data_request['width'],
+                "height"   => $data_request['height'],
+                "location_large"   => $data_request['location_large'],
+                "location_type"   => $data_request['location_type'],
+                "notes"   => $data_request['notes'],
             ]);
+            if (isset($post['location_image']) && !empty($post['location_image'])) {
+                $img = Image::make(base64_decode($post['location_image']));
+                $imgwidth = $img->width();
+                $imgheight = $img->height();
+                $upload = MyHelper::uploadPhotoStrict($post['location_image'], 'img/location/', $imgwidth, $imgheight, time());
+                if ($upload['status'] == "success") {
+                    $store['location_image'] = $upload['path'];
+                }
+            }
             if(!$store) {
                 DB::rollback();
                 return response()->json(['status' => 'fail', 'messages' => ['Failed add location']]);

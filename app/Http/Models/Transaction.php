@@ -512,6 +512,16 @@ class Transaction extends Model
 
     	// send notification
     	// TODO write notification logic here
+    	app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
+        	'Transaction Expired', 
+        	$this->user->phone, 
+        	[
+	            'date' => $this->transaction_date,
+            	'outlet_name' => $this->outlet['outlet_name'],
+            	'detail' => $detail ?? null,
+            	'receipt_number' => $this->transaction_receipt_number
+	        ]
+	    );
 
     	\DB::commit();
     	return true;

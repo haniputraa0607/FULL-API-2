@@ -151,6 +151,18 @@ class ApiMitraShopService extends Controller
     		]);
     	}
 
+    	// log rating outlet
+        UserRatingLog::updateOrCreate([
+            'id_user' => $trx->id_user,
+            'id_transaction' => $trx->id_transaction,
+            'id_outlet' => $trx->id_outlet
+        ],[
+            'refuse_count' => 0,
+            'last_popup' => date('Y-m-d H:i:s', time() - MyHelper::setting('popup_min_interval', 'value', 900))
+        ]);
+
+        $trx->update(['show_rate_popup' => '1']);
+
     	app($this->mitra_outlet_service)->completeTransaction($trx->id_transaction);
 
     	// notif hairstylist

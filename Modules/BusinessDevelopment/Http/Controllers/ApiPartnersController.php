@@ -455,15 +455,21 @@ class ApiPartnersController extends Controller
 
     public function cekDuplikat(Request $request){
         $post = $request->all();
-        if (isset($post['id_partner']) && !empty($post['id_partner'])) {
+        if (isset($post['id']) && !empty($post['id'])) {
             //cek code partner
-            $cek_code_partner = Partner::where('code', $post['partner_code'])->first();
-            if($cek_code_partner){
-                return response()->json(['status' => 'duplicate_code', 'messages' => ['Partner code must be different']]);
-            }else{
+            if($post['table']=='Partners'){
+                $cek_code_partner = Partner::where('code', $post['partner_code'])->first();
+                if($cek_code_partner){
+                    return response()->json(['status' => 'duplicate_code', 'messages' => ['Partner code must be different']]);
+                }else{
+                    return true;
+                }
+            }elseif($post['table']=='Locations'){
                 $cek_code_location = Location::where('code', $post['location_code'])->first();
                 if($cek_code_location){
                     return response()->json(['status' => 'duplicate_code', 'messages' => ['Location code must be different']]);
+                }else{
+                    return true;
                 }
             }
         }else{

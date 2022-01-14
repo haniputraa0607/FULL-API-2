@@ -671,7 +671,7 @@ class ApiMitraOutletService extends Controller
 
     	DB::beginTransaction();
     	try {
-    		$trx = Transaction::where('id_transaction', $service->id_transaction)->first();
+    		$trx = Transaction::where('id_transaction', $service->id_transaction)->with('outlet', 'user')->first();
     		TransactionProductServiceLog::create([
 	    		'id_transaction_product_service' => $request->id_transaction_product_service,
 	    		'action' => 'Complete'
@@ -719,6 +719,32 @@ class ApiMitraOutletService extends Controller
             ]);
 
             $trx->update(['show_rate_popup' => '1']);
+
+            // notif hairstylist
+            app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
+                'Mitra HS - Transaction Service Completed',
+                $user['phone_number'],
+                [
+                	'date' => $trx['transaction_date'],
+                	'outlet_name' => $trx['outlet']['outlet_name'],
+                	'detail' => $detail ?? null,
+                	'receipt_number' => $trx['transaction_receipt_number'],
+                	'order_id' => $service['order_id']
+                ], null, false, false, 'hairstylist'
+            );
+
+            // notif user customer
+            app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
+            	'Transaction Service Completed', 
+            	$trx->user->phone, 
+            	[
+		            'date' => $trx['transaction_date'],
+                	'outlet_name' => $trx['outlet']['outlet_name'],
+                	'detail' => $detail ?? null,
+                	'receipt_number' => $trx['transaction_receipt_number'],
+                	'order_id' => $service['order_id']
+		        ]
+		    );
 
 			DB::commit();
     	} catch (\Exception $e) {

@@ -156,6 +156,7 @@ class UserHairStylist extends Authenticatable
                     ->orderBy('is_overtime')
                     ->first()
                     ->id_hairstylist_schedule_date,
+                'id_outlet' => $this->id_outlet,
                 'attendance_date' => $schedule->date,
                 'id_user_hair_stylist' => $this->id_user_hair_stylist,
                 'clock_in_requirement' => $schedule->clock_in_requirement,

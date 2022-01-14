@@ -4247,6 +4247,36 @@ class FeaturesTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00')
                 ),
+            424 =>
+                array (
+                    'feature_module' => 'Default Insentif Salary Hair Stylist',
+                    'feature_type' => 'List',
+                    'id_feature' => 425,
+                    'order' => 152,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            425 =>
+                array (
+                    'feature_module' => 'Default Cuts Salary Hair Stylist',
+                    'feature_type' => 'List',
+                    'id_feature' => 426,
+                    'order' => 152,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            426 =>
+                array (
+                    'feature_module' => 'Setting Attendances Date',
+                    'feature_type' => 'List',
+                    'id_feature' => 427,
+                    'order' => 153,
+                    'show_hide' => 1,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
         ));
         
         

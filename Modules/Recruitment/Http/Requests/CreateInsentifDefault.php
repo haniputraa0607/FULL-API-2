@@ -6,13 +6,12 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Modules\Recruitment\Entities\HairstylistGroup;
-class CreateInsentif extends FormRequest
+class CreateInsentifDefault extends FormRequest
 {
     public function rules()
     {
         return [
-            'id_hairstylist_group'        => 'required|unik',
-            'id_hairstylist_group_default_insentifs'        => 'required',
+            'name'        => 'required',
             'value'               => 'required',
             'formula'              => 'required',
            ]; 

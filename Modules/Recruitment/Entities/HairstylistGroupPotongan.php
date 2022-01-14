@@ -17,8 +17,9 @@ class HairstylistGroupPotongan extends Model
 
 	protected $fillable = [
 		'id_hairstylist_group',
-		'name_potongan',
-		'price_potongan',
+		'id_hairstylist_group_default_potongans',
+		'value',
+		'formula',
                 'created_at',   
                 'updated_at'
 	];

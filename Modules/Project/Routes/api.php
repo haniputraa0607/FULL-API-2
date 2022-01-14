@@ -38,6 +38,8 @@ use Illuminate\Http\Request;
     Route::post('/delete/contract', ['middleware'=>['feature_control:406','scopes:be'], 'uses' => 'ApiContractController@destroy']);
     Route::post('/next/contract', ['middleware'=>['feature_control:405','scopes:be'], 'uses' => 'ApiContractController@nextStep']);
     Route::post('/detail/contract', ['middleware'=>['feature_control:404','scopes:be'], 'uses' => 'ApiContractController@detail']);
+    Route::get('/detail/no_spk', ['middleware'=>['feature_control:404','scopes:be'], 'uses' => 'ApiContractController@no_spk']);
+    Route::get('/detail/no_loi', ['middleware'=>['feature_control:404','scopes:be'], 'uses' => 'ApiContractController@no_loi']);
     
     //fitout
      Route::post('/create/fitout', ['middleware'=>['feature_control:403','scopes:be'], 'uses' => 'ApiFitOutController@create']);

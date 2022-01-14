@@ -485,8 +485,8 @@ class XenditController extends Controller
 
         $outlet_code = Outlet::join('transactions', 'transactions.id_outlet', 'outlets.id_outlet')->where('transaction_receipt_number', $external_id)->first()->outlet_code??null;
         $redirect_url = str_replace(
-            ['%order_id%', '%type%', '%outlet_code%'],
-            [urlencode($options['order_id'] ?? $external_id), $options['type'] ?? 'trx', $outlet_code],
+            ['%order_id%', '%type%', '%outlet_code%', '%transaction_from%'],
+            [urlencode($options['order_id'] ?? $external_id), $options['type'] ?? 'trx', $outlet_code, $options['transaction_from'] ?? 'outlet_service'],
             $this->redirect_url
         );
 
@@ -495,6 +495,7 @@ class XenditController extends Controller
             'amount'       => (int) $amount,
             'success_redirect_url' => $redirect_url,
             'payment_methods' => [$method],
+            'items'        => $options['items'] ?? [],
         ];
 
         try {

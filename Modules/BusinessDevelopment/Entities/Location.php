@@ -36,7 +36,8 @@ class Location extends Model
         "width",
         "height",
         "location_type",
-        "location_image"
+        "location_image",
+        "id_outlet_starter_bundling"
 
     ];
     public function location_partner(){
@@ -56,6 +57,12 @@ class Location extends Model
     }
     public function location_confirmation(){
         return $this->hasMany(ConfirmationLetter::class, 'id_location');
+    }
+    public function outlet_starter(){
+        return $this->belongsTo(OutletStarterBundling::class, 'id_outlet_starter_bundling');
+    }
+    public function location_starter(){
+        return $this->hasMany(LocationOutletStarterBundlingProduct::class, 'id_location');
     }
 
 }

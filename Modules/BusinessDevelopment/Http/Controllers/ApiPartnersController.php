@@ -8,6 +8,7 @@ use Illuminate\Routing\Controller;
 use Modules\BusinessDevelopment\Entities\Partner;
 use Modules\BusinessDevelopment\Entities\PartnersLog;
 use Modules\BusinessDevelopment\Entities\Location;
+use Modules\BusinessDevelopment\Entities\OutletStarterBundling;
 use Modules\BusinessDevelopment\Http\Controllers\ApiLocationsController;
 use App\Lib\MyHelper;
 use App\Lib\Icount;
@@ -1424,7 +1425,11 @@ class ApiPartnersController extends Controller
     public function listLocationAvailable(Request $request){
         $post = $request->all();
         $location = Location::where('status','Active')->whereNull('id_partner')->get()->toArray();
-        return MyHelper::checkGet($location); 
+        $starter = OutletStarterBundling::with('bundling_products')->where('status',1)->get()->toArray();
+        return response()->json(['status' => 'success', 'result' => [
+            'locations' => $location,
+            'starters' => $starter
+        ]]);
     }
 }
 

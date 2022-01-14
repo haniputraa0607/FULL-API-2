@@ -13,6 +13,7 @@ class ApiOutletStarterBundlingController extends Controller
     public function index(Request $request)
     {
         $bundlings = (new OutletStarterBundling)->newQuery();
+        $bundlings->orderBy('name');
         return MyHelper::checkGet($bundlings->paginate());
     }
 

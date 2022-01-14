@@ -17,7 +17,7 @@ Route::middleware('auth:api')->get('/businessdevelopment', function (Request $re
     return $request->user();
 });
 
-Route::group(['middleware' => ['auth:api','log_activities', 'user_agent', 'scope:be'], 'prefix' => 'outlet-starter-bundling'], function() {
+Route::group(['middleware' => ['auth:api','log_activities', 'user_agent', 'scopes:be'], 'prefix' => 'outlet-starter-bundling'], function() {
     Route::get('/', 'ApiOutletStarterBundlingController@index');
     Route::post('/create', 'ApiOutletStarterBundlingController@store');
     Route::get('/detail', 'ApiOutletStarterBundlingController@show');

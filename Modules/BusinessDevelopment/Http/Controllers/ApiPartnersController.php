@@ -39,6 +39,8 @@ use Modules\Project\Entities\Project;
 use App\Http\Models\Product;
 use App\Http\Models\Province;
 use Maatwebsite\Excel\Concerns\ToArray;
+use Modules\BusinessDevelopment\Entities\OutletStarterBundlingProduct;
+use Modules\Product\Entities\ProductIcount;
 
 use function GuzzleHttp\json_decode;
 
@@ -1430,6 +1432,27 @@ class ApiPartnersController extends Controller
             'locations' => $location,
             'starters' => $starter
         ]]);
+    }
+
+    public function detailBundling(Request $request){
+        $post = $request->all();
+        $starter = OutletStarterBundlingProduct::where('id_outlet_starter_bundling',$post['id_outlet_starter_bundling'])->get()->toArray();
+        if(isset($starter)){
+            foreach($starter as $key => $start){
+                $product = ProductIcount::where('id_product_icount',$start['id_product_icount'])->first();
+                if($product['unit1']==$start['unit']){
+                    $cost = $product['unit_price_1'] * $start['qty'];
+                }elseif($product['unit2']==$start['unit']){
+                    $cost = $product['unit_price_2'] * $start['qty'];
+                }elseif($product['unit3']==$start['unit']){
+                    $cost = $product['unit_price_3'] * $start['qty'];
+                }else{
+                    $cost = 0;
+                }
+                $starter[$key]['cost'] = $cost;
+            }
+        }
+        return response()->json(['status' => 'success', 'result' => $starter]);
     }
 }
 

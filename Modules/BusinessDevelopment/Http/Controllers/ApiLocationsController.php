@@ -16,6 +16,7 @@ use Modules\Project\Entities\Project;
 use Modules\BusinessDevelopment\Entities\ConfirmationLetter;
 use App\Lib\Icount;
 use Modules\BusinessDevelopment\Entities\FormSurvey;
+use Modules\BusinessDevelopment\Entities\LocationOutletStarterBundlingProduct;
 use PDF;
 use Storage;
 
@@ -333,6 +334,18 @@ class ApiLocationsController extends Controller
             }
             if (isset($post['date_loi'])) {
                 $data_update['date_loi'] = $post['date_loi'];
+            }
+            if (isset($post['total_box'])) {
+                $data_update['total_box'] = $post['total_box'];
+            }
+            if (isset($post['handover_date'])) {
+                $data_update['handover_date'] = $post['handover_date'];
+            }
+            if (isset($post['product_starter'])) {
+                $product_start = $this->addLocationProductStarter($post['product_starter']);
+                if(!$product_start){
+                    return response()->json(['status' => 'fail', 'messages' => ['Failed to save product starter outlet']]);
+                }
             }
             if (isset($post['id_outlet_starter_bundling'])) {
                 $data_update['id_outlet_starter_bundling'] = $post['id_outlet_starter_bundling'];
@@ -690,6 +703,30 @@ class ApiLocationsController extends Controller
         } else {
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }           
+    }
+
+    public function addLocationProductStarter($data){
+
+        $data_product = [];
+
+        foreach ($data as $value) {
+            array_push($data_product, [
+                'id_location' 	=> $value['id_location'],
+                'id_product_icount'  => $value['id_product_icount'],
+                'unit'  => $value['unit'],
+                'qty'  => $value['qty'],
+                'budget_code'  => $value['budget_code'],
+            ]);
+        }
+
+        if (!empty($data_product)) {
+            $save = LocationOutletStarterBundlingProduct::insert($data_product);
+            return $save;
+        } else {
+            return false;
+        }
+
+        return true;
     }
 
 }

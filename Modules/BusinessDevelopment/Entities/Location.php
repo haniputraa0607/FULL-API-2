@@ -37,7 +37,9 @@ class Location extends Model
         "height",
         "location_type",
         "location_image",
-        "id_outlet_starter_bundling"
+        "id_outlet_starter_bundling",
+        "total_box",
+        "handover_date"
 
     ];
     public function location_partner(){

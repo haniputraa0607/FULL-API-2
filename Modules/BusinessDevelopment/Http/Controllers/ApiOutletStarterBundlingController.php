@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Modules\BusinessDevelopment\Entities\OutletStarterBundling;
+use App\Lib\MyHelper;
 
 class ApiOutletStarterBundlingController extends Controller
 {
@@ -47,7 +48,7 @@ class ApiOutletStarterBundlingController extends Controller
             return [
                 'status' => 'fail',
                 'messages' => [
-                    'Failed create Outlet Starter Bundling'
+                    'Failed create outlet starter bundling'
                 ]
             ];
         }
@@ -65,7 +66,7 @@ class ApiOutletStarterBundlingController extends Controller
         return [
             'status' => 'success',
             'result' => [
-                'message' => 'Success add bundling product'
+                'message' => 'Success add outlet starter bundling'
             ]
         ];
     }
@@ -115,7 +116,20 @@ class ApiOutletStarterBundlingController extends Controller
         return [
             'status' => 'success',
             'result' => [
+                'message' => 'Success update outlet starter bundling'
             ]
         ];
+    }
+
+    public function delete()
+    {
+        $bundling = OutletStarterBundling::with('bundling_products')->find($request->id_outlet_starter_product_bundling);
+        if (!$bundling) {
+            abort(404);
+        }
+
+        $delete = $bundling->delete();
+
+        return MyHelper::checkDelete($delete);
     }
 }

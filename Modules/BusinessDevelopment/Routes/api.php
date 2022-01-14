@@ -179,5 +179,6 @@ Route::group(['middleware' => ['auth:partners','log_activities','user_agent','sc
 
 Route::group(['middleware' => ['auth_client','scopes:landing-page'],'prefix' => 'partners'], function() {
     Route::post('/create', ['uses' => 'ApiPartnersController@store']);
+    Route::post('/create-location', ['uses' => 'ApiLocationsController@storeLandingPage']);
     Route::post('/new', ['uses' => 'ApiPartnersController@new']);
 });

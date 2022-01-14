@@ -153,7 +153,7 @@ class ApiPartnersController extends Controller
                             "id_city"   => $location['id_city'],
                             "latitude"   => $location['latitude'],
                             "longitude"   => $location['longitude'],
-                            "id_partner"   => $id,
+                            "submited_by"   => $id,
                         ]);
                         if(!$store_loc){
                             DB::rollback();
@@ -1303,6 +1303,7 @@ class ApiPartnersController extends Controller
             $data_store = [
                 "id_partner" => $post["id_partner"],
                 "id_location" => $post["id_location"],
+                "title" => $post["title"],
                 "survey" => $post["value"],
                 "surveyor" => $post["surveyor"],
                 "potential" => $post["potential"],

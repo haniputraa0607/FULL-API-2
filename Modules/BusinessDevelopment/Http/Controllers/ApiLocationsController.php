@@ -283,20 +283,6 @@ class ApiLocationsController extends Controller
             if (isset($post['id_partner'])) {
                 $data_update['id_partner'] = $post['id_partner'];
             }
-            if (isset($post['end_date'])) {
-                $data_update['start_date'] = $post['start_date'];
-            }elseif(isset($post['status']) && $post['status']=='Active'){
-                $id_loc_start =  Location::select('id_partner')->where('id_location',$post['id_location'])->first()['id_partner'];
-                $start_date_active = Partner::select('start_date')->where('id_partner',$id_loc_start)->first()['start_date'];
-                $data_update['start_date'] = $start_date_active;
-            }
-            if (isset($post['end_date'])) {
-                $data_update['end_date'] = $post['end_date'];
-            }elseif(isset($post['status']) && $post['status']=='Active'){
-                $id_loc_end =  Location::select('id_partner')->where('id_location',$post['id_location'])->first()['id_partner'];
-                $end_date_active = Partner::select('end_date')->where('id_partner',$id_loc_end)->first()['end_date'];
-                $data_update['end_date'] = $end_date_active;
-            }
             if (isset($post['location_large'])) {
                 $data_update['location_large'] = $post['location_large'];
             }
@@ -347,6 +333,22 @@ class ApiLocationsController extends Controller
             }
             if (isset($post['date_loi'])) {
                 $data_update['date_loi'] = $post['date_loi'];
+            }
+            if (isset($post['id_outlet_starter_bundling'])) {
+                $data_update['id_outlet_starter_bundling'] = $post['id_outlet_starter_bundling'];
+
+                if(empty($post['start_date']) && empty($post['end_date'])){
+                    $id_loc_start =  Location::select('id_partner')->where('id_location',$post['id_location'])->first()['id_partner'];
+                    $date = Partner::select('start_date')->where('id_partner',$id_loc_start)->first();
+                    $data_update['start_date'] = $date['start_date'];
+                    $data_update['end_date'] = $date['end_date'];
+                }
+            }
+            if (isset($post['start_date'])) {
+                $data_update['start_date'] = $post['start_date'];
+            }
+            if (isset($post['end_date'])) {
+                $data_update['end_date'] = $post['end_date'];
             }
             if(isset($data_update['start_date']) && isset($data_update['end_date'])){
                 $start = explode('-', $data_update['start_date']);

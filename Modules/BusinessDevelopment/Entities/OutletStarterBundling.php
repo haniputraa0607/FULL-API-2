@@ -13,4 +13,9 @@ class OutletStarterBundling extends Model
         'description',
         'status',
     ];
+
+    public function bundling_products()
+    {
+        return $this->hasMany(OutletStarterBundlingProduct::class, 'id_outlet_starter_bundling');
+    }
 }

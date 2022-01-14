@@ -8,6 +8,7 @@ class OutletStarterBundlingProduct extends Model
 {
     public $primaryKey = 'id_outlet_starter_bundling_product';
     protected $fillable = [
+        'id_outlet_starter_bundling',
         'id_product_icount',
         'qty',
         'unit',

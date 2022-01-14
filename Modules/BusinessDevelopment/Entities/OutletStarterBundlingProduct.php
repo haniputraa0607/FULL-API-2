@@ -10,6 +10,7 @@ class OutletStarterBundlingProduct extends Model
     protected $fillable = [
         'id_product_icount',
         'qty',
+        'unit',
         'budget_code',
         'description',
     ];

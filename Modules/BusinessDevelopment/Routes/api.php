@@ -17,6 +17,14 @@ Route::middleware('auth:api')->get('/businessdevelopment', function (Request $re
     return $request->user();
 });
 
+Route::group(['middleware' => ['auth:api','log_activities', 'user_agent', 'scope:be'], 'prefix' => 'outlet-starter-bundling'], function() {
+    Route::get('/', 'ApiOutletStarterBundlingController@index');
+    Route::post('/create', 'ApiOutletStarterBundlingController@store');
+    Route::get('/detail', 'ApiOutletStarterBundlingController@show');
+    Route::post('/update', 'ApiOutletStarterBundlingController@update');
+    Route::post('/delete', 'ApiOutletStarterBundlingController@delete');
+});
+
 Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefix' => 'partners'], function() {
     Route::any('/', ['middleware'=>['feature_control:338','scopes:be'],'uses' => 'ApiPartnersController@index']);
     Route::post('/delete', ['middleware'=>['feature_control:341','scopes:be'],'uses' => 'ApiPartnersController@destroy']);

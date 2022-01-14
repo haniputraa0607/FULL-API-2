@@ -689,8 +689,6 @@ class ApiMitraOutletService extends Controller
 
 			$box->update(['outlet_box_use_status' => 0]);
 
-			$this->completeTransaction($service->id_transaction);
-
             //remove hs from table not avilable
             HairstylistNotAvailable::where('id_transaction_product_service', $service['id_transaction_product_service'])->delete();
 
@@ -746,6 +744,8 @@ class ApiMitraOutletService extends Controller
 		        ]
 		    );
 
+			$this->completeTransaction($service->id_transaction);
+
 			DB::commit();
     	} catch (\Exception $e) {
 
@@ -776,6 +776,18 @@ class ApiMitraOutletService extends Controller
     	if (!$trxProducts) {
     		TransactionOutletService::where('id_transaction', $id_transaction)
     		->update(['completed_at' => date('Y-m-d H:i:s')]);
+
+    		$trx = Transaction::with('outlet','user')->find($id_transaction);
+    		app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
+	        	'Transaction Completed', 
+	        	$trx->user->phone, 
+	        	[
+		            'date' => $trx['transaction_date'],
+	            	'outlet_name' => $trx['outlet']['outlet_name'],
+	            	'detail' => $detail ?? null,
+	            	'receipt_number' => $trx['transaction_receipt_number']
+		        ]
+		    );
     	}
 
     	return true;

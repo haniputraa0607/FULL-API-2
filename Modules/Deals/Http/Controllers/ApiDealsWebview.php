@@ -157,19 +157,19 @@ class ApiDealsWebview extends Controller
 
         if($deals['deals_voucher_price_type']=='free'){
             //voucher free
-            $deals['button_text'] = 'Get';
+            $result['button_text'] = 'KLAIM VOUCHER';
             $payment_message = Setting::where('key', 'payment_messages')->pluck('value_text')->first()??'Kamu yakin ingin mengambil voucher ini?';
             $payment_message = MyHelper::simpleReplace($payment_message,['deals_title'=>$deals['deals_title']]);
         }
         elseif($deals['deals_voucher_price_type']=='point')
         {
-            $deals['button_text'] = 'Claim';
+            $result['button_text'] = 'BELI VOUCHER';
             $payment_message = Setting::where('key', 'payment_messages_point')->pluck('value_text')->first()??'Anda akan menukarkan %point% points anda dengan Voucher %deals_title%?';
             $payment_message = MyHelper::simpleReplace($payment_message,['point'=>$deals['deals_voucher_price_pretty'],'deals_title'=>$deals['deals_title']]);
         }
         else
         {
-            $deals['button_text'] = 'Buy';
+            $result['button_text'] = 'BELI VOUCHER';
             $payment_message = Setting::where('key', 'payment_messages_cash')->pluck('value_text')->first()??'Kamu yakin ingin membeli deals %deals_title% dengan harga %cash%?';
             $payment_message = MyHelper::simpleReplace($payment_message,['cash'=>$deals['deals_voucher_price_pretty'],'deals_title'=>$deals['deals_title']]);
         }

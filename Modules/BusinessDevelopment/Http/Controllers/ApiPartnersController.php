@@ -1420,5 +1420,11 @@ class ApiPartnersController extends Controller
         $term = TermPayment::select('id_term_of_payment', 'name', 'duration')->get()->toArray();
         return response()->json(MyHelper::checkGet($term));
     }
+
+    public function listLocationAvailable(Request $request){
+        $post = $request->all();
+        $location = Location::where('status','Active')->whereNull('id_partner')->get()->toArray();
+        return MyHelper::checkGet($location); 
+    }
 }
 

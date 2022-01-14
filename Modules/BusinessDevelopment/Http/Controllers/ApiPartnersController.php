@@ -8,6 +8,7 @@ use Illuminate\Routing\Controller;
 use Modules\BusinessDevelopment\Entities\Partner;
 use Modules\BusinessDevelopment\Entities\PartnersLog;
 use Modules\BusinessDevelopment\Entities\Location;
+use Modules\BusinessDevelopment\Entities\OutletStarterBundling;
 use Modules\BusinessDevelopment\Http\Controllers\ApiLocationsController;
 use App\Lib\MyHelper;
 use App\Lib\Icount;
@@ -455,15 +456,21 @@ class ApiPartnersController extends Controller
 
     public function cekDuplikat(Request $request){
         $post = $request->all();
-        if (isset($post['id_partner']) && !empty($post['id_partner'])) {
+        if (isset($post['id']) && !empty($post['id'])) {
             //cek code partner
-            $cek_code_partner = Partner::where('code', $post['partner_code'])->first();
-            if($cek_code_partner){
-                return response()->json(['status' => 'duplicate_code', 'messages' => ['Partner code must be different']]);
-            }else{
+            if($post['table']=='Partners'){
+                $cek_code_partner = Partner::where('code', $post['partner_code'])->first();
+                if($cek_code_partner){
+                    return response()->json(['status' => 'duplicate_code', 'messages' => ['Partner code must be different']]);
+                }else{
+                    return true;
+                }
+            }elseif($post['table']=='Locations'){
                 $cek_code_location = Location::where('code', $post['location_code'])->first();
                 if($cek_code_location){
                     return response()->json(['status' => 'duplicate_code', 'messages' => ['Location code must be different']]);
+                }else{
+                    return true;
                 }
             }
         }else{
@@ -1413,6 +1420,16 @@ class ApiPartnersController extends Controller
         $post = $request->json()->all();
         $term = TermPayment::select('id_term_of_payment', 'name', 'duration')->get()->toArray();
         return response()->json(MyHelper::checkGet($term));
+    }
+
+    public function listLocationAvailable(Request $request){
+        $post = $request->all();
+        $location = Location::where('status','Active')->whereNull('id_partner')->get()->toArray();
+        $starter = OutletStarterBundling::with('bundling_products')->where('status',1)->get()->toArray();
+        return response()->json(['status' => 'success', 'result' => [
+            'locations' => $location,
+            'starters' => $starter
+        ]]);
     }
 }
 

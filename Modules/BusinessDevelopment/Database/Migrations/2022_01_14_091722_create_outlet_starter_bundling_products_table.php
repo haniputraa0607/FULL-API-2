@@ -16,6 +16,7 @@ class CreateOutletStarterBundlingProductsTable extends Migration
         Schema::create('outlet_starter_bundling_products', function (Blueprint $table) {
             $table->bigIncrements('id_outlet_starter_bundling_product');
             $table->unsignedInteger('id_product_icount');
+            $table->string('unit');
             $table->unsignedInteger('qty')->default(1);
             $table->enum('budget_code', ['Invoice', 'Beban', 'Assets'])->default('Invoice');
             $table->text('description')->nullable();

@@ -184,6 +184,43 @@ class Icount
         return self::sendRequest('POST', '/partner_initiation/do_invoice_bap', $data, $logType, $orderId);
     }
     public static function ApiPurchaseSPK($request, $logType = null, $orderId = null){
+        $detail = array();
+        foreach ($request['location_bundling'] as $value) {
+            if($value['unit'] == $value['unit1']){
+                $ratio = 1;
+                $unitratio = $value['qty'];
+            }elseif($value['unit'] == $value['unit2']){
+                if($value['ratio2']!=0){
+                    $ratio = $value['ratio2'];
+                    $unitratio = $value['qty']*$value['ratio2'];
+                }else{
+                    $ratio = 1;
+                    $unitratio = $value['qty'];
+                }
+            }elseif($value['unit'] == $value['unit3']){
+                if($value['ratio3']!=0){
+                    $ratio = $value['ratio3'];
+                    $unitratio = $value['qty']*$value['ratio3'];
+                }else{
+                    $ratio = 1;
+                    $unitratio = $value['qty'];
+                }
+            }else{
+                $ratio = 1;
+                $unitratio = $value['qty'];
+            }
+            $data_detail = array(
+                 "ItemID" => $value['id_item'],
+                "BudgetCode" => $value['budget_code'],
+                "Qty" => $value['qty'],
+                "Unit" =>$value['unit'],
+                "Ratio" =>$ratio,
+                "UnitRatio" => $unitratio,
+                "Description" => $value['description']??""
+            );
+            array_push($detail,$data_detail);
+        }
+        
         $data = [
             "VoucherNo" => $request['partner']['voucher_no'],
             "TransDate" => $request['location']['trans_date'],
@@ -192,26 +229,7 @@ class Icount
             "BranchID" => $request['location']['id_branch'],
             "ReferenceNo" => $request['confir']['no_letter'],
             "Notes" => $request['partner']['notes'],
-            "Detail" => [
-                [
-                    "ItemID" => "015",
-                    "BudgetCode" => "Invoice",
-                    "Qty" => 10,
-                    "Unit" =>"PCS",
-                    "Ratio" => 1,
-                    "UnitRatio" => 2,
-                    "Description" => ""
-                ],
-                [
-                    "ItemID" => "016",
-                    "BudgetCode" => "Beban",
-                    "Qty" => 3,
-                    "Unit" =>"PCS",
-                    "Ratio" => 1,
-                    "UnitRatio" => 3,
-                    "Description" => ""
-                ],
-            ]
+            "Detail" => $detail
         ];
         return self::sendRequest('POST', '/partner_initiation/purchase_request_spk', $data, $logType, $orderId);
     }

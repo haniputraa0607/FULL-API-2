@@ -17,7 +17,8 @@ use Modules\BusinessDevelopment\Http\Requests\Becomes\UpdateBecomesIxoboxRequest
 use Modules\BusinessDevelopment\Http\Requests\Becomes\UpdateBecomesIxoboxActiveRequest;
 use Modules\BusinessDevelopment\Http\Requests\Becomes\CreateLampiranBecomesIxoboxRequest;
 use DB;
- 
+use Modules\BusinessDevelopment\Entities\Location;
+
 class ApiPartnersBecomesIxoboxController extends Controller
 {
     /**
@@ -213,7 +214,7 @@ class ApiPartnersBecomesIxoboxController extends Controller
                 ->update([
                     'status'=>'Success'
                 ]);
-                $partner = Partner::where(array('id_partner'=>$value['id_partner']))->update([
+                $location = Location::where(array('id_partner'=>$value['id_partner']))->update([
                     'ownership_status'=>'Central'
                 ]);
             }

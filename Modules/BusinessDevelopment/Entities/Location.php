@@ -41,7 +41,12 @@ class Location extends Model
         "total_box",
         "handover_date",
         "no_spk",
-        "date_spk"
+        "date_spk",
+        "id_term_of_payment",
+        "ownership_status",
+        "cooperation_scheme",
+        "sharing_percent",
+        "sharing_value"
 
     ];
     public function location_partner(){

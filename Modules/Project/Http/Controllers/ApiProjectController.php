@@ -184,6 +184,19 @@ class ApiProjectController extends Controller
             'outlet_status' => 'Inactive',
             'is_tax' => $location->is_tax,
         ]);
+        try {
+            for ($i=0; $i < $location->total_box; $i++) { 
+                $outlet->outlet_box()->create([
+                    'outlet_box_code' => $outlet->outlet_code . '_BOX_' . ($i + 1),
+                    'outlet_box_name' => 'BOX ' . ($i + 1),
+                    'outlet_box_url' => '',
+                    'outlet_box_status' => 'Active',
+                    'outlet_box_use_status' => 0
+                ]);
+            }
+        } catch (\Exception $e) {
+
+        }
          if (\Module::collections()->has('Autocrm')) {
                         $autocrm = app($this->autocrm)->SendAutoCRM(
                             'New Project',

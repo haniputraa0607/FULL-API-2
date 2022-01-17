@@ -349,6 +349,7 @@ class ApiLocationsController extends Controller
             if (isset($post['handover_date'])) {
                 $data_update['handover_date'] = $post['handover_date'];
             }
+
             if (isset($post['id_outlet_starter_bundling'])) {
                 $data_update['id_outlet_starter_bundling'] = $post['id_outlet_starter_bundling'];
 
@@ -362,6 +363,7 @@ class ApiLocationsController extends Controller
                         'budget_code'  => $value['budget_code'],
                     ];
                 }, $starter);
+
                 $product_start = $this->addLocationProductStarter($starter);
                 if(!$product_start){
                     return response()->json(['status' => 'fail', 'messages' => ['Failed to save product starter outlet']]);

@@ -19,6 +19,7 @@ use Modules\BusinessDevelopment\Entities\FormSurvey;
 use Modules\BusinessDevelopment\Entities\LocationOutletStarterBundlingProduct;
 use PDF;
 use Storage;
+use Image;
 
 class ApiLocationsController extends Controller
 {

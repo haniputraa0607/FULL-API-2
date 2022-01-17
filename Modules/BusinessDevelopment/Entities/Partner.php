@@ -74,4 +74,9 @@ class Partner extends Authenticatable
     public function partner_close_temporary(){
         return $this->hasMany(PartnersCloseTemporary::class, 'id_partner');
     }
+
+    public function first_location()
+    {
+    	return $this->hasOne(Location::class, 'id_partner');
+    }
 }

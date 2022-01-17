@@ -460,14 +460,14 @@ class ApiPartnersController extends Controller
         $post = $request->all();
         if (isset($post['id']) && !empty($post['id'])) {
             //cek code partner
-            if($post['table']=='Partners'){
+            if($post['table']=='Partners' && ($post['partner_code'] ?? false)){
                 $cek_code_partner = Partner::where('code', $post['partner_code'])->first();
                 if($cek_code_partner){
                     return response()->json(['status' => 'duplicate_code', 'messages' => ['Partner code must be different']]);
                 }else{
                     return true;
                 }
-            }elseif($post['table']=='Locations'){
+            }elseif($post['table']=='Locations' && ($post['location_code'] ?? false)){
                 $cek_code_location = Location::where('code', $post['location_code'])->first();
                 if($cek_code_location){
                     return response()->json(['status' => 'duplicate_code', 'messages' => ['Location code must be different']]);

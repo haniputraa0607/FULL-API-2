@@ -67,7 +67,6 @@ class ApiContractController extends Controller
 //             ];
 //              $input = InvoiceSpk::create($data_invoice);
               $purchase = Icount::ApiPurchaseSPK($data_send);
-              return $purchase;
 //                if($purchase['response']['Status']=='1' && $purchase['response']['Message']=='success'){
 //                      $data_purchase = [
 //                          'id_project'=>$request->id_project,

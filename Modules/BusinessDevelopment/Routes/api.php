@@ -29,6 +29,7 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefi
     Route::any('/list-location', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@listLocationAvailable']);
     Route::post('/detail-bundling', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@detailBundling']);
     Route::any('/term', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@term']);
+    Route::any('/generate-spk', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@generateSPK']);
     Route::group(['prefix' => '/locations'], function() {
         Route::any('/', ['middleware'=>['feature_control:342','scopes:be'],'uses' => 'ApiLocationsController@index']);
         Route::post('/create', ['middleware'=>'scopes:franchise-user','uses' => 'ApiLocationsController@store']);

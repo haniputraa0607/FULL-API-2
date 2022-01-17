@@ -335,6 +335,12 @@ class ApiLocationsController extends Controller
             if (isset($post['date_loi'])) {
                 $data_update['date_loi'] = $post['date_loi'];
             }
+            if (isset($post['no_spk'])) {
+                $data_update['no_spk'] = $post['no_spk'];
+            }
+            if (isset($post['date_spk'])) {
+                $data_update['date_spk'] = $post['date_spk'];
+            }
             if (isset($post['total_box'])) {
                 $data_update['total_box'] = $post['total_box'];
             }

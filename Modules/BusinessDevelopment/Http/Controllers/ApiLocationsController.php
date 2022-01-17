@@ -17,6 +17,7 @@ use Modules\BusinessDevelopment\Entities\ConfirmationLetter;
 use App\Lib\Icount;
 use Modules\BusinessDevelopment\Entities\FormSurvey;
 use Modules\BusinessDevelopment\Entities\LocationOutletStarterBundlingProduct;
+use Modules\BusinessDevelopment\Entities\OutletStarterBundlingProduct;
 use PDF;
 use Storage;
 use Image;
@@ -348,12 +349,28 @@ class ApiLocationsController extends Controller
             if (isset($post['handover_date'])) {
                 $data_update['handover_date'] = $post['handover_date'];
             }
-            if (isset($post['product_starter'])) {
-                $product_start = $this->addLocationProductStarter($post['product_starter']);
+            if ($request->id_outlet_starter_bundling) {
+                $starter = OutletStarterBundlingProduct::where('id_outlet_starter_bundling', $request->id_outlet_starter_bundling)->get()->toArray();
+                $starter = array_map(function ($value) use ($post) {
+                    return [
+                        'id_location'   => $post['id_location'],
+                        'id_product_icount'  => $value['id_product_icount'],
+                        'unit'  => $value['unit'],
+                        'qty'  => $value['qty'],
+                        'budget_code'  => $value['budget_code'],
+                    ];
+                }, $starter);
+                $product_start = $this->addLocationProductStarter($starter);
                 if(!$product_start){
                     return response()->json(['status' => 'fail', 'messages' => ['Failed to save product starter outlet']]);
                 }
             }
+            // if (isset($post['product_starter'])) {
+            //     $product_start = $this->addLocationProductStarter($post['product_starter']);
+            //     if(!$product_start){
+            //         return response()->json(['status' => 'fail', 'messages' => ['Failed to save product starter outlet']]);
+            //     }
+            // }
             if (isset($post['id_outlet_starter_bundling'])) {
                 $data_update['id_outlet_starter_bundling'] = $post['id_outlet_starter_bundling'];
 

@@ -368,7 +368,8 @@ class ApiLocationsController extends Controller
                 $start = explode('-', $data_update['start_date']);
                 $end = explode('-', $data_update['end_date']);
                 try{
-                    $waktu = app('Modules\BusinessDevelopment\Http\Controllers\ApiPartnersController')->timeTotal($start,$end);
+                    $partner_controller = New ApiPartnersController;
+                    $waktu = $partner_controller->timeTotal($start,$end);
                 }catch(\Exception $e) {
                     return response()->json(['status' => 'fail_date', 'messages' => ['Start Date and End Date must be at least 3 years apar']]);
                 }

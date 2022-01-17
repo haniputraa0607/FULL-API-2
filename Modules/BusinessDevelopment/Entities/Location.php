@@ -39,7 +39,9 @@ class Location extends Model
         "location_image",
         "id_outlet_starter_bundling",
         "total_box",
-        "handover_date"
+        "handover_date",
+        "no_spk",
+        "date_spk"
 
     ];
     public function location_partner(){

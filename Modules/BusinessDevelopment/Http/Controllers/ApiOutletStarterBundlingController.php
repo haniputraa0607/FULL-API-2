@@ -7,6 +7,7 @@ use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Modules\BusinessDevelopment\Entities\OutletStarterBundling;
 use App\Lib\MyHelper;
+use Modules\Product\Entities\ProductIcount;
 
 class ApiOutletStarterBundlingController extends Controller
 {
@@ -19,7 +20,7 @@ class ApiOutletStarterBundlingController extends Controller
 
     public function show(Request $request)
     {
-        $bundling = OutletStarterBundling::with('bundling_products')->find($request->id_outlet_starter_product_bundling);
+        $bundling = OutletStarterBundling::with('bundling_products')->where('id_outlet_starter_bundling', $request->id_outlet_starter_bundling)->orWhere('code', $request->code)->first();
         if (!$bundling) {
             abort(404);
         }
@@ -30,7 +31,7 @@ class ApiOutletStarterBundlingController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'code' => 'required|string|unique:outlet_starter_product_bundlings,code',
+            'code' => 'required|string|unique:outlet_starter_bundlings,code',
             'name' => 'required|string',
             'bundling_products.*.id_product_icount' => 'required|exists:product_icounts,id_product_icount',
             'bundling_products.*.qty' => 'required|numeric|min:1',
@@ -54,7 +55,7 @@ class ApiOutletStarterBundlingController extends Controller
             ];
         }
 
-        foreach ($request->bundling_products as $bundlingProduct) {
+        foreach ($request->bundling_products ?? [] as $bundlingProduct) {
             $bundling->bundling_products()->create([
                 'id_product_icount' => $bundlingProduct['id_product_icount'],
                 'qty' => $bundlingProduct['qty'],
@@ -72,7 +73,7 @@ class ApiOutletStarterBundlingController extends Controller
         ];
     }
 
-    public function update()
+    public function update(Request $request)
     {
         $request->validate([
             'id_outlet_starter_bundling' => 'required|exists:outlet_starter_bundlings,id_outlet_starter_bundling',
@@ -103,7 +104,7 @@ class ApiOutletStarterBundlingController extends Controller
         ]);
 
         $bundling->bundling_products()->delete();
-        foreach ($request->bundling_products as $bundlingProduct) {
+        foreach ($request->bundling_products ?? [] as $bundlingProduct) {
             $bundling->bundling_products()->create([
                 'id_product_icount' => $bundlingProduct['id_product_icount'],
                 'qty' => $bundlingProduct['qty'],
@@ -124,7 +125,7 @@ class ApiOutletStarterBundlingController extends Controller
 
     public function delete()
     {
-        $bundling = OutletStarterBundling::with('bundling_products')->find($request->id_outlet_starter_product_bundling);
+        $bundling = OutletStarterBundling::with('bundling_products')->find($request->id_outlet_starter_bundling);
         if (!$bundling) {
             abort(404);
         }
@@ -132,5 +133,11 @@ class ApiOutletStarterBundlingController extends Controller
         $delete = $bundling->delete();
 
         return MyHelper::checkDelete($delete);
+    }
+
+    public function productIcountList(Request $request)
+    {
+        $products = ProductIcount::get();
+        return MyHelper::checkGet($products);
     }
 }

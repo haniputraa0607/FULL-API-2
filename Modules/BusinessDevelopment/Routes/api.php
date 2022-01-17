@@ -20,9 +20,10 @@ Route::middleware('auth:api')->get('/businessdevelopment', function (Request $re
 Route::group(['middleware' => ['auth:api','log_activities', 'user_agent', 'scopes:be'], 'prefix' => 'outlet-starter-bundling'], function() {
     Route::get('/', 'ApiOutletStarterBundlingController@index');
     Route::post('/create', 'ApiOutletStarterBundlingController@store');
-    Route::get('/detail', 'ApiOutletStarterBundlingController@show');
+    Route::post('/detail', 'ApiOutletStarterBundlingController@show');
     Route::post('/update', 'ApiOutletStarterBundlingController@update');
     Route::post('/delete', 'ApiOutletStarterBundlingController@delete');
+    Route::post('/icount-product', 'ApiOutletStarterBundlingController@productIcountList');
 });
 
 Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefix' => 'partners'], function() {

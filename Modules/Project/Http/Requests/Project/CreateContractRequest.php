@@ -16,15 +16,9 @@ class CreateContractRequest extends FormRequest
         return [
             'first_party'       => 'required',
             'second_party'      => 'required',
-            'nomor_loi'      => 'required',
-            'tanggal_loi'      => 'required',
-            'tanggal_buka_loi'      => 'required',
             'nama_pic'      => 'required',
             'kontak_pic'      => 'required',
             'lokasi_pic'      => 'required',
-            'nomor_spk'      => 'required',
-            'tanggal_spk'      => 'required',
-            'lampiran'      => 'required',
             'id_project'        => 'required|project',
            ]; 
     }

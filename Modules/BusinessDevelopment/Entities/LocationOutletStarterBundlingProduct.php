@@ -3,6 +3,7 @@
 namespace Modules\BusinessDevelopment\Entities;
 
 use Illuminate\Database\Eloquent\Model;
+use Modules\Product\Entities\ProductIcount;
 
 class LocationOutletStarterBundlingProduct extends Model
 {
@@ -16,4 +17,9 @@ class LocationOutletStarterBundlingProduct extends Model
         'budget_code',
         'description',
     ];
+
+    public function product()
+    {
+        return $this->belongsTo(ProductIcount::class, 'id_product_icount');
+    }
 }

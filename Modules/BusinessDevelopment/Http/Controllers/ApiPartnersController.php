@@ -969,6 +969,7 @@ class ApiPartnersController extends Controller
                                 }
                                 DB::commit();
                             }
+                            app('\Modules\Project\Http\Controllers\ApiProjectController')->initProject($data_send['partner'], $data_send['location']);
                         }else{
                             return response()->json(['status' => 'fail', 'messages' => [$invoiceCL['response']['Message']]]);
                         }

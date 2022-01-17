@@ -370,6 +370,21 @@ class ApiLocationsController extends Controller
             if (isset($post['end_date'])) {
                 $data_update['end_date'] = $post['end_date'];
             }
+            if (isset($post['ownership_status'])) {
+                $data_update['ownership_status'] = $post['ownership_status'];
+            }
+            if (isset($post['cooperation_scheme'])) {
+                $data_update['cooperation_scheme'] = $post['cooperation_scheme'];
+            }
+            if (isset($post['id_term_of_payment'])) {
+                $data_update['id_term_of_payment'] = $post['id_term_of_payment'];
+            }
+            if (isset($post['sharing_value'])) {
+                $data_update['sharing_value'] = $post['sharing_value'];
+            }
+            if (isset($post['sharing_percent'])) {
+                $data_update['sharing_percent'] = $post['sharing_percent'];
+            }
             if(isset($data_update['start_date']) && isset($data_update['end_date'])){
                 $start = explode('-', $data_update['start_date']);
                 $end = explode('-', $data_update['end_date']);

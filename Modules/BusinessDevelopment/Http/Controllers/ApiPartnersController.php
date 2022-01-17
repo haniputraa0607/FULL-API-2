@@ -1458,5 +1458,18 @@ class ApiPartnersController extends Controller
         }
         return response()->json(['status' => 'success', 'result' => $starter]);
     }
+
+    public function generateSPK(Request $request){
+        $post = $request->all();
+        $data_send = [
+            "partner" => Partner::where('id_partner',$post['id_partner'])->first(),
+            "location" => Location::where('id_partner',$post['id_partner'])->first(),
+            "confir" => ConfirmationLetter::where('id_partner',$post['id_partner'])->first(),
+        ];
+        if($data_send){
+            return response()->json(['status' => 'success','result'=>$data_send]); 
+        }
+        return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+    }
 }
 

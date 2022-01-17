@@ -225,6 +225,9 @@ class ApiMitraRequestProductController extends Controller
                                 "product_name" => $detail['delivery_product_icount']['name'],
                                 "delivered" => $detail['value'],
                             ];
+                            if($status=='Completed'){
+                                $delivery[$dev]['received'] = $detail['received'];
+                            }
                             $dev++;
                         }
                     }
@@ -264,6 +267,14 @@ class ApiMitraRequestProductController extends Controller
                                 $new_products[$key]['delivered'] = $deliv['delivered'];
                                 if($new_product['requested'] <= $deliv['delivered']){
                                     $new_products[$key]['status'] = 'Lengkap';
+                                }
+                                if($status=='Completed'){
+                                    $new_products[$key]['received'] = $deliv['received'];
+                                    if($new_products[$key]['received'] >= $new_products[$key]['delivered']){
+                                        $new_products[$key]['confrimed_status'] = 'Lengkap';
+                                    }else{
+                                        $new_products[$key]['confrimed_status'] = 'Kurang';
+                                    }
                                 }
                             }
                         }
@@ -344,6 +355,7 @@ class ApiMitraRequestProductController extends Controller
                 foreach($post['detail'] as $key => $product){
                     $product_icount = new ProductIcount();
                     $update_stock = $product_icount->find($product['id_product_icount'])->addLogStockProductIcount($product['delivered'],$product['unit'],'Delivery Product',$post['id_delivery_product']);
+                    $update_detail = DeliveryProductDetail::where('id_delivery_product',$post['id_delivery_product'])->where('id_product_icount',$product['id_product_icount'])->update(['received' => $product['received']]);
                 }
             }
 

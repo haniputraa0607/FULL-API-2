@@ -1053,6 +1053,7 @@ class ApiPartnersController extends Controller
     }
 
     public function pihakDua($name, $gender){
+        $gender_name = '';
         if($gender=='Man'){
             $gender_name = 'BAPAK';
         }elseif($gender=='Woman'){

@@ -15,6 +15,7 @@ use Modules\Project\Entities\ProjectContract;
 use Modules\Project\Entities\ProjectSurveyLocation;
 use Modules\BusinessDevelopment\Entities\Partner;
 use Modules\BusinessDevelopment\Entities\Location;
+use Modules\BusinessDevelopment\Entities\LocationOutletStarterBundlingProduct;
 use Modules\BusinessDevelopment\Entities\ConfirmationLetter;
 use App\Http\Models\Outlet;
 use Modules\Project\Entities\InvoiceSpk;
@@ -43,9 +44,10 @@ class ApiContractController extends Controller
          if($project){
              $data_send = [
                             "partner" => Partner::where('id_partner',$project->id_partner)->first(),
-                            "location" => Location::where('id_partner',$project->id_partner)->first(),
-                            "confir" => ConfirmationLetter::where('id_partner',$project->id_partner)->first(),
-                        ];
+                            "location" => Location::where('id_location',$project->id_location)->first(),
+                            "confir" => ConfirmationLetter::where('id_partner',$project->id_partner)->first(),  
+                            "location_bundling" => LocationOutletStarterBundlingProduct::where('id_location',$project->id_location)->join('product_icounts','product_icounts.id_product_icount','location_outlet_starter_bundling_products.id_product_icount')->get(),
+                 ];
         $invoice = Icount::ApiInvoiceSPK($data_send);
             if($invoice['response']['Status']=='1' && $invoice['response']['Message']=='success'){
              $data_invoice = [

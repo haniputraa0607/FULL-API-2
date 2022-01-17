@@ -17,6 +17,15 @@ Route::middleware('auth:api')->get('/businessdevelopment', function (Request $re
     return $request->user();
 });
 
+Route::group(['middleware' => ['auth:api','log_activities', 'user_agent', 'scopes:be'], 'prefix' => 'outlet-starter-bundling'], function() {
+    Route::get('/', 'ApiOutletStarterBundlingController@index');
+    Route::post('/create', 'ApiOutletStarterBundlingController@store');
+    Route::post('/detail', 'ApiOutletStarterBundlingController@show');
+    Route::post('/update', 'ApiOutletStarterBundlingController@update');
+    Route::post('/delete', 'ApiOutletStarterBundlingController@delete');
+    Route::post('/icount-product', 'ApiOutletStarterBundlingController@productIcountList');
+});
+
 Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefix' => 'partners'], function() {
     Route::any('/', ['middleware'=>['feature_control:338','scopes:be'],'uses' => 'ApiPartnersController@index']);
     Route::post('/delete', ['middleware'=>['feature_control:341','scopes:be'],'uses' => 'ApiPartnersController@destroy']);
@@ -26,6 +35,8 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefi
     Route::post('/create-follow-up', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@followUp']);
     Route::post('/pdf', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@pdf']);
     Route::post('/tesIcount', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@tesIcount']);
+    Route::any('/list-location', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@listLocationAvailable']);
+    Route::post('/detail-bundling', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@detailBundling']);
     Route::any('/term', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@term']);
     Route::group(['prefix' => '/locations'], function() {
         Route::any('/', ['middleware'=>['feature_control:342','scopes:be'],'uses' => 'ApiLocationsController@index']);
@@ -179,5 +190,6 @@ Route::group(['middleware' => ['auth:partners','log_activities','user_agent','sc
 
 Route::group(['middleware' => ['auth_client','scopes:landing-page'],'prefix' => 'partners'], function() {
     Route::post('/create', ['uses' => 'ApiPartnersController@store']);
+    Route::post('/create-location', ['uses' => 'ApiLocationsController@storeLandingPage']);
     Route::post('/new', ['uses' => 'ApiPartnersController@new']);
 });

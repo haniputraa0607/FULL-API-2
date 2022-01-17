@@ -8,6 +8,7 @@ use Illuminate\Routing\Controller;
 use Modules\BusinessDevelopment\Entities\Partner;
 use Modules\BusinessDevelopment\Entities\PartnersLog;
 use Modules\BusinessDevelopment\Entities\Location;
+use Modules\BusinessDevelopment\Entities\OutletStarterBundling;
 use Modules\BusinessDevelopment\Http\Controllers\ApiLocationsController;
 use App\Lib\MyHelper;
 use App\Lib\Icount;
@@ -38,6 +39,8 @@ use Modules\Project\Entities\Project;
 use App\Http\Models\Product;
 use App\Http\Models\Province;
 use Maatwebsite\Excel\Concerns\ToArray;
+use Modules\BusinessDevelopment\Entities\OutletStarterBundlingProduct;
+use Modules\Product\Entities\ProductIcount;
 
 use function GuzzleHttp\json_decode;
 
@@ -153,7 +156,7 @@ class ApiPartnersController extends Controller
                             "id_city"   => $location['id_city'],
                             "latitude"   => $location['latitude'],
                             "longitude"   => $location['longitude'],
-                            "id_partner"   => $id,
+                            "submited_by"   => $id,
                         ]);
                         if(!$store_loc){
                             DB::rollback();
@@ -455,15 +458,21 @@ class ApiPartnersController extends Controller
 
     public function cekDuplikat(Request $request){
         $post = $request->all();
-        if (isset($post['id_partner']) && !empty($post['id_partner'])) {
+        if (isset($post['id']) && !empty($post['id'])) {
             //cek code partner
-            $cek_code_partner = Partner::where('code', $post['partner_code'])->first();
-            if($cek_code_partner){
-                return response()->json(['status' => 'duplicate_code', 'messages' => ['Partner code must be different']]);
-            }else{
+            if($post['table']=='Partners'){
+                $cek_code_partner = Partner::where('code', $post['partner_code'])->first();
+                if($cek_code_partner){
+                    return response()->json(['status' => 'duplicate_code', 'messages' => ['Partner code must be different']]);
+                }else{
+                    return true;
+                }
+            }elseif($post['table']=='Locations'){
                 $cek_code_location = Location::where('code', $post['location_code'])->first();
                 if($cek_code_location){
                     return response()->json(['status' => 'duplicate_code', 'messages' => ['Location code must be different']]);
+                }else{
+                    return true;
                 }
             }
         }else{
@@ -889,6 +898,10 @@ class ApiPartnersController extends Controller
                 }
             }
             if(isset($post['follow_up']) && $post['follow_up'] == 'Payment'){
+
+                // SPK
+                
+
                 $data_send = [
                     "partner" => Partner::where('id_partner',$post["id_partner"])->first(),
                     "location" => Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->first(),
@@ -1303,6 +1316,7 @@ class ApiPartnersController extends Controller
             $data_store = [
                 "id_partner" => $post["id_partner"],
                 "id_location" => $post["id_location"],
+                "title" => $post["title"],
                 "survey" => $post["value"],
                 "surveyor" => $post["surveyor"],
                 "potential" => $post["potential"],
@@ -1412,6 +1426,37 @@ class ApiPartnersController extends Controller
         $post = $request->json()->all();
         $term = TermPayment::select('id_term_of_payment', 'name', 'duration')->get()->toArray();
         return response()->json(MyHelper::checkGet($term));
+    }
+
+    public function listLocationAvailable(Request $request){
+        $post = $request->all();
+        $location = Location::where('status','Active')->whereNull('id_partner')->get()->toArray();
+        $starter = OutletStarterBundling::with('bundling_products')->where('status',1)->get()->toArray();
+        return response()->json(['status' => 'success', 'result' => [
+            'locations' => $location,
+            'starters' => $starter
+        ]]);
+    }
+
+    public function detailBundling(Request $request){
+        $post = $request->all();
+        $starter = OutletStarterBundlingProduct::where('id_outlet_starter_bundling',$post['id_outlet_starter_bundling'])->get()->toArray();
+        if(isset($starter)){
+            foreach($starter as $key => $start){
+                $product = ProductIcount::where('id_product_icount',$start['id_product_icount'])->first();
+                if($product['unit1']==$start['unit']){
+                    $cost = $product['unit_price_1'] * $start['qty'];
+                }elseif($product['unit2']==$start['unit']){
+                    $cost = $product['unit_price_2'] * $start['qty'];
+                }elseif($product['unit3']==$start['unit']){
+                    $cost = $product['unit_price_3'] * $start['qty'];
+                }else{
+                    $cost = 0;
+                }
+                $starter[$key]['cost'] = $cost;
+            }
+        }
+        return response()->json(['status' => 'success', 'result' => $starter]);
     }
 }
 

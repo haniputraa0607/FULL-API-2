@@ -154,6 +154,11 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
             Route::post('history-order', 'ApiMitraHomeService@listHistoryOrder');
         });
 
+        Route::group(['prefix' => 'data-update-request'], function () {
+        	Route::get('/', 'ApiMitraUpdateData@listField');
+        	Route::post('/', 'ApiMitraUpdateData@updateRequest');
+    	});
+
         Route::get('balance-detail', 'ApiMitra@balanceDetail');
         Route::get('balance-history', 'ApiMitra@balanceHistory');
         Route::post('cash/transfer/detail', 'ApiMitra@transferCashDetail');

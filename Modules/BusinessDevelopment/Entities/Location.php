@@ -29,11 +29,24 @@ class Location extends Model
         'income',
         'notes',
         'step_loc',
-        'is_tax'
+        'is_tax',
+        'date_loi',
+        'no_loi',
+        'submited_by',
+        "width",
+        "height",
+        "location_type",
+        "location_image",
+        "id_outlet_starter_bundling",
+        "total_box",
+        "handover_date"
 
     ];
     public function location_partner(){
         return $this->belongsTo(Partner::class, 'id_partner');
+    }
+    public function submited(){
+        return $this->belongsTo(Partner::class, 'submited_by');
     }
     public function location_city(){
         return $this->belongsTo(City::class, 'id_city');
@@ -46,6 +59,12 @@ class Location extends Model
     }
     public function location_confirmation(){
         return $this->hasMany(ConfirmationLetter::class, 'id_location');
+    }
+    public function outlet_starter(){
+        return $this->belongsTo(OutletStarterBundling::class, 'id_outlet_starter_bundling');
+    }
+    public function location_starter(){
+        return $this->hasMany(LocationOutletStarterBundlingProduct::class, 'id_location');
     }
 
 }

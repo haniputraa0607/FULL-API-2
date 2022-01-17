@@ -17,6 +17,7 @@ class FormSurvey extends Model
         'potential',
         'note',
         'survey_date',
-        'attachment'
+        'attachment',
+        'title'
 	];
 }

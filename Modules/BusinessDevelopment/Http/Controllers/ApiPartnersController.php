@@ -898,10 +898,6 @@ class ApiPartnersController extends Controller
                 }
             }
             if(isset($post['follow_up']) && $post['follow_up'] == 'Payment'){
-
-                // SPK
-                
-
                 $data_send = [
                     "partner" => Partner::where('id_partner',$post["id_partner"])->first(),
                     "location" => Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->first(),

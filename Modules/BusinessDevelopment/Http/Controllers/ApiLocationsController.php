@@ -349,10 +349,11 @@ class ApiLocationsController extends Controller
             if (isset($post['handover_date'])) {
                 $data_update['handover_date'] = $post['handover_date'];
             }
-            if ($post['id_outlet_starter_bundling'] ?? false) {
-                \Log::debug('id_', [$post['id_outlet_starter_bundling']]);
+
+            if (isset($post['id_outlet_starter_bundling'])) {
+                $data_update['id_outlet_starter_bundling'] = $post['id_outlet_starter_bundling'];
+
                 $starter = OutletStarterBundlingProduct::where('id_outlet_starter_bundling', $post['id_outlet_starter_bundling'])->get()->toArray();
-                \Log::debug('starter1', $starter);
                 $starter = array_map(function ($value) use ($post) {
                     return [
                         'id_location'   => $post['id_location'],
@@ -362,20 +363,11 @@ class ApiLocationsController extends Controller
                         'budget_code'  => $value['budget_code'],
                     ];
                 }, $starter);
-                \Log::debug('starter2', $starter);
+
                 $product_start = $this->addLocationProductStarter($starter);
                 if(!$product_start){
                     return response()->json(['status' => 'fail', 'messages' => ['Failed to save product starter outlet']]);
                 }
-            }
-            // if (isset($post['product_starter'])) {
-            //     $product_start = $this->addLocationProductStarter($post['product_starter']);
-            //     if(!$product_start){
-            //         return response()->json(['status' => 'fail', 'messages' => ['Failed to save product starter outlet']]);
-            //     }
-            // }
-            if (isset($post['id_outlet_starter_bundling'])) {
-                $data_update['id_outlet_starter_bundling'] = $post['id_outlet_starter_bundling'];
 
                 if(empty($post['start_date']) && empty($post['end_date'])){
                     $id_loc_start =  Location::select('id_partner')->where('id_location',$post['id_location'])->first()['id_partner'];
@@ -384,6 +376,7 @@ class ApiLocationsController extends Controller
                     $data_update['end_date'] = $date['end_date'];
                 }
             }
+
             if (isset($post['start_date'])) {
                 $data_update['start_date'] = $post['start_date'];
             }

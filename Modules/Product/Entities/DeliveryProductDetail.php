@@ -14,6 +14,7 @@ class DeliveryProductDetail extends Model
         'id_product_icount',
         'value',
         'status',
+        'received'
 	];
 
     public function delivery_product(){

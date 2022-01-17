@@ -84,7 +84,7 @@ class Icount
             "JoinDate" => date("Y-m-d 00:00:00",strtotime($request['partner']['start_date'])),
             "VoucherNo" => "[AUTO]",
             "DepartmentID" => "011",
-            "TermOfPaymentID" => $request['partner']['id_term_payment'],
+            "TermOfPaymentID" => $request['location']['id_term_of_payment'],
             "TransDate" => $request['location']['trans_date'],
             "DueDate" => $request['location']['due_date'],
             "ReferenceNo" => $request['confir']['no_letter'],

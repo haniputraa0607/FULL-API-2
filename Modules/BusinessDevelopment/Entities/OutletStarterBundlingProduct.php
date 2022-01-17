@@ -15,4 +15,9 @@ class OutletStarterBundlingProduct extends Model
         'budget_code',
         'description',
     ];
+
+    public function product()
+    {
+        return $this->belongsTo(ProductIcount::class, 'id_product_icount');
+    }
 }

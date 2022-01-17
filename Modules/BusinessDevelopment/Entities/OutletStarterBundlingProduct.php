@@ -3,6 +3,7 @@
 namespace Modules\BusinessDevelopment\Entities;
 
 use Illuminate\Database\Eloquent\Model;
+use Modules\Product\Entities\ProductIcount;
 
 class OutletStarterBundlingProduct extends Model
 {

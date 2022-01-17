@@ -45,9 +45,9 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
     	});
 
     	Route::group(['prefix' => 'update-data'], function () {
-        	Route::post('list', 'ApiMitraUpdateData@list');
-        	Route::post('detail', 'ApiMitraUpdateData@detail');
-        	Route::post('update', 'ApiMitraUpdateData@update');
+        	Route::post('list', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiMitraUpdateData@list']);
+        	Route::post('detail', ['middleware' => 'feature_control:429', 'uses' => 'ApiMitraUpdateData@detail']);
+        	Route::post('update', ['middleware' => 'feature_control:430', 'uses' => 'ApiMitraUpdateData@update']);
     	});
 
     	Route::group(['prefix' => 'group'], function () {

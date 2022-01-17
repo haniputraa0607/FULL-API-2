@@ -1315,28 +1315,31 @@ class ApiPartnersController extends Controller
             DB::beginTransaction();
             $data_store = [
                 "id_partner" => $post["id_partner"],
-                "id_location" => $post["id_location"],
-                "title" => $post["title"],
-                "survey" => $post["value"],
-                "surveyor" => $post["surveyor"],
-                "potential" => $post["potential"],
-                "note" => $post["note"],
-                "survey_date" => $post["date"],
+                // "id_location" => $post["id_location"],
+                // "title" => $post["title"],
+                // "survey" => $post["value"],
+                // "surveyor" => $post["surveyor"],
+                // "potential" => $post["potential"],
+                // "note" => $post["note"],
+                // "survey_date" => $post["date"],
             ];
-            $store = FormSurvey::create($data_store);
-            if (!$store) {
-                DB::rollback();
-                return ['status' => 'fail', 'messages' => ['Failed add form survey data']];
-            }
-            DB::commit();
-            $data_update = [
-                'attachment' => $this->pdfSurvey($post["id_partner"],$post["id_location"]),
-            ];
-            $update = FormSurvey::where('id_partner', $post['id_partner'])->update($data_update);
+            // $store = FormSurvey::create($data_store);
+            // if (!$store) {
+            //     DB::rollback();
+            //     return ['status' => 'fail', 'messages' => ['Failed add form survey data']];
+            // }
+            // DB::commit();
+            // $data_update = [
+            //     'attachment' => $this->pdfSurvey($post["id_partner"],$post["id_location"]),
+            // ];
+            
+            $update = FormSurvey::where('id_location', $post['id_location'])->update($data_store);
             if(!$update){
+                DB::rollback();
                 return ['status' => 'fail', 'messages' => ['Incompleted Data']];
             }
             else{
+                DB::commit();
                 return ['status' => 'success'];
             }
         }else{

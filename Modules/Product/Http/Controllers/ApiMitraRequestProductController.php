@@ -270,8 +270,10 @@ class ApiMitraRequestProductController extends Controller
                                 }
                                 if($status=='Completed'){
                                     $new_products[$key]['received'] = $deliv['received'];
-                                    if($new_products[$key]['received'] >= $new_products[$key]['delivered']){
+                                    if($new_products[$key]['received'] == $new_products[$key]['delivered']){
                                         $new_products[$key]['confrimed_status'] = 'Lengkap';
+                                    }elseif($new_products[$key]['received'] > $new_products[$key]['delivered']){
+                                        $new_products[$key]['confrimed_status'] = 'Lebih';
                                     }else{
                                         $new_products[$key]['confrimed_status'] = 'Kurang';
                                     }

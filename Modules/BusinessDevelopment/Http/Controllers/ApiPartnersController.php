@@ -173,6 +173,18 @@ class ApiPartnersController extends Controller
                 if (isset($post['location'])) {
                     $id = $store->id_partner;
                     foreach ($post['location'] as $key => $location) {
+                        
+                        $checkPhoneFormat = MyHelper::phoneCheckFormat($location['pic_contact']);
+                        if (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'fail') {
+                            $no = $key + 1;
+                            return response()->json([
+                                'status' => 'fail',
+                                'messages' => 'Invalid number PIC contact format'
+                            ]);
+                        } elseif (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'success') {
+                            $location['pic_contact'] = $checkPhoneFormat['phone'];
+                        }
+
                         $data_loc = [
                             "name"   => $location['name'],
                             "address"   => $location['address'],
@@ -183,6 +195,8 @@ class ApiPartnersController extends Controller
                             "height"   => $location['height'],
                             "location_large"   => $location['location_large'],
                             "location_type"   => $location['location_type'],
+                            "pic_name"   => $location['pic_name'],
+                            "pic_contact"   => $location['pic_contact'],
                             "notes"   => $location['notes'],
                             "submited_by"   => $id,
                         ];

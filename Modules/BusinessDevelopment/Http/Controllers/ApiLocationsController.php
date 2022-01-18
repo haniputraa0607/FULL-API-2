@@ -21,6 +21,7 @@ use Modules\BusinessDevelopment\Entities\OutletStarterBundlingProduct;
 use PDF;
 use Storage;
 use Image;
+use Modules\BusinessDevelopment\Http\Requests\LandingPage\StoreNewLocation;
 
 class ApiLocationsController extends Controller
 {
@@ -703,13 +704,13 @@ class ApiLocationsController extends Controller
         return $date_latter = $pecah[2].' '.$bulan[intval($pecah[1])].' '.$pecah[0];
     }
 
-    public function storeLandingPage(Request $request)
+    public function storeLandingPage(StoreNewLocation $request)
     {
         $post= $request->all();
-        $data_request= $post['location'];
+        $data_request= $post;
         if (!empty($data_request)) {
             DB::beginTransaction();
-            $store = Location::create([
+            $data_loc = [
                 "name"   => $data_request['name'],
                 "address"   => $data_request['address'],
                 "id_city"   => $data_request['id_city'],
@@ -719,17 +720,24 @@ class ApiLocationsController extends Controller
                 "height"   => $data_request['height'],
                 "location_large"   => $data_request['location_large'],
                 "location_type"   => $data_request['location_type'],
-                "notes"   => $data_request['notes'],
-            ]);
+                "location_notes"   => $data_request['notes'],
+            ];
+
             if (isset($post['location_image']) && !empty($post['location_image'])) {
                 $img = Image::make(base64_decode($post['location_image']));
                 $imgwidth = $img->width();
                 $imgheight = $img->height();
                 $upload = MyHelper::uploadPhotoStrict($post['location_image'], 'img/location/', $imgwidth, $imgheight, time());
                 if ($upload['status'] == "success") {
-                    $store['location_image'] = $upload['path'];
+                    $data_loc['location_image'] = $upload['path'];
                 }
             }
+
+            if (isset($post['submited_by']) && !empty($post['submited_by'])) {
+                $data_loc['submited_by'] = $post['submited_by'];
+            }
+
+            $store = Location::create($data_loc);
             if(!$store) {
                 DB::rollback();
                 return response()->json(['status' => 'fail', 'messages' => ['Failed add location']]);

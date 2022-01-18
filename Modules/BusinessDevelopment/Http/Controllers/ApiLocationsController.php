@@ -710,6 +710,17 @@ class ApiLocationsController extends Controller
         $data_request= $post;
         if (!empty($data_request)) {
             DB::beginTransaction();
+
+            $checkPhoneFormat = MyHelper::phoneCheckFormat($data_request['pic_contact']);
+            if (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'fail') {
+                return response()->json([
+                    'status' => 'fail',
+                    'messages' => 'Invalid number PIC contact format'
+                ]);
+            } elseif (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'success') {
+                $data_request['pic_contact'] = $checkPhoneFormat['phone'];
+            }
+
             $data_loc = [
                 "name"   => $data_request['name'],
                 "address"   => $data_request['address'],
@@ -720,6 +731,8 @@ class ApiLocationsController extends Controller
                 "height"   => $data_request['height'],
                 "location_large"   => $data_request['location_large'],
                 "location_type"   => $data_request['location_type'],
+                "pic_name"   => $data_request['pic_name'],
+                "pic_contact"   => $data_request['pic_contact'],
                 "location_notes"   => $data_request['notes'],
             ];
 

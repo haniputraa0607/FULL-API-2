@@ -41,6 +41,8 @@ use App\Http\Models\Province;
 use Maatwebsite\Excel\Concerns\ToArray;
 use Modules\BusinessDevelopment\Entities\OutletStarterBundlingProduct;
 use Modules\Product\Entities\ProductIcount;
+use Modules\BusinessDevelopment\Http\Requests\LandingPage\StoreNewLocation;
+use Modules\BusinessDevelopment\Http\Requests\LandingPage\StoreNewPartner;
 
 use function GuzzleHttp\json_decode;
 
@@ -130,11 +132,32 @@ class ApiPartnersController extends Controller
      * @param Request $request
      * @return Response
      */
-    public function store(Request $request)
+    public function store(StoreNewPartner $request)
     {
         $post = $request->all();
-        $data_request_partner = $post['partner'];
+        $data_request_partner = $post;
         if (!empty($data_request_partner)) {
+            
+            $checkPhoneFormat = MyHelper::phoneCheckFormat($data_request_partner['phone']);
+            if (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'fail') {
+                return response()->json([
+                    'status' => 'fail',
+                    'messages' => 'Invalid number phone format'
+                ]);
+            } elseif (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'success') {
+                $data_request_partner['phone'] = $checkPhoneFormat['phone'];
+            }
+
+            $checkPhoneFormat = MyHelper::phoneCheckFormat($data_request_partner['mobile']);
+            if (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'fail') {
+                return response()->json([
+                    'status' => 'fail',
+                    'messages' => 'Invalid number mobile format'
+                ]);
+            } elseif (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'success') {
+                $data_request_partner['mobile'] = $checkPhoneFormat['phone'];
+            }
+
             DB::beginTransaction();
             $store = Partner::create([
                 "title"          => $data_request_partner['title'],
@@ -150,15 +173,22 @@ class ApiPartnersController extends Controller
                 if (isset($post['location'])) {
                     $id = $store->id_partner;
                     foreach ($post['location'] as $key => $location) {
-                        $store_loc = Location::create([
+                        $data_loc = [
                             "name"   => $location['name'],
                             "address"   => $location['address'],
                             "id_city"   => $location['id_city'],
                             "latitude"   => $location['latitude'],
                             "longitude"   => $location['longitude'],
+                            "width"   => $location['width'],
+                            "height"   => $location['height'],
+                            "location_large"   => $location['location_large'],
+                            "location_type"   => $location['location_type'],
+                            "notes"   => $location['notes'],
                             "submited_by"   => $id,
-                        ]);
-                        if(!$store_loc){
+                        ];
+                        $store_loc = app('\Modules\BusinessDevelopment\Http\Controllers\ApiLocationsController')->storeLandingPage(New StoreNewLocation($data_loc));
+                        $store_loc = $store_loc->original;
+                        if (isset($store_loc['status']) && $store_loc['status'] == 'fail') {
                             DB::rollback();
                             return response()->json(['status' => 'fail', 'messages' => ['Failed add partner']]);
                         }
@@ -890,7 +920,6 @@ class ApiPartnersController extends Controller
                 DB::rollback();
                 return response()->json(['status' => 'fail', 'messages' => ['Failed add follow up data']]);
             }
-            DB::commit();
             if(isset($request['form_survey']) && !empty($request['form_survey'])){
                 $survey =  $this->createFormSurvey($request['form_survey']);
                 if($survey['status'] != 'success' && isset($survey['status'])){
@@ -924,7 +953,6 @@ class ApiPartnersController extends Controller
                         "netto" => $data_init['Netto'],
                     ];
                     $location_init['value_detail'] = json_encode($value_detail);
-                    DB::beginTransaction();
                     $update_partner_init = Partner::where('id_partner', $post['id_partner'])->update($partner_init);
                     if($update_partner_init){
                         $update_location_init = Location::where('id_partner', $post['id_partner'])->where('id_location',$post["id_location"])->update($location_init);
@@ -932,7 +960,6 @@ class ApiPartnersController extends Controller
                             DB::rollback();
                             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
                         }
-                        DB::commit();
                         $data_send_2 = [
                             "partner" => Partner::where('id_partner',$post["id_partner"])->first(),
                             "location" => Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->first(),
@@ -955,7 +982,6 @@ class ApiPartnersController extends Controller
                                 "id_sales_invoice_detail" => $data_invoCL['Detail'][0]['SalesInvoiceDetailID'],
                                 "id_delivery_order_detail" => $data_invoCL['Detail'][0]['DeliveryOrderDetailID'],
                             ];
-                            DB::beginTransaction();
                             $update_partner_invoCL = Partner::where('id_partner', $post['id_partner'])->update($partner_invoCL);
                             if($update_partner_invoCL){
                                 $update_location_invoCL = Location::where('id_partner', $post['id_partner'])->where('id_location',$post["id_location"])->update($location_invoCL);
@@ -963,7 +989,6 @@ class ApiPartnersController extends Controller
                                     DB::rollback();
                                     return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
                                 }
-                                DB::commit();
                             }
                             app('\Modules\Project\Http\Controllers\ApiProjectController')->initProject($data_send['partner'], $data_send['location']);
                         }else{
@@ -976,6 +1001,7 @@ class ApiPartnersController extends Controller
                     return response()->json(['status' => 'fail', 'messages' => [$initBranch['response']['Message']]]);
                 }
             }
+            DB::commit();
             return response()->json(MyHelper::checkCreate($store));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);

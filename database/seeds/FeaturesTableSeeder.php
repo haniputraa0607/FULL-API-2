@@ -4307,6 +4307,56 @@ class FeaturesTableSeeder extends Seeder
 	                'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00')
 	            ),
+            430 => 
+                array (
+                    'id_feature' => 431,
+                    'feature_type' => 'List',
+                    'feature_module' => 'Outlet Starter Bundling',
+                    'show_hide' => 1,
+                    'order' => 155,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            431 => 
+                array (
+                    'id_feature' => 432,
+                    'feature_type' => 'Create',
+                    'feature_module' => 'Outlet Starter Bundling',
+                    'show_hide' => 1,
+                    'order' => 155,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            432 => 
+                array (
+                    'id_feature' => 433,
+                    'feature_type' => 'Detail',
+                    'feature_module' => 'Outlet Starter Bundling',
+                    'show_hide' => 1,
+                    'order' => 155,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            433 => 
+                array (
+                    'id_feature' => 434,
+                    'feature_type' => 'Update',
+                    'feature_module' => 'Outlet Starter Bundling',
+                    'show_hide' => 1,
+                    'order' => 155,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            434 => 
+                array (
+                    'id_feature' => 435,
+                    'feature_type' => 'Delete',
+                    'feature_module' => 'Outlet Starter Bundling',
+                    'show_hide' => 1,
+                    'order' => 155,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
         ));
         
         

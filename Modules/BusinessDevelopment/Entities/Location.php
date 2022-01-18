@@ -46,7 +46,8 @@ class Location extends Model
         "ownership_status",
         "cooperation_scheme",
         "sharing_percent",
-        "sharing_value"
+        "sharing_value",
+        "location_notes"
 
     ];
     public function location_partner(){

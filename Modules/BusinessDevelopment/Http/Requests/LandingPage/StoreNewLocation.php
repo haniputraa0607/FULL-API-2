@@ -35,6 +35,8 @@ class StoreNewLocation extends FormRequest
                 "height"   => 'required|integer',
                 "location_large"   => 'required|integer',
                 "location_type"   => 'required|string',
+                "pic_name"   => 'required|string',
+                "pic_contact"   => 'required|numeric',
                 "notes"   => 'required|string',
         ];
     }

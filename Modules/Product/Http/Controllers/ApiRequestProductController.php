@@ -13,6 +13,7 @@ use DB;
 use Modules\Product\Entities\DeliveryProduct;
 use Modules\Product\Entities\DeliveryProductDetail;
 use Modules\Product\Entities\DeliveryRequestProduct;
+use Monolog\Handler\NullHandler;
 
 class ApiRequestProductController extends Controller
 {
@@ -177,7 +178,7 @@ class ApiRequestProductController extends Controller
 
         foreach ($detail as $value) {
             if(!isset($value['status']) && empty($value['status'])){
-                $value['status'] = 'Pending';   
+                $value['status'] = NULL;   
             }
             array_push($data_detail, [
                 $col 	=> $id_req,
@@ -666,13 +667,16 @@ class ApiRequestProductController extends Controller
         }
         if (isset($data['product_icount'])) {
             $status = 'Draft';
-            $v_status = true;
-            foreach($data['product_icount'] as $product){
-                if($product['status'] == 'Approved' || $product['status'] == 'Rejected'){
-                    $status = 'On Progress';
-                }
-            }
+            // $v_status = true;
+            // foreach($data['product_icount'] as $product){
+            //     if($product['status'] == 'Approved' || $product['status'] == 'Rejected'){
+            //         $status = 'On Progress';
+            //     }
+            // }
             $store_request['status'] = $status;
+        }
+        if (isset($data['status'])) {
+            $store_request['status'] = $data['status'];
         }
         return [
             'store_request' => $store_request,

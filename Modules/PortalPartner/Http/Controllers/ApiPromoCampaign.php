@@ -232,7 +232,7 @@ class ApiPromoCampaign extends Controller
 		$query = DataTables::of($query)
                         ->addColumn('action', function ($data) {
                             $slug = MyHelper::createSlug($data['id_promo_campaign'], $data['created_at']);
-                            $btnDelete = '<a class="btn btn-sm btn-primary text-nowrap" href="'. env('APP_URL').'report/promo/promo-campaign/detail/'.$slug.'"><i class="fa fa-search" style="font-size : 14px; padding-right : 0px"></i></a>';  
+                            $btnDelete = '<a class="btn btn-sm btn-primary text-nowrap" href="'. env('APP_PORTAL').'report/promo/promo-campaign/detail/'.$slug.'"><i class="fa fa-search" style="font-size : 14px; padding-right : 0px"></i></a>';  
                              return '<div class="btn-group btn-group" role="group">'. $btnDelete.'</div>';
                          })
                         ->editColumn('date_start', function($row) {

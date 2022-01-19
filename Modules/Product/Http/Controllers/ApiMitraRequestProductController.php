@@ -277,10 +277,10 @@ class ApiMitraRequestProductController extends Controller
                 foreach ($post['attachment'] as $i => $attachment){
                     if(!empty($attachment)){
                         $encode = base64_encode(fread(fopen($attachment, "r"), filesize($attachment)));
-                        $name_file = 'attachment_'.$post['id_delivery_product'].'_'.$i;
-                        $path_full = $this->deliv_path.$name_file;
-                        $delete_path = MyHelper::deletePhoto($path_full);
-                        $upload = MyHelper::uploadPhoto($encode, $this->deliv_path, null, $name_file);
+                        $originalName = $attachment->getClientOriginalName();
+                        $name = pathinfo($originalName, PATHINFO_FILENAME);
+                        $ext = pathinfo($originalName, PATHINFO_EXTENSION);
+                        $upload = MyHelper::uploadFile($encode, $this->deliv_path, $ext, date('YmdHis').'_'.$name);
                         if (isset($upload['status']) && $upload['status'] == "success") {
                             $save_image = [
                                 "id_delivery_product" => $post['id_delivery_product'],

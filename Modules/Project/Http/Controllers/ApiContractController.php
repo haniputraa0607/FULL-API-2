@@ -48,38 +48,38 @@ class ApiContractController extends Controller
                             "confir" => ConfirmationLetter::where('id_partner',$project->id_partner)->first(),  
                             "location_bundling" => LocationOutletStarterBundlingProduct::where('id_location',$project->id_location)->join('product_icounts','product_icounts.id_product_icount','location_outlet_starter_bundling_products.id_product_icount')->get(),
                  ];
-//        $invoice = Icount::ApiInvoiceSPK($data_send);
-//            if($invoice['response']['Status']=='1' && $invoice['response']['Message']=='success'){
-//             $data_invoice = [
-//                 'id_project'=>$request->id_project,
-//                 'id_sales_invoice'=>$invoice['response']['Data'][0]['SalesInvoiceID'],
-//                 'id_business_partner'=>$invoice['response']['Data'][0]['BusinessPartnerID'],
-//                 'id_branch'=>$invoice['response']['Data'][0]['BranchID'],
-//                 'dpp'=>$invoice['response']['Data'][0]['DPP'],
-//                 'dpp_tax'=>$invoice['response']['Data'][0]['DPPTax'],
-//                 'tax'=>$invoice['response']['Data'][0]['Tax'],
-//                 'tax_value'=>$invoice['response']['Data'][0]['TaxValue'],
-//                 'tax_date'=>date('Y-m-d H:i:s',strtotime($invoice['response']['Data'][0]['TaxDate'])),
-//                 'netto'=>$invoice['response']['Data'][0]['Netto'],
-//                 'amount'=>$invoice['response']['Data'][0]['Amount'],
-//                 'outstanding'=>$invoice['response']['Data'][0]['Outstanding'],
-//                 'value_detail'=>json_encode($invoice['response']['Data'][0]['Detail']),  
-//             ];
-//              $input = InvoiceSpk::create($data_invoice);
+        $invoice = Icount::ApiInvoiceSPK($data_send);
+            if($invoice['response']['Status']=='1' && $invoice['response']['Message']=='success'){
+             $data_invoice = [
+                 'id_project'=>$request->id_project,
+                 'id_sales_invoice'=>$invoice['response']['Data'][0]['SalesInvoiceID'],
+                 'id_business_partner'=>$invoice['response']['Data'][0]['BusinessPartnerID'],
+                 'id_branch'=>$invoice['response']['Data'][0]['BranchID'],
+                 'dpp'=>$invoice['response']['Data'][0]['DPP'],
+                 'dpp_tax'=>$invoice['response']['Data'][0]['DPPTax'],
+                 'tax'=>$invoice['response']['Data'][0]['Tax'],
+                 'tax_value'=>$invoice['response']['Data'][0]['TaxValue'],
+                 'tax_date'=>date('Y-m-d H:i:s',strtotime($invoice['response']['Data'][0]['TaxDate'])),
+                 'netto'=>$invoice['response']['Data'][0]['Netto'],
+                 'amount'=>$invoice['response']['Data'][0]['Amount'],
+                 'outstanding'=>$invoice['response']['Data'][0]['Outstanding'],
+                 'value_detail'=>json_encode($invoice['response']['Data'][0]['Detail']),  
+             ];
+              $input = InvoiceSpk::create($data_invoice);
               $purchase = Icount::ApiPurchaseSPK($data_send);
-//                if($purchase['response']['Status']=='1' && $purchase['response']['Message']=='success'){
-//                      $data_purchase = [
-//                          'id_project'=>$request->id_project,
-//                          'id_request_purchase'=>$purchase['response']['Data'][0]['PurchaseRequestID'],
-//                          'id_business_partner'=>$purchase['response']['Data'][0]['BusinessPartnerID'],
-//                          'id_branch'=>$purchase['response']['Data'][0]['BranchID'],
-//                          'value_detail'=>json_encode($purchase['response']['Data'][0]['Detail']),  
-//                      ];
-//                       $input = PurchaseSpk::create($data_purchase);
-//                }
-//            }else{
-//                return response()->json(['status' => 'fail', 'messages' => ['Proses SPK error']]);    
-//            }
+                if($purchase['response']['Status']=='1' && $purchase['response']['Message']=='success'){
+                      $data_purchase = [
+                          'id_project'=>$request->id_project,
+                          'id_request_purchase'=>$purchase['response']['Data'][0]['PurchaseRequestID'],
+                          'id_business_partner'=>$purchase['response']['Data'][0]['BusinessPartnerID'],
+                          'id_branch'=>$purchase['response']['Data'][0]['BranchID'],
+                          'value_detail'=>json_encode($purchase['response']['Data'][0]['Detail']),  
+                      ];
+                       $input = PurchaseSpk::create($data_purchase);
+                }
+            }else{
+                return response()->json(['status' => 'fail', 'messages' => ['Proses SPK error']]);    
+            }
              if(isset($request->attachment)){
                     $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, 'pdf');
                      if (isset($upload['status']) && $upload['status'] == "success") {

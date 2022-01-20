@@ -892,7 +892,12 @@ class ApiEnquiries extends Controller
 
             return response()->json(MyHelper::checkCreate($result));
         }else{
-            $update = Setting::updateOrCreate(['key' => 'enquiries_subject_list'], ['key' => 'enquiries_subject_list', 'value_text' => json_encode($post)]);
+            $allSubject = (array)json_decode(Setting::where('key', 'enquiries_subject_list')->first()['value_text']??'');
+
+            foreach ($post as $key=>$dt){
+                $allSubject[$key] = $dt;
+            }
+            $update = Setting::updateOrCreate(['key' => 'enquiries_subject_list'], ['key' => 'enquiries_subject_list', 'value_text' => json_encode($allSubject)]);
             return response()->json(MyHelper::checkUpdate($update));
         }
     }

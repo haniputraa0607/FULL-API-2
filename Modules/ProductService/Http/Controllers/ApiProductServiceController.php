@@ -444,8 +444,9 @@ class ApiProductServiceController extends Controller
                         ->where('day', $bookDay)->first()['id_outlet_schedule']??null;
                 $getTimeShift = app($this->product)->getTimeShift(strtolower($shift),$val['id_outlet'], $idOutletSchedule);
                 if(!empty($getTimeShift['end'])){
+                    $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
                     $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
-                    if((strtotime($shiftTimeEnd) > strtotime($bookTime)) !== false){
+                    if(strtotime($bookTime) >= strtotime($shiftTimeStart) && strtotime($bookTime) < strtotime($shiftTimeEnd)){
                         $available = false;
                     }
                 }
@@ -473,6 +474,8 @@ class ApiProductServiceController extends Controller
                         ->orderBy('booking_start', 'asc')->first()['booking_start']??'';
                 if(!empty($nextSchedule) && strtotime(date('Y-m-d', strtotime($nextSchedule))) <= strtotime($bookDate)){
                     $availableText = 'Tersedia sampai pukul '.date('H:i', strtotime($nextSchedule));
+                }elseif(!empty($shiftTimeStart)){
+                    $availableText = 'Tersedia sampai pukul '.date('H:i', strtotime($shiftTimeStart));
                 }else{
                     $availableText = 'Tersedia sampai pukul '.date('H:i', strtotime($timeEnd));
                 }

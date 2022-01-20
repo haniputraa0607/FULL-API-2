@@ -64,7 +64,7 @@ class OutletDisplayController extends Controller
                         ->where('transaction_product_services.id_user_hair_stylist', $hairstylist->id_user_hair_stylist)
                         ->where('transaction_payment_status', 'Completed')
                         ->where('transaction_payment_status', '!=', 'Cancelled')
-                        ->where('id_transaction_product_service', '!=', optiona($serviceInProgress)->id_transaction_product_service)
+                        ->where('id_transaction_product_service', '!=', optional($serviceInProgress)->id_transaction_product_service)
                         // ->whereDate('schedule_date', date('Y-m-d'))
                         ->orderBy('schedule_date', 'asc')
                         ->orderBy('schedule_time', 'asc')

@@ -125,7 +125,7 @@ class ApiHairstylistAttendanceController extends Controller
             'longitude' => $request->longitude,
             'location_name' => $request->location_name,
             'photo_path' => $photoPath,
-            'status' => $outsideRadius ? 'Pending' : '',
+            'status' => $outsideRadius ? 'Pending' : 'Approved',
             'approved_by' => null,
             'notes' => $request->notes,
         ]);

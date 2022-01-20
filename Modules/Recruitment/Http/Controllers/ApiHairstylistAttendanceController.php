@@ -94,7 +94,7 @@ class ApiHairstylistAttendanceController extends Controller
             'type' => 'string|required|in:clock_in,clock_out',
             'latitude' => 'required|numeric',
             'longitude' => 'required|numeric',
-            'location_name' => 'string',
+            'location_name' => 'string|nullable|sometimes',
             'photo' => 'string|required',
         ]);
         $hairstylist = $request->user();
@@ -123,7 +123,7 @@ class ApiHairstylistAttendanceController extends Controller
             'datetime' => date('Y-m-d H:i:s'),
             'latitude' => $request->latitude,
             'longitude' => $request->longitude,
-            'location_name' => $request->location_name,
+            'location_name' => $request->location_name ?: '',
             'photo_path' => $photoPath,
             'status' => $outsideRadius ? 'Pending' : 'Approved',
             'approved_by' => null,

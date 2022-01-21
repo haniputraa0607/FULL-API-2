@@ -23,6 +23,7 @@ use Modules\Brand\Entities\Brand;
 use PDF;
 use Storage;
 use Modules\BusinessDevelopment\Entities\StepsLog;
+use Modules\BusinessDevelopment\Entities\NewStepsLog;
 use Modules\BusinessDevelopment\Entities\ConfirmationLetter;
 use Modules\BusinessDevelopment\Entities\FormSurvey;
 use Modules\BusinessDevelopment\Entities\TermPayment;
@@ -39,6 +40,7 @@ use Modules\Project\Entities\Project;
 use App\Http\Models\Product;
 use App\Http\Models\Province;
 use Maatwebsite\Excel\Concerns\ToArray;
+use Modules\BusinessDevelopment\Entities\LegalAgreement;
 use Modules\BusinessDevelopment\Entities\OutletStarterBundlingProduct;
 use Modules\Product\Entities\ProductIcount;
 use Modules\BusinessDevelopment\Http\Requests\LandingPage\StoreNewLocation;
@@ -57,6 +59,7 @@ class ApiPartnersController extends Controller
         $this->saveFile = "file/follow_up/";
         $this->confirmation = "file/confirmation/";
         $this->form_survey = "file/form_survey/";
+        $this->legal_agreement = "file/legal_agreement/";
     }
     /**
      * Display a listing of the resource.
@@ -261,7 +264,7 @@ class ApiPartnersController extends Controller
     {
         $post = $request->all();
         if(isset($post['id_partner']) && !empty($post['id_partner'])){
-            $partner = Partner::where('id_partner', $post['id_partner'])->with(['partner_bank_account','partner_locations','partner_step','partner_confirmation','partner_survey', 'first_location', 'first_location.location_starter.product'])->first();
+            $partner = Partner::where('id_partner', $post['id_partner'])->with(['partner_bank_account','partner_locations','partner_locations.location_starter.product','partner_step','partner_new_step','partner_confirmation','partner_survey','partner_legal_agreement', 'first_location', 'first_location.location_starter.product'])->first();
             if(($partner['partner_step'])){
                 foreach($partner['partner_step'] as $step){
                     if(isset($step['attachment']) && !empty($step['attachment'])){
@@ -273,6 +276,13 @@ class ApiPartnersController extends Controller
                 foreach($partner['partner_confirmation'] as $confir){
                     if(isset($confir['attachment']) && !empty($confir['attachment'])){
                         $confir['attachment'] = env('STORAGE_URL_API').$confir['attachment'];
+                    }
+                }
+            } 
+            if(($partner['partner_legal_agreement'])){
+                foreach($partner['partner_legal_agreement'] as $legal){
+                    if(isset($legal['attachment']) && !empty($legal['attachment'])){
+                        $legal['attachment'] = env('STORAGE_URL_API').$legal['attachment'];
                     }
                 }
             } 
@@ -763,6 +773,17 @@ class ApiPartnersController extends Controller
         if (!empty($post)) {
             $cek_partner = Partner::where(['id_partner'=>$id_partner])->first();
             if($cek_partner){
+                
+                $checkPhoneFormat = MyHelper::phoneCheckFormat($post['phone']);
+                if (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'fail') {
+                    return response()->json([
+                        'status' => 'fail',
+                        'message' => 'Format nomor HP tidak benar, minimal 10 angka dan maksimal 14 angka'
+                    ]);
+                } elseif (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'success') {
+                    $post['phone'] = $checkPhoneFormat['phone'];
+                }
+
                 DB::beginTransaction();
                 $store = PartnersLog::create([
                     "id_partner" => $id_partner,
@@ -1005,6 +1026,13 @@ class ApiPartnersController extends Controller
                                 }
                             }
                             app('\Modules\Project\Http\Controllers\ApiProjectController')->initProject($data_send['partner'], $data_send['location']);
+                            
+                            //make legal agreement
+                            $legal_agree = $this->createLegalAgreement($data_send['partner'], $data_send['location']);
+                            if(!$legal_agree){
+                                DB::rollback();
+                                return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                            }
                         }else{
                             return response()->json(['status' => 'fail', 'messages' => [$invoiceCL['response']['Message']]]);
                         }
@@ -1504,13 +1532,155 @@ class ApiPartnersController extends Controller
         $post = $request->all();
         $data_send = [
             "partner" => Partner::where('id_partner',$post['id_partner'])->first(),
-            "location" => Location::where('id_partner',$post['id_partner'])->first(),
-            "confir" => ConfirmationLetter::where('id_partner',$post['id_partner'])->first(),
+            "location" => Location::where('id_partner',$post['id_partner'])->where('id_location',$post['id_location'])->first(),
+            "confir" => ConfirmationLetter::where('id_partner',$post['id_partner'])->where('id_location',$post['id_location'])->first(),
         ];
         if($data_send){
             return response()->json(['status' => 'success','result'=>$data_send]); 
         }
         return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+    }
+
+    public function createLegalAgreement($partner,$location){
+        
+        $data_legal = [
+            'id_partner' => $partner['id_partner'],
+            'id_location' => $location['id_location'],
+            'no_letter' => '123',
+            'date_letter' => date('Y-m-d'),
+            'attachment' => $this->legal_agreement.'tes.pdf',
+        ];
+
+        $send = LegalAgreement::create($data_legal);
+        if(!$send){
+            return false;
+        }
+        return true;
+    }
+
+    public function followUpNewLoc(Request $request)
+    {
+        $post = $request['post_follow_up'];
+        if(isset($post['id_partner']) && !empty($post['id_partner'])){
+            DB::beginTransaction();
+            $data_store = [
+                "index" => $post["index"],
+                "id_partner" => $post["id_partner"],
+                "id_location" => $post["id_location"],
+                "follow_up" => $post["follow_up"],
+                "note" => $post["note"],
+            ];
+            if (isset($post['attachment']) && !empty($post['attachment'])) {
+                $upload = MyHelper::uploadFile($post['attachment'], $this->saveFile, 'pdf');
+                if (isset($upload['status']) && $upload['status'] == "success") {
+                    $data_store['attachment'] = $upload['path'];
+                } else {
+                    $result = [
+                        'error'    => 1,
+                        'status'   => 'fail',
+                        'messages' => ['fail upload file']
+                    ];
+                    return $result;
+                }
+            }
+            $store = NewStepsLog::create($data_store);
+            if (!$store) {
+                DB::rollback();
+                return response()->json(['status' => 'fail', 'messages' => ['Failed add follow up data']]);
+            }
+            if(isset($request['form_survey']) && !empty($request['form_survey'])){
+                $survey =  $this->createFormSurvey($request['form_survey']);
+                if($survey['status'] != 'success' && isset($survey['status'])){
+                    return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                }
+            }
+            if(isset($post['follow_up']) && $post['follow_up'] == 'Payment'){
+                $data_send = [
+                    "partner" => Partner::where('id_partner',$post["id_partner"])->first(),
+                    "location" => Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->first(),
+                    "confir" => ConfirmationLetter::where('id_partner',$post["id_partner"])->first(),
+                ];
+                $initBranch = Icount::ApiConfirmationLetter($data_send);
+                if($initBranch['response']['Status']=='1' && $initBranch['response']['Message']=='success'){
+                    $data_init = $initBranch['response']['Data'][0];
+                    $partner_init = [
+                        "id_business_partner" => $data_init['BusinessPartner']['BusinessPartnerID'],
+                        "id_company" => $data_init['BusinessPartner']['CompanyID'],
+                        "id_sales_order" => $data_init['SalesOrderID'],
+                        "voucher_no" => $data_init['VoucherNo'],
+                        "id_sales_order_detail" => $data_init['Detail'][0]['SalesOrderDetailID'],
+                    ];
+                    $location_init = [
+                        "id_branch" => $data_init['Branch']['BranchID'],
+                        "id_chart_account" => $data_init['Branch']['ChartOfAccountID'],
+                    ];
+                    $value_detail[$data_init['Detail'][0]['Name']] = [
+                        "name" => $data_init['Detail'][0]['Name'],
+                        "amount" => $data_init['Amount'],
+                        "tax_value" => $data_init['TaxValue'],
+                        "netto" => $data_init['Netto'],
+                    ];
+                    $location_init['value_detail'] = json_encode($value_detail);
+                    $update_partner_init = Partner::where('id_partner', $post['id_partner'])->update($partner_init);
+                    if($update_partner_init){
+                        $update_location_init = Location::where('id_partner', $post['id_partner'])->where('id_location',$post["id_location"])->update($location_init);
+                        if(!$update_location_init){
+                            DB::rollback();
+                            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                        }
+                        $data_send_2 = [
+                            "partner" => Partner::where('id_partner',$post["id_partner"])->first(),
+                            "location" => Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->first(),
+                            "confir" => ConfirmationLetter::where('id_partner',$post["id_partner"])->first(),
+                        ];
+                        $invoiceCL = Icount::ApiInvoiceConfirmationLetter($data_send_2);
+                        if($invoiceCL['response']['Status']=='1' && $invoiceCL['response']['Message']=='success'){
+                            $data_invoCL = $invoiceCL['response']['Data'][0];
+                            $val = Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->get('value_detail')[0]['value_detail'];
+                            $val = json_decode($val, true);
+                            $val[$data_invoCL['Detail'][0]['Name']] = [
+                                "name" => $data_invoCL['Detail'][0]['Name'],
+                                "amount" => $data_invoCL['Amount'],
+                                "tax_value" => $data_invoCL['TaxValue'],
+                                "netto" => $data_invoCL['Netto'],
+                            ];
+                            $location_invoCL['value_detail'] = json_encode($val);
+                            $partner_invoCL = [
+                                "id_sales_invoice" => $data_invoCL['SalesInvoiceID'],
+                                "id_sales_invoice_detail" => $data_invoCL['Detail'][0]['SalesInvoiceDetailID'],
+                                "id_delivery_order_detail" => $data_invoCL['Detail'][0]['DeliveryOrderDetailID'],
+                            ];
+                            $update_partner_invoCL = Partner::where('id_partner', $post['id_partner'])->update($partner_invoCL);
+                            if($update_partner_invoCL){
+                                $update_location_invoCL = Location::where('id_partner', $post['id_partner'])->where('id_location',$post["id_location"])->update($location_invoCL);
+                                if(!$update_location_invoCL){
+                                    DB::rollback();
+                                    return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                                }
+                            }
+                            app('\Modules\Project\Http\Controllers\ApiProjectController')->initProject($data_send['partner'], $data_send['location']);
+                            
+                            //make legal agreement
+                            $legal_agree = $this->createLegalAgreement($data_send['partner'], $data_send['location']);
+                            if(!$legal_agree){
+                                DB::rollback();
+                                return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                            }
+                        }else{
+                            return response()->json(['status' => 'fail', 'messages' => [$invoiceCL['response']['Message']]]);
+                        }
+                    }else{
+                        return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                    }
+                }else{
+                    return response()->json(['status' => 'fail', 'messages' => [$initBranch['response']['Message']]]);
+                }
+            }
+            DB::commit();
+            return response()->json(MyHelper::checkCreate($store));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
     }
 }
 

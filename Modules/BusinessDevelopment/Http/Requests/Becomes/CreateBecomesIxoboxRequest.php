@@ -25,7 +25,7 @@ class CreateBecomesIxoboxRequest extends FormRequest
     public function withValidator($validator)
     {
         $validator->addExtension('partner', function ($attribute, $value, $parameters, $validator) {
-         $survey = PartnersBecomesIxobox::where(array('id_partner'=>$value,'status'=>"Process"))->orwhere(array('status'=>"Waiting"))->first();
+         $survey = PartnersBecomesIxobox::where('id_partner',$value)->where(function($query){$query->where('status', 'Process')->orWhere('status', 'Waiting');})->first();
          if($survey){
              return false;
          } return true;
@@ -56,7 +56,7 @@ class CreateBecomesIxoboxRequest extends FormRequest
         return [
             'required' => ':attribute harus diisi',
             'partner' => 'Partners sedang mengajukan pergantian status kerja sama',
-            'close_date' => 'Close date melebihi kontrak',
+            'close_date' => 'Tanggal peralihan melebihi waktu kontrak',
             'today'=>"Minimal hari ini"
         ];
     }

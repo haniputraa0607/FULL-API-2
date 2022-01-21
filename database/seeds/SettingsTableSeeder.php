@@ -1007,7 +1007,7 @@ class SettingsTableSeeder extends Seeder
                     'id_setting' => 112,
                     'key' => 'text_menu_home',
                     'value' => NULL,
-                    'value_text' => '{"menu1":{"text_menu":"Outlet","text_color":"","container_type":"","container_color":"","icon":""},"menu2":{"text_menu":"Home Sevice","text_color":"","container_type":"","container_color":"","icon":""},"menu3":{"text_menu":"Shop","text_color":"","container_type":"","container_color":"","icon":""},"menu4":{"text_menu":"Academy","text_color":"","container_type":"","container_color":"","icon":""}}',
+                    'value_text' => '{"menu1":{"text_menu":"Outlet","text_color":"","container_type":"","container_color":"","icon":"","visible":true},"menu2":{"text_menu":"Home Sevice","text_color":"","container_type":"","container_color":"","icon":"","visible":true},"menu3":{"text_menu":"Shop","text_color":"","container_type":"","container_color":"","icon":"","visible":true},"menu4":{"text_menu":"Academy","text_color":"","container_type":"","container_color":"","icon":"","visible":true}}',
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s'),
                 ),

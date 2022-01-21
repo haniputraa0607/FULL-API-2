@@ -773,6 +773,17 @@ class ApiPartnersController extends Controller
         if (!empty($post)) {
             $cek_partner = Partner::where(['id_partner'=>$id_partner])->first();
             if($cek_partner){
+                
+                $checkPhoneFormat = MyHelper::phoneCheckFormat($post['phone']);
+                if (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'fail') {
+                    return response()->json([
+                        'status' => 'fail',
+                        'message' => 'Format nomor HP tidak benar, minimal 10 angka dan maksimal 14 angka'
+                    ]);
+                } elseif (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'success') {
+                    $post['phone'] = $checkPhoneFormat['phone'];
+                }
+
                 DB::beginTransaction();
                 $store = PartnersLog::create([
                     "id_partner" => $id_partner,

@@ -33,6 +33,7 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefi
     Route::post('/update', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@update']);
     Route::post('/cek-duplikat', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@cekDuplikat']);
     Route::post('/create-follow-up', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@followUp']);
+    Route::post('/new-follow-up', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@followUpNewLoc']);
     Route::post('/pdf', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@pdf']);
     Route::post('/tesIcount', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@tesIcount']);
     Route::any('/list-location', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@listLocationAvailable']);

@@ -287,6 +287,15 @@ class ApiLocationsController extends Controller
             if (isset($post['id_partner'])) {
                 $data_update['id_partner'] = $post['id_partner'];
             }
+            if (isset($post['width'])) {
+                $data_update['width'] = $post['width'];
+            }
+            if (isset($post['height'])) {
+                $data_update['height'] = $post['height'];
+            }
+            if (isset($post['length'])) {
+                $data_update['length'] = $post['length'];
+            }
             if (isset($post['location_large'])) {
                 $data_update['location_large'] = $post['location_large'];
             }
@@ -386,6 +395,9 @@ class ApiLocationsController extends Controller
             }
             if (isset($post['ownership_status'])) {
                 $data_update['ownership_status'] = $post['ownership_status'];
+            }
+            if (isset($post['company_type'])) {
+                $data_update['company_type'] = $post['company_type'];
             }
             if (isset($post['cooperation_scheme'])) {
                 $data_update['cooperation_scheme'] = $post['cooperation_scheme'];

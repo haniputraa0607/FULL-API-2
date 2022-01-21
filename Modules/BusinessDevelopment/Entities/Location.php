@@ -35,6 +35,7 @@ class Location extends Model
         'submited_by',
         "width",
         "height",
+        "length",
         "location_type",
         "location_image",
         "id_outlet_starter_bundling",
@@ -47,7 +48,8 @@ class Location extends Model
         "cooperation_scheme",
         "sharing_percent",
         "sharing_value",
-        "location_notes"
+        "location_notes",
+        "company_type"
 
     ];
     public function location_partner(){

@@ -118,7 +118,7 @@ class classMaskingJson {
             }
 
             // setting
-            $urlendpoint = 'http://sms114.xyz/sms/api_misscall_otp_send_json.php'; // url endpoint api
+            $urlendpoint = 'https://sms114.xyz/sms/api_misscall_otp_send_json.php'; // url endpoint api
             $apikey      = env('MISSCALL_API_KEY'); // api key
             $callbackurl = env('MISSCALL_URL_CALLBACK'); // url callback get status sms
             $number      = $phone; // destinationnumber

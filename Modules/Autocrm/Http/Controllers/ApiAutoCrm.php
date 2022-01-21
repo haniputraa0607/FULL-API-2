@@ -574,7 +574,7 @@ class ApiAutoCrm extends Controller
                             case 'history_payment':
                             case 'History Transaction' :
                                 if($crm['autocrm_push_clickto'] == 'History Transaction'){
-                                    $crm['autocrm_push_clickto'] = 'history_'.str_replace('-', '_', $inboxFrom);
+                                    $dataOptional['autocrm_push_clickto'] = 'history_'.str_replace('-', '_', $inboxFrom);
                                 }
 
                                 $dataOptional['id_reference'] = (!empty($variables['id_transaction']) ? $variables['id_transaction'] : 0);
@@ -650,6 +650,10 @@ class ApiAutoCrm extends Controller
                                         OauthAccessToken::join('oauth_access_token_providers', 'oauth_access_tokens.id', 'oauth_access_token_providers.oauth_access_token_id')
                                             ->where('oauth_access_tokens.user_id', $user['id'])->where('oauth_access_token_providers.provider', 'users')->delete();
                                     }
+                                break;
+                            case 'home_service_history' :
+                                $dataOptional['autocrm_push_clickto'] = $variables['mitra_get_order_clickto']??'home_service_history';
+                                break;
                             default :
                                 $dataOptional['type'] = 'Home';
                                 $dataOptional['id_reference'] = 0;
@@ -750,7 +754,7 @@ class ApiAutoCrm extends Controller
                     }
 
                     //===== set id reference and click to
-                    switch ($crm['autocrm_push_clickto']){
+                    switch ($crm['autocrm_inbox_clickto']){
                         case "News" :
                             if (isset($variables['id_news'])) {
                             $inbox['inboxes_id_reference'] = $variables['id_news'];
@@ -764,7 +768,7 @@ class ApiAutoCrm extends Controller
                         case 'history_academy' :
                         case 'history_payment':
                         case 'History Transaction' :
-                            if($crm['autocrm_push_clickto'] == 'History Transaction'){
+                            if($crm['autocrm_inbox_clickto'] == 'History Transaction'){
                                 $inbox['inboxes_clickto'] = 'history_'.str_replace('-', '_', $inboxFrom);
                             }
 
@@ -807,6 +811,9 @@ class ApiAutoCrm extends Controller
                             break;
                         case 'Home' :
                             $inbox['inboxes_id_reference'] = 0;
+                            break;
+                        case 'home_service_history' :
+                            $inbox['inboxes_clickto'] = $variables['mitra_get_order_clickto']??'home_service_history';
                             break;
                         default :
                             $inbox['inboxes_clickto'] = 'Default';

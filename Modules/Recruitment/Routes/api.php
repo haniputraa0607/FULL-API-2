@@ -97,6 +97,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
     	});
         Route::group(['prefix' => 'attendance'], function () {
             Route::post('list','ApiHairstylistAttendanceController@list');
+            Route::post('detail','ApiHairstylistAttendanceController@detail');
         });
     });
 });

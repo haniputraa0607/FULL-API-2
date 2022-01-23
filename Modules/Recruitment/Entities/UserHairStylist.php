@@ -172,4 +172,9 @@ class UserHairStylist extends Authenticatable
     {
         return $this->hasMany(UserHairStylistDevice::class, 'id_user_hair_stylist');
     }
+
+    public function attendance_logs()
+    {
+        return $this->hasMany(HairstylistAttendanceLog::class, 'id_hairstylist_attendance', 'id_hairstylist_attendance');
+    }
 }

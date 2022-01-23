@@ -1020,6 +1020,10 @@ class ApiProductController extends Controller
             $product = $product->withCount('product_detail')->withCount('product_detail_hiddens')->with(['brands']);
         }
 
+        if(isset($post['product_type'])){
+            $product = $product->where('product_type', $post['product_type']);
+        }
+
         if(isset($post['pagination'])){
             $product = $product->paginate(10);
         }else{

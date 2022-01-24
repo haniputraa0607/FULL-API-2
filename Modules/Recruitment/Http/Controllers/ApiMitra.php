@@ -24,6 +24,7 @@ use Modules\Recruitment\Entities\HairstylistAnnouncement;
 use Modules\Recruitment\Entities\HairstylistInbox;
 
 use Modules\Transaction\Entities\TransactionPaymentCash;
+use Modules\Transaction\Entities\TransactionHomeService;
 use Modules\UserRating\Entities\UserRating;
 use Modules\UserRating\Entities\RatingOption;
 use Modules\UserRating\Entities\UserRatingLog;
@@ -437,7 +438,8 @@ class ApiMitra extends Controller
     		'outlet' => $outlet,
     		'brand' => $brand,
     		'outlet_service' => $this->outletServiceScheduleStatus($user->id_user_hair_stylist),
-    		'home_service' => $this->homeServiceScheduleStatus($user->id_user_hair_stylist, $today)
+    		'home_service' => $this->homeServiceScheduleStatus($user->id_user_hair_stylist, $today),
+    		'has_otw_home_service' => TransactionHomeService::where(['id_user_hair_stylist' => $user->id_user_hair_stylist, 'status' => 'On The Way'])->exists() ? 1 : 0,
     	];
 
     	if(!empty($request->latitude) && !empty($request->longitude)){

@@ -95,6 +95,10 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
                 Route::post('default/delete', ['middleware' => 'feature_control:426','uses' =>'ApiHairStylistGroupPotonganController@delete_default']);
             });
     	});
+        Route::group(['prefix' => 'attendance'], function () {
+            Route::post('list','ApiHairstylistAttendanceController@list');
+            Route::post('detail','ApiHairstylistAttendanceController@detail');
+        });
     });
 });
 

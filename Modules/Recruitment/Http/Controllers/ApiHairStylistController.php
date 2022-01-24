@@ -452,6 +452,7 @@ class ApiHairStylistController extends Controller
                 $data['join_date'] = date('Y-m-d H:i:s');
                 $data['approve_by'] = $request->user()->id;
                 $data['user_hair_stylist_status'] = 'Active';
+                $data['user_hair_stylist_photo'] = $post['user_hair_stylist_photo'];
                 $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update($data);
 
                 $autocrm = app($this->autocrm)->SendAutoCRM(

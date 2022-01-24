@@ -7,6 +7,7 @@ use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use App\Lib\MyHelper;
 use Modules\Recruitment\Entities\UserHairStylist;
+use Modules\Recruitment\Entities\HairstylistAttendance;
 use Modules\Recruitment\Entities\HairstylistAttendanceLog;
 
 class ApiHairstylistAttendanceController extends Controller
@@ -745,5 +746,22 @@ class ApiHairstylistAttendanceController extends Controller
                 'message' => 'Success ' . ($request->status == 'Approved' ? 'approve' : 'reject') . ' request attendance'
             ],
         ];
+    }
+
+    public function cronLate()
+    {
+        $log = MyHelper::logCron('Cancel Transaction');
+        try {
+            HairstylistAttendance::where(function($query) {
+                    $query->whereNull('clock_out')->orWhereNull('clock_in');
+                })
+                ->whereDate('attendance_date', '<', date('Y-m-d'))
+                ->update(['is_on_time' => 0]);
+
+            $log->success('success');
+            return response()->json(['success']);
+        } catch (\Exception $e) {
+            $log->fail($e->getMessage());
+        }
     }
 }

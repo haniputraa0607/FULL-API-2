@@ -104,6 +104,11 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
             Route::post('detail','ApiHairstylistAttendanceController@detailPending');
             Route::post('update','ApiHairstylistAttendanceController@updatePending');
         });
+        Route::group(['prefix' => 'attendance-request'], function () {
+            Route::post('list','ApiHairstylistAttendanceController@listRequest');
+            Route::post('detail','ApiHairstylistAttendanceController@detailRequest');
+            Route::post('update','ApiHairstylistAttendanceController@updateRequest');
+        });
     });
 });
 

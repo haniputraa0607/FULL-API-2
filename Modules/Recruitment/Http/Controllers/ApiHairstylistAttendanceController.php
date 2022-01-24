@@ -7,6 +7,7 @@ use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use App\Lib\MyHelper;
 use Modules\Recruitment\Entities\UserHairStylist;
+use Modules\Recruitment\Entities\HairstylistAttendanceLog;
 
 class ApiHairstylistAttendanceController extends Controller
 {
@@ -196,6 +197,7 @@ class ApiHairstylistAttendanceController extends Controller
             ->join('hairstylist_schedule_dates', 'hairstylist_schedule_dates.id_hairstylist_schedule', 'hairstylist_schedules.id_hairstylist_schedule')
             ->leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date');
         $countTotal = null;
+        $result->groupBy('user_hair_stylist.id_user_hair_stylist');
 
         if ($request->rule) {
             $countTotal = $result->count();
@@ -220,7 +222,6 @@ class ApiHairstylistAttendanceController extends Controller
         }
 
         $result->selectRaw('user_hair_stylist.id_user_hair_stylist, user_hair_stylist_code, fullname, count(user_hair_stylist.id_user_hair_stylist) as total_schedule, SUM(CASE WHEN hairstylist_attendances.is_on_time = 1 THEN 1 ELSE 0 END) as total_ontime, SUM(CASE WHEN hairstylist_attendances.is_on_time = 0 AND (hairstylist_attendances.clock_in IS NOT NULL OR hairstylist_attendances.clock_out IS NOT NULL) THEN 1 ELSE 0 END) as total_late, SUM(CASE WHEN (hairstylist_attendances.clock_in IS NULL and hairstylist_attendances.clock_out IS NULL) THEN 1 ELSE 0 END) as total_absent');
-        $result->groupBy('user_hair_stylist.id_user_hair_stylist');
         $result->orderBy('user_hair_stylist.id_user_hair_stylist');
 
         if ($request->page) {
@@ -273,6 +274,7 @@ class ApiHairstylistAttendanceController extends Controller
             }
         }
     }
+
 
     public function detail(Request $request)
     {
@@ -372,5 +374,376 @@ class ApiHairstylistAttendanceController extends Controller
                 $query->where('user_hair_stylist.id_user_hair_stylist', $rul[0], $rul[1]);
             }
         }
+    }
+
+    public function listPending(Request $request)
+    {
+        $result = UserHairStylist::join('hairstylist_attendances', 'hairstylist_attendances.id_user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist')
+            ->join('hairstylist_attendance_logs', function($join) {
+                $join->on('hairstylist_attendance_logs.id_hairstylist_attendance', 'hairstylist_attendances.id_hairstylist_attendance')
+                    ->where('hairstylist_attendance_logs.status', 'Pending');
+            });
+        $countTotal = null;
+        $result->groupBy('user_hair_stylist.id_user_hair_stylist');
+
+        if ($request->rule) {
+            $countTotal = $result->count();
+            $this->filterListPending($result, $request->rule, $request->operator ?: 'and');
+        }
+
+        if (is_array($orders = $request->order)) {
+            $columns = [
+                'user_hair_stylist_code',
+                'fullname',
+                'total_pending',
+            ];
+
+            foreach ($orders as $column) {
+                if ($colname = ($columns[$column['column']] ?? false)) {
+                    $result->orderBy($colname, $column['dir']);
+                }
+            }
+        }
+
+        $result->selectRaw('user_hair_stylist.id_user_hair_stylist, user_hair_stylist_code, fullname, count(*) as total_pending');
+        $result->orderBy('user_hair_stylist.id_user_hair_stylist');
+
+        if ($request->page) {
+            $result = $result->paginate($request->length ?: 15)->toArray();
+            if (is_null($countTotal)) {
+                $countTotal = $result['total'];
+            }
+            // needed by datatables
+            $result['recordsTotal'] = $countTotal;
+        } else {
+            $result = $result->get();
+        }
+
+        return MyHelper::checkGet($result);
+    }
+
+    public function filterListPending($query,$rules,$operator='and'){
+        $newRule=[];
+        foreach ($rules as $var) {
+            if (!($var['operator']?? false) && !($var['parameter']?? false)) continue;
+            $rule=[$var['operator']??'=',$var['parameter']];
+            if($rule[0]=='like'){
+                $rule[1]='%'.$rule[1].'%';
+            }
+            $newRule[$var['subject']][]=$rule;
+        }
+
+        $query->where(function($query2) use ($operator, $newRule) {
+            $where=$operator=='and'?'where':'orWhere';
+            $subjects=['fullname', 'user_hair_stylist_code', 'level', 'id_outlet'];
+            foreach ($subjects as $subject) {
+                if($rules2=$newRule[$subject]??false){
+                    foreach ($rules2 as $rule) {
+                        $query2->$where($subject,$rule[0],$rule[1]);
+                    }
+                }
+            }
+
+            $subject = 'id_outlets';
+            if($rules2=$newRule[$subject]??false){
+                foreach ($rules2 as $rule) {
+                    $query2->{$where . 'In'}('user_hair_stylist.id_outlet', $rule[1]);
+                }
+            }
+        });
+
+        if ($rules = $newRule['transaction_date'] ?? false) {
+            foreach ($rules as $rul) {
+                $query->whereDate('hairstylist_attendance_logs.datetime', $rul[0], $rul[1]);
+            }
+        }
+    }
+
+
+    public function detailPending(Request $request)
+    {
+        $result = HairstylistAttendanceLog::selectRaw('*, null as photo_url')
+            ->join('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_attendance', 'hairstylist_attendance_logs.id_hairstylist_attendance')
+            ->where('hairstylist_attendance_logs.status', 'Pending')
+            ->join('hairstylist_schedule_dates', 'hairstylist_schedule_dates.id_hairstylist_schedule_date', 'hairstylist_attendances.id_hairstylist_schedule_date');
+        $countTotal = null;
+
+        if ($request->rule) {
+            $countTotal = $result->count();
+            $this->filterListDetailPending($result, $request->rule, $request->operator ?: 'and');
+        }
+
+        if (is_array($orders = $request->order)) {
+            $columns = [
+                'datetime',
+                'shift',
+                'clock_in',
+                'clock_out',
+            ];
+
+            foreach ($orders as $column) {
+                if ($colname = ($columns[$column['column']] ?? false)) {
+                    $result->orderBy($colname, $column['dir']);
+                }
+            }
+        }
+
+        // $result->selectRaw('*, ');
+        $result->orderBy('hairstylist_attendance_logs.id_hairstylist_attendance_log');
+
+        if ($request->page) {
+            $result = $result->paginate($request->length ?: 15)->toArray();
+            if (is_null($countTotal)) {
+                $countTotal = $result['total'];
+            }
+            // needed by datatables
+            $result['recordsTotal'] = $countTotal;
+        } else {
+            $result = $result->get();
+        }
+
+        return MyHelper::checkGet($result);
+    }
+
+    public function filterListDetailPending($query,$rules,$operator='and'){
+        $newRule=[];
+        foreach ($rules as $var) {
+            if (!($var['operator']?? false) && !($var['parameter']?? false)) continue;
+            $rule=[$var['operator']??'=',$var['parameter']];
+            if($rule[0]=='like'){
+                $rule[1]='%'.$rule[1].'%';
+            }
+            $newRule[$var['subject']][]=$rule;
+        }
+
+        $query->where(function($query2) use ($operator, $newRule) {
+            $where=$operator=='and'?'where':'orWhere';
+            $subjects=['shift', 'type'];
+            foreach ($subjects as $subject) {
+                if($rules2=$newRule[$subject]??false){
+                    foreach ($rules2 as $rule) {
+                        $query2->$where($subject,$rule[0],$rule[1]);
+                    }
+                }
+            }
+
+        });
+
+        if ($rules = $newRule['transaction_date'] ?? false) {
+            foreach ($rules as $rul) {
+                $query->whereDate('hairstylist_attendance_logs.datetime', $rul[0], $rul[1]);
+            }
+        }
+        if ($rules = $newRule['id_user_hair_stylist'] ?? false) {
+            foreach ($rules as $rul) {
+                $query->where('hairstylist_attendances.id_user_hair_stylist', $rul[0], $rul[1]);
+            }
+        }
+    }
+
+    public function updatePending(Request $request)
+    {
+        $request->validate([
+            'status' => 'string|in:Approved,Rejected',
+        ]);
+        $log = HairstylistAttendanceLog::find($request->id_hairstylist_attendance_log);
+        if (!$log) {
+            return [
+                'status' => 'fail',
+                'messages' => ['Selected pending attendance not found']
+            ];
+        }
+        $log->update(['status' => $request->status]);
+        $log->hairstylist_attendance->recalculate();
+        return [
+            'status' => 'success',
+            'result' => [
+                'message' => 'Success ' . ($request->status == 'Approved' ? 'approve' : 'reject') . ' pending attendance'
+            ],
+        ];
+    }
+
+    public function listRequest(Request $request)
+    {
+        $result = UserHairStylist::join('hairstylist_attendance_requests', 'hairstylist_attendance_requests.id_user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist')
+            ->join('hairstylist_schedule_dates', 'hairstylist_schedule_dates.id_hairstylist_schedule_date', 'hairstylist_attendance_requests.id_hairstylist_schedule_date');
+        $countTotal = null;
+        $result->groupBy('user_hair_stylist.id_user_hair_stylist');
+
+        if ($request->rule) {
+            $countTotal = $result->count();
+            $this->filterListRequest($result, $request->rule, $request->operator ?: 'and');
+        }
+
+        if (is_array($orders = $request->order)) {
+            $columns = [
+                'user_hair_stylist_code',
+                'fullname',
+                'total_request',
+            ];
+
+            foreach ($orders as $column) {
+                if ($colname = ($columns[$column['column']] ?? false)) {
+                    $result->orderBy($colname, $column['dir']);
+                }
+            }
+        }
+
+        $result->selectRaw('user_hair_stylist.id_user_hair_stylist, user_hair_stylist_code, fullname, count(*) as total_request');
+        $result->orderBy('user_hair_stylist.id_user_hair_stylist');
+
+        if ($request->page) {
+            $result = $result->paginate($request->length ?: 15)->toArray();
+            if (is_null($countTotal)) {
+                $countTotal = $result['total'];
+            }
+            // needed by datatables
+            $result['recordsTotal'] = $countTotal;
+        } else {
+            $result = $result->get();
+        }
+
+        return MyHelper::checkGet($result);
+    }
+
+    public function filterListRequest($query,$rules,$operator='and'){
+        $newRule=[];
+        foreach ($rules as $var) {
+            if (!($var['operator']?? false) && !($var['parameter']?? false)) continue;
+            $rule=[$var['operator']??'=',$var['parameter']];
+            if($rule[0]=='like'){
+                $rule[1]='%'.$rule[1].'%';
+            }
+            $newRule[$var['subject']][]=$rule;
+        }
+
+        $query->where(function($query2) use ($operator, $newRule) {
+            $where=$operator=='and'?'where':'orWhere';
+            $subjects=['fullname', 'user_hair_stylist_code', 'level', 'id_outlet'];
+            foreach ($subjects as $subject) {
+                if($rules2=$newRule[$subject]??false){
+                    foreach ($rules2 as $rule) {
+                        $query2->$where($subject,$rule[0],$rule[1]);
+                    }
+                }
+            }
+
+            $subject = 'id_outlets';
+            if($rules2=$newRule[$subject]??false){
+                foreach ($rules2 as $rule) {
+                    $query2->{$where . 'In'}('user_hair_stylist.id_outlet', $rule[1]);
+                }
+            }
+        });
+
+        if ($rules = $newRule['transaction_date'] ?? false) {
+            foreach ($rules as $rul) {
+                $query->whereDate('hairstylist_schedule_dates.date', $rul[0], $rul[1]);
+            }
+        }
+    }
+
+
+    public function detailRequest(Request $request)
+    {
+        $result = HairstylistAttendanceLog::selectRaw('*, null as photo_url')
+            ->join('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_attendance', 'hairstylist_attendance_logs.id_hairstylist_attendance')
+            ->where('hairstylist_attendance_logs.status', 'Request')
+            ->join('hairstylist_schedule_dates', 'hairstylist_schedule_dates.id_hairstylist_schedule_date', 'hairstylist_attendances.id_hairstylist_schedule_date');
+        $countTotal = null;
+
+        if ($request->rule) {
+            $countTotal = $result->count();
+            $this->filterListDetailRequest($result, $request->rule, $request->operator ?: 'and');
+        }
+
+        if (is_array($orders = $request->order)) {
+            $columns = [
+                'datetime',
+                'shift',
+                'clock_in',
+                'clock_out',
+            ];
+
+            foreach ($orders as $column) {
+                if ($colname = ($columns[$column['column']] ?? false)) {
+                    $result->orderBy($colname, $column['dir']);
+                }
+            }
+        }
+
+        // $result->selectRaw('*, ');
+        $result->orderBy('hairstylist_attendance_logs.id_hairstylist_attendance_log');
+
+        if ($request->page) {
+            $result = $result->paginate($request->length ?: 15)->toArray();
+            if (is_null($countTotal)) {
+                $countTotal = $result['total'];
+            }
+            // needed by datatables
+            $result['recordsTotal'] = $countTotal;
+        } else {
+            $result = $result->get();
+        }
+
+        return MyHelper::checkGet($result);
+    }
+
+    public function filterListDetailRequest($query,$rules,$operator='and'){
+        $newRule=[];
+        foreach ($rules as $var) {
+            if (!($var['operator']?? false) && !($var['parameter']?? false)) continue;
+            $rule=[$var['operator']??'=',$var['parameter']];
+            if($rule[0]=='like'){
+                $rule[1]='%'.$rule[1].'%';
+            }
+            $newRule[$var['subject']][]=$rule;
+        }
+
+        $query->where(function($query2) use ($operator, $newRule) {
+            $where=$operator=='and'?'where':'orWhere';
+            $subjects=['shift', 'type'];
+            foreach ($subjects as $subject) {
+                if($rules2=$newRule[$subject]??false){
+                    foreach ($rules2 as $rule) {
+                        $query2->$where($subject,$rule[0],$rule[1]);
+                    }
+                }
+            }
+
+        });
+
+        if ($rules = $newRule['transaction_date'] ?? false) {
+            foreach ($rules as $rul) {
+                $query->whereDate('hairstylist_schedule_dates.date', $rul[0], $rul[1]);
+            }
+        }
+        if ($rules = $newRule['id_user_hair_stylist'] ?? false) {
+            foreach ($rules as $rul) {
+                $query->where('hairstylist_attendances.id_user_hair_stylist', $rul[0], $rul[1]);
+            }
+        }
+    }
+
+    public function updateRequest(Request $request)
+    {
+        $request->validate([
+            'status' => 'string|in:Approved,Rejected',
+        ]);
+        $log = HairstylistAttendanceLog::find($request->id_hairstylist_attendance_log);
+        if (!$log) {
+            return [
+                'status' => 'fail',
+                'messages' => ['Selected request attendance not found']
+            ];
+        }
+        $log->update(['status' => $request->status]);
+        $log->hairstylist_attendance->recalculate();
+        return [
+            'status' => 'success',
+            'result' => [
+                'message' => 'Success ' . ($request->status == 'Approved' ? 'approve' : 'reject') . ' request attendance'
+            ],
+        ];
     }
 }

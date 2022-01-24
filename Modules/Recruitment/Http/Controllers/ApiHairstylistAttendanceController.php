@@ -219,7 +219,7 @@ class ApiHairstylistAttendanceController extends Controller
             }
         }
 
-        $result->selectRaw('user_hair_stylist.id_user_hair_stylist, user_hair_stylist_code, fullname, count(user_hair_stylist.id_user_hair_stylist) as total_schedule, SUM(CASE WHEN hairstylist_attendances.is_on_time = 1 THEN 1 ELSE 0 END) as total_ontime, SUM(CASE WHEN hairstylist_attendances.is_on_time = 0 THEN 1 ELSE 0 END) as total_late, SUM(CASE WHEN hairstylist_attendances.id_hairstylist_attendance IS NULL THEN 1 ELSE 0 END) as total_absent');
+        $result->selectRaw('user_hair_stylist.id_user_hair_stylist, user_hair_stylist_code, fullname, count(user_hair_stylist.id_user_hair_stylist) as total_schedule, SUM(CASE WHEN hairstylist_attendances.is_on_time = 1 THEN 1 ELSE 0 END) as total_ontime, SUM(CASE WHEN hairstylist_attendances.is_on_time = 0 AND (hairstylist_attendances.clock_in IS NOT NULL OR hairstylist_attendances.clock_out IS NOT NULL) THEN 1 ELSE 0 END) as total_late, SUM(CASE WHEN (hairstylist_attendances.clock_in IS NULL and hairstylist_attendances.clock_out IS NULL) THEN 1 ELSE 0 END) as total_absent');
         $result->groupBy('user_hair_stylist.id_user_hair_stylist');
         $result->orderBy('user_hair_stylist.id_user_hair_stylist');
 
@@ -302,7 +302,7 @@ class ApiHairstylistAttendanceController extends Controller
             }
         }
 
-        $result->selectRaw('*, (CASE WHEN hairstylist_attendances.id_hairstylist_attendance IS NULL THEN "Absent" WHEN is_on_time = 1 THEN "On Time" WHEN is_on_time = 0 THEN "Late" ELSE "" END) as status');
+        $result->selectRaw('*, (CASE WHEN (hairstylist_attendances.clock_in IS NULL AND hairstylist_attendances.clock_out IS NULL) THEN "Absent" WHEN is_on_time = 1 THEN "On Time" WHEN is_on_time = 0 THEN "Late" ELSE "" END) as status');
         $result->orderBy('user_hair_stylist.id_user_hair_stylist');
 
         if ($request->page) {

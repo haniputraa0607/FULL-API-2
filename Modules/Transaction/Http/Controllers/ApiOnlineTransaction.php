@@ -49,6 +49,7 @@ use App\Http\Models\TransactionSetting;
 use Modules\Product\Entities\ProductDetail;
 use Modules\Product\Entities\ProductGlobalPrice;
 use Modules\Product\Entities\ProductSpecialPrice;
+use Modules\Recruitment\Entities\HairstylistAttendance;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\SettingFraud\Entities\FraudSetting;
@@ -2423,20 +2424,8 @@ class ApiOnlineTransaction extends Controller
                 continue;
             }
 
-            $bookDay = $day[date('D', strtotime($item['booking_date']))];
-            $idOutletSchedule = OutletSchedule::where('id_outlet', $outlet['id_outlet'])
-                    ->where('day', $bookDay)->first()['id_outlet_schedule']??null;
-            $getTimeShift = app($this->product)->getTimeShift(strtolower($shift), $post['id_outlet'],$idOutletSchedule);
-            if(empty($getTimeShift['start']) && empty($getTimeShift['end'])){
-                $errorHsNotAvailable[] = $item['user_hair_stylist_name']." (".MyHelper::dateFormatInd($bookTime).')';
-                unset($post['item_service'][$key]);
-                continue;
-            }
-
-            $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
-            $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
-            $time = date('H:i', strtotime($item['booking_time']));
-            if((strtotime($time) >= strtotime($shiftTimeStart) && strtotime($time) < strtotime($shiftTimeEnd)) === false){
+            $checkShift = $this->getCheckAvailableShift($item);
+            if($checkShift === false){
                 $errorHsNotAvailable[] = $item['user_hair_stylist_name']." (".MyHelper::dateFormatInd($bookTime).')';
                 unset($post['item_service'][$key]);
                 continue;
@@ -4485,19 +4474,9 @@ class ApiOnlineTransaction extends Controller
                 $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
             }
 
-            $bookDay = $day[date('D', strtotime($item['booking_date']))];
-            $idOutletSchedule = OutletSchedule::where('id_outlet', $outlet['id_outlet'])
-                    ->where('day', $bookDay)->first()['id_outlet_schedule']??null;
-            $getTimeShift = app($this->product)->getTimeShift(strtolower($shift), $post['id_outlet'], $idOutletSchedule);
-            if(empty($getTimeShift['start']) && empty($getTimeShift['end'])){
+            $checkShift = $this->getCheckAvailableShift($item);
+            if($checkShift === false){
                 $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
-            }else{
-                $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
-                $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
-                $time = date('H:i', strtotime($item['booking_time']));
-                if((strtotime($time) >= strtotime($shiftTimeStart) && strtotime($time) < strtotime($shiftTimeEnd)) === false){
-                    $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
-                }
             }
 
             $processingTime = $service['processing_time_service'];
@@ -4641,5 +4620,30 @@ class ApiOnlineTransaction extends Controller
         }
 
         return $update??true;
+    }
+
+    public function getCheckAvailableShift($data){
+        $availableStatus = false;
+
+        //check schedule hs
+        $shift = HairstylistScheduleDate::leftJoin('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
+            ->whereNotNull('approve_at')->where('id_user_hair_stylist', $data['id_user_hair_stylist'])
+            ->whereDate('date', $data['booking_date'])
+            ->first();
+        if($data['booking_date'] == date('Y-m-d') && strtotime($data['booking_time']) >= strtotime($shift['time_start'])){
+            $clockIn = HairstylistAttendance::where('id_user_hair_stylist', $data['id_user_hair_stylist'])
+                    ->where('id_hairstylist_schedule_date', $shift['id_hairstylist_schedule_date'])->first()['clock_in']??null;
+            if(!empty($clockIn)){
+                $availableStatus = true;
+            }
+        }else{
+            $shiftTimeStart = date('H:i:s', strtotime($shift['time_start']));
+            $shiftTimeEnd = date('H:i:s', strtotime($shift['time_end']));
+            if(strtotime($data['booking_time']) >= strtotime($shiftTimeStart) && strtotime($data['booking_time']) < strtotime($shiftTimeEnd)){
+                $availableStatus = true;
+            }
+        }
+
+        return $availableStatus;
     }
 }

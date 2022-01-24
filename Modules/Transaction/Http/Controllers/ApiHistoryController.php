@@ -1512,7 +1512,7 @@ class ApiHistoryController extends Controller
                 'transaction_grandtotal' => $transaction->transaction_grandtotal,
                 'payment_method' => $paymentConfigs[str_replace(' ', '_', strtolower($transaction->payment_type ?: $transaction->type))] ?? ($transaction->payment_type ?: $transaction->type ?: '-'),
                 'transaction_payment_status' => $transaction->transaction_payment_status,
-                'transaction_payment_status_text' => $transaction->transaction_payment_status == 'Completed' ? 'Sukses' : $transaction->transaction_payment_status == 'Pending' ? 'Menunggu Pembayaran' : 'Gagal',
+                'transaction_payment_status_text' => $transaction->transaction_payment_status == 'Completed' ? 'Sukses' : ($transaction->transaction_payment_status == 'Pending' ? 'Menunggu Pembayaran' : 'Gagal'),
                 'outlet_name' => $transaction->outlet->outlet_name,
             ];
         });

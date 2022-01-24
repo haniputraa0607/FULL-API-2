@@ -24,4 +24,9 @@ class HairstylistAttendanceLog extends Model
     {
         return $this->photo_path ? config('url.storage_url_api') . $this->photo_path : null;
     }
+
+    public function hairstylist_attendance()
+    {
+        return $this->belongsTo(HairstylistAttendance::class, 'id_hairstylist_attendance');
+    }
 }

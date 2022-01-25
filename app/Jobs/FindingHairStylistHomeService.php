@@ -89,7 +89,7 @@ class FindingHairStylistHomeService implements ShouldQueue
                             continue;
                         }
 
-                        if(!is_null($getProductDetail['product_detail_stock_item']) && $item['qty'] > $getProductDetail['product_detail_stock_item']){
+                        if(!is_null($getProductDetail['product_detail_stock_item']) && $item['transaction_product_qty'] > $getProductDetail['product_detail_stock_item']){
                             $err[] = 'Stok habis';
                             continue;
                         }

@@ -3,6 +3,7 @@
 namespace Modules\Product\Http\Controllers;
 
 use App\Http\Models\Holiday;
+use Modules\Recruitment\Entities\HairstylistAttendance;
 use Storage;
 use App\Http\Models\OauthAccessToken;
 use App\Http\Models\Product;
@@ -2597,22 +2598,27 @@ class ApiProductController extends Controller
         $res = [];
         foreach ($listHs as $val){
             $availableStatus = false;
+
             //check schedule hs
             $shift = HairstylistScheduleDate::leftJoin('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
-                        ->whereNotNull('approve_at')->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
-                        ->whereDate('date', $bookDate)
-                        ->first()['shift']??'';
-            if(!empty($shift)){
-                $getTimeShift = $this->getTimeShift(strtolower($shift),$post['id_outlet'], $idOutletSchedule);
-                if(!empty($getTimeShift['start']) && !empty($getTimeShift['end'])){
-                    $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
-                    $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
-                    if(strtotime($bookTime) >= strtotime($shiftTimeStart) && strtotime($bookTime) < strtotime($shiftTimeEnd)){
-                        //check available in transaction
-                        $checkAvailable = array_search($val['id_user_hair_stylist'], $hsNotAvailable);
-                        if($checkAvailable === false){
-                            $availableStatus = true;
-                        }
+                ->whereNotNull('approve_at')->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
+                ->whereDate('date', $bookDate)
+                ->first();
+
+            if($bookDate == date('Y-m-d') && strtotime($bookTime) >= strtotime($shift['time_start'])){
+                $clockIn = HairstylistAttendance::where('id_user_hair_stylist', $val['id_user_hair_stylist'])
+                    ->where('id_hairstylist_schedule_date', $shift['id_hairstylist_schedule_date'])->first()['clock_in']??null;
+                if(!empty($clockIn)){
+                    $availableStatus = true;
+                }
+            }else{
+                $shiftTimeStart = date('H:i:s', strtotime($shift['time_start']));
+                $shiftTimeEnd = date('H:i:s', strtotime($shift['time_end']));
+                if(strtotime($bookTime) >= strtotime($shiftTimeStart) && strtotime($bookTime) < strtotime($shiftTimeEnd)){
+                    //check available in transaction
+                    $checkAvailable = array_search($val['id_user_hair_stylist'], $hsNotAvailable);
+                    if($checkAvailable === false){
+                        $availableStatus = true;
                     }
                 }
             }

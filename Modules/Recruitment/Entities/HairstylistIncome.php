@@ -100,7 +100,7 @@ class HairstylistIncome extends Model
                     ->where('transaction_breakdowns.type', 'fee_hs')
                     ->with('transaction')
                     ->get();
-                $trxs->each(function ($item) use ($hsIncome) {
+                $trxs->each(function ($item) use ($hsIncome, $calculation) {
                     $hsIncome->hairstylist_income_details()->updateOrCreate([
                         'source' => $calculation,
                         'reference' => $item->id_transaction_breakdown,
@@ -211,7 +211,10 @@ class HairstylistIncome extends Model
             }
         }
 
-        $hsIncome->update(['status' => 'Pending']);
+        $hsIncome->update([
+            'status' => 'Pending',
+            'amount' => $hsIncome->hairstylist_income_details()->sum('amount'),
+        ]);
 
         return $hsIncome;
     }

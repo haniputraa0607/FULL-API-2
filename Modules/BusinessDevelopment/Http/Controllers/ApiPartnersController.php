@@ -967,26 +967,45 @@ class ApiPartnersController extends Controller
                     "location" => Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->first(),
                     "confir" => ConfirmationLetter::where('id_partner',$post["id_partner"])->first(),
                 ];
-                $initBranch = Icount::ApiConfirmationLetter($data_send);
+                $initBranch = Icount::ApiInitBranch($data_send, $data_send['location']['company_type']);
                 if($initBranch['response']['Status']=='1' && $initBranch['response']['Message']=='success'){
+                    if($data_send['location']['company_type']=='PT IMS'){
+                        $initBranch_ims = Icount::ApiInitBranch($data_send, 'PT IMA');
+                        $data_init_ims = $initBranch_ims['response']['Data'][0];
+                    }
                     $data_init = $initBranch['response']['Data'][0];
                     $partner_init = [
                         "id_business_partner" => $data_init['BusinessPartner']['BusinessPartnerID'],
                         "id_company" => $data_init['BusinessPartner']['CompanyID'],
-                        "id_sales_order" => $data_init['SalesOrderID'],
                         "voucher_no" => $data_init['VoucherNo'],
-                        "id_sales_order_detail" => $data_init['Detail'][0]['SalesOrderDetailID'],
                     ];
                     $location_init = [
                         "id_branch" => $data_init['Branch']['BranchID'],
                         "id_chart_account" => $data_init['Branch']['ChartOfAccountID'],
                     ];
-                    $value_detail[$data_init['Detail'][0]['Name']] = [
-                        "name" => $data_init['Detail'][0]['Name'],
-                        "amount" => $data_init['Amount'],
-                        "tax_value" => $data_init['TaxValue'],
-                        "netto" => $data_init['Netto'],
-                    ];
+
+                    if($data_send['location']['company_type']=='PT IMS'){
+                        $value_detail[$data_init_ims['Detail'][0]['Name']] = [
+                            "name" => $data_init_ims['Detail'][0]['Name'],
+                            "amount" => $data_init_ims['Amount'],
+                            "tax_value" => $data_init_ims['TaxValue'],
+                            "netto" => $data_init_ims['Netto'],
+                        ];
+                        $partner_init['id_business_partner_ima'] = $data_init_ims['BusinessPartner']['BusinessPartnerID'];
+                        $partner_init['id_sales_order'] = $data_init_ims['SalesOrderID'];
+                        $partner_init['id_sales_order_detail'] = $data_init_ims['Detail'][0]['SalesOrderDetailID'];
+                        $location_init['id_branch_ima'] = $data_init_ims['Branch']['BranchID'];
+                    }else{
+                        $partner_init['id_sales_order'] = $data_init['SalesOrderID'];
+                        $partner_init['id_sales_order_detail'] = $data_init['Detail'][0]['SalesOrderDetailID'];
+                        $value_detail[$data_init['Detail'][0]['Name']] = [
+                            "name" => $data_init['Detail'][0]['Name'],
+                            "amount" => $data_init['Amount'],
+                            "tax_value" => $data_init['TaxValue'],
+                            "netto" => $data_init['Netto'],
+                        ];    
+                    }
+                    
                     $location_init['value_detail'] = json_encode($value_detail);
                     $update_partner_init = Partner::where('id_partner', $post['id_partner'])->update($partner_init);
                     if($update_partner_init){
@@ -1000,7 +1019,7 @@ class ApiPartnersController extends Controller
                             "location" => Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->first(),
                             "confir" => ConfirmationLetter::where('id_partner',$post["id_partner"])->first(),
                         ];
-                        $invoiceCL = Icount::ApiInvoiceConfirmationLetter($data_send_2);
+                        $invoiceCL = Icount::ApiInvoiceConfirmationLetter($data_send_2, $data_send_2['location']['company_type']);
                         if($invoiceCL['response']['Status']=='1' && $invoiceCL['response']['Message']=='success'){
                             $data_invoCL = $invoiceCL['response']['Data'][0];
                             $val = Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->get('value_detail')[0]['value_detail'];

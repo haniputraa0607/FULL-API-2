@@ -435,6 +435,8 @@ class ApiProductServiceController extends Controller
             $available = true;
             $availableText = 'Tersedia';
             //check schedule hs
+            $shiftTimeStart = null;
+            $shiftTimeEnd = null;
             $shift = HairstylistScheduleDate::leftJoin('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
                     ->whereNotNull('approve_at')->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
                     ->whereDate('date', $bookDate)

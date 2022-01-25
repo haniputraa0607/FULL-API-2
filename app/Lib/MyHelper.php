@@ -3259,4 +3259,16 @@ class MyHelper{
     	}
     	return $time;
     }
+
+    /**
+     * DANGER!!! This code allows an irresponsible person to damage the system. 
+     * Make sure the formula is always validated and cannot be input by just anyone.
+     * @return int calculation result
+     */
+    public static function calculator($formula, $variables)
+    {
+    	extract($variables);
+    	$formula = preg_replace('/([a-zA-Z][a-zA-Z0-9_]*)/', '$$1', $formula);
+    	return eval('return '. $formula . ';');
+    }
 }

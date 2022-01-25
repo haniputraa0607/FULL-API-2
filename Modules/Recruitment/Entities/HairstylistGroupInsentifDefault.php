@@ -19,7 +19,8 @@ class HairstylistGroupInsentifDefault extends Model
 		'name',
 		'value',
 		'formula',
-                'created_at',   
-                'updated_at'
+        'created_at',   
+        'updated_at',
+        'code'
 	];
 }

@@ -195,7 +195,7 @@ class ApiPartnersController extends Controller
                             "latitude"   => $location['latitude'],
                             "longitude"   => $location['longitude'],
                             "width"   => $location['width'],
-                            "height"   => $location['height'],
+                            "length"   => $location['length'],
                             "location_large"   => $location['location_large'],
                             "location_type"   => $location['location_type'],
                             "pic_name"   => $location['pic_name'],

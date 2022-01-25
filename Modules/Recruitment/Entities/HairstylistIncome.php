@@ -4,6 +4,7 @@ namespace Modules\Recruitment\Entities;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Lib\MyHelper;
+use App\Http\Models\TransactionProduct;
 
 class HairstylistIncome extends Model
 {
@@ -25,15 +26,15 @@ class HairstylistIncome extends Model
         return $this->hasMany(HairstylistIncomeDetail::class, 'id_hairstylist_income');
     }
 
-    public function calculateIncome(UserHairStylist $hs, $type = 'end')
+    public static function calculateIncome(UserHairStylist $hs, $type = 'end')
     {
         if ($type == 'middle') {
             $date = (int) MyHelper::setting('hs_income_cut_off_mid_date', 'value', 10);
-            $calculations = json_decode(MyHelper::setting('hs_income_calculation_mid', 'value', '[]'), true) ?? [];
+            $calculations = json_decode(MyHelper::setting('hs_income_calculation_mid', 'value_text', '[]'), true) ?? [];
         } else {
             $type = 'end';
             $date = (int) MyHelper::setting('hs_income_cut_off_end_date', 'value', 25);
-            $calculations = json_decode(MyHelper::setting('hs_income_calculation_end', 'value', '[]'), true) ?? [];
+            $calculations = json_decode(MyHelper::setting('hs_income_calculation_end', 'value_text', '[]'), true) ?? [];
         }
 
         if (!$calculations) {
@@ -71,7 +72,7 @@ class HairstylistIncome extends Model
             $endDate = date('Y-m-d', ("$year-" . ($month + 1) . "-01 -1 days"));
         }
 
-        $hsIncome = static::updateOrCeate([
+        $hsIncome = static::updateOrCreate([
             'id_user_hair_stylist' => $hs->id_user_hair_stylist,
             'type' => $type,
             'periode' => date('Y-m-d', strtotime("$year-$month-$date")),
@@ -209,6 +210,8 @@ class HairstylistIncome extends Model
                 }
             }
         }
+
+        $hsIncome->update(['status' => 'Pending']);
 
         return $hsIncome;
     }

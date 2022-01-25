@@ -41,7 +41,8 @@ class ProductIcount extends Model
         'id_cogs',
         'id_purchase',
         'id_sales',
-        'id_deleted',
+        'is_deleted',
+        'is_actived'
 	];
 
     public function addLogStockProductIcount($qty, $unit, $source, $id_refrence = null, $desctiption = null, $id_outlet = null){

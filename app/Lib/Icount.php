@@ -17,21 +17,27 @@ class Icount
         date_default_timezone_set('Asia/Jakarta');
     }
 
-    private static function getBaseUrl()
+    private static function getBaseUrl($company = null)
 	{
-		$baseUrl = env('ICOUNT_URL', null);
+        if($company == 'PT IMS'){
+            $baseUrl = env('ICOUNT_URL_IMS', null);    
+        }elseif($company == 'PT IMA'){
+            $baseUrl = env('ICOUNT_URL_IMA', null);
+        }else{
+            $baseUrl = env('ICOUNT_URL', null);
+        }
         return $baseUrl;
 	}
 
-    public static function sendRequest($method = 'GET', $url = null, $request = null, $logType = null, $orderId = null){
+    public static function sendRequest($method = 'GET', $url = null, $request = null, $company = null, $logType = null, $orderId = null){
         $method = strtolower($method);
         $header = [
             "Content-Type" => "application/x-www-form-urlencoded"
         ];
         if ($method == 'get') {
-            $response = MyHelper::getWithTimeout(self::getBaseUrl() . $url, null, $request, $header, 65, $fullResponse);
+            $response = MyHelper::getWithTimeout(self::getBaseUrl($company) . $url, null, $request, $header, 65, $fullResponse);
         }else{
-            $response = MyHelper::postWithTimeout(self::getBaseUrl() . $url, null, $request, 1, $header, 65, $fullResponse);
+            $response = MyHelper::postWithTimeout(self::getBaseUrl($company) . $url, null, $request, 1, $header, 65, $fullResponse);
         }   
 
         try {
@@ -47,7 +53,7 @@ class Icount
             $log_api_array = [
                 'type'              => $logType,
                 'id_reference'      => $orderId,
-                'request_url'       => self::getBaseUrl() . $url,
+                'request_url'       => self::getBaseUrl($company) . $url,
                 'request_method'    => strtoupper($method),
                 'request_parameter' => json_encode($request),
                 'response_body'     => json_encode($log_response),
@@ -62,7 +68,7 @@ class Icount
         return $response;
     }
 
-    public static function ApiConfirmationLetter($request, $logType = null, $orderId = null){
+    public static function ApiInitBranch($request, $company = null, $logType = null, $orderId = null){
         $data = [
             "BranchName" => $request['location']['name'],
             "BranchCode" => $request['location']['code'],
@@ -93,19 +99,21 @@ class Icount
                     "Qty" => "100",
                     "Unit" => "PCS",
                     "Ratio" => "1",
-                    "Price" => $request['location']['total_payment']/100,
+                    "Price" => $request['location']['partnership_fee']/100,
                     "Disc" => "0",
                     "DiscRp" => "0",
                     "Description" => ""
                 ]
             ]
         ];
+
         if(isset($request['partner']['id_business_partner']) && !empty($request['partner']['id_business_partner'])){
             $data['BusinessPartnerID'] = $request['partner']['id_business_partner'];
         }
-        return self::sendRequest('POST', '/partner_initiation/init_branch_code_order', $data, $logType, $orderId);
+
+        return self::sendRequest('POST', '/partner_initiation/init_branch_code_order', $data, $company, $logType, $orderId);
     }
-    public static function ApiInvoiceConfirmationLetter($request, $logType = null, $orderId = null){
+    public static function ApiInvoiceConfirmationLetter($request, $company = null, $logType = null, $orderId = null){
         $data = [
             "SalesOrderID" => $request['partner']['id_sales_order'],
             "VoucherNo" => $request['partner']['voucher_no'],
@@ -122,16 +130,20 @@ class Icount
                     "Qty" => "20",
                     "Unit" => "PCS",
                     "Ratio" => "1",
-                    "Price" => $request['location']['total_payment']/100,
+                    "Price" => $request['location']['partnership_fee']/100,
                     "Disc" => "0",
                     "DiscRp" => "0",
                     "Description" => ""
                 ]
             ]
         ];
-        return self::sendRequest('POST', '/partner_initiation/do_invoice_cl', $data, $logType, $orderId);
+        if($company=='PT IMS'){
+            $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
+            $data['BranchID'] = $request['location']['id_branch_ima'];
+        }
+        return self::sendRequest('POST', '/partner_initiation/do_invoice_cl', $data, 'PT IMA', $logType, $orderId);
     }
-    public static function ApiInvoiceSPK($request, $logType = null, $orderId = null){
+    public static function ApiInvoiceSPK($request, $company = null, $logType = null, $orderId = null){
         $data = [
             "SalesOrderID" => $request['partner']['id_sales_order'],
             "VoucherNo" => $request['partner']['voucher_no'],
@@ -148,16 +160,16 @@ class Icount
                     "Qty" => 30,
                     "Unit" => "PCS",
                     "Ratio" => "1",
-                    "Price" => $request['location']['total_payment']/100,
+                    "Price" => $request['location']['partnership_fee']/100,
                     "Disc" => "0",
                     "DiscRp" => "0",
                     "Description" => ""
                 ]
             ]
         ];
-        return self::sendRequest('POST', '/partner_initiation/do_invoice_spk', $data, $logType, $orderId);
+        return self::sendRequest('POST', '/partner_initiation/do_invoice_spk', $data, $company, $logType, $orderId);
     }
-    public static function ApiInvoiceBAP($request, $logType = null, $orderId = null){
+    public static function ApiInvoiceBAP($request, $company = null, $logType = null, $orderId = null){
         $data = [
             "SalesOrderID" => $request['partner']['id_sales_order'],
             "VoucherNo" => $request['partner']['voucher_no'],
@@ -174,14 +186,14 @@ class Icount
                     "Qty" => 50,
                     "Unit" => "PCS",
                     "Ratio" => "1",
-                    "Price" => $request['location']['total_payment']/100,
+                    "Price" => $request['location']['partnership_fee']/100,
                     "Disc" => "0",
                     "DiscRp" => "0",
                     "Description" => ""
                 ]
             ]
         ];
-        return self::sendRequest('POST', '/partner_initiation/do_invoice_bap', $data, $logType, $orderId);
+        return self::sendRequest('POST', '/partner_initiation/do_invoice_bap', $data, $company, $logType, $orderId);
     }
     public static function ApiPurchaseSPK($request, $logType = null, $orderId = null){
         $detail = array();
@@ -234,7 +246,7 @@ class Icount
         return self::sendRequest('POST', '/partner_initiation/purchase_request_spk', $data, $logType, $orderId);
     }
 
-    public static function ApiCreateOrderPOO($request, $logType = null, $orderId = null){
+    public static function ApiCreateOrderPOO($request, $company = null, $logType = null, $orderId = null){
         if(isset($request['transaction']) && !empty($request['transaction'])){
             $penjulana_outlet = Setting::where('key','penjualan_outlet')->first();
             $availablePayment = config('payment_method');
@@ -245,7 +257,7 @@ class Icount
             // return $availablePayment;
             $data = [
                 "BranchID" => $request['id_branch'],
-                "BusinessPartnerID" => $request['id_branch'],
+                "BusinessPartnerID" => $request['id_business_partner'],
                 "VoucherNo" => "[AUTO]",
                 "TermOfPaymentID" => '11',
                 "TransDate" => $request['trans_date'],
@@ -287,7 +299,7 @@ class Icount
                 ];
                 
             }
-            return self::sendRequest('POST', '/sales/create_order_poo', $data, $logType, $orderId);
+            return self::sendRequest('POST', '/sales/create_order_poo', $data, $company, $logType, $orderId);
         }else{
             $data = [];
             return $data;
@@ -328,7 +340,7 @@ class Icount
         ];
         return self::sendRequest('POST', '/sales/sharing_management_fee', $data, $logType, $orderId);
     }
-    public static function ManagementFee($request, $logType = null, $orderId = null){
+    public static function ManagementFee($request, $company = null, $logType = null, $orderId = null){
         $management_fee = Setting::where('key','management_fee')->first();
         if($request['disc']??0 != 0){
             $disc = ($request['disc']*100)/($request['disc']+$request['transfer']);
@@ -360,13 +372,13 @@ class Icount
                 ],
             ]
         ];
-        return self::sendRequest('POST', '/sales/sharing_management_fee', $data, $logType, $orderId);
+        return self::sendRequest('POST', '/sales/sharing_management_fee', $data, $company, $logType, $orderId);
     }
     public static function get($request, $logType = null, $orderId = null){
         return self::sendRequest('GET', '/branch/list', $request, $logType, $orderId);
     }
-    public static function ItemList($request = null, $logType = null, $orderId = null){
-        return self::sendRequest('GET', '/item/list?Limit=20', $request, $logType, $orderId);
+    public static function ItemList($page = 1, $request = null, $company = null, $logType = null, $orderId = null){
+        return self::sendRequest('GET', '/item/list?Limit=20&Page='.$page , $request, $company, $logType, $orderId);
     }
     public static function ChartOfAccount($request = null, $logType = null, $orderId = null){
         return self::sendRequest('GET', '/chart_of_account/list', $request, $logType, $orderId);

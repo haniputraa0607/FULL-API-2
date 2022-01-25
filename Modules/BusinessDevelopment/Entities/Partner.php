@@ -54,7 +54,8 @@ class Partner extends Authenticatable
 		'title',
 		'contact_person',
 		'mobile',
-		'notes'
+		'notes',
+		
 	];
         
     public function partner_locations(){

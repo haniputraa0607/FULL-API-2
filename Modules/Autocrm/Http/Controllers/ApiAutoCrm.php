@@ -554,6 +554,8 @@ class ApiAutoCrm extends Controller
                         if (empty($recipient_type) && isset($variables['id_transaction']) && !empty($variables['id_transaction'])) {
                             $inboxFrom = Transaction::where('transactions.id_transaction', $variables['id_transaction'])->pluck('transaction_from')->first();
                         }
+
+                        $dataOptional['type'] = $crm['autocrm_push_clickto'];
                         //======set id reference and type
                         switch ($crm['autocrm_push_clickto']){
                             case 'No Action':
@@ -574,7 +576,7 @@ class ApiAutoCrm extends Controller
                             case 'history_payment':
                             case 'History Transaction' :
                                 if($crm['autocrm_push_clickto'] == 'History Transaction'){
-                                    $dataOptional['autocrm_push_clickto'] = 'history_'.str_replace('-', '_', $inboxFrom);
+                                    $dataOptional['type'] = 'history_'.str_replace('-', '_', $inboxFrom);
                                 }
 
                                 $dataOptional['id_reference'] = (!empty($variables['id_transaction']) ? $variables['id_transaction'] : 0);
@@ -652,15 +654,13 @@ class ApiAutoCrm extends Controller
                                     }
                                 break;
                             case 'home_service_history' :
-                                $dataOptional['autocrm_push_clickto'] = $variables['mitra_get_order_clickto']??'home_service_history';
+                                $dataOptional['type'] = $variables['mitra_get_order_clickto']??'home_service_history';
                                 break;
                             default :
                                 $dataOptional['type'] = 'Home';
                                 $dataOptional['id_reference'] = 0;
                                 break;
                         }
-
-                        $dataOptional['type'] = $crm['autocrm_push_clickto'];
 
 						if (isset($crm['autocrm_push_link']) && $crm['autocrm_push_link'] != null) {
 							if($dataOptional['type'] == 'Link')

@@ -467,14 +467,6 @@ class ApiTransactionHomeService extends Controller
             }
         }
 
-        $address = UserAddress::where('id_user', $user->id)->where('id_user_address', $post['id_user_address'])->first();
-        if(empty($address)){
-            return response()->json([
-                'status'    => 'fail',
-                'messages'  => ['Address user not found']
-            ]);
-        }
-
         unset($address['description']);
         $result['customer'] = [
             "name" => $user['name'],
@@ -736,14 +728,6 @@ class ApiTransactionHomeService extends Controller
             }
         }
         $post['tax'] = ($outlet['is_tax']/100) * $post['subtotal'];
-
-        $address = UserAddress::where('id_user', $user->id)->where('id_user_address', $post['id_user_address'])->first();
-        if(empty($address)){
-            return response()->json([
-                'status'    => 'fail',
-                'messages'  => ['Address user not found']
-            ]);
-        }
 
         if (isset($post['transaction_payment_status'])) {
             $post['transaction_payment_status'] = $post['transaction_payment_status'];

@@ -1069,7 +1069,7 @@ class ApiFraud extends Controller
 
     function logFraud(Request $request, $type){
         $post = $request->json()->all();
-        $date_start = date('Y-m-d');
+        $date_start = date('Y-m').'-01';
         $date_end = date('Y-m-d');
 
         if(isset($post['date_start'])){
@@ -1113,7 +1113,7 @@ class ApiFraud extends Controller
                     ->whereNull('transaction_pickups.reject_at')
                     ->whereRaw("DATE(fraud_detection_log_transaction_day.created_at) BETWEEN '".$date_start."' AND '".$date_end."'")
                     ->where('fraud_detection_log_transaction_day.status','Active')
-                    ->select('users.name', 'users.phone','fraud_detection_log_transaction_day.*', 'transactions.*')
+                    ->select('users.name', 'users.phone','fraud_detection_log_transaction_day.*', 'transactions.*', 'fraud_detection_log_transaction_day.created_at as log_date')
                     ->orderBy('fraud_detection_log_transaction_day.created_at','desc')->groupBy('fraud_detection_log_transaction_day.id_fraud_detection_log_transaction_day');
             }
 
@@ -1140,7 +1140,7 @@ class ApiFraud extends Controller
                     ->whereNull('transaction_pickups.reject_at')
                     ->whereRaw("DATE(fraud_detection_log_transaction_week.created_at) BETWEEN '".$date_start."' AND '".$date_end."'")
                     ->where('fraud_detection_log_transaction_week.status','Active')
-                    ->select('users.name', 'users.phone','fraud_detection_log_transaction_week.*', 'transactions.*')
+                    ->select('users.name', 'users.phone','fraud_detection_log_transaction_week.*', 'transactions.*', 'fraud_detection_log_transaction_week.created_at as log_date')
                     ->orderBy('fraud_detection_log_transaction_week.created_at','desc')->groupBy('fraud_detection_log_transaction_week.id_fraud_detection_log_transaction_week');
             }
         }elseif($type == 'transaction-between'){
@@ -1402,10 +1402,11 @@ class ApiFraud extends Controller
                     ->groupBy('transactions.id_transaction')
                     ->select('transactions.*', 'outlets.outlet_name', 'fraud_detection_log_transaction_in_between.*')
                     ->with(['user'])->get()->toArray();
-
+        $detailUser = User::where('id',$post['id_user'])->first();
         return response()->json([
             'status' => 'success',
             'result' => [
+                'detail_user' => $detailUser,
                 'detail_log' => $detailLog
             ]
         ]);
@@ -1509,7 +1510,7 @@ class ApiFraud extends Controller
 
     function listUserFraud(Request $request){
         $post = $request->json()->all();
-        $date_start = date('Y-m-d');
+        $date_start = date('Y-m').'-01';
         $date_end = date('Y-m-d');
 
         if(isset($post['date_start'])){

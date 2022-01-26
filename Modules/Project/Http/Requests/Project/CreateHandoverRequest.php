@@ -16,7 +16,6 @@ class CreateHandoverRequest extends FormRequest
         return [
             'title'       => 'required',
 //            'attachment'        => 'required',
-            'tanggal_serah_terima'        => 'required',
             'soft_opening'        => 'required',
             'grand_opening'        => 'required',
             'id_project'        => 'required|project',

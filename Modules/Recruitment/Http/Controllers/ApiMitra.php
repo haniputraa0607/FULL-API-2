@@ -1629,13 +1629,14 @@ class ApiMitra extends Controller
 
         $hs = $request->user();
         $hs->load('bank_account', 'bank_account.bank_name');
+        $month = $request->month;
 
         $incomes = HairstylistIncome::whereMonth('periode', date('m', strtotime($request->month)))
         	->whereYear('periode', date('Y', strtotime($request->month)))
         	->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
         	->get();
 
-        if (!$incomes) {
+        if (!$incomes->count()) {
         	return [
         		'status' => 'fail',
         		'messages' => ['Belum ada data untuk bulan ini']
@@ -1644,9 +1645,9 @@ class ApiMitra extends Controller
 
         $result = [
             'month' => $month,
-            'bank_name' => $hs->bank_account->bank_name->bank_name,
-            'account_number' => $hs->bank_account->beneficiary_account,
-            'account_name' => $hs->bank_account->beneficiary_name,
+            'bank_name' => $hs->bank_account ? $hs->bank_account->bank_name->bank_name : '-',
+            'account_number' => $hs->bank_account ? $hs->bank_account->beneficiary_account : '-',
+            'account_name' => $hs->bank_account ? $hs->bank_account->beneficiary_name : '-',
             'footer' => [
                 'footer_title' => 'Total diterima bulan ini setelah potongan',
                 'footer_content' => 'Dalam perhitungan', // TODO penyesuaian konten
@@ -1827,5 +1828,6 @@ class ApiMitra extends Controller
         	$cutPart['footer']['title_content'] = MyHelper::requestNumber($subtotalCut, '_CURRENCY');
         	$result['salary_cuts'][] = $cutPart;
         }
+        return MyHelper::checkGet($result);
     }
 }

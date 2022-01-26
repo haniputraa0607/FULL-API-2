@@ -52,7 +52,7 @@ class HairstylistIncome extends Model
             $month = (int) date('m');
         }
 
-        $exists = static::whereDate('periode', "$year-$month-$date")->where('type', $type)->where('status', '<>', 'Draft')->exists();
+        $exists = static::where('id_user_hair_stylist', $hs->id_user_hair_stylist)->whereDate('periode', "$year-$month-$date")->where('type', $type)->where('status', '<>', 'Draft')->exists();
         if ($exists) {
             throw new \Exception("Hairstylist income for periode $type $month/$year already exists");
         }

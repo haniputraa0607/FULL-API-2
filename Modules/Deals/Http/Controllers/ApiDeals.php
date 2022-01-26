@@ -261,6 +261,12 @@ class ApiDeals extends Controller
             $data['user_limit'] = 0;
         }
 
+        if (isset($post['total_deals_user'])) {
+            $data['total_deals_user'] = $post['total_deals_user'];
+        } else {
+            $data['total_deals_user'] = 0;
+        }
+
         if (isset($post['is_online'])) {
             $data['is_online'] = 1;
         } else {

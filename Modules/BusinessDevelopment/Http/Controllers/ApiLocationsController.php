@@ -740,7 +740,7 @@ class ApiLocationsController extends Controller
                 "latitude"   => $data_request['latitude'],
                 "longitude"   => $data_request['longitude'],
                 "width"   => $data_request['width'],
-                "height"   => $data_request['height'],
+                "length"   => $data_request['length'],
                 "location_large"   => $data_request['location_large'],
                 "location_type"   => $data_request['location_type'],
                 "pic_name"   => $data_request['pic_name'],

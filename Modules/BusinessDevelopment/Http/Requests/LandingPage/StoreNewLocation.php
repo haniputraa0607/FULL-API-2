@@ -32,7 +32,7 @@ class StoreNewLocation extends FormRequest
                 "latitude"   => 'required',
                 "longitude"   => 'required',
                 "width"   => 'required|integer',
-                "height"   => 'required|integer',
+                "length"   => 'required|integer',
                 "location_large"   => 'required|integer',
                 "location_type"   => 'required|string',
                 "pic_name"   => 'required|string',

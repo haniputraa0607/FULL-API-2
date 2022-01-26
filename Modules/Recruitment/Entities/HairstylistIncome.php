@@ -100,10 +100,10 @@ class HairstylistIncome extends Model
                     ->where('transaction_breakdowns.type', 'fee_hs')
                     ->with('transaction')
                     ->get();
-                $trxs->each(function ($item) use ($hsIncome) {
+                $trxs->each(function ($item) use ($hsIncome, $calculation) {
                     $hsIncome->hairstylist_income_details()->updateOrCreate([
                         'source' => $calculation,
-                        'reference' => $item->id_transaction_breakdown,
+                        'reference' => $item->id_transaction_product,
                     ],
                     [
                         'id_outlet' => $item->transaction->id_outlet,
@@ -152,7 +152,7 @@ class HairstylistIncome extends Model
 
                     $hsIncome->hairstylist_income_details()->updateOrCreate([
                         'source' => $calculation,
-                        'reference' => $hsIncome->id_hairstylist_income . '#' . $id_outlet,
+                        'reference' => $incentive->id_hairstylist_group_default_insentifs,
                     ],
                     [
                         'id_outlet' => $id_outlet,
@@ -201,7 +201,7 @@ class HairstylistIncome extends Model
 
                     $hsIncome->hairstylist_income_details()->updateOrCreate([
                         'source' => $calculation,
-                        'reference' => $hsIncome->id_hairstylist_income . '#' . $id_outlet,
+                        'reference' => $salary_cut->id_hairstylist_group_default_potongans,
                     ],
                     [
                         'id_outlet' => $id_outlet,
@@ -211,7 +211,10 @@ class HairstylistIncome extends Model
             }
         }
 
-        $hsIncome->update(['status' => 'Pending']);
+        $hsIncome->update([
+            'status' => 'Pending',
+            'amount' => $hsIncome->hairstylist_income_details()->sum('amount'),
+        ]);
 
         return $hsIncome;
     }

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use SMartins\PassportMultiauth\HasMultiAuthApiTokens;
 use Hash;
 use App\Lib\MyHelper;
+use Modules\Disburse\Entities\BankAccount;
 
 class UserHairStylist extends Authenticatable
 {
@@ -80,6 +81,11 @@ class UserHairStylist extends Authenticatable
     {
         $password = md5($this->password);
         return $password.'15F1AB77951B5JAO';
+    }
+
+    public function bank_account()
+    {
+        return $this->belongsTo(BankAccount::class, 'id_bank_account');
     }
 
     public function getUserHairStylistPhotoAttribute($value)

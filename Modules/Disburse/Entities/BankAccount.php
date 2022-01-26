@@ -23,4 +23,9 @@ class BankAccount extends Model
         return $this->hasMany(\Modules\Disburse\Entities\BankAccountOutlet::class, 'id_bank_account')
             ->join('outlets', 'outlets.id_outlet', 'bank_account_outlets.id_outlet');
     }
+
+    public function bank_name()
+    {
+        return $this->belongsTo(BankName::class, 'id_bank_name');
+    }
 }

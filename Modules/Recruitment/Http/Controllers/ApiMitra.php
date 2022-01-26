@@ -1636,12 +1636,6 @@ class ApiMitra extends Controller
         	->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
         	->get();
 
-        if (!$incomes->count()) {
-        	return [
-        		'status' => 'fail',
-        		'messages' => ['Belum ada data untuk bulan ini']
-        	];
-        }
 
         $result = [
             'month' => $month,
@@ -1650,16 +1644,25 @@ class ApiMitra extends Controller
             'account_name' => $hs->bank_account ? $hs->bank_account->beneficiary_name : '-',
             'footer' => [
                 'footer_title' => 'Total diterima bulan ini setelah potongan',
-                'footer_content' => 'Dalam perhitungan', // TODO penyesuaian konten
+                'footer_content' => 'Dalam perhitungan',
             ],
             'incomes' => [],
             'attendances' => [],
             'salary_cuts' => []
         ];
 
+        if (!$incomes->count()) {
+        	$result['footer'] = [
+                'footer_title' => 'Belum ada data untuk pendapatan bulan ini',
+                'footer_content' => '-',
+        	];
+        	return MyHelper::checkGet($result);
+        }
+
+        $total = 0;
         // Incomes
         foreach ($incomes as $income) {
-        	$incomePart = [ // TODO penyesuaian konten
+        	$incomePart = [
                 'name' => $income->type == 'middle' ? 'Tengah Bulan' : 'Akhir Bulan',
                 'icon' => $income->type == 'middle' ? 'half' : 'full',
                 'footer' => [
@@ -1723,6 +1726,7 @@ class ApiMitra extends Controller
         		$incomePart['list'][] = $incomeOutlet;
         	}
         	$incomePart['footer']['title_content'] = MyHelper::requestNumber($subtotalPart, '_CURRENCY');
+        	$total += $subtotalPart;
         	$result['incomes'][] = $incomePart;
         }
 
@@ -1781,7 +1785,7 @@ class ApiMitra extends Controller
 
         // Incomes
         foreach ($incomes as $income) {
-        	$cutPart = [ // TODO penyesuaian konten
+        	$cutPart = [
                 'name' => $income->type == 'middle' ? 'Tengah Bulan' : 'Akhir Bulan',
                 'icon' => $income->type == 'middle' ? 'half' : 'full',
                 'footer' => [
@@ -1802,7 +1806,7 @@ class ApiMitra extends Controller
         		->pluck('id_outlet');
 
     		$cutOutlet = [
-                'header_title' => $outlet->outlet_name ? 'Outlet' : null,
+                'header_title' => null,
                 'header_content' => $outlet->outlet_name ?? null,
                 'footer_title' => null,
                 'footer_content' => null, 
@@ -1813,7 +1817,7 @@ class ApiMitra extends Controller
     			->selectRaw('hairstylist_income_details.id_hairstylist_income, hairstylist_group_default_potongans.name, SUM(amount)')
     			->leftJoin('hairstylist_group_default_potongans', 'hairstylist_group_default_potongans.id_hairstylist_group_default_potongans', 'hairstylist_income_details.reference')
     			->where('hairstylist_income_details.source', 'like', 'salary_cut_%')
-    			->groupBy('hairstylist_group_default_potongans.id_hairstylist_group_potongans')
+    			->groupBy('hairstylist_group_default_potongans.id_hairstylist_group_default_potongans')
     			->get();
 
     		foreach ($cutDetails as $cutDetail) {
@@ -1826,8 +1830,10 @@ class ApiMitra extends Controller
     		$cutPart['list'][] = $cutOutlet;
 
         	$cutPart['footer']['title_content'] = MyHelper::requestNumber($subtotalCut, '_CURRENCY');
+        	$total -= $subtotalCut;
         	$result['salary_cuts'][] = $cutPart;
         }
+        $result['footer']['footer_content'] =  MyHelper::requestNumber($total, '_CURRENCY');
         return MyHelper::checkGet($result);
     }
 }

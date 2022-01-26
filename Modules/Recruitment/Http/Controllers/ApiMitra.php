@@ -11,6 +11,7 @@ use Illuminate\Routing\Controller;
 use App\Http\Models\Setting;
 use App\Http\Models\Outlet;
 use App\Http\Models\OutletSchedule;
+use App\Http\Models\Product;
 
 use Modules\Franchise\Entities\TransactionProduct;
 use Modules\Outlet\Entities\OutletTimeShift;
@@ -22,6 +23,8 @@ use Modules\Recruitment\Entities\HairstylistSchedule;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use Modules\Recruitment\Entities\HairstylistAnnouncement;
 use Modules\Recruitment\Entities\HairstylistInbox;
+use Modules\Recruitment\Entities\HairstylistIncome;
+use Modules\Recruitment\Entities\HairstylistAttendance;
 
 use Modules\Transaction\Entities\TransactionPaymentCash;
 use Modules\Transaction\Entities\TransactionHomeService;
@@ -1616,5 +1619,213 @@ class ApiMitra extends Controller
             ];
         }
         return response()->json($result);
+    }
+
+    public function commissionDetail(Request $request)
+    {
+        $request->validate([
+            'month' => 'date_format:Y-m|sometimes|nullable',
+        ]);
+
+        $hs = $request->user();
+        $hs->load('bank_account', 'bank_account.bank_name');
+
+        $incomes = HairstylistIncome::whereMonth('periode', date('m', strtotime($request->month)))
+        	->whereYear('periode', date('Y', strtotime($request->month)))
+        	->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+        	->get();
+
+        if (!$incomes) {
+        	return [
+        		'status' => 'fail',
+        		'messages' => ['Belum ada data untuk bulan ini']
+        	];
+        }
+
+        $result = [
+            'month' => $month,
+            'bank_name' => $hs->bank_account->bank_name->bank_name,
+            'account_number' => $hs->bank_account->beneficiary_account,
+            'account_name' => $hs->bank_account->beneficiary_name,
+            'footer' => [
+                'footer_title' => 'Total diterima bulan ini setelah potongan',
+                'footer_content' => 'Dalam perhitungan', // TODO penyesuaian konten
+            ],
+            'incomes' => [],
+            'attendances' => [],
+            'salary_cuts' => []
+        ];
+
+        // Incomes
+        foreach ($incomes as $income) {
+        	$incomePart = [ // TODO penyesuaian konten
+                'name' => $income->type == 'middle' ? 'Tengah Bulan' : 'Akhir Bulan',
+                'icon' => $income->type == 'middle' ? 'half' : 'full',
+                'footer' => [
+                    'title_title' => $income->type == 'middle' ?'Penerimaan Tengah Bulan' : 'Penerimaan Akhir bulan',
+                    'title_content' => 'Dalam Perhitungan', 
+                    'subtitle_title' => $income->completed_at ? 'Ditransfer' : 'Belum Ditransfer',
+                    'subtitle_content' => $income->completed_at ? date('d F Y', strtotime($income->completed_at)) : '-',
+                ],
+                'list' => [],
+        	];
+
+        	$subtotalPart = 0;
+        	$idOutlets = $income->hairstylist_income_details()
+        		->where('source', 'not like', 'salary_cut_%')
+        		->select('id_outlet')
+        		->distinct()
+        		->get()
+        		->pluck('id_outlet');
+        	foreach ($idOutlets as $idOutlet) {
+        		$outlet = Outlet::find($idOutlet);
+        		$incomeOutlet = [
+                    'header_title' => 'Outlet',
+                    'header_content' => $outlet->outlet_name ?? '-',
+                    'footer_title' => 'Total',
+                    'footer_content' => 'Dalam Perhitungan', 
+                    'contents' => []
+        		];
+
+	        	$subtotalOutlet = 0;
+        		$incentiveDetails = $income->hairstylist_income_details()
+        			->leftJoin('hairstylist_group_default_insentifs', 'hairstylist_group_default_insentifs.id_hairstylist_group_default_insentifs', 'hairstylist_income_details.reference')
+        			->where('hairstylist_income_details.source', 'like', 'incentive_%')
+        			->where('hairstylist_income_details.id_outlet', $outlet->id_outlet)
+        			->get();
+
+        		foreach ($incentiveDetails as $incentiveDetail) {
+        			$incomeOutlet['contents'][] = [
+                        'title' => $incentiveDetail->name,
+                        'content' => MyHelper::requestNumber($incentiveDetail->amount, '_CURRENCY'),
+        			];
+        			$subtotalOutlet += $incentiveDetail->amount;
+        		}
+
+        		$commissionDetails = $income->hairstylist_income_details()
+        			->leftJoin('transaction_products', 'transaction_products.id_transaction_product', 'hairstylist_income_details.reference')
+        			->where('hairstylist_income_details.source', 'product_commission')
+        			->where('hairstylist_income_details.id_outlet', $outlet->id_outlet)
+        			->get()->groupBy('id_product');
+
+        		foreach ($commissionDetails as $id_product => $commissionDetail) {
+        			$product = Product::find($id_product);
+        			$incomeOutlet['contents'][] = [
+                        'title' => 'Komisi ' . ($product->product_name ?? '-'),
+                        'content' => MyHelper::requestNumber($commissionDetail->sum('amount'), '_CURRENCY'),
+        			];
+        			$subtotalOutlet += $commissionDetail->sum('amount');
+        		}
+
+        		$incomeOutlet['footer_content'] = MyHelper::requestNumber($subtotalOutlet, '_CURRENCY');
+        		$subtotalPart += $subtotalOutlet;
+        		$incomePart['list'][] = $incomeOutlet;
+        	}
+        	$incomePart['footer']['title_content'] = MyHelper::requestNumber($subtotalPart, '_CURRENCY');
+        	$result['incomes'][] = $incomePart;
+        }
+
+        //Attendances
+        foreach ($incomes as $income) {
+        	$attendancePart = [
+                'name' => $income->type == 'middle' ? 'Tengah Bulan' : 'Akhir Bulan',
+                'icon' => $income->type == 'middle' ? 'half' : 'full',
+	            'footer' => null,
+	            'list' => []
+	        ];
+
+        	$idOutlets = $income->hairstylist_income_details()
+        		->where('source', 'not like', 'salary_cut_%')
+        		->select('id_outlet')
+        		->distinct()
+        		->get()
+        		->pluck('id_outlet');
+        	foreach ($idOutlets as $idOutlet) {
+        		$outlet = Outlet::find($idOutlet);
+        		$attendanceOutlet = [
+                    'header_title' => 'Outlet',
+                    'header_content' => $outlet->outlet_name ?? '-',
+                    'footer_title' => null,
+                    'footer_content' => null,
+                    'contents' => [
+                        [
+                            'title' => 'Hari Masuk',
+                            'content' => HairstylistAttendance::where('id_outlet', $idOutlet)->where(function ($query) {
+	                            	$query->whereNotNull('clock_in')
+	                            		->orWhereNotNull('clock_out');
+	                            })
+                            	->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+                            	->count(),
+                        ],
+                    ]
+                ];
+
+        		$commissionDetails = $income->hairstylist_income_details()
+        			->leftJoin('transaction_products', 'transaction_products.id_transaction_product', 'hairstylist_income_details.reference')
+        			->where('hairstylist_income_details.source', 'product_commission')
+        			->where('hairstylist_income_details.id_outlet', $outlet->id_outlet)
+        			->get()->groupBy('id_product');
+
+        		foreach ($commissionDetails as $id_product => $commissionDetail) {
+        			$product = Product::find($id_product);
+        			$incomeOutlet['contents'][] = [
+                        'title' => 'Customer ' . ($product->product_name ?? '-'),
+                        'content' => MyHelper::requestNumber($commissionDetail->sum('amount'), '_CURRENCY'),
+        			];
+        		}
+        		$attendancePart['list'][] = $attendanceOutlet;
+        	}
+        	$result['attendances'][] = $attendancePart;
+        }
+
+        // Incomes
+        foreach ($incomes as $income) {
+        	$cutPart = [ // TODO penyesuaian konten
+                'name' => $income->type == 'middle' ? 'Tengah Bulan' : 'Akhir Bulan',
+                'icon' => $income->type == 'middle' ? 'half' : 'full',
+                'footer' => [
+                    'title_title' => 'Total Potongan',
+                    'title_content' => 'Dalam Perhitungan', 
+                    'subtitle_title' => null,
+                    'subtitle_content' => null,
+                ],
+                'list' => [],
+        	];
+
+        	$subtotalCut = 0;
+        	$idOutlets = $income->hairstylist_income_details()
+        		->where('source', 'like', 'salary_cut_%')
+        		->select('id_outlet')
+        		->distinct()
+        		->get()
+        		->pluck('id_outlet');
+
+    		$cutOutlet = [
+                'header_title' => $outlet->outlet_name ? 'Outlet' : null,
+                'header_content' => $outlet->outlet_name ?? null,
+                'footer_title' => null,
+                'footer_content' => null, 
+                'contents' => []
+    		];
+
+    		$cutDetails = $income->hairstylist_income_details()
+    			->selectRaw('hairstylist_income_details.id_hairstylist_income, hairstylist_group_default_potongans.name, SUM(amount)')
+    			->leftJoin('hairstylist_group_default_potongans', 'hairstylist_group_default_potongans.id_hairstylist_group_default_potongans', 'hairstylist_income_details.reference')
+    			->where('hairstylist_income_details.source', 'like', 'salary_cut_%')
+    			->groupBy('hairstylist_group_default_potongans.id_hairstylist_group_potongans')
+    			->get();
+
+    		foreach ($cutDetails as $cutDetail) {
+    			$cutOutlet['contents'][] = [
+                    'title' => $cutDetail->name,
+                    'content' => MyHelper::requestNumber($cutDetail->amount, '_CURRENCY'),
+    			];
+    			$subtotalCut += $cutDetail->amount;
+    		}
+    		$cutPart['list'][] = $cutOutlet;
+
+        	$cutPart['footer']['title_content'] = MyHelper::requestNumber($subtotalCut, '_CURRENCY');
+        	$result['salary_cuts'][] = $cutPart;
+        }
     }
 }

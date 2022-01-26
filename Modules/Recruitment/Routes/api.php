@@ -185,6 +185,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
         Route::post('cash/transfer/detail', 'ApiMitra@transferCashDetail');
         Route::post('cash/transfer/create', 'ApiMitra@transferCashCreate');
         Route::post('cash/transfer/history', 'ApiMitra@transferCashHistory');
+        Route::post('income-details', 'ApiMitra@commissionDetail');
 
         //Cash flow for SPV
         Route::post('income/detail', 'ApiMitra@incomeDetail');
@@ -197,6 +198,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
 
         Route::post('expense/outlet/create', 'ApiMitra@expenseOutletCreate');
         Route::post('expense/outlet/history', 'ApiMitra@expenseOutletHistory');
+
 	});
 
     Route::group(['middleware' => ['auth:mitra', 'scopes:mitra-apps'], 'prefix' => 'attendance'], function () {

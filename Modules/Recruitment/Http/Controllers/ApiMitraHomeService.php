@@ -327,7 +327,8 @@ class ApiMitraHomeService extends Controller
         }
 
         $services = TransactionProduct::join('products', 'products.id_product', 'transaction_products.id_product')
-            ->where('id_transaction', $detail['id_transaction'])->select(DB::raw('SUM(processing_time_service * transaction_product_qty) as processing_time'), 'products.id_product', 'product_name', 'transaction_product_qty as qty')->get()->toArray();
+            ->where('id_transaction', $detail['id_transaction'])
+            ->select(DB::raw('(processing_time_service * transaction_product_qty) as processing_time'), 'products.id_product', 'product_name', 'transaction_product_qty as qty')->get()->toArray();
 
         $processingTime = array_sum(array_column($services, 'processing_time'));
         $detail = [
@@ -361,6 +362,13 @@ class ApiMitraHomeService extends Controller
             ->where('transaction_home_services.id_user_hair_stylist', $user['id_user_hair_stylist'])
             ->select('transactions.id_transaction', 'id_transaction_home_service', 'transaction_receipt_number', 'user_hair_stylist.fullname as hairstylist_name',
                 'schedule_date', 'schedule_time', 'users.name as customer_name');
+
+        if(!empty($post['key_search'])){
+            $list = $list->where(function ($q) use ($post){
+                $q->where('transaction_receipt_number', 'like', '%'.$post['key_search'].'%')
+                    ->orWhere('users.name', 'like', '%'.$post['key_search'].'%');
+            });
+        }
 
         if(!empty($post['filter']) && $post['filter'] == 'last 7 days'){
             $dateFilter = date("Y-m-d", strtotime($currentDate." -7 days"));

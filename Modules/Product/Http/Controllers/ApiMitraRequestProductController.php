@@ -162,7 +162,6 @@ class ApiMitraRequestProductController extends Controller
             $id_outlet =  auth()->user()->id_outlet;
 
             $delivery_product = DeliveryProduct::join('delivery_product_details','delivery_product_details.id_delivery_product','=','delivery_products.id_delivery_product')
-                            ->join('user_hair_stylist','user_hair_stylist.id_user_hair_stylist','=','delivery_products.id_user_accept')
                             ->where('delivery_products.id_outlet',$id_outlet)
                             ->where('delivery_products.status','=',$status)
                             ->where('delivery_products.id_delivery_product', $post['id_delivery_product'])
@@ -174,16 +173,16 @@ class ApiMitraRequestProductController extends Controller
                                 'delivery_products.id_delivery_product',
                                 'delivery_products.code as delivery_code',
                                 'delivery_products.type as stock_type',
-                                'delivery_products.delivery_date as date_delivered',
-                                'user_hair_stylist.fullname as confirmed_by'
+                                'delivery_products.delivery_date as date_delivered'
                             );   
                  
                             if($status=='Completed'){
-                                $delivery_product = $delivery_product->addSelect('delivery_products.confirmation_date as date_confirmed')->first();
+                                $delivery_product = $delivery_product->join('user_hair_stylist','user_hair_stylist.id_user_hair_stylist','=','delivery_products.id_user_accept');
+                                $delivery_product = $delivery_product->addSelect('delivery_products.confirmation_date as date_confirmed','user_hair_stylist.fullname as confirmed_by')->first();
                             }else{
                                 $delivery_product = $delivery_product->first();
                             }
-
+                            
             if($delivery_product){
 
                 $delivery_product = array_map(function($value){
@@ -226,6 +225,9 @@ class ApiMitraRequestProductController extends Controller
                                 "product_name" => $detail['delivery_product_icount']['name'],
                                 "delivered" => $detail['value'],
                             ];
+                            if($status=='Completed'){
+                                $delivery[$dev]['received'] = $detail['received'];
+                            }
                             $dev++;
                         }
                     }
@@ -265,6 +267,16 @@ class ApiMitraRequestProductController extends Controller
                                 $new_products[$key]['delivered'] = $deliv['delivered'];
                                 if($new_product['requested'] <= $deliv['delivered']){
                                     $new_products[$key]['status'] = 'Lengkap';
+                                }
+                                if($status=='Completed'){
+                                    $new_products[$key]['received'] = $deliv['received'];
+                                    if($new_products[$key]['received'] == $new_products[$key]['delivered']){
+                                        $new_products[$key]['confrimed_status'] = 'Lengkap';
+                                    }elseif($new_products[$key]['received'] > $new_products[$key]['delivered']){
+                                        $new_products[$key]['confrimed_status'] = 'Lebih';
+                                    }else{
+                                        $new_products[$key]['confrimed_status'] = 'Kurang';
+                                    }
                                 }
                             }
                         }
@@ -345,6 +357,7 @@ class ApiMitraRequestProductController extends Controller
                 foreach($post['detail'] as $key => $product){
                     $product_icount = new ProductIcount();
                     $update_stock = $product_icount->find($product['id_product_icount'])->addLogStockProductIcount($product['delivered'],$product['unit'],'Delivery Product',$post['id_delivery_product']);
+                    $update_detail = DeliveryProductDetail::where('id_delivery_product',$post['id_delivery_product'])->where('id_product_icount',$product['id_product_icount'])->update(['received' => $product['received']]);
                 }
             }
 

@@ -32,6 +32,8 @@ use Modules\PromoCampaign\Lib\PromoCampaignTools;
 use DB;
 use DateTime;
 use App\Lib\WeHelpYou;
+use Modules\Franchise\Entities\PromoCampaign;
+use Modules\PromoCampaign\Entities\TransactionPromo;
 
 class ApiTransactionShop extends Controller
 {
@@ -677,6 +679,8 @@ class ApiTransactionShop extends Controller
         $result['complete_profile'] = true;
         $result['payment_detail'] = [];
         $result['continue_checkout'] = (empty($error_msg) ? true : false);
+        $fake_request = new Request(['show_all' => 1]);
+        $result['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
         
         $result = app($this->promo_trx)->applyPromoCheckout($result);
 
@@ -708,8 +712,6 @@ class ApiTransactionShop extends Controller
             $error_msg = ['Produk yang anda pilih tidak tersedia. Silakan cek kembali pesanan anda'];
         }
 
-        $fake_request = new Request(['show_all' => 1]);
-        $result['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
 
         $finalRes = [
         	'customer' => $result['customer'],
@@ -1234,7 +1236,6 @@ class ApiTransactionShop extends Controller
     	$user = $request->user();
     	$detail = Transaction::where('transaction_from', 'shop')
     			->join('transaction_shops','transactions.id_transaction', 'transaction_shops.id_transaction')
-    			->where('id_user', $user->id)
     			->where(function ($q) use ($request) {
     				$q->where('transactions.id_transaction', $request->id_transaction);
     				$q->orWhere('transactions.transaction_receipt_number', $request->transaction_receipt_number);
@@ -1250,8 +1251,13 @@ class ApiTransactionShop extends Controller
     				'transaction_shops.*', 
     				'transactions.completed_at as trx_completed_at',
     				'transaction_shops.completed_at as shop_completed_at'
-    			)
-    			->first();
+    			);
+
+    	if(empty($request->admin)){
+            $detail = $detail->where('id_user', $user->id);
+        }
+
+    	$detail = $detail->first();
 
 		if (!$detail) {
 			return [
@@ -1259,6 +1265,8 @@ class ApiTransactionShop extends Controller
 				'messages' => ['Transaction not found']
 			];
 		}
+
+        $trxPromo = $this->transactionPromo($detail);
 
 		$products = [];
 		$subtotalProduct = 0;
@@ -1312,6 +1320,14 @@ class ApiTransactionShop extends Controller
 	            'amount'        => number_format(((int) $detail['transaction_tax']),0,',','.')
 
 	        ];
+        }
+
+        if($paymentDetail && isset($trxPromo)){
+            $lastKey = array_key_last($paymentDetail);
+            for($i = 0; $i < count($trxPromo); $i++){
+                $KeyPosition = 1 + $i;
+                $paymentDetail[$lastKey+$KeyPosition] = $trxPromo[$i];
+            }
         }
 
         $trx = Transaction::where('id_transaction', $detail['id_transaction'])->first();
@@ -1451,6 +1467,32 @@ class ApiTransactionShop extends Controller
 	    ];
 
 	    return $arr[$status] ?? $status;
+    }
+
+    public function transactionPromo(Transaction $trx){
+        $trx = clone $trx;
+        $promo_discount = [];
+        $promos = TransactionPromo::where('id_transaction', $trx['id_transaction'])->get()->toArray();
+        if($promos){
+            $promo_discount[0]=[
+                "name"  => "Promo / Discount:",
+                "desc"  => "",
+                "is_discount" => 0,
+                "amount" => null 
+            ];
+            foreach($promos as $p => $promo){
+                if($promo['promo_type']=='Promo Campaign'){
+                    $promo['promo_name'] = PromoCampaign::where('promo_title',$promo['promo_name'])->select('campaign_name')->first()['campaign_name'];
+                }
+                $promo_discount[$p+1] = [
+                    "name"  => $promo['promo_name'],
+                    "desc"  => "",
+                    "is_discount" => 1,
+                    "amount" => '- '.MyHelper::requestNumber($promo['discount_value'],'_CURRENCY')
+                ];
+            }
+        }
+        return $promo_discount;
     }
 
     public function listDelivery()

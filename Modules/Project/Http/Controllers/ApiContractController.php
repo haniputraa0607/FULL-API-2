@@ -15,6 +15,7 @@ use Modules\Project\Entities\ProjectContract;
 use Modules\Project\Entities\ProjectSurveyLocation;
 use Modules\BusinessDevelopment\Entities\Partner;
 use Modules\BusinessDevelopment\Entities\Location;
+use Modules\BusinessDevelopment\Entities\LocationOutletStarterBundlingProduct;
 use Modules\BusinessDevelopment\Entities\ConfirmationLetter;
 use App\Http\Models\Outlet;
 use Modules\Project\Entities\InvoiceSpk;
@@ -43,9 +44,10 @@ class ApiContractController extends Controller
          if($project){
              $data_send = [
                             "partner" => Partner::where('id_partner',$project->id_partner)->first(),
-                            "location" => Location::where('id_partner',$project->id_partner)->first(),
-                            "confir" => ConfirmationLetter::where('id_partner',$project->id_partner)->first(),
-                        ];
+                            "location" => Location::where('id_location',$project->id_location)->first(),
+                            "confir" => ConfirmationLetter::where('id_partner',$project->id_partner)->first(),  
+                            "location_bundling" => LocationOutletStarterBundlingProduct::where('id_location',$project->id_location)->join('product_icounts','product_icounts.id_product_icount','location_outlet_starter_bundling_products.id_product_icount')->get(),
+                 ];
         $invoice = Icount::ApiInvoiceSPK($data_send);
             if($invoice['response']['Status']=='1' && $invoice['response']['Message']=='success'){
              $data_invoice = [
@@ -96,6 +98,9 @@ class ApiContractController extends Controller
                     "id_project"   =>  $request->id_project,
                     "first_party"   =>  $request->first_party,
                     "second_party"   =>  $request->second_party,
+                    "nama_kontraktor"   =>  $request->nama_kontraktor,
+                    "cp_kontraktor"   =>  $request->cp_kontraktor,
+                    "renovation_cost"   =>  $request->renovation_cost,
                     "attachment"   =>  $attachment,
                     "nomor_loi"   =>   $request->nomor_loi,
                     "nomor_spk"   =>   $request->nomor_spk,
@@ -204,6 +209,42 @@ class ApiContractController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         
     }
-   
+    
+    public function no_spk() {
+        $no = ProjectContract::latest()->first();
+        $nomer = $no->id_projects_contract??1;
+        $nomer++;
+        $x = 1;
+        $s = 2;
+         while($x <= $s) {
+            $no_spk = 'SPK/'.$nomer.'/'.date('m').'/'.date('Y');
+             $no = ProjectContract::where('nomor_spk',$no_spk)->first();
+            if(!$no){
+                  break;
+            }
+            $nomer++;
+            $x++;
+             $s++;
+          } 
+        return response()->json(['status' => 'success', 'result' => $no_spk]);
+    }
+    public function no_loi() {
+        $no = ProjectContract::latest()->first();
+        $nomer = $no->id_projects_contract??1;
+        $nomer++;
+        $x = 1;
+        $s = 2;
+         while($x <= $s) {
+            $no_spk = 'LOI/'.$nomer.'/'.date('m').'/'.date('Y');
+            $no = ProjectContract::where('nomor_loi',$no_spk)->first();
+            if(!$no){
+                  break;
+            }
+            $nomer++;
+            $x++;
+            $s++;
+          } 
+        return response()->json(['status' => 'success', 'result' => $no_spk]);
+    }
     
 }

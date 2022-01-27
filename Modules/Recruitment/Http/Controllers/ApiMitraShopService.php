@@ -151,7 +151,43 @@ class ApiMitraShopService extends Controller
     		]);
     	}
 
+    	// log rating outlet
+        UserRatingLog::updateOrCreate([
+            'id_user' => $trx->id_user,
+            'id_transaction' => $trx->id_transaction,
+            'id_outlet' => $trx->id_outlet
+        ],[
+            'refuse_count' => 0,
+            'last_popup' => date('Y-m-d H:i:s', time() - MyHelper::setting('popup_min_interval', 'value', 900))
+        ]);
+
+        $trx->update(['show_rate_popup' => '1']);
+
     	app($this->mitra_outlet_service)->completeTransaction($trx->id_transaction);
+
+    	// notif hairstylist
+        app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
+            'Mitra SPV - Transaction Product Taken',
+            $user['phone_number'],
+            [
+            	'date' => $trx['transaction_date'],
+            	'outlet_name' => $trx['outlet']['outlet_name'],
+            	'detail' => $detail ?? null,
+            	'receipt_number' => $trx['transaction_receipt_number']
+            ], null, false, false, 'hairstylist'
+        );
+
+        // notif user customer
+        app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
+        	'Transaction Product Taken', 
+        	$trx->user->phone, 
+        	[
+	            'date' => $trx['transaction_date'],
+            	'outlet_name' => $trx['outlet']['outlet_name'],
+            	'detail' => $detail ?? null,
+            	'receipt_number' => $trx['transaction_receipt_number']
+	        ]
+	    );
 
     	DB::commit();
 

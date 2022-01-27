@@ -110,6 +110,11 @@ class UserHairStylist extends Authenticatable
         return $this->hasMany(\Modules\Recruitment\Entities\UserHairStylistDocuments::class, 'id_user_hair_stylist');
     }
 
+    public function experiences()
+    {
+        return $this->hasOne(\Modules\Recruitment\Entities\UserHairStylistExperience::class, 'id_user_hair_stylist');
+    }
+
     public function location()
     {
         return $this->hasOne(HairstylistLocation::class, 'id_user_hair_stylist');
@@ -151,6 +156,7 @@ class UserHairStylist extends Authenticatable
                     ->orderBy('is_overtime')
                     ->first()
                     ->id_hairstylist_schedule_date,
+                'id_outlet' => $this->id_outlet,
                 'attendance_date' => $schedule->date,
                 'id_user_hair_stylist' => $this->id_user_hair_stylist,
                 'clock_in_requirement' => $schedule->clock_in_requirement,

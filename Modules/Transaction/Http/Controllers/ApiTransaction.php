@@ -85,6 +85,7 @@ use Modules\Transaction\Entities\TransactionBreakdown;
 use Modules\ProductVariant\Entities\ProductVariantGroup;
 use Modules\ProductVariant\Entities\ProductVariantGroupSpecialPrice;
 use Modules\Transaction\Entities\SharingManagementFee;
+use Modules\Transaction\Entities\SharingManagementFeeTransaction;
 use Modules\UserRating\Entities\UserRatingLog;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\BusinessDevelopment\Entities\Partner;
@@ -103,6 +104,9 @@ use Lcobucci\JWT\Parser;
 use App\Http\Models\OauthAccessToken;
 use Modules\BusinessDevelopment\Entities\Location;
 use Modules\Transaction\Http\Requests\Signature;
+use Modules\Franchise\Entities\PromoCampaign;
+use Modules\PromoCampaign\Entities\TransactionPromo;
+
 class ApiTransaction extends Controller
 {
     public $saveImage = "img/transaction/manual-payment/";
@@ -5551,6 +5555,8 @@ class ApiTransaction extends Controller
 			];
 		}
 
+        $trxPromo = $this->transactionPromo($detail);
+
 		$outlet = [
 			'id_outlet' => $detail['outlet']['id_outlet'],
 			'outlet_code' => $detail['outlet']['outlet_code'],
@@ -5642,6 +5648,14 @@ class ApiTransaction extends Controller
 	            "is_discount"   => 0,
 	            'amount'        => MyHelper::requestNumber($detail['transaction_tax'],'_CURRENCY')
 	        ];
+        }
+
+        if($paymentDetail && isset($trxPromo)){
+            $lastKey = array_key_last($paymentDetail);
+            for($i = 0; $i < count($trxPromo); $i++){
+                $KeyPosition = 1 + $i;
+                $paymentDetail[$lastKey+$KeyPosition] = $trxPromo[$i];
+            }
         }
 
     	$show_rate_popup = 0;
@@ -5851,6 +5865,8 @@ class ApiTransaction extends Controller
 			];
 		}
 
+        $trxPromo = $this->transactionPromo($detail);
+
 		$hairstylist = UserHairStylist::where('id_user_hair_stylist', $detail['id_user_hair_stylist'])->first();
 		if (!empty($detail['outlet'])) {
 			$outlet = [
@@ -5944,6 +5960,14 @@ class ApiTransaction extends Controller
 	        ];
         }
 
+        if($paymentDetail && isset($trxPromo)){
+            $lastKey = array_key_last($paymentDetail);
+            for($i = 0; $i < count($trxPromo); $i++){
+                $KeyPosition = 1 + $i;
+                $paymentDetail[$lastKey+$KeyPosition] = $trxPromo[$i];
+            }
+        }
+
     	$show_rate_popup = 0;
         $logRating = UserRatingLog::where([
         	'id_user' => $user->id,
@@ -6019,16 +6043,40 @@ class ApiTransaction extends Controller
 		return MyHelper::checkGet($res);
     }
 
+    public function transactionPromo(Transaction $trx){
+        $trx = clone $trx;
+        $promo_discount = [];
+        $promos = TransactionPromo::where('id_transaction', $trx['id_transaction'])->get()->toArray();
+        if($promos){
+            $promo_discount[0]=[
+                "name"  => "Promo / Discount:",
+                "is_discount" => 0,
+                "amount" => null 
+            ];
+            foreach($promos as $p => $promo){
+                if($promo['promo_type']=='Promo Campaign'){
+                    $promo['promo_name'] = PromoCampaign::where('promo_title',$promo['promo_name'])->select('campaign_name')->first()['campaign_name'];
+                }
+                $promo_discount[$p+1] = [
+                    "name"  => $promo['promo_name'],
+                    "is_discount" => 1,
+                    "amount" => '- '.MyHelper::requestNumber($promo['discount_value'],'_CURRENCY')
+                ];
+            }
+        }
+        return $promo_discount;
+    }
+
     public function CronICountPOO(Request $request) {
         $log = MyHelper::logCron('Create Order POO Icount');
         try{
             $date_now = date('Y-m-d');
             $date_trans = date('Y-m-d', strtotime('-1 days', strtotime($date_now)));
-            $outlets_mid = Outlet::join('locations','locations.id_branch','=','outlets.id_branch')
+            $outlets_mid = Outlet::join('locations','locations.id_location','=','outlets.id_location')
                             ->join('transactions','transactions.id_outlet','=','outlets.id_outlet')
-                            ->leftJoin('partners','partners.id_partner','=','locations.id_partner'); 
+                            ->leftJoin('partners','partners.id_partner','=','locations.id_partner');
 
-            $outlets_xen = Outlet::join('locations','locations.id_branch','=','outlets.id_branch')
+            $outlets_xen = Outlet::join('locations','locations.id_location','=','outlets.id_location')
                             ->join('transactions','transactions.id_outlet','=','outlets.id_outlet')
                             ->leftJoin('partners','partners.id_partner','=','locations.id_partner'); 
 
@@ -6131,6 +6179,7 @@ class ApiTransaction extends Controller
                 }
                 $new++;
             }
+
             foreach($new_outlets as $n => $new_outlet){
                     $create_order_poo[$n] = Icount::ApiCreateOrderPOO($new_outlet);
             }
@@ -6141,7 +6190,7 @@ class ApiTransaction extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             $log->fail($e->getMessage());
-        }      
+        }    
     }
     public function revenue_sharing(){
         $log = MyHelper::logCron('Revenue Sharing');
@@ -6355,65 +6404,96 @@ class ApiTransaction extends Controller
             return response()->json(['status' => 'fail','message'=>$e->getMessage()]); 
         }      
     }
+
     public function callbacksharing(CallbackFromIcount $request){
+        $pesan = [
+                    'cek' => 'Invalid PurchaseInvoiceID or PurchaseInvoiceID status has been processed',
+                    'status' => "Invalid status, status must be Success or Fail",
+                ];
+                    Validator::extend('status', function ($attribute, $value, $parameters, $validator) {
+                    if($value == 'Success'||$value=="Fail"){
+                      return true; 
+                  } return false;
+                 }); 
+                    Validator::extend('cek', function ($attribute, $value, $parameters, $validator) {
+                    $share = SharingManagementFee::where(array('PurchaseInvoiceID'=>$value,'status'=>'Proccess'))->first();
+                    if($share){
+                        return true;
+                    }
+                    return false;
+                 }); 
+                  $validator = Validator::make($request->all(), [
+			 'PurchaseInvoiceID'    => 'required|cek',
+                        'status'               => 'required|status',
+                        'date_disburse'        => 'required|date_format:Y-m-d H:i:s',
+		],$pesan);  
+                  
+		if ($validator->fails()) {
+			return response()->json([
+				'status' => false,
+				'message' =>  $validator->errors()
+			], 400);
+		}
         $data = SharingManagementFee::where(array('PurchaseInvoiceID'=>$request->PurchaseInvoiceID))->update([
             'status'=>$request->status,
             'date_disburse'=>$request->date_disburse,
         ]);
         return response()->json(['status' => 'success','code'=>$data]); 
     }
+
     function api_secret($length = 40) {
-    $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    $charactersLength = strlen($characters);
-    $randomStrings = '';
-    for ($a = 0; $a < 5; $a++) {
-        $random = '';
-       for ($i = 0; $i < 5; $i++) {
-            $random .= $characters[rand(0, $charactersLength - 1)];
+        $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        $charactersLength = strlen($characters);
+        $randomStrings = '';
+        for ($a = 0; $a < 5; $a++) {
+            $random = '';
+            for ($i = 0; $i < 5; $i++) {
+                $random .= $characters[rand(0, $charactersLength - 1)];
+            }
+            if($a == 0){
+                $randomStrings .= $random;
+            }else{
+                $randomStrings .= '-'.$random;
+            }
         }
-        if($a == 0){
-            $randomStrings .= $random;
+        $api_key = Setting::where('key','api_secret')->first();
+        if($api_key){
+            $data = Setting::where('key','api_secret')->update([
+              'value'=>$randomStrings,
+          ]);
         }else{
-            $randomStrings .= '-'.$random;
+            $data = Setting::create([
+               'key'=>'api_secret',
+               'value'=>$randomStrings
+               
+           ]);
         }
-    }
-    $api_key = Setting::where('key','api_secret')->first();
-    if($api_key){
-        $data = Setting::where('key','api_secret')->update([
-                  'value'=>$randomStrings,
-             ]);
-    }else{
-        $data = Setting::create([
-                 'key'=>'api_secret',
-                 'value'=>$randomStrings
-                    
-             ]);
-    }
-    return $randomStrings;
+        return $randomStrings;
     }   
+
     function api_key($length = 40) {
-    $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    $charactersLength = strlen($characters);
-    $randomString = '';
-    for ($i = 0; $i < $length; $i++) {
-        $randomString .= $characters[rand(0, $charactersLength - 1)];
-    }
-    $api_secret = Setting::where('key','api_key')->first();
-    if($api_secret){
-        $data = Setting::where('key','api_key')->update([
-                  'value'=>$randomString,
-             ]);
-    }else{
-        $data = Setting::create([
-                 'key'=>'api_key',
-                 'value'=>$randomString
-                    
-             ]);
-    }
-    return $randomString;
+        $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        $charactersLength = strlen($characters);
+        $randomString = '';
+        for ($i = 0; $i < $length; $i++) {
+            $randomString .= $characters[rand(0, $charactersLength - 1)];
+        }
+        $api_secret = Setting::where('key','api_key')->first();
+        if($api_secret){
+            $data = Setting::where('key','api_key')->update([
+              'value'=>$randomString,
+          ]);
+        }else{
+            $data = Setting::create([
+               'key'=>'api_key',
+               'value'=>$randomString
+               
+           ]);
+        }
+        return $randomString;
     } 
     function signature(Signature $request) {
-    $data = hash_hmac('sha256',$request->PurchaseInvoiceID.$request->status.$request->date_disburse,$request->api_secret);
-    return $data;
+        $data = hash_hmac('sha256',$request->PurchaseInvoiceID.$request->status.$request->date_disburse,$request->api_secret);
+        return $data;
     }
 }

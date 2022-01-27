@@ -15,6 +15,12 @@ use Modules\BusinessDevelopment\Http\Controllers\ApiPartnersController;
 use Modules\Project\Entities\Project;
 use Modules\BusinessDevelopment\Entities\ConfirmationLetter;
 use App\Lib\Icount;
+use Modules\BusinessDevelopment\Entities\FormSurvey;
+use Modules\BusinessDevelopment\Entities\LocationOutletStarterBundlingProduct;
+use PDF;
+use Storage;
+use Image;
+
 class ApiLocationsController extends Controller
 {
     public function __construct()
@@ -24,6 +30,7 @@ class ApiLocationsController extends Controller
             $this->autocrm  = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
         }
         $this->saveFile = "file/follow_up/";
+        $this->form_survey = "file/form_survey/";
     }
     /**
      * Display a listing of the resource.
@@ -278,20 +285,6 @@ class ApiLocationsController extends Controller
             if (isset($post['id_partner'])) {
                 $data_update['id_partner'] = $post['id_partner'];
             }
-            if (isset($post['end_date'])) {
-                $data_update['start_date'] = $post['start_date'];
-            }elseif(isset($post['status']) && $post['status']=='Active'){
-                $id_loc_start =  Location::select('id_partner')->where('id_location',$post['id_location'])->first()['id_partner'];
-                $start_date_active = Partner::select('start_date')->where('id_partner',$id_loc_start)->first()['start_date'];
-                $data_update['start_date'] = $start_date_active;
-            }
-            if (isset($post['end_date'])) {
-                $data_update['end_date'] = $post['end_date'];
-            }elseif(isset($post['status']) && $post['status']=='Active'){
-                $id_loc_end =  Location::select('id_partner')->where('id_location',$post['id_location'])->first()['id_partner'];
-                $end_date_active = Partner::select('end_date')->where('id_partner',$id_loc_end)->first()['end_date'];
-                $data_update['end_date'] = $end_date_active;
-            }
             if (isset($post['location_large'])) {
                 $data_update['location_large'] = $post['location_large'];
             }
@@ -337,11 +330,46 @@ class ApiLocationsController extends Controller
             if (isset($post['is_tax'])) {
                 $data_update['is_tax'] = $post['is_tax'];
             }
+            if (isset($post['no_loi'])) {
+                $data_update['no_loi'] = $post['no_loi'];
+            }
+            if (isset($post['date_loi'])) {
+                $data_update['date_loi'] = $post['date_loi'];
+            }
+            if (isset($post['total_box'])) {
+                $data_update['total_box'] = $post['total_box'];
+            }
+            if (isset($post['handover_date'])) {
+                $data_update['handover_date'] = $post['handover_date'];
+            }
+            if (isset($post['product_starter'])) {
+                $product_start = $this->addLocationProductStarter($post['product_starter']);
+                if(!$product_start){
+                    return response()->json(['status' => 'fail', 'messages' => ['Failed to save product starter outlet']]);
+                }
+            }
+            if (isset($post['id_outlet_starter_bundling'])) {
+                $data_update['id_outlet_starter_bundling'] = $post['id_outlet_starter_bundling'];
+
+                if(empty($post['start_date']) && empty($post['end_date'])){
+                    $id_loc_start =  Location::select('id_partner')->where('id_location',$post['id_location'])->first()['id_partner'];
+                    $date = Partner::select('start_date')->where('id_partner',$id_loc_start)->first();
+                    $data_update['start_date'] = $date['start_date'];
+                    $data_update['end_date'] = $date['end_date'];
+                }
+            }
+            if (isset($post['start_date'])) {
+                $data_update['start_date'] = $post['start_date'];
+            }
+            if (isset($post['end_date'])) {
+                $data_update['end_date'] = $post['end_date'];
+            }
             if(isset($data_update['start_date']) && isset($data_update['end_date'])){
                 $start = explode('-', $data_update['start_date']);
                 $end = explode('-', $data_update['end_date']);
                 try{
-                    $waktu = app('Modules\BusinessDevelopment\Http\Controllers\ApiPartnersController')->timeTotal($start,$end);
+                    $partner_controller = New ApiPartnersController;
+                    $waktu = $partner_controller->timeTotal($start,$end);
                 }catch(\Exception $e) {
                     return response()->json(['status' => 'fail_date', 'messages' => ['Start Date and End Date must be at least 3 years apar']]);
                 }
@@ -353,33 +381,35 @@ class ApiLocationsController extends Controller
                 return response()->json(['status' => 'fail', 'messages' => ['Failed update location']]);
             }
             DB::commit();
-            $new_id_partner = Location::where('id_location', $post['id_location'])->get('id_partner')[0]['id_partner'];
-            $partner = Partner::where('id_partner',$new_id_partner)->get()[0];
-            if(isset($data_update['status'])){
-                if($old_status=='Candidate' && $data_update['status'] == 'Active'){
-                    if (\Module::collections()->has('Autocrm')) {
-                        $autocrm = app($this->autocrm)->SendAutoCRM(
-                            'Updated Candidate Location to Location',
-                            $partner['phone'],
-                            [
-                                'name' => $partner['name'],
-                            ], null, null, null, null, null, null, null, 1,
-                        );
-                        // return $autocrm;
-                        if ($autocrm) {
-                            return response()->json([
-                                'status'    => 'success',
-                                'messages'  => ['Approved sent to email partner']
-                            ]);
-                        } else {
-                            return response()->json([
-                                'status'    => 'fail',
-                                'messages'  => ['Failed to send']
-                            ]);
-                        }
-                    }
-                }
-            }
+            // $new_id_partner = Location::where('id_location', $post['id_location'])->get('id_partner')[0]['id_partner'];
+            // if($new_id_partner){
+            //     $partner = Partner::where('id_partner',$new_id_partner)->get()[0];
+            //     if(isset($data_update['status'])){
+            //         if($old_status=='Candidate' && $data_update['status'] == 'Active'){
+            //             if (\Module::collections()->has('Autocrm')) {
+            //                 $autocrm = app($this->autocrm)->SendAutoCRM(
+            //                     'Updated Candidate Location to Location',
+            //                     $partner['phone'],
+            //                     [
+            //                         'name' => $partner['name'],
+            //                     ], null, null, null, null, null, null, null, 1,
+            //                 );
+            //                 // return $autocrm;
+            //                 if ($autocrm) {
+            //                     return response()->json([
+            //                         'status'    => 'success',
+            //                         'messages'  => ['Approved sent to email partner']
+            //                     ]);
+            //                 } else {
+            //                     return response()->json([
+            //                         'status'    => 'fail',
+            //                         'messages'  => ['Failed to send']
+            //                     ]);
+            //                 }
+            //             }
+            //         }
+            //     }
+            // }
             if(isset($request['data_confir']) && !empty($request['data_confir'])){
                 $confir = new ApiPartnersController;
                 $confir_letter = $confir->createConfirLetter($request['data_confir']);
@@ -462,7 +492,7 @@ class ApiLocationsController extends Controller
             }
             DB::commit();
             if(isset($request['form_survey']) && !empty($request['form_survey'])){
-                $survey =  app('Modules\BusinessDevelopment\Http\Controllers\ApiPartnersController')->createFormSurvey($request['form_survey']);
+                $survey = $this->createFormSurvey($request['form_survey']);
                 if($survey['status'] != 'success' && isset($survey['status'])){
                     return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
                 }
@@ -549,5 +579,156 @@ class ApiLocationsController extends Controller
        }
     }
 
+    public function createFormSurvey($request){
+        $post = $request;
+        if(isset($post['id_location']) && !empty($post['id_location'])){
+            DB::beginTransaction();
+            $data_store = [
+                "id_location" => $post["id_location"],
+                "title" => $post["title"],
+                "survey" => $post["value"],
+                "surveyor" => $post["surveyor"],
+                "potential" => $post["potential"],
+                "note" => $post["note"],
+                "survey_date" => $post["date"],
+            ];
+            $store = FormSurvey::create($data_store);
+            if (!$store) {
+                DB::rollback();
+                return ['status' => 'fail', 'messages' => ['Failed add form survey data']];
+            }
+            DB::commit();
+            $data_update = [
+                'attachment' => $this->pdfSurvey($post["id_location"]),
+            ];
+            $update = FormSurvey::where('id_location', $post['id_location'])->update($data_update);
+            if(!$update){
+                return ['status' => 'fail', 'messages' => ['Incompleted Data']];
+            }
+            else{
+                return ['status' => 'success'];
+            }
+        }else{
+            return ['status' => 'fail', 'messages' => ['Incompleted Data']];
+        }
+    }
+
+    public function pdfSurvey($id_location){
+        $form_survey = FormSurvey::where('id_location',$id_location)->first();
+        $value = json_decode($form_survey['survey']??'' , true);
+        $a = 0;
+        $b = 0;
+        $c = 0;
+        $d = 0;
+        foreach($value as $v){
+            foreach($v['value'] as $val){
+                if($val['answer']=='a'){
+                    $a = $a + 1;
+                }elseif($val['answer']=='b'){
+                    $b = $b + 1;
+                }elseif($val['answer']=='c'){
+                    $c = $c + 1;
+                }elseif($val['answer']=='d'){
+                    $d = $d + 1;
+                }
+            }
+        }
+        $alphas = range('A', 'Z');
+        $total = ($a*4) + ($b*3) + ($c*2) + ($d*1);
+        $location = Location::where('id_location',$id_location)->first();
+        $brand = Brand::where('id_brand', $location['id_brand'])->first();
+        $data = [
+            'logo' => $brand['logo_brand'],
+            'location' => $location['name'],
+            'surveyor' => $form_survey['surveyor'],
+            'brand' => $brand['name_brand'],
+            'date' => $this->letterDate($form_survey['survey_date']),
+            'abjad' => $alphas,
+            'no_abjad' => 0,
+            'no' => 1,
+            'total_a' => $a,
+            'total_b' => $b,
+            'total_c' => $c,
+            'total_d' => $d,
+            'total' => $total,
+            'note' => $form_survey['note'],
+            'potential' => $form_survey['potential'],
+            'value' => $value,
+        ];
+        // return view('businessdevelopment::form_survey', $data);
+        // $name = strtolower(str_replace(' ', '_', $partner['name']));
+        $name_loc = strtolower(str_replace(' ', '_', $location['name']));
+        $path = $this->form_survey.'form_survey_'.$name_loc.'.pdf';
+        $pdf = PDF::loadView('businessdevelopment::form_survey', $data );
+        Storage::put($path, $pdf->output(),'public');
+        return $path;
+    }
+    public function letterDate($date){
+        $bulan = array (1=>'Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember');
+        $pecah = explode('-', $date);
+        return $date_latter = $pecah[2].' '.$bulan[intval($pecah[1])].' '.$pecah[0];
+    }
+
+    public function storeLandingPage(Request $request)
+    {
+        $post= $request->all();
+        $data_request= $post['location'];
+        if (!empty($data_request)) {
+            DB::beginTransaction();
+            $store = Location::create([
+                "name"   => $data_request['name'],
+                "address"   => $data_request['address'],
+                "id_city"   => $data_request['id_city'],
+                "latitude"   => $data_request['latitude'],
+                "longitude"   => $data_request['longitude'],
+                "width"   => $data_request['width'],
+                "height"   => $data_request['height'],
+                "location_large"   => $data_request['location_large'],
+                "location_type"   => $data_request['location_type'],
+                "notes"   => $data_request['notes'],
+            ]);
+            if (isset($post['location_image']) && !empty($post['location_image'])) {
+                $img = Image::make(base64_decode($post['location_image']));
+                $imgwidth = $img->width();
+                $imgheight = $img->height();
+                $upload = MyHelper::uploadPhotoStrict($post['location_image'], 'img/location/', $imgwidth, $imgheight, time());
+                if ($upload['status'] == "success") {
+                    $store['location_image'] = $upload['path'];
+                }
+            }
+            if(!$store) {
+                DB::rollback();
+                return response()->json(['status' => 'fail', 'messages' => ['Failed add location']]);
+            }
+            DB::commit();
+            return response()->json(MyHelper::checkCreate($store));
+        } else {
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }           
+    }
+
+    public function addLocationProductStarter($data){
+
+        $data_product = [];
+
+        foreach ($data as $value) {
+            array_push($data_product, [
+                'id_location' 	=> $value['id_location'],
+                'id_product_icount'  => $value['id_product_icount'],
+                'unit'  => $value['unit'],
+                'qty'  => $value['qty'],
+                'budget_code'  => $value['budget_code'],
+            ]);
+        }
+
+        if (!empty($data_product)) {
+            $save = LocationOutletStarterBundlingProduct::insert($data_product);
+            return $save;
+        } else {
+            return false;
+        }
+
+        return true;
+    }
 
 }

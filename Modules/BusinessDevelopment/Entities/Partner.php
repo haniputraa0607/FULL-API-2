@@ -50,6 +50,10 @@ class Partner extends Authenticatable
 		'end_date',
 		'password',
 		'first_update_password',
+		'title',
+		'contact_person',
+		'mobile',
+		'notes'
 	];
         
     public function partner_locations(){

@@ -473,6 +473,7 @@ class ApiMitra extends Controller
     	$today = $date ?? date('Y-m-d H:i:s');
         $curTime = date('H:i:s', strtotime($today));
     	$day = MyHelper::indonesian_date_v2($date, 'l');
+    	$day = str_replace('Jum\'at', 'Jumat', $day);
     	$status = [
     		'is_available' => 0,
     		'is_active' => 0,
@@ -647,7 +648,7 @@ class ApiMitra extends Controller
     					'user_ratings.suggestion',
     					'user_ratings.created_at'
     				)
-    				->paginate(10)
+    				->paginate($request->per_page ?? 10)
     				->toArray();
 
 		$resData = [];
@@ -673,6 +674,7 @@ class ApiMitra extends Controller
     	$dateTime = $dateTime ?? date('Y-m-d H:i:s');
         $curTime = date('H:i:s', strtotime($dateTime));
     	$day = MyHelper::indonesian_date_v2($dateTime, 'l');
+    	$day = str_replace('Jum\'at', 'Jumat', $day);
 
     	$outletSchedule = OutletSchedule::where('id_outlet', $id_outlet)->where('day', $day)->first();
     	if (!$outletSchedule || $outletSchedule->is_closed) {

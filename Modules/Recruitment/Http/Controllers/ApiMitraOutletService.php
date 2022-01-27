@@ -671,7 +671,7 @@ class ApiMitraOutletService extends Controller
 
     	DB::beginTransaction();
     	try {
-    		$trx = Transaction::where('id_transaction', $service->id_transaction)->first();
+    		$trx = Transaction::where('id_transaction', $service->id_transaction)->with('outlet', 'user')->first();
     		TransactionProductServiceLog::create([
 	    		'id_transaction_product_service' => $request->id_transaction_product_service,
 	    		'action' => 'Complete'
@@ -688,8 +688,6 @@ class ApiMitraOutletService extends Controller
 	    	]);
 
 			$box->update(['outlet_box_use_status' => 0]);
-
-			$this->completeTransaction($service->id_transaction);
 
             //remove hs from table not avilable
             HairstylistNotAvailable::where('id_transaction_product_service', $service['id_transaction_product_service'])->delete();
@@ -719,6 +717,34 @@ class ApiMitraOutletService extends Controller
             ]);
 
             $trx->update(['show_rate_popup' => '1']);
+
+            // notif hairstylist
+            app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
+                'Mitra HS - Transaction Service Completed',
+                $user['phone_number'],
+                [
+                	'date' => $trx['transaction_date'],
+                	'outlet_name' => $trx['outlet']['outlet_name'],
+                	'detail' => $detail ?? null,
+                	'receipt_number' => $trx['transaction_receipt_number'],
+                	'order_id' => $service['order_id']
+                ], null, false, false, 'hairstylist'
+            );
+
+            // notif user customer
+            app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
+            	'Transaction Service Completed', 
+            	$trx->user->phone, 
+            	[
+		            'date' => $trx['transaction_date'],
+                	'outlet_name' => $trx['outlet']['outlet_name'],
+                	'detail' => $detail ?? null,
+                	'receipt_number' => $trx['transaction_receipt_number'],
+                	'order_id' => $service['order_id']
+		        ]
+		    );
+
+			$this->completeTransaction($service->id_transaction);
 
 			DB::commit();
     	} catch (\Exception $e) {
@@ -750,6 +776,18 @@ class ApiMitraOutletService extends Controller
     	if (!$trxProducts) {
     		TransactionOutletService::where('id_transaction', $id_transaction)
     		->update(['completed_at' => date('Y-m-d H:i:s')]);
+
+    		$trx = Transaction::with('outlet','user')->find($id_transaction);
+    		app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
+	        	'Transaction Completed', 
+	        	$trx->user->phone, 
+	        	[
+		            'date' => $trx['transaction_date'],
+	            	'outlet_name' => $trx['outlet']['outlet_name'],
+	            	'detail' => $detail ?? null,
+	            	'receipt_number' => $trx['transaction_receipt_number']
+		        ]
+		    );
     	}
 
     	return true;
@@ -935,9 +973,7 @@ class ApiMitraOutletService extends Controller
 	    			$q->where('trasaction_payment_type', 'Cash')
 	    			->orWhere('transaction_payment_status', 'Completed');
 				})
-    			->where('transaction_payment_status', '!=', 'Cancelled')
-    			->orderBy('schedule_date', 'asc')
-    			->orderBy('schedule_time', 'asc');
+    			->where('transaction_payment_status', '!=', 'Cancelled');
 
     	if ($filter_range = $request->filter_range) {
     		if (is_array($filter_range)) {
@@ -949,8 +985,16 @@ class ApiMitraOutletService extends Controller
     			$tps->whereDate('schedule_date', '>=', date('Y-m-d', strtotime('-30 days')));
     		} elseif ($filter_range == 'this_month') {
     			$tps->whereDate('schedule_date', '>=', date('Y-m-01'));
-    		}
+    		} elseif ($filter_range == 'today'){
+                $tps->whereDate('schedule_date', date('Y-m-d'));
+            }
     	}
+
+        if((!empty($request->sort) && $request->sort == 'desc') || empty($request->sort)){
+            $tps = $tps->orderBy('schedule_date', 'desc')->orderBy('schedule_time', 'desc');
+        }elseif(!empty($request->sort) && $request->sort == 'asc'){
+            $tps = $tps->orderBy('schedule_date', 'asc')->orderBy('schedule_time', 'asc');
+        }
 
 		$tps = $tps->paginate(10);
 

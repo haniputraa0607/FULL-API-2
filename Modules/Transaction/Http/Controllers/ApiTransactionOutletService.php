@@ -80,6 +80,8 @@ use Modules\ProductVariant\Entities\ProductVariantGroupSpecialPrice;
 use Modules\UserRating\Entities\UserRatingLog;
 
 use DB;
+use Modules\Franchise\Entities\PromoCampaign;
+use Modules\PromoCampaign\Entities\TransactionPromo;
 
 class ApiTransactionOutletService extends Controller
 {
@@ -233,6 +235,8 @@ class ApiTransactionOutletService extends Controller
             return MyHelper::checkGet($trx);
         }
 
+        $trxPromo = $this->transactionPromo($trx);
+
         $trxProducts = $this->transactionProduct($trx);
         $trx['product_transaction'] = $trxProducts['product'];
         $productCount = $trxProducts['count'];
@@ -302,6 +306,14 @@ class ApiTransactionOutletService extends Controller
         $result['product_service_transaction'] = $formatedTrxProductService['result'] ?? [];
 
         $result['payment_detail'] = $this->transactionPaymentDetail($trx);
+        
+        if($result['payment_detail'] && isset($trxPromo)){
+            $lastKey = array_key_last($result['payment_detail']);
+            for($i = 0; $i < count($trxPromo); $i++){
+                $KeyPosition = 1 + $i;
+                $result['payment_detail'][$lastKey+$KeyPosition] = $trxPromo[$i];
+            }
+        }
 
         if(!isset($trx['payment'])){
             $result['transaction_payment'] = null;
@@ -376,6 +388,30 @@ class ApiTransactionOutletService extends Controller
         	'product_service' => $trxProductService,
         	'count' => $productServiceCount
         ];
+    }
+
+    public function transactionPromo(Transaction $trx){
+        $trx = clone $trx;
+        $promo_discount = [];
+        $promos = TransactionPromo::where('id_transaction', $trx['id_transaction'])->get()->toArray();
+        if($promos){
+            $promo_discount[0]=[
+                "name"  => "Promo / Discount :",
+                "is_discount" => 0,
+                "amount" => null 
+            ];
+            foreach($promos as $p => $promo){
+                if($promo['promo_type']=='Promo Campaign'){
+                    $promo['promo_name'] = PromoCampaign::where('promo_title',$promo['promo_name'])->select('campaign_name')->first()['campaign_name'];
+                }
+                $promo_discount[$p+1] = [
+                    "name"  => $promo['promo_name'],
+                    "is_discount" => 1,
+                    "amount" => '- '.MyHelper::requestNumber($promo['discount_value'],'_CURRENCY')
+                ];
+            }
+        }
+        return $promo_discount;
     }
 
     public function transactionPayment(Transaction $trx)
@@ -754,40 +790,40 @@ class ApiTransactionOutletService extends Controller
             'amount'    => MyHelper::requestNumber($trx['transaction_subtotal'],'_CURRENCY')
         ];
 
-    	if ($trx['transaction_discount']) {
-        	$discount = abs($trx['transaction_discount']);
-            $p = 0;
-            if (!empty($trx['transaction_vouchers'])) {
-                foreach ($trx['transaction_vouchers'] as $valueVoc) {
-                    $result['promo']['code'][$p++]   = $valueVoc['deals_voucher']['voucher_code'];
-                    $paymentDetail[] = [
-                        'name'          => 'Diskon',
-                        'desc'          => 'Promo',
-                        "is_discount"   => 1,
-                        'amount'        => '- '.MyHelper::requestNumber($discount,'_CURRENCY')
-                    ];
-                }
-            }
+    	// if ($trx['transaction_discount']) {
+        // 	$discount = abs($trx['transaction_discount']);
+        //     $p = 0;
+        //     if (!empty($trx['transaction_vouchers'])) {
+        //         foreach ($trx['transaction_vouchers'] as $valueVoc) {
+        //             $result['promo']['code'][$p++]   = $valueVoc['deals_voucher']['voucher_code'];
+        //             $paymentDetail[] = [
+        //                 'name'          => 'Diskon',
+        //                 'desc'          => 'Promo',
+        //                 "is_discount"   => 1,
+        //                 'amount'        => '- '.MyHelper::requestNumber($discount,'_CURRENCY')
+        //             ];
+        //         }
+        //     }
 
-            if (!empty($trx['promo_campaign_promo_code'])) {
-                $result['promo']['code'][$p++]   = $trx['promo_campaign_promo_code']['promo_code'];
-                $paymentDetail[] = [
-                    'name'          => 'Diskon',
-                    'desc'          => 'Promo',
-                    "is_discount"   => 1,
-                    'amount'        => '- '.MyHelper::requestNumber($discount,'_CURRENCY')
-                ];
-            }
+        //     if (!empty($trx['promo_campaign_promo_code'])) {
+        //         $result['promo']['code'][$p++]   = $trx['promo_campaign_promo_code']['promo_code'];
+        //         $paymentDetail[] = [
+        //             'name'          => 'Diskon',
+        //             'desc'          => 'Promo',
+        //             "is_discount"   => 1,
+        //             'amount'        => '- '.MyHelper::requestNumber($discount,'_CURRENCY')
+        //         ];
+        //     }
 
-            if (!empty($trx['id_subscription_user_voucher']) && !empty($trx['transaction_discount'])) {
-                $paymentDetail[] = [
-                    'name'          => 'Subscription',
-                    'desc'          => 'Diskon',
-                    "is_discount"   => 1,
-                    'amount'        => '- '.MyHelper::requestNumber($discount,'_CURRENCY')
-                ];
-            }
-        }
+        //     if (!empty($trx['id_subscription_user_voucher']) && !empty($trx['transaction_discount'])) {
+        //         $paymentDetail[] = [
+        //             'name'          => 'Subscription',
+        //             'desc'          => 'Diskon',
+        //             "is_discount"   => 1,
+        //             'amount'        => '- '.MyHelper::requestNumber($discount,'_CURRENCY')
+        //         ];
+        //     }
+        // }
 
         if ($trx['transaction_shipment_go_send'] > 0) {
             $paymentDetail[] = [
@@ -861,6 +897,7 @@ class ApiTransactionOutletService extends Controller
 	            ->with('user')
 	            ->where('transaction_payment_status', 'Completed')
 	            ->whereNull('transaction_outlet_services.completed_at')
+	            ->whereNull('transaction_outlet_services.reject_at')
 	            ->whereNull('transactions.reject_at')
 	            ->select(
 	            	'transaction_product_services.*',
@@ -1326,9 +1363,19 @@ class ApiTransactionOutletService extends Controller
 			];
 		}
 
+		if ($trxProduct->transaction_product_completed_at) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Transaction product already completed']
+			];
+		}
+
 		$trx = Transaction::with([
 			'transaction_products.transaction_product_service.hairstylist_not_available',
-			'transaction_outlet_service'
+			'transaction_products.transaction_product_service.user_hair_stylist',
+			'transaction_outlet_service',
+			'outlet',
+			'user'
 		])
 		->find($trxProduct->id_transaction);
 
@@ -1370,15 +1417,58 @@ class ApiTransactionOutletService extends Controller
 		// return stok for product and remove book for service
 		if (isset($trxProduct['transaction_product_service']['id_transaction_product_service'])) {
 			HairstylistNotAvailable::where('id_transaction_product_service', $trxProduct['transaction_product_service']['id_transaction_product_service'])->delete();
+
+			if (isset($trxProduct['transaction_product_service']['user_hair_stylist']['phone_number'])) {
+	    		$phoneHs = $trxProduct['transaction_product_service']['user_hair_stylist']['phone_number'];
+
+	    		app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
+                    'Mitra HS - Transaction Service Rejected',
+                    $phoneHs,
+                    [
+                    	'date' => $trx['transaction_date'],
+                    	'outlet_name' => $trx['outlet']['outlet_name'],
+                    	'detail' => $detail ?? null,
+                    	'receipt_number' => $trx['transaction_receipt_number'],
+                    	'order_id' => $trxProduct['transaction_product_service']['order_id']
+                    ], null, false, false, 'hairstylist'
+                );
+			}
 		} else {
 			$this->returnProductStock($trxProduct->id_transaction_product);
+
+			$phoneSpv = UserHairStylist::where('id_outlet', $trx['id_outlet'])
+						->where('level', 'Supervisor')
+						->where('user_hair_stylist_status', 'Active')
+						->first()['phone_number'];
+
+			app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
+                'Mitra SPV - Transaction Product Rejected',
+                $phoneSpv,
+                [
+                    'date' => $trx['transaction_date'],
+                	'outlet_name' => $trx['outlet']['outlet_name'],
+                	'detail' => $detail ?? null,
+                	'receipt_number' => $trx['transaction_receipt_number']
+                ], null, false, false, 'hairstylist'
+            );
 		}
 
-		if ($completed == $totalItem || ($completed + $rejected) == $totalItem) {
+		if (!empty($completed) && ($completed == $totalItem || ($completed + $rejected) == $totalItem)) {
 			// completed
 			TransactionOutletService::where('id_transaction', $trx->id_transaction)
 			->update(['completed_at' => date('Y-m-d H:i:s')]);
 
+			$trx = $trx->load('outlet','user');
+    		app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
+	        	'Transaction Completed', 
+	        	$trx->user->phone, 
+	        	[
+		            'date' => $trx['transaction_date'],
+	            	'outlet_name' => $trx['outlet']['outlet_name'],
+	            	'detail' => $detail ?? null,
+	            	'receipt_number' => $trx['transaction_receipt_number']
+		        ]
+		    );
 		} elseif (empty($unprocessed) || $rejected == $totalItem) {
 			// rejected
 			TransactionOutletService::where('id_transaction', $trx->id_transaction)
@@ -1386,6 +1476,17 @@ class ApiTransactionOutletService extends Controller
 				'reject_at' => date('Y-m-d H:i:s'),
 				'reject_reason' => $request->note
 			]);
+
+			app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
+            	'Transaction Rejected', 
+            	$trx->user->phone, 
+            	[
+		            'date' => $trx['transaction_date'],
+                	'outlet_name' => $trx['outlet']['outlet_name'],
+                	'detail' => $detail ?? null,
+                	'receipt_number' => $trx['transaction_receipt_number']
+		        ]
+		    );
 		}
 
 		$newTrx = Transaction::with([
@@ -1393,7 +1494,6 @@ class ApiTransactionOutletService extends Controller
 			'transaction_outlet_service'
 		])
 		->find($trx->id_transaction);
-
 
 		$logTrx = LogTransactionUpdate::create([
 			'id_user' => $request->user()->id,

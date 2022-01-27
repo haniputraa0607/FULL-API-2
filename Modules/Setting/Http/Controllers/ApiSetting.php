@@ -1988,4 +1988,28 @@ class ApiSetting extends Controller
         }
         return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
     }
+    public function attendances_date(){
+        $data = Setting::where('key','attendances_date')->first();
+         return response()->json($data);
+    }
+  
+    public function attendances_date_create(Request $request){
+        if(isset($request->value)){
+             $salary_formula = Setting::where('key','attendances_date')->first();
+             if($salary_formula){
+                 $data = Setting::where('key','attendances_date')->update([
+                  'value'=>$request->value,
+                  'value_text'=>$request->value_text
+             ]);
+             }else{
+                 $data = Setting::create([
+                 'key'=>'attendances_date',
+                 'value'=> $request->value,
+                 'value_text'=>$request->value_text
+             ]);
+             }
+              return response()->json(MyHelper::checkCreate($data));
+        }
+        return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
+    }
 }

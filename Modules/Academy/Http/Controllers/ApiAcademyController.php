@@ -692,7 +692,7 @@ class ApiAcademyController extends Controller
                 if(empty($value['completed_installment_at'])){
                     $listNextBill[] = [
                         'id_transaction_academy_installment' => $value['id_transaction_academy_installment'],
-                        'text' => 'Pembayaran Tahap '.($key+1),
+                        'text' => ($key == 0 ? 'Uang Muka':'Pembayaran Tahap '.($key)),
                         'deadline' => (empty($value['deadline'])? '':MyHelper::dateFormatInd($value['deadline'], true, false)),
                         'amount' => $value['amount']
                     ];
@@ -700,7 +700,7 @@ class ApiAcademyController extends Controller
                     $listHistory[] = [
                         'payment_date' => MyHelper::dateFormatInd($value['completed_installment_at'], true, false),
                         'receipt_number' => $value['installment_receipt_number'],
-                        'title' => 'Pembayaran Tahap '.($key+1),
+                        'title' => ($key == 0 ? 'Uang Muka':'Pembayaran Tahap '.($key)),
                         'amount' => number_format($value['amount'],0,",",".")
                     ];
                 }
@@ -1006,7 +1006,7 @@ class ApiAcademyController extends Controller
                         'id_transaction' => $value['id_transaction'],
                         'deadline'=> (!empty($value['deadline'])? MyHelper::dateFormatInd($value['deadline'], true, false) : ''),
                         'amount' => number_format($value['amount']),
-                        'installment_step' => MyHelper::numberToRomanRepresentation($value['installment_step'])
+                        'installment_step' => ($value['installment_step'] == 1 ? 'Uang Muka' : MyHelper::numberToRomanRepresentation($value['installment_step']))
                     ]
                 );
             }

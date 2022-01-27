@@ -189,6 +189,10 @@ class ApiProductController extends Controller
         if (isset($post['product_academy_hours_meeting'])) {
             $data['product_academy_hours_meeting'] = $post['product_academy_hours_meeting'];
         }
+
+        if (isset($post['product_academy_maximum_installment'])) {
+            $data['product_academy_maximum_installment'] = $post['product_academy_maximum_installment'];
+        }
     	return $data;
     }
 

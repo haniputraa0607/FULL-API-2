@@ -18,6 +18,7 @@ use Illuminate\Http\Request;
     //Project
     Route::any('/initProject/{partner}/{location}', ['middleware'=>['feature_control:403','scopes:be'], 'uses' => 'ApiProjectController@initProject']);
     Route::any('/list', ['middleware'=>['feature_control:402','scopes:be'], 'uses' => 'ApiProjectController@index']);
+    Route::any('/cron', ['middleware'=>['feature_control:402','scopes:be'], 'uses' => 'ApiProjectController@cron']);
     Route::post('/create', ['middleware'=>['feature_control:403','scopes:be'], 'uses' => 'ApiProjectController@create']);
     Route::post('/excel', ['middleware'=>['feature_control:404','scopes:be'], 'uses' => 'ApiProjectController@excel']);
     Route::any('/detail', ['middleware'=>['feature_control:404','scopes:be'], 'uses' => 'ApiProjectController@detail']);

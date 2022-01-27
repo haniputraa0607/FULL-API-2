@@ -100,7 +100,7 @@ class ApiFitOutController extends Controller
                             "location" => Location::where('id_location',$project->id_location)->first(),
                             "confir" => ConfirmationLetter::where('id_partner',$project->id_partner)->first(),
                         ];
-       $invoice = Icount::ApiInvoiceBAP($data_send);
+       $invoice = Icount::ApiInvoiceBAP($data_send,$data_send['location']['company_type']);
             if($invoice['response']['Status']=='1' && $invoice['response']['Message']=='success'){
              $data_invoice = [
                  'id_project'=>$request->id_project,

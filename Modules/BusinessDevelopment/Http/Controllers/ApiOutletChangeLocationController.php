@@ -22,24 +22,19 @@ use Modules\BusinessDevelopment\Entities\StepsLog;
 use Modules\BusinessDevelopment\Entities\ConfirmationLetter;
 use Modules\BusinessDevelopment\Entities\FormSurvey;
 use function GuzzleHttp\json_decode;
-use Modules\BusinessDevelopment\Entities\OutletCutOff;
-use Modules\BusinessDevelopment\Entities\OutletCutOffDocument;
-use Modules\BusinessDevelopment\Entities\OutletCloseTemporary;
-use Modules\BusinessDevelopment\Entities\OutletCloseTemporaryDocument;
-use Modules\BusinessDevelopment\Entities\OutletCloseTemporaryLocation;
-use Modules\BusinessDevelopment\Entities\OutletCloseTemporaryLocationOld;
-use Modules\BusinessDevelopment\Entities\OutletCloseTemporaryStep;
-use Modules\BusinessDevelopment\Entities\OutletCloseTemporaryFormSurvey;
-use Modules\BusinessDevelopment\Entities\OutletCloseTemporaryConfirmationLetter;
-use Modules\BusinessDevelopment\Entities\OutletManage;
 use App\Http\Models\Outlet;
-use Modules\BusinessDevelopment\Http\Requests\OutletClose\CreateOutletCloseTemporaryRequest;
-use Modules\BusinessDevelopment\Http\Requests\OutletClose\CreateOutletActiveRequest;
-use Modules\BusinessDevelopment\Http\Requests\OutletClose\UpdateOutletCloseTemporaryRequest;
-use Modules\BusinessDevelopment\Http\Requests\OutletClose\CreateLampiranCloseTemporaryRequest;
-use Modules\BusinessDevelopment\Http\Requests\OutletClose\UpdateOutletCloseTemporaryActiveRequest;
+use Modules\BusinessDevelopment\Entities\OutletChangeLocation;
+use Modules\BusinessDevelopment\Entities\OutletChangeLocationConfirmationLetter;
+use Modules\BusinessDevelopment\Entities\OutletChangeLocationFormSurvey;
+use Modules\BusinessDevelopment\Entities\OutletChangeLocationSteps;
+use Modules\BusinessDevelopment\Entities\OutletManage;
+use Modules\BusinessDevelopment\Http\Requests\OutletClose\CreateOutletChangeLocationRequest;
+use Modules\BusinessDevelopment\Http\Requests\OutletClose\UpdateOutletChangeLocationRequest;
+use Modules\BusinessDevelopment\Entities\LegalAgreement;
+use App\Lib\Icount;
+use Modules\Project\Http\Controllers\ApiProjectController;
 
-class ApiOutletCloseTemporaryController extends Controller
+class ApiOutletChangeLocationController extends Controller
 {
      public function __construct()
     {
@@ -47,10 +42,10 @@ class ApiOutletCloseTemporaryController extends Controller
         if (\Module::collections()->has('Autocrm')) {
             $this->autocrm  = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
         }
-        $this->saveFileActiveFollowUp = "file/outlet_close_temporary/follow_up/";
-        $this->saveFileCloseTemporary = "file/outlet_close_temporary/";
-        $this->confirmation = "file/outlet_close_temporary/confirmation/";
-        $this->form_survey = "file/outlet_close_temporary/form_survey/";
+        $this->saveFile = "file/outlet_change_location/follow_up/";
+        $this->confirmation = "file/outlet_change_location/confirmation/";
+        $this->form_survey = "file/outlet_change_location/form_survey/";
+         $this->legal_agreement = "file/legal_agreement/";
     }
     public function index(Request $request){
         $project = Outlet::join('locations','locations.id_location','outlets.id_location')
@@ -65,73 +60,28 @@ class ApiOutletCloseTemporaryController extends Controller
     }
     
     //Close Outlet
-    public function createActive(CreateOutletActiveRequest $request){
-        $note = null;
-        $store = null;
-        if(isset($request->note)){
-            $note = $request->note;
-        }
+    public function create(CreateOutletChangeLocationRequest $request){
         $manage = OutletManage::create([
                     "id_partner"   =>  $request->id_partner,
                     "id_outlet"    =>  $request->id_outlet,
-                    "type"         =>  "Active Temporary",
+                    "type"         =>  "Change Location",
                     "date"         =>  date_format(date_create($request->date),"Y-m-d H:i:s"),
         ]);
-         $store = OutletCloseTemporary::create([
+        $outlet = Outlet::where(array('id_outlet'=>$request->id_outlet))->first();
+         $store = OutletChangeLocation::create([
                     "id_partner"   =>  $request->id_partner,
+                    "id_location"  =>  $outlet->id_location,
                     "id_outlet"    =>  $request->id_outlet,
-                    "jenis"        =>  "Active",
-                    "title"        =>  $request->title,
                     "date"         =>  date_format(date_create($request->date),"Y-m-d H:i:s"),
-                    "note"         =>  $note,
                     "id_outlet_manage"=>$manage->id_outlet_manage
                 ]);   
-       
+        
             return response()->json(MyHelper::checkCreate($store));
     }
-    public function createClose(CreateOutletCloseTemporaryRequest $request){
-        $note = null;
-        if(isset($request->note)){
-            $note = $request->note;
-        }
-         $manage = OutletManage::create([
-                    "id_partner"   =>  $request->id_partner,
-                    "id_outlet"    =>  $request->id_outlet,
-                    "type"         =>  "Close Temporary",
-                    "date"         =>  date_format(date_create($request->date),"Y-m-d H:i:s"),
-        ]);
-        $store = OutletCloseTemporary::create([
-                    "id_partner"   =>  $request->id_partner,
-                    "id_outlet"    =>  $request->id_outlet,
-                    "title"        =>  $request->title,
-                    "date"         =>  date_format(date_create($request->date),"Y-m-d H:i:s"),
-                    "note"         =>  $note,
-                    "id_outlet_manage"=>$manage->id_outlet_manage
+    public function update(UpdateOutletChangeLocationRequest $request){
+         $store = OutletChangeLocation::where(array('id_change_location'=>$request->id_change_location))->update([
+                    "date"      =>  date_format(date_create($request->date),"Y-m-d H:i:s")
                 ]);
-            return response()->json(MyHelper::checkCreate($store));
-    }
-    public function updateClose(UpdateOutletCloseTemporaryRequest $request){
-        $note = null;
-        if(isset($request->note)){
-            $note = $request->note;
-        }
-         $store = OutletCloseTemporary::where(array('id_outlet_close_temporary'=>$request->id_outlet_close_temporary))->update([
-                   "title"        =>  $request->title,
-                    "date"      =>  date_format(date_create($request->date),"Y-m-d H:i:s"),
-                    "note"         =>  $note
-                ]);
-            return response()->json(MyHelper::checkCreate($store));
-    }
-    public function updateCloseActive(UpdateOutletCloseTemporaryActiveRequest $request){
-        $note = null;
-        if(isset($request->note)){
-            $note = $request->note;
-        }
-            $store = OutletCloseTemporary::where(array('id_outlet_close_temporary'=>$request->id_outlet_close_temporary))->update([
-               "title"        =>  $request->title,
-                "date"      =>  date_format(date_create($request->date),"Y-m-d H:i:s"),
-                "note"         =>  $note
-            ]);
             return response()->json(MyHelper::checkCreate($store));
     }
     public function indexClose(Request $request){
@@ -142,96 +92,61 @@ class ApiOutletCloseTemporaryController extends Controller
              'list'=>$store
          )]);
     }
-    public function detailClose(Request $request){
-         $store = OutletCloseTemporary::where(array('id_outlet_close_temporary'=>$request->id_outlet_close_temporary))
-                 ->join('outlets','outlets.id_outlet','outlet_close_temporary.id_outlet')
+    public function detail(Request $request){
+         $store = OutletChangeLocation::where(array('id_outlet_manage'=>$request->id_outlet_manage))
+                 ->join('outlets','outlets.id_outlet','outlet_change_location.id_outlet')
                  ->join('cities','cities.id_city','outlets.id_city')
                  ->join('locations','locations.id_location','outlets.id_location')
                  ->join('partners','partners.id_partner','locations.id_partner')
-                 ->select('outlet_close_temporary.*','outlets.*','locations.id_location','locations.id_brand','partners.gender','partners.name as name_partner')
+                 ->select('outlet_change_location.*','outlets.*','locations.id_location','locations.id_brand','partners.gender','partners.name as name_partner')
+                 ->with(['steps','first_location','confirmation'])
                  ->first();
          if($store){
               return response()->json(['status' => 'success','result'=>$store]);
          }
            return response()->json(['status' => 'fail','message'=>"Data Not Found"]);
     }
-    public function rejectClose(Request $request){
-         $store = OutletCloseTemporary::where(array('id_outlet_close_temporary'=>$request->id_outlet_close_temporary))->first();
+    public function reject(Request $request){
+         $store = OutletChangeLocation::where(array('id_change_location'=>$request->id_change_location))->first();
          if($store){
-             $manage = OutletManage::where(array('id_outlet_manage'=>$store->id_outlet_manage))->update([
-            'status'=>"Reject"
-            ]);
-             $store = OutletCloseTemporary::where(array('id_outlet_close_temporary'=>$request->id_outlet_close_temporary))->update([
-            'status'=>"Reject"
-            ]);
+             $manage = OutletManage::where(array('id_outlet_manage'=>$request->id_outlet_manage))->update([
+         'status'=>"Reject"
+         ]);
+             $store = OutletChangeLocation::where(array('id_change_location'=>$request->id_change_location))->update([
+         'status'=>"Reject"
+         ]);
               return response()->json(['status' => 'success','result'=>$store]);
          }
            return response()->json(['status' => 'success','message'=>"Data Not Found"]);
     }
-    public function successClose(Request $request){
-         $store = OutletCloseTemporary::where(array('id_outlet_close_temporary'=>$request->id_outlet_close_temporary))->first();
+    public function success(Request $request){
+         $store = OutletChangeLocation::where(array('id_change_location'=>$request->id_change_location))->first();
          if($store){
-             $manage = OutletManage::where(array('id_outlet_manage'=>$store->id_outlet_manage))->update([
-            'status'=>"Waiting"
-            ]);
-             $store = OutletCloseTemporary::where(array('id_outlet_close_temporary'=>$request->id_outlet_close_temporary))->update([
-            'status'=>"Waiting"
-            ]);
+             $manage = OutletManage::where(array('id_outlet_manage'=>$request->id_outlet_manage))->update([
+         'status'=>"Success"
+         ]);
+             $store = OutletChangeLocation::where(array('id_change_location'=>$request->id_change_location))->update([
+         'status'=>"Success"
+         ]);
               return response()->json(['status' => 'success','result'=>$store]);
          }
            return response()->json(['status' => 'success','message'=>"Data Not Found"]);
     }
-    public function lampiranCreateClose(CreateLampiranCloseTemporaryRequest $request){
-        $attachment = null;
-        if(isset($request->attachment)){
-                    $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFileCloseTemporary, 'pdf');
-                     if (isset($upload['status']) && $upload['status'] == "success") {
-                             $attachment = $upload['path'];
-                         } else {
-                             $result = [
-                                 'status'   => 'fail',
-                                 'messages' => ['fail upload file']
-                             ];
-                             return $result;
-                         }
-                 }
-        $store = OutletCloseTemporaryDocument::create([
-                    "id_outlet_close_temporary"   =>  $request->id_outlet_close_temporary,
-                    "title"        =>  $request->title,
-                    "attachment"   => $attachment,
-                    "note"         =>  $request->note
-                ]);
-            return response()->json(MyHelper::checkCreate($store));
-    }
-    public function lampiranDataClose(Request $request){
-        if($request->id_outlet_close_temporary){
-                $project = OutletCloseTemporaryDocument::where('id_outlet_close_temporary', $request->id_outlet_close_temporary)->orderby('created_at','desc')->get();
-            return response()->json(['status' => 'success', 'result' => $project]);
-        }
-            return response()->json(['fail' => 'success', 'result' => []]);
-    }
-    public function lampiranDeleteClose(Request $request){
-         if($request->id_outlet_close_temporary_document){
-                $project = OutletCloseTemporaryDocument::where('id_outlet_close_temporary_document', $request->id_outlet_close_temporary_document)->delete();
-            return MyHelper::checkDelete($project);
-        }
-            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
-    }
-    public function cronClose(){
-        $log = MyHelper::logCron('Cron Close Outlet Close Temporary');
+  
+    public function cron(){
+        $log = MyHelper::logCron('Cron Outlet Change Location');
         try {
-        $outlet = OutletCloseTemporary::where(array('status'=>"Waiting",'jenis'=>'Close'))->wheredate('date','<=',date('Y-m-d H:i:s'))->get();
+        $outlet = OutletChangeLocation::join('outlets','outlets.id_outlet','outlet_change_location.id_outlet')
+                   ->join('locations','locations.id_location','outlets.id_location')
+                   ->where(array(
+                       'outlets.outlet_status'=>'Active',
+                       'locations.status'=>'Active',
+                   ))
+                   ->wheredate('date','<=',date('Y-m-d'))->get();
         foreach ($outlet as $value) {
             Location::join('outlets','outlets.id_location','locations.id_location')
                         ->where('outlets.id_outlet',$value['id_outlet'])
-                        ->update(['locations.status'=>'Inactive','outlets.outlet_status'=>'Inactive']);
-            $manage = OutletManage::where(array('id_outlet_manage'=>$value['id_outlet_manage']))->update([
-            'status'=>"Success"
-            ]);
-            $store = OutletCloseTemporary::where(array('id_outlet_close_temporary'=>$value['id_outlet_close_temporary']))
-                    ->update([
-                        'status'=>'Success'
-                    ]);
+                        ->update(['locations.status'=>'Close','outlets.outlet_status'=>'Inactive']);
         }
         $log->success('success');
             return response()->json(['success']);
@@ -240,102 +155,22 @@ class ApiOutletCloseTemporaryController extends Controller
             $log->fail($e->getMessage());
         }
     }
-    public function cronActive(){
-        $log = MyHelper::logCron('Cron Active Outlet Close Temporary,No Change Location');
-        try {
-        $outlet = OutletCloseTemporary::where(array('status'=>"Waiting",'jenis'=>'Active','jenis_active'=>'No Change Location'))->wheredate('date','<=',date('Y-m-d H:i:s'))->get();
-        foreach ($outlet as $value) {
-            Location::join('outlets','outlets.id_location','locations.id_location')
-                        ->where('outlets.id_outlet',$value['id_outlet'])
-                        ->update(['locations.status'=>'Active','outlets.outlet_status'=>'Active']);
-            $manage = OutletManage::where(array('id_outlet_manage'=>$value['id_outlet_manage']))->update([
-            'status'=>"Success"
-            ]);
-            $store = OutletCloseTemporary::where(array('id_outlet_close_temporary'=>$value['id_outlet_close_temporary']))
-                    ->update([
-                        'status'=>'Success'
-                    ]);
-            }
-            $log->success('success');
-            return response()->json(['success']);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            $log->fail($e->getMessage());
-        }
-    }
-    public function cronChangeLocation(){
-        $log = MyHelper::logCron('Cron Active Outlet Close Temporary, Change Location');
-        try {
-           $outlet = OutletCloseTemporary::where(array('status'=>"Waiting",'jenis'=>'Active','jenis_active'=>'Change Location'))->wheredate('date','<=',date('Y-m-d H:i:s'))->get();
-           foreach ($outlet as $value) {
-               $location = OutletCloseTemporaryLocation::where(array('id_outlet_close_temporary'=>$value['id_outlet_close_temporary']))->join('cities','cities.id_city','outlet_close_temporary_location.id_city')->first();
-               $lokasi = Location::where(array('id_location'=>$location->id_location))->first();
-               $lokasi['id_outlet_close_temporary'] = $value['id_outlet_close_temporary'];
-               $old_lokasi = OutletCloseTemporaryLocationOld::create([
-                    'name'=>$lokasi->name,
-                    'address'=>$lokasi->address,
-                    'mall'=>$lokasi->mall,
-                    'id_location'=>$lokasi->id_location,
-                    'id_outlet_close_temporary'=>$lokasi->id_outlet_close_temporary,
-                    'id_city'=>$lokasi->id_city,
-                    'latitude'=>$lokasi->latitude,
-                    'longitude'=>$lokasi->longitude,
-                    'id_brand'=>$lokasi->id_brand,
-                    'location_large'=>$lokasi->location_large,
-                    'rental_price'=>$lokasi->rental_price,
-                    'service_charge'=>$lokasi->service_charge,
-                    'promotion_levy'=>$lokasi->promotion_levy,
-                    'renovation_cost'=>$lokasi->renovation_cost,
-                    'partnership_fee'=>$lokasi->partnership_fee,
-                    'start_date'=>$lokasi->start_date,
-                    'end_date'=>$lokasi->end_date,
-                    'notes'=>$lokasi->notes,
-               ]);
-               $update_location = Location::where(array('id_location'=>$location->id_location))->update([
-                    'name'=>$location->name,
-                    'address'=>$location->address,
-                    'mall'=>$location->mall,
-                    'id_location'=>$location->id_location,
-                    'id_city'=>$location->id_city,
-                    'latitude'=>$location->latitude,
-                    'longitude'=>$location->longitude,
-                    'id_brand'=>$location->id_brand,
-                    'location_large'=>$location->location_large,
-                    'rental_price'=>$location->rental_price,
-                    'service_charge'=>$location->service_charge,
-                    'promotion_levy'=>$location->promotion_levy,
-                    'renovation_cost'=>$location->renovation_cost,
-                    'partnership_fee'=>$location->partnership_fee,
-                    'start_date'=>$location->start_date,
-                    'end_date'=>$location->end_date,
-                    'notes'=>$location->notes,
-                    'status'=>'Active',
-               ]);
-               $outlets = Outlet::where(array('id_outlet'=>$value['id_outlet']))->update([
-                   'outlet_status'=>'Active',
-                   'id_city'=>$location->id_city,
-                   'outlet_name'=>$location->name,
-                   'outlet_address'=>$location->outlet_address,
-                   'outlet_latitude'=>$location->outlet_latitude,
-                   'outlet_longitude'=>$location->outlet_longitude,
-                   'outlet_postal_code'=>$location->outlet_postal_code,
-               ]);
-               $value['status'] = 'Success';
-               $value->save();
-           } 
-            $log->success('success');
-            return response()->json(['success']);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            $log->fail($e->getMessage());
-        }
-    }
+   
     //step 
     public function updateStatus(Request $request) {
-        $outlet = OutletCloseTemporary::where(array('id_outlet_close_temporary'=>$request->id_outlet_close_temporary))->update([
-                'status_steps'=>$request->status_steps,
-                'status'=>$request->status
-                ]);
+        $outlet = OutletChangeLocation::where(array('id_outlet_change_location'=>$request->id_outlet_change_location))->first();
+        if($outlet){
+            if(isset($request->status_steps)){
+                $outlet->status_steps = $request->status_steps;
+            }
+            if(isset($request->status)){
+                $outlet->status = $request->status;
+            }
+            if(isset($request->id_location)){
+                $outlet->to_id_location = $request->id_location;
+            }
+            $outlet->save();
+        }
         return response()->json(MyHelper::checkCreate($outlet));
     }
     public function updatelokasi(Request $request) {
@@ -392,9 +227,104 @@ class ApiOutletCloseTemporaryController extends Controller
        return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
     }
     public function createFollowUp(Request $request) {
+        $post = $request->post_follow_up;
+        if($post){
+            if(isset($post['follow_up']) && $post['follow_up'] == 'Payment'){
+                $data_send = [
+                    "partner" => Partner::where('id_partner',$post["id_partner"])->first(),
+                    "location" => Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->first(),
+                    "confir" => OutletChangeLocationConfirmationLetter::where('id_outlet_change_location',$post["id_outlet_change_location"])->first(),
+                ];
+                $initBranch = Icount::ApiConfirmationLetter($data_send, $data_send['location']['company_type']);
+                if($initBranch['response']['Status']=='1' && $initBranch['response']['Message']=='success'){
+                    $data_init = $initBranch['response']['Data'][0];
+                    $partner_init = [
+                        "id_business_partner" => $data_init['BusinessPartner']['BusinessPartnerID'],
+                        "id_company" => $data_init['BusinessPartner']['CompanyID'],
+                        "id_sales_order" => $data_init['SalesOrderID'],
+                        "voucher_no" => $data_init['VoucherNo'],
+                        "id_sales_order_detail" => $data_init['Detail'][0]['SalesOrderDetailID'],
+                    ];
+                    $location_init = [
+                        "id_branch" => $data_init['Branch']['BranchID'],
+                        "id_chart_account" => $data_init['Branch']['ChartOfAccountID'],
+                    ];
+                    $value_detail[$data_init['Detail'][0]['Name']] = [
+                        "name" => $data_init['Detail'][0]['Name'],
+                        "amount" => $data_init['Amount'],
+                        "tax_value" => $data_init['TaxValue'],
+                        "netto" => $data_init['Netto'],
+                    ];
+                    $location_init['value_detail'] = json_encode($value_detail);
+                    $update_partner_init = Partner::where('id_partner', $post['id_partner'])->update($partner_init);
+                    if($update_partner_init){
+                        $update_location_init = Location::where('id_partner', $post['id_partner'])->where('id_location',$post["id_location"])->update($location_init);
+                        if(!$update_location_init){
+                            DB::rollback();
+                            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                        }
+                        $data_send_2 = [
+                            "partner" => Partner::where('id_partner',$post["id_partner"])->first(),
+                            "location" => Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->first(),
+                            "confir" =>  OutletChangeLocationConfirmationLetter::where('id_outlet_change_location',$post["id_outlet_change_location"])->first(),
+                        ];
+                        $invoiceCL = Icount::ApiInvoiceConfirmationLetter($data_send_2, $data_send['location']['company_type']);
+                        if($invoiceCL['response']['Status']=='1' && $invoiceCL['response']['Message']=='success'){
+                            $data_invoCL = $invoiceCL['response']['Data'][0];
+                            $val = Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->get('value_detail')[0]['value_detail'];
+                            $val = json_decode($val, true);
+                            $val[$data_invoCL['Detail'][0]['Name']] = [
+                                "name" => $data_invoCL['Detail'][0]['Name'],
+                                "amount" => $data_invoCL['Amount'],
+                                "tax_value" => $data_invoCL['TaxValue'],
+                                "netto" => $data_invoCL['Netto'],
+                            ];
+                            $location_invoCL['value_detail'] = json_encode($val);
+                            $partner_invoCL = [
+                                "id_sales_invoice" => $data_invoCL['SalesInvoiceID'],
+                                "id_sales_invoice_detail" => $data_invoCL['Detail'][0]['SalesInvoiceDetailID'],
+                                "id_delivery_order_detail" => $data_invoCL['Detail'][0]['DeliveryOrderDetailID'],
+                            ];
+                            $update_partner_invoCL = Partner::where('id_partner', $post['id_partner'])->update($partner_invoCL);
+                            if($update_partner_invoCL){
+                                $update_location_invoCL = Location::where('id_partner', $post['id_partner'])->where('id_location',$post["id_location"])->update($location_invoCL);
+                                if(!$update_location_invoCL){
+                                    DB::rollback();
+                                    return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                                }
+                            }
+                            $init = new ApiProjectController();
+                            $outlet = $init->initProject($data_send['partner'], $data_send['location']);
+                            $outletChangeLocation = OutletChangeLocation::where(array('id_outlet_change_location'=>$post["id_outlet_change_location"]))->first();
+                            $outlet_manage = OutletManage::where('id_outlet_manage',$outletChangeLocation->id_outlet_manage)->update([
+                                'status'=>'Success'
+                            ]);
+                            
+                            $outletChangeLocation = OutletChangeLocation::where(array('id_outlet_change_location'=>$post["id_outlet_change_location"]))->update([
+                                'status'=>'Success',
+                                'to_id_outlet'=>$outlet['result']['outlet']['id_outlet']
+                            ]);
+                            //make legal agreement
+                            $legal_agree = $this->createLegalAgreement($data_send['partner'], $data_send['location']);
+                            if(!$legal_agree){
+                                DB::rollback();
+                                return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                            }
+                        }else{
+                            return response()->json(['status' => 'fail', 'messages' => [$invoiceCL['response']['Message']]]);
+                        }
+                    }else{
+                        return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                    }
+                }else{
+                    return response()->json(['status' => 'fail', 'messages' => [$initBranch['response']['Message']]]);
+                }
+                
+            DB::commit();
+            }
         $attachment = null;
             if(isset($request->attachment)){
-                    $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFileActiveFollowUp, 'pdf');
+                    $upload = MyHelper::uploadFile($post->file('attachment'), $this->saveFileActiveFollowUp, 'pdf');
                      if (isset($upload['status']) && $upload['status'] == "success") {
                              $attachment = $upload['path'];
                          } else {
@@ -405,13 +335,15 @@ class ApiOutletCloseTemporaryController extends Controller
                              return $result;
                          }
                  }
-        $outlet = OutletCloseTemporaryStep::create([
-                'id_outlet_close_temporary'=>$request->id_outlet_close_temporary,
-                'follow_up'=>$request->follow_up,
-                'note'=>$request->note,
+        $outlet = OutletChangeLocationSteps::create([
+                'id_outlet_change_location'=>$post['id_outlet_change_location'],
+                'follow_up'=>$post['follow_up'],
+                'note'=>$post['note'],
                 'attachment'=>$attachment
                 ]);
         return response()->json(MyHelper::checkCreate($outlet));
+        }
+         return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
     }
     public function createFormSurvey(Request $request){
         $post = $request->all();
@@ -505,24 +437,28 @@ class ApiOutletCloseTemporaryController extends Controller
     }
        public function createConfirLetter(Request $request){
         $post = $request->all();
-        if(isset($post['id_outlet_close_temporary']) && !empty($post['id_outlet_close_temporary'])){
-            $cek_partner = OutletCloseTemporary::join('partners','partners.id_partner','outlet_close_temporary.id_partner')
-                           ->where(array('outlet_close_temporary.id_outlet_close_temporary'=>$post['id_outlet_close_temporary']))
-                           ->select('partners.*')
+      
+        if(isset($post['id_outlet_change_location']) && !empty($post['id_outlet_change_location'])){
+            $cek_partner = OutletChangeLocation::join('partners','partners.id_partner','outlet_change_location.id_partner')
+                           ->where(array('outlet_change_location.id_outlet_change_location'=>$post['id_outlet_change_location']))
+                           ->select('partners.*','outlet_change_location.to_id_location')
                            ->first();
+         
             if($cek_partner){
                 DB::beginTransaction();
                 $creatConf = [
-                    "id_outlet_close_temporary"   => $post['id_outlet_close_temporary'],
+                    "id_outlet_change_location"   => $post['id_outlet_change_location'],
                     "no_letter"   => $post['no_letter'],
                     "location"   => $post['location'],
                     "date"   => date("Y-m-d"),
                 ];
+                   
                 $data['partner'] = $cek_partner;
                 $data['letter'] = $creatConf;
-                $data['location'] = OutletCloseTemporaryLocation::where(['id_outlet_close_temporary'=>$post['id_outlet_close_temporary']])->first();
+                $data['location'] = Location::where(array('id_location'=>$cek_partner->to_id_location))->first();
                 $data['city'] = City::where(['id_city'=>$data['location']['id_city']])->first();
                 $waktu = $this->timeTotal(explode('-',  date('Y-m-d', strtotime($data['location']['start_date']))),explode('-',  date('Y-m-d', strtotime($data['location']['end_date']))));
+                
                 $send['data'] = [
                     'pihak_dua' => $this->pihakDua($data['partner']['name'],$data['partner']['gender']),
                     'ttd_pihak_dua' => $data['partner']['name'],
@@ -548,13 +484,13 @@ class ApiOutletCloseTemporaryController extends Controller
                 }
                 $content = Setting::where('key','confirmation_letter_tempalate')->get('value_text')->first()['value_text'];
                 $pdf_contect['content'] = $this->textReplace($content,$send['data']);
-                // return $pdf_contect['content'];
+                
                 $no = str_replace('/', '_', $post['no_letter']);
-                $path = $this->confirmation.'confirmation_'.$no.'.pdf';
+                $path = $this->confirmation.'confirmation_'.$no.'.pdf'; 
                 $pdf = PDF::loadView('businessdevelopment::confirmation', $pdf_contect );
                 Storage::put($path, $pdf->output(),'public');
                 $creatConf['attachment'] = $path;
-                $store = OutletCloseTemporaryConfirmationLetter::create($creatConf);
+                $store = OutletChangeLocationConfirmationLetter::create($creatConf);
                 if(!$store) {
                     DB::rollback();
                     return response()->json(['status' => 'fail', 'messages' => ['Failed create confirmation letter']]);
@@ -758,5 +694,144 @@ class ApiOutletCloseTemporaryController extends Controller
             }
         }
         return $i;
+    }
+    
+     public function createLegalAgreement($partner,$location){
+        
+        $data_legal = [
+            'id_partner' => $partner['id_partner'],
+            'id_location' => $location['id_location'],
+            'no_letter' => '123',
+            'date_letter' => date('Y-m-d'),
+            'attachment' => $this->legal_agreement.'tes.pdf',
+        ];
+
+        $send = LegalAgreement::create($data_legal);
+        if(!$send){
+            return false;
+        }
+        return true;
+    }
+    public function followUpNewLoc(Request $request)
+    {
+        $post = $request['post_follow_up'];
+        if(isset($post['id_partner']) && !empty($post['id_partner'])){
+            DB::beginTransaction();
+            $data_store = [
+                "id_outlet_change_location" => $post["id_partner"],
+                "to_id_location" => $post["id_location"],
+                "status_steps" => $post["follow_up"],
+            ];
+            if (isset($post['attachment']) && !empty($post['attachment'])) {
+                $upload = MyHelper::uploadFile($post['attachment'], $this->saveFile, 'pdf');
+                if (isset($upload['status']) && $upload['status'] == "success") {
+                    $data_store['attachment'] = $upload['path'];
+                } else {
+                    $result = [
+                        'error'    => 1,
+                        'status'   => 'fail',
+                        'messages' => ['fail upload file']
+                    ];
+                    return $result;
+                }
+            }
+            $store = OutletChangeLocation::create($data_store);
+            if (!$store) {
+                DB::rollback();
+                return response()->json(['status' => 'fail', 'messages' => ['Failed add follow up data']]);
+            }
+            if(isset($request['form_survey']) && !empty($request['form_survey'])){
+                $survey =  $this->createFormSurvey($request['form_survey']);
+                if($survey['status'] != 'success' && isset($survey['status'])){
+                    return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                }
+            }
+            if(isset($post['follow_up']) && $post['follow_up'] == 'Payment'){
+                $data_send = [
+                    "partner" => Partner::where('id_partner',$post["id_partner"])->first(),
+                    "location" => Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->first(),
+                    "confir" => ConfirmationLetter::where('id_partner',$post["id_partner"])->first(),
+                ];
+                $initBranch = Icount::ApiConfirmationLetter($data_send);
+                if($initBranch['response']['Status']=='1' && $initBranch['response']['Message']=='success'){
+                    $data_init = $initBranch['response']['Data'][0];
+                    $partner_init = [
+                        "id_business_partner" => $data_init['BusinessPartner']['BusinessPartnerID'],
+                        "id_company" => $data_init['BusinessPartner']['CompanyID'],
+                        "id_sales_order" => $data_init['SalesOrderID'],
+                        "voucher_no" => $data_init['VoucherNo'],
+                        "id_sales_order_detail" => $data_init['Detail'][0]['SalesOrderDetailID'],
+                    ];
+                    $location_init = [
+                        "id_branch" => $data_init['Branch']['BranchID'],
+                        "id_chart_account" => $data_init['Branch']['ChartOfAccountID'],
+                    ];
+                    $value_detail[$data_init['Detail'][0]['Name']] = [
+                        "name" => $data_init['Detail'][0]['Name'],
+                        "amount" => $data_init['Amount'],
+                        "tax_value" => $data_init['TaxValue'],
+                        "netto" => $data_init['Netto'],
+                    ];
+                    $location_init['value_detail'] = json_encode($value_detail);
+                    $update_partner_init = Partner::where('id_partner', $post['id_partner'])->update($partner_init);
+                    if($update_partner_init){
+                        $update_location_init = Location::where('id_partner', $post['id_partner'])->where('id_location',$post["id_location"])->update($location_init);
+                        if(!$update_location_init){
+                            DB::rollback();
+                            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                        }
+                        $data_send_2 = [
+                            "partner" => Partner::where('id_partner',$post["id_partner"])->first(),
+                            "location" => Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->first(),
+                            "confir" => ConfirmationLetter::where('id_partner',$post["id_partner"])->first(),
+                        ];
+                        $invoiceCL = Icount::ApiInvoiceConfirmationLetter($data_send_2);
+                        if($invoiceCL['response']['Status']=='1' && $invoiceCL['response']['Message']=='success'){
+                            $data_invoCL = $invoiceCL['response']['Data'][0];
+                            $val = Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->get('value_detail')[0]['value_detail'];
+                            $val = json_decode($val, true);
+                            $val[$data_invoCL['Detail'][0]['Name']] = [
+                                "name" => $data_invoCL['Detail'][0]['Name'],
+                                "amount" => $data_invoCL['Amount'],
+                                "tax_value" => $data_invoCL['TaxValue'],
+                                "netto" => $data_invoCL['Netto'],
+                            ];
+                            $location_invoCL['value_detail'] = json_encode($val);
+                            $partner_invoCL = [
+                                "id_sales_invoice" => $data_invoCL['SalesInvoiceID'],
+                                "id_sales_invoice_detail" => $data_invoCL['Detail'][0]['SalesInvoiceDetailID'],
+                                "id_delivery_order_detail" => $data_invoCL['Detail'][0]['DeliveryOrderDetailID'],
+                            ];
+                            $update_partner_invoCL = Partner::where('id_partner', $post['id_partner'])->update($partner_invoCL);
+                            if($update_partner_invoCL){
+                                $update_location_invoCL = Location::where('id_partner', $post['id_partner'])->where('id_location',$post["id_location"])->update($location_invoCL);
+                                if(!$update_location_invoCL){
+                                    DB::rollback();
+                                    return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                                }
+                            }
+                            app('\Modules\Project\Http\Controllers\ApiProjectController')->initProject($data_send['partner'], $data_send['location']);
+                            
+                            //make legal agreement
+                            $legal_agree = $this->createLegalAgreement($data_send['partner'], $data_send['location']);
+                            if(!$legal_agree){
+                                DB::rollback();
+                                return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                            }
+                        }else{
+                            return response()->json(['status' => 'fail', 'messages' => [$invoiceCL['response']['Message']]]);
+                        }
+                    }else{
+                        return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                    }
+                }else{
+                    return response()->json(['status' => 'fail', 'messages' => [$initBranch['response']['Message']]]);
+                }
+            }
+            DB::commit();
+            return response()->json(MyHelper::checkCreate($store));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
     }
 }

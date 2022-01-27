@@ -9,6 +9,7 @@ use Hash;
 use Modules\Disburse\Entities\BankAccount;
 use Illuminate\Database\Eloquent\Model;
 
+
 class Partner extends Authenticatable
 {
 	use Notifiable, HasMultiAuthApiTokens;
@@ -53,7 +54,8 @@ class Partner extends Authenticatable
 		'title',
 		'contact_person',
 		'mobile',
-		'notes'
+		'notes',
+		
 	];
         
     public function partner_locations(){
@@ -68,10 +70,22 @@ class Partner extends Authenticatable
     public function partner_confirmation(){
         return $this->hasMany(ConfirmationLetter::class, 'id_partner');
     }
+    public function partner_legal_agreement(){
+        return $this->hasMany(LegalAgreement::class, 'id_partner');
+    }
     public function partner_survey(){
         return $this->hasMany(FormSurvey::class, 'id_partner');
     }
     public function partner_close_temporary(){
         return $this->hasMany(PartnersCloseTemporary::class, 'id_partner');
     }
+
+    public function first_location()
+    {
+    	return $this->hasOne(Location::class, 'id_partner');
+    }
+
+		public function partner_new_step(){
+			return $this->hasMany(NewStepsLog::class, 'id_partner');
+		}
 }

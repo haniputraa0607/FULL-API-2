@@ -43,6 +43,13 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
 		    Route::post('create', ['middleware' => 'feature_control:370', 'uses' =>'ApiAnnouncement@createAnnouncement']);
 		    Route::post('delete', ['middleware' => 'feature_control:372', 'uses' =>'ApiAnnouncement@deleteAnnouncement']);
     	});
+
+    	Route::group(['prefix' => 'update-data'], function () {
+        	Route::post('list', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiMitraUpdateData@list']);
+        	Route::post('detail', ['middleware' => 'feature_control:429', 'uses' => 'ApiMitraUpdateData@detail']);
+        	Route::post('update', ['middleware' => 'feature_control:430', 'uses' => 'ApiMitraUpdateData@update']);
+    	});
+
     	Route::group(['prefix' => 'group'], function () {
             Route::any('/', ['middleware' => 'feature_control:393','uses' =>'ApiHairStylistGroupController@index']);
             Route::post('create', ['middleware' => 'feature_control:394','uses' =>'ApiHairStylistGroupController@create']);
@@ -88,6 +95,20 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
                 Route::post('default/delete', ['middleware' => 'feature_control:426','uses' =>'ApiHairStylistGroupPotonganController@delete_default']);
             });
     	});
+        Route::group(['prefix' => 'attendance'], function () {
+            Route::post('list','ApiHairstylistAttendanceController@list');
+            Route::post('detail','ApiHairstylistAttendanceController@detail');
+        });
+        Route::group(['prefix' => 'attendance-pending'], function () {
+            Route::post('list','ApiHairstylistAttendanceController@listPending');
+            Route::post('detail','ApiHairstylistAttendanceController@detailPending');
+            Route::post('update','ApiHairstylistAttendanceController@updatePending');
+        });
+        Route::group(['prefix' => 'attendance-request'], function () {
+            Route::post('list','ApiHairstylistAttendanceController@listRequest');
+            Route::post('detail','ApiHairstylistAttendanceController@detailRequest');
+            Route::post('update','ApiHairstylistAttendanceController@updateRequest');
+        });
     });
 });
 
@@ -164,6 +185,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
         Route::post('cash/transfer/detail', 'ApiMitra@transferCashDetail');
         Route::post('cash/transfer/create', 'ApiMitra@transferCashCreate');
         Route::post('cash/transfer/history', 'ApiMitra@transferCashHistory');
+        Route::post('income-details', 'ApiMitra@commissionDetail');
 
         //Cash flow for SPV
         Route::post('income/detail', 'ApiMitra@incomeDetail');
@@ -176,6 +198,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
 
         Route::post('expense/outlet/create', 'ApiMitra@expenseOutletCreate');
         Route::post('expense/outlet/history', 'ApiMitra@expenseOutletHistory');
+
 	});
 
     Route::group(['middleware' => ['auth:mitra', 'scopes:mitra-apps'], 'prefix' => 'attendance'], function () {

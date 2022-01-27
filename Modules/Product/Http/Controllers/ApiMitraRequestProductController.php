@@ -199,96 +199,41 @@ class ApiMitraRequestProductController extends Controller
                     $products = DeliveryRequestProduct::with(['delivery_product' => function($query) {
                                     $query->select('id_delivery_product');
                                     $query->with(['delivery_product_detail' => function($query) {
-                                        $query->where('status','Approved');
                                         $query->with(['delivery_product_icount' => function($query){
-                                                $query->select('id_product_icount','name');
-                                        }]);
-                                    }]);
-                                }])
-                                ->with(['request_product' => function($query) {
-                                    $query->select('id_request_product');
-                                    $query->with(['request_product_detail' => function($query) {
-                                        $query->where('status','Approved');
-                                        $query->with(['request_product_icount' => function($query){
                                                 $query->select('id_product_icount','name');
                                         }]);
                                     }]);
                                 }])
                                 ->where('id_delivery_product',$post['id_delivery_product'])->get()->toArray();
                     
-                    $new_pro = 0;
                     $dev = 0;
                     if ($products[0]['delivery_product']) {
                         foreach ($products[0]['delivery_product']['delivery_product_detail'] as $detail) {
                             $delivery[$dev] = [
                                 "id_product_icount" => $detail['delivery_product_icount']['id_product_icount'],
                                 "product_name" => $detail['delivery_product_icount']['name'],
+                                "unit" => $detail['unit'],
                                 "delivered" => $detail['value'],
                             ];
                             if($status=='Completed'){
                                 $delivery[$dev]['received'] = $detail['received'];
+                                $delivery[$dev]['status'] = null;
+
+                                if($detail['status'] == 'Enough'){
+                                    $delivery[$dev]['status'] = 'Lengkap';
+                                }elseif($detail['status'] == 'Less'){
+                                    $delivery[$dev]['status'] = 'Kurang';
+                                }elseif($detail['status'] == 'More'){
+                                    $delivery[$dev]['status'] = 'Lebih';
+                                }
                             }
                             $dev++;
                         }
                     }
-                    foreach($products as $key => $product){
-                        if($product['request_product']){
-                            foreach ($product['request_product']['request_product_detail'] as $detail) {
-                                $new_products[$new_pro] = [
-                                    "id_product_icount" => $detail['request_product_icount']['id_product_icount'],
-                                    "product_name" => $detail['request_product_icount']['name'],
-                                    "unit" => $detail['unit'],
-                                    "requested" => $detail['value'],
-                                    "delivered" => 0,
-                                    "status" => "Kurang"
-                                ];
-                                $new_pro++;
-                            }
-                        }
-                    }
-                    foreach($new_products as $key => $new_product){
-                        foreach($new_products as $key2 => $cek){
-                            if($new_product['product_name'] == $cek['product_name'] && $key < $key2){
-                                $new_products[$key] = [
-                                    "id_product_icount" => $new_product['id_product_icount'],
-                                    "product_name" => $new_product['product_name'],
-                                    "unit" => $new_product['unit'],
-                                    "requested" => $new_products[$key]['requested']+$cek['requested'],
-                                    "delivered" => 0,
-                                    "status" => "Kurang"
-                                ];
-                                unset($new_products[$key2]);
-                            }
-                        }
-                    }
-                    foreach($new_products as $key => $new_product){
-                        foreach($delivery as $dev => $deliv){
-                            if($new_product['product_name'] == $deliv['product_name']){
-                                $new_products[$key]['delivered'] = $deliv['delivered'];
-                                if($new_product['requested'] <= $deliv['delivered']){
-                                    $new_products[$key]['status'] = 'Lengkap';
-                                }
-                                if($status=='Completed'){
-                                    $new_products[$key]['received'] = $deliv['received'];
-                                    if($new_products[$key]['received'] == $new_products[$key]['delivered']){
-                                        $new_products[$key]['confrimed_status'] = 'Lengkap';
-                                    }elseif($new_products[$key]['received'] > $new_products[$key]['delivered']){
-                                        $new_products[$key]['confrimed_status'] = 'Lebih';
-                                    }else{
-                                        $new_products[$key]['confrimed_status'] = 'Kurang';
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    $delivery_product['detail'] = $new_products;
+
+                    $delivery_product['detail'] = $delivery;
 
                     if($status=='Completed'){
-                        $delivery_product['detail'] = array_map(function($value){
-                            unset($value['requested']);
-                            return $value;
-                        },$delivery_product['detail']);
-
                         foreach($delivery_product['delivery_product_images'] as $key => $image){
                             unset($delivery_product['delivery_product_images'][$key]['id_delivery_product']);
                             $delivery_product['delivery_product_images'][$key]['path'] = env('STORAGE_URL_API').$image['path'];
@@ -332,10 +277,10 @@ class ApiMitraRequestProductController extends Controller
                 foreach ($post['attachment'] as $i => $attachment){
                     if(!empty($attachment)){
                         $encode = base64_encode(fread(fopen($attachment, "r"), filesize($attachment)));
-                        $name_file = 'attachment_'.$post['id_delivery_product'].'_'.$i;
-                        $path_full = $this->deliv_path.$name_file;
-                        $delete_path = MyHelper::deletePhoto($path_full);
-                        $upload = MyHelper::uploadPhoto($encode, $this->deliv_path, null, $name_file);
+                        $originalName = $attachment->getClientOriginalName();
+                        $name = pathinfo($originalName, PATHINFO_FILENAME);
+                        $ext = pathinfo($originalName, PATHINFO_EXTENSION);
+                        $upload = MyHelper::uploadFile($encode, $this->deliv_path, $ext, date('YmdHis').'_'.$name);
                         if (isset($upload['status']) && $upload['status'] == "success") {
                             $save_image = [
                                 "id_delivery_product" => $post['id_delivery_product'],
@@ -357,7 +302,14 @@ class ApiMitraRequestProductController extends Controller
                 foreach($post['detail'] as $key => $product){
                     $product_icount = new ProductIcount();
                     $update_stock = $product_icount->find($product['id_product_icount'])->addLogStockProductIcount($product['delivered'],$product['unit'],'Delivery Product',$post['id_delivery_product']);
-                    $update_detail = DeliveryProductDetail::where('id_delivery_product',$post['id_delivery_product'])->where('id_product_icount',$product['id_product_icount'])->update(['received' => $product['received']]);
+                    if($product['received'] == $product['delivered']){
+                        $status = 'Enough';
+                    }elseif($product['received'] < $product['delivered']){
+                        $status = 'Less';
+                    }elseif($product['received'] > $product['delivered']){
+                        $status = 'More';
+                    }
+                    $update_detail = DeliveryProductDetail::where('id_delivery_product',$post['id_delivery_product'])->where('id_product_icount',$product['id_product_icount'])->update(['received' => $product['received'],'status' => $status]);
                 }
             }
 

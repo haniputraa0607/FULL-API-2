@@ -176,13 +176,13 @@ class ApiNotification extends Controller {
     
                 if ($midtrans['status_code'] == 200) {
                     if($midtrans['transaction_status'] == 'settlement' || ($midtrans['transaction_status'] == 'capture' && $midtrans['payment_type'] == 'credit_card')){
-                        $notif = $this->notification($midtrans, $newTrx);
-                        if (!$notif) {
-                            return response()->json([
-                                'status'   => 'fail',
-                                'messages' => ['Transaction failed']
-                            ]);
-                        }
+//                        $notif = $this->notification($midtrans, $newTrx);
+//                        if (!$notif) {
+//                            return response()->json([
+//                                'status'   => 'fail',
+//                                'messages' => ['Transaction failed']
+//                            ]);
+//                        }
 
                         $sendNotifOutlet = app($this->trx)->outletNotif($newTrx['id_transaction']);
 

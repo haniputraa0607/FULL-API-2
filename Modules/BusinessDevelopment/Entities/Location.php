@@ -35,11 +35,21 @@ class Location extends Model
         'submited_by',
         "width",
         "height",
+        "length",
         "location_type",
         "location_image",
         "id_outlet_starter_bundling",
         "total_box",
-        "handover_date"
+        "handover_date",
+        "no_spk",
+        "date_spk",
+        "id_term_of_payment",
+        "ownership_status",
+        "cooperation_scheme",
+        "sharing_percent",
+        "sharing_value",
+        "location_notes",
+        "company_type"
 
     ];
     public function location_partner(){

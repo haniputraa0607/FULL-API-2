@@ -23,6 +23,7 @@ use Modules\Brand\Entities\Brand;
 use PDF;
 use Storage;
 use Modules\BusinessDevelopment\Entities\StepsLog;
+use Modules\BusinessDevelopment\Entities\NewStepsLog;
 use Modules\BusinessDevelopment\Entities\ConfirmationLetter;
 use Modules\BusinessDevelopment\Entities\FormSurvey;
 use Modules\BusinessDevelopment\Entities\TermPayment;
@@ -39,8 +40,11 @@ use Modules\Project\Entities\Project;
 use App\Http\Models\Product;
 use App\Http\Models\Province;
 use Maatwebsite\Excel\Concerns\ToArray;
+use Modules\BusinessDevelopment\Entities\LegalAgreement;
 use Modules\BusinessDevelopment\Entities\OutletStarterBundlingProduct;
 use Modules\Product\Entities\ProductIcount;
+use Modules\BusinessDevelopment\Http\Requests\LandingPage\StoreNewLocation;
+use Modules\BusinessDevelopment\Http\Requests\LandingPage\StoreNewPartner;
 
 use function GuzzleHttp\json_decode;
 
@@ -55,6 +59,7 @@ class ApiPartnersController extends Controller
         $this->saveFile = "file/follow_up/";
         $this->confirmation = "file/confirmation/";
         $this->form_survey = "file/form_survey/";
+        $this->legal_agreement = "file/legal_agreement/";
     }
     /**
      * Display a listing of the resource.
@@ -130,11 +135,32 @@ class ApiPartnersController extends Controller
      * @param Request $request
      * @return Response
      */
-    public function store(Request $request)
+    public function store(StoreNewPartner $request)
     {
         $post = $request->all();
-        $data_request_partner = $post['partner'];
+        $data_request_partner = $post;
         if (!empty($data_request_partner)) {
+            
+            $checkPhoneFormat = MyHelper::phoneCheckFormat($data_request_partner['phone']);
+            if (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'fail') {
+                return response()->json([
+                    'status' => 'fail',
+                    'messages' => 'Invalid number phone format'
+                ]);
+            } elseif (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'success') {
+                $data_request_partner['phone'] = $checkPhoneFormat['phone'];
+            }
+
+            $checkPhoneFormat = MyHelper::phoneCheckFormat($data_request_partner['mobile']);
+            if (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'fail') {
+                return response()->json([
+                    'status' => 'fail',
+                    'messages' => 'Invalid number mobile format'
+                ]);
+            } elseif (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'success') {
+                $data_request_partner['mobile'] = $checkPhoneFormat['phone'];
+            }
+
             DB::beginTransaction();
             $store = Partner::create([
                 "title"          => $data_request_partner['title'],
@@ -150,15 +176,36 @@ class ApiPartnersController extends Controller
                 if (isset($post['location'])) {
                     $id = $store->id_partner;
                     foreach ($post['location'] as $key => $location) {
-                        $store_loc = Location::create([
+                        
+                        $checkPhoneFormat = MyHelper::phoneCheckFormat($location['pic_contact']);
+                        if (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'fail') {
+                            $no = $key + 1;
+                            return response()->json([
+                                'status' => 'fail',
+                                'messages' => 'Invalid number PIC contact format'
+                            ]);
+                        } elseif (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'success') {
+                            $location['pic_contact'] = $checkPhoneFormat['phone'];
+                        }
+
+                        $data_loc = [
                             "name"   => $location['name'],
                             "address"   => $location['address'],
                             "id_city"   => $location['id_city'],
                             "latitude"   => $location['latitude'],
                             "longitude"   => $location['longitude'],
+                            "width"   => $location['width'],
+                            "length"   => $location['length'],
+                            "location_large"   => $location['location_large'],
+                            "location_type"   => $location['location_type'],
+                            "pic_name"   => $location['pic_name'],
+                            "pic_contact"   => $location['pic_contact'],
+                            "notes"   => $location['notes'],
                             "submited_by"   => $id,
-                        ]);
-                        if(!$store_loc){
+                        ];
+                        $store_loc = app('\Modules\BusinessDevelopment\Http\Controllers\ApiLocationsController')->storeLandingPage(New StoreNewLocation($data_loc));
+                        $store_loc = $store_loc->original;
+                        if (isset($store_loc['status']) && $store_loc['status'] == 'fail') {
                             DB::rollback();
                             return response()->json(['status' => 'fail', 'messages' => ['Failed add partner']]);
                         }
@@ -217,7 +264,7 @@ class ApiPartnersController extends Controller
     {
         $post = $request->all();
         if(isset($post['id_partner']) && !empty($post['id_partner'])){
-            $partner = Partner::where('id_partner', $post['id_partner'])->with(['partner_bank_account','partner_locations','partner_step','partner_confirmation','partner_survey'])->first();
+            $partner = Partner::where('id_partner', $post['id_partner'])->with(['partner_bank_account','partner_locations','partner_locations.location_starter.product','partner_step','partner_new_step','partner_confirmation','partner_survey','partner_legal_agreement', 'first_location', 'first_location.location_starter.product'])->first();
             if(($partner['partner_step'])){
                 foreach($partner['partner_step'] as $step){
                     if(isset($step['attachment']) && !empty($step['attachment'])){
@@ -229,6 +276,13 @@ class ApiPartnersController extends Controller
                 foreach($partner['partner_confirmation'] as $confir){
                     if(isset($confir['attachment']) && !empty($confir['attachment'])){
                         $confir['attachment'] = env('STORAGE_URL_API').$confir['attachment'];
+                    }
+                }
+            } 
+            if(($partner['partner_legal_agreement'])){
+                foreach($partner['partner_legal_agreement'] as $legal){
+                    if(isset($legal['attachment']) && !empty($legal['attachment'])){
+                        $legal['attachment'] = env('STORAGE_URL_API').$legal['attachment'];
                     }
                 }
             } 
@@ -460,14 +514,14 @@ class ApiPartnersController extends Controller
         $post = $request->all();
         if (isset($post['id']) && !empty($post['id'])) {
             //cek code partner
-            if($post['table']=='Partners'){
+            if($post['table']=='Partners' && ($post['partner_code'] ?? false)){
                 $cek_code_partner = Partner::where('code', $post['partner_code'])->first();
                 if($cek_code_partner){
                     return response()->json(['status' => 'duplicate_code', 'messages' => ['Partner code must be different']]);
                 }else{
                     return true;
                 }
-            }elseif($post['table']=='Locations'){
+            }elseif($post['table']=='Locations' && ($post['location_code'] ?? false)){
                 $cek_code_location = Location::where('code', $post['location_code'])->first();
                 if($cek_code_location){
                     return response()->json(['status' => 'duplicate_code', 'messages' => ['Location code must be different']]);
@@ -719,6 +773,17 @@ class ApiPartnersController extends Controller
         if (!empty($post)) {
             $cek_partner = Partner::where(['id_partner'=>$id_partner])->first();
             if($cek_partner){
+                
+                $checkPhoneFormat = MyHelper::phoneCheckFormat($post['phone']);
+                if (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'fail') {
+                    return response()->json([
+                        'status' => 'fail',
+                        'message' => 'Format nomor HP tidak benar, minimal 10 angka dan maksimal 14 angka'
+                    ]);
+                } elseif (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'success') {
+                    $post['phone'] = $checkPhoneFormat['phone'];
+                }
+
                 DB::beginTransaction();
                 $store = PartnersLog::create([
                     "id_partner" => $id_partner,
@@ -890,7 +955,6 @@ class ApiPartnersController extends Controller
                 DB::rollback();
                 return response()->json(['status' => 'fail', 'messages' => ['Failed add follow up data']]);
             }
-            DB::commit();
             if(isset($request['form_survey']) && !empty($request['form_survey'])){
                 $survey =  $this->createFormSurvey($request['form_survey']);
                 if($survey['status'] != 'success' && isset($survey['status'])){
@@ -898,37 +962,51 @@ class ApiPartnersController extends Controller
                 }
             }
             if(isset($post['follow_up']) && $post['follow_up'] == 'Payment'){
-
-                // SPK
-                
-
                 $data_send = [
                     "partner" => Partner::where('id_partner',$post["id_partner"])->first(),
                     "location" => Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->first(),
                     "confir" => ConfirmationLetter::where('id_partner',$post["id_partner"])->first(),
                 ];
-                $initBranch = Icount::ApiConfirmationLetter($data_send);
+                $initBranch = Icount::ApiInitBranch($data_send, $data_send['location']['company_type']);
                 if($initBranch['response']['Status']=='1' && $initBranch['response']['Message']=='success'){
+                    if($data_send['location']['company_type']=='PT IMS'){
+                        $initBranch_ims = Icount::ApiInitBranch($data_send, 'PT IMA');
+                        $data_init_ims = $initBranch_ims['response']['Data'][0];
+                    }
                     $data_init = $initBranch['response']['Data'][0];
                     $partner_init = [
                         "id_business_partner" => $data_init['BusinessPartner']['BusinessPartnerID'],
                         "id_company" => $data_init['BusinessPartner']['CompanyID'],
-                        "id_sales_order" => $data_init['SalesOrderID'],
                         "voucher_no" => $data_init['VoucherNo'],
-                        "id_sales_order_detail" => $data_init['Detail'][0]['SalesOrderDetailID'],
                     ];
                     $location_init = [
                         "id_branch" => $data_init['Branch']['BranchID'],
                         "id_chart_account" => $data_init['Branch']['ChartOfAccountID'],
                     ];
-                    $value_detail[$data_init['Detail'][0]['Name']] = [
-                        "name" => $data_init['Detail'][0]['Name'],
-                        "amount" => $data_init['Amount'],
-                        "tax_value" => $data_init['TaxValue'],
-                        "netto" => $data_init['Netto'],
-                    ];
+
+                    if($data_send['location']['company_type']=='PT IMS'){
+                        $value_detail[$data_init_ims['Detail'][0]['Name']] = [
+                            "name" => $data_init_ims['Detail'][0]['Name'],
+                            "amount" => $data_init_ims['Amount'],
+                            "tax_value" => $data_init_ims['TaxValue'],
+                            "netto" => $data_init_ims['Netto'],
+                        ];
+                        $partner_init['id_business_partner_ima'] = $data_init_ims['BusinessPartner']['BusinessPartnerID'];
+                        $partner_init['id_sales_order'] = $data_init_ims['SalesOrderID'];
+                        $partner_init['id_sales_order_detail'] = $data_init_ims['Detail'][0]['SalesOrderDetailID'];
+                        $location_init['id_branch_ima'] = $data_init_ims['Branch']['BranchID'];
+                    }else{
+                        $partner_init['id_sales_order'] = $data_init['SalesOrderID'];
+                        $partner_init['id_sales_order_detail'] = $data_init['Detail'][0]['SalesOrderDetailID'];
+                        $value_detail[$data_init['Detail'][0]['Name']] = [
+                            "name" => $data_init['Detail'][0]['Name'],
+                            "amount" => $data_init['Amount'],
+                            "tax_value" => $data_init['TaxValue'],
+                            "netto" => $data_init['Netto'],
+                        ];    
+                    }
+                    
                     $location_init['value_detail'] = json_encode($value_detail);
-                    DB::beginTransaction();
                     $update_partner_init = Partner::where('id_partner', $post['id_partner'])->update($partner_init);
                     if($update_partner_init){
                         $update_location_init = Location::where('id_partner', $post['id_partner'])->where('id_location',$post["id_location"])->update($location_init);
@@ -936,13 +1014,12 @@ class ApiPartnersController extends Controller
                             DB::rollback();
                             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
                         }
-                        DB::commit();
                         $data_send_2 = [
                             "partner" => Partner::where('id_partner',$post["id_partner"])->first(),
                             "location" => Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->first(),
                             "confir" => ConfirmationLetter::where('id_partner',$post["id_partner"])->first(),
                         ];
-                        $invoiceCL = Icount::ApiInvoiceConfirmationLetter($data_send_2);
+                        $invoiceCL = Icount::ApiInvoiceConfirmationLetter($data_send_2, $data_send_2['location']['company_type']);
                         if($invoiceCL['response']['Status']=='1' && $invoiceCL['response']['Message']=='success'){
                             $data_invoCL = $invoiceCL['response']['Data'][0];
                             $val = Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->get('value_detail')[0]['value_detail'];
@@ -959,7 +1036,6 @@ class ApiPartnersController extends Controller
                                 "id_sales_invoice_detail" => $data_invoCL['Detail'][0]['SalesInvoiceDetailID'],
                                 "id_delivery_order_detail" => $data_invoCL['Detail'][0]['DeliveryOrderDetailID'],
                             ];
-                            DB::beginTransaction();
                             $update_partner_invoCL = Partner::where('id_partner', $post['id_partner'])->update($partner_invoCL);
                             if($update_partner_invoCL){
                                 $update_location_invoCL = Location::where('id_partner', $post['id_partner'])->where('id_location',$post["id_location"])->update($location_invoCL);
@@ -967,7 +1043,14 @@ class ApiPartnersController extends Controller
                                     DB::rollback();
                                     return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
                                 }
-                                DB::commit();
+                            }
+                            app('\Modules\Project\Http\Controllers\ApiProjectController')->initProject($data_send['partner'], $data_send['location']);
+                            
+                            //make legal agreement
+                            $legal_agree = $this->createLegalAgreement($data_send['partner'], $data_send['location']);
+                            if(!$legal_agree){
+                                DB::rollback();
+                                return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
                             }
                         }else{
                             return response()->json(['status' => 'fail', 'messages' => [$invoiceCL['response']['Message']]]);
@@ -979,6 +1062,7 @@ class ApiPartnersController extends Controller
                     return response()->json(['status' => 'fail', 'messages' => [$initBranch['response']['Message']]]);
                 }
             }
+            DB::commit();
             return response()->json(MyHelper::checkCreate($store));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
@@ -1052,6 +1136,7 @@ class ApiPartnersController extends Controller
     }
 
     public function pihakDua($name, $gender){
+        $gender_name = '';
         if($gender=='Man'){
             $gender_name = 'BAPAK';
         }elseif($gender=='Woman'){
@@ -1315,28 +1400,31 @@ class ApiPartnersController extends Controller
             DB::beginTransaction();
             $data_store = [
                 "id_partner" => $post["id_partner"],
-                "id_location" => $post["id_location"],
-                "title" => $post["title"],
-                "survey" => $post["value"],
-                "surveyor" => $post["surveyor"],
-                "potential" => $post["potential"],
-                "note" => $post["note"],
-                "survey_date" => $post["date"],
+                // "id_location" => $post["id_location"],
+                // "title" => $post["title"],
+                // "survey" => $post["value"],
+                // "surveyor" => $post["surveyor"],
+                // "potential" => $post["potential"],
+                // "note" => $post["note"],
+                // "survey_date" => $post["date"],
             ];
-            $store = FormSurvey::create($data_store);
-            if (!$store) {
-                DB::rollback();
-                return ['status' => 'fail', 'messages' => ['Failed add form survey data']];
-            }
-            DB::commit();
-            $data_update = [
-                'attachment' => $this->pdfSurvey($post["id_partner"],$post["id_location"]),
-            ];
-            $update = FormSurvey::where('id_partner', $post['id_partner'])->update($data_update);
+            // $store = FormSurvey::create($data_store);
+            // if (!$store) {
+            //     DB::rollback();
+            //     return ['status' => 'fail', 'messages' => ['Failed add form survey data']];
+            // }
+            // DB::commit();
+            // $data_update = [
+            //     'attachment' => $this->pdfSurvey($post["id_partner"],$post["id_location"]),
+            // ];
+            
+            $update = FormSurvey::where('id_location', $post['id_location'])->update($data_store);
             if(!$update){
+                DB::rollback();
                 return ['status' => 'fail', 'messages' => ['Incompleted Data']];
             }
             else{
+                DB::commit();
                 return ['status' => 'success'];
             }
         }else{
@@ -1457,6 +1545,184 @@ class ApiPartnersController extends Controller
             }
         }
         return response()->json(['status' => 'success', 'result' => $starter]);
+    }
+
+    public function generateSPK(Request $request){
+        $post = $request->all();
+        $data_send = [
+            "partner" => Partner::where('id_partner',$post['id_partner'])->first(),
+            "location" => Location::where('id_partner',$post['id_partner'])->where('id_location',$post['id_location'])->first(),
+            "confir" => ConfirmationLetter::where('id_partner',$post['id_partner'])->where('id_location',$post['id_location'])->first(),
+        ];
+        if($data_send){
+            return response()->json(['status' => 'success','result'=>$data_send]); 
+        }
+        return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+    }
+
+    public function createLegalAgreement($partner,$location){
+        
+        $data_legal = [
+            'id_partner' => $partner['id_partner'],
+            'id_location' => $location['id_location'],
+            'no_letter' => '123',
+            'date_letter' => date('Y-m-d'),
+            'attachment' => $this->legal_agreement.'tes.pdf',
+        ];
+
+        $send = LegalAgreement::create($data_legal);
+        if(!$send){
+            return false;
+        }
+        return true;
+    }
+
+    public function followUpNewLoc(Request $request)
+    {
+        $post = $request['post_follow_up'];
+        if(isset($post['id_partner']) && !empty($post['id_partner'])){
+            DB::beginTransaction();
+            $data_store = [
+                "index" => $post["index"],
+                "id_partner" => $post["id_partner"],
+                "id_location" => $post["id_location"],
+                "follow_up" => $post["follow_up"],
+                "note" => $post["note"],
+            ];
+            if (isset($post['attachment']) && !empty($post['attachment'])) {
+                $upload = MyHelper::uploadFile($post['attachment'], $this->saveFile, 'pdf');
+                if (isset($upload['status']) && $upload['status'] == "success") {
+                    $data_store['attachment'] = $upload['path'];
+                } else {
+                    $result = [
+                        'error'    => 1,
+                        'status'   => 'fail',
+                        'messages' => ['fail upload file']
+                    ];
+                    return $result;
+                }
+            }
+            $store = NewStepsLog::create($data_store);
+            if (!$store) {
+                DB::rollback();
+                return response()->json(['status' => 'fail', 'messages' => ['Failed add follow up data']]);
+            }
+            if(isset($request['form_survey']) && !empty($request['form_survey'])){
+                $survey =  $this->createFormSurvey($request['form_survey']);
+                if($survey['status'] != 'success' && isset($survey['status'])){
+                    return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                }
+            }
+            if(isset($post['follow_up']) && $post['follow_up'] == 'Payment'){
+                $data_send = [
+                    "partner" => Partner::where('id_partner',$post["id_partner"])->first(),
+                    "location" => Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->first(),
+                    "confir" => ConfirmationLetter::where('id_partner',$post["id_partner"])->first(),
+                ];
+                $initBranch = Icount::ApiInitBranch($data_send, $data_send['location']['company_type']);
+                if($initBranch['response']['Status']=='1' && $initBranch['response']['Message']=='success'){
+                    if($data_send['location']['company_type']=='PT IMS'){
+                        $initBranch_ims = Icount::ApiInitBranch($data_send, 'PT IMA');
+                        $data_init_ims = $initBranch_ims['response']['Data'][0];
+                    }
+                    $data_init = $initBranch['response']['Data'][0];
+                    $partner_init = [
+                        "id_company" => $data_init['BusinessPartner']['CompanyID'],
+                        "voucher_no" => $data_init['VoucherNo'],
+                    ];
+                    $location_init = [
+                        "id_branch" => $data_init['Branch']['BranchID'],
+                        "id_chart_account" => $data_init['Branch']['ChartOfAccountID'],
+                    ];
+
+                    if($data_send['location']['company_type']=='PT IMS'){
+                        $value_detail[$data_init_ims['Detail'][0]['Name']] = [
+                            "name" => $data_init_ims['Detail'][0]['Name'],
+                            "amount" => $data_init_ims['Amount'],
+                            "tax_value" => $data_init_ims['TaxValue'],
+                            "netto" => $data_init_ims['Netto'],
+                        ];
+
+                        if(!isset($data_send['partner']['id_business_partner_ima'])){
+                            $partner_init['id_business_partner_ima'] = $data_send['partner']['id_business_partner'];
+                            $partner_init['id_business_partner'] = $data_init['BusinessPartner']['BusinessPartnerID'];
+                        }
+
+                        $partner_init['id_sales_order'] = $data_init_ims['SalesOrderID'];
+                        $partner_init['id_sales_order_detail'] = $data_init_ims['Detail'][0]['SalesOrderDetailID'];
+                        $location_init['id_branch_ima'] = $data_init_ims['Branch']['BranchID'];
+                    }else{
+                        $partner_init['id_sales_order'] = $data_init['SalesOrderID'];
+                        $partner_init['id_sales_order_detail'] = $data_init['Detail'][0]['SalesOrderDetailID'];
+                        $value_detail[$data_init['Detail'][0]['Name']] = [
+                            "name" => $data_init['Detail'][0]['Name'],
+                            "amount" => $data_init['Amount'],
+                            "tax_value" => $data_init['TaxValue'],
+                            "netto" => $data_init['Netto'],
+                        ];    
+                    }
+                    
+                    $location_init['value_detail'] = json_encode($value_detail);
+                    $update_partner_init = Partner::where('id_partner', $post['id_partner'])->update($partner_init);
+                    if($update_partner_init){
+                        $update_location_init = Location::where('id_partner', $post['id_partner'])->where('id_location',$post["id_location"])->update($location_init);
+                        if(!$update_location_init){
+                            DB::rollback();
+                            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                        }
+                        $data_send_2 = [
+                            "partner" => Partner::where('id_partner',$post["id_partner"])->first(),
+                            "location" => Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->first(),
+                            "confir" => ConfirmationLetter::where('id_partner',$post["id_partner"])->first(),
+                        ];
+                        $invoiceCL = Icount::ApiInvoiceConfirmationLetter($data_send_2, $data_send_2['location']['company_type']);
+                        if($invoiceCL['response']['Status']=='1' && $invoiceCL['response']['Message']=='success'){
+                            $data_invoCL = $invoiceCL['response']['Data'][0];
+                            $val = Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->get('value_detail')[0]['value_detail'];
+                            $val = json_decode($val, true);
+                            $val[$data_invoCL['Detail'][0]['Name']] = [
+                                "name" => $data_invoCL['Detail'][0]['Name'],
+                                "amount" => $data_invoCL['Amount'],
+                                "tax_value" => $data_invoCL['TaxValue'],
+                                "netto" => $data_invoCL['Netto'],
+                            ];
+                            $location_invoCL['value_detail'] = json_encode($val);
+                            $partner_invoCL = [
+                                "id_sales_invoice" => $data_invoCL['SalesInvoiceID'],
+                                "id_sales_invoice_detail" => $data_invoCL['Detail'][0]['SalesInvoiceDetailID'],
+                                "id_delivery_order_detail" => $data_invoCL['Detail'][0]['DeliveryOrderDetailID'],
+                            ];
+                            $update_partner_invoCL = Partner::where('id_partner', $post['id_partner'])->update($partner_invoCL);
+                            if($update_partner_invoCL){
+                                $update_location_invoCL = Location::where('id_partner', $post['id_partner'])->where('id_location',$post["id_location"])->update($location_invoCL);
+                                if(!$update_location_invoCL){
+                                    DB::rollback();
+                                    return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                                }
+                            }
+                            app('\Modules\Project\Http\Controllers\ApiProjectController')->initProject($data_send['partner'], $data_send['location']);
+                            
+                            //make legal agreement
+                            $legal_agree = $this->createLegalAgreement($data_send['partner'], $data_send['location']);
+                            if(!$legal_agree){
+                                DB::rollback();
+                                return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                            }
+                        }else{
+                            return response()->json(['status' => 'fail', 'messages' => [$invoiceCL['response']['Message']]]);
+                        }
+                    }else{
+                        return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+                    }
+                }else{
+                    return response()->json(['status' => 'fail', 'messages' => [$initBranch['response']['Message']]]);
+                }
+            }
+            DB::commit();
+            return response()->json(MyHelper::checkCreate($store));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
     }
 }
 

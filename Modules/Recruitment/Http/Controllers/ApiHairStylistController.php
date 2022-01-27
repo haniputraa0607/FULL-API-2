@@ -277,6 +277,10 @@ class ApiHairStylistController extends Controller
                         if($row['subject'] == 'gender'){
                             $data->where('gender', $row['operator']);
                         }
+
+                        if($row['subject'] == 'level'){
+                            $data->where('user_hair_stylist.level', $row['operator']);
+                        }
                     }
                 }
             }else{
@@ -317,6 +321,10 @@ class ApiHairStylistController extends Controller
 
                             if($row['subject'] == 'gender'){
                                 $subquery->orWhere('gender', $row['operator']);
+                            }
+
+                            if($row['subject'] == 'level'){
+                                $subquery->orWhere('level', $row['operator']);
                             }
                         }
                     }
@@ -377,28 +385,18 @@ class ApiHairStylistController extends Controller
                     }
                 }
 
-                if(!empty($post['data_document']['attachment_psychological_test'])){
-                    $upload = MyHelper::uploadFile($post['data_document']['attachment_psychological_test'], 'document/hs/', $post['data_document']['attachment_psychological_test_ext'], $post['id_user_hair_stylist'].'_attachment_psychological_test');
-                    if (isset($upload['status']) && $upload['status'] == "success") {
-                        $pathPsychological = $upload['path'];
-                    }else {
-                        return response()->json(['status' => 'fail', 'messages' => ['Failed upload document psychological test']]);
-                    }
-
-                    $createDoc = UserHairStylistDocuments::create([
-                        'id_user_hair_stylist' => $post['id_user_hair_stylist'],
-                        'document_type' => $post['data_document']['document_type'],
-                        'process_date' => date('Y-m-d H:i:s', strtotime($post['data_document']['process_date']??null)),
-                        'process_name_by' => $post['data_document']['process_name_by']??null,
-                        'process_notes' => $post['data_document']['process_notes'],
-                        'attachment' => $path??null,
-                        'attachment_psychological_test' => $pathPsychological??null,
-                        'created_at' => date('Y-m-d H:i:s'),
-                        'updated_at' => date('Y-m-d H:i:s')
-                    ]);
-                    if(!$createDoc){
-                        return response()->json(MyHelper::checkCreate($createDoc));
-                    }
+                $createDoc = UserHairStylistDocuments::create([
+                    'id_user_hair_stylist' => $post['id_user_hair_stylist'],
+                    'document_type' => $post['data_document']['document_type'],
+                    'process_date' => date('Y-m-d H:i:s', strtotime($post['data_document']['process_date']??date('Y-m-d H:i:s'))),
+                    'process_name_by' => $post['data_document']['process_name_by']??null,
+                    'process_notes' => $post['data_document']['process_notes'],
+                    'attachment' => $path??null,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s')
+                ]);
+                if(!$createDoc){
+                    return response()->json(MyHelper::checkCreate($createDoc));
                 }
 
                 $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update(['user_hair_stylist_status' => $post['update_type']]);
@@ -454,6 +452,7 @@ class ApiHairStylistController extends Controller
                 $data['join_date'] = date('Y-m-d H:i:s');
                 $data['approve_by'] = $request->user()->id;
                 $data['user_hair_stylist_status'] = 'Active';
+                $data['user_hair_stylist_photo'] = $post['user_hair_stylist_photo'];
                 $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update($data);
 
                 $autocrm = app($this->autocrm)->SendAutoCRM(

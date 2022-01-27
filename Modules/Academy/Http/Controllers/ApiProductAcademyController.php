@@ -80,7 +80,7 @@ class ApiProductAcademyController extends Controller
         }
 
         if (isset($post['product_code'])) {
-            $product->with(['global_price','product_special_price','product_tags','brands','product_promo_categories'=>function($q){$q->select('product_promo_categories.id_product_promo_category');}])->where('products.product_code', $post['product_code']);
+            $product->with(['global_price','product_special_price','product_tags','brands','product_icount_use','product_promo_categories'=>function($q){$q->select('product_promo_categories.id_product_promo_category');}])->where('products.product_code', $post['product_code']);
         }
 
         if (isset($post['update_price']) && $post['update_price'] == 1) {

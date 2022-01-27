@@ -22,6 +22,7 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
 
     Route::post('transaction/user/schedule', 'ApiAcademyScheduleController@listUserAcademy');
     Route::post('transaction/user/schedule/detail', 'ApiAcademyScheduleController@detailScheduleUserAcademy');
+    Route::post('transaction/user/schedule/detail/list', 'ApiAcademyScheduleController@listScheduleAcademy');
     Route::post('transaction/user/schedule/update', 'ApiAcademyScheduleController@updateScheduleUserAcademy');
 
     Route::post('transaction/user/schedule/day-off', 'ApiAcademyScheduleController@listDayOffUserAcademy');

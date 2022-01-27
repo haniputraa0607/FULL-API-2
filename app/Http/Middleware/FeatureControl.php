@@ -17,6 +17,7 @@ class FeatureControl
    */
   public function handle($request, Closure $next, $feature, $feature2 = null)
   {
+    return $next($request);
   	$user = $request->user();
     if ($user['level'] == "Super Admin") return $next($request);
 

@@ -59,29 +59,35 @@ class ApiWelcomeSubscription extends Controller
     function list(Request $request){
         $configUseBrand = Configs::where('config_name', 'use brand')->first();
 
-        if($configUseBrand['is_active']){
-            $getSubs = Subscription::leftjoin('brands', 'brands.id_brand', 'subscriptions.id_brand')
-		                ->where('subscription_type','welcome')
-		                ->where('subscription_step_complete',1)
-		                ->select('subscriptions.*','brands.name_brand');
-        }else{
-            $getSubs = Subscription::where('subscription_type','welcome')
-		                ->select('subscriptions.*');
-        }
+        $getSubs = Subscription::where('subscription_type','welcome')
+            ->where('subscription_step_complete',1)
+            ->select('subscriptions.*');
 
         if ($request->active) {
-        	$now = date("Y-m-d H:i:s");
-        	$getSubs = $getSubs->where('subscription_step_complete','1')
-        				// ->where('subscription_start', "<", $now)
-	            		->where('subscription_end', ">", $now)
-	            		// ->whereColumn('subscription_bought','<','subscription_total');
-	            		->where(function($q){
-	            			$q->where('subscription_total','=','0')
-	            			->orWhereColumn('subscription_bought','<','subscription_total');
-	            		});
+            $now = date("Y-m-d H:i:s");
+            $getSubs = $getSubs->where('subscription_step_complete','1')
+                ->where('subscription_end', ">", $now)
+                ->where(function($q){
+                    $q->where('subscription_total','=','0')
+                        ->orWhereColumn('subscription_bought','<','subscription_total');
+                });
         }
 
         $getSubs = $getSubs->get()->toArray();
+
+        if($configUseBrand['is_active']){
+            foreach ($getSubs as $key=>$data){
+                $brands = SubscriptionBrand::leftJoin('brands', 'brands.id_brand', 'subscription_brands.id_brand')
+                    ->where('id_subscription', $data['id_subscription'])
+                    ->pluck('brands.name_brand')->toArray();
+                $brands = array_filter($brands);
+                $stringName = '';
+                if(!empty($brands)){
+                    $stringName = '('.implode(',', $brands).')';
+                }
+                $getSubs[$key]['name_brand'] = $stringName;
+            }
+        }
 
         $result = [
             'status' => 'success',

@@ -46,6 +46,12 @@ class OutletDisplayController extends Controller
                     })->first();
 
             if ($hairstylist) {
+                $serviceInProgress = TransactionProductService::where('service_status', 'In Progress')
+                    ->join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
+                    ->join('users', 'users.id', 'transactions.id_user')
+                    ->where('id_user_hair_stylist', $hairstylist->id_user_hair_stylist)
+                    ->first();
+
                 $queue = TransactionProductService::select('users.name', 'schedule_time')->join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
                         ->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
                         ->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
@@ -58,6 +64,7 @@ class OutletDisplayController extends Controller
                         ->where('transaction_product_services.id_user_hair_stylist', $hairstylist->id_user_hair_stylist)
                         ->where('transaction_payment_status', 'Completed')
                         ->where('transaction_payment_status', '!=', 'Cancelled')
+                        ->where('id_transaction_product_service', '!=', optional($serviceInProgress)->id_transaction_product_service)
                         // ->whereDate('schedule_date', date('Y-m-d'))
                         ->orderBy('schedule_date', 'asc')
                         ->orderBy('schedule_time', 'asc')
@@ -69,12 +76,6 @@ class OutletDisplayController extends Controller
                                 'schedule_time' => MyHelper::adjustTimezone($item->schedule_time, $outlet['city']['province']['time_zone_utc'] ?? null, 'H:i')
                             ];
                         });
-
-                $serviceInProgress = TransactionProductService::where('service_status', 'In Progress')
-                    ->join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
-                    ->join('users', 'users.id', 'transactions.id_user')
-                    ->where('id_user_hair_stylist', $hairstylist->id_user_hair_stylist)
-                    ->first();
             } else {
                 return null;
             }

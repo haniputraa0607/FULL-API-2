@@ -123,7 +123,7 @@ class ApiOutletStarterBundlingController extends Controller
         ];
     }
 
-    public function delete()
+    public function delete(Request $request)
     {
         $bundling = OutletStarterBundling::with('bundling_products')->find($request->id_outlet_starter_bundling);
         if (!$bundling) {

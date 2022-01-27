@@ -17,9 +17,11 @@ use Modules\BusinessDevelopment\Entities\ConfirmationLetter;
 use App\Lib\Icount;
 use Modules\BusinessDevelopment\Entities\FormSurvey;
 use Modules\BusinessDevelopment\Entities\LocationOutletStarterBundlingProduct;
+use Modules\BusinessDevelopment\Entities\OutletStarterBundlingProduct;
 use PDF;
 use Storage;
 use Image;
+use Modules\BusinessDevelopment\Http\Requests\LandingPage\StoreNewLocation;
 
 class ApiLocationsController extends Controller
 {
@@ -285,6 +287,15 @@ class ApiLocationsController extends Controller
             if (isset($post['id_partner'])) {
                 $data_update['id_partner'] = $post['id_partner'];
             }
+            if (isset($post['width'])) {
+                $data_update['width'] = $post['width'];
+            }
+            if (isset($post['height'])) {
+                $data_update['height'] = $post['height'];
+            }
+            if (isset($post['length'])) {
+                $data_update['length'] = $post['length'];
+            }
             if (isset($post['location_large'])) {
                 $data_update['location_large'] = $post['location_large'];
             }
@@ -336,20 +347,37 @@ class ApiLocationsController extends Controller
             if (isset($post['date_loi'])) {
                 $data_update['date_loi'] = $post['date_loi'];
             }
+            if (isset($post['no_spk'])) {
+                $data_update['no_spk'] = $post['no_spk'];
+            }
+            if (isset($post['date_spk'])) {
+                $data_update['date_spk'] = $post['date_spk'];
+            }
             if (isset($post['total_box'])) {
                 $data_update['total_box'] = $post['total_box'];
             }
             if (isset($post['handover_date'])) {
                 $data_update['handover_date'] = $post['handover_date'];
             }
-            if (isset($post['product_starter'])) {
-                $product_start = $this->addLocationProductStarter($post['product_starter']);
+
+            if (isset($post['id_outlet_starter_bundling'])) {
+                $data_update['id_outlet_starter_bundling'] = $post['id_outlet_starter_bundling'];
+
+                $starter = OutletStarterBundlingProduct::where('id_outlet_starter_bundling', $post['id_outlet_starter_bundling'])->get()->toArray();
+                $starter = array_map(function ($value) use ($post) {
+                    return [
+                        'id_location'   => $post['id_location'],
+                        'id_product_icount'  => $value['id_product_icount'],
+                        'unit'  => $value['unit'],
+                        'qty'  => $value['qty'],
+                        'budget_code'  => $value['budget_code'],
+                    ];
+                }, $starter);
+
+                $product_start = $this->addLocationProductStarter($starter);
                 if(!$product_start){
                     return response()->json(['status' => 'fail', 'messages' => ['Failed to save product starter outlet']]);
                 }
-            }
-            if (isset($post['id_outlet_starter_bundling'])) {
-                $data_update['id_outlet_starter_bundling'] = $post['id_outlet_starter_bundling'];
 
                 if(empty($post['start_date']) && empty($post['end_date'])){
                     $id_loc_start =  Location::select('id_partner')->where('id_location',$post['id_location'])->first()['id_partner'];
@@ -358,11 +386,30 @@ class ApiLocationsController extends Controller
                     $data_update['end_date'] = $date['end_date'];
                 }
             }
+
             if (isset($post['start_date'])) {
                 $data_update['start_date'] = $post['start_date'];
             }
             if (isset($post['end_date'])) {
                 $data_update['end_date'] = $post['end_date'];
+            }
+            if (isset($post['ownership_status'])) {
+                $data_update['ownership_status'] = $post['ownership_status'];
+            }
+            if (isset($post['company_type'])) {
+                $data_update['company_type'] = $post['company_type'];
+            }
+            if (isset($post['cooperation_scheme'])) {
+                $data_update['cooperation_scheme'] = $post['cooperation_scheme'];
+            }
+            if (isset($post['id_term_of_payment'])) {
+                $data_update['id_term_of_payment'] = $post['id_term_of_payment'];
+            }
+            if (isset($post['sharing_value'])) {
+                $data_update['sharing_value'] = $post['sharing_value'];
+            }
+            if (isset($post['sharing_percent'])) {
+                $data_update['sharing_percent'] = $post['sharing_percent'];
             }
             if(isset($data_update['start_date']) && isset($data_update['end_date'])){
                 $start = explode('-', $data_update['start_date']);
@@ -669,33 +716,53 @@ class ApiLocationsController extends Controller
         return $date_latter = $pecah[2].' '.$bulan[intval($pecah[1])].' '.$pecah[0];
     }
 
-    public function storeLandingPage(Request $request)
+    public function storeLandingPage(StoreNewLocation $request)
     {
         $post= $request->all();
-        $data_request= $post['location'];
+        $data_request= $post;
         if (!empty($data_request)) {
             DB::beginTransaction();
-            $store = Location::create([
+
+            $checkPhoneFormat = MyHelper::phoneCheckFormat($data_request['pic_contact']);
+            if (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'fail') {
+                return response()->json([
+                    'status' => 'fail',
+                    'messages' => 'Invalid number PIC contact format'
+                ]);
+            } elseif (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'success') {
+                $data_request['pic_contact'] = $checkPhoneFormat['phone'];
+            }
+
+            $data_loc = [
                 "name"   => $data_request['name'],
                 "address"   => $data_request['address'],
                 "id_city"   => $data_request['id_city'],
                 "latitude"   => $data_request['latitude'],
                 "longitude"   => $data_request['longitude'],
                 "width"   => $data_request['width'],
-                "height"   => $data_request['height'],
+                "length"   => $data_request['length'],
                 "location_large"   => $data_request['location_large'],
                 "location_type"   => $data_request['location_type'],
-                "notes"   => $data_request['notes'],
-            ]);
+                "pic_name"   => $data_request['pic_name'],
+                "pic_contact"   => $data_request['pic_contact'],
+                "location_notes"   => $data_request['notes'],
+            ];
+
             if (isset($post['location_image']) && !empty($post['location_image'])) {
                 $img = Image::make(base64_decode($post['location_image']));
                 $imgwidth = $img->width();
                 $imgheight = $img->height();
                 $upload = MyHelper::uploadPhotoStrict($post['location_image'], 'img/location/', $imgwidth, $imgheight, time());
                 if ($upload['status'] == "success") {
-                    $store['location_image'] = $upload['path'];
+                    $data_loc['location_image'] = $upload['path'];
                 }
             }
+
+            if (isset($post['submited_by']) && !empty($post['submited_by'])) {
+                $data_loc['submited_by'] = $post['submited_by'];
+            }
+
+            $store = Location::create($data_loc);
             if(!$store) {
                 DB::rollback();
                 return response()->json(['status' => 'fail', 'messages' => ['Failed add location']]);

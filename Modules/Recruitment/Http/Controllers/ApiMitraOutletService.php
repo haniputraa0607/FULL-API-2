@@ -460,13 +460,14 @@ class ApiMitraOutletService extends Controller
 			];	
     	}
 
+    	$box_url = str_replace(['%box_code%', '%status%'], [$box->outlet_box_code, 1], $box->outlet_box_url);
 
 		return [
 			'status' => 'success',
 			'result' => [
 				'id_outlet_box' => $box->id_outlet_box,
 		        'outlet_box_name' => $box->outlet_box_name,
-				'outlet_box_url' => $box->outlet_box_url,
+				'outlet_box_url' => $box_url,
 			]
 		];
     }
@@ -757,12 +758,14 @@ class ApiMitraOutletService extends Controller
 			];	
     	}
 
+    	$box_url = str_replace(['%box_code%', '%status%'], [$box->outlet_box_code, 0], $box->outlet_box_url);
+
 		return [
 			'status' => 'success',
 			'result' => [
 				'id_outlet_box' => $box->id_outlet_box,
 		        'outlet_box_name' => $box->outlet_box_name,
-				'outlet_box_url' => $box->outlet_box_url,
+				'outlet_box_url' => $box_url,
 			]
 		];
     }

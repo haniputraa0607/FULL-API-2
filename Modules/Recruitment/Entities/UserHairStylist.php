@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use SMartins\PassportMultiauth\HasMultiAuthApiTokens;
 use Hash;
 use App\Lib\MyHelper;
+use Modules\Disburse\Entities\BankAccount;
 
 class UserHairStylist extends Authenticatable
 {
@@ -82,6 +83,11 @@ class UserHairStylist extends Authenticatable
         return $password.'15F1AB77951B5JAO';
     }
 
+    public function bank_account()
+    {
+        return $this->belongsTo(BankAccount::class, 'id_bank_account');
+    }
+
     public function getUserHairStylistPhotoAttribute($value)
     {
         if(empty($value)){
@@ -144,8 +150,7 @@ class UserHairStylist extends Authenticatable
         }
         $attendance = $this->attendances()->where('attendance_date', $schedule->date)->first();
         if (!$attendance) {
-            $attendance = $this->attendances()->create([
-                'id_hairstylist_schedule_date' => $this->hairstylist_schedules()
+            $id_hairstylist_schedule_date = $this->hairstylist_schedules()
                     ->join('hairstylist_schedule_dates', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
                     ->whereNotNull('approve_at')
                     ->where([
@@ -155,7 +160,12 @@ class UserHairStylist extends Authenticatable
                     ->whereDate('date', $schedule->date)
                     ->orderBy('is_overtime')
                     ->first()
-                    ->id_hairstylist_schedule_date,
+                    ->id_hairstylist_schedule_date;
+            if (!$id_hairstylist_schedule_date) {
+                throw new \Exception('Tidak ada kehadiran dibutuhkan untuk hari ini');
+            }
+            $attendance = $this->attendances()->create([
+                'id_hairstylist_schedule_date' => $id_hairstylist_schedule_date,
                 'id_outlet' => $this->id_outlet,
                 'attendance_date' => $schedule->date,
                 'id_user_hair_stylist' => $this->id_user_hair_stylist,
@@ -171,5 +181,10 @@ class UserHairStylist extends Authenticatable
     public function devices()
     {
         return $this->hasMany(UserHairStylistDevice::class, 'id_user_hair_stylist');
+    }
+
+    public function attendance_logs()
+    {
+        return $this->hasMany(HairstylistAttendanceLog::class, 'id_hairstylist_attendance', 'id_hairstylist_attendance');
     }
 }

@@ -14,7 +14,7 @@ class AddTotalDealsUserToDealsTable extends Migration
     public function up()
     {
         Schema::table('deals', function (Blueprint $table) {
-            $table->integer('total_deals_user')->default(0)->after('user_limit');
+            $table->integer('total_deals_user')->default(1)->after('user_limit');
         });
     }
 

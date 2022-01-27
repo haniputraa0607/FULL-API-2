@@ -38,6 +38,7 @@ use App\Imports\ExcelImport;
 use App\Imports\FirstSheetOnlyImport;
 
 use App\Lib\MyHelper;
+use Modules\Transaction\Entities\TransactionAcademyInstallment;
 use Modules\Transaction\Entities\TransactionAcademySchedule;
 use Modules\Transaction\Entities\TransactionAcademyScheduleDayOff;
 use Validator;
@@ -194,6 +195,13 @@ class ApiAcademyScheduleController extends Controller
                 ->with('transaction_academy.user_schedule')
                 ->first();
 
+            if(!empty($listSchedule)){
+                $listSchedule['status_dp'] = true;
+                if($listSchedule['trasaction_payment_type'] == 'Installment'){
+                    $completedInstallment = TransactionAcademyInstallment::where('id_transaction_academy', $listSchedule['id_transaction_academy'])->whereNotNull('completed_installment_at')->sum('percent');
+                    $listSchedule['status_dp'] = ($completedInstallment < 50 ? false:true);
+                }
+            }
             return response()->json(MyHelper::checkGet($listSchedule));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID transaction academy can not be empty']]);
@@ -210,8 +218,7 @@ class ApiAcademyScheduleController extends Controller
             foreach ($post['date'] as $key=>$value){
                 if(!empty($value['id_transaction_academy_schedule'])){
                     $save = TransactionAcademySchedule::where('id_transaction_academy_schedule', $value['id_transaction_academy_schedule'])->update([
-                        'schedule_date' => date('Y-m-d H:i:s', strtotime($value['date'])),
-                        'transaction_academy_schedule_status' => $value['transaction_academy_schedule_status']
+                        'schedule_date' => date('Y-m-d H:i:s', strtotime($value['date']))
                     ]);
                 }else{
                     $save = TransactionAcademySchedule::create([

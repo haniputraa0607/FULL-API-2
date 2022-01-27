@@ -519,13 +519,22 @@ class ApiTransactionAcademy extends Controller
 
         if($post['payment_method'] == 'installment'){
             $installment = [];
+            $checkDP = ($post['installment'][0]['percent']??0) + ($post['installment'][1]['percent']??0);
+            if($checkDP < 50){
+                DB::rollback();
+                return response()->json([
+                    'status'    => 'fail',
+                    'messages'  => ['Uang muka dan tahap 1 minimal 50%']
+                ]);
+            }
+
             $sumTotal = array_sum(array_column($post['installment'], 'amount'));
             $sumPercent = array_sum(array_column($post['installment'], 'percent'));
             if($sumTotal != $insertTransaction['transaction_grandtotal']){
                 DB::rollback();
                 return response()->json([
                     'status'    => 'fail',
-                    'messages'  => ['Total installment does not match with grand total']
+                    'messages'  => ['Total cicilan tidak sesuai dengan total transaksi']
                 ]);
             }
 
@@ -533,7 +542,7 @@ class ApiTransactionAcademy extends Controller
                 DB::rollback();
                 return response()->json([
                     'status'    => 'fail',
-                    'messages'  => ['Invalid Total Percent Installment']
+                    'messages'  => ['Total percent tidak 100%']
                 ]);
             }
 
@@ -547,7 +556,6 @@ class ApiTransactionAcademy extends Controller
             }
 
             $startDeadline = date('Y-m-d', strtotime(date('Y-m').'-'.$settingDeadline));
-            $startDeadline = date('Y-m-d', strtotime("+1 month", strtotime($startDeadline)));
             foreach ($post['installment'] as $key=>$value){
                 $installment[] = [
                     'installment_step' => $key+1,
@@ -555,7 +563,7 @@ class ApiTransactionAcademy extends Controller
                     'installment_receipt_number' => 'INS-'.MyHelper::createrandom(4,'Angka').time().substr($createTransactionAcademy['id_transaction_academy'], 0, 4),
                     'percent' => $value['percent'],
                     'amount' => $value['amount'],
-                    'deadline' => date('Y-m-d', strtotime("+".$key." month", strtotime($startDeadline))),
+                    'deadline' => ($key==0 ? date('Y-m-d') : date('Y-m-d', strtotime("+".$key." month", strtotime($startDeadline)))),
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s')
                 ];
@@ -612,7 +620,7 @@ class ApiTransactionAcademy extends Controller
             foreach ($dt['step'] as $key=>$value){
                 $percent = (empty($value) ? $diff:$value);
                 $step[] = [
-                    'text' => 'Tahap '.$key,
+                    'text' => ($key == 1 ? 'Uang Muka':'Tahap '.($key-1)),
                     'minimum' => (int)$percent,
                     'amount' => ($percent/100) * $post['grandtotal']
                 ];

@@ -77,6 +77,7 @@ class Product extends Model
         'product_academy_duration',
         'product_academy_total_meeting',
         'product_academy_hours_meeting',
+        'product_academy_maximum_installment',
         'available_home_service'
     ];
     

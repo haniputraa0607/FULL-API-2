@@ -213,10 +213,10 @@ class ApiProjectController extends Controller
                             ]);
                         }
                     }
-        return response()->json(['status' => 'success','result'=>[
+        return ['status' => 'success','result'=>[
             'project'=>$project,
             'outlet'=>$outlet
-        ]]);
+        ]];
         
         
     }
@@ -262,5 +262,28 @@ class ApiProjectController extends Controller
             }
          }
          return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+    }
+    public function cron() {
+        $log = MyHelper::logCron('Cron Project');
+        try {
+        $project = Project::where(array('projects.status'=>"Process",'projects.progres'=>'Success'))
+                    ->join('projects_handover','projects_handover.id_project','projects.id_project')
+                    ->select(['projects.id_location','projects.id_project','projects_handover.grand_opening','projects_handover.id_projects_handover'])
+                    ->get();
+        foreach ($project as $value) {
+            $location = Location::join('outlets','outlets.id_location','locations.id_location')
+                        ->where('outlets.id_outlet',$value['id_location'])
+                        ->update(['outlets.outlet_status'=>'Active']);
+            $store = Project::where(array('id_project'=>$value['id_project']))
+                    ->update([
+                        'status'=>'Success'
+                    ]);
+        }
+          $log->success('success');
+            return response()->json(['success']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $log->fail($e->getMessage());
+        }
     }
 }

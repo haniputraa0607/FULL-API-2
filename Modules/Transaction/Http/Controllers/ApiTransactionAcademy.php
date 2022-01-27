@@ -1119,7 +1119,36 @@ class ApiTransactionAcademy extends Controller
                     'amount'    => $payment['cash_nominal']
                 ];
                 break;
+            case 'Installment':
+                $payments = TransactionAcademy::join('transaction_academy_installment', 'transaction_academy_installment.id_transaction_academy', 'transaction_academy.id_transaction_academy')
+                            ->where('id_transaction', $trx['id_transaction'])->get()->toArray();
 
+                foreach ($payments as $payment){
+                    $getPaymentMethod = TransactionAcademyInstallment::leftJoin('transaction_academy_installment_payment_midtrans as tam', 'tam.id_transaction_academy_installment', 'transaction_academy_installment.id_transaction_academy_installment')
+                                        ->leftJoin('transaction_academy_installment_payment_xendits as tax', 'tax.id_transaction_academy_installment', 'transaction_academy_installment.id_transaction_academy_installment')
+                                        ->where('transaction_academy_installment.id_transaction_academy_installment', $payment['id_transaction_academy_installment'])
+                                        ->select('tax.type', 'tam.payment_type', 'installment_step', 'transaction_academy_installment.amount', 'transaction_academy_installment.paid_status')->orderBy('installment_step', 'asc')->get()->toArray();
+
+                    foreach ($getPaymentMethod as $key=>$paymentMethod){
+                        if(!empty($paymentMethod['type']) && $paymentMethod['paid_status'] == 'Completed'){
+                            $trx['payment'][] = [
+                                'name'      => ($paymentMethod['installment_step'] == 1 ? 'DP'.' ('.$paymentMethod['type'].')' : 'Tahap '.($paymentMethod['installment_step']-1).' ('.$paymentMethod['type'].')'),
+                                'amount'    => number_format($paymentMethod['amount'],0,",",".")
+                            ];
+                        }elseif(!empty($paymentMethod['payment_type']) && $paymentMethod['paid_status'] == 'Completed'){
+                            $trx['payment'][] = [
+                                'name'      => ($paymentMethod['installment_step'] == 1 ? 'DP'.' ('.$paymentMethod['payment_type'].')' : 'Tahap '.($paymentMethod['installment_step']-1).' ('.$paymentMethod['payment_type'].')'),
+                                'amount'    => number_format($paymentMethod['amount'],0,",",".")
+                            ];
+                        }else{
+                            $trx['payment'][] = [
+                                'name'      => ($paymentMethod['installment_step'] == 1 ? 'DP'.' (Not Yet Paid)' : 'Tahap '.($paymentMethod['installment_step']-1).' (Not Yet Paid)'),
+                                'amount'    => number_format($paymentMethod['amount'],0,",",".")
+                            ];
+                        }
+                    }
+                }
+                break;
             default:
                 break;
         }

@@ -8,6 +8,7 @@ use App\Http\Models\ProductPhoto;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
+use Modules\Academy\Entities\ProductAcademyTheory;
 use Modules\Franchise\Entities\Setting;
 use Modules\Outlet\Http\Requests\Outlet\OutletList;
 use Modules\Product\Entities\ProductDetail;
@@ -80,7 +81,7 @@ class ApiProductAcademyController extends Controller
         }
 
         if (isset($post['product_code'])) {
-            $product->with(['global_price','product_special_price','product_tags','brands','product_icount_use','product_promo_categories'=>function($q){$q->select('product_promo_categories.id_product_promo_category');}])->where('products.product_code', $post['product_code']);
+            $product->with(['product_academy_theory', 'global_price','product_special_price','product_tags','brands','product_icount_use','product_promo_categories'=>function($q){$q->select('product_promo_categories.id_product_promo_category');}])->where('products.product_code', $post['product_code']);
         }
 
         if (isset($post['update_price']) && $post['update_price'] == 1) {
@@ -116,5 +117,43 @@ class ApiProductAcademyController extends Controller
 
         $product = $product->toArray();
         return response()->json(MyHelper::checkGet($product));
+    }
+
+    public function academyTheory(Request $request){
+        $post = $request->json()->all();
+
+        if(!empty($post['theory']) && !empty($post['id_product'])){
+            $insert = [];
+            $allID = [];
+            foreach ($post['theory'] as $dt){
+                if(!empty($dt['id_product_academy_theory'])){
+                    $allID[] = $dt['id_product_academy_theory'];
+                    $save = ProductAcademyTheory::where('id_product_academy_theory', $dt['id_product_academy_theory'])->update(['theory_title' => $dt['title']]);
+                }else{
+                    $insert[] = [
+                        'id_product' => $post['id_product'],
+                        'theory_title' => $dt['title'],
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s')
+                    ];
+                }
+            }
+
+            if(!empty($allID)){
+                $notIn = ProductAcademyTheory::where('id_product', $post['id_product'])
+                    ->whereNotIn('id_product_academy_theory', $allID)->pluck('id_product_academy_theory')->toArray();
+                if(!empty($notIn)){
+                    ProductAcademyTheory::whereIn('id_product_academy_theory', $notIn)->delete();
+                }
+            }
+
+            if(!empty($insert)){
+                $save = ProductAcademyTheory::insert($insert);
+            }
+
+            return response()->json(MyHelper::checkUpdate($save));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Data theory and ID product can not be empty']]);
+        }
     }
 }

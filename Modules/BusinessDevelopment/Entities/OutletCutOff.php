@@ -12,6 +12,7 @@ class OutletCutOff extends Model
 	protected $fillable = [
                 'id_partner',
 		'id_outlet',
+                'id_outlet_manage',
 		'note',
 		'date',
 		'status',

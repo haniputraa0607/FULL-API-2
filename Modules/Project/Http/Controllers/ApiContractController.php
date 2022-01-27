@@ -48,7 +48,7 @@ class ApiContractController extends Controller
                             "confir" => ConfirmationLetter::where('id_partner',$project->id_partner)->first(),  
                             "location_bundling" => LocationOutletStarterBundlingProduct::where('id_location',$project->id_location)->join('product_icounts','product_icounts.id_product_icount','location_outlet_starter_bundling_products.id_product_icount')->get(),
                  ];
-        $invoice = Icount::ApiInvoiceSPK($data_send);
+        $invoice = Icount::ApiInvoiceSPK($data_send,$data_send['location']['company_type']);
             if($invoice['response']['Status']=='1' && $invoice['response']['Message']=='success'){
              $data_invoice = [
                  'id_project'=>$request->id_project,
@@ -66,7 +66,8 @@ class ApiContractController extends Controller
                  'value_detail'=>json_encode($invoice['response']['Data'][0]['Detail']),  
              ];
               $input = InvoiceSpk::create($data_invoice);
-              $purchase = Icount::ApiPurchaseSPK($data_send);
+              $purchase = Icount::ApiPurchaseSPK($data_send,$data_send['location']['company_type']);
+               
                 if($purchase['response']['Status']=='1' && $purchase['response']['Message']=='success'){
                       $data_purchase = [
                           'id_project'=>$request->id_project,

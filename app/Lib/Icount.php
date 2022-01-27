@@ -259,6 +259,7 @@ class Icount
                 $unitratio = $value['qty'];
             }
             $data_detail = array(
+                 "Name" => $value['name'],
                  "ItemID" => $value['id_item'],
                 "BudgetCode" => $value['budget_code'],
                 "Qty" => $value['qty'],

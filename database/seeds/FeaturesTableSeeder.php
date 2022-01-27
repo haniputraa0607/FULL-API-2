@@ -4357,6 +4357,56 @@ class FeaturesTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00')
                 ),
+            435 =>
+                array (
+                    'id_feature' => 436,
+                    'feature_type' => 'List',
+                    'feature_module' => 'Theory',
+                    'show_hide' => 1,
+                    'order' => 156,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            436 =>
+                array (
+                    'id_feature' => 437,
+                    'feature_type' => 'Detail',
+                    'feature_module' => 'Theory',
+                    'show_hide' => 1,
+                    'order' => 156,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            437 =>
+                array (
+                    'id_feature' => 438,
+                    'feature_type' => 'Create',
+                    'feature_module' => 'Theory',
+                    'show_hide' => 1,
+                    'order' => 156,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            438 =>
+                array (
+                    'id_feature' => 439,
+                    'feature_type' => 'Update',
+                    'feature_module' => 'Theory',
+                    'show_hide' => 1,
+                    'order' => 156,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            439 =>
+                array (
+                    'id_feature' => 440,
+                    'feature_type' => 'Delete',
+                    'feature_module' => 'Theory',
+                    'show_hide' => 1,
+                    'order' => 156,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
         ));
         
         

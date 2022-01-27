@@ -13,11 +13,10 @@ class OutletCloseTemporary extends Model
                 'id_partner',
 		'id_outlet',
 		'note',
+		'id_outlet_manage',
 		'date',
 		'status',
 		'jenis',
-		'jenis_active',
-		'status_steps',
 		'title',
                 'created_at',
                 'updated_at' 

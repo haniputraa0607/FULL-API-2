@@ -595,7 +595,7 @@ class NewTopupController extends Controller
         }
         
         $encodeCheck = json_encode($dataHash);
-        
+
         if (MyHelper::decrypt2019($check['enc']) == $encodeCheck) {
             return true;
         }

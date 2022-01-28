@@ -23,7 +23,6 @@ class CreateOutletActiveRequest extends FormRequest
             'id_outlet'         => 'required|outlet',
             'date'              => 'required|today',
             'title'             => 'required',
-            'jenis_active'             => 'required',
            ]; 
     }
     public function withValidator($validator)

@@ -263,7 +263,7 @@ class ApiProjectController extends Controller
          }
          return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
     }
-    public function cron() {
+     public function cron() {
         $log = MyHelper::logCron('Cron Project');
         try {
         $project = Project::where(array('projects.status'=>"Process",'projects.progres'=>'Success'))
@@ -272,7 +272,7 @@ class ApiProjectController extends Controller
                     ->get();
         foreach ($project as $value) {
             $location = Location::join('outlets','outlets.id_location','locations.id_location')
-                        ->where('outlets.id_outlet',$value['id_location'])
+                        ->where('outlets.id_location',$value['id_location'])
                         ->update(['outlets.outlet_status'=>'Active']);
             $store = Project::where(array('id_project'=>$value['id_project']))
                     ->update([

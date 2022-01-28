@@ -151,27 +151,31 @@ class ApiDealsClaim extends Controller
 		                            // CHECK TYPE VOUCHER
 		                            // IF LIST VOUCHER, GET 1 FROM DEALS VOUCHER
 		                            if ($dataDeals->deals_voucher_type == "List Vouchers") {
-		                                $voucher = $this->getVoucherFromTable($request->user(), $dataDeals);
-
-		                                if (!$voucher) {
-		                                    DB::rollback();
-		                                    return response()->json([
-		                                        'status'   => 'fail',
-		                                        'messages' => ['Voucer telah habis']
-		                                    ]);
-		                                }
+                                        for($i = 0; $i < $dataDeals->total_deals_user; $i++){
+                                            $voucher[$i] = $this->getVoucherFromTable($request->user(), $dataDeals);
+    
+                                            if (!$voucher[$i]) {
+                                                DB::rollback();
+                                                return response()->json([
+                                                    'status'   => 'fail',
+                                                    'messages' => ['Voucer telah habis']
+                                                ]);
+                                            }
+                                        }
 		                            }
 		                            // GENERATE VOUCHER CODE & ASSIGN
 		                            else {
-		                                $voucher = $this->getVoucherGenerate($request->user(), $dataDeals);
-
-		                                if (!$voucher) {
-		                                    DB::rollback();
-		                                    return response()->json([
-		                                        'status'   => 'fail',
-		                                        'messages' => ['Voucer telah habis']
-		                                    ]);
-		                                }
+                                        for($i = 0; $i < $dataDeals->total_deals_user; $i++){
+                                            $voucher[$i] = $this->getVoucherGenerate($request->user(), $dataDeals);
+    
+                                            if (!$voucher[$i]) {
+                                                DB::rollback();
+                                                return response()->json([
+                                                    'status'   => 'fail',
+                                                    'messages' => ['Voucer telah habis']
+                                                ]);
+                                            }
+                                        }
 		                            }
 		                        }
 
@@ -199,24 +203,28 @@ class ApiDealsClaim extends Controller
 		                        // if(isset($voucher['deals_voucher']['id_deals'])){
 		                        //     $voucher['deals'] = Deal::find($voucher['deals_voucher']['id_deals']);
 		                        // }
-		                        if(\Module::collections()->has('Autocrm')) {
-		                            $phone=$request->user()->phone;
-		                            $autocrm = app($this->autocrm)->SendAutoCRM('Claim Free Deals Success', $phone,
-		                                [
-		                                    'claimed_at'       => $voucher['claimed_at'],
-		                                    'deals_title'      => $dataDeals->deals_title,
-		                                    'id_deals_user'    => $voucher['id_deals_user'],
-		                                    'id_deals'         => $dataDeals->id_deals,
-		                                    'id_brand'         => $dataDeals->id_brand
-		                                ]
-		                            );
-		                        }
-		                        $return=[
-		                            'id_deals_user'=>$voucher['id_deals_user'],
-		                            'id_deals_voucher'=>$voucher['id_deals_voucher'],
-		                            'paid_status'=>$voucher['paid_status'],
-		                            'webview_later'=>config('url.api_url').'api/webview/mydeals/'.$voucher['id_deals_user']
-		                        ];
+                                for($i = 0; $i < $dataDeals->total_deals_user; $i++){
+                                    if(\Module::collections()->has('Autocrm')) {
+                                        $phone=$request->user()->phone;
+                                        $autocrm = app($this->autocrm)->SendAutoCRM('Claim Free Deals Success', $phone,
+                                            [
+                                                'claimed_at'       => $voucher[$i]['claimed_at'],
+                                                'deals_title'      => $dataDeals->deals_title,
+                                                'id_deals_user'    => $voucher[$i]['id_deals_user'],
+                                                'id_deals'         => $dataDeals->id_deals,
+                                                'id_brand'         => $dataDeals->id_brand
+                                            ]
+                                        );
+                                    }
+                                }
+                                for($i = 0; $i < $dataDeals->total_deals_user; $i++){
+                                    $return[$i]=[
+                                        'id_deals_user'=>$voucher[$i]['id_deals_user'],
+                                        'id_deals_voucher'=>$voucher[$i]['id_deals_voucher'],
+                                        'paid_status'=>$voucher[$i]['paid_status'],
+                                        'webview_later'=>config('url.api_url').'api/webview/mydeals/'.$voucher[$i]['id_deals_user']
+                                    ];
+                                }
 		                        return response()->json(MyHelper::checkCreate($return));
 	                        }
 	                        else {

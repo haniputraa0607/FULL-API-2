@@ -265,27 +265,31 @@ class ApiDealsClaimPay extends Controller
 	                            // CHECK TYPE VOUCHER
 	                            // IF LIST VOUCHER, GET 1 FROM DEALS VOUCHER
 	                            if ($dataDeals->deals_voucher_type == "List Vouchers") {
-	                                $voucher = app($this->claim)->getVoucherFromTable($request->user(), $dataDeals);
-
-	                                if (!$voucher) {
-	                                    DB::rollback();
-	                                    return response()->json([
-	                                        'status'   => 'fail',
-	                                        'messages' => ['Voucer telah habis']
-	                                    ]);
-	                                }
+                                    for($i = 0; $i < $dataDeals->total_deals_user; $i++){
+                                        $voucher[$i] = app($this->claim)->getVoucherFromTable($request->user(), $dataDeals);
+    
+                                        if (!$voucher[$i]) {
+                                            DB::rollback();
+                                            return response()->json([
+                                                'status'   => 'fail',
+                                                'messages' => ['Voucer telah habis']
+                                            ]);
+                                        }
+                                    }
 	                            }
 	                            // GENERATE VOUCHER CODE & ASSIGN
 	                            else {
-	                                $voucher = app($this->claim)->getVoucherGenerate($request->user(), $dataDeals);
+                                    for($i = 0; $i < $dataDeals->total_deals_user; $i++){
+                                        $voucher[$i] = app($this->claim)->getVoucherGenerate($request->user(), $dataDeals);
 
-	                                if (!$voucher) {
-	                                    DB::rollback();
-	                                    return response()->json([
-	                                        'status'   => 'fail',
-	                                        'messages' => ['Voucer telah habis']
-	                                    ]);
-	                                }
+                                        if (!$voucher[$i]) {
+                                            DB::rollback();
+                                            return response()->json([
+                                                'status'   => 'fail',
+                                                'messages' => ['Voucer telah habis']
+                                            ]);
+                                        }
+                                    }
 	                            }
 	                        }
 
@@ -294,7 +298,9 @@ class ApiDealsClaimPay extends Controller
 	                            if (!empty($dataDeals->deals_voucher_price_point)){
 	                                $req['payment_deals'] = 'balance';
 	                            }
-	                            $req['id_deals_user'] =  $voucher['id_deals_user'];
+                                for($i = 0; $i < $dataDeals->total_deals_user; $i++){
+	                                $req['id_deals_user'][$i] =  $voucher[$i]['id_deals_user'];
+                                }
 	                            $payNow = new PayNow($req);
 
 	                            DB::commit();
@@ -353,7 +359,8 @@ class ApiDealsClaimPay extends Controller
         $dataDeals = $this->deals($request->get('id_deals_user'));
 
         if ($dataDeals) {
-            $voucher = DealsUser::with(['userMid', 'dealVoucher'])->where('id_deals_user', $request->get('id_deals_user'))->first();
+            $voucher = DealsUser::with(['userMid', 'dealVoucher'])->where('id_deals_user', $request->get('id_deals_user')[0])->first();
+            $voucher->list_id_deals_user = $request->get('id_deals_user');
             // if deals subscription re-get the user voucher
             if ($voucher->dealVoucher->id_deals_subscription != null) {
                 $id_user = $voucher->id_user;
@@ -472,7 +479,7 @@ class ApiDealsClaimPay extends Controller
     /* DEALS */
     function deals($idDealsUser)
     {
-        $deals = Deal::leftjoin('deals_vouchers', 'deals_vouchers.id_deals', '=', 'deals.id_deals')->leftjoin('deals_users', 'deals_users.id_deals_voucher', '=', 'deals_vouchers.id_deals_voucher')->select('deals.*')->where('deals_users.id_deals_user', $idDealsUser)->first();
+        $deals = Deal::leftjoin('deals_vouchers', 'deals_vouchers.id_deals', '=', 'deals.id_deals')->leftjoin('deals_users', 'deals_users.id_deals_voucher', '=', 'deals_vouchers.id_deals_voucher')->select('deals.*')->whereIn('deals_users.id_deals_user', $idDealsUser)->first();
         return $deals;
     }
 
@@ -545,7 +552,7 @@ class ApiDealsClaimPay extends Controller
         ];
 
         if (is_null($grossAmount)) {
-            if (!$this->updateInfoDealUsers($voucher->id_deals_user, ['payment_method' => 'Midtrans'])) {
+            if (!$this->updateInfoDealUsers($voucher->list_id_deals_user, ['payment_method' => 'Midtrans'])) {
                  return false;
             }
         }
@@ -592,7 +599,7 @@ class ApiDealsClaimPay extends Controller
             'ref_no'         => $order_id,
         ];
         if (is_null($grossAmount)) {
-            if (!$this->updateInfoDealUsers($voucher->id_deals_user, ['payment_method' => 'Ipay88'])) {
+            if (!$this->updateInfoDealUsers($voucher->list_id_deals_user, ['payment_method' => 'Ipay88'])) {
                  return false;
             }
         }
@@ -620,7 +627,7 @@ class ApiDealsClaimPay extends Controller
         $paymentShopeepay = DealsPaymentShopeePay::where('id_deals_user', $voucher['id_deals_user'])->first();
         $trx_shopeepay    = null;
         if (is_null($grossAmount)) {
-            if (!$this->updateInfoDealUsers($voucher->id_deals_user, ['payment_method' => 'Shopeepay'])) {
+            if (!$this->updateInfoDealUsers($voucher->list_id_deals_user, ['payment_method' => 'Shopeepay'])) {
                  return false;
             }
         }
@@ -979,7 +986,7 @@ class ApiDealsClaimPay extends Controller
         $save = DealsPaymentManual::create(array_filter($data));
 
         if ($save) {
-            if ($this->updateInfoDealUsers($voucher->id_deals_user, ['payment_method' => 'Manual', 'paid_status' => 'Paid'])) {
+            if ($this->updateInfoDealUsers($voucher->list_id_deals_user, ['payment_method' => 'Manual', 'paid_status' => 'Paid'])) {
                 return [
                     'manual'  => $data,
                     'voucher' => DealsUser::with(['userMid', 'dealVoucher'])->where('id_deals_user', $voucher->id_deals_user)->first(),
@@ -1002,13 +1009,14 @@ class ApiDealsClaimPay extends Controller
 
         // jika kurang bayar
         if ($kurangBayar < 0) {
+            
             $dataDealsUserUpdate = [
                 'payment_method'  => $paymentMethod,
                 'balance_nominal' => $myBalance,
             ];
 
             if ($this->updateLogPoint(- $myBalance, $voucher)) {
-                if ($this->updateInfoDealUsers($voucher->id_deals_user, $dataDealsUserUpdate)) {
+                if ($this->updateInfoDealUsers($voucher->list_id_deals_user, $dataDealsUserUpdate)) {
                     if($paymentMethod == 'midtrans'){
                         return $this->midtrans($deals, $voucher, -$kurangBayar);
                     }elseif($paymentMethod == 'ovo'){
@@ -1042,9 +1050,8 @@ class ApiDealsClaimPay extends Controller
                     'balance_nominal' => $voucher->voucher_price_cash,
                     'paid_status'     => 'Completed'
                 ];
-
                 // update deals user
-                if ($this->updateInfoDealUsers($voucher->id_deals_user, $dataDealsUserUpdate)) {
+                if ($this->updateInfoDealUsers($voucher->list_id_deals_user, $dataDealsUserUpdate)) {
                     return $result = [
                         'voucher'  => DealsUser::with(['userMid', 'dealVoucher'])->where('id_deals_user', $voucher->id_deals_user)->first(),
                         'data'     => $dataDealsUserUpdate,
@@ -1061,7 +1068,6 @@ class ApiDealsClaimPay extends Controller
     function updateLogPoint($balance_nominal, $voucher)
     {
         $user = User::with('memberships')->where('id', $voucher->id_user)->first();
-
         // $balance_nominal = -$voucher->voucher_price_cash;
         $grand_total = 0;
         if(!empty($voucher->voucher_price_cash)){
@@ -1071,7 +1077,6 @@ class ApiDealsClaimPay extends Controller
             $grand_total = $voucher->voucher_price_point;
         }
         $id_reference = $voucher->id_deals_user;
-
         // add log balance (with balance hash check) & update user balance
         $balanceController = new BalanceController();
         $addLogBalance = $balanceController->addLogBalance($user->id, $balance_nominal, $id_reference, "Deals Balance", $grand_total);
@@ -1081,7 +1086,7 @@ class ApiDealsClaimPay extends Controller
     /* UPDATE HARGA BALANCE */
     function updateInfoDealUsers($idDealsUser, $data)
     {
-        $update = DealsUser::where('id_deals_user', $idDealsUser)->update($data);
+        $update = DealsUser::whereIn('id_deals_user', $idDealsUser)->update($data);
 
         return $update;
     }

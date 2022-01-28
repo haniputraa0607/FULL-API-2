@@ -139,6 +139,7 @@ class ApiDealsWebview extends Controller
             'deals_second_title'            => $deals['deals_second_title'],
             'deals_description'             => $deals['deals_description'],
             'custom_outlet_text'            => $deals['custom_outlet_text'],
+            'total_deals_user'              => $deals['total_deals_user'],
             'deals_button'                  => 'Beli',
             'time_server'                   => date('Y-m-d H:i:s'),
             'time_to_end'                   => strtotime($deals['deals_end']) - time(),

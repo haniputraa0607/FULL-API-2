@@ -63,6 +63,7 @@ class ApiProductProductIcountController extends Controller
     {
         $post = $request->all();
         if(isset($post['id_product']) && !empty($post['id_product'])){
+            $outlets = Outlet::where('outlet_status', 'Active')->get();
             DB::beginTransaction();
             foreach($post['product_icount'] as $product_icount){
                 $store = ProductProductIcount::create([
@@ -74,6 +75,9 @@ class ApiProductProductIcountController extends Controller
                 if(!$store){
                     DB::rollback();
                     return response()->json(['status' => 'fail', 'messages' => ['Failed add data']]);
+                }
+                foreach ($outlets as $outlet) {
+                    ProductIcount::find($product_icount['id_product_icount'])->refreshStock($outlet->id_outlet, $product_icount['unit']);
                 }
             }
             DB::commit();

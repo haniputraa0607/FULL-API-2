@@ -21,6 +21,8 @@ use Modules\BusinessDevelopment\Entities\OutletStarterBundlingProduct;
 use PDF;
 use Storage;
 use Image;
+use Modules\BusinessDevelopment\Entities\NewStepsLog;
+use Modules\BusinessDevelopment\Entities\StepsLog;
 use Modules\BusinessDevelopment\Http\Requests\LandingPage\StoreNewLocation;
 
 class ApiLocationsController extends Controller
@@ -192,7 +194,7 @@ class ApiLocationsController extends Controller
     {
         $post = $request->all();
         if(isset($post['id_location']) && !empty($post['id_location'])){
-            $location = Location::where('id_location', $post['id_location'])->with(['location_partner','location_city','location_step','location_survey','location_confirmation'])->first();
+            $location = Location::where('id_location', $post['id_location'])->with(['location_partner','location_city','location_step','location_survey','location_confirmation','location_starter.product'])->first();
             if(($location['location_step'])){
                 foreach($location['location_step'] as $step){
                     if(isset($step['attachment']) && !empty($step['attachment'])){
@@ -796,6 +798,24 @@ class ApiLocationsController extends Controller
         }
 
         return true;
+    }
+
+    public function newStatusLogs(Request $request){
+        $post = $request->all();
+        $data = NewStepsLog::where('id_partner',$post['id_partner'])->where('id_location',$post['id_location'])->get()->toArray();
+        if(isset($data) && !empty($data)){
+            return [
+                "status" => "success",
+                "result" => $data
+            ];
+        }else{
+            $data = StepsLog::where('id_partner',$post['id_partner'])->get()->toArray();
+            return [
+                "status" => "success",
+                "result" => $data
+            ];
+        }
+        
     }
 
 }

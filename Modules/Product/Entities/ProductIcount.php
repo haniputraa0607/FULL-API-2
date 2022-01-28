@@ -44,6 +44,10 @@ class ProductIcount extends Model
         'id_deleted',
 	];
 
+    function product_icount_outlet_stocks() {
+        return $this->hasMany(ProductIcountOutletStock::class, 'id_product_icount');
+    }
+
     public function addLogStockProductIcount($qty, $unit, $source, $id_refrence = null, $desctiption = null, $id_outlet = null){
 
         $id_product_icount = $this->id_product_icount;
@@ -79,13 +83,20 @@ class ProductIcount extends Model
             );
 
             if($new_outlet_stock){
-                $this->refreshStock($id_outlet, $unit);
+                $this->refreshStock($id_outlet, $unit, $new_outlet_stock);
             }
         }
     }
 
-    public function refreshStock($id_outlet, $unit = null)
+    public function refreshStock($id_outlet, $unit = null, $new_outlet_stock = null)
     {
+        if (!$new_outlet_stock) {
+            $new_outlet_stock = $this->product_icount_outlet_stocks()
+                ->where('id_outlet', $id_outlet)
+                ->where('unit', $unit)
+                ->first();
+        }
+
         $id_product_icount = $this->id_product_icount;
         if (!$unit) {
             $unit = $this->unit1;
@@ -108,7 +119,7 @@ class ProductIcount extends Model
                                     $service = true;
                                 }
                             }else{
-                                $value = $new_outlet_stock['stock']/$get_product_use['qty'];
+                                $value = ($new_outlet_stock['stock'] ?? 0)/$get_product_use['qty'];
                                 $value = floor($value);
                                 if($service){
                                     $value = $value;

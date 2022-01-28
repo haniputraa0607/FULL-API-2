@@ -124,27 +124,14 @@ class ApiProductAcademyController extends Controller
 
         if(!empty($post['theory']) && !empty($post['id_product'])){
             $insert = [];
-            $allID = [];
+            ProductAcademyTheory::where('id_product', $post['id_product'])->delete();
             foreach ($post['theory'] as $dt){
-                if(!empty($dt['id_product_academy_theory'])){
-                    $allID[] = $dt['id_product_academy_theory'];
-                    $save = ProductAcademyTheory::where('id_product_academy_theory', $dt['id_product_academy_theory'])->update(['theory_title' => $dt['title']]);
-                }else{
-                    $insert[] = [
-                        'id_product' => $post['id_product'],
-                        'theory_title' => $dt['title'],
-                        'created_at' => date('Y-m-d H:i:s'),
-                        'updated_at' => date('Y-m-d H:i:s')
-                    ];
-                }
-            }
-
-            if(!empty($allID)){
-                $notIn = ProductAcademyTheory::where('id_product', $post['id_product'])
-                    ->whereNotIn('id_product_academy_theory', $allID)->pluck('id_product_academy_theory')->toArray();
-                if(!empty($notIn)){
-                    ProductAcademyTheory::whereIn('id_product_academy_theory', $notIn)->delete();
-                }
+                $insert[] = [
+                    'id_product' => $post['id_product'],
+                    'id_theory' => $dt,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s')
+                ];
             }
 
             if(!empty($insert)){

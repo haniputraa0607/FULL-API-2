@@ -257,6 +257,11 @@ class Product extends Model
             ->join('product_detail', 'product_detail.id_product', 'product_service_use.id_product');
     }
 
+    public function product_academy_theory() {
+        return $this->hasMany(\Modules\Academy\Entities\ProductAcademyTheory::class, 'id_product', 'id_product')
+            ->join('theories', 'theories.id_theory', 'product_academy_theory.id_theory');
+    }
+
     
     /**
      * Generate fresh product variant tree

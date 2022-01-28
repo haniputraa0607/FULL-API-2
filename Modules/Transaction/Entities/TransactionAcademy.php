@@ -25,6 +25,15 @@ class TransactionAcademy extends \App\Http\Models\Template\TransactionService
         return $this->hasMany(TransactionAcademySchedule::class, 'id_transaction_academy', 'id_transaction_academy');
     }
 
+    public function completed_installment(){
+        return $this->hasMany(TransactionAcademyInstallment::class, 'id_transaction_academy', 'id_transaction_academy')
+            ->whereNotNull('completed_installment_at');
+    }
+
+    public function all_installment(){
+        return $this->hasMany(TransactionAcademyInstallment::class, 'id_transaction_academy', 'id_transaction_academy');
+    }
+
     public function triggerPaymentCompleted($data = [])
     {
         if($this->payment_method == 'one_time_payment'){

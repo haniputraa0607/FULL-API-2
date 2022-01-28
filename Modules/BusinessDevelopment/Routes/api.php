@@ -48,6 +48,7 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefi
         Route::post('/update', ['middleware'=>['feature_control:344','scopes:be'],'uses' => 'ApiLocationsController@update']);
         Route::get('/brands', ['middleware'=>['feature_control:344','scopes:be'],'uses' => 'ApiLocationsController@brandsList']);
         Route::post('/create-follow-up', ['middleware'=>['feature_control:344','scopes:be'],'uses' => 'ApiLocationsController@followUp']);
+        Route::post('/new-status', ['middleware'=>['feature_control:344','scopes:be'],'uses' => 'ApiLocationsController@newStatusLogs']);
         // Route::post('/create-follow-up', ['middleware'=>['feature_control:344','scopes:be'],'uses' => 'ApiPartnersController@pdfSurvey']);
     });
     Route::group(['prefix' => '/bankaccount'], function() {

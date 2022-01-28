@@ -928,6 +928,8 @@ class ApiAcademyController extends Controller
         ];
     }
 
+    //run every day at 11:00
+    //7 days before deadline
     public function paymentInstallmentReminder(){
         $settingDeadline = Setting::where('key', 'transaction_academy_installment_deadline_date')->first()['value']??null;
         if(empty($settingDeadline)){
@@ -975,6 +977,8 @@ class ApiAcademyController extends Controller
         return true;
     }
 
+    //run every day at 14:00
+    //on time limit
     public function paymentInstallmentDueDate(){
         $settingDeadline = Setting::where('key', 'transaction_academy_installment_deadline_date')->first()['value']??null;
         if(empty($settingDeadline)){
@@ -1015,6 +1019,8 @@ class ApiAcademyController extends Controller
         return true;
     }
 
+    //run every day at 11:00
+    //2 days before course
     public function courseReminder(){
         $currentDate = date('Y-m-d');
         $date = date("Y-m-d", strtotime($currentDate." +2 days"));

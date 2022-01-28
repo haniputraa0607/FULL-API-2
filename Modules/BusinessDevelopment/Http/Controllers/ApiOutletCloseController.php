@@ -210,7 +210,7 @@ class ApiOutletCloseController extends Controller
             return response()->json(MyHelper::checkCreate($store));
     }
     public function detailCutOff(Request $request){
-         $store = OutletCutOff::where(array('id_outlet_cut_off'=>$request->id_outlet_cut_off))->join('outlets','outlets.id_outlet','outlet_cut_off.id_outlet')->with(['lampiran'])->first();
+         $store = OutletCutOff::where(array('id_outlet_manage'=>$request->id_outlet_manage))->join('outlets','outlets.id_outlet','outlet_cut_off.id_outlet')->with(['lampiran'])->first();
          if($store){
               return response()->json(['status' => 'success','result'=>$store]);
          }
@@ -338,7 +338,7 @@ class ApiOutletCloseController extends Controller
             return response()->json(MyHelper::checkCreate($store));
     }
     public function detailChange(Request $request){
-         $store = OutletChangeOwnership::where(array('id_outlet_change_ownership'=>$request->id_outlet_change_ownership))->join('outlets','outlets.id_outlet','outlet_change_ownership.id_outlet')->with(['lampiran','to_id_partner'])->first();
+         $store = OutletChangeOwnership::where(array('id_outlet_manage'=>$request->id_outlet_manage))->join('outlets','outlets.id_outlet','outlet_change_ownership.id_outlet')->with(['lampiran','to_id_partner'])->first();
          if($store){
               return response()->json(['status' => 'success','result'=>$store]);
          }

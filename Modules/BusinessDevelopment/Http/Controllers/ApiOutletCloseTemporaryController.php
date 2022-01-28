@@ -31,7 +31,6 @@ use Modules\BusinessDevelopment\Entities\OutletCloseTemporaryLocationOld;
 use Modules\BusinessDevelopment\Entities\OutletCloseTemporaryStep;
 use Modules\BusinessDevelopment\Entities\OutletCloseTemporaryFormSurvey;
 use Modules\BusinessDevelopment\Entities\OutletCloseTemporaryConfirmationLetter;
-use Modules\BusinessDevelopment\Entities\OutletManage;
 use App\Http\Models\Outlet;
 use Modules\BusinessDevelopment\Http\Requests\OutletClose\CreateOutletCloseTemporaryRequest;
 use Modules\BusinessDevelopment\Http\Requests\OutletClose\CreateOutletActiveRequest;
@@ -71,22 +70,52 @@ class ApiOutletCloseTemporaryController extends Controller
         if(isset($request->note)){
             $note = $request->note;
         }
-        $manage = OutletManage::create([
-                    "id_partner"   =>  $request->id_partner,
-                    "id_outlet"    =>  $request->id_outlet,
-                    "type"         =>  "Active Temporary",
-                    "date"         =>  date_format(date_create($request->date),"Y-m-d H:i:s"),
-        ]);
+        if($request->jenis_active != 'Change Location'){
          $store = OutletCloseTemporary::create([
                     "id_partner"   =>  $request->id_partner,
                     "id_outlet"    =>  $request->id_outlet,
                     "jenis"        =>  "Active",
+                    "jenis_active" =>  $request->jenis_active,
                     "title"        =>  $request->title,
                     "date"         =>  date_format(date_create($request->date),"Y-m-d H:i:s"),
-                    "note"         =>  $note,
-                    "id_outlet_manage"=>$manage->id_outlet_manage
+                    "note"         =>  $note
                 ]);   
-       
+        }else{
+        $lokasi = Location::join('outlets','outlets.id_location','locations.id_location')->select('locations.*')->where(array('outlets.id_outlet'=>$request->id_outlet))->first();
+        if($lokasi){
+        $store = OutletCloseTemporary::create([
+                    "id_partner"   =>  $request->id_partner,
+                    "id_outlet"    =>  $request->id_outlet,
+                    "jenis_active"    =>  $request->jenis_active,
+                    "jenis"        =>  "Active",
+                    "status_steps"    =>  'On Follow Up',
+                    "title"        =>  $request->title,
+                    "date"         =>  date_format(date_create($request->date),"Y-m-d H:i:s"),
+                    "note"         =>  $note
+                ]);
+        $location = OutletCloseTemporaryLocation::create([
+                    "id_outlet_close_temporary"   =>  $store->id_outlet_close_temporary,
+                    "id_location"    =>  $lokasi->id_location,
+                    "name"    =>  $lokasi->name,
+                    "address"        =>  $lokasi->address,
+                    "from_id_city"    =>  $lokasi->id_city,
+                    "longitude"        =>  $lokasi->longitude,
+                    "latitude"         => $lokasi->latitude,                
+                    "start_date"         => $lokasi->start_date,                
+                    "end_date"         => $lokasi->end_date,                
+                    "mall"         => $lokasi->mall,                
+                    "income"         => $lokasi->income,                
+                    "partnership_fee"         => $lokasi->partnership_fee,                
+                    "renovation_cost"         => $lokasi->renovation_cost,                
+                    "promotion_levy"         => $lokasi->promotion_levy,                
+                    "service_charge"         => $lokasi->service_charge,                
+                    "rental_price"         => $lokasi->rental_price,                
+                    "location_large"         => $lokasi->location_large,                
+                    "id_brand"         => $lokasi->id_brand,                
+                    "notes"         => $lokasi->notes,                
+                ]);
+        }
+        }
             return response()->json(MyHelper::checkCreate($store));
     }
     public function createClose(CreateOutletCloseTemporaryRequest $request){
@@ -94,19 +123,12 @@ class ApiOutletCloseTemporaryController extends Controller
         if(isset($request->note)){
             $note = $request->note;
         }
-         $manage = OutletManage::create([
-                    "id_partner"   =>  $request->id_partner,
-                    "id_outlet"    =>  $request->id_outlet,
-                    "type"         =>  "Close Temporary",
-                    "date"         =>  date_format(date_create($request->date),"Y-m-d H:i:s"),
-        ]);
         $store = OutletCloseTemporary::create([
                     "id_partner"   =>  $request->id_partner,
                     "id_outlet"    =>  $request->id_outlet,
                     "title"        =>  $request->title,
                     "date"         =>  date_format(date_create($request->date),"Y-m-d H:i:s"),
-                    "note"         =>  $note,
-                    "id_outlet_manage"=>$manage->id_outlet_manage
+                    "note"         =>  $note
                 ]);
             return response()->json(MyHelper::checkCreate($store));
     }
@@ -127,11 +149,18 @@ class ApiOutletCloseTemporaryController extends Controller
         if(isset($request->note)){
             $note = $request->note;
         }
-            $store = OutletCloseTemporary::where(array('id_outlet_close_temporary'=>$request->id_outlet_close_temporary))->update([
-               "title"        =>  $request->title,
-                "date"      =>  date_format(date_create($request->date),"Y-m-d H:i:s"),
-                "note"         =>  $note
-            ]);
+                $store = OutletCloseTemporary::where(array('id_outlet_close_temporary'=>$request->id_outlet_close_temporary))->update([
+                   "title"        =>  $request->title,
+                    "date"      =>  date_format(date_create($request->date),"Y-m-d H:i:s"),
+                    "note"         =>  $note
+                ]);
+                $location = OutletCloseTemporaryLocation::where(array('id_outlet_close_temporary_location'=>$request->id_outlet_close_temporary_location))->update([
+                    "name"    =>  $request->nameLocation,
+                    "address"        =>  $request->addressLocation,
+                    "id_city"    =>  $request->id_cityLocation,
+                    "longitude"        =>  $request->longitudeLocation,
+                    "latitude"         => $request->latitudeLocation
+                ]);
             return response()->json(MyHelper::checkCreate($store));
     }
     public function indexClose(Request $request){
@@ -143,7 +172,7 @@ class ApiOutletCloseTemporaryController extends Controller
          )]);
     }
     public function detailClose(Request $request){
-         $store = OutletCloseTemporary::where(array('id_outlet_close_temporary'=>$request->id_outlet_close_temporary))
+         $store = OutletCloseTemporary::where(array('id_outlet_manage'=>$request->id_outlet_manage))
                  ->join('outlets','outlets.id_outlet','outlet_close_temporary.id_outlet')
                  ->join('cities','cities.id_city','outlets.id_city')
                  ->join('locations','locations.id_location','outlets.id_location')
@@ -151,32 +180,38 @@ class ApiOutletCloseTemporaryController extends Controller
                  ->select('outlet_close_temporary.*','outlets.*','locations.id_location','locations.id_brand','partners.gender','partners.name as name_partner')
                  ->first();
          if($store){
+             if($store->jenis == 'Active'&&$store->jenis_active == 'Change Location'){
+                 $location = OutletCloseTemporaryLocation::where(array('id_outlet_close_temporary'=>$store->id_outlet_close_temporary))->first();
+                 $step = OutletCloseTemporaryStep::where(array('id_outlet_close_temporary'=>$store->id_outlet_close_temporary))->get();
+                 $form = OutletCloseTemporaryFormSurvey::where(array('id_outlet_close_temporary'=>$store->id_outlet_close_temporary))->get();
+                 $letter = OutletCloseTemporaryConfirmationLetter::where(array('id_outlet_close_temporary'=>$store->id_outlet_close_temporary))->first();
+                 $store->lokasi = $location;
+                 $store->step = $step;
+                 $store->form = $form;
+                 $store->letter = $letter;
+                 if($store->status=='Success'){
+                     $store->lokasi_old = OutletCloseTemporaryLocationOld::where(array('id_outlet_close_temporary'=>$store->id_outlet_close_temporary))->first();
+                 }
+                 return response()->json(['status' => 'success','result'=>$store]);
+             }
               return response()->json(['status' => 'success','result'=>$store]);
          }
            return response()->json(['status' => 'fail','message'=>"Data Not Found"]);
     }
     public function rejectClose(Request $request){
-         $store = OutletCloseTemporary::where(array('id_outlet_close_temporary'=>$request->id_outlet_close_temporary))->first();
+         $store = OutletCloseTemporary::where(array('id_outlet_close_temporary'=>$request->id_outlet_close_temporary))->update([
+         'status'=>"Reject"
+         ]);
          if($store){
-             $manage = OutletManage::where(array('id_outlet_manage'=>$store->id_outlet_manage))->update([
-            'status'=>"Reject"
-            ]);
-             $store = OutletCloseTemporary::where(array('id_outlet_close_temporary'=>$request->id_outlet_close_temporary))->update([
-            'status'=>"Reject"
-            ]);
               return response()->json(['status' => 'success','result'=>$store]);
          }
            return response()->json(['status' => 'success','message'=>"Data Not Found"]);
     }
     public function successClose(Request $request){
-         $store = OutletCloseTemporary::where(array('id_outlet_close_temporary'=>$request->id_outlet_close_temporary))->first();
+         $store = OutletCloseTemporary::where(array('id_outlet_close_temporary'=>$request->id_outlet_close_temporary))->update([
+         'status'=>"Waiting"
+         ]);
          if($store){
-             $manage = OutletManage::where(array('id_outlet_manage'=>$store->id_outlet_manage))->update([
-            'status'=>"Waiting"
-            ]);
-             $store = OutletCloseTemporary::where(array('id_outlet_close_temporary'=>$request->id_outlet_close_temporary))->update([
-            'status'=>"Waiting"
-            ]);
               return response()->json(['status' => 'success','result'=>$store]);
          }
            return response()->json(['status' => 'success','message'=>"Data Not Found"]);
@@ -225,9 +260,6 @@ class ApiOutletCloseTemporaryController extends Controller
             Location::join('outlets','outlets.id_location','locations.id_location')
                         ->where('outlets.id_outlet',$value['id_outlet'])
                         ->update(['locations.status'=>'Inactive','outlets.outlet_status'=>'Inactive']);
-            $manage = OutletManage::where(array('id_outlet_manage'=>$value['id_outlet_manage']))->update([
-            'status'=>"Success"
-            ]);
             $store = OutletCloseTemporary::where(array('id_outlet_close_temporary'=>$value['id_outlet_close_temporary']))
                     ->update([
                         'status'=>'Success'
@@ -243,14 +275,11 @@ class ApiOutletCloseTemporaryController extends Controller
     public function cronActive(){
         $log = MyHelper::logCron('Cron Active Outlet Close Temporary,No Change Location');
         try {
-        $outlet = OutletCloseTemporary::where(array('status'=>"Waiting",'jenis'=>'Active','jenis_active'=>'No Change Location'))->wheredate('date','<=',date('Y-m-d H:i:s'))->get();
+        $outlet = OutletCloseTemporary::where(array('status'=>"Waiting",'jenis'=>'Active'))->wheredate('date','<=',date('Y-m-d H:i:s'))->get();
         foreach ($outlet as $value) {
             Location::join('outlets','outlets.id_location','locations.id_location')
                         ->where('outlets.id_outlet',$value['id_outlet'])
                         ->update(['locations.status'=>'Active','outlets.outlet_status'=>'Active']);
-            $manage = OutletManage::where(array('id_outlet_manage'=>$value['id_outlet_manage']))->update([
-            'status'=>"Success"
-            ]);
             $store = OutletCloseTemporary::where(array('id_outlet_close_temporary'=>$value['id_outlet_close_temporary']))
                     ->update([
                         'status'=>'Success'

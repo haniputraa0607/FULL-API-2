@@ -107,25 +107,23 @@ class ApiOutletChangeLocationController extends Controller
            return response()->json(['status' => 'fail','message'=>"Data Not Found"]);
     }
     public function reject(Request $request){
-         $store = OutletChangeLocation::where(array('id_change_location'=>$request->id_change_location))->first();
+         $store = OutletChangeLocation::where(array('id_outlet_change_location'=>$request->id_outlet_change_location))->first();
          if($store){
-             $manage = OutletManage::where(array('id_outlet_manage'=>$request->id_outlet_manage))->update([
+             $manage = OutletManage::where(array('id_outlet_manage'=>$store->id_outlet_manage))->update([
          'status'=>"Reject"
          ]);
-             $store = OutletChangeLocation::where(array('id_change_location'=>$request->id_change_location))->update([
-         'status'=>"Reject"
-         ]);
+             $store = OutletChangeLocation::where(array('id_outlet_change_location'=>$request->id_outlet_change_location))->first();
               return response()->json(['status' => 'success','result'=>$store]);
          }
            return response()->json(['status' => 'success','message'=>"Data Not Found"]);
     }
     public function success(Request $request){
-         $store = OutletChangeLocation::where(array('id_change_location'=>$request->id_change_location))->first();
+         $store = OutletChangeLocation::where(array('id_outlet_change_location'=>$request->id_outlet_change_location))->first();
          if($store){
-             $manage = OutletManage::where(array('id_outlet_manage'=>$request->id_outlet_manage))->update([
+             $manage = OutletManage::where(array('id_outlet_manage'=>$store->id_outlet_manage))->update([
          'status'=>"Success"
          ]);
-             $store = OutletChangeLocation::where(array('id_change_location'=>$request->id_change_location))->update([
+             $store = OutletChangeLocation::where(array('id_outlet_change_location'=>$request->id_outlet_change_location))->update([
          'status'=>"Success"
          ]);
               return response()->json(['status' => 'success','result'=>$store]);

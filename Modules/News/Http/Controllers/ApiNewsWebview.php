@@ -92,7 +92,14 @@ class ApiNewsWebview extends Controller
             //$news['news_post_date'] = date('l, d F Y  H:i', strtotime($news['news_post_date']));
             $news['news_post_date'] = date('Y-m-d H:i:s', strtotime($news['news_post_date']));
             if($news['news_event_date_start'] != null && $news['news_event_time_end'] != null){
-                $news['news_event_date'] = date('d', strtotime($news['news_event_date_start'])) . ' - ' . date('d F Y', strtotime($news['news_event_date_end']));
+                $firstDateFormat = 'd';
+                if (date('Y-m', strtotime($news['news_event_date_start'])) != date('Y-m', strtotime($news['news_event_date_end']))) {
+                    $firstDateFormat .= ' F';
+                    if (date('Y', strtotime($news['news_event_date_start'])) != date('Y', strtotime($news['news_event_date_end']))) {
+                        $firstDateFormat .= ' Y';
+                    }
+                }
+                $news['news_event_date'] = date($firstDateFormat, strtotime($news['news_event_date_start'])) . ' - ' . date('d F Y', strtotime($news['news_event_date_end']));
             }
             if($news['news_event_time_start'] != null && $news['news_event_time_end'] != null){
                 $news['news_event_hours'] = date('H:i', strtotime($news['news_event_time_start'])) . ' - ' . date('H:i', strtotime($news['news_event_time_end']));

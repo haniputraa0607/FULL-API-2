@@ -256,7 +256,7 @@ class ConfigsTableSeeder extends Seeder
                 'id_config' => 27,
                 'config_name' => 'deals by money',
                 'description' => '',
-                'is_active' => '1',
+                'is_active' => '0',
                 'created_at' => '2021-09-29 10:57:33',
                 'updated_at' => '2021-09-29 10:57:33',
             ),

@@ -194,7 +194,8 @@ class ApiMembership extends Controller
 					$data['benefit_point_multiplier'] = $membership['benefit_point_multiplier'];
 					$data['benefit_cashback_multiplier'] = $membership['benefit_cashback_multiplier'];
 					$data['benefit_discount'] = $membership['benefit_discount'];
-					$data['benefit_text'] = $membership['benefit_text']??null;
+					\Log::debug($membership['benefit_text'] ?? []);
+					$data['benefit_text'] = $membership['benefit_text']??[];
 					// $data['benefit_promo_id'] = $membership['benefit_promo_id'];
 
 					if(isset($membership['cashback_maximum'])){
@@ -964,7 +965,9 @@ class ApiMembership extends Controller
             $data['benefit_discount'] = 0;
         }
         if($data['benefit_text']??false){
-        	$data['benefit_text']=json_encode(array_column($data['benefit_text'],'benefit_text'));
+        	$data['benefit_text']=json_encode(array_values(array_filter(array_column($data['benefit_text'],'benefit_text'))));
+        } else {
+        	$data['benefit_text']=json_encode([]);
         }
 
         return $data;

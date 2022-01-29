@@ -1115,6 +1115,15 @@ class ConfigsTableSeeder extends Seeder
                 'created_at' => '2021-09-29 10:57:33',
                 'updated_at' => '2021-09-29 10:57:33',
             ),
+            122 => 
+            array (
+                'id_config' => 123,
+                'config_name' => 'outlet single brand',
+                'description' => '',
+                'is_active' => '1',
+                'created_at' => '2021-09-29 10:57:33',
+                'updated_at' => '2021-09-29 10:57:33',
+            ),
         ));
         
         

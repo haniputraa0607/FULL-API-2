@@ -1124,6 +1124,15 @@ class ConfigsTableSeeder extends Seeder
                 'created_at' => '2021-09-29 10:57:33',
                 'updated_at' => '2021-09-29 10:57:33',
             ),
+            123 => 
+            array (
+                'id_config' => 124,
+                'config_name' => 'news category',
+                'description' => '',
+                'is_active' => '0',
+                'created_at' => '2021-09-29 10:57:33',
+                'updated_at' => '2021-09-29 10:57:33',
+            ),
         ));
         
         

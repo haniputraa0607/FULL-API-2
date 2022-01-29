@@ -1133,6 +1133,15 @@ class ConfigsTableSeeder extends Seeder
                 'created_at' => '2021-09-29 10:57:33',
                 'updated_at' => '2021-09-29 10:57:33',
             ),
+            124 => 
+            array (
+                'id_config' => 125,
+                'config_name' => 'advance deals info',
+                'description' => '',
+                'is_active' => '0',
+                'created_at' => '2021-09-29 10:57:33',
+                'updated_at' => '2021-09-29 10:57:33',
+            ),
         ));
         
         

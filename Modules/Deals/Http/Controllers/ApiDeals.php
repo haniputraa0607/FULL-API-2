@@ -2212,9 +2212,10 @@ class ApiDeals extends Controller
         $data_content = [];
         $data_content_detail = [];
         $content_order = 1;
+        $save = true;
 
         //Rapiin data yg masuk
-        foreach ($post['id_deals_content'] as $key => $value) {
+        foreach ($post['id_deals_content'] ?? [] as $key => $value) {
             $data_content[$key]['id_deals'] = $post['id_deals'];
             $data_content[$key]['id_deals_content'] = $value;
             $data_content[$key]['title'] = $post['content_title'][$key];
@@ -2240,7 +2241,7 @@ class ApiDeals extends Controller
         $del_content = $contentTable::where('id_deals','=',$post['id_deals'])->delete();
 
         // create content & detail
-        foreach ($post['id_deals_content'] as $key => $value) 
+        foreach ($post['id_deals_content'] ?? [] as $key => $value) 
         {
             $save = $contentTable::create($data_content[$key]);
 

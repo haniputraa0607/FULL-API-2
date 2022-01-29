@@ -1142,6 +1142,15 @@ class ConfigsTableSeeder extends Seeder
                 'created_at' => '2021-09-29 10:57:33',
                 'updated_at' => '2021-09-29 10:57:33',
             ),
+            125 => 
+            array (
+                'id_config' => 126,
+                'config_name' => 'transaction use point',
+                'description' => '',
+                'is_active' => '0',
+                'created_at' => '2021-09-29 10:57:33',
+                'updated_at' => '2021-09-29 10:57:33',
+            ),
         ));
         
         

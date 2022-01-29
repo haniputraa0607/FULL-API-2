@@ -967,7 +967,7 @@ class ConfigsTableSeeder extends Seeder
                 'id_config' => 106,
                 'config_name' => 'auto response email verified',
                 'description' => '',
-                'is_active' => '1',
+                'is_active' => '0',
                 'created_at' => '2021-09-29 10:57:33',
                 'updated_at' => '2021-09-29 10:57:33',
             ),

@@ -121,7 +121,7 @@ class ConfigsTableSeeder extends Seeder
                 'id_config' => 12,
                 'config_name' => 'pickup order',
                 'description' => '',
-                'is_active' => '1',
+                'is_active' => '0',
                 'created_at' => '2021-09-29 10:57:33',
                 'updated_at' => '2021-09-29 10:57:33',
             ),

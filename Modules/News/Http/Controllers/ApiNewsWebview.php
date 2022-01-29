@@ -76,7 +76,7 @@ class ApiNewsWebview extends Controller
                 unset($news['news_outlet']);
                 foreach ($newsOutlet as $keyOutlet => $valOutlet) {
                     $news['news_outlet'][$keyOutlet]['outlet_name']     = $valOutlet['outlet']['outlet_name'];
-                    $news['news_outlet'][$keyOutlet]['outlet_image']    = null;
+                    $news['news_outlet'][$keyOutlet]['outlet_image']    = $valOutlet['outlet']['outlet_image'];
                 }
             }
 

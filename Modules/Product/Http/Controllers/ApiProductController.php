@@ -1788,9 +1788,15 @@ class ApiProductController extends Controller
     }
 
     function listProductDetailByOutlet(Request $request, $id_outlet){
-        $product = Product::with(['product_detail'=> function($q) use ($id_outlet){
-            $q->where('id_outlet', $id_outlet);
-        }])->get();
+        $outlet = Outlet::with('brand_outlets')->find($id_outlet);
+        $product = Product::select('products.*')->distinct()->with(['product_detail_all'=> function($q) use ($outlet){
+            $q->where('id_outlet', $outlet->id_outlet);
+        }])
+            ->join('brand_product', function ($join) use ($outlet) {
+                $join->on('brand_product.id_product', 'products.id_product')
+                    ->whereIn('brand_product.id_brand', $outlet->brands->pluck('id_brand'));
+            })
+            ->get();
         return response()->json(MyHelper::checkGet($product));
     }
 

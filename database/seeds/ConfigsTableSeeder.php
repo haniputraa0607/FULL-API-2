@@ -976,7 +976,7 @@ class ConfigsTableSeeder extends Seeder
                 'id_config' => 107,
                 'config_name' => 'custom form news',
                 'description' => '',
-                'is_active' => '1',
+                'is_active' => '0',
                 'created_at' => '2021-09-29 10:57:33',
                 'updated_at' => '2021-09-29 10:57:33',
             ),

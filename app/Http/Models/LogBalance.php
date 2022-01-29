@@ -78,7 +78,7 @@ class LogBalance extends Model
         if( $this->source == 'Transaction' || $this->source == 'Rejected Order' || $this->source == 'Rejected Order Midtrans' || $this->source == 'Rejected Order Point' || $this->source == 'Reversal' || $this->source == 'Online Transaction')
         {
         	$this->load(['transaction' => function($q){
-        		$q->select('id_transaction', 'transaction_receipt_number', 'trasaction_type');
+        		$q->select('id_transaction', 'transaction_receipt_number', 'transaction_from', 'trasaction_type');
         	}]);
         } 
         elseif( $this->source == 'Point Injection' )

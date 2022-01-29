@@ -3,6 +3,7 @@ namespace App\Lib;
 
 use App\Http\Models\LogTopup;
 use App\Http\Models\Setting;
+use App\Http\Models\Configs;
 use Image;
 use File;
 use DB;
@@ -2714,6 +2715,17 @@ class MyHelper{
     public static function setting($key,$column = 'value',$default = '')
     {
     	return Setting::select($column)->where('key',$key)->pluck($column)->first()??$default;
+    }
+
+    /**
+     * Get config value from setting table
+     * @param string $key config key
+     * @return  string/array result
+     */
+    public static function config($key)
+    {
+    	$column = is_numeric($key) ? 'id_config' : 'config_name';
+    	return Configs::select('is_active')->where($column, $key)->pluck('is_active')->first()??0;
     }
 
     public static function checkRuleForRequestOTP($data_user, $check = 0)

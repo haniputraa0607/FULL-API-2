@@ -172,7 +172,7 @@ class ApiAcademyScheduleController extends Controller
                         ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
                         ->leftJoin('products', 'products.id_product', 'transaction_products.id_product')
                         ->where('transaction_from', 'academy')
-                        ->where('transactions.id_user', $post['id_user'])->with(['user', 'outlet'])
+                        ->where('transactions.id_user', $post['id_user'])->with(['user', 'outlet', 'transaction_academy.completed_installment', 'transaction_academy.all_installment'])
                         ->select('transactions.*', 'products.product_name', 'transaction_academy.*', 'transaction_products.*')
                         ->with('transaction_academy.user_schedule')
                         ->orderBy('transaction_date', 'desc')

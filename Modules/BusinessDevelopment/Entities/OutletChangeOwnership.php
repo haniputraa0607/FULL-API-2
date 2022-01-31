@@ -11,6 +11,7 @@ class OutletChangeOwnership extends Model
 
 	protected $fillable = [
                 'id_partner',
+                'id_outlet_manage',
 		'id_outlet',
                 'to_id_partner',
 		'note',

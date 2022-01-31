@@ -1431,6 +1431,8 @@ class ApiSetting extends Controller
                         $homeMenu[$key]->text_color = $menu[$key.'_text_color'];
                         $homeMenu[$key]->container_type = $menu[$key.'_container_type'];
                         $homeMenu[$key]->container_color = $menu[$key.'_container_color'];
+                        $homeMenu[$key]->visible = (isset($menu[$key.'_visible']) ? true : false);
+
                         if(isset($menu['images'][$nameIcon])){
                             if($val['icon'] != ''){
                                 //Delete old icon

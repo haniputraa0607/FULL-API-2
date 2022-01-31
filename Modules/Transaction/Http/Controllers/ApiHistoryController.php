@@ -1474,6 +1474,7 @@ class ApiHistoryController extends Controller
 
     public function paymentHistory(Request $request)
     {
+        $user = $request->user();
         $transactions = Transaction::leftJoin('transaction_payment_midtrans', 'transactions.id_transaction', 'transaction_payment_midtrans.id_transaction')
             ->leftJoin('transaction_payment_xendits', 'transactions.id_transaction', 'transaction_payment_xendits.id_transaction')
             ->select([
@@ -1486,7 +1487,8 @@ class ApiHistoryController extends Controller
                 'type',
                 'transaction_payment_status',
             ])
-            ->with('outlet');
+            ->with('outlet')
+            ->where('transactions.id_user', $user->id);
 
         if ($request->month) {
             $transactions->whereMonth('transaction_date', $request->month);
@@ -1512,7 +1514,7 @@ class ApiHistoryController extends Controller
                 'transaction_grandtotal' => $transaction->transaction_grandtotal,
                 'payment_method' => $paymentConfigs[str_replace(' ', '_', strtolower($transaction->payment_type ?: $transaction->type))] ?? ($transaction->payment_type ?: $transaction->type ?: '-'),
                 'transaction_payment_status' => $transaction->transaction_payment_status,
-                'transaction_payment_status_text' => $transaction->transaction_payment_status == 'Completed' ? 'Sukses' : $transaction->transaction_payment_status == 'Pending' ? 'Menunggu Pembayaran' : 'Gagal',
+                'transaction_payment_status_text' => $transaction->transaction_payment_status == 'Completed' ? 'Sukses' : ($transaction->transaction_payment_status == 'Pending' ? 'Menunggu Pembayaran' : 'Gagal'),
                 'outlet_name' => $transaction->outlet->outlet_name,
             ];
         });

@@ -3,6 +3,7 @@
 namespace Modules\Product\Http\Controllers;
 
 use App\Http\Models\Holiday;
+use Modules\Recruitment\Entities\HairstylistAttendance;
 use Storage;
 use App\Http\Models\OauthAccessToken;
 use App\Http\Models\Product;
@@ -187,6 +188,10 @@ class ApiProductController extends Controller
 
         if (isset($post['product_academy_hours_meeting'])) {
             $data['product_academy_hours_meeting'] = $post['product_academy_hours_meeting'];
+        }
+
+        if (isset($post['product_academy_maximum_installment'])) {
+            $data['product_academy_maximum_installment'] = $post['product_academy_maximum_installment'];
         }
     	return $data;
     }
@@ -1021,6 +1026,10 @@ class ApiProductController extends Controller
             $product = $product->withCount('product_detail')->withCount('product_detail_hiddens')->with(['brands']);
         }
 
+        if(isset($post['product_type'])){
+            $product = $product->where('product_type', $post['product_type']);
+        }
+
         if(isset($post['pagination'])){
             $product = $product->paginate(10);
         }else{
@@ -1785,9 +1794,15 @@ class ApiProductController extends Controller
     }
 
     function listProductDetailByOutlet(Request $request, $id_outlet){
-        $product = Product::with(['product_detail'=> function($q) use ($id_outlet){
-            $q->where('id_outlet', $id_outlet);
-        }])->get();
+        $outlet = Outlet::with('brand_outlets')->find($id_outlet);
+        $product = Product::select('products.*')->distinct()->with(['product_detail_all'=> function($q) use ($outlet){
+            $q->where('id_outlet', $outlet->id_outlet);
+        }])
+            ->join('brand_product', function ($join) use ($outlet) {
+                $join->on('brand_product.id_product', 'products.id_product')
+                    ->whereIn('brand_product.id_brand', $outlet->brands->pluck('id_brand'));
+            })
+            ->get();
         return response()->json(MyHelper::checkGet($product));
     }
 
@@ -2594,22 +2609,27 @@ class ApiProductController extends Controller
         $res = [];
         foreach ($listHs as $val){
             $availableStatus = false;
+
             //check schedule hs
             $shift = HairstylistScheduleDate::leftJoin('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
-                        ->whereNotNull('approve_at')->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
-                        ->whereDate('date', $bookDate)
-                        ->first()['shift']??'';
-            if(!empty($shift)){
-                $getTimeShift = $this->getTimeShift(strtolower($shift),$post['id_outlet'], $idOutletSchedule);
-                if(!empty($getTimeShift['start']) && !empty($getTimeShift['end'])){
-                    $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
-                    $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
-                    if(strtotime($bookTime) >= strtotime($shiftTimeStart) && strtotime($bookTime) < strtotime($shiftTimeEnd)){
-                        //check available in transaction
-                        $checkAvailable = array_search($val['id_user_hair_stylist'], $hsNotAvailable);
-                        if($checkAvailable === false){
-                            $availableStatus = true;
-                        }
+                ->whereNotNull('approve_at')->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
+                ->whereDate('date', $bookDate)
+                ->first();
+
+            if($bookDate == date('Y-m-d') && strtotime($bookTime) >= strtotime($shift['time_start'])){
+                $clockIn = HairstylistAttendance::where('id_user_hair_stylist', $val['id_user_hair_stylist'])
+                    ->where('id_hairstylist_schedule_date', $shift['id_hairstylist_schedule_date'])->first()['clock_in']??null;
+                if(!empty($clockIn)){
+                    $availableStatus = true;
+                }
+            }else{
+                $shiftTimeStart = date('H:i:s', strtotime($shift['time_start']));
+                $shiftTimeEnd = date('H:i:s', strtotime($shift['time_end']));
+                if(strtotime($bookTime) >= strtotime($shiftTimeStart) && strtotime($bookTime) < strtotime($shiftTimeEnd)){
+                    //check available in transaction
+                    $checkAvailable = array_search($val['id_user_hair_stylist'], $hsNotAvailable);
+                    if($checkAvailable === false){
+                        $availableStatus = true;
                     }
                 }
             }
@@ -3167,7 +3187,7 @@ class ApiProductController extends Controller
             $product->where('code', $post['product_code']);
         }
         if (isset($post['id_item'])) {
-            $product->where('id_item', $post['id_item']);
+            $product->where('id_item', $post['id_item'])->with('product_icount_outlet_stocks', 'product_icount_outlet_stocks.outlet');
         }
 
         if (isset($post['update_price']) && $post['update_price'] == 1) {
@@ -3199,6 +3219,15 @@ class ApiProductController extends Controller
             foreach ($product as $key => $value) {
                 $product[$key]['photos'] = ProductPhoto::select('*', DB::raw('if(product_photo is not null, (select concat("'.config('url.storage_url_api').'", product_photo)), "'.config('url.storage_url_api').'img/default.jpg") as url_product_photo'))->where('id_product', $value['id_product'])->orderBy('product_photo_order', 'ASC')->get()->toArray();
             }
+        }
+
+        if (isset($post['id_item'])) {
+            $product->each(function ($p) {
+                $p->product_icount_outlet_stocks->groupBy('id_outlet');
+                $p->product_icount_outlet_stocks->each(function ($p2) {
+                    $p2->keyBy('unit');
+                });
+            });
         }
 
         $product = $product->toArray();

@@ -1545,19 +1545,24 @@ class ApiDeals extends Controller
 
     /*Welcome Voucher*/
     function listDealsWelcomeVoucher(Request $request){
+        $getDeals = Deal::where('deals_type','WelcomeVoucher')
+            ->select('deals.*')
+            ->get()->toArray();
         $configUseBrand = Configs::where('config_name', 'use brand')->first();
 
         if($configUseBrand['is_active']){
-            $getDeals = Deal::join('brands', 'brands.id_brand', 'deals.id_brand')
-                ->where('deals_type','WelcomeVoucher')
-                ->select('deals.*','brands.name_brand')
-                ->get()->toArray();
-        }else{
-            $getDeals = Deal::where('deals_type','WelcomeVoucher')
-                ->select('deals.*')
-                ->get()->toArray();
+            foreach ($getDeals as $key=>$data){
+                $brands = DealsBrand::leftJoin('brands', 'brands.id_brand', 'deals_brands.id_brand')
+                    ->where('id_deals', $data['id_deals'])
+                    ->pluck('brands.name_brand')->toArray();
+                $brands = array_filter($brands);
+                $stringName = '';
+                if(!empty($brands)){
+                    $stringName = '('.implode(',', $brands).')';
+                }
+                $getDeals[$key]['name_brand'] = $stringName;
+            }
         }
-
 
         $result = [
             'status' => 'success',
@@ -1568,19 +1573,9 @@ class ApiDeals extends Controller
 
     function welcomeVoucherSetting(Request $request){
         $setting = Setting::where('key', 'welcome_voucher_setting')->first();
-        $configUseBrand = Configs::where('config_name', 'use brand')->first();
-
-        if($configUseBrand['is_active']){
-            $getDeals = DealTotal::join('deals', 'deals.id_deals', 'deals_total.id_deals')
-                ->join('brands', 'brands.id_brand', 'deals.id_brand')
-                ->select('deals.*','deals_total.deals_total','brands.name_brand')
-                ->get()->toArray();
-        }else{
-            $getDeals = DealTotal::join('deals', 'deals.id_deals', 'deals_total.id_deals')
-                ->select('deals.*','deals_total.deals_total')
-                ->get()->toArray();
-        }
-
+        $getDeals = DealTotal::join('deals', 'deals.id_deals', 'deals_total.id_deals')
+            ->select('deals.*','deals_total.deals_total')
+            ->get()->toArray();
 
         $result = [
             'status' => 'success',
@@ -2066,7 +2061,7 @@ class ApiDeals extends Controller
 	    	}
     	}
 
-    	if ( empty($deals['deals_content']) || empty($deals['deals_description'])) {
+    	if ( (empty($deals['deals_content']) && MyHelper::config(125)) || empty($deals['deals_description'])) {
     		$step = 3;
 	    	$errors[] = 'Deals not complete';
     		return false;
@@ -2223,9 +2218,10 @@ class ApiDeals extends Controller
         $data_content = [];
         $data_content_detail = [];
         $content_order = 1;
+        $save = true;
 
         //Rapiin data yg masuk
-        foreach ($post['id_deals_content'] as $key => $value) {
+        foreach ($post['id_deals_content'] ?? [] as $key => $value) {
             $data_content[$key]['id_deals'] = $post['id_deals'];
             $data_content[$key]['id_deals_content'] = $value;
             $data_content[$key]['title'] = $post['content_title'][$key];
@@ -2251,7 +2247,7 @@ class ApiDeals extends Controller
         $del_content = $contentTable::where('id_deals','=',$post['id_deals'])->delete();
 
         // create content & detail
-        foreach ($post['id_deals_content'] as $key => $value) 
+        foreach ($post['id_deals_content'] ?? [] as $key => $value) 
         {
             $save = $contentTable::create($data_content[$key]);
 

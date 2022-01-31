@@ -48,21 +48,19 @@ class ApiHandoverController extends Controller
                          }
                  }
                   $project->progres = "Success";
-                  $project->status = "Success";
                   $project->save();
                   
                 $store = ProjectHandover::create([
                     "id_project"   =>  $request->id_project,
                     "title"   =>  $request->title,
                     "attachment"   =>  $attachment,
-                    "tanggal_serah_terima"   =>  date_format(date_create($request->tanggal_serah_terima),"Y-m-d"),
                     "soft_opening"   =>  date_format(date_create($request->soft_opening),"Y-m-d H:i:s"),
                     "grand_opening"   =>  date_format(date_create($request->grand_opening),"Y-m-d H:i:s"),
                     'status'=>'Success',
                     "note"   =>  $note
                 ]);
-                $outlet = Outlet::where('id_location', $project->id_location)
-                ->update(['outlet_status'=>"Active"]);
+//                $outlet = Outlet::where('id_location', $project->id_location)
+//                ->update(['outlet_status'=>"Active"]);
                  $project = Project::where(array('id_project'=>$request->id_project))->join('partners','partners.id_partner','projects.id_partner')->first();
             if (\Module::collections()->has('Autocrm')) {
                         $autocrm = app($this->autocrm)->SendAutoCRM(

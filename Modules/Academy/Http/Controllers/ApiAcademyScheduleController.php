@@ -38,6 +38,7 @@ use App\Imports\ExcelImport;
 use App\Imports\FirstSheetOnlyImport;
 
 use App\Lib\MyHelper;
+use Modules\Transaction\Entities\TransactionAcademyInstallment;
 use Modules\Transaction\Entities\TransactionAcademySchedule;
 use Modules\Transaction\Entities\TransactionAcademyScheduleDayOff;
 use Validator;
@@ -92,7 +93,7 @@ class ApiAcademyScheduleController extends Controller
             ->join('users','transactions.id_user','=','users.id')
             ->with('user')
             ->select(
-                'users.*'
+                'users.*', DB::raw('(Select transaction_date from transactions where transaction_from = "academy" and transactions.id_user = users.id order by transaction_date desc limit 1) as last_date_transaction')
             )
             ->groupBy('transactions.id_user');
 
@@ -105,9 +106,11 @@ class ApiAcademyScheduleController extends Controller
 
         if (is_array($orders = $request->order)) {
             $columns = [
+                '',
                 'name',
                 'phone',
-                'email'
+                'email',
+                'last_date_transaction'
             ];
 
             foreach ($orders as $column) {
@@ -115,8 +118,9 @@ class ApiAcademyScheduleController extends Controller
                     $list->orderBy($colname, $column['dir']);
                 }
             }
+        }else{
+            $list->orderBy('last_date_transaction', 'DESC');
         }
-        $list->orderBy('transactions.id_transaction', $column['dir'] ?? 'DESC');
 
         if ($request->page) {
             $list = $list->paginate($request->length ?: 15);
@@ -168,14 +172,39 @@ class ApiAcademyScheduleController extends Controller
                         ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
                         ->leftJoin('products', 'products.id_product', 'transaction_products.id_product')
                         ->where('transaction_from', 'academy')
-                        ->where('transactions.id_user', $post['id_user'])->with(['user', 'outlet'])
+                        ->where('transactions.id_user', $post['id_user'])->with(['user', 'outlet', 'transaction_academy.completed_installment', 'transaction_academy.all_installment'])
                         ->select('transactions.*', 'products.product_name', 'transaction_academy.*', 'transaction_products.*')
                         ->with('transaction_academy.user_schedule')
+                        ->orderBy('transaction_date', 'desc')
                         ->get()->toArray();
 
             return response()->json(MyHelper::checkGet($listTrx));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID user can not be empty']]);
+        }
+    }
+
+    public function listScheduleAcademy(Request $request){
+        $post = $request->json()->all();
+        if(!empty($post['id_transaction_academy'])){
+            $listSchedule =  Transaction::join('transaction_academy', 'transaction_academy.id_transaction', 'transactions.id_transaction')
+                ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+                ->leftJoin('products', 'products.id_product', 'transaction_products.id_product')
+                ->where('transaction_academy.id_transaction_academy', $post['id_transaction_academy'])->with(['user', 'outlet'])
+                ->select('transactions.*', 'products.product_name', 'transaction_academy.*', 'transaction_products.*')
+                ->with('transaction_academy.user_schedule')
+                ->first();
+
+            if(!empty($listSchedule)){
+                $listSchedule['status_dp'] = true;
+                if($listSchedule['trasaction_payment_type'] == 'Installment'){
+                    $completedInstallment = TransactionAcademyInstallment::where('id_transaction_academy', $listSchedule['id_transaction_academy'])->whereNotNull('completed_installment_at')->sum('percent');
+                    $listSchedule['status_dp'] = ($completedInstallment < 50 ? false:true);
+                }
+            }
+            return response()->json(MyHelper::checkGet($listSchedule));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID transaction academy can not be empty']]);
         }
     }
 
@@ -189,8 +218,7 @@ class ApiAcademyScheduleController extends Controller
             foreach ($post['date'] as $key=>$value){
                 if(!empty($value['id_transaction_academy_schedule'])){
                     $save = TransactionAcademySchedule::where('id_transaction_academy_schedule', $value['id_transaction_academy_schedule'])->update([
-                        'schedule_date' => date('Y-m-d H:i:s', strtotime($value['date'])),
-                        'transaction_academy_schedule_status' => $value['transaction_academy_schedule_status']
+                        'schedule_date' => date('Y-m-d H:i:s', strtotime($value['date']))
                     ]);
                 }else{
                     $save = TransactionAcademySchedule::create([

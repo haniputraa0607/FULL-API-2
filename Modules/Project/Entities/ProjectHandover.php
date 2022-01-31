@@ -18,6 +18,7 @@ class ProjectHandover extends Model
         'tanggal_serah_terima',
         'soft_opening',
         'grand_opening',
+        'status',
         'attachment',
         'created_at',
         'updated_at'

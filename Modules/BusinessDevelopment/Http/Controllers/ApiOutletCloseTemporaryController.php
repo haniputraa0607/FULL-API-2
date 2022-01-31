@@ -172,7 +172,7 @@ class ApiOutletCloseTemporaryController extends Controller
          )]);
     }
     public function detailClose(Request $request){
-         $store = OutletCloseTemporary::where(array('id_outlet_close_temporary'=>$request->id_outlet_close_temporary))
+         $store = OutletCloseTemporary::where(array('id_outlet_manage'=>$request->id_outlet_manage))
                  ->join('outlets','outlets.id_outlet','outlet_close_temporary.id_outlet')
                  ->join('cities','cities.id_city','outlets.id_city')
                  ->join('locations','locations.id_location','outlets.id_location')
@@ -275,7 +275,7 @@ class ApiOutletCloseTemporaryController extends Controller
     public function cronActive(){
         $log = MyHelper::logCron('Cron Active Outlet Close Temporary,No Change Location');
         try {
-        $outlet = OutletCloseTemporary::where(array('status'=>"Waiting",'jenis'=>'Active','jenis_active'=>'No Change Location'))->wheredate('date','<=',date('Y-m-d H:i:s'))->get();
+        $outlet = OutletCloseTemporary::where(array('status'=>"Waiting",'jenis'=>'Active'))->wheredate('date','<=',date('Y-m-d H:i:s'))->get();
         foreach ($outlet as $value) {
             Location::join('outlets','outlets.id_location','locations.id_location')
                         ->where('outlets.id_outlet',$value['id_outlet'])

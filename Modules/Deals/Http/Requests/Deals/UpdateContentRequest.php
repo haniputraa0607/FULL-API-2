@@ -17,7 +17,7 @@ class UpdateContentRequest extends FormRequest
     {
         return [
             'id_deals'           	=> 'required',
-            'content_title'      	=> 'required',
+            'content_title'      	=> 'sometimes|nullable',
             'id_deals_content'   	=> '',
             'id_content_detail'  	=> '',
             'visible'            	=> '',

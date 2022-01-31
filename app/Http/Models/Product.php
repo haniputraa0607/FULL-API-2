@@ -77,6 +77,7 @@ class Product extends Model
         'product_academy_duration',
         'product_academy_total_meeting',
         'product_academy_hours_meeting',
+        'product_academy_maximum_installment',
         'available_home_service'
     ];
     
@@ -159,6 +160,11 @@ class Product extends Model
     public function product_detail()
     {
         return $this->hasMany(\Modules\Product\Entities\ProductDetail::class, 'id_product')->where('product_detail_visibility', 'Visible');
+    }
+
+    public function product_detail_all()
+    {
+        return $this->hasMany(\Modules\Product\Entities\ProductDetail::class, 'id_product');
     }
 
 	public function prices()
@@ -254,6 +260,11 @@ class Product extends Model
     public function product_service_use_detail() {
         return $this->hasMany(\Modules\ProductService\Entities\ProductServiceUse::class, 'id_product_service', 'id_product')
             ->join('product_detail', 'product_detail.id_product', 'product_service_use.id_product');
+    }
+
+    public function product_academy_theory() {
+        return $this->hasMany(\Modules\Academy\Entities\ProductAcademyTheory::class, 'id_product', 'id_product')
+            ->join('theories', 'theories.id_theory', 'product_academy_theory.id_theory');
     }
 
     

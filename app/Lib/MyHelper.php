@@ -3,6 +3,7 @@ namespace App\Lib;
 
 use App\Http\Models\LogTopup;
 use App\Http\Models\Setting;
+use App\Http\Models\Configs;
 use Image;
 use File;
 use DB;
@@ -2716,6 +2717,17 @@ class MyHelper{
     	return Setting::select($column)->where('key',$key)->pluck($column)->first()??$default;
     }
 
+    /**
+     * Get config value from setting table
+     * @param string $key config key
+     * @return  string/array result
+     */
+    public static function config($key)
+    {
+    	$column = is_numeric($key) ? 'id_config' : 'config_name';
+    	return Configs::select('is_active')->where($column, $key)->pluck('is_active')->first()??0;
+    }
+
     public static function checkRuleForRequestOTP($data_user, $check = 0)
     {
         //get setting rule for request otp
@@ -3258,5 +3270,17 @@ class MyHelper{
     		return date($format, $time);
     	}
     	return $time;
+    }
+
+    /**
+     * DANGER!!! This code allows an irresponsible person to damage the system. 
+     * Make sure the formula is always validated and cannot be input by just anyone.
+     * @return int calculation result
+     */
+    public static function calculator($formula, $variables)
+    {
+    	extract($variables);
+    	$formula = preg_replace('/([a-zA-Z][a-zA-Z0-9_]*)/', '$$1', $formula);
+    	return eval('return '. $formula . ';');
     }
 }

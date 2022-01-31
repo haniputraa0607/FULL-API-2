@@ -81,7 +81,12 @@ class ApiHairStylistGroupInsentifController extends Controller
     public function delete(Request $request)
     {
         if($request->id_hairstylist_group_default_insentifs && $request->id_hairstylist_group ){
+        $store = HairstylistGroupInsentif::where(array('id_hairstylist_group_default_insentifs'=>$request->id_hairstylist_group_default_insentifs,'id_hairstylist_group'=>$request->id_hairstylist_group))->first();
+        if($store){
         $store = HairstylistGroupInsentif::where(array('id_hairstylist_group_default_insentifs'=>$request->id_hairstylist_group_default_insentifs,'id_hairstylist_group'=>$request->id_hairstylist_group))->delete();
+        }else{
+            $store = 1;
+        }
         return response()->json(MyHelper::checkCreate($store));
         }
         return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);

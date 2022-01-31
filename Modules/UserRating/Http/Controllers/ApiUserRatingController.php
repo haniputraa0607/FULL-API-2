@@ -35,7 +35,7 @@ class ApiUserRatingController extends Controller
         $post = $request->json()->all();
         $data = UserRating::with([
         	'transaction' => function($query) {
-	            $query->select('id_transaction','transaction_receipt_number','trasaction_type','transaction_grandtotal','id_outlet');
+	            $query->select('id_transaction','transaction_receipt_number','transaction_from','trasaction_type','transaction_grandtotal','id_outlet');
 	        },
 	        'transaction.outlet' => function($query) {
 	            $query->select('id_outlet','outlet_code','outlet_name');
@@ -329,7 +329,7 @@ class ApiUserRatingController extends Controller
         $post = $request->json()->all();
         $data = UserRating::with([
         	'transaction' => function($query) {
-	            $query->select('id_transaction','transaction_receipt_number','trasaction_type','transaction_grandtotal','id_outlet');
+	            $query->select('id_transaction','transaction_receipt_number','transaction_from','trasaction_type','transaction_grandtotal','id_outlet');
 	        },
 	        'transaction.outlet' => function($query) {
 	            $query->select('id_outlet','outlet_code','outlet_name');
@@ -406,7 +406,7 @@ class ApiUserRatingController extends Controller
                 }
 
                 $log_popup_user_rating = $log_pop;
-	            $transaction = Transaction::select('id_transaction','transaction_receipt_number','transaction_date','id_outlet')
+	            $transaction = Transaction::select('id_transaction','transaction_receipt_number','transaction_from','transaction_date','id_outlet')
 	            ->with(['outlet'=>function($query){
 	                $query->select('outlet_name','id_outlet');
 	            }])
@@ -573,7 +573,7 @@ class ApiUserRatingController extends Controller
                 ->join('transactions','transactions.id_transaction','=','user_ratings.id_transaction')
                 ->with([
                 'transaction'=>function($query){
-                    $query->select('id_transaction','transaction_receipt_number','trasaction_type','transaction_grandtotal');
+                    $query->select('id_transaction','transaction_receipt_number','transaction_from','trasaction_type','transaction_grandtotal');
                 },
                 'user'=>function($query){
                     $query->select('id','name','phone');
@@ -667,7 +667,7 @@ class ApiUserRatingController extends Controller
             for ($i = 1; $i<=5 ;$i++) {
                 $datax = UserRating::where('rating_value',$i)->with([
                     'transaction'=>function($query){
-                        $query->select('id_transaction','transaction_receipt_number','trasaction_type','transaction_grandtotal');
+                        $query->select('id_transaction','transaction_receipt_number','transaction_from','trasaction_type','transaction_grandtotal');
                     },
                     'user'=>function($query){
                         $query->select('id','name','phone');
@@ -775,7 +775,7 @@ class ApiUserRatingController extends Controller
             for ($i = 1; $i<=5 ;$i++) {
                 $datax = UserRating::where('rating_value',$i)->with([
                     'transaction'=>function($query){
-                        $query->select('id_transaction','transaction_receipt_number','trasaction_type','transaction_grandtotal');
+                        $query->select('id_transaction','transaction_receipt_number','transaction_from','trasaction_type','transaction_grandtotal');
                     },
                     'user'=>function($query){
                         $query->select('id','name','phone');

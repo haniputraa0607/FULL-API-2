@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 
 Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scopes:be'], 'prefix' => 'academy'], function () {
     Route::any('product', 'ApiProductAcademyController@index');
+    Route::post('product/theory/save', 'ApiProductAcademyController@academyTheory');
     Route::get('setting/installment', 'ApiAcademyController@settingInstallment');
     Route::post('setting/installment/save', 'ApiAcademyController@settingInstallmentSave');
     Route::get('setting/banner', 'ApiAcademyController@settingBanner');
@@ -22,10 +23,21 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
 
     Route::post('transaction/user/schedule', 'ApiAcademyScheduleController@listUserAcademy');
     Route::post('transaction/user/schedule/detail', 'ApiAcademyScheduleController@detailScheduleUserAcademy');
+    Route::post('transaction/user/schedule/detail/list', 'ApiAcademyScheduleController@listScheduleAcademy');
     Route::post('transaction/user/schedule/update', 'ApiAcademyScheduleController@updateScheduleUserAcademy');
 
     Route::post('transaction/user/schedule/day-off', 'ApiAcademyScheduleController@listDayOffUserAcademy');
     Route::post('transaction/user/schedule/day-off/action', 'ApiAcademyScheduleController@actionDayOffUserAcademy');
+});
+
+Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scopes:be'], 'prefix' => 'theory'], function () {
+    Route::post('category/create', 'ApiTheoryController@createCategory');
+    Route::any('category', 'ApiTheoryController@listCategory');
+    Route::post('category/update', 'ApiTheoryController@updateCategory');
+    Route::any('/', 'ApiTheoryController@theoryList');
+    Route::post('delete', 'ApiTheoryController@theoryDelete');
+    Route::post('create', 'ApiTheoryController@theoryCreate');
+    Route::post('update', 'ApiTheoryController@theoryUpdate');
 });
 
 Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scopes:apps'], 'prefix' => 'academy'], function () {

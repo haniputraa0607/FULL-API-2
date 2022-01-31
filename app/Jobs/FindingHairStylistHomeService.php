@@ -89,7 +89,7 @@ class FindingHairStylistHomeService implements ShouldQueue
                             continue;
                         }
 
-                        if(!is_null($getProductDetail['product_detail_stock_item']) && $item['qty'] > $getProductDetail['product_detail_stock_item']){
+                        if(!is_null($getProductDetail['product_detail_stock_item']) && $item['transaction_product_qty'] > $getProductDetail['product_detail_stock_item']){
                             $err[] = 'Stok habis';
                             continue;
                         }
@@ -108,6 +108,10 @@ class FindingHairStylistHomeService implements ShouldQueue
             }
 
             if(!empty($getHs)){
+                $typeClickTo = 'home_service_queue';
+                if(date('Y-m-d') == date('Y-m-d', strtotime($trxHomeService['schedule_date']))){
+                    $typeClickTo = 'home_service_today';
+                }
                 $update = TransactionHomeService::where('id_transaction_home_service', $data['id_transaction_home_service'])
                     ->update([
                         'id_user_hair_stylist' => $getHs,
@@ -130,7 +134,8 @@ class FindingHairStylistHomeService implements ShouldQueue
                         $dataHS['phone_number'],
                         [
                             'id_transaction' => $trx['id_transaction'],
-                            'receipt_number' => $trx['transaction_receipt_number']
+                            'receipt_number' => $trx['transaction_receipt_number'],
+                            'mitra_get_order_clickto' => $typeClickTo
                         ], null, false, false, 'hairstylist'
                     );
 

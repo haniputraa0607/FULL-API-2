@@ -687,15 +687,32 @@ class ApiAcademyController extends Controller
 
             $listInstallment = TransactionAcademyInstallment::where('id_transaction_academy', $trx['id_transaction_academy'])->orderBy('id_transaction_academy_installment', 'asc')->get()->toArray();
             $listNextBill = [];
+            $listHistory = [];
             foreach ($listInstallment as $key=>$value){
                 if(empty($value['completed_installment_at'])){
                     $listNextBill[] = [
                         'id_transaction_academy_installment' => $value['id_transaction_academy_installment'],
-                        'text' => 'Pembayaran Tahap '.($key+1),
+                        'text' => ($key == 0 ? 'Uang Muka':'Pembayaran Tahap '.($key)),
                         'deadline' => (empty($value['deadline'])? '':MyHelper::dateFormatInd($value['deadline'], true, false)),
                         'amount' => $value['amount']
                     ];
+                }else{
+                    $listHistory[] = [
+                        'payment_date' => MyHelper::dateFormatInd($value['completed_installment_at'], true, false),
+                        'receipt_number' => $value['installment_receipt_number'],
+                        'title' => ($key == 0 ? 'Uang Muka':'Pembayaran Tahap '.($key)),
+                        'amount' => number_format($value['amount'],0,",",".")
+                    ];
                 }
+            }
+
+            if($trx['trasaction_payment_type'] != 'Installment'){
+                $listHistory[] = [
+                    'payment_date' => MyHelper::dateFormatInd($trx['transaction_date'], true, false),
+                    'receipt_number' => $trx['transaction_receipt_number'],
+                    'title' => 'Total',
+                    'amount' => number_format($trx['transaction_grandtotal'],0,",",".")
+                ];
             }
 
             $nextBill = $listNextBill[0]??null;
@@ -707,7 +724,8 @@ class ApiAcademyController extends Controller
                 'amount_completed' => $trx['amount_completed'],
                 'amount_not_completed' => $trx['amount_not_completed'],
                 'next_bill' => $nextBill,
-                'list_next_bill' => $listNextBill
+                'list_next_bill' => $listNextBill,
+                'list_history_bill' => $listHistory
             ];
 
             $fake_request = new Request(['show_all' => 1]);
@@ -910,6 +928,8 @@ class ApiAcademyController extends Controller
         ];
     }
 
+    //run every day at 11:00
+    //7 days before deadline
     public function paymentInstallmentReminder(){
         $settingDeadline = Setting::where('key', 'transaction_academy_installment_deadline_date')->first()['value']??null;
         if(empty($settingDeadline)){
@@ -957,6 +977,8 @@ class ApiAcademyController extends Controller
         return true;
     }
 
+    //run every day at 14:00
+    //on time limit
     public function paymentInstallmentDueDate(){
         $settingDeadline = Setting::where('key', 'transaction_academy_installment_deadline_date')->first()['value']??null;
         if(empty($settingDeadline)){
@@ -988,7 +1010,7 @@ class ApiAcademyController extends Controller
                         'id_transaction' => $value['id_transaction'],
                         'deadline'=> (!empty($value['deadline'])? MyHelper::dateFormatInd($value['deadline'], true, false) : ''),
                         'amount' => number_format($value['amount']),
-                        'installment_step' => MyHelper::numberToRomanRepresentation($value['installment_step'])
+                        'installment_step' => ($value['installment_step'] == 1 ? 'Uang Muka' : MyHelper::numberToRomanRepresentation($value['installment_step']))
                     ]
                 );
             }
@@ -997,6 +1019,8 @@ class ApiAcademyController extends Controller
         return true;
     }
 
+    //run every day at 11:00
+    //2 days before course
     public function courseReminder(){
         $currentDate = date('Y-m-d');
         $date = date("Y-m-d", strtotime($currentDate." +2 days"));

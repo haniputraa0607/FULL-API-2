@@ -3350,7 +3350,7 @@ class ApiProductController extends Controller
             $product->where('code', $post['product_code']);
         }
         if (isset($post['id_item'])) {
-            $product->where('id_item', $post['id_item']);
+            $product->where('id_item', $post['id_item'])->with('product_icount_outlet_stocks', 'product_icount_outlet_stocks.outlet');
         }
 
         if (isset($post['update_price']) && $post['update_price'] == 1) {
@@ -3382,6 +3382,15 @@ class ApiProductController extends Controller
             foreach ($product as $key => $value) {
                 $product[$key]['photos'] = ProductPhoto::select('*', DB::raw('if(product_photo is not null, (select concat("'.config('url.storage_url_api').'", product_photo)), "'.config('url.storage_url_api').'img/default.jpg") as url_product_photo'))->where('id_product', $value['id_product'])->orderBy('product_photo_order', 'ASC')->get()->toArray();
             }
+        }
+
+        if (isset($post['id_item'])) {
+            $product->each(function ($p) {
+                $p->product_icount_outlet_stocks->groupBy('id_outlet');
+                $p->product_icount_outlet_stocks->each(function ($p2) {
+                    $p2->keyBy('unit');
+                });
+            });
         }
 
         $product = $product->toArray();

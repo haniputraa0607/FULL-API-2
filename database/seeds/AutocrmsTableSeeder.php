@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Database\Seeder;
+use App\Http\Models\Autocrm;
 
 class AutocrmsTableSeeder extends Seeder
 {
@@ -8,9 +9,7 @@ class AutocrmsTableSeeder extends Seeder
     {
 
 
-        \DB::table('autocrms')->delete();
-
-        \DB::table('autocrms')->insert(array (
+        $rows = array (
             0 =>
             array (
                 'id_autocrm' => 1,
@@ -3762,6 +3761,10 @@ Message :
 	                'created_at' => '2018-03-12 13:53:17',
 	                'updated_at' => '2018-05-03 15:02:20',
 	            ),
-        ));
+        );
+
+        foreach ($rows as $row) {
+            Autocrm::updateOrCreate(['autocrm_title' => $row['autocrm_title']], $row);
+        }
     }
 }

@@ -284,6 +284,9 @@ class ApiBrandController extends Controller
         $post = $request->json()->all();
 
         try {
+            if (MyHelper::config(123)) {
+                $delete = BrandOutlet::whereIn('id_outlet', array_column($post, 'id_outlet'))->delete();
+            }
             $create = BrandOutlet::insert($post);
             return response()->json(MyHelper::checkDelete($create));
         } catch (\Exception $e) {

@@ -162,6 +162,11 @@ class Product extends Model
         return $this->hasMany(\Modules\Product\Entities\ProductDetail::class, 'id_product')->where('product_detail_visibility', 'Visible');
     }
 
+    public function product_detail_all()
+    {
+        return $this->hasMany(\Modules\Product\Entities\ProductDetail::class, 'id_product');
+    }
+
 	public function prices()
 	{
 		return $this->hasMany(\App\Http\Models\ProductPrice::class, 'id_product')->join('outlets', 'product_prices.id_outlet', 'outlets.id_outlet')->select('id_product', 'outlets.id_outlet', 'product_price');

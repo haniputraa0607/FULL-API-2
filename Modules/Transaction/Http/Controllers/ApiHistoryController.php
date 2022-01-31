@@ -1474,6 +1474,7 @@ class ApiHistoryController extends Controller
 
     public function paymentHistory(Request $request)
     {
+        $user = $request->user();
         $transactions = Transaction::leftJoin('transaction_payment_midtrans', 'transactions.id_transaction', 'transaction_payment_midtrans.id_transaction')
             ->leftJoin('transaction_payment_xendits', 'transactions.id_transaction', 'transaction_payment_xendits.id_transaction')
             ->select([
@@ -1486,7 +1487,8 @@ class ApiHistoryController extends Controller
                 'type',
                 'transaction_payment_status',
             ])
-            ->with('outlet');
+            ->with('outlet')
+            ->where('transactions.id_user', $user->id);
 
         if ($request->month) {
             $transactions->whereMonth('transaction_date', $request->month);

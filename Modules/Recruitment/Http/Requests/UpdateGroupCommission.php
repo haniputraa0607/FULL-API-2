@@ -28,7 +28,7 @@ class UpdateGroupCommission extends FormRequest
         }); 
         $validator->addExtension('cek', function ($attribute, $value, $parameters, $validator) {
          $request = $validator->getData();
-         if($request['percent']=='on'){
+         if(isset($request['percent'])){
              if((int)$value>=1&&(int)$value<=99 ){
                  return true;
              }else{

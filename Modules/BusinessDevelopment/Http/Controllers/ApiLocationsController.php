@@ -24,6 +24,7 @@ use Image;
 use Modules\BusinessDevelopment\Entities\NewStepsLog;
 use Modules\BusinessDevelopment\Entities\StepsLog;
 use Modules\BusinessDevelopment\Http\Requests\LandingPage\StoreNewLocation;
+use App\Http\Models\Setting;
 
 class ApiLocationsController extends Controller
 {
@@ -816,6 +817,46 @@ class ApiLocationsController extends Controller
             ];
         }
         
+    }
+
+    public function settingUpdate(Request $request){
+        $post = $request->all();
+
+        $update['before'] = Setting::updateOrCreate(['key' => $post['key'].'_before'],['value_text' => $post['value_before']]);
+        $update['after'] = Setting::updateOrCreate(['key' => $post['key'].'_after'],['value_text' => $post['value_after']]);
+
+        return response()->json(MyHelper::checkUpdate($update));
+    }
+
+    public function valueBeforeAfter(Request $request, $key){
+        $post = $request->all();
+        
+        if($key=='partner'){
+            $key_setting_before = 'setting_partner_content_before';
+            $key_setting_after = 'setting_partner_content_after';
+        }elseif($key=='location'){
+            $key_setting_before = 'setting_locations_content_before';
+            $key_setting_after = 'setting_locations_content_after';
+        }elseif($key=='hairstylist'){
+            $key_setting_before = 'setting_hairstylist_content_before';
+            $key_setting_after = 'setting_hairstylist_content_after';
+        }
+        
+        $before = Setting::where('key', $key_setting_before)->first();
+        if($before){
+            $data['before']['id_setting'] = $before['id_setting'];
+            $data['before']['value_text'] = $before['value_text'];
+        }else{
+            $data['before'] = null;
+        }
+        $after = Setting::where('key', $key_setting_after)->first();
+        if($after){
+            $data['after']['id_setting'] = $after['id_setting'];
+            $data['after']['value_text'] = $after['value_text'];
+        }else{
+            $data['after'] = null;
+        }
+        return MyHelper::checkGet($data);
     }
 
 }

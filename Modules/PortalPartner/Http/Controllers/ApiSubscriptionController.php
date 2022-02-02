@@ -132,6 +132,7 @@ class ApiSubscriptionController extends Controller
                  ->join('locations','locations.id_location','outlets.id_location')
                  ->join('partners','partners.id_partner','locations.id_partner')
                  ->where('subscriptions.subscription_start','>', date('Y-m-d H:i:s'))
+                 ->where(array('outlets.id_outlet'=>$request->id_outlet))
                  ->where(array('partners.id_partner'=>$request->id_partner));
         $user = $request->user();
         $curBalance = (int) $user->balance??0;
@@ -399,6 +400,7 @@ class ApiSubscriptionController extends Controller
                  ->join('partners','partners.id_partner','locations.id_partner')
                  ->where('subscriptions.subscription_start','<', date('Y-m-d H:i:s'))
                  ->where('subscriptions.subscription_end','>', date('Y-m-d H:i:s'))
+                 ->where(array('outlets.id_outlet'=>$request->id_outlet))
                  ->where(array('partners.id_partner'=>$request->id_partner));
         $user = $request->user();
         $curBalance = (int) $user->balance??0;

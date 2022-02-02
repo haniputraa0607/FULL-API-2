@@ -46,6 +46,7 @@ class ApiDashboardController extends Controller
         }
     }
     public function status(Request $request) {
+        //status
            if(isset($request->id_outlet) && !empty($request->id_outlet) && isset($request->dari) && !empty($request->dari) && isset($request->sampai) && !empty($request->sampai) ){
             $transaction = Transaction::where(array('id_outlet'=>$request->id_outlet))
                        ->whereBetween('transaction_date',[$request->dari,$request->sampai])

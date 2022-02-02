@@ -38,6 +38,7 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
     Route::post('delete', 'ApiTheoryController@theoryDelete');
     Route::post('create', 'ApiTheoryController@theoryCreate');
     Route::post('update', 'ApiTheoryController@theoryUpdate');
+    Route::get('with-category', 'ApiTheoryController@categoryTheory');
 });
 
 Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scopes:apps'], 'prefix' => 'academy'], function () {

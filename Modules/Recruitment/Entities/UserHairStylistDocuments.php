@@ -16,6 +16,7 @@ class UserHairStylistDocuments extends Authenticatable
 
     protected $fillable   = [
         'id_user_hair_stylist',
+        'id_theory_category',
         'document_type',
         'process_date',
         'process_name_by',
@@ -31,5 +32,7 @@ class UserHairStylistDocuments extends Authenticatable
         return config('url.storage_url_api') . $value;
     }
 
-
+    public function theory(){
+        return $this->hasMany(\Modules\Recruitment\Entities\UserHairStylistTheory::class, 'id_user_hair_stylist_document');
+    }
 }

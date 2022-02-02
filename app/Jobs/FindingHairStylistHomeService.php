@@ -118,15 +118,17 @@ class FindingHairStylistHomeService implements ShouldQueue
                         'counter_finding_hair_stylist' => $trxHomeService['counter_finding_hair_stylist'] + 1
                     ]);
                 if($update){
-                    app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
-                        'Home Service Update Status',
-                        $trx['user']['phone'],
-                        [
-                            'id_transaction' => $trx['id_transaction'],
-                            'status'=> $updateStatus['status']??' ',
-                            'receipt_number' => $trx['transaction_receipt_number']
-                        ]
-                    );
+                    if(!empty($updateStatus['status'])){
+                        app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
+                            'Home Service Update Status',
+                            $trx['user']['phone'],
+                            [
+                                'id_transaction' => $trx['id_transaction'],
+                                'status'=> $updateStatus['status'],
+                                'receipt_number' => $trx['transaction_receipt_number']
+                            ]
+                        );
+                    }
 
                     $dataHS = UserHairStylist::where('id_user_hair_stylist', $getHs)->first();
                     app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
@@ -154,7 +156,7 @@ class FindingHairStylistHomeService implements ShouldQueue
                         $trx['user']['phone'],
                         [
                             'id_transaction' => $trx['id_transaction'],
-                            'status'=> $updateStatus['status']??' ',
+                            'status'=> 'Cancelled',
                             'receipt_number' => $trx['transaction_receipt_number']
                         ]
                     );

@@ -114,7 +114,7 @@ class ApiPromoCampaign extends Controller
      function listPromoCampaignBefore(Request $request) 
     {
     	$post = $request->json()->all();
-        if(!$request->id_partner){
+        if(!$request->id_partner && $request->id_outlet){
         	return response()->json(['status' => 'fail', 'messages' => ['ID partner can not be empty']]);
         }
         $query = PromoCampaign::join('promo_campaign_brands','promo_campaign_brands.id_promo_campaign','promo_campaigns.id_promo_campaign')
@@ -125,6 +125,7 @@ class ApiPromoCampaign extends Controller
                  ->join('locations','locations.id_location','outlets.id_location')
                  ->join('partners','partners.id_partner','locations.id_partner')
                  ->where(array('partners.id_partner'=>$request->id_partner))
+                 ->where(array('outlets.id_outlet'=>$request->id_outlet))
                  ->OrderBy('promo_campaigns.id_promo_campaign', 'DESC')
                 ->Select('promo_campaigns.*','brands.*','outlets.*');
         
@@ -153,7 +154,7 @@ class ApiPromoCampaign extends Controller
    public function listPromoCampaignActive(Request $request)
     {
         $post = $request->json()->all();
-        if(!$request->id_partner){
+        if(!$request->id_partner && $request->id_outlet){
         	return response()->json(['status' => 'fail', 'messages' => ['ID partner can not be empty']]);
         }
         $query = PromoCampaign::join('promo_campaign_brands','promo_campaign_brands.id_promo_campaign','promo_campaigns.id_promo_campaign')
@@ -164,6 +165,7 @@ class ApiPromoCampaign extends Controller
                  ->join('locations','locations.id_location','outlets.id_location')
                  ->join('partners','partners.id_partner','locations.id_partner')
                  ->where(array('partners.id_partner'=>$request->id_partner))
+                 ->where(array('outlets.id_outlet'=>$request->id_outlet))
                  ->OrderBy('promo_campaigns.id_promo_campaign', 'DESC')
                 ->Select('promo_campaigns.*','brands.*','outlets.*');
         

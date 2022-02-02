@@ -34,10 +34,48 @@ class ApiDashboardController extends Controller
                        ->select('products.id_product','products.product_name',
                                  DB::raw('
                                         count(
-                                        transaction_products.id_product = 1
+                                        transaction_products.id_product
                                         ) as jml
                                     '))
                        ->orderby('jml','DESC')
+                       ->limit(10)
+                       ->get();
+       return response()->json(['status' => 'success', 'result' => $transaction]);  
+       }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incomplete data']]);
+        }
+    }
+    public function status(Request $request) {
+           if(isset($request->id_outlet) && !empty($request->id_outlet) && isset($request->dari) && !empty($request->dari) && isset($request->sampai) && !empty($request->sampai) ){
+            $transaction = Transaction::where(array('id_outlet'=>$request->id_outlet))
+                       ->whereBetween('transaction_date',[$request->dari,$request->sampai])
+                       ->select(DB::raw('DATE_FORMAT(transaction_date, "%Y-%m-%d") as date'),DB::raw('
+                                        sum(
+                                       CASE WHEN
+                                       transaction_payment_status = "Completed" THEN 1 ELSE 0
+                                       END
+                                        ) as completed
+                                    '),DB::raw('
+                                        sum(
+                                       CASE WHEN
+                                       transaction_payment_status = "Paid" THEN 1 ELSE 0
+                                       END
+                                        ) as paid
+                                    '),DB::raw('
+                                        sum(
+                                       CASE WHEN
+                                       transaction_payment_status = "Cancelled" THEN 1 ELSE 0
+                                       END
+                                        ) as cancelled
+                                    '),DB::raw('
+                                        sum(
+                                       CASE WHEN
+                                       transaction_payment_status = "Pending" THEN 1 ELSE 0
+                                       END
+                                        ) as pending
+                                    ')
+                               )
+                       ->groupby('date')
                        ->limit(10)
                        ->get();
        return response()->json(['status' => 'success', 'result' => $transaction]);  

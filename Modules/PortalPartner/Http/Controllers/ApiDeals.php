@@ -77,7 +77,7 @@ class ApiDeals extends Controller
     function listDealBefore(ListDeal $request) 
     {
     	$post = $request->json()->all();
-        if(!$request->id_partner){
+        if(!$request->id_partner&&$request->id_outlet){
         	return response()->json(['status' => 'fail', 'messages' => ['ID partner can not be empty']]);
         }
         $deals = Deal::join('deals_brands','deals_brands.id_deals','deals.id_deals')
@@ -88,6 +88,7 @@ class ApiDeals extends Controller
                  ->join('locations','locations.id_location','outlets.id_location')
                  ->join('partners','partners.id_partner','locations.id_partner')
                  ->where(array('partners.id_partner'=>$request->id_partner))
+                 ->where(array('outlets.id_outlet'=>$request->id_outlet))
                  ->Select('deals.*','brands.*','outlets.*');
         
         
@@ -124,7 +125,7 @@ class ApiDeals extends Controller
     function listDealActive(ListDeal $request) 
     {
     	$post = $request->json()->all();
-        if(!$request->id_partner){
+        if(!$request->id_partner && $request->id_outlet){
         	return response()->json(['status' => 'fail', 'messages' => ['ID partner can not be empty']]);
         }
         $deals = Deal::join('deals_brands','deals_brands.id_deals','deals.id_deals')
@@ -135,6 +136,7 @@ class ApiDeals extends Controller
                  ->join('locations','locations.id_location','outlets.id_location')
                  ->join('partners','partners.id_partner','locations.id_partner')
                  ->where(array('partners.id_partner'=>$request->id_partner))
+                 ->where(array('outlets.id_outlet'=>$request->id_outlet))
                 ->Select('deals.*','brands.*','outlets.*');
         if ($request->json('rule')){
              $this->filterList($deals,$request->json('rule'),$request->json('operator')??'and');

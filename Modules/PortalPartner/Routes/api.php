@@ -24,8 +24,10 @@ Route::group(['prefix' => 'partner'], function () {
             Route::post('detail/for-login-outlet', 'ApiUserPartnerController@idOutlet');
             Route::post('detail/for-login-list-outlet', 'ApiUserPartnerController@listidOutlet');
         });
+        //dashboard
         Route::group(['prefix' => 'dashboard'], function() {
             Route::post('/', 'ApiDashboardController@index');
+            Route::post('/status', 'ApiDashboardController@status');
         });
         Route::group(['prefix' => 'promo'], function() {
             Route::post('detail/deals', 'ApiDeals@detail');

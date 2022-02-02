@@ -13,6 +13,7 @@ use Modules\Academy\Entities\Theory;
 use Modules\Academy\Entities\TheoryCategory;
 use Modules\Franchise\Entities\Setting;
 use Modules\Outlet\Http\Requests\Outlet\OutletList;
+use Modules\POS\Http\Requests\reqBulkMenu;
 use Modules\Product\Entities\ProductDetail;
 use DB;
 use App\Lib\MyHelper;
@@ -176,5 +177,16 @@ class ApiTheoryController extends Controller
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
         }
+    }
+
+    public function categoryTheory(){
+        $data = TheoryCategory::where('id_parent_theory_category', 0)->with(['theory'])->get()->toArray();
+
+        foreach ($data as $key=>$dt){
+            $child = TheoryCategory::where('id_parent_theory_category', $dt['id_theory_category'])->with(['theory'])->get()->toArray();
+            $data[$key]['child'] = $child;
+        }
+
+        return response()->json(MyHelper::checkGet($data));
     }
 }

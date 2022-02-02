@@ -12,6 +12,7 @@ use Modules\Recruitment\Entities\HairstylistSchedule;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use Modules\Outlet\Entities\OutletBox;
 use App\Http\Models\LogOutletBox;
+use Modules\Recruitment\Entities\UserHairStylistTheory;
 use Modules\Recruitment\Http\Requests\user_hair_stylist_create;
 use Image;
 use DB;
@@ -364,6 +365,15 @@ class ApiHairStylistController extends Controller
                     unset($detail['experiences']);
                     $detail['experiences'] = $value_experinces;
                 }
+
+                if(!empty($detail['documents'])){
+                    foreach ($detail['documents'] as $key=>$doc){
+                        if($doc['document_type'] == 'Training Completed'){
+                            $theories = UserHairStylistTheory::where('id_user_hair_stylist_document', $doc['id_user_hair_stylist_document'])->get()->toArray();
+                            $detail['documents'][$key]['theories'] = $theories;
+                        }
+                    }
+                }
             }
             return response()->json(MyHelper::checkGet($detail));
         }else{
@@ -387,6 +397,7 @@ class ApiHairStylistController extends Controller
 
                 $createDoc = UserHairStylistDocuments::create([
                     'id_user_hair_stylist' => $post['id_user_hair_stylist'],
+                    'id_theory_category' => $post['data_document']['id_theory_category'] ?? null,
                     'document_type' => $post['data_document']['document_type'],
                     'process_date' => date('Y-m-d H:i:s', strtotime($post['data_document']['process_date']??date('Y-m-d H:i:s'))),
                     'process_name_by' => $post['data_document']['process_name_by']??null,
@@ -399,19 +410,36 @@ class ApiHairStylistController extends Controller
                     return response()->json(MyHelper::checkCreate($createDoc));
                 }
 
-                $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update(['user_hair_stylist_status' => $post['update_type']]);
+                if($post['data_document']['document_type'] != 'Training Completed'){
+                    $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update(['user_hair_stylist_status' => $post['update_type']]);
 
-                if($update && $post['update_type'] == 'Rejected'){
-                    $autocrm = app($this->autocrm)->SendAutoCRM(
-                        'Rejected Candidate Hair Stylist',
-                        $getData['phone_number'],
-                        [
-                            'fullname' => $getData['fullname'],
-                            'phone_number' => $getData['phone_number'],
-                            'email' => $getData['email']
-                        ], null, false, false, 'hairstylist'
-                    );
+                    if($update && $post['update_type'] == 'Rejected'){
+                        $autocrm = app($this->autocrm)->SendAutoCRM(
+                            'Rejected Candidate Hair Stylist',
+                            $getData['phone_number'],
+                            [
+                                'fullname' => $getData['fullname'],
+                                'phone_number' => $getData['phone_number'],
+                                'email' => $getData['email']
+                            ], null, false, false, 'hairstylist'
+                        );
+                    }
+                }else if($post['data_document']['theory']){
+                    $insertTheory = [];
+                    foreach ($post['data_document']['theory'] as $theory){
+                        if(!empty($theory['score'])){
+                            $theory['id_user_hair_stylist_document'] = $createDoc['id_user_hair_stylist_document'];
+                            $theory['created_at'] = date('Y-m-d H:i:s');
+                            $theory['updated_at'] = date('Y-m-d H:i:s');
+                            $insertTheory[] = $theory;
+                        }
+                    }
+
+                    if(!empty($insertTheory)){
+                        $update = UserHairStylistTheory::insert($insertTheory);
+                    }
                 }
+
                 return response()->json(MyHelper::checkUpdate($update));
             }
 
@@ -452,7 +480,7 @@ class ApiHairStylistController extends Controller
                 $data['join_date'] = date('Y-m-d H:i:s');
                 $data['approve_by'] = $request->user()->id;
                 $data['user_hair_stylist_status'] = 'Active';
-                $data['user_hair_stylist_photo'] = $post['user_hair_stylist_photo'];
+                $data['user_hair_stylist_photo'] = $post['user_hair_stylist_photo']??null;
                 $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update($data);
 
                 $autocrm = app($this->autocrm)->SendAutoCRM(

@@ -51,6 +51,10 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefi
         Route::post('/new-status', ['middleware'=>['feature_control:344','scopes:be'],'uses' => 'ApiLocationsController@newStatusLogs']);
         // Route::post('/create-follow-up', ['middleware'=>['feature_control:344','scopes:be'],'uses' => 'ApiPartnersController@pdfSurvey']);
     });
+    Route::group(['prefix' => '/setting'], function() {
+        Route::post('/update', ['middleware'=>['feature_control:342','scopes:be'],'uses' => 'ApiLocationsController@settingUpdate']);
+        // Route::post('/create-follow-up', ['middleware'=>['feature_control:344','scopes:be'],'uses' => 'ApiPartnersController@pdfSurvey']);
+    });
     Route::group(['prefix' => '/bankaccount'], function() {
         Route::post('/detail', ['middleware'=>['feature_control:351','scopes:be'],'uses' => 'ApiBankAccountsController@detail']);
         Route::post('/update', ['middleware'=>['feature_control:352','scopes:be'],'uses' => 'ApiBankAccountsController@update']);
@@ -213,4 +217,8 @@ Route::group(['middleware' => ['auth_client','scopes:landing-page'],'prefix' => 
     Route::post('/create', ['uses' => 'ApiPartnersController@store']);
     Route::post('/create-location', ['uses' => 'ApiLocationsController@storeLandingPage']);
     Route::post('/new', ['uses' => 'ApiPartnersController@new']);
+});
+
+Route::group(['middleware' => ['auth_client','scopes:landing-page'],'prefix' => 'content'], function() {
+    Route::post('/header-footer/{key}', ['uses' => 'ApiLocationsController@valueBeforeAfter']);
 });

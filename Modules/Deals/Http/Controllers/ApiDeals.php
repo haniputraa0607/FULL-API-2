@@ -158,7 +158,7 @@ class ApiDeals extends Controller
                 mkdir($promotionPath??$this->saveImage, 0777, true);
             }
 
-            $upload = MyHelper::uploadPhotoStrict($post['deals_image'], ($promotionPath??$this->saveImage), 500, 500);
+            $upload = MyHelper::uploadPhotoStrict($post['deals_image'], ($promotionPath??$this->saveImage), 750, 375);
 
             if (isset($upload['status']) && $upload['status'] == "success") {
                 $data['deals_image'] = $upload['path'];

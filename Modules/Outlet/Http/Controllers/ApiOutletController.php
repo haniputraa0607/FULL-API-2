@@ -22,12 +22,14 @@ use App\Http\Models\Configs;
 use App\Http\Models\OutletSchedule;
 use App\Http\Models\Setting;
 use App\Http\Models\OauthAccessToken;
-use App\Http\Models\Product;
+use App\Http\Models\Product;;
 use App\Http\Models\ProductPrice;
 use Modules\Outlet\Entities\DeliveryOutlet;
 use Modules\Outlet\Entities\OutletBox;
 use Modules\Outlet\Entities\OutletTimeShift;
 use Modules\Product\Entities\ProductDetail;
+use Modules\Product\Entities\ProductIcount;
+use Modules\Product\Entities\ProductIcountOutletStock;
 use Modules\Product\Entities\ProductGlobalPrice;
 use Modules\Product\Entities\ProductSpecialPrice;
 use Modules\Franchise\Entities\UserFranchise;
@@ -649,7 +651,15 @@ class ApiOutletController extends Controller
                     $q->where('id_product', $post['id_product']);
                 }]);
             }else{
-                $outlet = $outlet->with(['product_detail', 'product_special_price']);
+                $outlet = $outlet->with(['product_detail' => function($pd){
+                    $pd->with(['product' => function($p){
+                        $p->select('id_product','product_name');
+                    }]);
+                }, 'product_special_price','product_icount_outlet_stocks'=>function($pi){
+                    $pi->with(['product_icount' => function($p){
+                        $p->select('id_product_icount','name');
+                    }]);
+                }]);
             }
         }
         elseif($post['simple_result']??false) {

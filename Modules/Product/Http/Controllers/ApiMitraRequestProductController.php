@@ -301,7 +301,7 @@ class ApiMitraRequestProductController extends Controller
             if($post['detail']){
                 foreach($post['detail'] as $key => $product){
                     $product_icount = new ProductIcount();
-                    $update_stock = $product_icount->find($product['id_product_icount'])->addLogStockProductIcount($product['delivered'],$product['unit'],'Delivery Product',$post['id_delivery_product']);
+                    $update_stock = $product_icount->find($product['id_product_icount'])->addLogStockProductIcount($product['received'],$product['unit'],'Delivery Product',$post['id_delivery_product']);
                     if($product['received'] == $product['delivered']){
                         $status = 'Enough';
                     }elseif($product['received'] < $product['delivered']){

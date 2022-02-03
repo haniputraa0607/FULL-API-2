@@ -87,9 +87,9 @@ class ApiUserPartnerController extends Controller
         $post = $request->json()->all();
         if(isset($post['id_partner']) && !empty($post['id_partner'])){
             $id_branch = Location::where('id_partner',$post['id_partner'])->get();
-            $id_branch = $id_branch[0]['id_branch'];
+            $id_branch = $id_branch[0]['id_location'];
             if($id_branch){
-                $data_outlet = Outlet::where('id_branch',$id_branch)->get();
+                $data_outlet = Outlet::where('id_location',$id_branch)->get();
                 if(count($data_outlet)>0){
                     return response()->json(['status' => 'success', 'result' => $data_outlet[0]['id_outlet']]);    
                 }else{
@@ -98,6 +98,18 @@ class ApiUserPartnerController extends Controller
             }else{
                 return response()->json(['status' => 'fail', 'messages' => ['Incomplete data']]);
             }
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incomplete data']]);
+        }
+    }
+    public function listidOutlet(Request $request){
+        $post = $request->json()->all();
+        if(isset($post['id_partner']) && !empty($post['id_partner'])){
+            $id_branch = Location::join('outlets','outlets.id_location','locations.id_location')
+                        ->select('id_outlet','outlet_name')
+                        ->where('locations.id_partner',$post['id_partner'])->get();
+                    return response()->json(['status' => 'success', 'result' => $id_branch]);    
+           
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incomplete data']]);
         }

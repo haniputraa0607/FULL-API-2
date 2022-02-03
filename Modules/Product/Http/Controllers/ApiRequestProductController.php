@@ -179,6 +179,9 @@ class ApiRequestProductController extends Controller
         foreach ($detail as $value) {
             if(!isset($value['status']) && empty($value['status'])){
                 $value['status'] = NULL;   
+                if(isset($data['id_request_product'])){
+                    $value['status'] = 'Pending';
+                }
             }
             array_push($data_detail, [
                 $col 	=> $id_req,

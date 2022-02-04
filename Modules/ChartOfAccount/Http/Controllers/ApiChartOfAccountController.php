@@ -83,32 +83,6 @@ class ApiChartOfAccountController extends Controller
         ];
         $sync_job = SyncIcountChartOfAccount::dispatch($send);
         return ['status' => 'success', 'messages' => ['Success to sync with ICount']]; 
-        $icount = new Icount();
-        $data = $icount->ChartOfAccount();
-        if($data['response']['Status']==0 && $data['response']['Message']=='Success'){
-            foreach ($data['response']['Data'] as $value) {
-                $query = ChartOfAccount::where(array('ChartOfAccountID'=>$value['ChartOfAccountID']))->first();
-                if($query){
-                   $query->ChartOfAccountID = $value['ChartOfAccountID'];
-                   $query->CompanyID        = $value['CompanyID'];
-                   $query->GroupAccountID   = $value['GroupAccountID'];
-                   $query->AccountNo        = $value['AccountNo'];
-                   $query->Description      = $value['Description'];
-                   $query->ParentID         = $value['ParentID'];
-                   $query->IsChildest       = $value['IsChildest'];
-                   $query->IsBank           = $value['Description'];
-                   $query->Type             = $value['Type'];
-                   $query->IsDeleted        = $value['Description'];
-                   $query->save();
-                }else{
-                   $create =  ChartOfAccount::create($value);
-                }
-            }
-            $data = ChartOfAccount::all();
-        return response()->json(['status' => 'success', 'result' => $data]);
-        }else{
-            return response()->json(['status' => 'fail', 'message' => ['Fail']]);
-        }
     }
     public function list() {
         $data = ChartOfAccount::all();

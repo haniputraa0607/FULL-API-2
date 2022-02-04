@@ -20,6 +20,7 @@ use PDF;
 use Storage;
 use Modules\ChartOfAccount\Entities\ChartOfAccount;
 use App\Lib\Icount;
+use App\Jobs\SyncIcountChartOfAccount;
 
 class ApiChartOfAccountController extends Controller
 {
@@ -76,6 +77,12 @@ class ApiChartOfAccountController extends Controller
         return response()->json(['status' => 'success', 'result' => $data]);
     }
     public function sync() {
+        $send = [
+            'page' => 1,
+            'id_chart' => null
+        ];
+        $sync_job = SyncIcountChartOfAccount::dispatch($send);
+        return ['status' => 'success', 'messages' => ['Success to sync with ICount']]; 
         $icount = new Icount();
         $data = $icount->ChartOfAccount();
         if($data['response']['Status']==0 && $data['response']['Message']=='Success'){

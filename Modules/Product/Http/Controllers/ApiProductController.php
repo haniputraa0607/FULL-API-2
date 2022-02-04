@@ -277,7 +277,7 @@ class ApiProductController extends Controller
             if($id_product_detail == 0){
                 $update = ProductDetail::create(['id_product' => $post['id_product'],
                     'id_outlet' => $post['id_outlet'][$key],
-                    'product_detail_stock_status' => $post['product_detail_stock_status'][$key],
+                    'product_detail_stock_status' => 'Sold Out',
                     'product_detail_visibility' => $post['product_detail_visibility'][$key]
                 ]);
                 $create = ProductStockStatusUpdate::create([
@@ -286,26 +286,16 @@ class ApiProductController extends Controller
                     'user_type' => 'users',
                     'id_outlet' => $post['id_outlet'][$key],
                     'date_time' => $date_time,
-                    'new_status' => $post['product_detail_stock_status'][$key],
+                    'new_status' => 'Sold Out',
                     'id_outlet_app_otp' => null
                 ]);
             }
             else{
                 $pp = ProductDetail::where('id_product_detail','=',$id_product_detail)->first();
                 if(!$pp){continue;}
-                $old_status = $pp->product_stock_status;
-                if(strtolower($old_status) != strtolower($post['product_detail_stock_status'][$key])){
-                    $create = ProductStockStatusUpdate::create([
-                        'id_product' => $post['id_product'],
-                        'id_user' => $request->user()->id,
-                        'user_type' => 'users',
-                        'id_outlet' => $post['id_outlet'][$key],
-                        'date_time' => $date_time,
-                        'new_status' => $post['product_detail_stock_status'][$key],
-                        'id_outlet_app_otp' => null
-                    ]);
-                }
-                $update = ProductDetail::where('id_product_detail','=',$id_product_detail)->update(['product_detail_stock_status' => $post['product_detail_stock_status'][$key],'product_detail_visibility' => $post['product_detail_visibility'][$key]]);
+                $old_status = $pp->product_detail_stock_status;
+                
+                $update = ProductDetail::where('id_product_detail','=',$id_product_detail)->update(['product_detail_stock_status' => $old_status,'product_detail_visibility' => $post['product_detail_visibility'][$key]]);
             }
         }
         return response()->json(MyHelper::checkUpdate($update));
@@ -937,7 +927,7 @@ class ApiProductController extends Controller
      */
     function listProduct(Request $request) {
         $post = $request->json()->all();
-        
+
 		if (isset($post['id_outlet'])) {
             $product = Product::join('product_detail','product_detail.id_product','=','products.id_product')
                                 ->leftJoin('product_special_price','product_special_price.id_product','=','products.id_product')
@@ -1004,7 +994,15 @@ class ApiProductController extends Controller
         }
 
         if (isset($post['product_code'])) {
-            $product->with(['global_price','product_special_price','product_tags','brands','product_promo_categories'=>function($q){$q->select('product_promo_categories.id_product_promo_category');}])->where('products.product_code', $post['product_code']);
+            $product->with(['global_price','product_special_price','product_tags','brands','product_promo_categories'=>function($q){$q->select('product_promo_categories.id_product_promo_category');},'product_detail'=>function($detail){
+                $detail->join('outlets','outlets.id_outlet','=', 'product_detail.id_outlet');
+                $detail->groupBy('product_detail.id_outlet');
+                $detail->SelectRaw( 'id_product,
+                                    product_detail_stock_item,
+                                    product_detail_stock_status,
+                                    product_detail.id_outlet,
+                                    outlet_name');
+            }])->where('products.product_code', $post['product_code']);
         }
 
         if (isset($post['update_price']) && $post['update_price'] == 1) {
@@ -2580,7 +2578,7 @@ class ApiProductController extends Controller
         }
 
         if(empty($outlet)){
-            return response()->json(['status' => 'fail', 'messages' => ['Outlet nod found']]);
+            return response()->json(['status' => 'fail', 'messages' => ['Outlet not found']]);
         }
 
         $post['id_outlet'] = $outlet['id_outlet'];
@@ -2616,13 +2614,13 @@ class ApiProductController extends Controller
                 ->whereDate('date', $bookDate)
                 ->first();
 
-            if($bookDate == date('Y-m-d') && strtotime($bookTime) >= strtotime($shift['time_start'])){
+            if($bookDate == date('Y-m-d') && strtotime($bookTime) >= strtotime($shift['time_start']) && strtotime($bookTime) < strtotime($shift['time_end'])){
                 $clockIn = HairstylistAttendance::where('id_user_hair_stylist', $val['id_user_hair_stylist'])
                     ->where('id_hairstylist_schedule_date', $shift['id_hairstylist_schedule_date'])->first()['clock_in']??null;
                 if(!empty($clockIn)){
                     $availableStatus = true;
                 }
-            }else{
+            }elseif($bookDate > date('Y-m-d')){
                 $shiftTimeStart = date('H:i:s', strtotime($shift['time_start']));
                 $shiftTimeEnd = date('H:i:s', strtotime($shift['time_end']));
                 if(strtotime($bookTime) >= strtotime($shiftTimeStart) && strtotime($bookTime) < strtotime($shiftTimeEnd)){
@@ -3187,7 +3185,15 @@ class ApiProductController extends Controller
             $product->where('code', $post['product_code']);
         }
         if (isset($post['id_item'])) {
-            $product->where('id_item', $post['id_item'])->with('product_icount_outlet_stocks', 'product_icount_outlet_stocks.outlet');
+            $product->where('id_item', $post['id_item'])->with(['product_icount_outlet_stocks'  => function($query){
+                $query->join('outlets','outlets.id_outlet','=', 'product_icount_outlet_stocks.id_outlet');
+                $query->groupBy('product_icount_outlet_stocks.id_outlet');
+                $query->SelectRaw( 'group_concat(product_icount_outlet_stocks.unit) as units, 
+                                    group_concat(product_icount_outlet_stocks.stock) as stock,
+                                    id_product_icount,
+                                    product_icount_outlet_stocks.id_outlet,
+                                    outlet_name');
+            }]);
         }
 
         if (isset($post['update_price']) && $post['update_price'] == 1) {
@@ -3219,15 +3225,6 @@ class ApiProductController extends Controller
             foreach ($product as $key => $value) {
                 $product[$key]['photos'] = ProductPhoto::select('*', DB::raw('if(product_photo is not null, (select concat("'.config('url.storage_url_api').'", product_photo)), "'.config('url.storage_url_api').'img/default.jpg") as url_product_photo'))->where('id_product', $value['id_product'])->orderBy('product_photo_order', 'ASC')->get()->toArray();
             }
-        }
-
-        if (isset($post['id_item'])) {
-            $product->each(function ($p) {
-                $p->product_icount_outlet_stocks->groupBy('id_outlet');
-                $p->product_icount_outlet_stocks->each(function ($p2) {
-                    $p2->keyBy('unit');
-                });
-            });
         }
 
         $product = $product->toArray();

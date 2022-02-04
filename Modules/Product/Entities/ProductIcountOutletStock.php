@@ -21,4 +21,8 @@ class ProductIcountOutletStock extends Model
     {
         return $this->belongsTo(Outlet::class, 'id_outlet');
     }
+
+    public function product_icount(){
+        return $this->belongsTo(\Modules\Product\Entities\ProductIcount::class, 'id_product_icount');
+    }
 }

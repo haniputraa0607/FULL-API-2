@@ -575,7 +575,7 @@ class ApiAutoCrm extends Controller
                             case 'history_academy' :
                             case 'history_payment':
                             case 'History Transaction' :
-                                if($crm['autocrm_push_clickto'] == 'History Transaction'){
+                                if($crm['autocrm_push_clickto'] == 'History Transaction' && !empty($inboxFrom)){
                                     $dataOptional['type'] = 'history_'.str_replace('-', '_', $inboxFrom);
                                 }
 
@@ -768,7 +768,7 @@ class ApiAutoCrm extends Controller
                         case 'history_academy' :
                         case 'history_payment':
                         case 'History Transaction' :
-                            if($crm['autocrm_inbox_clickto'] == 'History Transaction'){
+                            if($crm['autocrm_inbox_clickto'] == 'History Transaction' && !empty($inboxFrom)){
                                 $inbox['inboxes_clickto'] = 'history_'.str_replace('-', '_', $inboxFrom);
                             }
 

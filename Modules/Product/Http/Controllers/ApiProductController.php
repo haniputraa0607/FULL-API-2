@@ -2580,7 +2580,7 @@ class ApiProductController extends Controller
         }
 
         if(empty($outlet)){
-            return response()->json(['status' => 'fail', 'messages' => ['Outlet nod found']]);
+            return response()->json(['status' => 'fail', 'messages' => ['Outlet not found']]);
         }
 
         $post['id_outlet'] = $outlet['id_outlet'];
@@ -2616,13 +2616,13 @@ class ApiProductController extends Controller
                 ->whereDate('date', $bookDate)
                 ->first();
 
-            if($bookDate == date('Y-m-d') && strtotime($bookTime) >= strtotime($shift['time_start'])){
+            if($bookDate == date('Y-m-d') && strtotime($bookTime) >= strtotime($shift['time_start']) && strtotime($bookTime) < strtotime($shift['time_end'])){
                 $clockIn = HairstylistAttendance::where('id_user_hair_stylist', $val['id_user_hair_stylist'])
                     ->where('id_hairstylist_schedule_date', $shift['id_hairstylist_schedule_date'])->first()['clock_in']??null;
                 if(!empty($clockIn)){
                     $availableStatus = true;
                 }
-            }else{
+            }elseif($bookDate > date('Y-m-d')){
                 $shiftTimeStart = date('H:i:s', strtotime($shift['time_start']));
                 $shiftTimeEnd = date('H:i:s', strtotime($shift['time_end']));
                 if(strtotime($bookTime) >= strtotime($shiftTimeStart) && strtotime($bookTime) < strtotime($shiftTimeEnd)){

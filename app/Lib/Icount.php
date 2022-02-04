@@ -459,6 +459,9 @@ class Icount
     public static function ItemList($page = 1, $request = null, $company = null, $logType = null, $orderId = null){
         return self::sendRequest('GET', '/item/list?Limit=20&Page='.$page , $request, $company, $logType, $orderId);
     }
+    public static function DepartmentList($page = 1, $request = null, $company = null, $logType = null, $orderId = null){
+        return self::sendRequest('GET', '/department/list?Limit=20&Page='.$page , $request, $company, $logType, $orderId);
+    }
     public static function ChartOfAccount($request = null, $logType = null, $orderId = null){
         return self::sendRequest('GET', '/chart_of_account/list', $request, $logType, $orderId);
     }

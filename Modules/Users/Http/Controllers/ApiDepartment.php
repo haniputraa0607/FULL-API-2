@@ -8,6 +8,8 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Log;
 
 use Modules\Users\Entities\Department;
+use App\Jobs\SyncIcountDepartment;
+use App\Lib\Icount;
 use App\Lib\MyHelper;
 use DB;
 
@@ -191,5 +193,14 @@ class ApiDepartment extends Controller
         }else{
             return true;
         }
+    }
+
+    public function syncIcount(Request $request){
+        $send = [
+            'page' => 1,
+            'id_departments' => null
+        ];
+        $sync_job = SyncIcountDepartment::dispatch($send);
+        return ['status' => 'success', 'messages' => ['Success to sync with ICount']]; 
     }
 }

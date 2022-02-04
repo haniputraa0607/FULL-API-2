@@ -22,10 +22,10 @@ class ProductDetail extends Model
     ];
 
     public function product(){
-        return $this->belongsTo(App\Http\Models\Product::class, 'id_product');
+        return $this->belongsTo(\App\Http\Models\Product::class, 'id_product');
     }
 
     public function outlet(){
-        return $this->belongsTo(App\Http\Models\Outlet::class, 'id_outlet');
+        return $this->belongsTo(\App\Http\Models\Outlet::class, 'id_outlet');
     }
 }

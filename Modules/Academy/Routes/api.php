@@ -28,6 +28,12 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
 
     Route::post('transaction/user/schedule/day-off', 'ApiAcademyScheduleController@listDayOffUserAcademy');
     Route::post('transaction/user/schedule/day-off/action', 'ApiAcademyScheduleController@actionDayOffUserAcademy');
+
+    Route::post('transaction/outlet/course', 'ApiAcademyScheduleController@outletCourseAcademy');
+    Route::post('transaction/outlet/course/detail', 'ApiAcademyScheduleController@detailOutletCourseAcademy');
+    Route::post('transaction/outlet/course/attendance', 'ApiAcademyScheduleController@attendanceOutletCourseAcademy');
+    Route::post('transaction/outlet/course/final-score', 'ApiAcademyScheduleController@finalScoreOutletCourseAcademy');
+    Route::post('transaction/outlet/course/user-detail', 'ApiAcademyScheduleController@courseDetailHistory');
 });
 
 Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scopes:be'], 'prefix' => 'theory'], function () {

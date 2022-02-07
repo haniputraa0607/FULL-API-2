@@ -14,7 +14,11 @@ class Department extends Model
 
 	protected $fillable = [
 		'department_name',
-		'id_parent'
+		'id_parent',
+        'from_icount',
+        'id_department_icount',
+        'code_icount',
+        'is_actived',
 	];
 
 	public function parent()

@@ -182,7 +182,7 @@ class ApiMitraRequestProductController extends Controller
                             }else{
                                 $delivery_product = $delivery_product->first();
                             }
-                            
+  
             if($delivery_product){
 
                 $delivery_product = array_map(function($value){
@@ -196,19 +196,13 @@ class ApiMitraRequestProductController extends Controller
                 },array($delivery_product))[0];
 
                 if($delivery_product['id_delivery_product']){
-                    $products = DeliveryRequestProduct::with(['delivery_product' => function($query) {
-                                    $query->select('id_delivery_product');
-                                    $query->with(['delivery_product_detail' => function($query) {
-                                        $query->with(['delivery_product_icount' => function($query){
+                    $products = DeliveryProductDetail::with(['delivery_product_icount' => function($query){
                                                 $query->select('id_product_icount','name');
-                                        }]);
-                                    }]);
-                                }])
-                                ->where('id_delivery_product',$post['id_delivery_product'])->get()->toArray();
-                    
+                                        }])->where('id_delivery_product',$post['id_delivery_product'])->get()->toArray();
+
                     $dev = 0;
-                    if ($products[0]['delivery_product']) {
-                        foreach ($products[0]['delivery_product']['delivery_product_detail'] as $detail) {
+                    if ($products) {
+                        foreach ($products as $detail) {
                             $delivery[$dev] = [
                                 "id_product_icount" => $detail['delivery_product_icount']['id_product_icount'],
                                 "product_name" => $detail['delivery_product_icount']['name'],

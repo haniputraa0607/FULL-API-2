@@ -12,6 +12,7 @@ class TransactionAcademy extends \App\Http\Models\Template\TransactionService
 
     protected $fillable   = [
         'id_transaction',
+        'final_score',
         'payment_method',
         'total_installment',
         'amount_completed',

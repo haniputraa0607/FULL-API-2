@@ -22,6 +22,7 @@ class ApiBanner extends Controller
         // get banner with news title
         $banners = Banner::select('banners.*', \DB::raw('"-" as reference_title'))
             ->orderBy('banners.position')
+            ->where('banner_type', 'general')
             ->get();
 
         // add full url to collection

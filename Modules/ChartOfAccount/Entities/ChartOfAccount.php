@@ -20,6 +20,7 @@ class ChartOfAccount extends Model
 		'IsBank',
 		'Type',
 		'IsDeleted',
+		'is_actived',
                 'created_at',
                 'updated_at' 
 	];

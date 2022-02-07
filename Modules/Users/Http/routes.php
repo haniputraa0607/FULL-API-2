@@ -161,6 +161,7 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent', 'scope
 	    Route::post('edit', ['middleware' => 'feature_control:330', 'uses' => 'ApiDepartment@edit']);
 	    Route::post('update', ['middleware' => 'feature_control:331', 'uses' => 'ApiDepartment@update']);
 	    Route::post('delete', ['middleware' => 'feature_control:332', 'uses' => 'ApiDepartment@destroy']);
+	    Route::post('sync', ['middleware' => 'feature_control:329', 'uses' => 'ApiDepartment@syncIcount']);
     });
 
     Route::group(['prefix' => 'job-level'], function()

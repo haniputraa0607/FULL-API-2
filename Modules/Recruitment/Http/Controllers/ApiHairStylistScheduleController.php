@@ -469,6 +469,7 @@ class ApiHairStylistScheduleController extends Controller
                             if($schedule_before){
                                 $schedule_month = $hs['schedule_month'] + 1;
                                 if($schedule_month > 12 ){
+                                    $schedule_month = $schedule_month - 12;
                                     $schedule_year = $hs['schedule_year'] + 1;
                                 }else{
                                     $schedule_year = $hs['schedule_year'];
@@ -521,4 +522,55 @@ class ApiHairStylistScheduleController extends Controller
         }    
 
 	}
+
+    public function create(Request $request){
+        $post = $request->all();
+        $this_year = date('Y');
+        $this_month = date('m');
+
+        if($post['year'] >= (int)$this_year){
+            if($post['month'] >= $this_month){
+                $check_schedule = HairstylistSchedule::where('id_user_hair_stylist',$post['id_hs'])->where('schedule_month',$post['month'])->where('schedule_year',$post['year'])->first();
+                if(!$check_schedule){
+                    $hs = UserHairStylist::where('id_user_hair_stylist',$post['id_hs'])->first();
+                    $array_hs = [
+                        "id_user_hair_stylist" => $post['id_hs'],
+                        "id_outlet" => $hs['id_outlet'],
+                        "approve_by" => auth()->user()->id,
+                        "last_updated_by" => auth()->user()->id,
+                        "schedule_month" => $post['month'],
+                        "schedule_year" => $post['year'],
+                        "request_at" => date('Y-m-d H:i:s'), 
+                        "approve_at" => date('Y-m-d H:i:s'),
+                        "reject_at" => NULL
+                    ];
+    
+                    DB::beginTransaction();
+                    $create_schedule = HairstylistSchedule::create($array_hs);
+                    if(!$create_schedule){
+                        DB::rollback();
+                    }
+                    DB::commit();
+                    return response()->json([
+                        'status' => 'success', 
+                    ]);
+                }else{
+                    return response()->json([
+                        'status' => 'fail', 
+                        'messages' => 'The Schedule for the selected month already exists'
+                    ]);
+                } 
+            }else{
+                return response()->json([
+                    'status' => 'fail', 
+                    'messages' => 'The Schedule month cant be smaller than this month'
+                ]);
+            }
+        }else{
+            return response()->json([
+                'status' => 'fail', 
+                'messages' => 'The Schedule year cant be smaller than this year'
+            ]);
+        }
+    }
 }

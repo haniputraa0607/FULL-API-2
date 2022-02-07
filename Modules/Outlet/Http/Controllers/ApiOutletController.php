@@ -2563,7 +2563,7 @@ class ApiOutletController extends Controller
         foreach ($post['data_shift'] as $dt_shift){
             foreach ($dt_shift as $shift){
                 if(date('H:i', strtotime($shift['start'])) == '00:00' ||
-                    date('H:i', strtotime($shift['end'])) == '00:00'){
+                    date('H:i', strtotime($shift['end'])) == '00:00' || empty($shift['id_outlet_schedule'])){
                     continue;
                 }
                 $insertShift[] = [

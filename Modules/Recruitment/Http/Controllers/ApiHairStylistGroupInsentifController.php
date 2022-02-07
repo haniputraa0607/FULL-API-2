@@ -45,7 +45,6 @@ class ApiHairStylistGroupInsentifController extends Controller
                     "value"   =>  $request->value,
                     "formula"   =>  $request->formula,
                     "code"   =>  $request->code,
-                    
                 ]);
         }else{
         $store = HairstylistGroupInsentif::create([

@@ -169,6 +169,11 @@ class Outlet extends Authenticatable
         return $this->hasMany(\Modules\Product\Entities\ProductSpecialPrice::class, 'id_outlet');
     }
 
+    public function product_icount_outlet_stocks()
+    {
+        return $this->hasMany(\Modules\Product\Entities\ProductIcountOutletStock::class, 'id_outlet');
+    }
+
     public function product_detail()
     {
         return $this->hasMany(\Modules\Product\Entities\ProductDetail::class, 'id_outlet');

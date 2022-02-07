@@ -229,6 +229,13 @@ class Kernel extends ConsoleKernel
         $schedule->call('Modules\Academy\Http\Controllers\ApiAcademyController@paymentInstallmentDueDate')->dailyAt('14:00');
         $schedule->call('Modules\Academy\Http\Controllers\ApiAcademyController@courseReminder')->dailyAt('11:00');
 
+        /**
+         * Check Hair Style Schedule
+         * run every 00:10 AM
+         */
+        $schedule->call('Modules\Recruitment\Http\Controllers\ApiHairStylistScheduleController@checkScheduleHS')->dailyAt('00:10');
+
+
     }
 
     /**

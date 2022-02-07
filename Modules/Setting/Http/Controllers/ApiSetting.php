@@ -1991,8 +1991,17 @@ class ApiSetting extends Controller
         return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
     }
     public function attendances_date(){
-        $data = Setting::where('key','attendances_date')->first();
-         return response()->json($data);
+        $mid_date =  MyHelper::setting('hs_income_cut_off_mid_date', 'value', 0);
+        $end_date =  MyHelper::setting('hs_income_cut_off_end_date', 'value', 0);
+        $calculation_mid = json_decode(MyHelper::setting('hs_income_calculation_mid', 'value_text', '[]'), true) ?? [];
+        $calculation_end = json_decode(MyHelper::setting('hs_income_calculation_end', 'value_text', '[]'), true) ?? [];
+        $data = array(
+            'mid_date'=>$mid_date,
+            'end_date'=>$end_date,
+            'calculation_mid'=>$calculation_mid,
+            'calculation_end'=>$calculation_end
+        );
+        return response()->json($data);
     }
   
     public function attendances_date_create(Request $request){

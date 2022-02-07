@@ -17,6 +17,7 @@ class Banner extends Model
 		'url',
 		'position',
 		'type',
+		'banner_type',
 		'banner_start',
 		'banner_end',
 		"time_start",

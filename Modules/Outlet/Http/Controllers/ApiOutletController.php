@@ -2559,6 +2559,7 @@ class ApiOutletController extends Controller
         }
 
         $insertShift = [];
+        OutletTimeShift::where('id_outlet', $post['id_outlet'])->delete();
         foreach ($post['data_shift'] as $dt_shift){
             foreach ($dt_shift as $shift){
                 if(date('H:i', strtotime($shift['start'])) == '00:00' ||
@@ -2578,7 +2579,6 @@ class ApiOutletController extends Controller
         }
 
         if(!empty($insertShift)){
-            OutletTimeShift::where('id_outlet', $post['id_outlet'])->delete();
             OutletTimeShift::insert($insertShift);
         }
 

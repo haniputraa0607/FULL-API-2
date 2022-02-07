@@ -121,11 +121,20 @@ class ApiTheoryController extends Controller
                 $data['parent_name'] = TheoryCategory::where('id_theory_category', $data['id_parent_theory_category'])->first()['theory_category_name']??'';
             }
         }else{
-            $data = Theory::leftJoin('theory_categories', 'theory_categories.id_theory_category', 'theories.id_theory_category')->get()->toArray();
+            $data = Theory::leftJoin('theory_categories', 'theory_categories.id_theory_category', 'theories.id_theory_category')
+                    ->leftJoin('theory_categories as parent', 'theory_categories.id_parent_theory_category', 'parent.id_theory_category');
 
-            foreach ($data as $key => $value) {
-                $data[$key]['parent_name'] = TheoryCategory::where('id_theory_category', $value['id_parent_theory_category'])->first()['theory_category_name']??'';
+            if(!empty($post['id_category']) && $post['id_category'] != 'all'){
+                $check = strpos($post['id_category'],"all");
+                if($check === false){
+                    $data = $data->where('theory_categories.id_theory_category', $post['id_category']);
+                }else{
+                    $id = str_replace('all-', '', $post['id_category']);
+                    $data = $data->where('parent.id_theory_category', $id);
+                }
             }
+
+            $data = $data->select('theories.*', 'theory_categories.*', 'parent.theory_category_name as parent_name')->get()->toArray();
         }
 
         return response()->json(MyHelper::checkGet($data));

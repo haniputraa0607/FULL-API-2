@@ -2556,7 +2556,7 @@ class ApiProductController extends Controller
             'id_brand' => $brand['id_brand']??null,
             'product_code' => $product['product_code'],
             'product_name' => $product['product_name'],
-            'product_description' => $product['product_description'],
+            'product_description' => (empty($product['product_description']) ? '':$product['product_description']),
             'product_price' => (int)$product['product_price'],
             'string_product_price' => 'Rp '.number_format((int)$product['product_price'],0,",","."),
             'photo' => (empty($product['photos'][0]['product_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$product['photos'][0]['product_photo']),

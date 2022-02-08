@@ -39,6 +39,8 @@ class UserHairStylist extends Authenticatable
 		'id_bank_account',
         'user_hair_stylist_status',
         'user_hair_stylist_code',
+        'user_hair_stylist_score',
+        'user_hair_stylist_passed_status',
         'nickname',
         'email',
         'phone_number',

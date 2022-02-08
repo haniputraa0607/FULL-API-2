@@ -395,25 +395,35 @@ class ApiHairStylistController extends Controller
                     }
                 }
 
-                $createDoc = UserHairStylistDocuments::create([
-                    'id_user_hair_stylist' => $post['id_user_hair_stylist'],
-                    'id_theory_category' => $post['data_document']['id_theory_category'] ?? null,
-                    'document_type' => $post['data_document']['document_type'],
-                    'process_date' => date('Y-m-d H:i:s', strtotime($post['data_document']['process_date']??date('Y-m-d H:i:s'))),
-                    'process_name_by' => $post['data_document']['process_name_by']??null,
-                    'process_notes' => $post['data_document']['process_notes'],
-                    'attachment' => $path??null,
-                    'created_at' => date('Y-m-d H:i:s'),
-                    'updated_at' => date('Y-m-d H:i:s')
-                ]);
-                if(!$createDoc){
-                    return response()->json(MyHelper::checkCreate($createDoc));
+                if(!empty($post['data_document'])){
+                    $idCat = $post['data_document']['id_theory_category'] ?? null;
+                    $createDoc = UserHairStylistDocuments::create([
+                        'id_user_hair_stylist' => $post['id_user_hair_stylist'],
+                        'id_theory_category' => $idCat,
+                        'document_type' => $post['data_document']['document_type'],
+                        'process_date' => date('Y-m-d H:i:s', strtotime($post['data_document']['process_date']??date('Y-m-d H:i:s'))),
+                        'process_name_by' => $post['data_document']['process_name_by']??null,
+                        'process_notes' => $post['data_document']['process_notes'],
+                        'attachment' => $path??null,
+                        'conclusion_status' => $post['conclusion_status'][$idCat]??null,
+                        'conclusion_score' => $post['conclusion_score'][$idCat]??null,
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s')
+                    ]);
+                    if(!$createDoc){
+                        return response()->json(MyHelper::checkCreate($createDoc));
+                    }
                 }
 
-                if($post['data_document']['document_type'] != 'Training Completed'){
+                if((!empty($post['data_document']['document_type']) && $post['data_document']['document_type'] != 'Training Completed') ||
+                    empty($post['data_document']['document_type'])){
                     $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update(['user_hair_stylist_status' => $post['update_type']]);
 
                     if($update && $post['update_type'] == 'Rejected'){
+                        UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update([
+                                'user_hair_stylist_passed_status' => $post['user_hair_stylist_passed_status'],
+                                'user_hair_stylist_score' => $post['user_hair_stylist_score']
+                                ]);
                         $autocrm = app($this->autocrm)->SendAutoCRM(
                             'Rejected Candidate Hair Stylist',
                             $getData['phone_number'],
@@ -427,10 +437,11 @@ class ApiHairStylistController extends Controller
                 }else if($post['data_document']['theory']){
                     $insertTheory = [];
                     foreach ($post['data_document']['theory'] as $theory){
-                        if(!empty($theory['score'])){
+                        if($post['data_document']['id_theory_category'] == $theory['id_theory_category']){
                             $theory['id_user_hair_stylist_document'] = $createDoc['id_user_hair_stylist_document'];
                             $theory['created_at'] = date('Y-m-d H:i:s');
                             $theory['updated_at'] = date('Y-m-d H:i:s');
+                            unset($theory['id_theory_category']);
                             $insertTheory[] = $theory;
                         }
                     }

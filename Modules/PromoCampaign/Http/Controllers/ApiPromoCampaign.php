@@ -2356,8 +2356,8 @@ class ApiPromoCampaign extends Controller
 
             	$product_variant = $product_variant->get()->toArray();
 
+                $formatted_product_variant = [];
 	            if ($product_variant) {
-	            	$formatted_product_variant = [];
 		            foreach ($product_variant as $value) {
 		            	$variant = '';
 		            	if (!empty($value)) {

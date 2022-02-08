@@ -21,7 +21,9 @@ class UserHairStylistDocuments extends Authenticatable
         'process_date',
         'process_name_by',
         'process_notes',
-        'attachment'
+        'attachment',
+        'conclusion_status',
+        'conclusion_score'
     ];
 
     public function getAttachmentAttribute($value)

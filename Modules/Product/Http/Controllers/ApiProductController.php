@@ -2556,7 +2556,7 @@ class ApiProductController extends Controller
             'id_brand' => $brand['id_brand']??null,
             'product_code' => $product['product_code'],
             'product_name' => $product['product_name'],
-            'product_description' => $product['product_description'],
+            'product_description' => (empty($product['product_description']) ? '':$product['product_description']),
             'product_price' => (int)$product['product_price'],
             'string_product_price' => 'Rp '.number_format((int)$product['product_price'],0,",","."),
             'photo' => (empty($product['photos'][0]['product_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$product['photos'][0]['product_photo']),
@@ -3104,6 +3104,14 @@ class ApiProductController extends Controller
     }
 
     public function syncIcount(){
+        $setting = Setting::where('key' , 'Sync Product Icount')->first();
+        if($setting){
+            if($setting['value'] != 'finished'){
+                return ['status' => 'fail', 'messages' => ['Cant sync now, because sync is in progress']]; 
+            }
+        }else{
+            $create_setting = Setting::updateOrCreate(['key' => 'Sync Product Icount'],['value' => 'start']);
+        }
         $send = [
             'page' => 1,
             'id_items' => null

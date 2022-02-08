@@ -11,10 +11,9 @@ class CreatePotongan extends FormRequest
     public function rules()
     {
         return [
-            'id_hairstylist_group'        => 'required|unik',
+            'id_hairstylist_group'                          => 'required|unik',
             'id_hairstylist_group_default_potongans'        => 'required',
-            'value'               => 'required',
-            'formula'              => 'required',
+            'code'                                          => 'required',
            ]; 
     }
     public function withValidator($validator)

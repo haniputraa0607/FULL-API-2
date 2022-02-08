@@ -20,6 +20,7 @@ class UserHairStylistTheory extends Authenticatable
         'category_title',
         'theory_title',
         'minimum_score',
-        'score'
+        'score',
+        'passed_status'
     ];
 }

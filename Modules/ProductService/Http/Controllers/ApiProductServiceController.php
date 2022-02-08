@@ -484,10 +484,8 @@ class ApiProductServiceController extends Controller
                         ->orderBy('booking_start', 'asc')->first()['booking_start']??'';
                 if(!empty($nextSchedule) && strtotime(date('Y-m-d', strtotime($nextSchedule))) <= strtotime($bookDate)){
                     $availableText = 'Tersedia sampai pukul '.date('H:i', strtotime($nextSchedule));
-                }elseif(!empty($shiftTimeStart)){
+                }elseif(!empty($shiftTimeStart) && strtotime($bookTime) < strtotime($shiftTimeStart)){
                     $availableText = 'Tersedia sampai pukul '.date('H:i', strtotime($shiftTimeStart));
-                }else{
-                    $availableText = 'Tersedia sampai pukul '.date('H:i', strtotime($timeEnd));
                 }
             }else{
                 $availableText = '';

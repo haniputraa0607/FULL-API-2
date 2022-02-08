@@ -2632,6 +2632,15 @@ class ApiProductController extends Controller
                 }
             }
 
+            $notAvailable = HairstylistNotAvailable::where('id_outlet', $post['id_outlet'])
+                ->whereRaw('"'.$bookDate.' '.$bookTime. '" BETWEEN booking_start AND booking_end')
+                ->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
+                ->first();
+
+            if(!empty($notAvailable)){
+                $availableStatus = false;
+            }
+
             $res[] = [
                 'id_user_hair_stylist' => $val['id_user_hair_stylist'],
                 'name' => $val['fullname'],

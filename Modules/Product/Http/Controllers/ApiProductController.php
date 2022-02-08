@@ -3104,6 +3104,14 @@ class ApiProductController extends Controller
     }
 
     public function syncIcount(){
+        $setting = Setting::where('key' , 'Sync Product Icount')->first();
+        if($setting){
+            if($setting['value'] != 'finished'){
+                return ['status' => 'fail', 'messages' => ['Cant sync now, because sync is in progress']]; 
+            }
+        }else{
+            $create_setting = Setting::updateOrCreate(['key' => 'Sync Product Icount'],['value' => 'start']);
+        }
         $send = [
             'page' => 1,
             'id_items' => null

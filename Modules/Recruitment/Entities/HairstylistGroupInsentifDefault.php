@@ -16,9 +16,10 @@ class HairstylistGroupInsentifDefault extends Model
 
 
 	protected $fillable = [
-		'name',
-		'value',
-		'formula',
+        'name',
+        'code',    
+        'value',
+        'formula',
         'created_at',   
         'updated_at',
         'code'

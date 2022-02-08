@@ -44,6 +44,7 @@ class ApiHairStylistGroupInsentifController extends Controller
                 ])->update([
                     "value"   =>  $request->value,
                     "formula"   =>  $request->formula,
+                    "code"   =>  $request->code,
                 ]);
         }else{
         $store = HairstylistGroupInsentif::create([
@@ -51,6 +52,7 @@ class ApiHairStylistGroupInsentifController extends Controller
                     "id_hairstylist_group_default_insentifs"   =>  $request->id_hairstylist_group_default_insentifs,
                     "value"   =>  $request->value,
                     "formula"   =>  $request->formula,
+                    "code"   =>  $request->code,
                 ]);
         }
         return response()->json(MyHelper::checkCreate($store));
@@ -60,6 +62,7 @@ class ApiHairStylistGroupInsentifController extends Controller
         $store = HairstylistGroupInsentif::where(array('id_hairstylist_group_insentif'=>$request->id_hairstylist_group_insentif))->update([
                     "value"   =>  $request->value,
                     "formula"   =>  $request->formula,
+                    "code"   =>  $request->code,
                 ]);
         if($store){
             $store = HairstylistGroupInsentif::where(array('id_hairstylist_group_insentif'=>$request->id_hairstylist_group_insentif))->first();
@@ -97,9 +100,14 @@ class ApiHairStylistGroupInsentifController extends Controller
             $insentif = HairstylistGroupInsentifDefault::get();
             foreach ($insentif as $value) {
                 $insen = HairstylistGroupInsentif::where(array('id_hairstylist_group_default_insentifs'=>$value['id_hairstylist_group_default_insentifs'],'id_hairstylist_group'=>$request->id_hairstylist_group))->first();
+                $value['default_formula'] = $value['formula'];
+                $value['default_value'] = $value['value'];
+                $value['default']    = 0;
                 if($insen){
                    $value['value']      = $insen->value; 
-                   $value['formula']    = $insen->formula; 
+                   $value['formula']    = $insen->formula;
+                   $value['code']       = $insen->code;
+                   $value['default']    = 1;
                 }
                 array_push($data,$value);
             }
@@ -115,8 +123,9 @@ class ApiHairStylistGroupInsentifController extends Controller
              foreach ($data as $value) {
                  $cek = HairstylistGroupInsentif::where(array('id_hairstylist_group'=>$request->id_hairstylist_group,'id_hairstylist_group_default_insentifs'=>$value['id_hairstylist_group_default_insentifs']))->first();
                  if($cek){
-                     $value['value'] = $cek->value;
+                     $value['value']   = $cek->value;
                      $value['formula'] = $cek->formula;
+                     $value['code']    = $cek->code;
                  }
                  array_push($list,$value);
              }
@@ -128,6 +137,7 @@ class ApiHairStylistGroupInsentifController extends Controller
     {
         $store = HairstylistGroupInsentifDefault::create([
                     "name"   =>  $request->name,
+                    "code"   => $request->code,
                     "value"   =>  $request->value,
                     "formula"   =>  $request->formula,
                 ]);
@@ -137,6 +147,7 @@ class ApiHairStylistGroupInsentifController extends Controller
     {
         $store = HairstylistGroupInsentifDefault::where(array('id_hairstylist_group_default_insentifs'=>$request->id_hairstylist_group_default_insentifs))->update([
                     "name"   =>  $request->name,
+                    "code"   => $request->code,
                     "value"   =>  $request->value,
                     "formula"   =>  $request->formula,
                 ]);

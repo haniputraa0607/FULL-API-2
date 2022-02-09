@@ -122,10 +122,10 @@ class ApiProductAcademyController extends Controller
     public function academyTheory(Request $request){
         $post = $request->json()->all();
 
-        if(!empty($post['theory']) && !empty($post['id_product'])){
+        if(!empty($post['id_product'])){
             $insert = [];
-            ProductAcademyTheory::where('id_product', $post['id_product'])->delete();
-            foreach ($post['theory'] as $dt){
+            $save = ProductAcademyTheory::where('id_product', $post['id_product'])->delete();
+            foreach ($post['theory']??[] as $dt){
                 $insert[] = [
                     'id_product' => $post['id_product'],
                     'id_theory' => $dt,

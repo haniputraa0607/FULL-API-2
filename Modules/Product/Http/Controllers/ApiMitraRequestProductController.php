@@ -15,6 +15,7 @@ use DB;
 use App\Lib\MyHelper;
 use Modules\Product\Entities\DeliveryProductImage;
 use Modules\Product\Entities\ProductIcount;
+use Modules\Product\Http\Requests\product\ConfirmDeliveryProduct;
 
 class ApiMitraRequestProductController extends Controller
 {
@@ -250,7 +251,7 @@ class ApiMitraRequestProductController extends Controller
         }
     }
 
-    public function confirm(Request $request){
+    public function confirm(ConfirmDeliveryProduct $request){
         $post = $request->all();
         if (isset($post['id_delivery_product']) && !empty($post['id_delivery_product'])) {
             
@@ -270,7 +271,11 @@ class ApiMitraRequestProductController extends Controller
                 $files = [];
                 foreach ($post['attachment'] as $i => $attachment){
                     if(!empty($attachment)){
-                        $encode = base64_encode(fread(fopen($attachment, "r"), filesize($attachment)));
+                        try{
+                            $encode = base64_encode(fread(fopen($attachment, "r"), filesize($attachment)));
+                        }catch(\Exception $e) {
+                            return response()->json(['status' => 'fail', 'messages' => ['The Attachment File may not be greater than 2 MB']]);
+                        }
                         $originalName = $attachment->getClientOriginalName();
                         if($originalName == ''){
                             $ext = 'png';

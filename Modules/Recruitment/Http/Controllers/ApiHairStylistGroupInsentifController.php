@@ -231,4 +231,5 @@ class ApiHairStylistGroupInsentifController extends Controller
         }
         return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
     }
+    
 }

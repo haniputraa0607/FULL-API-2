@@ -272,5 +272,12 @@ class ApiHairStylistGroupController extends Controller
         }
          return response()->json($data);
     }
-    
+    public function setting_potongan(Request $request) {
+        $potongan = HairstylistGroupPotonganDefault::get();
+        return MyHelper::checkGet($potongan);
+    }
+    public function setting_insentif(Request $request) {
+        $insentif = HairstylistGroupInsentifDefault::get();
+        return MyHelper::checkGet($insentif);
+    }
 }

@@ -67,6 +67,8 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
             Route::any('list_group', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@list_group']);
             Route::any('list_default_insentif', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@list_default_insentif']);
             Route::any('list_default_potongan', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@list_default_potongan']);
+            Route::any('setting_insentif', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@setting_insentif']);
+            Route::any('setting_potongan', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@setting_potongan']);
             Route::group(['prefix' => 'insentif'], function () {
                 Route::post('/', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupInsentifController@index']);
                 Route::post('create', ['middleware' => 'feature_control:394','uses' =>'ApiHairStylistGroupInsentifController@create']);

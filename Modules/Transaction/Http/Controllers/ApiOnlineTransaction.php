@@ -2391,12 +2391,6 @@ class ApiOnlineTransaction extends Controller
                 continue;
             }
 
-            if($service['product_detail_visibility'] == 'Hidden' || (empty($service['product_detail_visibility']) && $service['product_visibility'] == 'Hidden')){
-                $errorServiceName[] = $item['product_name'];
-                unset($post['item_service'][$key]);
-                continue;
-            }
-
             $bookTime = date('Y-m-d H:i', strtotime(date('Y-m-d', strtotime($item['booking_date'])).' '.date('H:i', strtotime($item['booking_time']))));
 
             //check available hs
@@ -2435,7 +2429,7 @@ class ApiOnlineTransaction extends Controller
             $bookTimeStart = date("Y-m-d H:i:s", strtotime($item['booking_date'].' '.$item['booking_time']));
             $bookTimeEnd = date('Y-m-d H:i:s', strtotime("+".$processingTime." minutes", strtotime($bookTimeStart)));
             $hsNotAvailable = HairstylistNotAvailable::where('id_outlet', $post['id_outlet'])
-                ->whereRaw('((booking_start >= "'.$bookTimeStart.'" AND booking_start <= "'.$bookTimeEnd.'") 
+                ->whereRaw('((booking_start >= "'.$bookTimeStart.'" AND booking_start < "'.$bookTimeEnd.'") 
                             OR (booking_end > "'.$bookTimeStart.'" AND booking_end < "'.$bookTimeEnd.'"))')
                 ->where('id_user_hair_stylist', $item['id_user_hair_stylist'])
                 ->first();
@@ -2449,7 +2443,7 @@ class ApiOnlineTransaction extends Controller
             //checking same time
             foreach ($itemService as $s){
                 if($item['id_user_hair_stylist'] == $s['id_user_hair_stylist'] &&
-                    strtotime($bookTimeStart) >= strtotime($s['booking_start']) && strtotime($bookTimeStart) <= strtotime($s['booking_end'])){
+                    strtotime($bookTimeStart) >= strtotime($s['booking_start']) && strtotime($bookTimeStart) < strtotime($s['booking_end'])){
 
                     $errorHsNotAvailable[] = $item['user_hair_stylist_name']." (".MyHelper::dateFormatInd($bookTime).')';
                     unset($post['item_service'][$key]);
@@ -4450,9 +4444,6 @@ class ApiOnlineTransaction extends Controller
                 $err[] = 'Service tidak tersedia';
             }
 
-            if($service['product_detail_visibility'] == 'Hidden' || (empty($service['product_detail_visibility']) && $service['product_visibility'] == 'Hidden')){
-                $err[] = 'Service tidak tersedia';
-            }
 
             $bookTime = date('Y-m-d H:i', strtotime(date('Y-m-d', strtotime($item['booking_date'])).' '.date('H:i', strtotime($item['booking_time']))));
             if(strtotime($currentDate) > strtotime($bookTime)){
@@ -4483,7 +4474,7 @@ class ApiOnlineTransaction extends Controller
             $bookTimeStart = date("Y-m-d H:i:s", strtotime($item['booking_date'].' '.$item['booking_time']));
             $bookTimeEnd = date('Y-m-d H:i:s', strtotime("+".$processingTime." minutes", strtotime($bookTimeStart)));
             $hsNotAvailable = HairstylistNotAvailable::where('id_outlet', $post['id_outlet'])
-                ->whereRaw('((booking_start >= "'.$bookTimeStart.'" AND booking_start <= "'.$bookTimeEnd.'") 
+                ->whereRaw('((booking_start >= "'.$bookTimeStart.'" AND booking_start < "'.$bookTimeEnd.'") 
                             OR (booking_end > "'.$bookTimeStart.'" AND booking_end < "'.$bookTimeEnd.'"))')
                 ->where('id_user_hair_stylist', $item['id_user_hair_stylist'])
                 ->first();
@@ -4495,7 +4486,7 @@ class ApiOnlineTransaction extends Controller
             //checking same time
             foreach ($itemService as $s){
                 if($item['id_user_hair_stylist'] == $s['id_user_hair_stylist'] &&
-                    strtotime($bookTimeStart) >= strtotime($s['booking_start']) && strtotime($bookTimeStart) <= strtotime($s['booking_end'])){
+                    strtotime($bookTimeStart) >= strtotime($s['booking_start']) && strtotime($bookTimeStart) < strtotime($s['booking_end'])){
                     $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
                 }
             }

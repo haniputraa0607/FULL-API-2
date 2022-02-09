@@ -161,6 +161,8 @@ class ApiPartnersController extends Controller
                 $data_request_partner['mobile'] = $checkPhoneFormat['phone'];
             }
 
+            $partner_code = $this->partnerCode();
+
             DB::beginTransaction();
             $store = Partner::create([
                 "title"          => $data_request_partner['title'],
@@ -171,6 +173,7 @@ class ApiPartnersController extends Controller
                 "email"          => $data_request_partner['email'],
                 "address"        => $data_request_partner['address'],
                 "notes"          => $data_request_partner['notes'],
+                "code"          => $partner_code
             ]);
             if ($store) {
                 if (isset($post['location'])) {
@@ -222,6 +225,22 @@ class ApiPartnersController extends Controller
         }    
     }
 
+    public function partnerCode(){
+        $year = date('y');
+        $month = date('m');
+        $yearMonth = 'P'.$year.$month;
+        $no = Partner::where('code','like', $yearMonth.'%')->count() + 1;
+        if($no < 10 ){
+            $no = '000'.$no;
+        }elseif($no < 100 && $no >= 10){
+            $no = '00'.$no;
+        }elseif($no < 1000 && $no >= 100){
+            $no = '0'.$no;
+        }
+        $no = $yearMonth.$no;
+        return $no;
+    }
+
     public function new(Request $request){
         $post = $request->all();
 
@@ -264,7 +283,7 @@ class ApiPartnersController extends Controller
     {
         $post = $request->all();
         if(isset($post['id_partner']) && !empty($post['id_partner'])){
-            $partner = Partner::where('id_partner', $post['id_partner'])->with(['partner_bank_account','partner_locations','partner_locations.location_starter.product','partner_step','partner_new_step','partner_confirmation','partner_survey','partner_legal_agreement', 'first_location', 'first_location.location_starter.product'])->first();
+            $partner = Partner::where('id_partner', $post['id_partner'])->with(['partner_bank_account','partner_locations'=>function($l){$l->orderBy('id_location');},'partner_locations.location_starter.product','partner_step','partner_new_step','partner_confirmation','partner_survey','partner_legal_agreement', 'first_location', 'first_location.location_starter.product'])->first();
             if(($partner['partner_step'])){
                 foreach($partner['partner_step'] as $step){
                     if(isset($step['attachment']) && !empty($step['attachment'])){
@@ -298,6 +317,28 @@ class ApiPartnersController extends Controller
                     }
                 }
             } 
+
+            // if(isset($partner['partner_locations'])){
+            //     foreach($partner['partner_locations'] as $key => $loc){
+            //         $cl = ConfirmationLetter::where('id_location',$loc['id_location'])->whereMonth('date',date('m'))->whereYear('date',date('Y'))->count() + 1;
+            //         $this_cl = $cl + $key;
+            //         if($this_cl < 10){
+            //             $this_cl = '0'.$this_cl;
+            //         }
+            //         $no_cl = 'CL/'.date('y').'/'.date('m').'/'.$this_cl;
+            //         $partner['partner_locations'][$key]['number_cl'] = $no_cl;
+
+                    
+            //         $yearMonth = 'SPK/'.$year.'/'.$month.'/';
+            //         $no_spk = Location::where('no_spk','like', $yearMonth.'%')->count() + 1;
+            //         if($no_spk < 10 ){
+            //             $no_spk = '0'.$no_spk;
+            //         }
+            //         $no_spk = $yearMonth.$no_spk;
+            //         $partner['partner_locations'][$key]['no_spk'] = $no_spk;
+            //     }
+            // }
+
             if($partner==null){
                 return response()->json(['status' => 'success', 'result' => [
                     'partner' => 'Empty',
@@ -328,7 +369,7 @@ class ApiPartnersController extends Controller
                 $data_update['name'] = $post['name'];
             }
             if (isset($post['code'])) {
-                $cek_code = Partner::where('code', $post['code'])->first();
+                $cek_code = Partner::where('code', $post['code'])->where('id_partner','<>',$post['id_partner'])->first();
                 if($cek_code){
                     return response()->json(['status' => 'duplicate_code', 'messages' => ['Partner code must be different']]);
                 }else{
@@ -515,14 +556,14 @@ class ApiPartnersController extends Controller
         if (isset($post['id']) && !empty($post['id'])) {
             //cek code partner
             if($post['table']=='Partners' && ($post['partner_code'] ?? false)){
-                $cek_code_partner = Partner::where('code', $post['partner_code'])->first();
+                $cek_code_partner = Partner::where('code', $post['partner_code'])->where('id_partner','<>',$post['id'])->first();
                 if($cek_code_partner){
                     return response()->json(['status' => 'duplicate_code', 'messages' => ['Partner code must be different']]);
                 }else{
                     return true;
                 }
             }elseif($post['table']=='Locations' && ($post['location_code'] ?? false)){
-                $cek_code_location = Location::where('code', $post['location_code'])->first();
+                $cek_code_location = Location::where('code', $post['location_code'])->where('id_location','<>',$post['id'])->first();
                 if($cek_code_location){
                     return response()->json(['status' => 'duplicate_code', 'messages' => ['Location code must be different']]);
                 }else{
@@ -1075,9 +1116,11 @@ class ApiPartnersController extends Controller
             $cek_partner = Partner::where(['id_partner'=>$post['id_partner']])->first();
             if($cek_partner){
                 DB::beginTransaction();
-                $creatConf = [
+                $key = [
                     "id_partner"   => $post['id_partner'],
                     "id_location"   => $post['id_location'],
+                ];
+                $creatConf = [
                     "no_letter"   => $post['no_letter'],
                     "location"   => $post['location'],
                     "date"   => date("Y-m-d"),
@@ -1119,7 +1162,7 @@ class ApiPartnersController extends Controller
                 $pdf = PDF::loadView('businessdevelopment::confirmation', $pdf_contect );
                 Storage::put($path, $pdf->output(),'public');
                 $creatConf['attachment'] = $path;
-                $store = ConfirmationLetter::create($creatConf);
+                $store = ConfirmationLetter::updateOrCreate($key,$creatConf);
                 if(!$store) {
                     DB::rollback();
                     return ['status' => 'fail', 'messages' => ['Failed create confirmation letter']];

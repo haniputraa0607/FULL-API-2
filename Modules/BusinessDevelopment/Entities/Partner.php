@@ -55,6 +55,7 @@ class Partner extends Authenticatable
 		'contact_person',
 		'mobile',
 		'notes',
+		'code'
 		
 	];
         

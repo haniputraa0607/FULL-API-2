@@ -49,7 +49,8 @@ class Location extends Model
         "sharing_percent",
         "sharing_value",
         "location_notes",
-        "company_type"
+        "company_type",
+        'code'
 
     ];
     public function location_partner(){

@@ -114,7 +114,7 @@ class Icount
         }else{
             if(isset($request['partner']['id_business_partner_ima']) && !empty($request['partner']['id_business_partner_ima'])){
                 $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
-            }else{
+            }elseif(isset($request['partner']['id_business_partner']) && !empty($request['partner']['id_business_partner'])){
                 $data['BusinessPartnerID'] = $request['partner']['id_business_partner'];
             }
         }

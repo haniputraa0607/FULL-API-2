@@ -31,6 +31,7 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
 
     Route::post('transaction/outlet/course', 'ApiAcademyScheduleController@outletCourseAcademy');
     Route::post('transaction/outlet/course/detail', 'ApiAcademyScheduleController@detailOutletCourseAcademy');
+    Route::post('transaction/outlet/course/detail/attendance', 'ApiAcademyScheduleController@detailAttendanceOutletCourseAcademy');
     Route::post('transaction/outlet/course/attendance', 'ApiAcademyScheduleController@attendanceOutletCourseAcademy');
     Route::post('transaction/outlet/course/final-score', 'ApiAcademyScheduleController@finalScoreOutletCourseAcademy');
     Route::post('transaction/outlet/course/user-detail', 'ApiAcademyScheduleController@courseDetailHistory');

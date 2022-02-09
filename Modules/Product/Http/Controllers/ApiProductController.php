@@ -2236,8 +2236,9 @@ class ApiProductController extends Controller
 
         $resProdService = [];
         foreach ($productServie as $val){
+            $stockStatus = 'Available';
             if($val['product_stock_status'] <= 0){
-                continue;
+                $stockStatus = 'Sold Out';
             }
 
             $resProdService[] = [
@@ -2249,7 +2250,7 @@ class ApiProductController extends Controller
                 'product_description' => $val['product_description'],
                 'product_price' => (int)$val['product_price'],
                 'string_product_price' => 'Rp '.number_format((int)$val['product_price'],0,",","."),
-                'product_stock_status' => 'Available',
+                'product_stock_status' => $stockStatus,
                 'photo' => (empty($val['photos'][0]['product_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$val['photos'][0]['product_photo'])
             ];
         }

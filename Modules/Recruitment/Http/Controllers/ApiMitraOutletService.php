@@ -460,7 +460,7 @@ class ApiMitraOutletService extends Controller
 			];	
     	}
 
-    	$box_url = str_replace(['%box_code%', '%status%'], [$box->outlet_box_code, 1], $box->outlet_box_url);
+    	$box_url = str_replace(['%box_code%', '%command%', '%status%', '%time%'], [$box->outlet_box_code, 1, 1, $service->transaction_product->product->processing_time_service], $box->outlet_box_url);
 
 		return [
 			'status' => 'success',
@@ -575,6 +575,7 @@ class ApiMitraOutletService extends Controller
 			];
 		}
 
+		$box = OutletBox::where('id_outlet_box', $service->id_outlet_box)->first();
 		$processingTime = $service->processing_time_service ?? 30;
 		$startTime = TransactionProductServiceLog::where('action', 'Start')
 					->where('id_transaction_product_service', $request->id_transaction_product_service)
@@ -632,10 +633,13 @@ class ApiMitraOutletService extends Controller
 			];	
     	}
 
+    	$box_url = str_replace(['%box_code%', '%command%', '%status%', '%time%'], [$box->outlet_box_code, 1, 1, $processingTime], $box->outlet_box_url);
+
 		return [
 			'status' => 'success',
 			'result' =>[
-				'extended_time' => $newTime
+				'extended_time' => $newTime,
+				'outlet_box_url' => $box_url,
 			]
 		];
     }
@@ -758,7 +762,7 @@ class ApiMitraOutletService extends Controller
 			];	
     	}
 
-    	$box_url = str_replace(['%box_code%', '%status%'], [$box->outlet_box_code, 0], $box->outlet_box_url);
+    	$box_url = str_replace(['%box_code%', '%command%', '%status%', '%time%'], [$box->outlet_box_code, 0, 0, 0], $box->outlet_box_url);
 
 		return [
 			'status' => 'success',

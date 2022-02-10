@@ -145,7 +145,7 @@ class ProductIcount extends Model
                                     $service = true;
                                 }
                             }else{
-                                $cek_another_use = ProductIcountOutletStock::where('id_product_icount',$get_product_use['id_product_icount'])->where('unit',$get_product_use['unit'])->first();
+                                $cek_another_use = ProductIcountOutletStock::where('id_product_icount',$get_product_use['id_product_icount'])->where('unit',$get_product_use['unit'])->where('id_outlet',$id_outlet)->first();
                                 if($cek_another_use){
                                     $another_value = $cek_another_use['stock']/$get_product_use['qty'];
                                     $another_value = floor($another_value);

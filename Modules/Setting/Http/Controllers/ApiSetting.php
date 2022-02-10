@@ -1993,11 +1993,15 @@ class ApiSetting extends Controller
     public function attendances_date(){
         $mid_date =  MyHelper::setting('hs_income_cut_off_mid_date', 'value', 0);
         $end_date =  MyHelper::setting('hs_income_cut_off_end_date', 'value', 0);
+        $delivery_mid_date =  MyHelper::setting('hs_income_delivery_cut_off_mid_date', 'value', 0);
+        $delivery_end_date =  MyHelper::setting('hs_income_delivery_cut_off_end_date', 'value', 0);
         $calculation_mid = json_decode(MyHelper::setting('hs_income_calculation_mid', 'value_text', '[]'), true) ?? [];
         $calculation_end = json_decode(MyHelper::setting('hs_income_calculation_end', 'value_text', '[]'), true) ?? [];
         $data = array(
             'mid_date'=>$mid_date,
             'end_date'=>$end_date,
+            'delivery_mid_date'=>$delivery_mid_date,
+            'delivery_end_date'=>$delivery_end_date,
             'calculation_mid'=>$calculation_mid,
             'calculation_end'=>$calculation_end
         );
@@ -2028,6 +2032,30 @@ class ApiSetting extends Controller
                  $end_date = Setting::create([
                  'key'=>'hs_income_cut_off_end_date',
                  'value'=> $request->end_date,
+                ]);
+             }
+             //delivery_mid_date
+             $delivery_mid_date = Setting::where('key','hs_income_delivery_cut_off_mid_date')->first();
+             if($delivery_mid_date){
+                 $delivery_mid_date = Setting::where('key','hs_income_delivery_cut_off_mid_date')->update([
+                  'value'=>$request->delivery_mid_date
+             ]);
+             }else{
+                 $delivery_mid_date = Setting::create([
+                 'key'=>'hs_income_delivery_cut_off_mid_date',
+                 'value'=> $request->delivery_mid_date,
+                ]);
+             }
+             //delivery_end_date
+             $delivery_end_date = Setting::where('key','hs_income_delivery_cut_off_end_date')->first();
+             if($delivery_end_date){
+                 $delivery_end_date = Setting::where('key','hs_income_delivery_cut_off_end_date')->update([
+                  'value'=>$request->delivery_end_date
+             ]);
+             }else{
+                 $delivery_end_date = Setting::create([
+                 'key'=>'hs_income_delivery_cut_off_end_date',
+                 'value'=> $request->delivery_end_date,
                 ]);
              }
              //hs_income_calculation_mid
@@ -2083,6 +2111,8 @@ class ApiSetting extends Controller
               return response()->json(['status' => 'success', 'result' =>array(
                   'mid_date'=>$mid_date,
                   'end_date'=>$end_date,
+                  'delivery_mid_date'=>$delivery_mid_date,
+                  'delivery_end_date'=>$delivery_end_date,
                   'calculation_mid'=>$calculation_mid,
                   'calculation_end'=>$calculation_end,
               )]);

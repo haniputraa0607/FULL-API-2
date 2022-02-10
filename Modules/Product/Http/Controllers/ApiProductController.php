@@ -2236,8 +2236,9 @@ class ApiProductController extends Controller
 
         $resProdService = [];
         foreach ($productServie as $val){
+            $stockStatus = 'Available';
             if($val['product_stock_status'] <= 0){
-                continue;
+                $stockStatus = 'Sold Out';
             }
 
             $resProdService[] = [
@@ -2249,7 +2250,7 @@ class ApiProductController extends Controller
                 'product_description' => $val['product_description'],
                 'product_price' => (int)$val['product_price'],
                 'string_product_price' => 'Rp '.number_format((int)$val['product_price'],0,",","."),
-                'product_stock_status' => 'Available',
+                'product_stock_status' => $stockStatus,
                 'photo' => (empty($val['photos'][0]['product_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$val['photos'][0]['product_photo'])
             ];
         }
@@ -3113,6 +3114,14 @@ class ApiProductController extends Controller
     }
 
     public function syncIcount(){
+        $setting = Setting::where('key' , 'Sync Product Icount')->first();
+        if($setting){
+            if($setting['value'] != 'finished'){
+                return ['status' => 'fail', 'messages' => ['Cant sync now, because sync is in progress']]; 
+            }
+        }else{
+            $create_setting = Setting::updateOrCreate(['key' => 'Sync Product Icount'],['value' => 'start']);
+        }
         $send = [
             'page' => 1,
             'id_items' => null

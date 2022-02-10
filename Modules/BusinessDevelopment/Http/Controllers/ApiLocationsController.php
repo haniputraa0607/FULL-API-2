@@ -259,7 +259,7 @@ class ApiLocationsController extends Controller
                 $data_update['name'] = $post['name'];
             }
             if (isset($post['code'])) {
-                $cek_code = Location::where('code', $post['code'])->first();
+                $cek_code = Location::where('code', $post['code'])->where('id_location','<>',$post['id_location'])->first();
                 if($cek_code){
                     return response()->json(['status' => 'duplicate_code', 'messages' => ['Location code must be different']]);
                 }else{
@@ -423,6 +423,34 @@ class ApiLocationsController extends Controller
                 }catch(\Exception $e) {
                     return response()->json(['status' => 'fail_date', 'messages' => ['Start Date and End Date must be at least 3 years apar']]);
                 }
+            }
+            if (isset($post['from']) && $post['from'] == 'Select Location') {
+                $year = date('y');
+                $month = date('m');
+                //confir letter
+                $cl = ConfirmationLetter::where('id_location',$post['id_location'])->whereMonth('date',$month)->whereYear('date',$year)->count() + 1;
+                if($cl < 10){
+                    $cl = '0'.$cl;
+                }
+                $no_cl = 'CL/'.$year.'/'.$month.'/'.$cl;
+                $creatConf = [
+                    "id_partner"   => $post['id_partner'],
+                    "id_location"   => $post['id_location'],
+                    "no_letter"   => $no_cl,
+                    "location"   => '1',
+                    "date"   => date("Y-m-d"),
+                    "path" => '1'
+                ];
+                $store = ConfirmationLetter::create($creatConf);
+
+                //spk
+                $yearMonth = 'SPK/'.$year.'/'.$month.'/';
+                $no_spk = Location::where('no_spk','like', $yearMonth.'%')->count() + 1;
+                if($no_spk < 10 ){
+                    $no_spk = '0'.$no_spk;
+                }
+                $no_spk = $yearMonth.$no_spk;
+                $data_update['no_spk'] = $no_spk;
             }
             $old_status = Location::where('id_location', $post['id_location'])->get('status')[0]['status'];
             $update = Location::where('id_location', $post['id_location'])->update($data_update);
@@ -736,6 +764,8 @@ class ApiLocationsController extends Controller
                 $data_request['pic_contact'] = $checkPhoneFormat['phone'];
             }
 
+            $loc_code = $this->locationCode();
+
             $data_loc = [
                 "name"   => $data_request['name'],
                 "address"   => $data_request['address'],
@@ -749,6 +779,7 @@ class ApiLocationsController extends Controller
                 "pic_name"   => $data_request['pic_name'],
                 "pic_contact"   => $data_request['pic_contact'],
                 "location_notes"   => $data_request['notes'],
+                "code" => $loc_code
             ];
 
             if (isset($post['location_image']) && !empty($post['location_image'])) {
@@ -775,6 +806,22 @@ class ApiLocationsController extends Controller
         } else {
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }           
+    }
+
+    public function locationCode(){
+        $year = date('y');
+        $month = date('m');
+        $yearMonth = 'LOC'.$year.$month;
+        $no = Location::where('code','like', $yearMonth.'%')->count() + 1;
+        if($no < 10 ){
+            $no = '000'.$no;
+        }elseif($no < 100 && $no >= 10){
+            $no = '00'.$no;
+        }elseif($no < 1000 && $no >= 100){
+            $no = '0'.$no;
+        }
+        $no = $yearMonth.$no;
+        return $no;
     }
 
     public function addLocationProductStarter($data){

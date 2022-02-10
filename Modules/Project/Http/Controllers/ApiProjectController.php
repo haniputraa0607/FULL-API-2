@@ -221,24 +221,19 @@ class ApiProjectController extends Controller
         
     }
     function outlet_code(){
-        $outlet = Outlet::orderby('created_at','desc')->first();
-        $awal = "M";
-        if($outlet){
-         $angka = str_replace($awal,"", $outlet->outlet_code);
-         $u = 1; 
-         for($x = 0; $x < $u; $x++){
-             $angka++;
-            $outlet_code = $awal.$angka;
-            $outlet = Outlet::where(array('outlet_code'=>$outlet_code))->first();
-            if(!$outlet){
-                $outlet_code;
-                break;
-            }
-            $u++;
-         }
-        return $outlet_code;
+        $year = date('y');
+        $month = date('m');
+        $yearMonth = 'OUT'.$year.$month;
+        $no = Outlet::where('outlet_code','like', $yearMonth.'%')->count() + 1;
+        if($no < 10 ){
+            $no = '000'.$no;
+        }elseif($no < 100 && $no >= 10){
+            $no = '00'.$no;
+        }elseif($no < 1000 && $no >= 100){
+            $no = '0'.$no;
         }
-        return $awal."1";
+        $no = $yearMonth.$no;
+        return $no;
     }
      public function excel(Request $request){
         if(isset($request->id_project)){

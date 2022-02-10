@@ -1993,11 +1993,15 @@ class ApiSetting extends Controller
     public function attendances_date(){
         $mid_date =  MyHelper::setting('hs_income_cut_off_mid_date', 'value', 0);
         $end_date =  MyHelper::setting('hs_income_cut_off_end_date', 'value', 0);
+        $delivery_mid_date =  MyHelper::setting('hs_income_delivery_cut_off_mid_date', 'value', 0);
+        $delivery_end_date =  MyHelper::setting('hs_income_delivery_cut_off_end_date', 'value', 0);
         $calculation_mid = json_decode(MyHelper::setting('hs_income_calculation_mid', 'value_text', '[]'), true) ?? [];
         $calculation_end = json_decode(MyHelper::setting('hs_income_calculation_end', 'value_text', '[]'), true) ?? [];
         $data = array(
             'mid_date'=>$mid_date,
             'end_date'=>$end_date,
+            'delivery_mid_date'=>$delivery_mid_date,
+            'delivery_end_date'=>$delivery_end_date,
             'calculation_mid'=>$calculation_mid,
             'calculation_end'=>$calculation_end
         );
@@ -2005,21 +2009,113 @@ class ApiSetting extends Controller
     }
   
     public function attendances_date_create(Request $request){
-        if(isset($request->value)){
-             $salary_formula = Setting::where('key','attendances_date')->first();
-             if($salary_formula){
-                 $data = Setting::where('key','attendances_date')->update([
-                  'value'=>$request->value,
-                  'value_text'=>$request->value_text
+        if(isset($request)){
+            //mid_date
+             $mid_date = Setting::where('key','hs_income_cut_off_mid_date')->first();
+             if($mid_date){
+                 $mid_date = Setting::where('key','hs_income_cut_off_mid_date')->update([
+                  'value'=>$request->mid_date
              ]);
              }else{
-                 $data = Setting::create([
-                 'key'=>'attendances_date',
-                 'value'=> $request->value,
-                 'value_text'=>$request->value_text
-             ]);
+                 $mid_date = Setting::create([
+                 'key'=>'hs_income_cut_off_mid_date',
+                 'value'=> $request->mid_date,
+                ]);
              }
-              return response()->json(MyHelper::checkCreate($data));
+             //end_date
+             $end_date = Setting::where('key','hs_income_cut_off_end_date')->first();
+             if($end_date){
+                 $end_date = Setting::where('key','hs_income_cut_off_end_date')->update([
+                  'value'=>$request->end_date
+             ]);
+             }else{
+                 $end_date = Setting::create([
+                 'key'=>'hs_income_cut_off_end_date',
+                 'value'=> $request->end_date,
+                ]);
+             }
+             //delivery_mid_date
+             $delivery_mid_date = Setting::where('key','hs_income_delivery_cut_off_mid_date')->first();
+             if($delivery_mid_date){
+                 $delivery_mid_date = Setting::where('key','hs_income_delivery_cut_off_mid_date')->update([
+                  'value'=>$request->delivery_mid_date
+             ]);
+             }else{
+                 $delivery_mid_date = Setting::create([
+                 'key'=>'hs_income_delivery_cut_off_mid_date',
+                 'value'=> $request->delivery_mid_date,
+                ]);
+             }
+             //delivery_end_date
+             $delivery_end_date = Setting::where('key','hs_income_delivery_cut_off_end_date')->first();
+             if($delivery_end_date){
+                 $delivery_end_date = Setting::where('key','hs_income_delivery_cut_off_end_date')->update([
+                  'value'=>$request->delivery_end_date
+             ]);
+             }else{
+                 $delivery_end_date = Setting::create([
+                 'key'=>'hs_income_delivery_cut_off_end_date',
+                 'value'=> $request->delivery_end_date,
+                ]);
+             }
+             //hs_income_calculation_mid
+             $calculation_mid = Setting::where('key','hs_income_calculation_mid')->first();
+             if(isset($request->hs_income_calculation_mid)){
+                    if($calculation_mid){
+                        $calculation_mid = Setting::where('key','hs_income_calculation_mid')->update([
+                        'value_text'=>json_encode($request->hs_income_calculation_mid)
+                    ]);
+                    }else{
+                        $calculation_mid = Setting::create([
+                        'key'=>'hs_income_calculation_mid',
+                        'value_text'=> json_encode($request->hs_income_calculation_mid)
+                       ]);
+                    }
+                }else{
+                    if($calculation_mid){
+                        $calculation_mid = Setting::where('key','hs_income_calculation_mid')->update([
+                        'value_text'=>null
+                    ]);
+                    }else{
+                        $calculation_mid = Setting::create([
+                        'key'=>'hs_income_calculation_mid',
+                        'value_text'=> null
+                       ]);
+                    }
+                }
+             //hs_income_calculation_mid
+             $calculation_end = Setting::where('key','hs_income_calculation_end')->first();
+             if(isset($request->hs_income_calculation_end)){
+                    if($calculation_end){
+                        $calculation_end = Setting::where('key','hs_income_calculation_end')->update([
+                        'value_text'=> json_encode($request->hs_income_calculation_end)
+                    ]);
+                    }else{
+                        $calculation_end = Setting::create([
+                        'key'=>'hs_income_calculation_end',
+                        'value_text'=> json_encode($request->hs_income_calculation_end)
+                       ]);
+                    }
+                }else{
+                    if($calculation_end){
+                        $calculation_end = Setting::where('key','hs_income_calculation_end')->update([
+                        'value_text'=> null
+                    ]);
+                    }else{
+                        $calculation_end = Setting::create([
+                        'key'=>'hs_income_calculation_end',
+                        'value_text'=> null
+                       ]);
+                    }
+                }
+              return response()->json(['status' => 'success', 'result' =>array(
+                  'mid_date'=>$mid_date,
+                  'end_date'=>$end_date,
+                  'delivery_mid_date'=>$delivery_mid_date,
+                  'delivery_end_date'=>$delivery_end_date,
+                  'calculation_mid'=>$calculation_mid,
+                  'calculation_end'=>$calculation_end,
+              )]);
         }
         return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
     }

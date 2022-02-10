@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Http\Models\Setting;
 use Illuminate\Bus\Queueable;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Queue\InteractsWithQueue;
@@ -68,9 +69,11 @@ class SyncIcountItems implements ShouldQueue
                 if($data['response']['Meta']['Pagination']['CurrentPage']<$data['response']['Meta']['Pagination']['LastPage']){
                     $new_page = $data['response']['Meta']['Pagination']['CurrentPage'] + 1;
                     SyncIcountItems::dispatch(['page'=> $new_page,'id_items' => $id_items]);
+                    Setting::where('key','Sync Product Icount')->update(['value' => 'process']);
                 }else{
                     ProductIcount::whereIn('id_item',$id_items)->update(['is_actived' => 'true']);
                     ProductIcount::whereNotIn('id_item',$id_items)->update(['is_actived' => 'false']);
+                    Setting::where('key','Sync Product Icount')->update(['value' => 'finished']);
                 }
             }
         }

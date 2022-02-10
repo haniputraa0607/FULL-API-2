@@ -8,6 +8,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Modules\Users\Entities\Department;
+use App\Http\Models\Setting;
 use App\Lib\Icount;
 use Storage;
 use DB;
@@ -65,10 +66,12 @@ class SyncIcountDepartment implements ShouldQueue
 
                 if($data['response']['Meta']['Pagination']['CurrentPage']<$data['response']['Meta']['Pagination']['LastPage']){
                     $new_page = $data['response']['Meta']['Pagination']['CurrentPage'] + 1;
-                    SyncIcountDepartment::dispatch(['page'=> $new_page,'id_departments' => $id_departments]);    
+                    SyncIcountDepartment::dispatch(['page'=> $new_page,'id_departments' => $id_departments]);  
+                    Setting::where('key','Sync Department Icount')->update(['value' => 'process']);
                 }else{
                     Department::where('from_icount',1)->whereIn('id_department_icount',$id_departments)->update(['is_actived' => 'true']);
                     Department::where('from_icount',1)->whereNotIn('id_department_icount',$id_departments)->update(['is_actived' => 'false']);
+                    Setting::where('key','Sync Department Icount')->update(['value' => 'finished']);
                 }
             }
         }

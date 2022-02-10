@@ -786,7 +786,8 @@ class ApiTransactionHomeService extends Controller
             ]);
         }
 
-        $receipt = config('configs.PREFIX_TRANSACTION_NUMBER').'-'.MyHelper::createrandom(4,'Angka').time().substr($insertTransaction['id_outlet'], 0, 4);
+        $countReciptNumber = Transaction::where('id_outlet', $insertTransaction['id_outlet'])->count();
+        $receipt = '#'.substr($outlet['outlet_code'], -4).'-'.sprintf("%05d", $countReciptNumber);
         $updateReceiptNumber = Transaction::where('id_transaction', $insertTransaction['id_transaction'])->update([
             'transaction_receipt_number' => $receipt
         ]);

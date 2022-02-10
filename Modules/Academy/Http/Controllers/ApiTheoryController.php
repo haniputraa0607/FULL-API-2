@@ -8,7 +8,6 @@ use App\Http\Models\ProductPhoto;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
-use Modules\Academy\Entities\ProductAcademyTheory;
 use Modules\Academy\Entities\Theory;
 use Modules\Academy\Entities\TheoryCategory;
 use Modules\Franchise\Entities\Setting;
@@ -17,6 +16,8 @@ use Modules\POS\Http\Requests\reqBulkMenu;
 use Modules\Product\Entities\ProductDetail;
 use DB;
 use App\Lib\MyHelper;
+use Modules\Recruitment\Entities\UserHairStylistTheory;
+use Modules\Transaction\Entities\TransactionAcademyScheduleTheory;
 
 class ApiTheoryController extends Controller
 {
@@ -181,6 +182,16 @@ class ApiTheoryController extends Controller
         $post = $request->json()->all();
 
         if(!empty($post['id_theory'])){
+            $checkInHS = UserHairStylistTheory::where('id_theory', $post['id_theory'])->first();
+            if(!empty($checkInHS)){
+                return response()->json(['status' => 'fail', 'messages' => ['Can not delete this theory. Theory already use in hair stylist or academy.']]);
+            }
+
+            $checkITrx = TransactionAcademyScheduleTheory::where('id_theory', $post['id_theory'])->first();
+            if(!empty($checkITrx)){
+                return response()->json(['status' => 'fail', 'messages' => ['Can not delete this theory. Theory already use in hair stylist or academy.']]);
+            }
+
             $delete = Theory::where('id_theory', $post['id_theory'])->delete();
             return response()->json(MyHelper::checkDelete($delete));
         }else{

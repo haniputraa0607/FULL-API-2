@@ -953,8 +953,6 @@ class ApiTransactionShop extends Controller
         $earnedPoint = app($this->online_trx)->countTranscationPoint($post, $user);
         $cashback = $earnedPoint['cashback'] ?? 0;
 
-        $receipt = config('configs.PREFIX_TRANSACTION_NUMBER').'-'.MyHelper::createrandom(4,'Angka').time().substr($post['id_outlet'], 0, 4);
-
         $listDelivery = $this->listDelivery();
         $deliv = $this->findDelivery($listDelivery, $request->delivery_name, $request->delivery_method);
         if (empty($deliv)) {
@@ -972,7 +970,6 @@ class ApiTransactionShop extends Controller
         $transaction = [
             'id_outlet'                   => $post['id_outlet'],
             'id_user'                     => $request->user()->id,
-            'transaction_receipt_number'  => $receipt,
             'transaction_date'            => date('Y-m-d H:i:s'),
             'transaction_shipment'        => $post['shipping'] ?? 0,
             'transaction_service'         => $post['service'] ?? 0,
@@ -1013,6 +1010,21 @@ class ApiTransactionShop extends Controller
                 'messages'  => ['Insert Transaction Failed']
             ]);
         }
+
+        $countReciptNumber = Transaction::where('id_outlet', $insertTransaction['id_outlet'])->count();
+        $receipt = '#'.substr($outlet['outlet_code'], -4).'-'.sprintf("%05d", $countReciptNumber);
+        $updateReceiptNumber = Transaction::where('id_transaction', $insertTransaction['id_transaction'])->update([
+            'transaction_receipt_number' => $receipt
+        ]);
+        if (!$updateReceiptNumber) {
+            DB::rollback();
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Insert Transaction Failed']
+            ]);
+        }
+        $insertTransaction['transaction_receipt_number'] = $receipt;
+
 
         $createTransactionShop = TransactionShop::create([
         	'id_transaction' => $insertTransaction['id_transaction'],

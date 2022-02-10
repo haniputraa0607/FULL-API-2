@@ -446,7 +446,8 @@ class ApiTransactionAcademy extends Controller
             ]);
         }
 
-        $receipt = config('configs.PREFIX_TRANSACTION_NUMBER').'-'.MyHelper::createrandom(4,'Angka').time().substr($insertTransaction['id_outlet'], 0, 4);
+        $countReciptNumber = Transaction::where('id_outlet', $insertTransaction['id_outlet'])->count();
+        $receipt = '#'.substr($outlet['outlet_code'], -4).'-'.sprintf("%05d", $countReciptNumber);
         $updateReceiptNumber = Transaction::where('id_transaction', $insertTransaction['id_transaction'])->update([
             'transaction_receipt_number' => $receipt
         ]);
@@ -560,7 +561,7 @@ class ApiTransactionAcademy extends Controller
                 $installment[] = [
                     'installment_step' => $key+1,
                     'id_transaction_academy' => $createTransactionAcademy['id_transaction_academy'],
-                    'installment_receipt_number' => 'INS-'.MyHelper::createrandom(4,'Angka').time().substr($createTransactionAcademy['id_transaction_academy'], 0, 4),
+                    'installment_receipt_number' => '#'.substr($outlet['outlet_code'], -4).'-'.substr($insertTransaction['transaction_receipt_number'], -5).'-'.sprintf("%02d", ($key+1)),
                     'percent' => $value['percent'],
                     'amount' => $value['amount'],
                     'deadline' => ($key==0 ? date('Y-m-d') : date('Y-m-d', strtotime("+".$key." month", strtotime($startDeadline)))),

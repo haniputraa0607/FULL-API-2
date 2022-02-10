@@ -94,7 +94,13 @@ class ApiProductController extends Controller
     	if (isset($post['product_code'])) {
     		$data['product_code'] = $post['product_code'];
     	} else {
-            $data['product_code'] = MyHelper::createrandom(3);
+    	    $code = [
+    	        'product' => 'P',
+                'service' => 'SVC',
+                'academy' => 'CRS'
+            ];
+            $count = Product::where('product_type', $post['product_type'])->count();
+            $data['product_code'] = ($code[$post['product_type']]??'P').sprintf("%04d", ($count+1));
         }
 
         if(isset($post['product_photo_detail'])){

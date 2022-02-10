@@ -263,8 +263,8 @@ class Product extends Model
     }
 
     public function product_academy_theory() {
-        return $this->hasMany(\Modules\Academy\Entities\ProductAcademyTheory::class, 'id_product', 'id_product')
-            ->join('theories', 'theories.id_theory', 'product_academy_theory.id_theory');
+        return $this->hasMany(\Modules\Academy\Entities\ProductAcademyTheoryCategory::class, 'id_product', 'id_product')
+            ->join('theory_categories', 'theory_categories.id_theory_category', 'product_academy_theory_categories.id_theory_category');
     }
 
     

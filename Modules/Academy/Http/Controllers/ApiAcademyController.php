@@ -522,7 +522,7 @@ class ApiAcademyController extends Controller
                         ->leftJoin('products', 'products.id_product', 'transaction_products.id_product')
                         ->with('outlet');
 
-            if (!empty($post['transaction_receipt_number']) && stristr($request->transaction_receipt_number, "INS")) {
+            if (!empty($post['transaction_receipt_number']) && substr_count($post['transaction_receipt_number'],"-") >= 2) {
                 $trxReciptNumber = TransactionAcademyInstallment::join('transaction_academy', 'transaction_academy_installment.id_transaction_academy', 'transaction_academy.id_transaction_academy')
                     ->where('installment_receipt_number', $post['transaction_receipt_number'])->first();
                 $post['id_transaction'] = $trxReciptNumber['id_transaction'];
@@ -787,7 +787,8 @@ class ApiAcademyController extends Controller
         }elseif($dataInstallment['paid_status'] == 'Cancelled'){
             $insertUpdate = TransactionAcademyInstallmentUpdate::create(['id_transaction_academy_installment' => $dataInstallment['id_transaction_academy_installment'], 'installment_receipt_number_old' => $dataInstallment['installment_receipt_number']]);
             if($insertUpdate){
-                $newReceiptNumber = 'INS-'.MyHelper::createrandom(4,'Angka').time().substr($dataInstallment['id_transaction_academy'], 0, 4);
+                $trx = Transaction::join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')->where('id_transaction', $dataInstallment['id_transaction'])->first();
+                $newReceiptNumber = '#'.substr($trx['outlet_code'], -4).'-'.substr($trx['transaction_receipt_number'], -5).'-'.sprintf("%02d", $dataInstallment['installment_step']).'-'.time();
                 $dataInstallment->update(['installment_receipt_number' => $newReceiptNumber]);
             }
         }

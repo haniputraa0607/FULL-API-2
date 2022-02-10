@@ -6198,7 +6198,7 @@ class ApiTransaction extends Controller
         $tanggal = 25;
         $tanggal_awal = date('Y-m-d 00:00:00', strtotime(date('Y-m-'.$tanggal) . '- 1 month'));
         $tanggal_akhir = date('Y-m-d 00:00:00', strtotime(date('Y-m-'.$tanggal)));
-        $partners = Partner::where(array('cooperation_scheme'=>'Profit Sharing'))
+        $partners = Partner::where(array('cooperation_scheme'=>'Revenue Sharing'))
                     ->join('locations','locations.id_partner','partners.id_partner')
                     ->join('outlets','outlets.id_location','locations.id_location')
                     ->join('transactions','transactions.id_outlet','outlets.id_outlet')

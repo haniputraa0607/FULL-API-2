@@ -428,7 +428,8 @@ class ApiLocationsController extends Controller
                 $year = date('y');
                 $month = date('m');
                 //confir letter
-                $cl = ConfirmationLetter::where('id_location',$post['id_location'])->whereMonth('date',$month)->whereYear('date',$year)->count() + 1;
+                $yearMonthSPK = 'CL/'.$year.'/'.$month.'/';
+                $cl = ConfirmationLetter::where('no_letter','like', $yearMonthSPK.'%')->count() + 1;
                 if($cl < 10){
                     $cl = '0'.$cl;
                 }

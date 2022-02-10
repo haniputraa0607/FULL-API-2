@@ -17,5 +17,6 @@ class TheoryCategory extends Model
 
     public function theory(){
         return $this->hasMany(\Modules\Academy\Entities\Theory::class, 'id_theory_category', 'id_theory_category');
+
     }
 }

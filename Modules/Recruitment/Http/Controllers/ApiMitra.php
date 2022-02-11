@@ -675,6 +675,10 @@ class ApiMitra extends Controller
     		return $res;
     	}
 
+    	if (!$outlet->city) {
+    		throw new \Exception('Incomplete Outlet Data. Contact CS');
+    	}
+
     	$timezone = $outlet->city->province->time_zone_utc;
     	$dateTime = $dateTime ?? date('Y-m-d H:i:s');
         $curTime = date('H:i:s', strtotime($dateTime));
@@ -716,6 +720,10 @@ class ApiMitra extends Controller
 
     public function setTimezone()
     {
+    	if (!request()->user()->outlet->city) {
+    		throw new \Exception('Incomplete Outlet Data. Contact CS');
+    	}
+
     	return MyHelper::setTimezone(request()->user()->outlet->city->province->time_zone_utc);
     }
 

@@ -1121,7 +1121,6 @@ class SettingsTableSeeder extends Seeder
                                     <ol class="pl-2 text-justify terluar">
                                         <li>%address%;</li>
                                         <li>Luas Lokasi = %large% M2;</li>
-                                        <li>Masa Kerja Sama antara Pihak Kedua dengan Mall, minimal 3 (tiga) tahun dan akan diperpanjang oleh Pihak Kedua;</li>
                                         <li>Perjanjian Kerja Sama Operasional ini hanya berlaku untuk lokasi yang tercantum dalam poin 2a;</li>
                                     </ol>
                                 </td>
@@ -1129,7 +1128,7 @@ class SettingsTableSeeder extends Seeder
                             <tr>
                                 <td>3</td>
                                 <td width="130px">MASA KERJASAMA</td>
-                                <td>%total_waktu%, terdiri 3 (tiga) tahun pertama%sisa_waktu%</td>
+                                <td>%total_waktu%</td>
                             </tr>
                             <tr>
                                 <td>4</td>

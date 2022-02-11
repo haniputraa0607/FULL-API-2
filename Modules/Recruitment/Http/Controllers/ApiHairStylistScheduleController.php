@@ -7,9 +7,11 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Modules\Recruitment\Entities\UserHairStylist;
+use Modules\Recruitment\Entities\HairstylistAttendance;
 use Modules\Recruitment\Entities\HairstylistSchedule;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use App\Http\Models\Holiday;
+use App\Http\Models\Outlet;
 use DB;
 
 class ApiHairStylistScheduleController extends Controller
@@ -242,6 +244,10 @@ class ApiHairStylistScheduleController extends Controller
 		        )
 		        ->first();
 
+		$ids = HairstylistAttendance::whereIn('id_hairstylist_schedule_date', $detail->hairstylist_schedule_dates->pluck('id_hairstylist_schedule_date'))->get()->pluck('id_outlet');
+
+		$outlets = Outlet::whereIn('id_outlet', $ids)->orWhere('id_outlet', $detail->id_outlet)->get();
+
         if (!$detail) {
         	return MyHelper::checkGet($detail);
         }
@@ -304,6 +310,7 @@ class ApiHairStylistScheduleController extends Controller
         $res = [
         	'detail' => $detail,
         	'list_date' => $resDate,
+        	'outlets' => $outlets,
         ];
         return MyHelper::checkGet($res);
     }

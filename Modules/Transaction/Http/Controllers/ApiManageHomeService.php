@@ -210,7 +210,7 @@ class ApiManageHomeService extends Controller
         $result = [
             'id_transaction'                => $trx['id_transaction'],
             'transaction_receipt_number'    => $trx['transaction_receipt_number'],
-            'receipt_qrcode' 				=> 'https://chart.googleapis.com/chart?chl=' . $trx['transaction_receipt_number'] . '&chs=250x250&cht=qr&chld=H%7C0',
+            'receipt_qrcode' 				=> 'https://chart.googleapis.com/chart?chl=' . str_replace('#', '', $trx['transaction_receipt_number']) . '&chs=250x250&cht=qr&chld=H%7C0',
             'transaction_date'              => date('d M Y H:i', strtotime($trx['transaction_date'])),
             'transaction_grandtotal'        => MyHelper::requestNumber($trx['transaction_grandtotal'],'_CURRENCY'),
             'transaction_subtotal'          => MyHelper::requestNumber($trx['transaction_subtotal'],'_CURRENCY'),

@@ -257,7 +257,7 @@ class ApiTransactionOutletService extends Controller
         $result = [
             'id_transaction'                => $trx['id_transaction'],
             'transaction_receipt_number'    => $trx['transaction_receipt_number'],
-            'receipt_qrcode' 						=> 'https://chart.googleapis.com/chart?chl=' . $trx['transaction_receipt_number'] . '&chs=250x250&cht=qr&chld=H%7C0',
+            'receipt_qrcode' 						=> 'https://chart.googleapis.com/chart?chl=' . str_replace('#', '', $trx['transaction_receipt_number']) . '&chs=250x250&cht=qr&chld=H%7C0',
             'transaction_date'              => date('d M Y H:i', strtotime($trx['transaction_date'])),
             'trasaction_type'               => $trx['trasaction_type'],
             'transaction_grandtotal'        => MyHelper::requestNumber($trx['transaction_grandtotal'],'_CURRENCY'),
@@ -1089,7 +1089,7 @@ class ApiTransactionOutletService extends Controller
 		$res = [
 			'id_transaction' => $detail['id_transaction'],
 			'transaction_receipt_number' => $detail['transaction_receipt_number'],
-			'qrcode' => 'https://chart.googleapis.com/chart?chl=' . $detail['transaction_receipt_number'] . '&chs=250x250&cht=qr&chld=H%7C0',
+			'qrcode' => 'https://chart.googleapis.com/chart?chl=' . str_replace('#', '', $detail['transaction_receipt_number']) . '&chs=250x250&cht=qr&chld=H%7C0',
 			'transaction_date' => $detail['transaction_date'],
 			'transaction_date_indo' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($detail['transaction_date'])), 'j F Y'),
 			'transaction_subtotal' => $detail['transaction_subtotal'],

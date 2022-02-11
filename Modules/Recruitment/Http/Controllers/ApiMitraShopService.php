@@ -50,7 +50,11 @@ class ApiMitraShopService extends Controller
     {
     	$user = $request->user();
 
-    	$trx = Transaction::where('transaction_receipt_number', $request->transaction_receipt_number)->first();
+        $trxReceiptNumber = $request->transaction_receipt_number;
+        if(substr($trxReceiptNumber, 0, 1) != '#'){
+            $trxReceiptNumber = '#'.$trxReceiptNumber;
+        }
+    	$trx = Transaction::where('transaction_receipt_number', $trxReceiptNumber)->first();
     	if (!$trx) {
     		return ['status' => 'fail', 'messages' => ['Transaksi tidak ditemukan']];
     	}
@@ -122,7 +126,12 @@ class ApiMitraShopService extends Controller
     public function confirmShopService(Request $request)
     {
     	$user = $request->user();
-    	$trx = Transaction::where('transaction_receipt_number', $request->transaction_receipt_number)->first();
+
+        $trxReceiptNumber = $request->transaction_receipt_number;
+        if(substr($trxReceiptNumber, 0, 1) != '#'){
+            $trxReceiptNumber = '#'.$trxReceiptNumber;
+        }
+    	$trx = Transaction::where('transaction_receipt_number', $trxReceiptNumber)->first();
     	if (!$trx) {
     		return ['status' => 'fail', 'messages' => ['Transaksi tidak ditemukan']];
     	}

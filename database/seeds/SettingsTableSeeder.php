@@ -1128,7 +1128,7 @@ class SettingsTableSeeder extends Seeder
                             <tr>
                                 <td>3</td>
                                 <td width="130px">MASA KERJASAMA</td>
-                                <td>%total_waktu%</td>
+                                <td>%total_waktu%;</td>
                             </tr>
                             <tr>
                                 <td>4</td>

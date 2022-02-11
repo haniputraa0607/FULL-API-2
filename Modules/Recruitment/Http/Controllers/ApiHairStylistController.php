@@ -2,6 +2,7 @@
 
 namespace Modules\Recruitment\Http\Controllers;
 
+use App\Jobs\UpdateScheduleHSJob;
 use App\Lib\MyHelper;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -506,6 +507,12 @@ class ApiHairStylistController extends Controller
                 );
 
             }else{
+                $check = UserHairStylist::where('nickname', $post['nickname'])->whereNotIn('id_user_hair_stylist', [$post['id_user_hair_stylist']])->first();
+
+                if(!empty($check)){
+                    return response()->json(['status' => 'fail', 'messages' => ['Nickname already use with hairstylist : '.$check['fullname']]]);
+                }
+
                 unset($post['data_document']);
                 unset($post['action_type']);
                 $checkPhone = UserHairStylist::where(function ($q) use ($post){
@@ -533,10 +540,17 @@ class ApiHairStylistController extends Controller
                     $sendCrmUpdatePin = 1;
                 }
 
+                $idOutletOld = $post['id_outlet_old'];
+
                 unset($post['pin']);
                 unset($post['pin2']);
                 unset($post['auto_generate_pin']);
+                unset($post['id_outlet_old']);
                 $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update($post);
+
+                if($update && $post['id_outlet'] != $idOutletOld){
+                    UpdateScheduleHSJob::dispatch(['id_user_hair_stylist' => $post['id_user_hair_stylist']])->allOnConnection('database');
+                }
 
                 if($update && $sendCrmUpdatePin == 1){
                     $autocrm = app($this->autocrm)->SendAutoCRM(

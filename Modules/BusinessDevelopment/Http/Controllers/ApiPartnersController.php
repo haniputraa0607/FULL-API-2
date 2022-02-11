@@ -140,7 +140,7 @@ class ApiPartnersController extends Controller
         $post = $request->all();
         $data_request_partner = $post;
         if (!empty($data_request_partner)) {
-            
+
             $checkPhoneFormat = MyHelper::phoneCheckFormat($data_request_partner['phone']);
             if (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'fail') {
                 return response()->json([
@@ -363,6 +363,7 @@ class ApiPartnersController extends Controller
     public function update(Request $request)
     {
         $post = $request->all();
+        $data_update = [];
         if (isset($post['id_partner']) && !empty($post['id_partner'])) {
             DB::beginTransaction();
             if (isset($post['name'])) {
@@ -376,11 +377,6 @@ class ApiPartnersController extends Controller
                     $data_update['code'] = $post['code'];
                 }
             }
-            if (isset($post['mobile']) && $post['mobile'] == 'default') {
-                $data_update['mobile'] = Partner::where('id_partner', $post['id_partner'])->get('phone')[0]['phone'];
-            }elseif(isset($post['mobile'])){
-                $data_update['mobile'] = $post['mobile'];
-            }
             if (isset($post['contact_person'])) {
                 $data_update['contact_person'] = $post['contact_person'];
             }
@@ -388,7 +384,17 @@ class ApiPartnersController extends Controller
                 $data_update['gender'] = $post['gender'];
             }
             if (isset($post['phone'])) {
+                //cek unique phone
+                $cek_unique = Partner::where('id_partner','<>',$post['id_partner'])->where('phone',$post['phone'])->first();
+                if($cek_unique){
+                    return response()->json(['status' => 'fail', 'messages' => ['The phone has already been taken by another partner.']]);
+                }
                 $data_update['phone'] = $post['phone'];
+            }
+            if (isset($post['mobile']) && $post['mobile'] == 'default') {
+                $data_update['mobile'] = Partner::where('id_partner', $post['id_partner'])->get('phone')[0]['phone'];
+            }elseif(isset($post['mobile'])){
+                $data_update['mobile'] = $post['mobile'];
             }
             if (isset($post['email'])) {
                 $data_update['email'] = $post['email'];
@@ -449,15 +455,6 @@ class ApiPartnersController extends Controller
             }
             if (isset($post['sharing_percent'])) {
                 $data_update['sharing_percent'] = $post['sharing_percent'];
-            }
-            if(isset($data_update['start_date']) && isset($data_update['end_date'])){
-                $start = explode('-', $data_update['start_date']);
-                $end = explode('-', $data_update['end_date']);
-                try{
-                    $waktu = $this->timeTotal($start,$end);
-                }catch(\Exception $e) {
-                    return response()->json(['status' => 'fail_date', 'messages' => ['Start Date and End Date must be at least 3 years apar']]);
-                }
             }
             $old_status = Partner::where('id_partner', $post['id_partner'])->get('status')[0]['status'];
             $old_phone = Partner::where('id_partner', $post['id_partner'])->get('phone')[0]['phone'];
@@ -815,6 +812,11 @@ class ApiPartnersController extends Controller
             $cek_partner = Partner::where(['id_partner'=>$id_partner])->first();
             if($cek_partner){
                 
+                $cek_unique = Partner::where('id_partner','<>',$id_partner)->where('phone',$post['phone'])->first();
+                if($cek_unique){
+                    return response()->json(['status' => 'fail', 'messages' => ['The phone has already been taken by another partner.']]);
+                }
+
                 $checkPhoneFormat = MyHelper::phoneCheckFormat($post['phone']);
                 if (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'fail') {
                     return response()->json([
@@ -1149,7 +1151,6 @@ class ApiPartnersController extends Controller
                     'final' => $this->rupiah($data['location']['partnership_fee']*0.5),
                     'final_string' => $this->stringNominal($data['location']['partnership_fee']*0.5).' Rupiah',
                     'total_waktu' => $waktu['total'],
-                    'sisa_waktu' => $waktu['sisa'],
                 ];
                 if(isset($data['location']['notes']) && !empty($data['location']['notes'])){
                     $send['data']['angsuran'] = $data['location']['notes'];
@@ -1237,6 +1238,7 @@ class ApiPartnersController extends Controller
     }
     public function timeTotal($start_date,$end_date){
         if($end_date[2]==$start_date[2] && $end_date[1]==$start_date[1]){
+            // beda tahun
             $tahun = $end_date[0]-$start_date[0];
             $string_tahun = strtolower($this->stringNominal($tahun));
             $total_waktu = $tahun.' ('.$string_tahun.')'.' tahun';
@@ -1244,6 +1246,7 @@ class ApiPartnersController extends Controller
                 0 => $tahun,
             ];
         }elseif($end_date[1]==$start_date[1]){
+            //beda bulan
             $selisih_tanggal = $end_date[2]-$start_date[2];
             if($start_date[1]==2){
                 if($start_date[0]%4==0){
@@ -1267,7 +1270,17 @@ class ApiPartnersController extends Controller
             }
             $string_tahun = strtolower($this->stringNominal($tahun));
             $string_tanggal = strtolower($this->stringNominal($tanggal));
-            $total_waktu = $tahun.' ('.$string_tahun.')'.' tahun '.$tanggal.' ('.$string_tanggal.')'.' hari';
+            if($tahun > 0){
+                $string_year = $tahun.' ('.$string_tahun.')'.' tahun ';
+            }else{
+                $string_year = null;
+            }
+            if($tanggal > 0){
+                $string_date = $tanggal.' ('.$string_tanggal.')'.' hari';
+            }else{
+                $string_date = null;
+            }
+            $total_waktu = $string_year.$string_date;
             $array_waktu = [
                 0 => $tahun,
                 2 => $tanggal,
@@ -1285,7 +1298,17 @@ class ApiPartnersController extends Controller
             }
             $string_tahun = strtolower($this->stringNominal($tahun));
             $string_bulan = strtolower($this->stringNominal($bulan));
-            $total_waktu = $tahun.' ('.$string_tahun.')'.' tahun '.$bulan.' ('.$string_bulan.')'.' bulan';
+            if($tahun > 0){
+                $string_year = $tahun.' ('.$string_tahun.')'.' tahun ';
+            }else{
+                $string_year = null;
+            }
+            if($bulan > 0){
+                $string_month = $bulan.' ('.$string_bulan.')'.' bulan';
+            }else{
+                $string_month = null;
+            }
+            $total_waktu = $string_year.$string_month;
             $array_waktu = [
                 0 => $tahun,
                 1 => $bulan,
@@ -1319,7 +1342,22 @@ class ApiPartnersController extends Controller
                 $string_tahun = strtolower($this->stringNominal($tahun));
                 $string_bulan = strtolower($this->stringNominal($bulan));
                 $string_tanggal = strtolower($this->stringNominal($tanggal));
-                $total_waktu = $tahun.' ('.$string_tahun.')'.' tahun '.$bulan.' ('.$string_bulan.')'.' bulan '.$tanggal.' ('.$string_tanggal.')'.' hari';
+                if($tahun > 0){
+                    $string_year = $tahun.' ('.$string_tahun.')'.' tahun ';
+                }else{
+                    $string_year = null;
+                }
+                if($bulan > 0){
+                    $string_month = $bulan.' ('.$string_bulan.')'.' bulan';
+                }else{
+                    $string_month = null;
+                }
+                if($tanggal > 0){
+                    $string_date = $tanggal.' ('.$string_tanggal.')'.' hari';
+                }else{
+                    $string_date = null;
+                }
+                $total_waktu = $string_year.$string_month.$string_date;
                 $array_waktu = [
                     0 => $tahun,
                     1 => $bulan,
@@ -1331,7 +1369,17 @@ class ApiPartnersController extends Controller
                     $tanggal = ($jumlah_hari-$start_date[2])+$end_date[2];
                     $string_tahun = strtolower($this->stringNominal($tahun));
                     $string_tanggal = strtolower($this->stringNominal($tanggal));
-                    $total_waktu = $tahun.' ('.$string_tahun.')'.' tahun '.$tanggal.' ('.$string_tanggal.')'.' hari';
+                    if($tahun > 0){
+                        $string_year = $tahun.' ('.$string_tahun.')'.' tahun ';
+                    }else{
+                        $string_year = null;
+                    }
+                    if($tanggal > 0){
+                        $string_date = $tanggal.' ('.$string_tanggal.')'.' hari';
+                    }else{
+                        $string_date = null;
+                    }
+                    $total_waktu = $string_year.$string_date;
                     $array_waktu = [
                         0 => $tahun,
                         2 => $tanggal,
@@ -1343,7 +1391,22 @@ class ApiPartnersController extends Controller
                     $string_tahun = strtolower($this->stringNominal($tahun));
                     $string_bulan = strtolower($this->stringNominal($bulan));
                     $string_tanggal = strtolower($this->stringNominal($tanggal));
-                    $total_waktu = $tahun.' ('.$string_tahun.')'.' tahun '.$bulan.' ('.$string_bulan.')'.' bulan '.$tanggal.' ('.$string_tanggal.')'.' hari';
+                    if($tahun > 0){
+                        $string_year = $tahun.' ('.$string_tahun.')'.' tahun ';
+                    }else{
+                        $string_year = null;
+                    }
+                    if($bulan > 0){
+                        $string_month = $bulan.' ('.$string_bulan.')'.' bulan';
+                    }else{
+                        $string_month = null;
+                    }
+                    if($tanggal > 0){
+                        $string_date = $tanggal.' ('.$string_tanggal.')'.' hari';
+                    }else{
+                        $string_date = null;
+                    }
+                    $total_waktu = $string_year.$string_month.$string_date;
                     $array_waktu = [
                         0 => $tahun,
                         1 => $bulan,
@@ -1358,7 +1421,22 @@ class ApiPartnersController extends Controller
                     $string_tahun = strtolower($this->stringNominal($tahun));
                     $string_bulan = strtolower($this->stringNominal($bulan));
                     $string_tanggal = strtolower($this->stringNominal($tanggal));
-                    $total_waktu = $tahun.' ('.$string_tahun.')'.' tahun '.$bulan.' ('.$string_bulan.')'.' bulan '.$tanggal.' ('.$string_tanggal.')'.' hari';
+                    if($tahun > 0){
+                        $string_year = $tahun.' ('.$string_tahun.')'.' tahun ';
+                    }else{
+                        $string_year = null;
+                    }
+                    if($bulan > 0){
+                        $string_month = $bulan.' ('.$string_bulan.')'.' bulan';
+                    }else{
+                        $string_month = null;
+                    }
+                    if($tanggal > 0){
+                        $string_date = $tanggal.' ('.$string_tanggal.')'.' hari';
+                    }else{
+                        $string_date = null;
+                    }
+                    $total_waktu = $string_year.$string_month.$string_date;
                     $array_waktu = [
                         0 => $tahun,
                         1 => $bulan,
@@ -1368,31 +1446,8 @@ class ApiPartnersController extends Controller
             }
             
         }
-        $sisa = $array_waktu[0] - 3;
-        if($sisa==0){
-            if(isset($array_waktu[1]) && isset($array_waktu[2])){
-                $string_sisa = ' + '.$array_waktu[1].' ('.strtolower($this->stringNominal($array_waktu[1])).')'.' bulan '.$array_waktu[2].' ('.strtolower($this->stringNominal($array_waktu[2])).')'.' hari berikutnya;';
-            }elseif(isset($array_waktu[1])){
-                $string_sisa = ' + '.$array_waktu[1].' ('.strtolower($this->stringNominal($array_waktu[1])).')'.' bulan berikutnya;';
-            }elseif(isset($array_waktu[2])){
-                $string_sisa = ' + '.$array_waktu[2].' ('.strtolower($this->stringNominal($array_waktu[2])).')'.' hari berikutnya;';
-            }else{
-                $string_sisa = ';';
-            }
-        }else{
-            if(isset($array_waktu[1]) && isset($array_waktu[2])){
-                $string_sisa = ' + '.$sisa.' ('.strtolower($this->stringNominal($sisa)).')'.' tahun '.$array_waktu[1].' ('.strtolower($this->stringNominal($array_waktu[1])).')'.' bulan '.$array_waktu[2].' ('.strtolower($this->stringNominal($array_waktu[2])).')'.' hari berikutnya;';
-            }elseif(isset($array_waktu[1])){
-                $string_sisa = ' + '.$sisa.' ('.strtolower($this->stringNominal($sisa)).')'.' tahun '.$array_waktu[1].' ('.strtolower($this->stringNominal($array_waktu[1])).')'.' bulan berikutnya;';
-            }elseif(isset($array_waktu[2])){
-                $string_sisa = ' + '.$sisa.' ('.strtolower($this->stringNominal($sisa)).')'.' tahun '.$array_waktu[2].' ('.strtolower($this->stringNominal($array_waktu[2])).')'.' hari berikutnya;';
-            }else{
-                $string_sisa = ' + '.$sisa.' ('.strtolower($this->stringNominal($sisa)).')'.' tahun;';
-            }
-        }
         return [
-            'total' => $total_waktu,
-            'sisa' =>$string_sisa
+            'total' => $total_waktu
         ];
     }
 
@@ -1414,7 +1469,6 @@ class ApiPartnersController extends Controller
         $text = str_replace('%final%',$data['final'],$text);
         $text = str_replace('%final_string%',$data['final_string'],$text);
         $text = str_replace('%total_waktu%',$data['total_waktu'],$text);
-        $text = str_replace('%sisa_waktu%',$data['sisa_waktu'],$text);
         $text = str_replace('%ttd_pihak_dua%',$data['ttd_pihak_dua'],$text);
         if(isset($data['angsuran'])){
             $angsuran = '<li>'.$data['angsuran'].';</li>';

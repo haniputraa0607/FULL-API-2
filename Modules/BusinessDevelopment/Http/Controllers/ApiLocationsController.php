@@ -414,16 +414,6 @@ class ApiLocationsController extends Controller
             if (isset($post['sharing_percent'])) {
                 $data_update['sharing_percent'] = $post['sharing_percent'];
             }
-            if(isset($data_update['start_date']) && isset($data_update['end_date'])){
-                $start = explode('-', $data_update['start_date']);
-                $end = explode('-', $data_update['end_date']);
-                try{
-                    $partner_controller = New ApiPartnersController;
-                    $waktu = $partner_controller->timeTotal($start,$end);
-                }catch(\Exception $e) {
-                    return response()->json(['status' => 'fail_date', 'messages' => ['Start Date and End Date must be at least 3 years apar']]);
-                }
-            }
             if (isset($post['from']) && $post['from'] == 'Select Location') {
                 $year = date('y');
                 $month = date('m');

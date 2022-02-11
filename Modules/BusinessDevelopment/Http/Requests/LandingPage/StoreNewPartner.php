@@ -30,7 +30,7 @@ class StoreNewPartner extends FormRequest
             "name"   => 'required|string',
             "address"   => 'required|string',
             "contact_person"   => 'required|string',
-            "phone"   => 'required|numeric',
+            "phone"   => 'required|numeric|unique:partners',
             "mobile"   => 'required|numeric',
             "email"   => 'required|email',
             "notes"   => 'required|string',

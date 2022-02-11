@@ -282,7 +282,7 @@ class ApiHairstylistAttendanceController extends Controller
         $result = UserHairStylist::join('hairstylist_schedules', 'hairstylist_schedules.id_user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist')
             ->join('hairstylist_schedule_dates', 'hairstylist_schedule_dates.id_hairstylist_schedule', 'hairstylist_schedules.id_hairstylist_schedule')
             ->leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
-            ->with(['attendance_logs' => function ($query) { $query->where('status', 'Approved')->selectRaw('*, null as photo_url');}]);
+            ->with(['outlet', 'attendance_logs' => function ($query) { $query->where('status', 'Approved')->selectRaw('*, null as photo_url');}]);
         $countTotal = null;
 
         if ($request->rule) {
@@ -305,7 +305,7 @@ class ApiHairstylistAttendanceController extends Controller
             }
         }
 
-        $result->selectRaw('*, (CASE WHEN (hairstylist_attendances.clock_in IS NULL AND hairstylist_attendances.clock_out IS NULL) THEN "Absent" WHEN is_on_time = 1 THEN "On Time" WHEN is_on_time = 0 THEN "Late" ELSE "" END) as status');
+        $result->selectRaw('*, COALESCE(hairstylist_attendances.id_outlet, hairstylist_schedules.id_outlet, user_hair_stylist.id_outlet) AS id_outlet, (CASE WHEN (hairstylist_attendances.clock_in IS NULL AND hairstylist_attendances.clock_out IS NULL) THEN "Absent" WHEN is_on_time = 1 THEN "On Time" WHEN is_on_time = 0 THEN "Late" ELSE "" END) as status');
         $result->orderBy('user_hair_stylist.id_user_hair_stylist');
 
         if ($request->page) {

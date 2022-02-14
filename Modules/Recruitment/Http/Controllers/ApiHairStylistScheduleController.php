@@ -560,6 +560,7 @@ class ApiHairStylistScheduleController extends Controller
                     DB::commit();
                     return response()->json([
                         'status' => 'success', 
+                        'result' => $create_schedule
                     ]);
                 }else{
                     return response()->json([

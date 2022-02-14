@@ -4407,6 +4407,16 @@ class FeaturesTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00')
                 ),
+            440 => 
+                array (
+                    'id_feature' => 441,
+                    'feature_type' => 'Create',
+                    'feature_module' => 'Hair Stylist Schedule',
+                    'show_hide' => 1,
+                    'order' => 129,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00'),
+                ),
         ));
         
         

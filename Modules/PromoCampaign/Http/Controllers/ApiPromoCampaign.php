@@ -2337,6 +2337,37 @@ class ApiPromoCampaign extends Controller
 	                $product = $product->whereIn('brands.id_brand',$post['brand']);
 	            }
 
+                if (!empty($post['service'])) {
+
+                    $product = $product->where(function($pro)use($post){
+                        if(in_array('Outlet Service',$post['service'])){
+                            $pro = $pro->orWhere(function($q){
+                                $q = $q->where('products.product_type', 'product')->orWhere(function($q2){
+                                    $q2 = $q2->where('products.product_type', 'service')->where('products.available_home_service', 0);
+                                });
+                            });
+                        }
+
+                        if(in_array('Home Service',$post['service'])){
+                            $pro = $pro->orWhere(function($q){
+                                $q = $q->where('products.product_type', 'service');
+                            });
+                        }
+
+                        if(in_array('Academy',$post['service'])){
+                            $pro = $pro->orWhere(function($q){
+                                $q = $q->where('products.product_type', 'academy');
+                            });
+                        }
+
+                        if(in_array('Online Shop',$post['service'])){
+                            $pro = $pro->orWhere(function($q){
+                                $q = $q->whereNotNull('products.id_product_group');
+                            });
+                        }
+                    });
+	            }
+
             	$product = $product->get()->toArray();
 
             	$data = array_merge($data, $product);

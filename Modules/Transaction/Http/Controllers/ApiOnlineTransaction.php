@@ -2896,7 +2896,7 @@ class ApiOnlineTransaction extends Controller
     }
     public function cancelTransaction(Request $request)
     {
-        if (stristr($request->receipt_number, "INS")) {
+        if(substr_count($request->receipt_number,"-") >= 2){
             $installment = app('Modules\Transaction\Http\Controllers\ApiTransactionAcademy')->cancelTransaction($request);
             return $installment;
         }elseif ($request->id) {

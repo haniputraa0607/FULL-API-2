@@ -3279,7 +3279,7 @@ class MyHelper{
      */
     public static function calculator($formula, $variables)
     {
-    	extract($variables);
+        extract($variables);
     	$formula = preg_replace('/([a-zA-Z][a-zA-Z0-9_]*)/', '$$1', $formula);
     	return eval('return '. $formula . ';');
     }

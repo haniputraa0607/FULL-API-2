@@ -42,7 +42,7 @@ class Project extends Model
         return $this->hasMany(ProjectDesain::class, 'id_project');
     }
     public function project_fitout(){
-        return $this->hasMany(ProjectFitOut::class, 'id_project');
+        return $this->hasMany(ProjectFitOut::class, 'id_project')->orderby('created_at','DESC');
     }
     public function project_contract(){
         return $this->hasOne(ProjectContract::class, 'id_project');

@@ -632,13 +632,12 @@ class ApiOutletController extends Controller
      */
     function listOutlet(OutletList $request) {
         $post = $request->json()->all();
-
         if (isset($post['webview'])) {
             $outlet = Outlet::with(['today', 'brands']);
         }elseif(isset($post['admin']) && isset($post['type']) && $post['type'] == 'export'){
-            $outlet = Outlet::with(['user_outlets','city','today','product_prices','product_prices.product'])->select('*');
+            $outlet = Outlet::with(['user_outlets','city','today','product_prices','product_prices.product','location_outlet','location_outlet.location_partner'])->select('*');
         }elseif(isset($post['admin'])){
-            $outlet = Outlet::with(['user_outlets','city.province','today', 'outlet_schedules', 'outlet_schedules.time_shift', 'outlet_box'])->select('*');
+            $outlet = Outlet::with(['user_outlets','city.province','today', 'outlet_schedules', 'outlet_schedules.time_shift', 'outlet_box','location_outlet','location_outlet.location_partner'])->select('*');
 
             if(isset($post['outlet_academy_status'])){
                 $outlet = $outlet->where('outlet_academy_status', $post['outlet_academy_status']);

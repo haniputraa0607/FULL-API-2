@@ -54,7 +54,7 @@ use Mail;
 use Image;
 use JmesPath\Env;
 use Illuminate\Support\Facades\Storage;
-
+use Config;
 class ApiSetting extends Controller
 {
 
@@ -2010,6 +2010,30 @@ class ApiSetting extends Controller
   
     public function attendances_date_create(Request $request){
         if(isset($request)){
+            $path = base_path('.env');
+            if (file_exists($path)) {
+                 $path1 = base_path('.env');
+                  $path2 = base_path('.env');
+                 if (getenv('DATE_MIDDLE_INCOME')) {
+                    file_put_contents($path1, str_replace(
+                        'DATE_MIDDLE_INCOME='.Config::get('app.income_date_middle'), 'DATE_MIDDLE_INCOME='.$request->delivery_mid_date,file_get_contents($path1)
+                    ));
+                 }else{
+                     $files   = file($path1);
+                    $files[] = "\r\nDATE_MIDDLE_INCOME=".$request->delivery_mid_date;
+                    file_put_contents($path1, $files);
+                 }
+                 if (getenv('DATE_END_INCOME')) {
+                    file_put_contents($path2, str_replace(
+                        'DATE_END_INCOME='.Config::get('app.income_date_end'), 'DATE_END_INCOME='.$request->delivery_end_date,file_get_contents($path2)
+                    ));
+                 }else{
+                     $file   = file($path2);
+                    $file[] = "\r\nDATE_END_INCOME=".$request->delivery_end_date;
+                    file_put_contents($path2, $file);
+                 }
+               
+            }
             //mid_date
              $mid_date = Setting::where('key','hs_income_cut_off_mid_date')->first();
              if($mid_date){
@@ -2052,6 +2076,7 @@ class ApiSetting extends Controller
                  $delivery_end_date = Setting::where('key','hs_income_delivery_cut_off_end_date')->update([
                   'value'=>$request->delivery_end_date
              ]);
+
              }else{
                  $delivery_end_date = Setting::create([
                  'key'=>'hs_income_delivery_cut_off_end_date',

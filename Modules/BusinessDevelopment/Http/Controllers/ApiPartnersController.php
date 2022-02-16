@@ -1069,6 +1069,10 @@ class ApiPartnersController extends Controller
                             }
                             app('\Modules\Project\Http\Controllers\ApiProjectController')->initProject($data_send['partner'], $data_send['location']);
                             
+                            $update_this_partner = $this->update(New Request($post['partner']));
+                            if(!$update_this_partner){
+                                return response()->json(['status' => 'fail', 'messages' => ['Failed to updated partner']]);
+                            }
                             //make legal agreement
                             $legal_agree = $this->createLegalAgreement($data_send['partner'], $data_send['location']);
                             if(!$legal_agree){

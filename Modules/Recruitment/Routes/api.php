@@ -38,6 +38,22 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
         	Route::post('create', 'ApiHairStylistScheduleController@create');
     	});
 
+    	Route::group(['prefix' => 'timeoff'], function () {
+        	Route::post('list', 'ApiHairStylistTimeOffOvertimeController@listTimeOff');
+        	Route::post('detail', 'ApiHairStylistTimeOffOvertimeController@detailTimeOff');
+        	Route::post('update', 'ApiHairStylistTimeOffOvertimeController@updateTimeOff');
+        	Route::post('create', 'ApiHairStylistTimeOffOvertimeController@createTimeOff');
+        	Route::post('list-hs', 'ApiHairStylistTimeOffOvertimeController@listHS');
+        	Route::post('list-date', 'ApiHairStylistTimeOffOvertimeController@listDate');
+    	});
+
+    	Route::group(['prefix' => 'overtime'], function () {
+        	Route::post('list', 'ApiHairStylistTimeOffOvertimeController@listOvertime');
+        	Route::post('detail', 'ApiHairStylistTimeOffOvertimeController@detailOvertime');
+        	Route::post('update', 'ApiHairStylistTimeOffOvertimeController@updateOvertime');
+        	Route::post('create', 'ApiHairStylistTimeOffOvertimeController@createOvertime');
+    	});
+
     	Route::group(['prefix' => 'announcement'], function () {
         	Route::post('list', ['middleware' => 'feature_control:368,371', 'uses' =>'ApiAnnouncement@listAnnouncement']);
 		    Route::post('detail', ['middleware' => 'feature_control:369', 'uses' =>'ApiAnnouncement@detailAnnouncement']);

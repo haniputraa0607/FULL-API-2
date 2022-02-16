@@ -2188,7 +2188,7 @@ class ApiProductController extends Controller
             }
         }
 
-        if(strtotime($currentHour) < strtotime($open) || strtotime($currentHour) > strtotime($close) || $outlet['today']['is_closed'] == 1){
+        if(empty($outlet['today']) || strtotime($currentHour) < strtotime($open) || strtotime($currentHour) > strtotime($close) || $outlet['today']['is_closed'] == 1){
             $isClose = true;
         }
 
@@ -2337,6 +2337,13 @@ class ApiProductController extends Controller
             }
         }
 
+        $messagesFailOutlet = '';
+        if(empty($outlet['today']) && $isClose == true){
+            $messagesFailOutlet = 'Maaf outlet belum buka';
+        }elseif(!empty($outlet['today']) && $isClose == true){
+            $messagesFailOutlet = 'Maaf outlet belum buka. Silahkan berkunjung kembali diantara pukul '.date('H:i', strtotime($open)).' sampai '.date('H:i', strtotime($close));
+        }
+
         $resOutlet = [
             'is_close' => $isClose,
             'id_outlet' => $outlet['id_outlet'],
@@ -2363,7 +2370,8 @@ class ApiProductController extends Controller
             'list_product' => [
                 'service' => $resProdService,
                 'products' => $resProducts
-            ]
+            ],
+            'message_fail' => $messagesFailOutlet
         ];
 
         return response()->json(MyHelper::checkGet($result));

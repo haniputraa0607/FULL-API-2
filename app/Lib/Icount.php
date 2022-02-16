@@ -167,7 +167,7 @@ class Icount
             "BusinessPartnerID" => $request['partner']['id_business_partner'],
             "BranchID" => $request['location']['id_branch'],
             "TermOfPaymentID" => $request['location']['id_term_of_payment'],
-            "ReferenceNo" => $request['confir']['no_letter'],
+            "ReferenceNo" => $request['location']['no_spk'],
             "TaxNo" => '',
             "Notes" => $request['partner']['notes'],
             "Detail" => [
@@ -204,7 +204,7 @@ class Icount
             "BusinessPartnerID" => $request['partner']['id_business_partner'],
             "BranchID" => $request['location']['id_branch'],
             "TermOfPaymentID" => $request['location']['id_term_of_payment'],
-            "ReferenceNo" => $request['confir']['no_letter'],
+            "ReferenceNo" => "",
             "TaxNo" => '',
             "Notes" => $request['partner']['notes'],
             "Detail" => [
@@ -277,7 +277,7 @@ class Icount
             "DueDate" => $request['location']['due_date'],
             "BusinessPartnerID" => $request['partner']['id_business_partner'],
             "BranchID" => $request['location']['id_branch'],
-            "ReferenceNo" => $request['confir']['no_letter'],
+            "ReferenceNo" => $request['location']['no_spk'],
             "Notes" => $request['partner']['notes'],
             "Detail" => $detail
         ];

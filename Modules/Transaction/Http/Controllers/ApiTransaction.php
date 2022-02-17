@@ -6071,7 +6071,7 @@ class ApiTransaction extends Controller
         $log = MyHelper::logCron('Create Order POO Icount');
         try{
             $date_now = date('Y-m-d');
-            $date_trans = date('Y-m-d', strtotime('-1 days', strtotime($date_now)));
+            $date_trans = date('Y-m-d', strtotime($date_now));
             $outlets_mid = Outlet::join('locations','locations.id_location','=','outlets.id_location')
                             ->join('transactions','transactions.id_outlet','=','outlets.id_outlet')
                             ->leftJoin('partners','partners.id_partner','=','locations.id_partner');
@@ -6130,12 +6130,13 @@ class ApiTransaction extends Controller
                 $transaction->select('transactions.*','transaction_outlet_services.*','transaction_products.*','products.*','outlets.outlet_code', 'outlets.outlet_name',
                                 DB::raw('
                                         SUM(
-                                        CASE WHEN transactions.transaction_discount_item IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_item) 
-                                        WHEN transactions.transaction_discount IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount)
+                                        CASE WHEN transaction_products.transaction_product_discount != 0 AND transaction_products.reject_at IS NULL THEN ABS(transaction_products.transaction_product_discount) 
+                                        WHEN transactions.transaction_discount_item != 0 AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_item) 
+                                        WHEN transactions.transaction_discount != 0 AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount)
                                         ELSE 0 END
                                         ) as discRp
                                     '))
-                            ->groupBy('transactions.id_transaction',$group);  
+                            ->groupBy('transactions.id_transaction','transaction_products.id_transaction_product',$group);  
 
                 $outlets[$key]['trans_date'] = $date_trans;
                 $outlets[$key]['due_date'] = $date_trans;
@@ -6160,11 +6161,18 @@ class ApiTransaction extends Controller
                     foreach($outlet['transaction'] as $t => $tran){
                         if($tran['transaction_tax']==0){
                             $new_transaction_non[$new_trans_non] = $tran;
+                            if($tran['transaction_discount_bill']!=0 && $tran['transaction_product_discount'] != 0){
+                                $new_transaction_non[$new_trans_non]['discRp'] = $tran['discRp'] + $tran['transaction_discount_bill'];
+                            }
                             $new_trans_non++;
                         }else{
                             $new_transaction[$new_trans_use] = $tran;
+                            if($tran['transaction_discount_bill']!=0 && $tran['transaction_product_discount'] != 0){
+                                $new_transaction[$new_trans_use]['discRp'] = $tran['discRp'] + $tran['transaction_discount_bill'];
+                            }
                             $new_trans_use++;
                         }
+
                     }
 
                     if($new_transaction){
@@ -6192,7 +6200,7 @@ class ApiTransaction extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             $log->fail($e->getMessage());
-        }       
+        }     
     }
     public function revenue_sharing(){
         $log = MyHelper::logCron('Revenue Sharing');

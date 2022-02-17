@@ -341,9 +341,7 @@ class Icount
                     $transactions[$transaction['id_product']] = $transaction;
                 }else{
                     $transactions[$transaction['id_product']]['transaction_product_qty'] += $transaction['transaction_product_qty'];
-                    $transactions[$transaction['id_product']]['transaction_product_price'] += $transaction['transaction_product_price'];
                     $transactions[$transaction['id_product']]['discRp'] += $transaction['discRp'];
-                    $transactions[$transaction['id_product']]['transaction_grandtotal'] += $transaction['transaction_grandtotal'];
                 }
             }
             $key = 0;
@@ -354,8 +352,8 @@ class Icount
                     "Qty" => $transaction['transaction_product_qty'],
                     "Unit" => "PCS",
                     "Ratio" => "1",
-                    "Price" => $transaction['transaction_product_price'],
-                    "Disc" => ($transaction['discRp']*100)/($transaction['discRp']+$transaction['transaction_grandtotal']),
+                    "Price" => (int) $transaction['transaction_product_price'],
+                    "Disc" => null,
                     "DiscRp" => $transaction['discRp'],
                     "Description" => ""
                 ];

@@ -221,7 +221,8 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
         Route::post('expense/outlet/history', 'ApiMitra@expenseOutletHistory');
         
         Route::group(['prefix' => 'income'], function () {
-            Route::post('details', 'ApiIncome@schedule_income');
+            Route::post('cron_middle', 'ApiIncome@cron_middle');
+            Route::post('cron_end', 'ApiIncome@cron_end');
         });
 	});
 

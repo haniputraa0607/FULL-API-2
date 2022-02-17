@@ -43,6 +43,8 @@ use Modules\Users\Http\Requests\users_phone_pin_new_v2;
 use PharIo\Manifest\EmailTest;
 use Auth;
 use Modules\Recruitment\Http\Requests\Income;
+use Modules\Recruitment\Entities\HairstylistIncome;
+use Config;
 class ApiIncome extends Controller
 {
 
@@ -57,6 +59,43 @@ class ApiIncome extends Controller
         );
         Return $attandance;
        
+    }
+    public function cron_middle() {
+        return Config::get('app.income_date_middle');
+       $log = MyHelper::logCron('Cron Income HS middle month');
+        try {
+        $hs = UserHairStylist::get();
+        $type = 'middle';
+        foreach ($hs as $value) {
+            $income = $this->schedule_income($value['id_user_hair_stylist'], $type);
+        }
+        $log->success('success');
+            return response()->json(['success']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $log->fail($e->getMessage());
+        }
+    }
+    public function cron_end() {
+       $log = MyHelper::logCron('Cron Income HS end month');
+        try {
+        $hs = UserHairStylist::get();
+        $type = 'end';
+        foreach ($hs as $value) {
+            $income = $this->schedule_income($value['id_user_hair_stylist'], $type);
+        }
+        $log->success('success');
+            return response()->json(['success']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $log->fail($e->getMessage());
+        }
+    }
+    public function schedule_income($id,$type = 'end') {
+       $b = new HairstylistIncome();
+       $hs = UserHairStylist::where('id_user_hair_stylist',$id)->first();
+       $bro = $b->calculateIncome($hs, $type);
+       return $bro;
     }
     public function schedule($date,$hs) {
         $tanggal = Setting::where('key','attendances_date')->first();

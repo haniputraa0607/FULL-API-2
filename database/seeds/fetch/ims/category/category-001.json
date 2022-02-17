@@ -1,0 +1,106 @@
+{
+    "Status": 0,
+    "Message": "Success",
+    "Data": [
+        {
+            "CategoryID": "0111",
+            "CompanyID": "011",
+            "Name": "ASSET",
+            "Description": "",
+            "IsDeleted": false,
+            "ModifiedDate": "2022-01-03T00:00:00"
+        },
+        {
+            "CategoryID": "018",
+            "CompanyID": "011",
+            "Name": "ATK",
+            "Description": "",
+            "IsDeleted": false,
+            "ModifiedDate": "2022-01-03T00:00:00"
+        },
+        {
+            "CategoryID": "011",
+            "CompanyID": "011",
+            "Name": "CONSIGNMENT",
+            "Description": "",
+            "IsDeleted": false,
+            "ModifiedDate": "2022-01-03T14:17:31.353"
+        },
+        {
+            "CategoryID": "015",
+            "CompanyID": "011",
+            "Name": "GEL & BEDAK",
+            "Description": "",
+            "IsDeleted": false,
+            "ModifiedDate": "2022-01-03T00:00:00"
+        },
+        {
+            "CategoryID": "019",
+            "CompanyID": "011",
+            "Name": "MARKETING",
+            "Description": "",
+            "IsDeleted": false,
+            "ModifiedDate": "2022-01-03T00:00:00"
+        },
+        {
+            "CategoryID": "014",
+            "CompanyID": "011",
+            "Name": "SALON SUPPLIES",
+            "Description": "",
+            "IsDeleted": false,
+            "ModifiedDate": "2022-01-03T00:00:00"
+        },
+        {
+            "CategoryID": "013",
+            "CompanyID": "011",
+            "Name": "SALON TOOLS",
+            "Description": "",
+            "IsDeleted": false,
+            "ModifiedDate": "2022-01-03T00:00:00"
+        },
+        {
+            "CategoryID": "0110",
+            "CompanyID": "011",
+            "Name": "SERVICE",
+            "Description": "",
+            "IsDeleted": false,
+            "ModifiedDate": "2022-01-03T00:00:00"
+        },
+        {
+            "CategoryID": "012",
+            "CompanyID": "011",
+            "Name": "SMALL VALUE ASSET",
+            "Description": "",
+            "IsDeleted": false,
+            "ModifiedDate": "2022-01-03T00:00:00"
+        },
+        {
+            "CategoryID": "017",
+            "CompanyID": "011",
+            "Name": "TISSUE & SISIR",
+            "Description": "",
+            "IsDeleted": false,
+            "ModifiedDate": "2022-01-03T00:00:00"
+        },
+        {
+            "CategoryID": "016",
+            "CompanyID": "011",
+            "Name": "UNIFORM",
+            "Description": "",
+            "IsDeleted": false,
+            "ModifiedDate": "2022-01-03T00:00:00"
+        }
+    ],
+    "Meta": {
+        "Pagination": {
+            "From": 1,
+            "To": 11,
+            "CurrentPage": 1,
+            "LastPage": 1,
+            "TotalRecord": 11
+        }
+    },
+    "Links": {
+        "BaseUrl": "BaseURL"
+    }
+}

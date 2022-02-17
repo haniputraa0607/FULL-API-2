@@ -13,16 +13,16 @@ class DatabaseSeeder extends Seeder
         $this->call(AutocrmsTableSeeder::class);
         $this->call(CourierTableSeeder::class);
         $this->call(FeaturesTableSeeder::class);
-        $this->call(UsersTableSeeder::class);
+        // $this->call(UsersTableSeeder::class);
         $this->call(SettingsTableSeeder::class);
         $this->call(ConfigsTableSeeder::class);
-        $this->call(OutletsTableSeeder::class);
-        $this->call(ProductCategoriesTableSeeder::class);
-        $this->call(ProductsTableSeeder::class);
-        $this->call(ProductPricesTableSeeder::class);
-        $this->call(UserAddressesTableSeeder::class);
-        $this->call(ManualPaymentsTableSeeder::class);
-        $this->call(ManualPaymentMethodsTableSeeder::class);
+        // $this->call(OutletsTableSeeder::class);
+        // $this->call(ProductCategoriesTableSeeder::class);
+        // $this->call(ProductsTableSeeder::class);
+        // $this->call(ProductPricesTableSeeder::class);
+        // $this->call(UserAddressesTableSeeder::class);
+        // $this->call(ManualPaymentsTableSeeder::class);
+        // $this->call(ManualPaymentMethodsTableSeeder::class);
 
         $this->call(AutocrmsTableAddClaimDeals::class);
         $this->call(SettingJobsCelebrateSeeder::class);

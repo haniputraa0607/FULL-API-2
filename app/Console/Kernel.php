@@ -135,22 +135,22 @@ class Kernel extends ConsoleKernel
         /**
          * To process diburse
          */
-        if(env('TYPE_CRON_DISBURSE') == 'monthly'){
-            $schedule->call('Modules\Disburse\Http\Controllers\ApiIrisController@disburse')->monthlyOn(env('DAY_CRON_DISBURSE'), env('TIME_CRON_DISBURSE'));
-        }elseif (env('TYPE_CRON_DISBURSE') == 'weekly'){
-            $schedule->call('Modules\Disburse\Http\Controllers\ApiIrisController@disburse')->weeklyOn(env('DAY_WEEK_CRON_DISBURSE'), env('TIME_CRON_DISBURSE'));
-        }elseif (env('TYPE_CRON_DISBURSE') == 'daily'){
-            $schedule->call('Modules\Disburse\Http\Controllers\ApiIrisController@disburse')->dailyAt(env('TIME_CRON_DISBURSE'));
-        }
-
-        /**
-         * To send email report trx
-         */
-        $schedule->call('Modules\Disburse\Http\Controllers\ApiDisburseController@cronSendEmailDisburse')->dailyAt('02:00');
-        /**
-         * To send
-         */
-        $schedule->call('Modules\Disburse\Http\Controllers\ApiDisburseController@shortcutRecap')->dailyAt('02:30');
+//        if(env('TYPE_CRON_DISBURSE') == 'monthly'){
+//            $schedule->call('Modules\Disburse\Http\Controllers\ApiIrisController@disburse')->monthlyOn(env('DAY_CRON_DISBURSE'), env('TIME_CRON_DISBURSE'));
+//        }elseif (env('TYPE_CRON_DISBURSE') == 'weekly'){
+//            $schedule->call('Modules\Disburse\Http\Controllers\ApiIrisController@disburse')->weeklyOn(env('DAY_WEEK_CRON_DISBURSE'), env('TIME_CRON_DISBURSE'));
+//        }elseif (env('TYPE_CRON_DISBURSE') == 'daily'){
+//            $schedule->call('Modules\Disburse\Http\Controllers\ApiIrisController@disburse')->dailyAt(env('TIME_CRON_DISBURSE'));
+//        }
+//
+//        /**
+//         * To send email report trx
+//         */
+//        $schedule->call('Modules\Disburse\Http\Controllers\ApiDisburseController@cronSendEmailDisburse')->dailyAt('02:00');
+//        /**
+//         * To send
+//         */
+//        $schedule->call('Modules\Disburse\Http\Controllers\ApiDisburseController@shortcutRecap')->dailyAt('02:30');
         /**
          * Void failed transaction shopeepay
          */

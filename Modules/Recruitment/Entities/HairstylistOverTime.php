@@ -2,6 +2,8 @@
 
 namespace Modules\Recruitment\Entities;
 
+use App\Http\Models\Outlet;
+use App\Http\Models\User;
 use Illuminate\Database\Eloquent\Model;
 
 class HairstylistOverTime extends Model
@@ -32,10 +34,14 @@ class HairstylistOverTime extends Model
     }
 
     public function outlet(){
-        return $this->belongsTo(Outlet::class, 'id_user_hair_stylist');
+        return $this->belongsTo(Outlet::class, 'id_outlet');
     }
 
     public function approve(){
-        return $this->belongsTo(User::class, 'id_user_hair_stylist');
+        return $this->belongsTo(User::class, 'approve_by');
+    }
+
+    public function request(){
+        return $this->belongsTo(User::class, 'request_by');
     }
 }

@@ -40,6 +40,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
 
     	Route::group(['prefix' => 'timeoff'], function () {
         	Route::post('list', 'ApiHairStylistTimeOffOvertimeController@listTimeOff');
+        	Route::post('delete', 'ApiHairStylistTimeOffOvertimeController@deleteTimeOff');
         	Route::post('detail', 'ApiHairStylistTimeOffOvertimeController@detailTimeOff');
         	Route::post('update', 'ApiHairStylistTimeOffOvertimeController@updateTimeOff');
         	Route::post('create', 'ApiHairStylistTimeOffOvertimeController@createTimeOff');
@@ -52,6 +53,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
         	Route::post('detail', 'ApiHairStylistTimeOffOvertimeController@detailOvertime');
         	Route::post('update', 'ApiHairStylistTimeOffOvertimeController@updateOvertime');
         	Route::post('create', 'ApiHairStylistTimeOffOvertimeController@createOvertime');
+        	Route::post('delete', 'ApiHairStylistTimeOffOvertimeController@deleteOvertime');
     	});
 
     	Route::group(['prefix' => 'announcement'], function () {

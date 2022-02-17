@@ -7,6 +7,7 @@ use App\Http\Requests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
 use App\Http\Models\LogApiIcount;
+use Modules\ChartOfAccount\Entities\ChartOfAccount;
 use App\Http\Models\Setting;
 use App\Lib\MyHelper;
 
@@ -303,7 +304,6 @@ class Icount
             foreach($setting as $s => $set){
                 $availablePayment[$set['code']]['chart_of_account_id'] = $set['id_chart_of_account'] ?? false;
             }
-            // return $availablePayment;
             $data = [
                 "BranchID" => $request['id_branch'],
                 "BusinessPartnerID" => $request['id_business_partner'],
@@ -318,23 +318,36 @@ class Icount
                 "AddressInvoice" => '',
                 "Notes" => '',
             ];
+
             if(isset($request['id_transaction_payment'])){
                 $request['payment_type'] = ucfirst(strtolower($request['payment_type']));
                 foreach($availablePayment as $a => $payment){
-                    if($payment['payment_method'] == $request['payment_type'] && $payment['payment_gateway'] == 'Midtrans'){
-                        $data['ChartOfAccountID'] = $payment['chart_of_account_id'];
+                    if(strtolower($payment['payment_method']) == strtolower($request['payment_type']) && $payment['payment_gateway'] == 'Midtrans'){
+                        $data['ChartOfAccountID'] = ChartOfAccount::where('id_chart_of_account',$payment['chart_of_account_id'])->first()['ChartOfAccountID'];
                     }
                 }
-            }else{
+            }elseif(isset($request['id_transaction_payment_xendit'])){
                 $request['type'] = ucfirst(strtolower($request['type']));
                 foreach($availablePayment as $a => $paymentx){
-                    if($paymentx['payment_method'] == $request['type'] && $paymentx['payment_gateway'] == 'Xendit'){
-                        $data['ChartOfAccountID'] = $paymentx['chart_of_account_id'];
+                    if(strtolower($paymentx['payment_method']) == strtolower($request['type']) && $paymentx['payment_gateway'] == 'Xendit'){
+                        $data['ChartOfAccountID'] = ChartOfAccount::where('id_chart_of_account',$paymentx['chart_of_account_id'])->first()['ChartOfAccountID'];
                     }
                 }
             }
             
+            $transactions = [];
             foreach($request['transaction'] as $key => $transaction){
+                if(!isset($transactions[$transaction['id_product']])){
+                    $transactions[$transaction['id_product']] = $transaction;
+                }else{
+                    $transactions[$transaction['id_product']]['transaction_product_qty'] += $transaction['transaction_product_qty'];
+                    $transactions[$transaction['id_product']]['transaction_product_price'] += $transaction['transaction_product_price'];
+                    $transactions[$transaction['id_product']]['discRp'] += $transaction['discRp'];
+                    $transactions[$transaction['id_product']]['transaction_grandtotal'] += $transaction['transaction_grandtotal'];
+                }
+            }
+            $key = 0;
+            foreach($transactions as $transaction){
                 $data['Detail'][$key] = [
                     "ItemID" => $penjulana_outlet['value'],
                     "Name" => $transaction['product_name'],
@@ -346,7 +359,7 @@ class Icount
                     "DiscRp" => $transaction['discRp'],
                     "Description" => ""
                 ];
-                
+                $key++;
             }
             if($company=='PT IMA'){
                 if(isset($request['id_business_partner_ima']) && !empty($request['id_business_partner_ima'])){

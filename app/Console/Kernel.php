@@ -2,6 +2,8 @@
 
 namespace App\Console;
 
+use App\Lib\MyHelper;
+use Config;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
@@ -15,7 +17,6 @@ class Kernel extends ConsoleKernel
     protected $commands = [
         //
     ];
-
     /**
      * Define the application's command schedule.
      *
@@ -234,6 +235,9 @@ class Kernel extends ConsoleKernel
          * run every 00:10 AM
          */
         $schedule->call('Modules\Recruitment\Http\Controllers\ApiHairStylistScheduleController@checkScheduleHS')->dailyAt('00:10');
+        
+        $schedule->call('Modules\Recruitment\Http\Controllers\ApiIncome@cron_middle')->monthlyOn(Config::get('app.income_date_middle'),'00:01');
+        $schedule->call('Modules\Recruitment\Http\Controllers\ApiIncome@cron_end')->monthlyOn(Config::get('app.income_date_end'),'00:01');
 
 
     }

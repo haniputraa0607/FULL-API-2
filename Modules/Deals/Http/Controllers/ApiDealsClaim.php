@@ -56,7 +56,7 @@ class ApiDealsClaim extends Controller
 	            // CEK VALID DATE
 	            if ($this->checkValidDate($dataDeals)) {
 	                // if (!empty($dataDeals->deals_voucher_price_cash) || $dataDeals->deals_promo_id_type == "nominal") {
-	                if (!empty($dataDeals->deals_voucher_price_cash)) {
+	                if (!empty($dataDeals->deals_voucher_price_cash) || !empty($dataDeals->deals_voucher_price_point) ) {
 	                    return response()->json([
 	                        'status' => 'fail',
 	                        'messages' => ['You have to pay deals.']

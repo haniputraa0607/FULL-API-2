@@ -482,12 +482,18 @@ class ApiHairStylistController extends Controller
                     return response()->json(['status' => 'fail', 'messages' => ['Hs not found']]);
                 }
 
+                //generate code
+                $count = UserHairStylist::whereNotNull('user_hair_stylist_code')->count();
+                $currentYear = substr(date('Y'), -2);
+                $currentMonth = date('m');
+
                 unset($post['update_type']);
                 unset($post['pin']);
                 unset($post['pin2']);
                 unset($post['auto_generate_pin']);
                 unset($post['action_type']);
                 $data = $post;
+                $data['user_hair_stylist_code'] = 'IXO'.$currentYear.$currentMonth.sprintf("%04d", ($count+1));
                 $data['password'] = bcrypt($pin);
                 $data['join_date'] = date('Y-m-d H:i:s');
                 $data['approve_by'] = $request->user()->id;

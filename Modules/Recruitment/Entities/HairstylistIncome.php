@@ -5,7 +5,7 @@ namespace Modules\Recruitment\Entities;
 use Illuminate\Database\Eloquent\Model;
 use App\Lib\MyHelper;
 use App\Http\Models\TransactionProduct;
-
+use DB;
 class HairstylistIncome extends Model
 {
     public $primaryKey = 'id_hairstylist_income';
@@ -28,15 +28,15 @@ class HairstylistIncome extends Model
 
     public static function calculateIncome(UserHairStylist $hs, $type = 'end')
     {
+        $total = 0;
         if ($type == 'middle') {
-            $date = (int) MyHelper::setting('hs_income_cut_off_mid_date', 'value', 10);
+            $date = (int) MyHelper::setting('hs_income_cut_off_mid_date', 'value');
             $calculations = json_decode(MyHelper::setting('hs_income_calculation_mid', 'value_text', '[]'), true) ?? [];
         } else {
             $type = 'end';
-            $date = (int) MyHelper::setting('hs_income_cut_off_end_date', 'value', 25);
+            $date = (int) MyHelper::setting('hs_income_cut_off_end_date', 'value');
             $calculations = json_decode(MyHelper::setting('hs_income_calculation_end', 'value_text', '[]'), true) ?? [];
         }
-
         if (!$calculations) {
             throw new \Exception('No calculation for current periode. Check setting!');
         }
@@ -51,27 +51,24 @@ class HairstylistIncome extends Model
         } else {
             $month = (int) date('m');
         }
-
         $exists = static::where('id_user_hair_stylist', $hs->id_user_hair_stylist)->whereDate('periode', "$year-$month-$date")->where('type', $type)->where('status', '<>', 'Draft')->exists();
         if ($exists) {
-            throw new \Exception("Hairstylist income for periode $type $month/$year already exists");
+            throw new \Exception("Hairstylist income for periode $type $month/$year already exists for $hs->id_user_hair_stylist");
         }
 
-        $lastDate = static::orderBy('end_date', 'desc')->whereDate('end_date', '<', date('Y-m-d'))->where('status', '<>', 'Cancelled')->first();
+        $lastDate = static::where('id_user_hair_stylist', $hs->id_user_hair_stylist)->orderBy('end_date', 'desc')->whereDate('end_date', '<', date('Y-m-d'))->where('status', '<>', 'Cancelled')->first();
         if ($lastDate) {
             $startDate = date('Y-m-d', strtotime($lastDate->end_date . '+1 days'));
         } else {
             $startDate = date('Y-m-d', strtotime("$year-" . ($month - 1) . "-$date +1 days"));
             if (date('m', strtotime($startDate)) != ($month - 1)) {
-                $startDate = date('Y-m-d', ("$year-$month-01 -1 days"));
+                $startDate = date('Y-m-d', strtotime("$year-$month-01 -1 days"));
             }
         }
-
         $endDate = date('Y-m-d', strtotime("$year-" . $month . "-$date"));
         if (date('m', strtotime($endDate)) != $month) {
             $endDate = date('Y-m-d', ("$year-" . ($month + 1) . "-01 -1 days"));
         }
-
         $hsIncome = static::updateOrCreate([
             'id_user_hair_stylist' => $hs->id_user_hair_stylist,
             'type' => $type,
@@ -87,7 +84,6 @@ class HairstylistIncome extends Model
         if (!$hsIncome) {
             throw new \Exception('Failed create hs income data');
         }
-
         foreach  ($calculations as $calculation) {
             if ($calculation == 'product_commission') {
                 $trxs = TransactionProduct::select('transaction_products.id_transaction', 'transaction_products.id_transaction_product', 'transaction_breakdowns.*')
@@ -109,35 +105,51 @@ class HairstylistIncome extends Model
                         'id_outlet' => $item->transaction->id_outlet,
                         'amount' => $item->value,
                     ]);
+                     $total = $total+$item->value;
                 });
             } elseif (strpos($calculation, 'incentive_') === 0) { // start_with_calculation
                 $code = str_replace('incentive_', '', $calculation);
                 $incentive = HairstylistGroupInsentifDefault::leftJoin('hairstylist_group_insentifs', function($join) use ($hs) {
-                    $join->on('hairstylist_group_insentifs.id_hairstylist_group_default_insentifs', 'hairstylist_group_default_insentifs.id_hairstylist_group_default_insentifs')
-                        ->where('id_hairstylist_group', $hs->id_hairstylist_groups);
-                })->where('code', $code)->first();
+                                $join->on('hairstylist_group_insentifs.id_hairstylist_group_default_insentifs', 'hairstylist_group_default_insentifs.id_hairstylist_group_default_insentifs')
+                                ->where('id_hairstylist_group', $hs->id_hairstylist_groups);
+                            })->where('hairstylist_group_default_insentifs.code', $code)
+                            ->select('hairstylist_group_default_insentifs.id_hairstylist_group_default_insentifs','hairstylist_group_default_insentifs.code',
+                                DB::raw('
+                                       CASE WHEN
+                                       hairstylist_group_insentifs.value IS NOT NULL THEN hairstylist_group_insentifs.value ELSE hairstylist_group_default_insentifs.value
+                                       END as value
+                                    '),
+                                DB::raw('
+                                       CASE WHEN
+                                       hairstylist_group_insentifs.formula IS NOT NULL THEN hairstylist_group_insentifs.formula ELSE hairstylist_group_default_insentifs.formula
+                                       END as formula
+                                    ')
+                                )->first();
                 if (!$incentive) {
                     continue;
                 }
-
-                $formula = $incentive->formula;
+                $formula = str_replace('value', $incentive->value, $incentive->formula);
 
                 $id_outlets = HairstylistAttendance::where('id_user_hair_stylist', $hs->id_user_hair_stylist)->get()->pluck('id_outlet');
+                $amount = 0;
                 foreach ($id_outlets as $id_outlet) {
                     $total_attend = HairstylistAttendance::where('id_user_hair_stylist', $hs->id_user_hair_stylist)
                         ->where('id_outlet', $id_outlet)
+                        ->whereBetween('attendance_date',[$startDate,$endDate])
                         ->count();
                     $total_late = HairstylistAttendance::where('id_user_hair_stylist', $hs->id_user_hair_stylist)
                         ->where('id_outlet', $id_outlet)
                         ->where('is_on_time', 0)
+                        ->whereBetween('attendance_date',[$startDate,$endDate])
                         ->count();
-                    $total_absent = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) {
+                    $total_absent = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) use ($hs,$id_outlet){
                             $join->on('hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
                                 ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
                                 ->where('id_outlet', $id_outlet);
                         })
                         ->whereNull('clock_in')
                         ->whereNull('clock_out')
+                        ->whereBetween('hairstylist_attendances.attendance_date',[$startDate,$endDate])
                         ->count();
                     try {
                         $amount = MyHelper::calculator($formula, [
@@ -159,35 +171,52 @@ class HairstylistIncome extends Model
                         'amount' => $amount,
                     ]);
                 }
+                $total = $total+$amount;
             } elseif (strpos($calculation, 'salary_cut_') === 0) { // start_with_calculation
                 $code = str_replace('salary_cut_', '', $calculation);
                 $salary_cut = HairstylistGroupPotonganDefault::leftJoin('hairstylist_group_potongans', function($join) use ($hs) {
                     $join->on('hairstylist_group_potongans.id_hairstylist_group_default_potongans', 'hairstylist_group_default_potongans.id_hairstylist_group_default_potongans')
                         ->where('id_hairstylist_group', $hs->id_hairstylist_groups);
-                })->where('code', $code)->first();
+                })->where('hairstylist_group_default_potongans.code', $code)
+                         ->select('hairstylist_group_default_potongans.id_hairstylist_group_default_potongans','hairstylist_group_default_potongans.code',
+                                DB::raw('
+                                       CASE WHEN
+                                       hairstylist_group_potongans.value IS NOT NULL THEN hairstylist_group_potongans.value ELSE hairstylist_group_default_potongans.value
+                                       END as value
+                                    '),
+                                DB::raw('
+                                       CASE WHEN
+                                       hairstylist_group_potongans.formula IS NOT NULL THEN hairstylist_group_potongans.formula ELSE hairstylist_group_default_potongans.formula
+                                       END as formula
+                                    '))
+                        ->first();
                 if (!$salary_cut) {
                     continue;
                 }
-
-                $formula = $salary_cut->formula;
-
+                
+                $formula = str_replace('value', $salary_cut->value, $salary_cut->formula);
+                $amount = 0;
                 $id_outlets = HairstylistAttendance::where('id_user_hair_stylist', $hs->id_user_hair_stylist)->get()->pluck('id_outlet');
                 foreach ($id_outlets as $id_outlet) {
                     $total_attend = HairstylistAttendance::where('id_user_hair_stylist', $hs->id_user_hair_stylist)
                         ->where('id_outlet', $id_outlet)
+                        ->whereBetween('attendance_date',[$startDate,$endDate])
                         ->count();
                     $total_late = HairstylistAttendance::where('id_user_hair_stylist', $hs->id_user_hair_stylist)
                         ->where('id_outlet', $id_outlet)
                         ->where('is_on_time', 0)
+                        ->whereBetween('attendance_date',[$startDate,$endDate])
                         ->count();
-                    $total_absent = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) {
+                    $total_absent = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) use ($hs,$id_outlet){
                             $join->on('hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
                                 ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
                                 ->where('id_outlet', $id_outlet);
                         })
                         ->whereNull('clock_in')
                         ->whereNull('clock_out')
+                        ->whereBetween('hairstylist_attendances.attendance_date',[$startDate,$endDate])
                         ->count();
+                        
                     try {
                         $amount = MyHelper::calculator($formula, [
                             'total_attend' => $total_attend,
@@ -207,13 +236,15 @@ class HairstylistIncome extends Model
                         'id_outlet' => $id_outlet,
                         'amount' => $amount,
                     ]);
+                  
                 }
+                  $total = $total-$amount;
             }
         }
 
         $hsIncome->update([
             'status' => 'Pending',
-            'amount' => $hsIncome->hairstylist_income_details()->sum('amount'),
+            'amount' => $total,
         ]);
 
         return $hsIncome;

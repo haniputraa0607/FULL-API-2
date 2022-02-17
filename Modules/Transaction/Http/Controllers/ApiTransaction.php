@@ -6181,7 +6181,7 @@ class ApiTransaction extends Controller
             }
 
             foreach($new_outlets as $n => $new_outlet){
-                    $create_order_poo[$n] = Icount::ApiCreateOrderPOO($new_outlet, $new_outlet['location']['company_type']);
+                    $create_order_poo[$n] = Icount::ApiCreateOrderPOO($new_outlet, $new_outlet['company_type']);
             }
 
             $log->success('success');

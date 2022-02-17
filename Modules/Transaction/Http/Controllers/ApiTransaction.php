@@ -6071,7 +6071,8 @@ class ApiTransaction extends Controller
         $log = MyHelper::logCron('Create Order POO Icount');
         try{
             $date_now = date('Y-m-d');
-            $date_trans = date('Y-m-d', strtotime($date_now));
+            // $date_trans = date('Y-m-d', strtotime($date_now));
+            $date_trans = date('Y-m-d', strtotime('-1 days', strtotime($date_now)));
             $outlets_mid = Outlet::join('locations','locations.id_location','=','outlets.id_location')
                             ->join('transactions','transactions.id_outlet','=','outlets.id_outlet')
                             ->leftJoin('partners','partners.id_partner','=','locations.id_partner');

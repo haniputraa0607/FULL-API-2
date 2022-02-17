@@ -6120,7 +6120,8 @@ class ApiTransaction extends Controller
                     $transaction->join('transaction_payment_xendits','transaction_payment_xendits.id_transaction','=','transactions.id_transaction');
                     $group = 'transaction_payment_xendits.type';
                 }
-                $transaction->whereDate('transactions.transaction_date', '=', $date_trans)->where('outlets.id_outlet', '=', $outlet['id_outlet']);
+                $transaction->whereDate('transactions.transaction_date', '=', $date_trans)->where('outlets.id_outlet', '=', $outlet['id_outlet'])->where('transactions.transaction_payment_status','Completed')->whereNotNull('transaction_outlet_services.completed_at');
+                
                 if(isset($outlet['id_transaction_payment'])){
                     $transaction->where('transaction_payment_midtrans.payment_type', '=', $outlet['payment_type']);
                 }elseif(isset($outlet['id_transaction_payment_xendit'])){
@@ -6191,7 +6192,7 @@ class ApiTransaction extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             $log->fail($e->getMessage());
-        }     
+        }       
     }
     public function revenue_sharing(){
         $log = MyHelper::logCron('Revenue Sharing');

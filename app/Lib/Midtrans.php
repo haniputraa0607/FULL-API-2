@@ -293,7 +293,6 @@ class Midtrans {
             $transaction_id = $order_id;
         }
 
-        $transaction_id = str_replace('#', '%23', $transaction_id);
         $url    = env('BASE_MIDTRANS_SANDBOX').'/v2/'. $transaction_id .'/status';
         $result = MyHelper::get($url, Self::bearer());
         try {

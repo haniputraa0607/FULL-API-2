@@ -447,7 +447,7 @@ class ApiTransactionAcademy extends Controller
         }
 
         $countReciptNumber = Transaction::where('id_outlet', $insertTransaction['id_outlet'])->count();
-        $receipt = '#'.substr($outlet['outlet_code'], -4).'-'.sprintf("%05d", $countReciptNumber);
+        $receipt = 'TRX'.substr($outlet['outlet_code'], -4).'-'.sprintf("%05d", $countReciptNumber);
         $updateReceiptNumber = Transaction::where('id_transaction', $insertTransaction['id_transaction'])->update([
             'transaction_receipt_number' => $receipt
         ]);
@@ -561,7 +561,7 @@ class ApiTransactionAcademy extends Controller
                 $installment[] = [
                     'installment_step' => $key+1,
                     'id_transaction_academy' => $createTransactionAcademy['id_transaction_academy'],
-                    'installment_receipt_number' => '#'.substr($outlet['outlet_code'], -4).'-'.substr($insertTransaction['transaction_receipt_number'], -5).'-'.sprintf("%02d", ($key+1)),
+                    'installment_receipt_number' => 'TRX'.substr($outlet['outlet_code'], -4).'-'.substr($insertTransaction['transaction_receipt_number'], -5).'-'.sprintf("%02d", ($key+1)),
                     'percent' => $value['percent'],
                     'amount' => $value['amount'],
                     'deadline' => ($key==0 ? date('Y-m-d') : date('Y-m-d', strtotime("+".$key." month", strtotime($startDeadline)))),
@@ -778,7 +778,7 @@ class ApiTransactionAcademy extends Controller
         $result = [
             'id_transaction'                => $trx['id_transaction'],
             'transaction_receipt_number'    => $trx['transaction_receipt_number'],
-            'receipt_qrcode' 				=> 'https://chart.googleapis.com/chart?chl=' . str_replace('#', '', $trx['transaction_receipt_number']) . '&chs=250x250&cht=qr&chld=H%7C0',
+            'receipt_qrcode' 				=> 'https://chart.googleapis.com/chart?chl=' . $trx['transaction_receipt_number'] . '&chs=250x250&cht=qr&chld=H%7C0',
             'transaction_date'              => date('d M Y H:i', strtotime($trx['transaction_date'])),
             'transaction_grandtotal'        => MyHelper::requestNumber($trx['transaction_grandtotal'],'_CURRENCY'),
             'transaction_subtotal'          => MyHelper::requestNumber($trx['transaction_subtotal'],'_CURRENCY'),

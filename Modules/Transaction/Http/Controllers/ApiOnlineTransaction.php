@@ -4608,7 +4608,7 @@ class ApiOnlineTransaction extends Controller
 
         foreach ($data as $dt){
             $product_icount = new ProductIcount();
-            $update = $product_icount->find($dt['id_product_icount'])->addLogStockProductIcount(abs($dt['qty']), 'Cancelled Book Product', $dt['id_transaction'], null, $id_outlet);
+            $update = $product_icount->find($dt['id_product_icount'])->addLogStockProductIcount(abs($dt['qty']), 'Cancelled Book Product', $id_transaction, null, $id_outlet);
         }
 
         return $update??true;

@@ -162,6 +162,12 @@ class ApiTransactionHomeService extends Controller
             if(!is_null($getProductDetail['product_detail_stock_item']) && $item['qty'] > $getProductDetail['product_detail_stock_item']){
                 $err[] = 'Service tidak tersedia';
                 $errAll[] = 'Service '.$service['product_name'].' tidak tersedia';
+            }elseif (is_null($getProductDetail['product_detail_stock_item']) && ($getProductDetail['product_detail_stock_status'] == 'Sold Out' || $getProductDetail['product_detail_status'] == 'Inactive')){
+                $err[] = 'Service tidak tersedia';
+                $errAll[] = 'Service '.$service['product_name'].' tidak tersedia';
+            }elseif(empty($getProductDetail)){
+                $err[] = 'Service tidak tersedia';
+                $errAll[] = 'Service '.$service['product_name'].' tidak tersedia';
             }
 
             $itemService[$key] = [

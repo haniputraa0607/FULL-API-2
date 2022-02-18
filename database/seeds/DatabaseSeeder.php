@@ -30,5 +30,19 @@ class DatabaseSeeder extends Seeder
         $this->call(PromoCampaignReferralsTableSeeder::class);
         $this->call(BankNameTableSeeder::class);
         $this->call(SubdistrictsTableSeeder::class);
+
+
+        /**
+         * KHUSUS IXOBOX
+         */
+
+        // TODO: Seed Terms Of Payment
+        // TODO: Seed Chart of Account
+        // TODO: Seed Cluster
+        // TODO: Seed Business Partner
+        // TODO: Seed Location
+        // TODO: Seed Branch / Outlet
+        // TODO: Seed Item
+        // TODO: Seed Departement
     }
 }

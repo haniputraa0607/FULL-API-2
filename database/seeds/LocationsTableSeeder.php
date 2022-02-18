@@ -3,6 +3,7 @@
 use Illuminate\Database\Seeder;
 use Modules\BusinessDevelopment\Entities\Location;
 use Modules\BusinessDevelopment\Entities\Partner;
+use App\Http\Models\Outlet;
 
 class LocationsTableSeeder extends Seeder
 {
@@ -18,17 +19,32 @@ class LocationsTableSeeder extends Seeder
                 $json = json_decode(file_get_contents($basePath . $file), true);
                 $items = $json['Data'];
                 foreach ($items as $item) {
-                    $partner = Location::updateOrCreate([
+                    $item['Phone'] = str_replace(['(',')','+',' '], '', $item['Phone']);
+                    $location = Location::updateOrCreate([
                         $company == 'ima' ? 'id_branch_ima' : 'id_branch' => $item['BranchID']
                     ],[
                         'name' => $item['Name'], 
                         'code' => $item['Code'],
                         'address' => $item['Address'], 
-                        'id_city' => 1, 
+                        'id_city' => 3173, 
                         'pic_contact' => $item['Phone'],
                         'id_partner' => Partner::where($company == 'ima' ? 'id_business_partner_ima' : 'id_business_partner_ima', $item['BusinessPartnerID'])->select('id_partner')->pluck('id_partner')->first(),
                         'status' => 'Active',
                         'step_loc' => 'Approved',
+                    ]);
+
+                    $outlet = Outlet::updateOrCreate(['outlet_code' => $item['Code']],[
+                        'id_branch' => $item['BranchID'],
+                        'branch_code' => $item['Code'],
+                        'id_location' => $location->id,
+                        'is_tax' => 0,
+                        'outlet_code' => $item['Code'],
+                        'outlet_name' => $item['Name'],
+                        'outlet_description' => '',
+                        'outlet_address' => $item['Address'],
+                        'id_city' => 3173,
+                        'outlet_phone' => $item['Phone'],
+                        'outlet_email' => $item['Email'],
                     ]);
                 }
             }

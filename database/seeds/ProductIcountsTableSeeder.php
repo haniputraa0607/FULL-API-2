@@ -23,10 +23,10 @@ class ProductIcountsTableSeeder extends Seeder
                 $items = $json['Data'];
                 foreach ($items as $item) {
                     $location = ProductIcount::updateOrCreate([
-                        'id_item' => $item['ItemID']
+                        'id_item' => $item['ItemID'],
+                        'company_type' => $company,
                     ],[
                         'id_company' => $item['CompanyID'],
-                        'company_type' => $company,
                         'code' => $item['Code'],
                         'name' => $item['Name'],
                         'id_brand' => $item['BrandID'],

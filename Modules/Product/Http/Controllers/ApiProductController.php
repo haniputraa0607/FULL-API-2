@@ -2206,8 +2206,7 @@ class ApiProductController extends Controller
                         WHEN (select outlets.outlet_different_price from outlets  where outlets.id_outlet = ' . $outlet['id_outlet'] . ' ) = 1 
                         THEN (select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $outlet['id_outlet'] . ' )
                         ELSE product_global_price.product_global_price
-                    END) as product_price'),
-            DB::raw('(select product_detail.product_detail_stock_item from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . ' order by id_product_detail desc limit 1) as product_stock_status')
+                    END) as product_price')
         ])
             ->join('brand_product', 'brand_product.id_product', '=', 'products.id_product')
             ->leftJoin('product_global_price', 'product_global_price.id_product', '=', 'products.id_product')
@@ -2243,7 +2242,13 @@ class ApiProductController extends Controller
         $resProdService = [];
         foreach ($productServie as $val){
             $stockStatus = 'Available';
-            if($val['product_stock_status'] <= 0){
+            $getProductDetail = ProductDetail::where('id_product', $val['id_product'])->where('id_outlet', $outlet['id_outlet'])->first();
+
+            if(!is_null($getProductDetail['product_detail_stock_item']) && $getProductDetail['product_detail_stock_item'] <= 0){
+                $stockStatus = 'Sold Out';
+            }elseif (is_null($getProductDetail['product_detail_stock_item']) && ($getProductDetail['product_detail_stock_status'] == 'Sold Out' || $getProductDetail['product_detail_status'] == 'Inactive')){
+                $stockStatus = 'Sold Out';
+            }elseif(empty($getProductDetail)){
                 $stockStatus = 'Sold Out';
             }
 

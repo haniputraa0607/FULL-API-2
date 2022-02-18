@@ -345,16 +345,17 @@ class Icount
                 }
             }
             $key = 0;
+
             foreach($transactions as $transaction){
                 $data['Detail'][$key] = [
-                    "ItemID" => $penjulana_outlet['value'],
+                    "ItemID" => $transaction['id_item_icount'] ?? $penjulana_outlet['value'],
                     "Name" => $transaction['product_name'],
                     "Qty" => $transaction['transaction_product_qty'],
                     "Unit" => "PCS",
                     "Ratio" => "1",
                     "Price" => (int) $transaction['transaction_product_price'],
                     "Disc" => null,
-                    "DiscRp" => $transaction['discRp'],
+                    "DiscRp" => $transaction['discRp'] / $transaction['transaction_product_qty'],
                     "Description" => ""
                 ];
                 $key++;

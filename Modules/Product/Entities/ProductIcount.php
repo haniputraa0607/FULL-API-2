@@ -13,6 +13,7 @@ class ProductIcount extends Model
 	protected $fillable = [
         'id_item',
         'id_company',
+        'company_type',
         'code',
         'name',
         'id_brand',

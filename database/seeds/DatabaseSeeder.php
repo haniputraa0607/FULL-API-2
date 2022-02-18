@@ -13,16 +13,16 @@ class DatabaseSeeder extends Seeder
         $this->call(AutocrmsTableSeeder::class);
         $this->call(CourierTableSeeder::class);
         $this->call(FeaturesTableSeeder::class);
-        $this->call(UsersTableSeeder::class);
+        // $this->call(UsersTableSeeder::class);
         $this->call(SettingsTableSeeder::class);
         $this->call(ConfigsTableSeeder::class);
-        $this->call(OutletsTableSeeder::class);
-        $this->call(ProductCategoriesTableSeeder::class);
-        $this->call(ProductsTableSeeder::class);
-        $this->call(ProductPricesTableSeeder::class);
-        $this->call(UserAddressesTableSeeder::class);
-        $this->call(ManualPaymentsTableSeeder::class);
-        $this->call(ManualPaymentMethodsTableSeeder::class);
+        // $this->call(OutletsTableSeeder::class);
+        // $this->call(ProductCategoriesTableSeeder::class);
+        // $this->call(ProductsTableSeeder::class);
+        // $this->call(ProductPricesTableSeeder::class);
+        // $this->call(UserAddressesTableSeeder::class);
+        // $this->call(ManualPaymentsTableSeeder::class);
+        // $this->call(ManualPaymentMethodsTableSeeder::class);
 
         $this->call(AutocrmsTableAddClaimDeals::class);
         $this->call(SettingJobsCelebrateSeeder::class);
@@ -30,5 +30,19 @@ class DatabaseSeeder extends Seeder
         $this->call(PromoCampaignReferralsTableSeeder::class);
         $this->call(BankNameTableSeeder::class);
         $this->call(SubdistrictsTableSeeder::class);
+
+
+        /**
+         * KHUSUS IXOBOX
+         */
+
+        // TODO: Seed Terms Of Payment
+        // TODO: Seed Chart of Account
+        // TODO: Seed Cluster
+        // TODO: Seed Business Partner
+        // TODO: Seed Location
+        // TODO: Seed Branch / Outlet
+        // TODO: Seed Item
+        // TODO: Seed Departement
     }
 }

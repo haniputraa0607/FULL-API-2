@@ -1,0 +1,17 @@
+{
+    "Status": 0,
+    "Message": "Success",
+    "Data": [],
+    "Meta": {
+        "Pagination": {
+            "From": 0,
+            "To": 0,
+            "CurrentPage": 1,
+            "LastPage": 1,
+            "TotalRecord": 0
+        }
+    },
+    "Links": {
+        "BaseUrl": "BaseURL"
+    }
+}

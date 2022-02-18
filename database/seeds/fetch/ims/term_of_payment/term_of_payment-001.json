@@ -1,0 +1,42 @@
+{
+    "Status": 0,
+    "Message": "Success",
+    "Data": [
+        {
+            "TermOfPaymentID": "011",
+            "CompanyID": "011",
+            "Name": "CASH",
+            "PaymentDuration": 0,
+            "IsDeleted": false,
+            "ModifiedDate": "2022-01-03T14:17:31.353"
+        },
+        {
+            "TermOfPaymentID": "012",
+            "CompanyID": "011",
+            "Name": "NET14",
+            "PaymentDuration": 14,
+            "IsDeleted": false,
+            "ModifiedDate": "2022-01-11T14:49:12.86"
+        },
+        {
+            "TermOfPaymentID": "013",
+            "CompanyID": "011",
+            "Name": "NET30",
+            "PaymentDuration": 30,
+            "IsDeleted": false,
+            "ModifiedDate": "2022-01-11T14:49:23.45"
+        }
+    ],
+    "Meta": {
+        "Pagination": {
+            "From": 1,
+            "To": 3,
+            "CurrentPage": 1,
+            "LastPage": 1,
+            "TotalRecord": 3
+        }
+    },
+    "Links": {
+        "BaseUrl": "BaseURL"
+    }
+}

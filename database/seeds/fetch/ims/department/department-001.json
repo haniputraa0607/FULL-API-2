@@ -1,0 +1,98 @@
+{
+    "Status": 0,
+    "Message": "Success",
+    "Data": [
+        {
+            "DepartmentID": "014",
+            "CompanyID": "011",
+            "Name": "ASSET MANAGEMENT",
+            "Code": "SSS003",
+            "IsDeleted": false,
+            "ModifiedDate": "2022-01-03T00:00:00"
+        },
+        {
+            "DepartmentID": "017",
+            "CompanyID": "011",
+            "Name": "BUSINESS DEVELOPMENT",
+            "Code": "BSM001",
+            "IsDeleted": false,
+            "ModifiedDate": "2022-01-03T00:00:00"
+        },
+        {
+            "DepartmentID": "019",
+            "CompanyID": "011",
+            "Name": "DIREKSI",
+            "Code": "DIR001",
+            "IsDeleted": false,
+            "ModifiedDate": "2022-01-03T00:00:00"
+        },
+        {
+            "DepartmentID": "012",
+            "CompanyID": "011",
+            "Name": "FINANCE, TAX & ACCOUNTING",
+            "Code": "SSS001",
+            "IsDeleted": false,
+            "ModifiedDate": "2022-01-03T00:00:00"
+        },
+        {
+            "DepartmentID": "013",
+            "CompanyID": "011",
+            "Name": "HR & GENERAL AFFAIRS ",
+            "Code": "SSS002",
+            "IsDeleted": false,
+            "ModifiedDate": "2022-01-03T00:00:00"
+        },
+        {
+            "DepartmentID": "018",
+            "CompanyID": "011",
+            "Name": "MARKETING",
+            "Code": "BSM002",
+            "IsDeleted": false,
+            "ModifiedDate": "2022-01-03T00:00:00"
+        },
+        {
+            "DepartmentID": "0110",
+            "CompanyID": "011",
+            "Name": "OFFICE",
+            "Code": "OFF001",
+            "IsDeleted": false,
+            "ModifiedDate": "2022-01-03T00:00:00"
+        },
+        {
+            "DepartmentID": "011",
+            "CompanyID": "011",
+            "Name": "OPERATIONAL",
+            "Code": "OPT",
+            "IsDeleted": false,
+            "ModifiedDate": "2022-01-03T14:17:31.353"
+        },
+        {
+            "DepartmentID": "016",
+            "CompanyID": "011",
+            "Name": "RETAIL OPERATIONS",
+            "Code": "OPR002",
+            "IsDeleted": false,
+            "ModifiedDate": "2022-01-03T00:00:00"
+        },
+        {
+            "DepartmentID": "015",
+            "CompanyID": "011",
+            "Name": "TALENT DEVELOPMENT",
+            "Code": "OPR001",
+            "IsDeleted": false,
+            "ModifiedDate": "2022-01-03T00:00:00"
+        }
+    ],
+    "Meta": {
+        "Pagination": {
+            "From": 1,
+            "To": 10,
+            "CurrentPage": 1,
+            "LastPage": 1,
+            "TotalRecord": 10
+        }
+    },
+    "Links": {
+        "BaseUrl": "BaseURL"
+    }
+}

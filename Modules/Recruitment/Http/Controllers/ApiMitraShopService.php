@@ -35,6 +35,7 @@ use App\Lib\MyHelper;
 use DB;
 use DateTime;
 use UserHairStylist as GlobalUserHairStylist;
+use App\Http\Models\Outlet;
 
 class ApiMitraShopService extends Controller
 {

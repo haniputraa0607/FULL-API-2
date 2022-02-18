@@ -1144,6 +1144,7 @@ class ApiPartnersController extends Controller
                 // return $pdf_contect['content'];
                 $no = str_replace('/', '_', $post['no_letter']);
                 $path = $this->confirmation.'confirmation_'.$no.'.pdf';
+                $pdf_contect['title'] = 'Confirmation Letter '.$post['no_letter'];
                 $pdf = PDF::loadView('businessdevelopment::confirmation', $pdf_contect );
                 Storage::put($path, $pdf->output(),'public');
                 $creatConf['attachment'] = $path;

@@ -6071,6 +6071,7 @@ class ApiTransaction extends Controller
         $log = MyHelper::logCron('Create Order POO Icount');
         try{
             $date_now = date('Y-m-d');
+            // $date_trans = date('Y-m-d', strtotime($date_now));
             $date_trans = date('Y-m-d', strtotime('-1 days', strtotime($date_now)));
             $outlets_mid = Outlet::join('locations','locations.id_location','=','outlets.id_location')
                             ->join('transactions','transactions.id_outlet','=','outlets.id_outlet')
@@ -6120,7 +6121,8 @@ class ApiTransaction extends Controller
                     $transaction->join('transaction_payment_xendits','transaction_payment_xendits.id_transaction','=','transactions.id_transaction');
                     $group = 'transaction_payment_xendits.type';
                 }
-                $transaction->whereDate('transactions.transaction_date', '=', $date_trans)->where('outlets.id_outlet', '=', $outlet['id_outlet']);
+                $transaction->whereDate('transactions.transaction_date', '=', $date_trans)->where('outlets.id_outlet', '=', $outlet['id_outlet'])->where('transactions.transaction_payment_status','Completed')->whereNotNull('transaction_outlet_services.completed_at');
+                
                 if(isset($outlet['id_transaction_payment'])){
                     $transaction->where('transaction_payment_midtrans.payment_type', '=', $outlet['payment_type']);
                 }elseif(isset($outlet['id_transaction_payment_xendit'])){
@@ -6129,12 +6131,13 @@ class ApiTransaction extends Controller
                 $transaction->select('transactions.*','transaction_outlet_services.*','transaction_products.*','products.*','outlets.outlet_code', 'outlets.outlet_name',
                                 DB::raw('
                                         SUM(
-                                        CASE WHEN transactions.transaction_discount_item IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_item) 
-                                        WHEN transactions.transaction_discount IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount)
+                                        CASE WHEN transaction_products.transaction_product_discount != 0 AND transaction_products.reject_at IS NULL THEN ABS(transaction_products.transaction_product_discount) 
+                                        WHEN transactions.transaction_discount_item != 0 AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_item) 
+                                        WHEN transactions.transaction_discount != 0 AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount)
                                         ELSE 0 END
                                         ) as discRp
                                     '))
-                            ->groupBy('transactions.id_transaction',$group);  
+                            ->groupBy('transactions.id_transaction','transaction_products.id_transaction_product',$group);  
 
                 $outlets[$key]['trans_date'] = $date_trans;
                 $outlets[$key]['due_date'] = $date_trans;
@@ -6159,11 +6162,18 @@ class ApiTransaction extends Controller
                     foreach($outlet['transaction'] as $t => $tran){
                         if($tran['transaction_tax']==0){
                             $new_transaction_non[$new_trans_non] = $tran;
+                            if($tran['transaction_discount_bill']!=0 && $tran['transaction_product_discount'] != 0){
+                                $new_transaction_non[$new_trans_non]['discRp'] = $tran['discRp'] + $tran['transaction_discount_bill'];
+                            }
                             $new_trans_non++;
                         }else{
                             $new_transaction[$new_trans_use] = $tran;
+                            if($tran['transaction_discount_bill']!=0 && $tran['transaction_product_discount'] != 0){
+                                $new_transaction[$new_trans_use]['discRp'] = $tran['discRp'] + $tran['transaction_discount_bill'];
+                            }
                             $new_trans_use++;
                         }
+
                     }
 
                     if($new_transaction){

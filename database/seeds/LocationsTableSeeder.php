@@ -46,6 +46,19 @@ class LocationsTableSeeder extends Seeder
                         'outlet_phone' => $item['Phone'],
                         'outlet_email' => $item['Email'],
                     ]);
+
+                    $boxes = $outlet->outlet_box;
+                    if ($boxes->count() < 5) {
+                        for ($i=0; $i<(5 - $boxes->count()); $i++) {
+                            $outlet->outlet_box()->create([
+                                'outlet_box_code' => $boxes->count() + 1 + $i,
+                                'outlet_box_name' => 'BOX ' . ($boxes->count() + 1 + $i),
+                                'outlet_box_url' => null,
+                                'outlet_box_status' => 'Active',
+                                'outlet_box_use_status' => 0
+                            ]);
+                        }
+                    }
                 }
             }
         }

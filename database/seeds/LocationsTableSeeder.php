@@ -36,7 +36,7 @@ class LocationsTableSeeder extends Seeder
                     $outlet = Outlet::updateOrCreate(['outlet_code' => $item['Code']],[
                         'id_branch' => $item['BranchID'],
                         'branch_code' => $item['Code'],
-                        'id_location' => $location->id,
+                        'id_location' => $location->id_location,
                         'is_tax' => 0,
                         'outlet_code' => $item['Code'],
                         'outlet_name' => $item['Name'],

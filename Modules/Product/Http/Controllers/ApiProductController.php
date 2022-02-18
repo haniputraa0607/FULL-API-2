@@ -2629,6 +2629,10 @@ class ApiProductController extends Controller
                 ->whereDate('date', $bookDate)
                 ->first();
 
+            if(empty($shift)){
+                continue;
+            }
+
             if($bookDate == date('Y-m-d') && strtotime($bookTime) >= strtotime($shift['time_start']) && strtotime($bookTime) < strtotime($shift['time_end'])){
                 $clockIn = HairstylistAttendance::where('id_user_hair_stylist', $val['id_user_hair_stylist'])
                     ->where('id_hairstylist_schedule_date', $shift['id_hairstylist_schedule_date'])->first()['clock_in']??null;
@@ -2666,11 +2670,13 @@ class ApiProductController extends Controller
             ];
         }
 
-        usort($res, function($a, $b) {
-            return $a['order'] - $b['order'];
-        });
+        if(!empty($res)){
+            usort($res, function($a, $b) {
+                return $a['order'] - $b['order'];
+            });
+        }
 
-        return response()->json(MyHelper::checkGet($res));
+        return response()->json(['status' => 'success', 'result' => $res]);
     }
 
     function getTimeShift($shift, $id_outlet, $id_outlet_schedule){

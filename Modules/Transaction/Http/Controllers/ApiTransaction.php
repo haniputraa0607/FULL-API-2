@@ -5907,10 +5907,10 @@ class ApiTransaction extends Controller
 				}
 
 				$services[] = [
-					'id_user_hair_stylist' => $hairstylist['id_user_hair_stylist'],
-					'hairstylist_name' => $hairstylist['nickname'],
-                    'hairstylist_phone_number' => $hairstylist['phone_number'],
-                    'hairstylist_photo' => $hairstylist['user_hair_stylist_photo'],
+					'id_user_hair_stylist' => $hairstylist['id_user_hair_stylist']??null,
+					'hairstylist_name' => $hairstylist['nickname']??'',
+                    'hairstylist_phone_number' => $hairstylist['phone_number']??'',
+                    'hairstylist_photo' => $hairstylist['user_hair_stylist_photo']??'',
 					'schedule_date' => MyHelper::dateFormatInd($detail['schedule_date'], true, false),
 					'schedule_time' => date('H:i', strtotime($detail['schedule_time'])),
 					'product_name' => $product['product']['product_name'],

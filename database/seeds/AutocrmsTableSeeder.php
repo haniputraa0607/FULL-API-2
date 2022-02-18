@@ -1057,7 +1057,7 @@ Message :
                 'autocrm_email_subject' => '',
                 'autocrm_email_content' => '',
                 'autocrm_sms_content' => '',
-                'autocrm_push_subject' => 'Selamat bergabung di aplikasi RESTO!',
+                'autocrm_push_subject' => 'Selamat bergabung di aplikasi!',
                 'autocrm_push_content' => 'Silahkan lengkapi data diri kamu untuk mendapatkan Champoints tambahan, tingkatkan transaksi kamu untuk mendapatkan Champoints dan tukarkan dengan penawaran menarik dari kami.',
                 'autocrm_push_image' => NULL,
                 'autocrm_push_clickto' => 'Profil',

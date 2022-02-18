@@ -8,7 +8,7 @@
 namespace App\Http\Models;
 
 use Illuminate\Database\Eloquent\Model;
-
+use App\Lib\MyHelper;
 /**
  * Class Setting
  * 
@@ -30,4 +30,10 @@ class Setting extends Model
 		'value',
 		'value_text'
 	];
+        public static function mid_date(){
+            return MyHelper::setting('hs_income_delivery_cut_off_middle_date', 'value', 11);
+        }
+        public static function end_date(){
+           return MyHelper::setting('hs_income_delivery_cut_off_end_date', 'value', 25);
+        }
 }

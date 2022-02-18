@@ -162,13 +162,13 @@ class Icount
     public static function ApiInvoiceSPK($request, $company = null, $logType = null, $orderId = null){
         $data = [
             "SalesOrderID" => $request['partner']['id_sales_order'],
-            "VoucherNo" => $request['partner']['voucher_no'],
+            "VoucherNo" => '[AUTO]',
             "TransDate" => $request['location']['trans_date'],
             "DueDate" => $request['location']['due_date'],
             "BusinessPartnerID" => $request['partner']['id_business_partner'],
             "BranchID" => $request['location']['id_branch'],
             "TermOfPaymentID" => $request['location']['id_term_of_payment'],
-            "ReferenceNo" => $request['confir']['no_letter'],
+            "ReferenceNo" => $request['location']['no_spk'],
             "TaxNo" => '',
             "Notes" => $request['partner']['notes'],
             "Detail" => [
@@ -199,13 +199,13 @@ class Icount
     public static function ApiInvoiceBAP($request, $company = null, $logType = null, $orderId = null){
         $data = [
             "SalesOrderID" => $request['partner']['id_sales_order'],
-            "VoucherNo" => $request['partner']['voucher_no'],
+            "VoucherNo" => "[AUTO]",
             "TransDate" => $request['location']['trans_date'],
             "DueDate" => $request['location']['due_date'],
             "BusinessPartnerID" => $request['partner']['id_business_partner'],
             "BranchID" => $request['location']['id_branch'],
             "TermOfPaymentID" => $request['location']['id_term_of_payment'],
-            "ReferenceNo" => $request['confir']['no_letter'],
+            "ReferenceNo" => "",
             "TaxNo" => '',
             "Notes" => $request['partner']['notes'],
             "Detail" => [
@@ -273,12 +273,12 @@ class Icount
         }
         
         $data = [
-            "VoucherNo" => $request['partner']['voucher_no'],
+            "VoucherNo" => "[AUTO]",
             "TransDate" => $request['location']['trans_date'],
             "DueDate" => $request['location']['due_date'],
             "BusinessPartnerID" => $request['partner']['id_business_partner'],
             "BranchID" => $request['location']['id_branch'],
-            "ReferenceNo" => $request['confir']['no_letter'],
+            "ReferenceNo" => $request['location']['no_spk'],
             "Notes" => $request['partner']['notes'],
             "Detail" => $detail
         ];

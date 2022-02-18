@@ -103,7 +103,48 @@ class XenditController extends Controller
 
         DB::beginTransaction();
 
-        if (stristr($post['external_id'], config('configs.PREFIX_TRANSACTION_NUMBER'))) {
+        if(substr_count($post['external_id'],"-") >= 2) {
+            $installment_payment = TransactionAcademyInstallmentPaymentXendit::where('external_id', $post['external_id'])->first();
+
+            if (!$installment_payment) {
+                $status_code = 404;
+                $response    = ['status' => 'fail', 'messages' => ['Transaction not found']];
+                goto end;
+            }
+            if ($installment_payment->amount != $post['amount']) {
+                $status_code = 422;
+                $response    = ['status' => 'fail', 'messages' => ['Invalid amount']];
+                goto end;
+            }
+
+            $installment = TransactionAcademyInstallment::where('id_transaction_academy_installment', $installment_payment['id_transaction_academy_installment'])->first();
+
+            if ($universalStatus == 'COMPLETED') {
+                $update = $installment->triggerPaymentCompleted();
+            } elseif ($universalStatus == 'FAILED') {
+                $update = $installment->triggerPaymentCancelled();
+            }
+
+            if (!$update) {
+                DB::rollBack();
+                $status_code = 500;
+                $response    = [
+                    'status'   => 'fail',
+                    'messages' => ['Failed update payment status'],
+                ];
+                goto end;
+            }
+
+            $installment_payment->update([
+                'status'         => $universalStatus,
+                'xendit_id'      => $post['id'] ?? null,
+                'expiration_date'=> $post['expiration_date'] ?? null,
+                'failure_code'   => $post['failure_code'] ?? null,
+            ]);
+            DB::commit();
+            $status_code = 200;
+            $response    = ['status' => 'success'];
+        } elseif (substr_count($post['external_id'],"-") == 1) {
             $trx = Transaction::where('transaction_receipt_number', $post['external_id'])->join('transaction_payment_xendits', 'transactions.id_transaction', '=', 'transaction_payment_xendits.id_transaction')->first();
             if (!$trx) {
                 $status_code = 404;
@@ -193,47 +234,6 @@ class XenditController extends Controller
                     'id_subscription_user' => $subs_payment->id_subscription_user,
                 ]
             );
-            $status_code = 200;
-            $response    = ['status' => 'success'];
-        } elseif (stristr($post['external_id'], 'INS')) {
-            $installment_payment = TransactionAcademyInstallmentPaymentXendit::where('external_id', $post['external_id'])->first();
-
-            if (!$installment_payment) {
-                $status_code = 404;
-                $response    = ['status' => 'fail', 'messages' => ['Transaction not found']];
-                goto end;
-            }
-            if ($installment_payment->amount != $post['amount']) {
-                $status_code = 422;
-                $response    = ['status' => 'fail', 'messages' => ['Invalid amount']];
-                goto end;
-            }
-
-            $installment = TransactionAcademyInstallment::where('id_transaction_academy_installment', $installment_payment['id_transaction_academy_installment'])->first();
-
-            if ($universalStatus == 'COMPLETED') {
-                $update = $installment->triggerPaymentCompleted();
-            } elseif ($universalStatus == 'FAILED') {
-                $update = $installment->triggerPaymentCancelled();
-            }
-
-            if (!$update) {
-                DB::rollBack();
-                $status_code = 500;
-                $response    = [
-                    'status'   => 'fail',
-                    'messages' => ['Failed update payment status'],
-                ];
-                goto end;
-            }
-
-            $installment_payment->update([
-                'status'         => $universalStatus,
-                'xendit_id'      => $post['id'] ?? null,
-                'expiration_date'=> $post['expiration_date'] ?? null,
-                'failure_code'   => $post['failure_code'] ?? null,
-            ]);
-            DB::commit();
             $status_code = 200;
             $response    = ['status' => 'success'];
         } else {

@@ -12,7 +12,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Modules\Product\Entities\ProductDetail;
 use SMartins\PassportMultiauth\HasMultiAuthApiTokens;
 use Hash;
-
+use Modules\BusinessDevelopment\Entities\Location;
 /**
  * Class Outlet
  *
@@ -252,5 +252,8 @@ class Outlet extends Authenticatable
     public function outlet_time_shifts()
     {
         return $this->hasMany(\Modules\Outlet\Entities\OutletTimeShift::class, 'id_outlet');
+    }
+    public function location_outlet(){
+        return $this->belongsTo(Location::class, 'id_location');
     }
 }

@@ -221,18 +221,26 @@ class ApiProjectController extends Controller
         
     }
     function outlet_code(){
+        $s = 1;
         $year = date('y');
         $month = date('m');
         $yearMonth = 'OUT'.$year.$month;
-        $no = Outlet::where('outlet_code','like', $yearMonth.'%')->count() + 1;
-        if($no < 10 ){
-            $no = '000'.$no;
-        }elseif($no < 100 && $no >= 10){
-            $no = '00'.$no;
-        }elseif($no < 1000 && $no >= 100){
-            $no = '0'.$no;
+        $nom = Outlet::where('outlet_code','like', $yearMonth.'%')->count();
+        for ($x = 0; $x < $s; $x++) {
+            $nom++;
+            if($nom < 10 ){
+                $nom = '000'.$nom;
+            }elseif($nom < 100 && $nom >= 10){
+                $nom = '00'.$nom;
+            }elseif($nom < 1000 && $nom >= 100){
+                $nom = '0'.$nom;
+            }
+            $no = $yearMonth.$nom;
+            $cek = Outlet::where('outlet_code',$no)->first();
+            if($cek){
+                $s++;
+            }
         }
-        $no = $yearMonth.$no;
         return $no;
     }
      public function excel(Request $request){

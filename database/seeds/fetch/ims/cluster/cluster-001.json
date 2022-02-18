@@ -1,0 +1,39 @@
+{
+    "Status": 0,
+    "Message": "Success",
+    "Data": [
+        {
+            "ClusterID": "013",
+            "CompanyID": "011",
+            "Name": "Employee",
+            "Timestamp": "AAAAAAAAdgU=",
+            "ModifiedDate": "2022-01-10T12:56:32.48"
+        },
+        {
+            "ClusterID": "012",
+            "CompanyID": "011",
+            "Name": "Hairstylist",
+            "Timestamp": "AAAAAAAAdgQ=",
+            "ModifiedDate": "2022-01-10T12:56:32.48"
+        },
+        {
+            "ClusterID": "011",
+            "CompanyID": "011",
+            "Name": "Partner",
+            "Timestamp": "AAAAAAAAdgM=",
+            "ModifiedDate": "2022-01-10T12:56:32.48"
+        }
+    ],
+    "Meta": {
+        "Pagination": {
+            "From": 1,
+            "To": 3,
+            "CurrentPage": 1,
+            "LastPage": 1,
+            "TotalRecord": 3
+        }
+    },
+    "Links": {
+        "BaseUrl": "BaseURL"
+    }
+}

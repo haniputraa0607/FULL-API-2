@@ -30,6 +30,9 @@ class OutletChangeLocation extends Model
             return $this->belongsTo(Location::class, 'to_id_location');
         }
          public function confirmation(){
-             return $this->hasMany(OutletChangeLocationConfirmationLetter::class, 'id_outlet_change_location');
+             return $this->belongsTo(ConfirmationLetter::class, 'id_partner');
         }
+        public function partners(){
+        return $this->belongsTo(Partner::class, 'id_partner');
+    }
 } 

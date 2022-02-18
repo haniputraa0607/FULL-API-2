@@ -219,7 +219,11 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
 
         Route::post('expense/outlet/create', 'ApiMitra@expenseOutletCreate');
         Route::post('expense/outlet/history', 'ApiMitra@expenseOutletHistory');
-
+        
+        Route::group(['prefix' => 'income'], function () {
+            Route::post('cron_middle', 'ApiIncome@cron_middle');
+            Route::post('cron_end', 'ApiIncome@cron_end');
+        });
 	});
 
     Route::group(['middleware' => ['auth:mitra', 'scopes:mitra-apps'], 'prefix' => 'attendance'], function () {

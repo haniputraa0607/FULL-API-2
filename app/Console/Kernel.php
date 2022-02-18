@@ -2,6 +2,8 @@
 
 namespace App\Console;
 
+use App\Lib\MyHelper;
+use Config;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
@@ -15,7 +17,6 @@ class Kernel extends ConsoleKernel
     protected $commands = [
         //
     ];
-
     /**
      * Define the application's command schedule.
      *
@@ -134,22 +135,22 @@ class Kernel extends ConsoleKernel
         /**
          * To process diburse
          */
-        if(env('TYPE_CRON_DISBURSE') == 'monthly'){
-            $schedule->call('Modules\Disburse\Http\Controllers\ApiIrisController@disburse')->monthlyOn(env('DAY_CRON_DISBURSE'), env('TIME_CRON_DISBURSE'));
-        }elseif (env('TYPE_CRON_DISBURSE') == 'weekly'){
-            $schedule->call('Modules\Disburse\Http\Controllers\ApiIrisController@disburse')->weeklyOn(env('DAY_WEEK_CRON_DISBURSE'), env('TIME_CRON_DISBURSE'));
-        }elseif (env('TYPE_CRON_DISBURSE') == 'daily'){
-            $schedule->call('Modules\Disburse\Http\Controllers\ApiIrisController@disburse')->dailyAt(env('TIME_CRON_DISBURSE'));
-        }
-
-        /**
-         * To send email report trx
-         */
-        $schedule->call('Modules\Disburse\Http\Controllers\ApiDisburseController@cronSendEmailDisburse')->dailyAt('02:00');
-        /**
-         * To send
-         */
-        $schedule->call('Modules\Disburse\Http\Controllers\ApiDisburseController@shortcutRecap')->dailyAt('02:30');
+//        if(env('TYPE_CRON_DISBURSE') == 'monthly'){
+//            $schedule->call('Modules\Disburse\Http\Controllers\ApiIrisController@disburse')->monthlyOn(env('DAY_CRON_DISBURSE'), env('TIME_CRON_DISBURSE'));
+//        }elseif (env('TYPE_CRON_DISBURSE') == 'weekly'){
+//            $schedule->call('Modules\Disburse\Http\Controllers\ApiIrisController@disburse')->weeklyOn(env('DAY_WEEK_CRON_DISBURSE'), env('TIME_CRON_DISBURSE'));
+//        }elseif (env('TYPE_CRON_DISBURSE') == 'daily'){
+//            $schedule->call('Modules\Disburse\Http\Controllers\ApiIrisController@disburse')->dailyAt(env('TIME_CRON_DISBURSE'));
+//        }
+//
+//        /**
+//         * To send email report trx
+//         */
+//        $schedule->call('Modules\Disburse\Http\Controllers\ApiDisburseController@cronSendEmailDisburse')->dailyAt('02:00');
+//        /**
+//         * To send
+//         */
+//        $schedule->call('Modules\Disburse\Http\Controllers\ApiDisburseController@shortcutRecap')->dailyAt('02:30');
         /**
          * Void failed transaction shopeepay
          */
@@ -234,6 +235,9 @@ class Kernel extends ConsoleKernel
          * run every 00:10 AM
          */
         $schedule->call('Modules\Recruitment\Http\Controllers\ApiHairStylistScheduleController@checkScheduleHS')->dailyAt('00:10');
+        
+        $schedule->call('Modules\Recruitment\Http\Controllers\ApiIncome@cron_middle')->monthlyOn(Config::get('app.income_date_middle'),'00:01');
+        $schedule->call('Modules\Recruitment\Http\Controllers\ApiIncome@cron_end')->monthlyOn(Config::get('app.income_date_end'),'00:01');
 
 
     }

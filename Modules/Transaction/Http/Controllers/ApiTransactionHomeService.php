@@ -156,12 +156,12 @@ class ApiTransactionHomeService extends Controller
 
             if($service['visibility_outlet'] == 'Hidden' || (empty($service['visibility_outlet']) && $service['product_visibility'] == 'Hidden')){
                 $err[] = 'Service tidak tersedia';
-                $errAll[] = 'Service '.$service['product_name'].'tidak tersedia';
+                $errAll[] = 'Service '.$service['product_name'].' tidak tersedia';
             }
 
             if(!is_null($getProductDetail['product_detail_stock_item']) && $item['qty'] > $getProductDetail['product_detail_stock_item']){
                 $err[] = 'Service tidak tersedia';
-                $errAll[] = 'Service '.$service['product_name'].'tidak tersedia';
+                $errAll[] = 'Service '.$service['product_name'].' tidak tersedia';
             }
 
             $itemService[$key] = [

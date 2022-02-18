@@ -39,11 +39,18 @@ class SyncIcountItems implements ShouldQueue
     {
         $icount = new Icount();
         $id_items = $this->data['id_items'];
-        $data = $icount->ItemList($this->data['page']);
+        if($this->data['ima']){
+            $data = $icount->ItemList($this->data['page'],null,'PT IMA');
+            $company = 'ima';
+        }
+        if($this->data['ims']){
+            $data = $icount->ItemList($this->data['page'],null,'PT IMS');
+            $company = 'ims';
+        }
         if(isset($data)){
             if($data['response']['Message']=='Success'){
                 $items = $data['response']['Data'];
-                $items = $this->checkInputIcount($items);
+                $items = $this->checkInputIcount($items,$company);
                 if($data['response']['Meta']['Pagination']['CurrentPage']==1){
                     $index = 0;
                 }else{
@@ -51,9 +58,9 @@ class SyncIcountItems implements ShouldQueue
                 }
                 foreach($items as $item){
                     $id_items[$index] = $item['id_item'];
-                    $check_item = ProductIcount::where('id_item','=',$item['id_item'])->first();
+                    $check_item = ProductIcount::where('id_item','=',$item['id_item'])->where('company_type', $company)->first();
                     if($check_item){
-                        $update = ProductIcount::where('id_item','=',$item['id_item'])->update($item);
+                        $update = ProductIcount::where('id_item','=',$item['id_item'])->where('company_type', $company)->update($item);
                         if(!$update){
                             return ['status' => 'fail', 'messages' => ['Failed to sync with ICount']];    
                         }
@@ -68,18 +75,30 @@ class SyncIcountItems implements ShouldQueue
 
                 if($data['response']['Meta']['Pagination']['CurrentPage']<$data['response']['Meta']['Pagination']['LastPage']){
                     $new_page = $data['response']['Meta']['Pagination']['CurrentPage'] + 1;
-                    SyncIcountItems::dispatch(['page'=> $new_page,'id_items' => $id_items]);
                     Setting::where('key','Sync Product Icount')->update(['value' => 'process']);
-                }else{
-                    ProductIcount::whereIn('id_item',$id_items)->update(['is_actived' => 'true']);
-                    ProductIcount::whereNotIn('id_item',$id_items)->update(['is_actived' => 'false']);
+                    if($company == 'ima'){
+                        $ima = true;
+                        $ims = false;
+                    }
+                    if($company == 'ims'){
+                        $ima = false;
+                        $ims = true;
+                    }
+                    SyncIcountItems::dispatch(['page'=> $new_page,'id_items' => $id_items, 'ima' => $ima, 'ims' => $ims]);
+                }
+                else{
+                    ProductIcount::whereIn('id_item',$id_items)->where('company_type', $company)->update(['is_actived' => 'true']);
+                    ProductIcount::whereNotIn('id_item',$id_items)->where('company_type', $company)->update(['is_actived' => 'false']);
+                    if($this->data['ima']){
+                        SyncIcountItems::dispatch(['page'=> '1','id_items' => null, 'ima' => false, 'ims' => true]);
+                    }
                     Setting::where('key','Sync Product Icount')->update(['value' => 'finished']);
                 }
             }
         }
     }
 
-    public function checkInputIcount($array){
+    public function checkInputIcount($array, $company){
         if($array){
             $data = [];
             foreach($array as $key => $item){
@@ -88,6 +107,9 @@ class SyncIcountItems implements ShouldQueue
                 }
                 if (isset($item['CompanyID'])) {
                     $data[$key]['id_company'] = $item['CompanyID'];
+                }
+                if (isset($company)) {
+                    $data[$key]['company_type'] = $company;
                 }
                 if (isset($item['Code']) ) {
                     $data[$key]['code'] = $item['Code'];

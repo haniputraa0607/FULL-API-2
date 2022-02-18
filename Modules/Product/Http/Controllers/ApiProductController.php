@@ -1195,6 +1195,16 @@ class ApiProductController extends Controller
             }
         }
         unset($post['product_brands']);
+
+        if(!empty($post['product_icount'])){
+            $product_use = [
+                "product_icount" => $post['product_icount'],
+                "id_product" => $post['id_product'],
+            ];
+            $store_icount = app('\Modules\Product\Http\Controllers\ApiProductProductIcountController')->update(New Request($product_use));
+            unset($post['product_icount']);
+        }
+
         // promo_category
         ProductProductPromoCategory::where('id_product',$post['id_product'])->delete();
         ProductProductPromoCategory::insert(array_map(function($id_product_promo_category) use ($post) {
@@ -3144,7 +3154,9 @@ class ApiProductController extends Controller
         }
         $send = [
             'page' => 1,
-            'id_items' => null
+            'id_items' => null,
+            'ima' => true,
+            'ims' => false, 
         ];
         $sync_job = SyncIcountItems::dispatch($send);
         return ['status' => 'success', 'messages' => ['Success to sync with ICount']]; 
@@ -3217,6 +3229,14 @@ class ApiProductController extends Controller
 
         if (isset($post['id_product'])) {
             $product->with('category')->where('products.id_product', $post['id_product'])->with(['brands']);
+        }
+        
+        if (isset($post['type'])) {
+            if($post['type'] == 'product'){
+                $product->where('product_icounts.item_group', '<>', 'Inventory');
+            }else{
+                $product->where('product_icounts.item_group', '=', 'Inventory');
+            }
         }
 
         if (isset($post['product_code'])) {

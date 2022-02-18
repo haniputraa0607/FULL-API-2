@@ -186,6 +186,8 @@ class ApiProductServiceController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
         }
 
+        $stockStatus = $post['stock_status']??false;
+
         $productServie = Product::select([
             'products.id_product', 'products.product_name', 'products.product_code', 'products.product_description', 'product_variant_status',
             'product_global_price.product_global_price as product_price', 'processing_time_service',
@@ -203,7 +205,10 @@ class ApiProductServiceController extends Controller
 
         $resProdService = [];
         foreach ($productServie as $val){
-            if($val['product_stock_status'] <= 0){
+            $stock = 'Available';
+            if($stockStatus == true && $val['product_stock_status'] <= 0){
+                $stock = 'Sold Out';
+            }elseif($val['product_stock_status'] <= 0){
                 continue;
             }
 
@@ -216,6 +221,8 @@ class ApiProductServiceController extends Controller
                 'product_price' => (int)$val['product_price'],
                 'string_product_price' => 'Rp '.number_format((int)$val['product_price'],0,",","."),
                 'processing_time' => (int)$val['processing_time_service'],
+                'product_stock_status' => $stock,
+                'qty_stock' => (int)$val['product_stock_status'],
                 'photo' => (empty($val['photos'][0]['product_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$val['photos'][0]['product_photo'])
             ];
         }

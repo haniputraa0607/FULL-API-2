@@ -6132,7 +6132,7 @@ class ApiTransaction extends Controller
                                 DB::raw('
                                         SUM(
                                         CASE WHEN transaction_products.transaction_product_discount != 0 AND transaction_products.reject_at IS NULL THEN ABS(transaction_products.transaction_product_discount) 
-                                        WHEN transactions.transaction_discount_item != 0 AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_item) 
+                                        WHEN transactions.transaction_discount_bill != 0 AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_bill) 
                                         WHEN transactions.transaction_discount != 0 AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount)
                                         ELSE 0 END
                                         ) as discRp
@@ -6145,10 +6145,19 @@ class ApiTransaction extends Controller
                 $transaction = $transaction->get()->toArray();
 
                 if($transaction){
+                    foreach($transaction as $t => $tr){
+                        $transaction[$t]['total_product'] = TransactionProduct::Join('transactions','transactions.id_transaction','=','transaction_products.id_transaction')
+                                ->where('transactions.id_transaction', $tr['id_transaction'])
+                                ->select(DB::raw('
+                                        SUM(IF(transaction_products.id_transaction = transactions.id_transaction,transaction_product_price,0)) as total_product
+                                    '))
+                                ->first()['total_product'];
+                    }
                     $outlets[$key]['transaction'] = $transaction;
                 }else{
                     unset($outlets[$key]);
                 }
+
                 $i++;
             }
 
@@ -6160,16 +6169,28 @@ class ApiTransaction extends Controller
                     $new_transaction_non = [];
                     $new_transaction = [];
                     foreach($outlet['transaction'] as $t => $tran){
+                        if($tran['product_type']=='product'){
+                            $cek_prod = ProductProductIcount::where('id_product',$tran['id_product'])->first();
+                            if($cek_prod){
+                                $prod_icount = ProductIcount::where('id_product_icount',$cek_prod['id_product_icount'])->first();
+                                $tran['id_item_icount'] = $prod_icount['id_item'];
+                            }
+                        }
+
                         if($tran['transaction_tax']==0){
                             $new_transaction_non[$new_trans_non] = $tran;
                             if($tran['transaction_discount_bill']!=0 && $tran['transaction_product_discount'] != 0){
-                                $new_transaction_non[$new_trans_non]['discRp'] = $tran['discRp'] + $tran['transaction_discount_bill'];
+                                $new_transaction_non[$new_trans_non]['discRp'] = floor($tran['discRp'] + ($tran['transaction_discount_bill'] * $tran['transaction_product_price'] / $tran['total_product']));
+                            }elseif($tran['transaction_discount_bill']!=0){
+                                $new_transaction_non[$new_trans_non]['discRp'] = floor($tran['discRp'] * $tran['transaction_product_price'] / $tran['total_product']);
                             }
                             $new_trans_non++;
                         }else{
                             $new_transaction[$new_trans_use] = $tran;
                             if($tran['transaction_discount_bill']!=0 && $tran['transaction_product_discount'] != 0){
-                                $new_transaction[$new_trans_use]['discRp'] = $tran['discRp'] + $tran['transaction_discount_bill'];
+                                $new_transaction[$new_trans_use]['discRp'] = floor($tran['discRp'] + ($tran['transaction_discount_bill'] * $tran['transaction_product_price'] / $tran['total_product']));
+                            }elseif($tran['transaction_discount_bill']!=0){
+                                $new_transaction[$new_trans_use]['discRp'] = floor($tran['discRp'] * $tran['transaction_product_price'] / $tran['total_product']);
                             }
                             $new_trans_use++;
                         }
@@ -6194,14 +6215,14 @@ class ApiTransaction extends Controller
             foreach($new_outlets as $n => $new_outlet){
                     $create_order_poo[$n] = Icount::ApiCreateOrderPOO($new_outlet, $new_outlet['company_type']);
             }
-
+            
             $log->success('success');
             return response()->json(['status' => 'success','data' => $create_order_poo]);
 
         } catch (\Exception $e) {
             DB::rollBack();
             $log->fail($e->getMessage());
-        }     
+        }        
     }
     public function revenue_sharing(){
         $log = MyHelper::logCron('Revenue Sharing');

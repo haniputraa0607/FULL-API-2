@@ -304,9 +304,6 @@ class ApiMitraOutletService extends Controller
     	$user = $request->user();
 
     	$trxReceiptNumber = $request->transaction_receipt_number;
-    	if(substr($trxReceiptNumber, 0, 1) != '#'){
-            $trxReceiptNumber = '#'.$trxReceiptNumber;
-        }
     	$checkQr = Transaction::where('transaction_receipt_number',$trxReceiptNumber)
     				->with('transaction_product_services')
     				->first();

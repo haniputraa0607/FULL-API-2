@@ -894,7 +894,7 @@ class ApiOnlineTransaction extends Controller
 
         //update receipt
         $countReciptNumber = Transaction::where('id_outlet', $insertTransaction['id_outlet'])->count();
-        $receipt = '#'.substr($outlet['outlet_code'], -4).'-'.sprintf("%05d", $countReciptNumber);
+        $receipt = 'TRX'.substr($outlet['outlet_code'], -4).'-'.sprintf("%05d", $countReciptNumber);
         $updateReceiptNumber = Transaction::where('id_transaction', $insertTransaction['id_transaction'])->update([
             'transaction_receipt_number' => $receipt
         ]);

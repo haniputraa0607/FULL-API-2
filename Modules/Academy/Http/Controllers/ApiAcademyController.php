@@ -788,7 +788,7 @@ class ApiAcademyController extends Controller
             $insertUpdate = TransactionAcademyInstallmentUpdate::create(['id_transaction_academy_installment' => $dataInstallment['id_transaction_academy_installment'], 'installment_receipt_number_old' => $dataInstallment['installment_receipt_number']]);
             if($insertUpdate){
                 $trx = Transaction::join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')->where('id_transaction', $dataInstallment['id_transaction'])->first();
-                $newReceiptNumber = '#'.substr($trx['outlet_code'], -4).'-'.substr($trx['transaction_receipt_number'], -5).'-'.sprintf("%02d", $dataInstallment['installment_step']).'-'.time();
+                $newReceiptNumber = 'TRX'.substr($trx['outlet_code'], -4).'-'.substr($trx['transaction_receipt_number'], -5).'-'.sprintf("%02d", $dataInstallment['installment_step']).'-'.time();
                 $dataInstallment->update(['installment_receipt_number' => $newReceiptNumber]);
             }
         }

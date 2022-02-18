@@ -28,7 +28,7 @@ class LocationsTableSeeder extends Seeder
                         'address' => $item['Address'], 
                         'id_city' => 3173, 
                         'pic_contact' => $item['Phone'],
-                        'id_partner' => Partner::where($company == 'ima' ? 'id_business_partner_ima' : 'id_business_partner_ima', $item['BusinessPartnerID'])->select('id_partner')->pluck('id_partner')->first(),
+                        'id_partner' => Partner::where($company == 'ima' ? 'id_business_partner_ima' : 'id_business_partner', $item['BusinessPartnerID'])->select('id_partner')->pluck('id_partner')->first(),
                         'status' => 'Active',
                         'step_loc' => 'Approved',
                     ]);

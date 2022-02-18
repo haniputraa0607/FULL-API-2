@@ -72,7 +72,12 @@ class ApiCronTrxController extends Controller
             $now       = date('Y-m-d H:i:s');
             $expired   = date('Y-m-d H:i:s',strtotime('- 5minutes'));
 
-            $getTrx = Transaction::where('transaction_payment_status', 'Pending')->whereNotIn('trasaction_payment_type', ['Installment','Cash'])->where('transaction_date', '<=', $expired)->get();
+            $getTrx = Transaction::where('transaction_payment_status', 'Pending')
+                ->where(function ($q){
+                    $q->whereNotIn('trasaction_payment_type', ['Installment','Cash'])
+                        ->orWhereNull('trasaction_payment_type');
+                })
+                ->where('transaction_date', '<=', $expired)->get();
 
             if (empty($getTrx)) {
                 $log->success('empty');
@@ -96,8 +101,6 @@ class ApiCronTrxController extends Controller
                     $midtransStatus = Midtrans::status($singleTrx->id_transaction);
                     if ((($midtransStatus['status'] ?? false) == 'fail' && ($midtransStatus['messages'][0] ?? false) == 'Midtrans payment not found') || in_array(($midtransStatus['response']['transaction_status'] ?? false), ['deny', 'cancel', 'expire', 'failure']) || ($midtransStatus['status_code'] ?? false) == '404') {
                         $connectMidtrans = Midtrans::expire($singleTrx->transaction_receipt_number);
-                    } else {
-                        continue;
                     }
                 }elseif($singleTrx->trasaction_payment_type == 'Ipay88') {
                     $trx_ipay = TransactionPaymentIpay88::where('id_transaction',$singleTrx->id_transaction)->first();

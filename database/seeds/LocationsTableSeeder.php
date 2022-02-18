@@ -28,7 +28,7 @@ class LocationsTableSeeder extends Seeder
                         'address' => $item['Address'], 
                         'id_city' => 3173, 
                         'pic_contact' => $item['Phone'],
-                        'id_partner' => Partner::where($company == 'ima' ? 'id_business_partner_ima' : 'id_business_partner_ima', $item['BusinessPartnerID'])->select('id_partner')->pluck('id_partner')->first(),
+                        'id_partner' => Partner::where($company == 'ima' ? 'id_business_partner_ima' : 'id_business_partner', $item['BusinessPartnerID'])->select('id_partner')->pluck('id_partner')->first(),
                         'status' => 'Active',
                         'step_loc' => 'Approved',
                     ]);
@@ -46,6 +46,19 @@ class LocationsTableSeeder extends Seeder
                         'outlet_phone' => $item['Phone'],
                         'outlet_email' => $item['Email'],
                     ]);
+
+                    $boxes = $outlet->outlet_box;
+                    if ($boxes->count() < 5) {
+                        for ($i=0; $i<(5 - $boxes->count()); $i++) {
+                            $outlet->outlet_box()->create([
+                                'outlet_box_code' => $boxes->count() + 1 + $i,
+                                'outlet_box_name' => 'BOX ' . ($boxes->count() + 1 + $i),
+                                'outlet_box_url' => null,
+                                'outlet_box_status' => 'Active',
+                                'outlet_box_use_status' => 0
+                            ]);
+                        }
+                    }
                 }
             }
         }

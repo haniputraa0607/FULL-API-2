@@ -135,18 +135,22 @@ class ApiOutletServiseController extends Controller
             $currentDate = date('Y-m-d', strtotime($date));
             $currentHour = date('H:i:s', strtotime($date));
             $isClose = false;
-            $open = date('H:i:s', strtotime($val['today']['open']));
-            $close = date('H:i:s', strtotime($val['today']['close']));
-            foreach ($val['holidays'] as $holidays){
-                $dates = array_column($holidays['date_holidays'], 'date');
-                if(array_search($currentDate, $dates) !== false){
-                    $isClose = true;
-                    break;
-                }
-            }
-
-            if(strtotime($currentHour) < strtotime($open) || strtotime($currentHour) > strtotime($close) || $val['today']['is_closed'] == 1){
+            if(empty($val['today']['open']) || empty( $val['today']['close'])){
                 $isClose = true;
+            }else{
+                $open = date('H:i:s', strtotime($val['today']['open']));
+                $close = date('H:i:s', strtotime($val['today']['close']));
+                foreach ($val['holidays'] as $holidays){
+                    $dates = array_column($holidays['date_holidays'], 'date');
+                    if(array_search($currentDate, $dates) !== false){
+                        $isClose = true;
+                        break;
+                    }
+                }
+
+                if(strtotime($currentHour) < strtotime($open) || strtotime($currentHour) > strtotime($close) || $val['today']['is_closed'] == 1){
+                    $isClose = true;
+                }
             }
 
             $brand = [];

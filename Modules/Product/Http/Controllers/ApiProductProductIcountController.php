@@ -138,7 +138,7 @@ class ApiProductProductIcountController extends Controller
                 DB::commit();
                 $outlets = ProductDetail::where('id_product',$post['id_product'])->select('id_outlet')->get()->toArray();
                 foreach($post['product_icount'] ?? [] as $product_icount){
-                    // if($product_icount['id_product_icount'] == 13){
+
                         $id_product_icount = $product_icount['id_product_icount'];
                         $unit = $product_icount['unit'];
                         foreach($outlets ?? [] as $outlet){
@@ -146,7 +146,7 @@ class ApiProductProductIcountController extends Controller
                             $refresh_stock = $product_icount->find($id_product_icount)->refreshStock($outlet['id_outlet'],$unit);
     
                         }
-                    // }
+
                 }
                 return response()->json(MyHelper::checkUpdate($save));
             }

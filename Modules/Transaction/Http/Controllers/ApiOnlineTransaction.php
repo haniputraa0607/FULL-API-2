@@ -221,6 +221,7 @@ class ApiOnlineTransaction extends Controller
                 ->join('provinces', 'provinces.id_province', 'cities.id_province')
                 ->where('outlet_code', $post['outlet_code'])
                 ->with('today')->where('outlet_status', 'Active')
+                ->where('outlets.outlet_service_status', 1)
                 ->select('outlets.*', 'cities.city_name', 'provinces.time_zone_utc as province_time_zone_utc')->first();
             $post['id_outlet'] = $outlet['id_outlet']??null;
             if (empty($outlet)) {
@@ -234,6 +235,7 @@ class ApiOnlineTransaction extends Controller
             $outlet = Outlet::where('id_outlet', $post['id_outlet'])->with('today')->where('outlet_status', 'Active')
                 ->join('cities', 'cities.id_city', 'outlets.id_city')
                 ->join('provinces', 'provinces.id_province', 'cities.id_province')
+                ->where('outlets.outlet_service_status', 1)
                 ->select('outlets.*', 'cities.city_name', 'provinces.time_zone_utc as province_time_zone_utc')->first();
             if (empty($outlet)) {
                 DB::rollback();
@@ -1576,14 +1578,14 @@ class ApiOnlineTransaction extends Controller
 
         //Check Outlet
         if(!empty($post['outlet_code'])){
-            $outlet = Outlet::where('outlet_code', $post['outlet_code'])->with('today')->where('outlet_status', 'Active')
+            $outlet = Outlet::where('outlet_code', $post['outlet_code'])->with('today')->where('outlet_status', 'Active')->where('outlets.outlet_service_status', 1)
                 ->join('cities', 'cities.id_city', 'outlets.id_city')
                 ->join('provinces', 'provinces.id_province', 'cities.id_province')
                 ->select('outlets.*', 'cities.city_name', 'provinces.time_zone_utc as province_time_zone_utc')
                 ->first();
             $post['id_outlet'] = $outlet['id_outlet']??null;
         }else{
-            $outlet = Outlet::where('id_outlet', $post['id_outlet'])->with('today')->where('outlet_status', 'Active')
+            $outlet = Outlet::where('id_outlet', $post['id_outlet'])->with('today')->where('outlet_status', 'Active')->where('outlets.outlet_service_status', 1)
                 ->join('cities', 'cities.id_city', 'outlets.id_city')
                 ->join('provinces', 'provinces.id_province', 'cities.id_province')
                 ->select('outlets.*', 'cities.city_name', 'provinces.time_zone_utc as province_time_zone_utc')
@@ -4085,6 +4087,8 @@ class ApiOnlineTransaction extends Controller
         }
 
         $outlet = Outlet::join('cities', 'cities.id_city', 'outlets.id_city')
+            ->where('outlets.outlet_status', 'Active')
+            ->where('outlets.outlet_service_status', 1)
             ->join('provinces', 'provinces.id_province', 'cities.id_province')
             ->with('today')->select('outlets.*', 'provinces.time_zone_utc as province_time_zone_utc');
         //Check Outlet

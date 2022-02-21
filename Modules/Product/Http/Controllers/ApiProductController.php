@@ -2187,19 +2187,23 @@ class ApiProductController extends Controller
         $date = date('Y-m-d H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($date)));
         $currentDate = date('Y-m-d', strtotime($date));
         $currentHour = date('H:i:s', strtotime($date));
-        $open = date('H:i:s', strtotime($outlet['today']['open']));
-        $close = date('H:i:s', strtotime($outlet['today']['close']));
-        foreach ($outlet['holidays'] as $holidays){
-            $holiday = $holidays['date_holidays']->toArray();
-            $dates = array_column($holiday, 'date');
-            if(array_search($currentDate, $dates) !== false){
-                $isClose = true;
-                break;
-            }
-        }
-
-        if(empty($outlet['today']) || strtotime($currentHour) < strtotime($open) || strtotime($currentHour) > strtotime($close) || $outlet['today']['is_closed'] == 1){
+        if(empty($val['today']['open']) || empty( $val['today']['close'])){
             $isClose = true;
+        }else{
+            $open = date('H:i:s', strtotime($outlet['today']['open']));
+            $close = date('H:i:s', strtotime($outlet['today']['close']));
+            foreach ($outlet['holidays'] as $holidays){
+                $holiday = $holidays['date_holidays']->toArray();
+                $dates = array_column($holiday, 'date');
+                if(array_search($currentDate, $dates) !== false){
+                    $isClose = true;
+                    break;
+                }
+            }
+
+            if(empty($outlet['today']) || strtotime($currentHour) < strtotime($open) || strtotime($currentHour) > strtotime($close) || $outlet['today']['is_closed'] == 1){
+                $isClose = true;
+            }
         }
 
         $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')

@@ -18,6 +18,9 @@ use Modules\Recruitment\Http\Requests\user_hair_stylist_create;
 use Image;
 use DB;
 use Modules\Recruitment\Entities\UserHairStylistExperience;
+use Modules\Transaction\Entities\TransactionHomeService;
+use Modules\Transaction\Entities\TransactionProductService;
+use App\Http\Models\Transaction;
 
 class ApiHairStylistController extends Controller
 {
@@ -546,17 +549,10 @@ class ApiHairStylistController extends Controller
                     $sendCrmUpdatePin = 1;
                 }
 
-                $idOutletOld = $post['id_outlet_old'];
-
                 unset($post['pin']);
                 unset($post['pin2']);
                 unset($post['auto_generate_pin']);
-                unset($post['id_outlet_old']);
                 $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update($post);
-
-                if($update && $post['id_outlet'] != $idOutletOld){
-                    UpdateScheduleHSJob::dispatch(['id_user_hair_stylist' => $post['id_user_hair_stylist']])->allOnConnection('database');
-                }
 
                 if($update && $sendCrmUpdatePin == 1){
                     $autocrm = app($this->autocrm)->SendAutoCRM(
@@ -664,6 +660,69 @@ class ApiHairStylistController extends Controller
 				DB::commit();
 			}
             return response()->json(MyHelper::checkUpdate($update));
+        } else {
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    }
+
+    function totalOrder(Request $request){
+        $post = $request->json()->all();
+
+        if (!empty($post['id_user_hair_stylist'])) {
+            $hs = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->first();
+            if(empty($hs)){
+                return response()->json(['status' => 'fail', 'messages' => ['Hair stylist not found']]);
+            }
+
+            $currentDate = date('Y-m-d');
+            $outletService = TransactionProductService::where('id_user_hair_stylist', $post['id_user_hair_stylist'])
+                                ->whereDate('schedule_date', '>=', $currentDate)->pluck('id_transaction')->toArray();
+            $homeService = TransactionHomeService::where('id_user_hair_stylist', $post['id_user_hair_stylist'])
+                                ->whereDate('schedule_date', '>=', $currentDate)->pluck('id_transaction')->toArray();
+
+            $id = array_merge($outletService,$homeService);
+            $res = Transaction::where('transaction_payment_status', 'Completed')->whereIn('transaction_from', ['outlet-service', 'home-service'])
+                        ->whereIn('id_transaction', $id)->where('id_outlet', $hs['id_outlet'])->with(['user', 'outlet'])->get()->toArray();
+
+            return response()->json(MyHelper::checkGet($res));
+        } else {
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    }
+
+    function moveOutlet(Request $request){
+        $post = $request->json()->all();
+
+        if (!empty($post['id_user_hair_stylist'])) {
+            $hs = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->first();
+            if(empty($hs)){
+                return response()->json(['status' => 'fail', 'messages' => ['Hair stylist not found']]);
+            }
+
+            if($hs['id_outlet'] != $post['id_outlet']){
+                $currentDate = date('Y-m-d');
+                $outletService = TransactionProductService::where('id_user_hair_stylist', $post['id_user_hair_stylist'])
+                    ->whereDate('schedule_date', '>=', $currentDate)->pluck('id_transaction')->toArray();
+                $homeService = TransactionHomeService::where('id_user_hair_stylist', $post['id_user_hair_stylist'])
+                    ->whereDate('schedule_date', '>=', $currentDate)->pluck('id_transaction')->toArray();
+
+                $id = array_merge($outletService,$homeService);
+                $res = Transaction::where('transaction_payment_status', 'Completed')->whereIn('transaction_from', ['outlet-service', 'home-service'])
+                    ->whereIn('id_transaction', $id)->where('id_outlet', $hs['id_outlet'])->count();
+
+                if($res > 0){
+                    return response()->json(['status' => 'fail', 'messages' => ['Hair stylist have transaction']]);
+                }
+
+                $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update(['id_outlet' => $post['id_outlet']]);
+                if($update){
+                    UpdateScheduleHSJob::dispatch(['id_user_hair_stylist' => $post['id_user_hair_stylist']])->allOnConnection('database');
+                }
+
+                return response()->json(MyHelper::checkUpdate($update));
+            }
+
+            return response()->json(['status' => 'success']);
         } else {
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
         }

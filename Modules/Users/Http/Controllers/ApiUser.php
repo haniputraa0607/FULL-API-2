@@ -1510,7 +1510,7 @@ class ApiUser extends Controller
 
         $cekFraud = 0;
         if ($datauser) {
-            User::where('phone', $phone)->update(['otp_forgot' => null]);
+            User::where('phone', $phone)->update(['otp_forgot' => null, 'otp_valid_time' => null]);
             if (Auth::attempt(['phone' => $phone, 'password' => $request->json('pin')])) {
                 /*first if --> check if otp have expired and the current time exceeds the expiration time*/
                 if(!is_null($datauser[0]['otp_valid_time']) && strtotime(date('Y-m-d H:i:s')) > strtotime($datauser[0]['otp_valid_time'])){

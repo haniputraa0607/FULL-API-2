@@ -90,7 +90,6 @@ class ApiOutletServiseController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Latitude and Longitude can not be empty']]);
         }
         $totalListOutlet = Setting::where('key', 'total_list_nearby_outlet')->first()['value']??5;
-        $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
 
         $day = [
             'Mon' => 'Senin',
@@ -113,6 +112,7 @@ class ApiOutletServiseController extends Controller
                          + SIN(RADIANS(outlets.outlet_latitude))
                          * SIN(RADIANS('.$post['latitude'].')))))) AS distance_in_km' )
             ->where('outlets.outlet_status', 'Active')
+            ->where('outlet_service_status', 1)
             ->whereNotNull('outlets.outlet_latitude')
             ->whereNotNull('outlets.outlet_longitude')
             ->whereHas('brands',function($query){
@@ -122,9 +122,6 @@ class ApiOutletServiseController extends Controller
             ->orderBy('distance_in_km', 'asc')
             ->limit($totalListOutlet);
 
-        if(!empty($outletHomeService)){
-            $outlet = $outlet->whereNotIn('id_outlet', [$outletHomeService]);
-        }
         $outlet = $outlet->get()->toArray();
         $res = [];
         foreach ($outlet as $val){
@@ -200,6 +197,7 @@ class ApiOutletServiseController extends Controller
         $detail = Outlet::join('cities', 'cities.id_city', 'outlets.id_city')
                     ->join('provinces', 'provinces.id_province', 'cities.id_province')
                     ->where('outlets.outlet_status', 'Active')
+                    ->where('outlets.outlet_service_status', 1)
                     ->with(['outlet_schedules','brands', 'today', 'holidays', 'holidays.date_holidays'])
                     ->select('outlets.*', 'cities.city_name', 'provinces.time_zone_utc as province_time_zone_utc');
 

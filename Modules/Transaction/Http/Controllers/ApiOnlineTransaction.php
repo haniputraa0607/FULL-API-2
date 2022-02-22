@@ -4627,10 +4627,14 @@ class ApiOnlineTransaction extends Controller
             ->whereDate('date', $data['booking_date'])
             ->first();
         if($data['booking_date'] == date('Y-m-d') && strtotime($data['booking_time']) >= strtotime($shift['time_start']) && strtotime($data['booking_time']) < strtotime($shift['time_end'])){
-            $clockIn = HairstylistAttendance::where('id_user_hair_stylist', $data['id_user_hair_stylist'])
-                    ->where('id_hairstylist_schedule_date', $shift['id_hairstylist_schedule_date'])->first()['clock_in']??null;
-            if(!empty($clockIn)){
+            $clockInOut = HairstylistAttendance::where('id_user_hair_stylist', $data['id_user_hair_stylist'])
+                ->where('id_hairstylist_schedule_date', $shift['id_hairstylist_schedule_date'])->orderBy('updated_at', 'desc')->first();
+
+            if(!empty($clockInOut) && !empty($clockInOut['clock_in']) && strtotime($data['booking_time']) >= strtotime($clockInOut['clock_in'])){
                 $availableStatus = true;
+                if(!empty($clockInOut['clock_out']) && strtotime($data['booking_time']) > strtotime($clockInOut['clock_out'])){
+                    $availableStatus = false;
+                }
             }
         }else{
             $shiftTimeStart = date('H:i:s', strtotime($shift['time_start']));

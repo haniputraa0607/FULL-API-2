@@ -56,24 +56,17 @@ class UpdateScheduleHSJob implements ShouldQueue
 
         foreach($allSchedule as $schedule){
             $getAllShift = HairstylistScheduleDate::where('id_hairstylist_schedule', $schedule['id_hairstylist_schedule'])->whereDate('date', '>=', $currentDate)->orderBy('date', 'asc')->get()->toArray();
-            $getPrevShift = HairstylistScheduleDate::where('id_hairstylist_schedule', $schedule['id_hairstylist_schedule'])->whereDate('date', '<', $currentDate)->count();
-
             if(empty($getAllShift)){
                 continue;
             }
 
-            if($getPrevShift > 0){
-                $update = HairstylistSchedule::updateOrCreate([
-                    'id_user_hair_stylist' => $idUserHairStylist,
-                    'id_outlet' => $detail['id_outlet'],
-                    'schedule_month' => $currentMonth,
-                    'schedule_year' => $currentYear
-                ]);
-                $idSchedule = $update['id_hairstylist_schedule'];
-            }else{
-                $update = HairstylistSchedule::where('id_hairstylist_schedule', $schedule['id_hairstylist_schedule'])->update(['id_outlet' => $detail['id_outlet']]);
-                $idSchedule = $schedule['id_hairstylist_schedule'];
-            }
+            $update = HairstylistSchedule::updateOrCreate([
+                'id_user_hair_stylist' => $idUserHairStylist,
+                'id_outlet' => $detail['id_outlet'],
+                'schedule_month' => $currentMonth,
+                'schedule_year' => $currentYear
+            ]);
+            $idSchedule = $update['id_hairstylist_schedule'];
 
             if($update){
                 foreach ($getAllShift as $shift){

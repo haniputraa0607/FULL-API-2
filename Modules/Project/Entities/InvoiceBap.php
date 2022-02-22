@@ -25,6 +25,8 @@ class InvoiceBap extends Model
         'amount',
         'outstanding',
         'value_detail',
+        'message',
+        'status_invoice_bap',
         'created_at',
         'updated_at'
     ];

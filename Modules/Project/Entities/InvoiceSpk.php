@@ -25,6 +25,8 @@ class InvoiceSpk extends Model
         'amount',
         'outstanding',
         'value_detail',
+        'status_invoice_spk',
+        'message',
         'created_at',
         'updated_at'
     ];

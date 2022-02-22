@@ -17,6 +17,8 @@ class PurchaseSpk extends Model
         'id_business_partner',
         'id_branch',
         'value_detail',
+        'status_purchase_spk',
+        'message',
         'created_at',
         'updated_at'
     ];

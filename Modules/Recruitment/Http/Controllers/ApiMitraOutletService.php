@@ -65,6 +65,7 @@ class ApiMitraOutletService extends Controller
 	    			->orWhere('transaction_payment_status', 'Completed');
 				})
     			->where('transaction_payment_status', '!=', 'Cancelled')
+                        ->wherenull('transaction_outlet_services.reject_at')
     			->orderBy('schedule_date', 'asc')
     			->orderBy('schedule_time', 'asc')
 				->paginate(10)

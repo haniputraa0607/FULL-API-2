@@ -60,7 +60,7 @@ class ApiProductServiceController extends Controller
             }elseif(isset($post['product_setting_type']) && $post['product_setting_type'] == 'outlet_product_detail'){
                 $product = Product::with(['category', 'discount', 'product_detail'])->where('products.product_type', 'service');
             }else{
-                $product = Product::with(['category', 'discount', 'product_icount_use'])->where('products.product_type', 'service');
+                $product = Product::with(['category', 'discount','product_icount_use_ima' => function($ima){$ima->where('company_type','ima');},'product_icount_use_ims' => function($ims){$ims->where('company_type','ims');}]);
             }
         }
 
@@ -106,6 +106,10 @@ class ApiProductServiceController extends Controller
 
         if (isset($post['update_price']) && $post['update_price'] == 1) {
             $product->where('product_variant_status', 0);
+        }
+
+        if(isset($post['product_type'])){
+            $product = $product->where('product_type', $post['product_type']);
         }
 
         if (isset($post['product_name'])) {

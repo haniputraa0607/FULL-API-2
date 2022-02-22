@@ -119,7 +119,7 @@ class ApiProductProductIcountController extends Controller
         $post = $request->all();
         if(isset($post['id_product']) && !empty($post['id_product'])){
             DB::beginTransaction();
-            $delete = ProductProductIcount::where('id_product', $post['id_product'])->delete();
+            $delete = ProductProductIcount::where('id_product', $post['id_product'])->where('company_type', $post['company_type'])->delete();
             $insert = [];
             foreach($post['product_icount'] ?? [] as $product_icount){
                 $insert[] = [
@@ -127,6 +127,7 @@ class ApiProductProductIcountController extends Controller
                     "id_product_icount"   => $product_icount['id_product_icount'],
                     "unit"   => $product_icount['unit'],
                     "qty"   => $product_icount['qty'],
+                    "company_type" => $post['company_type']
                 ];
             }
             if(!empty($insert)){

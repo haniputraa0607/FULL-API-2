@@ -232,7 +232,7 @@ class ApiRequestProductController extends Controller
     {
         $post = $request->all();
         if(isset($post['id_request_product']) && !empty($post['id_request_product'])){
-            $request_product = RequestProduct::where('id_request_product', $post['id_request_product'])->with(['request_product_detail','request_product_user_request','request_product_user_approve','request_product_outlet'])->first();
+            $request_product = RequestProduct::where('id_request_product', $post['id_request_product'])->with(['request_product_detail','request_product_user_request','request_product_user_approve','request_product_outlet','request_product_outlet.location_outlet'])->first();
             if($request_product==null){
                 return response()->json(['status' => 'success', 'result' => [
                     'request_product' => 'Empty',
@@ -594,7 +594,7 @@ class ApiRequestProductController extends Controller
     {
         $post = $request->all();
         if(isset($post['id_delivery_product']) && !empty($post['id_delivery_product'])){
-            $delivery_product = DeliveryProduct::where('id_delivery_product', $post['id_delivery_product'])->with(['delivery_product_detail','delivery_product_user_delivery','delivery_product_user_accept','delivery_product_outlet','delivery_request_products','request'])->first();
+            $delivery_product = DeliveryProduct::where('id_delivery_product', $post['id_delivery_product'])->with(['delivery_product_detail','delivery_product_user_delivery','delivery_product_user_accept','delivery_product_outlet','delivery_product_outlet.location_outlet','delivery_request_products','request'])->first();
             if($delivery_product==null){
                 return response()->json(['status' => 'success', 'result' => [
                     'delivery_product' => 'Empty',

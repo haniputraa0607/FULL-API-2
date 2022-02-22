@@ -249,7 +249,10 @@ class Product extends Model
         return $this->hasMany(\Modules\ProductService\Entities\ProductServiceUse::class, 'id_product_service', 'id_product');
     }
 
-    public function product_icount_use() {
+    public function product_icount_use_ima() {
+        return $this->hasMany(\Modules\Product\Entities\ProductProductIcount::class, 'id_product', 'id_product');
+    }
+    public function product_icount_use_ims() {
         return $this->hasMany(\Modules\Product\Entities\ProductProductIcount::class, 'id_product', 'id_product');
     }
 

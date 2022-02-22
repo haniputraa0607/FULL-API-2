@@ -16,12 +16,6 @@ class AppServiceProvider extends ServiceProvider
     public function boot()
     {
         Schema::defaultStringLength(191);
-        $date_end= MyHelper::setting('hs_income_delivery_cut_off_end_date', 'value', 25);
-        $date_middle= MyHelper::setting('hs_income_delivery_cut_off_middle_date', 'value', 11);
-        Config::set([
-            'income_date_end' => $date_end,
-            'income_date_middle' =>$date_middle
-        ]);
     }
 
     /**

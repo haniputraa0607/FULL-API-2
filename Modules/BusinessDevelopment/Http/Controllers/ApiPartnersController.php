@@ -305,6 +305,13 @@ class ApiPartnersController extends Controller
                     }
                 }
             } 
+            if(($partner['partner_locations'])){
+                foreach($partner['partner_locations'] as $loc){
+                    if(isset($loc['value_detail']) && !empty($loc['value_detail'])){
+                        $loc['value_detail_decode'] = json_decode($loc['value_detail']??'' , true);
+                    }
+                }
+            } 
             if(($partner['partner_survey'])){
                 foreach($partner['partner_survey'] as $survey){
                     if(isset($survey['attachment']) && !empty($survey['attachment'])){
@@ -1114,20 +1121,27 @@ class ApiPartnersController extends Controller
                 $data['partner'] = $cek_partner;
                 $data['letter'] = $creatConf;
                 $data['location'] = Location::where(['id_partner'=>$post['id_partner']])->where(['id_location'=>$post['id_location']])->first();
-                $data['city'] = City::where(['id_city'=>$data['location']['id_city']])->first();
+                $data['city'] = City::with(['province'])->where(['id_city'=>$data['location']['id_city']])->first();
+                $setting_first_side = Setting::where('key','confirmation_letter_first_side')->get('value_text')->first();
+                $first_side = [];
+                if($setting_first_side){
+                    $first_side = json_decode($setting_first_side['value_text']??'' , true);
+                }
                 $waktu = $this->timeTotal(explode('-', $data['partner']['start_date']),explode('-', $data['partner']['end_date']));
                 $send['data'] = [
-                    'pihak_dua' => $this->pihakDua($data['partner']['contact_person'],$data['partner']['gender']),
+                    'pihak_dua' => $this->pihakDua($data['partner']['name'],$data['partner']['title']),
+                    'location_name' => $data['location']['name'],
                     'ttd_pihak_dua' => $data['partner']['contact_person'],
                     'lokasi_surat' => $data['letter']['location'],
                     'tanggal_surat' => $this->letterDate($data['letter']['date']),
                     'no_surat' => $data['letter']['no_letter'],
-                    'location_mall' => strtoupper($data['location']['mall']),
-                    'location_city' => strtoupper($data['city']['city_name']),
+                    'box' => $data['location']['total_box'],
+                    'location_city' => ucwords(strtolower($data['city']['city_name'])),
+                    'location_province' => $data['city']['province']['province_name'],
                     'address' => $data['location']['address'],
                     'large' => $data['location']['location_large'],
-                    'partnership_fee' => $this->rupiah($data['location']['partnership_fee']),
-                    'partnership_fee_string' => $this->stringNominal($data['location']['partnership_fee']).' Rupiah',
+                    'partnership_fee' => $this->rupiah($data['location']['partnership_fee']+$data['location']['partnership_fee']*10/100),
+                    'partnership_fee_string' => $this->stringNominal($data['location']['partnership_fee']+$data['location']['partnership_fee']*10/100).' Rupiah',
                     'dp' => $this->rupiah($data['location']['partnership_fee']*0.2),
                     'dp_string' => $this->stringNominal($data['location']['partnership_fee']*0.2).' Rupiah',
                     'dp2' => $this->rupiah($data['location']['partnership_fee']*0.3),
@@ -1135,17 +1149,18 @@ class ApiPartnersController extends Controller
                     'final' => $this->rupiah($data['location']['partnership_fee']*0.5),
                     'final_string' => $this->stringNominal($data['location']['partnership_fee']*0.5).' Rupiah',
                     'total_waktu' => $waktu['total'],
+                    'position_name' => isset($general['position_name']) ? $general['position_name'] : 'Alese Sandria',
+                    'position' => isset($general['position']) ? $general['position'] : 'General Manager',
                 ];
-                if(isset($data['location']['notes']) && !empty($data['location']['notes'])){
-                    $send['data']['angsuran'] = $data['location']['notes'];
-                }
+                return $send;
                 $content = Setting::where('key','confirmation_letter_tempalate')->get('value_text')->first()['value_text'];
                 $pdf_contect['content'] = $this->textReplace($content,$send['data']);
                 // return $pdf_contect['content'];
                 $no = str_replace('/', '_', $post['no_letter']);
                 $path = $this->confirmation.'confirmation_'.$no.'.pdf';
                 $pdf_contect['title'] = 'Confirmation Letter '.$post['no_letter'];
-                $pdf = PDF::loadView('businessdevelopment::confirmation', $pdf_contect );
+                // return view('businessdevelopment::confirmation_dummy');
+                $pdf = PDF::loadView('businessdevelopment::confirmation', $pdf_contect);
                 Storage::put($path, $pdf->output(),'public');
                 $creatConf['attachment'] = $path;
                 $store = ConfirmationLetter::updateOrCreate($key,$creatConf);
@@ -1164,14 +1179,8 @@ class ApiPartnersController extends Controller
         }
     }
 
-    public function pihakDua($name, $gender){
-        $gender_name = '';
-        if($gender=='Man'){
-            $gender_name = 'BAPAK';
-        }elseif($gender=='Woman'){
-            $gender_name = 'IBU';
-        }
-        return $pihakDua = $gender_name.' '.strtoupper($name);
+    public function pihakDua($name, $title){
+        return $pihakDua = $title.' '.strtoupper($name);
     }
     public function letterDate($date){
         $bulan = array (1=>'Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember');
@@ -1439,10 +1448,12 @@ class ApiPartnersController extends Controller
         $text = str_replace('%tanggal_surat%',$data['tanggal_surat'],$text);
         $text = str_replace('%no_surat%',$data['no_surat'],$text);
         $text = str_replace('%pihak_dua%',$data['pihak_dua'],$text);
-        $text = str_replace('%location_mall%',$data['location_mall'],$text);
+        $text = str_replace('%location_name%',$data['location_name'],$text);
         $text = str_replace('%location_city%',$data['location_city'],$text);
+        $text = str_replace('%location_province%',$data['location_province'],$text);
         $text = str_replace('%address%',$data['address'],$text);
         $text = str_replace('%large%',$data['large'],$text);
+        $text = str_replace('%box%',$data['box'],$text);
         $text = str_replace('%partnership_fee%',$data['partnership_fee'],$text);
         $text = str_replace('%partnership_fee_string%',$data['partnership_fee_string'],$text);
         $text = str_replace('%dp%',$data['dp'],$text);
@@ -1453,12 +1464,8 @@ class ApiPartnersController extends Controller
         $text = str_replace('%final_string%',$data['final_string'],$text);
         $text = str_replace('%total_waktu%',$data['total_waktu'],$text);
         $text = str_replace('%ttd_pihak_dua%',$data['ttd_pihak_dua'],$text);
-        if(isset($data['angsuran'])){
-            $angsuran = '<li>'.$data['angsuran'].';</li>';
-            $text = str_replace('%angsuran%',$angsuran,$text);
-        }else{
-            $text = str_replace('%angsuran%','',$text);
-        }
+        $text = str_replace('%position_name%',$data['position_name'],$text);
+        $text = str_replace('%position%',$data['position'],$text);
         return $text;
     }
 

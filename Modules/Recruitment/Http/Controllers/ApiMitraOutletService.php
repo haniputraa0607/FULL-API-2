@@ -923,7 +923,7 @@ class ApiMitraOutletService extends Controller
             'brand_logo_landscape' => $user['outlet']['brands'][0]['logo_landscape_brand']
 		];
 
-		$shift = app($this->mitra)->getOutletShift($user->id_outlet);
+		$shift = app($this->mitra)->getOutletShift($user->id_outlet, null, true);
 
 		$schedule = HairstylistSchedule::join(
 			'hairstylist_schedule_dates', 
@@ -932,8 +932,10 @@ class ApiMitraOutletService extends Controller
 		)
  		->where('id_user_hair_stylist', $user->id_user_hair_stylist)
  		->whereDate('date', date('Y-m-d'))
- 		->where('shift', $shift)
+ 		->whereIn('shift', $shift)
  		->first();
+
+ 		$shift = $schedule->shift;
 
  		$box = [];
  		if ($schedule) {

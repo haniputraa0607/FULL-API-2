@@ -305,6 +305,13 @@ class ApiPartnersController extends Controller
                     }
                 }
             } 
+            if(($partner['partner_locations'])){
+                foreach($partner['partner_locations'] as $loc){
+                    if(isset($loc['value_detail']) && !empty($loc['value_detail'])){
+                        $loc['value_detail_decode'] = json_decode($loc['value_detail']??'' , true);
+                    }
+                }
+            } 
             if(($partner['partner_survey'])){
                 foreach($partner['partner_survey'] as $survey){
                     if(isset($survey['attachment']) && !empty($survey['attachment'])){
@@ -1096,15 +1103,8 @@ class ApiPartnersController extends Controller
         }
     }
     
-    // public function createConfirLetter($request){
-    //     $post = $request;
-    public function createConfirLetter(Request $request){
-        $post = [
-            "id_partner"   => 44,
-            "id_location"   => 37,
-            "no_letter"   => 'CL/22/02/03',
-            "location"   => 'Magelang'
-        ];
+    public function createConfirLetter($request){
+        $post = $request;
         if(isset($post['id_partner']) && !empty($post['id_partner'])){
             $cek_partner = Partner::where(['id_partner'=>$post['id_partner']])->first();
             if($cek_partner){
@@ -1122,6 +1122,11 @@ class ApiPartnersController extends Controller
                 $data['letter'] = $creatConf;
                 $data['location'] = Location::where(['id_partner'=>$post['id_partner']])->where(['id_location'=>$post['id_location']])->first();
                 $data['city'] = City::with(['province'])->where(['id_city'=>$data['location']['id_city']])->first();
+                $setting_first_side = Setting::where('key','confirmation_letter_first_side')->get('value_text')->first();
+                $first_side = [];
+                if($setting_first_side){
+                    $first_side = json_decode($setting_first_side['value_text']??'' , true);
+                }
                 $waktu = $this->timeTotal(explode('-', $data['partner']['start_date']),explode('-', $data['partner']['end_date']));
                 $send['data'] = [
                     'pihak_dua' => $this->pihakDua($data['partner']['name'],$data['partner']['title']),
@@ -1131,7 +1136,7 @@ class ApiPartnersController extends Controller
                     'tanggal_surat' => $this->letterDate($data['letter']['date']),
                     'no_surat' => $data['letter']['no_letter'],
                     'box' => $data['location']['total_box'],
-                    'location_city' => $data['city']['city_name'],
+                    'location_city' => ucwords(strtolower($data['city']['city_name'])),
                     'location_province' => $data['city']['province']['province_name'],
                     'address' => $data['location']['address'],
                     'large' => $data['location']['location_large'],
@@ -1144,9 +1149,10 @@ class ApiPartnersController extends Controller
                     'final' => $this->rupiah($data['location']['partnership_fee']*0.5),
                     'final_string' => $this->stringNominal($data['location']['partnership_fee']*0.5).' Rupiah',
                     'total_waktu' => $waktu['total'],
-                    'position_name' => 'Alessa',
-                    'position' => 'General Manager',
+                    'position_name' => isset($general['position_name']) ? $general['position_name'] : 'Alese Sandria',
+                    'position' => isset($general['position']) ? $general['position'] : 'General Manager',
                 ];
+                return $send;
                 $content = Setting::where('key','confirmation_letter_tempalate')->get('value_text')->first()['value_text'];
                 $pdf_contect['content'] = $this->textReplace($content,$send['data']);
                 // return $pdf_contect['content'];

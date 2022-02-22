@@ -2,6 +2,8 @@
 
 namespace Modules\Recruitment\Http\Controllers;
 
+use App\Http\Models\Outlet;
+use App\Http\Models\OutletSchedule;
 use App\Jobs\UpdateScheduleHSJob;
 use App\Lib\MyHelper;
 use Illuminate\Http\Request;
@@ -676,14 +678,34 @@ class ApiHairStylistController extends Controller
 
             $currentDate = date('Y-m-d');
             $outletService = TransactionProductService::where('id_user_hair_stylist', $post['id_user_hair_stylist'])
-                                ->whereDate('schedule_date', '>=', $currentDate)->pluck('id_transaction')->toArray();
+                                ->whereDate('schedule_date', '>=', $currentDate)
+                                ->where(function ($q){
+                                    $q->where('service_status', '<>', 'Completed')
+                                        ->orWhereNull('service_status');
+                                })
+                                ->pluck('id_transaction')->toArray();
             $homeService = TransactionHomeService::where('id_user_hair_stylist', $post['id_user_hair_stylist'])
-                                ->whereDate('schedule_date', '>=', $currentDate)->pluck('id_transaction')->toArray();
+                                ->whereDate('schedule_date', '>=', $currentDate)
+                                ->where(function ($q){
+                                    $q->whereNotIn('status', ['Completed', 'Cancelled'])
+                                        ->orWhereNull('status');
+                                })
+                                ->pluck('id_transaction')->toArray();
 
-            $id = array_merge($outletService,$homeService);
-            $res = Transaction::where('transaction_payment_status', 'Completed')->whereIn('transaction_from', ['outlet-service', 'home-service'])
-                        ->whereIn('id_transaction', $id)->where('id_outlet', $hs['id_outlet'])->with(['user', 'outlet'])->get()->toArray();
+            if(!empty($outletService)) {
+                $trxOutlet = Transaction::where('transaction_payment_status', 'Completed')->where('transaction_from', 'outlet-service')
+                    ->whereIn('id_transaction', $outletService)->where('id_outlet', $hs['id_outlet'])->with(['user', 'outlet'])->get()->toArray();
+            }
 
+            if(!empty($homeService)) {
+                $trxHome = Transaction::where('transaction_payment_status', 'Completed')->where('transaction_from', 'home-service')
+                    ->whereIn('id_transaction', $homeService)->with(['user', 'outlet'])->get()->toArray();
+            }
+
+            $res = [
+                'order_outlet' => $trxOutlet??[],
+                'order_home' => $trxHome??[]
+            ];
             return response()->json(MyHelper::checkGet($res));
         } else {
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
@@ -699,19 +721,82 @@ class ApiHairStylistController extends Controller
                 return response()->json(['status' => 'fail', 'messages' => ['Hair stylist not found']]);
             }
 
+            $outlet = Outlet::where('id_outlet', $post['id_outlet'])->first();
+            if(empty($outlet)){
+                return response()->json(['status' => 'fail', 'messages' => ['Outlet not found']]);
+            }
             if($hs['id_outlet'] != $post['id_outlet']){
+                $days = [
+                    'Mon' => 'Senin',
+                    'Tue' => 'Selasa',
+                    'Wed' => 'Rabu',
+                    'Thu' => 'Kamis',
+                    'Fri' => 'Jumat',
+                    'Sat' => 'Sabtu',
+                    'Sun' => 'Minggu'
+                ];
+
                 $currentDate = date('Y-m-d');
                 $outletService = TransactionProductService::where('id_user_hair_stylist', $post['id_user_hair_stylist'])
-                    ->whereDate('schedule_date', '>=', $currentDate)->pluck('id_transaction')->toArray();
+                    ->whereDate('schedule_date', '>=', $currentDate)
+                    ->where(function ($q){
+                        $q->where('service_status', '<>', 'Completed')
+                            ->orWhereNull('service_status');
+                    })
+                    ->pluck('id_transaction')->toArray();
                 $homeService = TransactionHomeService::where('id_user_hair_stylist', $post['id_user_hair_stylist'])
-                    ->whereDate('schedule_date', '>=', $currentDate)->pluck('id_transaction')->toArray();
+                    ->whereDate('schedule_date', '>=', $currentDate)
+                    ->where(function ($q){
+                        $q->whereNotIn('status', ['Completed', 'Cancelled'])
+                            ->orWhereNull('status');
+                    })
+                    ->pluck('id_transaction')->toArray();
 
-                $id = array_merge($outletService,$homeService);
-                $res = Transaction::where('transaction_payment_status', 'Completed')->whereIn('transaction_from', ['outlet-service', 'home-service'])
-                    ->whereIn('id_transaction', $id)->where('id_outlet', $hs['id_outlet'])->count();
+                if(!empty($outletService)) {
+                    $trxOutlet = Transaction::where('transaction_payment_status', 'Completed')->where('transaction_from', 'outlet-service')
+                        ->whereIn('id_transaction', $outletService)->where('id_outlet', $hs['id_outlet'])->with(['user', 'outlet'])->get()->toArray();
+                }
 
-                if($res > 0){
-                    return response()->json(['status' => 'fail', 'messages' => ['Hair stylist have transaction']]);
+                if(!empty($homeService)) {
+                    $trxHome = Transaction::join('transaction_home_services', 'transaction_home_services.id_transaction', 'transactions.id_transaction')
+                        ->where('transaction_payment_status', 'Completed')->where('transaction_from', 'home-service')
+                        ->whereIn('transactions.id_transaction', $homeService)->with(['user', 'outlet'])->get()->toArray();
+                }
+
+                if(!empty($trxOutlet)){
+                    return response()->json(['status' => 'fail', 'messages' => ['Hair stylist have outlet transaction']]);
+                }
+
+                $conflictTrx = [];
+                if(!empty($homeService)){
+                    $getScheduleOutlet = OutletSchedule::where('id_outlet', $post['id_outlet'])->with('time_shift')->get()->toArray();
+                    $columnDay = array_column($getScheduleOutlet, 'day');
+                    foreach ($trxHome as $home){
+                        $day = $days[date('D', strtotime($home['schedule_date']))];
+                        $search = array_search($day,$columnDay);
+                        if($search !== false){
+                            $shift = HairstylistScheduleDate::leftJoin('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
+                                ->where('id_user_hair_stylist', $post['id_user_hair_stylist'])
+                                ->whereDate('date', $home['schedule_date'])
+                                ->first()['shift']??'';
+
+                            $dataOutletShift = $getScheduleOutlet[$search]['time_shift'];
+                            $columnShift = array_search($shift, array_column($dataOutletShift, 'shift'));
+                            if(empty($shift) || $columnShift === false){
+                                continue;
+                            }
+                            $start = date('H:i:s', strtotime($dataOutletShift[$columnShift]['shift_time_start']));
+                            $end = date('H:i:s', strtotime($dataOutletShift[$columnShift]['shift_time_end']));
+
+                            if(strtotime($home['schedule_time']) >= strtotime($start) && strtotime($home['schedule_time']) < strtotime($end)){
+                                $conflictTrx[] = $home['transaction_receipt_number'];
+                            }
+                        }
+                    }
+                }
+
+                if(!empty($conflictTrx)){
+                    return response()->json(['status' => 'fail', 'messages' => ['Transaction Home service have conflict with schedule outlet '.$outlet['outlet_name'].' : '.implode(', ', $conflictTrx)]]);
                 }
 
                 $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update(['id_outlet' => $post['id_outlet']]);

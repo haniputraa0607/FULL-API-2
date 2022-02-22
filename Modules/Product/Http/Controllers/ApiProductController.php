@@ -2358,9 +2358,11 @@ class ApiProductController extends Controller
 
         $messagesFailOutlet = '';
         if(empty($outlet['today']) && $isClose == true){
-            $messagesFailOutlet = 'Maaf outlet belum buka';
-        }elseif(!empty($outlet['today']) && $isClose == true){
+            $messagesFailOutlet = 'Maaf outlet belum buka.';
+        }elseif(!empty($outlet['today']) && !empty($open) && !empty($close) && $isClose == true){
             $messagesFailOutlet = 'Maaf outlet belum buka. Silahkan berkunjung kembali diantara pukul '.date('H:i', strtotime($open)).' sampai '.date('H:i', strtotime($close));
+        }elseif(!empty($outlet['today']) && (empty($open) || empty($close)) && $isClose == true){
+            $messagesFailOutlet = 'Maaf outlet belum buka.';
         }
 
         $resOutlet = [

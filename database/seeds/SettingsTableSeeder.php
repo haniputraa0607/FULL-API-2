@@ -1163,7 +1163,7 @@ class SettingsTableSeeder extends Seeder
                                 <td width="10px"></td>
                                 <td width="130px" colspan="2"></td>
                                 <td colspan="8">
-                                    <ol class="pl-2 text-justify terluar">
+                                    <ol class="pl-2 text-justify terluar" start="2">
                                         <li>Tahap 3, yaitu 50% dari nilai partnership fee = Rp %final% (%final_string%) di luar PPN dan dibayar 5 hari kerja sebelum unit lokasi beroperasional di luar PPN;</li>
                                         <li>Biaya survey & mobilisasi (pengiriman,akomodasi dan transportasi) di luar Jabodetabek menjadi kewajiban Pihak Kedua sesuai lokasi usaha </li> 
                                         <li>Pembayaran dilakukan dengan cara transfer ke PT.Ixobox Multitren Asia, Bank BCA No: 6840308608;</li>
@@ -1171,7 +1171,7 @@ class SettingsTableSeeder extends Seeder
                                 </td>
                             </tr>
                             <tr>
-                                <td>9</td>
+                                <td>5</td>
                                 <td width="130px" colspan="2">OTHER</td>
                                 <td colspan="8">
                                     <ol class="pl-2 text-justify terluar">

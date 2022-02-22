@@ -2,6 +2,7 @@
 
 namespace Modules\Transaction\Http\Controllers;
 
+use App\Http\Models\DailyTransactions;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
@@ -1106,7 +1107,14 @@ class ApiTransactionShop extends Controller
         }
 
         $insertTransaction = $applyPromo['result'] ?? $insertTransaction;
-
+        $dataDailyTrx = [
+            'id_transaction'    => $insertTransaction['id_transaction'],
+            'id_outlet'         => $outlet['id_outlet'],
+            'transaction_date'  => date('Y-m-d H:i:s', strtotime($insertTransaction['transaction_date'])),
+            'id_user'           => $user['id'],
+            'referral_code'     => NULL
+        ];
+        DailyTransactions::create($dataDailyTrx);
         DB::commit();
 
         return response()->json([

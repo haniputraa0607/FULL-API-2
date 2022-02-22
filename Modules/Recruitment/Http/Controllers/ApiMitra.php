@@ -669,7 +669,7 @@ class ApiMitra extends Controller
 		return MyHelper::checkGet($comment);
     }
 
-    public function getOutletShift($id_outlet, $dateTime = null)
+    public function getOutletShift($id_outlet, $dateTime = null, $array = false)
     {
     	$res = null;
     	$outlet = Outlet::find($id_outlet);
@@ -711,7 +711,11 @@ class ApiMitra extends Controller
         							});
         					});
         				})
-        				->first();
+        				->{$array ? 'get' : 'first'}();
+
+        if ($array) {
+        	return $outletShift->pluck('shift');
+        }
 
 		if (!$outletShift) {
 			return $res;

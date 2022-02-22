@@ -56,7 +56,7 @@ class ApiMembershipWebview extends Controller
 				$currentValue = LogBalance::where('id_user', $user['id'])->whereNotIn('source', [ 'Rejected Order', 'Rejected Order Midtrans', 'Rejected Order Point', 'Reversal', 'Point Injection', 'Welcome Point'])->where('balance', '>', 0)->sum('balance');
 				$kurang = ($nextMembership ? ($nextMembership['min_total_balance'] - $currentValue) : 0);
 				$currentMinValue = $currentMembership['min_total_balance'];
-				$nextMinValue = $nextMembership['min_total_balance'];
+				$nextMinValue = $nextMembership ? $nextMembership['min_total_balance'] : 0;
 				$membershipText = 'Silahkan kumpulkan ' .env('POINT_NAME', 'poin'). ' sebanyak <b>' . MyHelper::requestNumber($kurang, '_POINT') . ' '.env('POINT_NAME', 'poin').'</b> lagi untuk menuju <b>' . ($nextMembership['membership_name'] ?? '') . '</b>';
 				break;
 			case 'count':
@@ -78,7 +78,7 @@ class ApiMembershipWebview extends Controller
 				$currentValue = Transaction::where('id_user', $user['id'])->whereNotNull('completed_at')->count('id_transaction');
 				$kurang = ($nextMembership ? ($nextMembership['min_total_count'] - $currentValue) : 0);
 				$currentMinValue = $currentMembership['min_total_count'];
-				$nextMinValue = $nextMembership['min_total_count'];
+				$nextMinValue = $nextMembership ? $nextMembership['min_total_count'] : 0;
 				$membershipText = 'Silahkan memesan order sebanyak <b>' . MyHelper::requestNumber($kurang, '_POINT') . ' kali</b> lagi untuk menuju <b>' . ($nextMembership['membership_name'] ?? '') . '</b>';
 				break;
 			case 'value':
@@ -99,7 +99,7 @@ class ApiMembershipWebview extends Controller
 				$currentValue = Transaction::where('id_user', $user['id'])->whereNotNull('completed_at')->sum('transaction_grandtotal');
 				$kurang = ($nextMembership ? ($nextMembership['min_total_value'] - $currentValue) : 0);
 				$currentMinValue = $currentMembership['min_total_value'];
-				$nextMinValue = $nextMembership['min_total_value'];
+				$nextMinValue = $nextMembership ? $nextMembership['min_total_value'] : 0;
 				$membershipText = 'Silahkan memesan order senilai <b>Rp' . MyHelper::requestNumber($kurang, '_CURRENCY') . '</b> lagi untuk menuju <b>' . ($nextMembership['membership_name'] ?? '') . '</b>';
 				break;
 			default:
@@ -116,7 +116,11 @@ class ApiMembershipWebview extends Controller
 			'membership_text' => $nextMembership ? $membershipText : 'Selamat! Kamu sudah menjadi <b>'.$currentMembership['membership_name'].'</b>. Silahkan nikmati berbagai keuntungannya ya!',
 		];
 
-		$progress['progress_percent'] = (int) (($progress['current'] - $progress['min_value']) * 100 / ($progress['max_value'] ? ($progress['max_value'] - $progress['min_value']) : $progress['min_value']));
+		try {
+			$progress['progress_percent'] = (int) (($progress['current'] - $progress['min_value']) * 100 / ($progress['max_value'] ? ($progress['max_value'] - $progress['min_value']) : $progress['min_value']));
+		} catch (\Exception $e) {
+			$progress['progress_percent'] = 100;
+		}
 		
 		if ($progress['progress_percent'] > 100) {
             $progress['progress_percent'] = 100;

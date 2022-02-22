@@ -306,7 +306,18 @@ class ApiBrandController extends Controller
             return $var;
         },$post);
         try {
-            $create = BrandProduct::insert($post);
+            foreach ($post as $value) {
+                $create = BrandProduct::where(array('id_product'=>$value['id_product']))->first();
+                if($create){
+                    $create->id_brand = $value['id_brand'];
+                    if(isset($value['id_product_category'])){
+                        $create->id_product_category = $value['id_product_category'];
+                    }
+                    $create->save();
+                }else{
+                    $create = BrandProduct::created([$value]);
+                }
+            }
             return response()->json(MyHelper::checkDelete($create));
         } catch (\Exception $e) {
             return response()->json([

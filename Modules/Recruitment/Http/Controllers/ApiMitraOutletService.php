@@ -50,7 +50,7 @@ class ApiMitraOutletService extends Controller
     public function customerQueue(Request $request)
     {
     	$user = $request->user();
-
+        
     	$queue = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
 				->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
 				->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
@@ -65,7 +65,7 @@ class ApiMitraOutletService extends Controller
 	    			->orWhere('transaction_payment_status', 'Completed');
 				})
     			->where('transaction_payment_status', '!=', 'Cancelled')
-                        ->wherenull('transaction_outlet_services.reject_at')
+                        ->wherenull('transaction_products.reject_at')
     			->orderBy('schedule_date', 'asc')
     			->orderBy('schedule_time', 'asc')
 				->paginate(10)

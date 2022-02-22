@@ -2198,19 +2198,23 @@ class ApiProductController extends Controller
         $date = date('Y-m-d H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($date)));
         $currentDate = date('Y-m-d', strtotime($date));
         $currentHour = date('H:i:s', strtotime($date));
-        $open = date('H:i:s', strtotime($outlet['today']['open']));
-        $close = date('H:i:s', strtotime($outlet['today']['close']));
-        foreach ($outlet['holidays'] as $holidays){
-            $holiday = $holidays['date_holidays']->toArray();
-            $dates = array_column($holiday, 'date');
-            if(array_search($currentDate, $dates) !== false){
-                $isClose = true;
-                break;
-            }
-        }
-
-        if(empty($outlet['today']) || strtotime($currentHour) < strtotime($open) || strtotime($currentHour) > strtotime($close) || $outlet['today']['is_closed'] == 1){
+        if(empty($val['today']['open']) || empty( $val['today']['close'])){
             $isClose = true;
+        }else{
+            $open = date('H:i:s', strtotime($outlet['today']['open']));
+            $close = date('H:i:s', strtotime($outlet['today']['close']));
+            foreach ($outlet['holidays'] as $holidays){
+                $holiday = $holidays['date_holidays']->toArray();
+                $dates = array_column($holiday, 'date');
+                if(array_search($currentDate, $dates) !== false){
+                    $isClose = true;
+                    break;
+                }
+            }
+
+            if(empty($outlet['today']) || strtotime($currentHour) < strtotime($open) || strtotime($currentHour) > strtotime($close) || $outlet['today']['is_closed'] == 1){
+                $isClose = true;
+            }
         }
 
         $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
@@ -2227,8 +2231,7 @@ class ApiProductController extends Controller
                         WHEN (select outlets.outlet_different_price from outlets  where outlets.id_outlet = ' . $outlet['id_outlet'] . ' ) = 1 
                         THEN (select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $outlet['id_outlet'] . ' )
                         ELSE product_global_price.product_global_price
-                    END) as product_price'),
-            DB::raw('(select product_detail.product_detail_stock_item from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . ' order by id_product_detail desc limit 1) as product_stock_status')
+                    END) as product_price')
         ])
             ->join('brand_product', 'brand_product.id_product', '=', 'products.id_product')
             ->leftJoin('product_global_price', 'product_global_price.id_product', '=', 'products.id_product')
@@ -2264,7 +2267,13 @@ class ApiProductController extends Controller
         $resProdService = [];
         foreach ($productServie as $val){
             $stockStatus = 'Available';
-            if($val['product_stock_status'] <= 0){
+            $getProductDetail = ProductDetail::where('id_product', $val['id_product'])->where('id_outlet', $outlet['id_outlet'])->first();
+
+            if(!is_null($getProductDetail['product_detail_stock_item']) && $getProductDetail['product_detail_stock_item'] <= 0){
+                $stockStatus = 'Sold Out';
+            }elseif (is_null($getProductDetail['product_detail_stock_item']) && ($getProductDetail['product_detail_stock_status'] == 'Sold Out' || $getProductDetail['product_detail_status'] == 'Inactive')){
+                $stockStatus = 'Sold Out';
+            }elseif(empty($getProductDetail)){
                 $stockStatus = 'Sold Out';
             }
 
@@ -2655,10 +2664,14 @@ class ApiProductController extends Controller
             }
 
             if($bookDate == date('Y-m-d') && strtotime($bookTime) >= strtotime($shift['time_start']) && strtotime($bookTime) < strtotime($shift['time_end'])){
-                $clockIn = HairstylistAttendance::where('id_user_hair_stylist', $val['id_user_hair_stylist'])
-                    ->where('id_hairstylist_schedule_date', $shift['id_hairstylist_schedule_date'])->first()['clock_in']??null;
-                if(!empty($clockIn)){
+                $clockInOut = HairstylistAttendance::where('id_user_hair_stylist', $val['id_user_hair_stylist'])
+                    ->where('id_hairstylist_schedule_date', $shift['id_hairstylist_schedule_date'])->orderBy('updated_at', 'desc')->first();
+
+                if(!empty($clockInOut) && !empty($clockInOut['clock_in']) && strtotime($bookTime) >= strtotime($clockInOut['clock_in'])){
                     $availableStatus = true;
+                    if(!empty($clockInOut['clock_out']) && strtotime($bookTime) > strtotime($clockInOut['clock_out'])){
+                        $availableStatus = false;
+                    }
                 }
             }elseif($bookDate > date('Y-m-d')){
                 $shiftTimeStart = date('H:i:s', strtotime($shift['time_start']));

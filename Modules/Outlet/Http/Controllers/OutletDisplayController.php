@@ -30,7 +30,7 @@ class OutletDisplayController extends Controller
             ->where('shift_time_end', '>=', $now)
             ->join('outlet_schedules', function($join) {
                 $join->on('outlet_schedules.id_outlet_schedule', 'outlet_time_shift.id_outlet_schedule')
-                    ->where('day', MyHelper::indonesian_date_v2(time(), 'l'));
+                    ->where('day', str_replace('\'', '', MyHelper::indonesian_date_v2(time(), 'l')));
             })
             ->first())->shift;
 

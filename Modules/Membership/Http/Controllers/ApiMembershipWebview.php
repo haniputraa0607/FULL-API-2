@@ -116,7 +116,11 @@ class ApiMembershipWebview extends Controller
 			'membership_text' => $nextMembership ? $membershipText : 'Selamat! Kamu sudah menjadi <b>'.$currentMembership['membership_name'].'</b>. Silahkan nikmati berbagai keuntungannya ya!',
 		];
 
-		$progress['progress_percent'] = (int) (($progress['current'] - $progress['min_value']) * 100 / ($progress['max_value'] ? ($progress['max_value'] - $progress['min_value']) : $progress['min_value']));
+		try {
+			$progress['progress_percent'] = (int) (($progress['current'] - $progress['min_value']) * 100 / ($progress['max_value'] ? ($progress['max_value'] - $progress['min_value']) : $progress['min_value']));
+		} catch (\Exception $e) {
+			$progress['progress_percent'] = 100;
+		}
 		
 		if ($progress['progress_percent'] > 100) {
             $progress['progress_percent'] = 100;

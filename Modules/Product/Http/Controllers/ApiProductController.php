@@ -2187,19 +2187,23 @@ class ApiProductController extends Controller
         $date = date('Y-m-d H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($date)));
         $currentDate = date('Y-m-d', strtotime($date));
         $currentHour = date('H:i:s', strtotime($date));
-        $open = date('H:i:s', strtotime($outlet['today']['open']));
-        $close = date('H:i:s', strtotime($outlet['today']['close']));
-        foreach ($outlet['holidays'] as $holidays){
-            $holiday = $holidays['date_holidays']->toArray();
-            $dates = array_column($holiday, 'date');
-            if(array_search($currentDate, $dates) !== false){
-                $isClose = true;
-                break;
-            }
-        }
-
-        if(empty($outlet['today']) || strtotime($currentHour) < strtotime($open) || strtotime($currentHour) > strtotime($close) || $outlet['today']['is_closed'] == 1){
+        if(empty($val['today']['open']) || empty( $val['today']['close'])){
             $isClose = true;
+        }else{
+            $open = date('H:i:s', strtotime($outlet['today']['open']));
+            $close = date('H:i:s', strtotime($outlet['today']['close']));
+            foreach ($outlet['holidays'] as $holidays){
+                $holiday = $holidays['date_holidays']->toArray();
+                $dates = array_column($holiday, 'date');
+                if(array_search($currentDate, $dates) !== false){
+                    $isClose = true;
+                    break;
+                }
+            }
+
+            if(empty($outlet['today']) || strtotime($currentHour) < strtotime($open) || strtotime($currentHour) > strtotime($close) || $outlet['today']['is_closed'] == 1){
+                $isClose = true;
+            }
         }
 
         $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
@@ -2649,10 +2653,14 @@ class ApiProductController extends Controller
             }
 
             if($bookDate == date('Y-m-d') && strtotime($bookTime) >= strtotime($shift['time_start']) && strtotime($bookTime) < strtotime($shift['time_end'])){
-                $clockIn = HairstylistAttendance::where('id_user_hair_stylist', $val['id_user_hair_stylist'])
-                    ->where('id_hairstylist_schedule_date', $shift['id_hairstylist_schedule_date'])->first()['clock_in']??null;
-                if(!empty($clockIn)){
+                $clockInOut = HairstylistAttendance::where('id_user_hair_stylist', $val['id_user_hair_stylist'])
+                    ->where('id_hairstylist_schedule_date', $shift['id_hairstylist_schedule_date'])->orderBy('updated_at', 'desc')->first();
+
+                if(!empty($clockInOut) && !empty($clockInOut['clock_in']) && strtotime($bookTime) >= strtotime($clockInOut['clock_in'])){
                     $availableStatus = true;
+                    if(!empty($clockInOut['clock_out']) && strtotime($bookTime) > strtotime($clockInOut['clock_out'])){
+                        $availableStatus = false;
+                    }
                 }
             }elseif($bookDate > date('Y-m-d')){
                 $shiftTimeStart = date('H:i:s', strtotime($shift['time_start']));

@@ -949,25 +949,25 @@ class ApiProductController extends Controller
                     $product = Product::join('product_detail','product_detail.id_product','=','products.id_product')
                         ->where('product_detail.id_outlet','=',$post['id_outlet'])
                         ->where('product_detail.product_detail_visibility','=','Hidden')
-                        ->with(['category', 'discount','product_icount_use']);
+                        ->with(['category', 'discount']);
                 }else{
                     $ids = Product::join('product_detail','product_detail.id_product','=','products.id_product')
                         ->where('product_detail.id_outlet','=',$post['id_outlet'])
                         ->where('product_detail.product_detail_visibility','=','Hidden')
                         ->pluck('products.id_product')->toArray();
                     $product = Product::whereNotIn('id_product', $ids)
-                        ->with(['category', 'discount','product_icount_use']);
+                        ->with(['category', 'discount']);
                 }
 
                 unset($post['id_outlet']);
             }
 		} else {
 		    if(isset($post['product_setting_type']) && $post['product_setting_type'] == 'product_price'){
-                $product = Product::with(['category', 'discount', 'product_special_price', 'global_price','product_icount_use']);
+                $product = Product::with(['category', 'discount', 'product_special_price', 'global_price']);
             }elseif(isset($post['product_setting_type']) && $post['product_setting_type'] == 'outlet_product_detail'){
-                $product = Product::with(['category', 'discount', 'product_detail','product_icount_use']);
+                $product = Product::with(['category', 'discount', 'product_detail']);
             }else{
-                $product = Product::with(['category', 'discount','product_icount_use']);
+                $product = Product::with(['category', 'discount','product_icount_use_ima' => function($ima){$ima->where('company_type','ima');},'product_icount_use_ims' => function($ims){$ims->where('company_type','ims');}]);
             }
 		}
 
@@ -1196,13 +1196,24 @@ class ApiProductController extends Controller
         }
         unset($post['product_brands']);
 
-        if(!empty($post['product_icount'])){
+        if(!empty($post['product_icount_ima'])){
             $product_use = [
-                "product_icount" => $post['product_icount'],
+                "product_icount" => $post['product_icount_ima'],
                 "id_product" => $post['id_product'],
+                "company_type" => 'ima'
             ];
             $store_icount = app('\Modules\Product\Http\Controllers\ApiProductProductIcountController')->update(New Request($product_use));
-            unset($post['product_icount']);
+            unset($post['product_icount_ima']);
+        }
+
+        if(!empty($post['product_icount_ims'])){
+            $product_use = [
+                "product_icount" => $post['product_icount_ims'],
+                "id_product" => $post['id_product'],
+                "company_type" => 'ims'
+            ];
+            $store_icount = app('\Modules\Product\Http\Controllers\ApiProductProductIcountController')->update(New Request($product_use));
+            unset($post['product_icount_ima']);
         }
 
         // promo_category
@@ -3252,6 +3263,10 @@ class ApiProductController extends Controller
             }else{
                 $product->where('product_icounts.item_group', '=', 'Inventory');
             }
+        }
+
+        if (isset($post['company_type'])) {
+            $product->where('product_icounts.company_type', $post['company_type']);
         }
 
         if (isset($post['product_code'])) {

@@ -39,7 +39,12 @@ class TransactionAcademyInstallmentPaymentXendit extends Model
         $create = $xenditController->create($this->type, $this->external_id, $this->amount, [
             'phone' => $this->phone,
             'items' => $this->items,
+            'transaction_from' => 'academy'
         ], $errors);
+
+        if(empty($create['checkout_url'])){
+            $create['checkout_url'] = $create['invoice_url']??null;
+        }
         if ($create) {
             $this->business_id = $create['business_id'] ?? null;
             $this->checkout_url = $create['checkout_url'] ?? null;

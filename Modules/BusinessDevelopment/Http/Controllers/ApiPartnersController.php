@@ -283,7 +283,12 @@ class ApiPartnersController extends Controller
     {
         $post = $request->all();
         if(isset($post['id_partner']) && !empty($post['id_partner'])){
-            $partner = Partner::where('id_partner', $post['id_partner'])->with(['partner_bank_account','partner_locations'=>function($l){$l->orderBy('id_location');},'partner_locations.location_starter.product','partner_step','partner_new_step','partner_confirmation','partner_survey','partner_legal_agreement', 'first_location', 'first_location.location_starter.product'])->first();
+            $partner = Partner::where('id_partner', $post['id_partner'])->with(['partner_bank_account','partner_locations'=>function($l){
+                $l->with(['location_city'=>function($c){
+                    $c->with(['province']);
+                }]);
+                $l->orderBy('id_location');
+            },'partner_locations.location_starter.product','partner_step','partner_new_step','partner_confirmation','partner_survey','partner_legal_agreement', 'first_location', 'first_location.location_starter.product', ])->first();
             if(($partner['partner_step'])){
                 foreach($partner['partner_step'] as $step){
                     if(isset($step['attachment']) && !empty($step['attachment'])){
@@ -1179,7 +1184,7 @@ class ApiPartnersController extends Controller
     }
 
     public function pihakDua($name, $title){
-        return $pihakDua = $title.' '.strtoupper($name);
+        return $pihakDua = strtoupper($title).' '.strtoupper($name);
     }
     public function letterDate($date){
         $bulan = array (1=>'Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember');

@@ -82,7 +82,7 @@ use Modules\Transaction\Http\Requests\MethodDelete;
 use Modules\Transaction\Http\Requests\ManualPaymentConfirm;
 use Modules\Transaction\Http\Requests\ShippingGoSend;
 use Modules\Transaction\Entities\TransactionBreakdown;
-use Modules\ProductVariant\Entities\ProductVariantGroup;
+use Modules\ProductVariant\Entities\ProductVariantGroup;;
 use Modules\ProductVariant\Entities\ProductVariantGroupSpecialPrice;
 use Modules\Transaction\Entities\SharingManagementFee;
 use Modules\Transaction\Entities\SharingManagementFeeTransaction;
@@ -106,6 +106,8 @@ use Modules\BusinessDevelopment\Entities\Location;
 use Modules\Transaction\Http\Requests\Signature;
 use Modules\Franchise\Entities\PromoCampaign;
 use Modules\PromoCampaign\Entities\TransactionPromo;
+use Modules\Product\Entities\ProductIcount;
+use Modules\Product\Entities\ProductProductIcount;
 
 class ApiTransaction extends Controller
 {
@@ -6164,13 +6166,18 @@ class ApiTransaction extends Controller
             $new = 0;
             foreach($outlets as $outlet){
                 if($outlet['transaction']){
+                    if($outlet['company_type']=='PT IMA'){
+                        $company_type = 'ima';
+                    }elseif($outlet['company_type']=='PT IMS'){
+                        $company_type = 'ims';
+                    }
                     $new_trans_non = 0;
                     $new_trans_use = 0;
                     $new_transaction_non = [];
                     $new_transaction = [];
                     foreach($outlet['transaction'] as $t => $tran){
                         if($tran['product_type']=='product'){
-                            $cek_prod = ProductProductIcount::where('id_product',$tran['id_product'])->first();
+                            $cek_prod = ProductProductIcount::where('id_product',$tran['id_product'])->where('company_type',$company_type)->first();
                             if($cek_prod){
                                 $prod_icount = ProductIcount::where('id_product_icount',$cek_prod['id_product_icount'])->first();
                                 $tran['id_item_icount'] = $prod_icount['id_item'];

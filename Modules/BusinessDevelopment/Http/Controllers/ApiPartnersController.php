@@ -1152,7 +1152,6 @@ class ApiPartnersController extends Controller
                     'position_name' => isset($general['position_name']) ? $general['position_name'] : 'Alese Sandria',
                     'position' => isset($general['position']) ? $general['position'] : 'General Manager',
                 ];
-                return $send;
                 $content = Setting::where('key','confirmation_letter_tempalate')->get('value_text')->first()['value_text'];
                 $pdf_contect['content'] = $this->textReplace($content,$send['data']);
                 // return $pdf_contect['content'];

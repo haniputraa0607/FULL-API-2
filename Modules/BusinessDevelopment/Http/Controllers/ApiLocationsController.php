@@ -222,6 +222,9 @@ class ApiLocationsController extends Controller
                     }
                 }
             } 
+            if(isset($location['value_detail']) && !empty($location['value_detail'])){
+                $location['value_detail_decode'] = json_decode($location['value_detail']??'' , true);
+            }
             if($location==null){
                 return response()->json(['status' => 'success', 'result' => [
                     'location' => 'Empty',

@@ -508,6 +508,11 @@ class ApiMitra extends Controller
                 ->whereDate('date', date('Y-m-d', strtotime($today)))
                 ->first();
 
+		if (!$mitraSchedule) {
+        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal shift pada hari.";
+        	return $status;
+        }
+
         $outletShift = OutletTimeShift::where('id_outlet_schedule', $outletSchedule->id_outlet_schedule)
         				->where(function($q) use ($curTime) {
         					$q->where(function($q2) use ($curTime) {

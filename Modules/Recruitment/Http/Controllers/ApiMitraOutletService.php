@@ -37,6 +37,7 @@ use Modules\UserRating\Entities\UserRatingLog;
 use App\Lib\MyHelper;
 use DB;
 use DateTime;
+use Modules\Recruitment\Entities\HairstylistAttendance;
 
 class ApiMitraOutletService extends Controller
 {
@@ -1113,7 +1114,17 @@ class ApiMitraOutletService extends Controller
 				'messages' => ['Box sudah dipilih oleh Hairstylist lain']
 			];
 		}
-
+                $attendance = HairstylistAttendance::where('id_user_hair_stylist', '!=', $user->id_user_hair_stylist)
+                                ->whereDate('attendances_date', date('Y-m-d'))
+                                ->wherenotnull('clock_in')
+                                ->wherenull('clock_out')
+                                ->first();
+                if (!$attendance) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Hairstylist sedang tidak bertugas']
+			];
+		}
     	DB::beginTransaction();
     	try {
 

@@ -297,18 +297,6 @@ class ApiMitraOutletService extends Controller
 			['id_outlet', $user->id_outlet],
 			['outlet_box_status', 'Active']
 		])->get();
-        $attendance = HairstylistAttendance::where('id_user_hair_stylist', '!=', $user->id_user_hair_stylist)
-                                ->whereDate('attendance_date', date('Y-m-d'))
-                                ->wherenotnull('clock_in')
-                                ->wherenull('clock_out')
-                                ->first();
-        if (!$attendance) {
-                return [
-                        'status' => 'success',
-                        'result' => []
-                ];
-        }
-
     	return MyHelper::checkGet($box);
     }
 
@@ -952,7 +940,15 @@ class ApiMitraOutletService extends Controller
 
  		$box = [];
  		if ($schedule) {
-	 		if ($schedule->id_outlet_box) {
+                    $attendance = HairstylistAttendance::where('id_user_hair_stylist', '!=', $user->id_user_hair_stylist)
+                                ->whereDate('attendance_date', date('Y-m-d'))
+                                ->wherenotnull('clock_in')
+                                ->wherenull('clock_out')
+                                ->first();
+                        if (!$attendance) {
+                                $box = [];
+                        }else{
+                            if ($schedule->id_outlet_box) {
 	 			$box = OutletBox::where([
 					['id_outlet', $user->id_outlet],
 					['id_outlet_box', $schedule->id_outlet_box],
@@ -968,6 +964,8 @@ class ApiMitraOutletService extends Controller
 			 		->where('shift', $shift);
 				})->get();
 	 		}
+                        }
+	 		
  		}
 
 		$res = [

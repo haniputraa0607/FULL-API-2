@@ -1115,7 +1115,7 @@ class ApiMitraOutletService extends Controller
 			];
 		}
                 $attendance = HairstylistAttendance::where('id_user_hair_stylist', '!=', $user->id_user_hair_stylist)
-                                ->whereDate('attendances_date', date('Y-m-d'))
+                                ->whereDate('attendance_date', date('Y-m-d'))
                                 ->wherenotnull('clock_in')
                                 ->wherenull('clock_out')
                                 ->first();

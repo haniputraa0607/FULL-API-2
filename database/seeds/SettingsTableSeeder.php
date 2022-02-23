@@ -1088,7 +1088,7 @@ class SettingsTableSeeder extends Seeder
                     'id_setting' => 121,
                     'key' => 'confirmation_letter_tempalate',
                     'value' => NULL,
-                    'value_text' => '<center><h5 class="font-weight-bold mb-1" style="font-size: 11pt">SURAT KONFIRMASI PERSETUJUAN KERJASAMA KEMITRAAN</h5></center>
+                    'value_text' => '<center><h5 class="font-weight-bold mb-4" style="font-size: 11pt">SURAT KONFIRMASI PERSETUJUAN KERJASAMA KEMITRAAN</h5></center>
                     <h6 class="font-weight-normal mb-0">%lokasi_surat%, %tanggal_surat% </h6>
                     <h6 class="font-weight-normal mb-0">No: %no_surat%</h6>
                     <br>

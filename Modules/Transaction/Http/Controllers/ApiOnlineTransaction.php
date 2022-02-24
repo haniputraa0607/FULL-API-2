@@ -2424,6 +2424,11 @@ class ApiOnlineTransaction extends Controller
                 continue;
             }
 
+            if ($outlet['is_tax']) {
+                $service['product_tax'] = round($outlet['is_tax'] * $service['product_price'] / 110);
+                $service['product_price'] = $service['product_price'] - $service['product_tax'];
+            }
+
             $bookTime = date('Y-m-d H:i', strtotime(date('Y-m-d', strtotime($item['booking_date'])).' '.date('H:i', strtotime($item['booking_time']))));
 
             //check available hs
@@ -2490,7 +2495,8 @@ class ApiOnlineTransaction extends Controller
                 "id_product" => $service['id_product'],
                 "product_code" => $service['product_code'],
                 "product_name" => $service['product_name'],
-                "product_price" => (int)$service['product_price'],
+                "product_price" => (int) $service['product_price'],
+                "product_tax" => (int) $service['product_tax'] ?? 0,
                 "id_user_hair_stylist" => $hs['id_user_hair_stylist'],
                 "user_hair_stylist_name" => $hs['fullname'],
                 "booking_date" => $item['booking_date'],

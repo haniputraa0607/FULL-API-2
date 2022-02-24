@@ -326,6 +326,7 @@ class Icount
                         $data['ChartOfAccountID'] = ChartOfAccount::where('id_chart_of_account',$payment['chart_of_account_id'])->first()['ChartOfAccountID'];
                     }
                 }
+                $data['ReferenceNo'] = strtoupper($request['payment_type']);
             }elseif(isset($request['id_transaction_payment_xendit'])){
                 $request['type'] = ucfirst(strtolower($request['type']));
                 foreach($availablePayment as $a => $paymentx){
@@ -333,6 +334,7 @@ class Icount
                         $data['ChartOfAccountID'] = ChartOfAccount::where('id_chart_of_account',$paymentx['chart_of_account_id'])->first()['ChartOfAccountID'];
                     }
                 }
+                $data['ReferenceNo'] = strtoupper($request['type']);
             }
             
             $transactions = [];

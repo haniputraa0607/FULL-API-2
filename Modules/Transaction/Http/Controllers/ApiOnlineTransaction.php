@@ -4593,8 +4593,12 @@ class ApiOnlineTransaction extends Controller
             ->get()->toArray();
 
         foreach ($data as $dt){
+            $outletType = Outlet::join('locations', 'locations.id_location', 'outlets.id_location')->where('id_outlet', $dt['id_outlet'])
+                        ->first()['company_type']??null;
+            $outletType = str_replace('PT ', '', $outletType);
             $getProductUse = ProductProductIcount::join('product_detail', 'product_detail.id_product', 'product_product_icounts.id_product')
                 ->where('product_product_icounts.id_product', $dt['id_product'])
+                ->where('company_type', $outletType)
                 ->where('product_detail.id_outlet', $dt['id_outlet'])->get()->toArray();
 
             foreach ($getProductUse as $productUse){
@@ -4612,7 +4616,7 @@ class ApiOnlineTransaction extends Controller
 
         foreach ($data as $dt){
             $product_icount = new ProductIcount();
-            $update = $product_icount->find($dt['id_product_icount'])->addLogStockProductIcount(abs($dt['qty']), 'Cancelled Book Product', $id_transaction, null, $id_outlet);
+            $update = $product_icount->find($dt['id_product_icount'])->addLogStockProductIcount(abs($dt['qty']), $dt['unit'], 'Cancelled Book Product', $id_transaction, null, $id_outlet);
         }
 
         return $update??true;

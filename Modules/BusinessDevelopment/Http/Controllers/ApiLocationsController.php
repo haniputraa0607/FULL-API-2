@@ -195,7 +195,7 @@ class ApiLocationsController extends Controller
     {
         $post = $request->all();
         if(isset($post['id_location']) && !empty($post['id_location'])){
-            $location = Location::where('id_location', $post['id_location'])->with(['location_partner','location_city','location_step','location_survey','location_confirmation','location_starter.product'])->first();
+            $location = Location::where('id_location', $post['id_location'])->with(['location_partner','location_city.province','location_step','location_survey','location_confirmation','location_starter.product'])->first();
             if(($location['location_step'])){
                 foreach($location['location_step'] as $step){
                     if(isset($step['attachment']) && !empty($step['attachment'])){

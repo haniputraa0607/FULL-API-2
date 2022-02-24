@@ -69,7 +69,7 @@ class Location extends Model
         return $this->hasMany(FormSurvey::class, 'id_location');
     }
     public function location_confirmation(){
-        return $this->hasMany(ConfirmationLetter::class, 'id_location');
+        return $this->hasOne(ConfirmationLetter::class, 'id_location');
     }
     public function outlet_starter(){
         return $this->belongsTo(OutletStarterBundling::class, 'id_outlet_starter_bundling');

@@ -3261,7 +3261,9 @@ class ApiProductController extends Controller
             if($post['type'] == 'product'){
                 $product->where('product_icounts.item_group', '<>', 'Inventory');
             }else{
-                $product->where('product_icounts.item_group', '=', 'Inventory');
+                $product->where(function($q){
+                    $q->where('product_icounts.item_group', '=', 'Inventory')->orWhere('product_icounts.item_group', '=', 'Service');
+                });
             }
         }
 

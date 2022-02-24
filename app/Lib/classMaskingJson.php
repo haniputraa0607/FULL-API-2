@@ -149,7 +149,7 @@ class classMaskingJson {
             header('Content-Type: application/json');
 
             $log=[
-                'request_body'=>$this->data,
+                'request_body'=>$data,
                 'request_url'=>$urlendpoint,
                 'response'=>$respon,
                 'phone'=>$phone

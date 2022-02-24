@@ -139,6 +139,7 @@ class ApiSettingTransactionV2 extends Controller
         if ($value == 'subtotal') {
             $outlet = (empty($data['id_outlet']) ? []:Outlet::select('id_outlet', 'outlet_different_price')->where('id_outlet',$data['id_outlet'])->first());
             $different_price = $outlet->outlet_different_price??0;
+            $outlet_tax = $outlet->is_tax??0;
             $dataSubtotal = [];
             $dataSubtotalFinal = [];
             $dataSubtotalPerBrand = [];
@@ -188,6 +189,12 @@ class ApiSettingTransactionV2 extends Controller
                         'product' => $product['product_name']
                     ]);
                 }
+
+                if ($outlet_tax) {
+                    $productPrice['product_tax'] = round($outlet_tax * $productPrice['product_price'] / 110);
+                    $productPrice['product_price'] = $productPrice['product_price'] - $productPrice['product_tax'];
+                }
+
                 $mod_subtotal = 0;
                 if ($valueData['id_product_variant_group'] ?? false) {
                     $product_variant_group = ProductVariantGroup::where('product_variant_groups.id_product_variant_group', $valueData['id_product_variant_group']);
@@ -266,6 +273,12 @@ class ApiSettingTransactionV2 extends Controller
                         $service['product_price'] = ProductSpecialPrice::where('id_product', $valueService['id_product'])
                                 ->where('id_outlet', $outlet['id_outlet'])->first()['product_special_price']??0;
                     }
+
+                    if ($outlet_tax) {
+                        $service['product_tax'] = round($outlet_tax * $service['product_price'] / 110);
+                        $service['product_price'] = $service['product_price'] - $service['product_tax'];
+                    }
+
                     if(empty($service['product_price'])){
 
                         return response()->json([
@@ -305,6 +318,11 @@ class ApiSettingTransactionV2 extends Controller
                         'messages'  => ['Price product academy not valid'],
                         'product' => $data['item_academy']['product_name']
                     ]);
+                }
+
+                if ($outlet_tax) {
+                    $academy['product_tax'] = round($outlet_tax * $academy['product_price'] / 110);
+                    $academy['product_price'] = $academy['product_price'] - $academy['product_tax'];
                 }
 
                 $academyPrice = (int)$academy['product_price'];
@@ -441,7 +459,9 @@ class ApiSettingTransactionV2 extends Controller
                     'messages' => ['Product Not Found']
                 ]);
             }
-            $different_price = Outlet::select('outlet_different_price')->where('id_outlet',$data['id_outlet'])->pluck('outlet_different_price')->first();
+
+            $outlet = Outlet::where('id_outlet',$data['id_outlet'])->first();
+            $different_price = $outlet->outlet_different_price ?? 0;
             if($different_price){
                 $productPrice = ProductSpecialPrice::where(['id_product' => $valueData['id_product'], 'id_outlet' => $data['id_outlet']])->first();
                 if($productPrice){
@@ -453,6 +473,12 @@ class ApiSettingTransactionV2 extends Controller
                     $productPrice['product_price'] = $productPrice['product_global_price'];
                 }
             }
+
+            if ($tax) {
+                $productPrice['product_tax'] = round($outlet['is_tax'] * $productPrice['product_price'] / 110);
+                $productPrice['product_price'] = $productPrice['product_price'] - $productPrice['product_tax'];
+            }
+
             if (empty($productPrice)) {
                 continue;
                 DB::rollback();

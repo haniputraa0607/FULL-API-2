@@ -1850,15 +1850,45 @@ class ApiOnlineTransaction extends Controller
         $earnedPoint = $this->countTranscationPoint($post, $user);
         $cashback = $earnedPoint['cashback'] ?? 0;
 
-        $post['tax'] = ($outlet['is_tax']/100) * $post['subtotal'];
-        $result['subtotal'] = $subtotal;
+        $post['tax'] = 0;
+
+        if ($outlet['is_tax']) {
+            $result['subtotal_product_service'] = 0;
+            $result['subtotal_product'] = 0;
+            if ($outlet['is_tax'] > 100) {
+                return [
+                    'status' => 'fail',
+                    'messages' => ['Invalid Outlet Tax']
+                ];
+            }
+
+            foreach ($result['item_service'] as $k => $itemService) {
+                $itemService['product_tax'] = round($outlet['is_tax'] * $itemService['product_price'] / 110);
+                $itemService['product_price'] = $itemService['product_price'] - $itemService['product_tax'];
+                $result['item_service'][$k] = $itemService;
+                $result['subtotal_product_service'] += $itemService['product_price'];
+            }
+
+            foreach ($result['item'] as $k => $item) {
+                $item['qty'] = $item['qty']?? 1;
+                $item['product_tax'] = round($outlet['is_tax'] * $item['product_price'] / 110);
+                $item['product_price'] = $item['product_price'] - $item['product_tax'];
+                $item['product_tax_total'] = $item['product_tax'] * $item['qty'];
+                $item['product_price_total'] = $item['product_price'] * $item['qty'];;
+                $result['item'][$k] = $item;
+                $result['subtotal_product'] += $item['product_price_total'];
+            }
+
+        }
+
+        $result['subtotal'] = $result['subtotal_product_service'] + $result['subtotal_product'];
         $result['shipping'] = $post['shipping']+$shippingGoSend;
         $result['discount'] = $post['discount'];
         $result['discount_delivery'] = $post['discount_delivery'];
         $result['cashback'] = $cashback;
-        $result['tax'] = $post['tax'];
+        $result['tax'] = array_sum(array_column($result['item_service'], 'product_tax')) + array_sum(array_column($result['item'], 'product_tax_total'));
         $result['service'] = $post['service'];
-        $result['grandtotal'] = (int)$result['subtotal'] + (int)(-$post['discount']) + (int)$post['service'] + (int)$post['tax'];
+        $result['grandtotal'] = (int)$result['subtotal'] + (int)(-$post['discount']) + (int)$post['service'] + (int)$result['tax'];
         $result['subscription'] = 0;
         $result['used_point'] = 0;
         $balance = app($this->balance)->balanceNow($user->id);

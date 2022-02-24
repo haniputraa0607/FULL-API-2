@@ -6446,7 +6446,7 @@ class ApiTransaction extends Controller
 
     public function callbacksharing(CallbackFromIcount $request){
         $pesan = [
-                    'cek' => 'Invalid PurchaseInvoiceID or PurchaseInvoiceID status has been processed',
+                    'cek' => 'Invalid PurchaseInvoiceID or PurchaseInvoiceID status has been Successed',
                     'status' => "Invalid status, status must be Success or Fail",
                 ];
                     Validator::extend('status', function ($attribute, $value, $parameters, $validator) {
@@ -6455,14 +6455,15 @@ class ApiTransaction extends Controller
                   } return false;
                  }); 
                     Validator::extend('cek', function ($attribute, $value, $parameters, $validator) {
-                    $share = SharingManagementFee::where(array('PurchaseInvoiceID'=>$value,'status'=>'Proccess'))->first();
+                    $share = SharingManagementFee::where(array('PurchaseInvoiceID'=>$value))->where('status','!=','Success')->first();
                     if($share){
                         return true;
                     }
                     return false;
                  }); 
+                   
                   $validator = Validator::make($request->all(), [
-			 'PurchaseInvoiceID'    => 'required|cek',
+			'PurchaseInvoiceID'    => 'required|cek',
                         'status'               => 'required|status',
                         'date_disburse'        => 'required|date_format:Y-m-d H:i:s',
 		],$pesan);  
@@ -6473,7 +6474,7 @@ class ApiTransaction extends Controller
 				'message' =>  $validator->errors()
 			], 400);
 		}
-        $data = SharingManagementFee::where(array('PurchaseInvoiceID'=>$request->PurchaseInvoiceID))->update([
+        $data = SharingManagementFee::where(array('PurchaseInvoiceID'=>$request->PurchaseInvoiceID))->where('status','!=','Success')->update([
             'status'=>$request->status,
             'date_disburse'=>$request->date_disburse,
         ]);

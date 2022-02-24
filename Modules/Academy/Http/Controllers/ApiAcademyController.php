@@ -781,6 +781,20 @@ class ApiAcademyController extends Controller
 
         $dataInstallment->update(['installment_payment_type' => $request->payment_type]);
 
+        //update mdr
+        if(!empty($post['payment_type']) && !empty($post['payment_detail'])){
+            $code = strtolower($post['payment_type'].'_'.$post['payment_detail']);
+            $settingmdr = Setting::where('key', 'mdr_formula')->first()['value_text']??'';
+            $settingmdr = (array)json_decode($settingmdr);
+            $formula = $settingmdr[$code]??'';
+            if(!empty($formula)){
+                try {
+                    $mdr = MyHelper::calculator($formula, ['transaction_grandtotal' => $dataInstallment['amount']]);
+                    TransactionAcademyInstallment::where('id_transaction_academy_installment', $post['id_transaction_academy_installment'])->update(['mdr_payment_installment' => $mdr]);
+                } catch (\Exception $e) {
+                }
+            }
+        }
         $res = [];
         if ($request->json('payment_type') && $request->json('payment_type') == "Midtrans") {
             $pay = $this->midtrans($dataInstallment, $post);

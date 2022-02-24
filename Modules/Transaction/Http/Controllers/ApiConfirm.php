@@ -103,6 +103,22 @@ class ApiConfirm extends Controller
             $post['payment_detail'] = null;
         }
 
+
+        //update mdr
+        if(!empty($post['payment_type']) && !empty($post['payment_detail'])){
+            $code = strtolower($post['payment_type'].'_'.$post['payment_detail']);
+            $settingmdr = Setting::where('key', 'mdr_formula')->first()['value_text']??'';
+            $settingmdr = (array)json_decode($settingmdr);
+            $formula = $settingmdr[$code]??'';
+            if(!empty($formula)){
+                try {
+                    $mdr = MyHelper::calculator($formula, ['transaction_grandtotal' => $check['transaction_grandtotal']]);
+                    Transaction::where('id_transaction', $check['id_transaction'])->update(['mdr' => $mdr]);
+                } catch (\Exception $e) {
+                }
+            }
+        }
+
         $checkPayment = TransactionMultiplePayment::where('id_transaction', $check['id_transaction'])->first();
         $countGrandTotal = $check['transaction_grandtotal'];
         $totalPriceProduct = 0;

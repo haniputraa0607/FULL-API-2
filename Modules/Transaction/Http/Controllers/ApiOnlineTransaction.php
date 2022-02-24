@@ -193,8 +193,8 @@ class ApiOnlineTransaction extends Controller
             }
         }
         if ($post['type'] == 'Delivery Order' && $request->courier == 'gosend') {
-        	$post['type'] = 'GO-SEND';
-        	$request->type = 'GO-SEND';
+            $post['type'] = 'GO-SEND';
+            $request->type = 'GO-SEND';
         }
         // return $post;
         $totalPrice = 0;
@@ -670,20 +670,20 @@ class ApiOnlineTransaction extends Controller
             }
 
             if ($post['type'] == 'GO-SEND') {
-	            $checkKey = GoSend::checkKey();
-	            if(is_array($checkKey) && $checkKey['status'] == 'fail'){
-	                DB::rollback();
-	                return response()->json($checkKey);
-	            }
+                $checkKey = GoSend::checkKey();
+                if(is_array($checkKey) && $checkKey['status'] == 'fail'){
+                    DB::rollback();
+                    return response()->json($checkKey);
+                }
             }else{
-            	$courierWHY = WeHelpYou::getCourier($request->courier, $request, $outlet);
-	            if(!$courierWHY){
-	                DB::rollback();
-	                return response()->json([
-	                	'status' => 'fail',
-	                	'messages'  => ['Gagal menghitung biaya pengantaran. Silakan coba kembali']
-	                ]);
-	            }
+                $courierWHY = WeHelpYou::getCourier($request->courier, $request, $outlet);
+                if(!$courierWHY){
+                    DB::rollback();
+                    return response()->json([
+                        'status' => 'fail',
+                        'messages'  => ['Gagal menghitung biaya pengantaran. Silakan coba kembali']
+                    ]);
+                }
             }
 
             $dataUser = [
@@ -725,12 +725,12 @@ class ApiOnlineTransaction extends Controller
 
         if($post['type'] == 'GO-SEND' || $post['type'] == 'Delivery Order'){
             if (!($outlet['outlet_latitude'] 
-            	&& $outlet['outlet_longitude'] 
-            	&& $outlet['outlet_phone'] 
-            	&& $outlet['outlet_address'])
-            	&& MyHelper::validatePhoneGoSend($outlet['outlet_phone'])
-            	&& MyHelper::validatePhoneWehelpyou($outlet['outlet_phone'])
-        	) {
+                && $outlet['outlet_longitude'] 
+                && $outlet['outlet_phone'] 
+                && $outlet['outlet_address'])
+                && MyHelper::validatePhoneGoSend($outlet['outlet_phone'])
+                && MyHelper::validatePhoneWehelpyou($outlet['outlet_phone'])
+            ) {
                 app($this->outlet)->sendNotifIncompleteOutlet($outlet['id_outlet']);
                 $outlet->notify_admin = 1;
                 $outlet->save();
@@ -750,40 +750,40 @@ class ApiOnlineTransaction extends Controller
             $type = 'Pickup Order';
 
             if ($post['type'] == 'GO-SEND') {
-	            $shippingGoSendx = GoSend::getPrice($coor_origin,$coor_destination);
-	            $shippingGoSend = $shippingGoSendx[GoSend::getShipmentMethod()]['price']['total_price']??null;
-	            if($shippingGoSend === null){
-	                $errorGosend = array_column($shippingGoSendx[GoSend::getShipmentMethod()]['errors']??[],'message');
-	                if(isset($errorGosend[0])){
-	                    if($errorGosend[0] == 'Booking distance exceeds 40 kilometres'){
-	                        $errorGosend[0] = 'Lokasi tujuan melebihi jarak maksimum pengantaran';
-	                    }elseif($errorGosend[0] == 'Origin and destination cannot be same'){
-	                        $errorGosend[0] = 'Lokasi outlet dan tujuan tidak boleh di lokasi yang sama';
-	                    }elseif($errorGosend[0] == 'Origin and destination cannot be same'){
-	                        $errorGosend[0] = 'Lokasi outlet dan tujuan tidak boleh di lokasi yang sama';
-	                    }elseif($errorGosend[0] == 'The service is not yet available in this region'){
-	                        $errorGosend[0] = 'Pengiriman tidak tersedia di lokasi Anda';
-	                    }elseif($errorGosend[0] == "Sender's location is not serviceable"){
-	                        $errorGosend[0] = 'Pengiriman tidak tersedia di lokasi Anda';
-	                    }
-	                }
-	                $error_msg += $errorGosend?:['Gagal menghitung biaya pengantaran. Silakan coba kembali'];
-	            }else{
-	            	$post['shipping'] = $shippingGoSend;
-	            	$shippingGoSend = 0;
-	            }
-	            $shipment_method = 'GO-SEND';
-            	$shipment_courier = 'GO-SEND';
+                $shippingGoSendx = GoSend::getPrice($coor_origin,$coor_destination);
+                $shippingGoSend = $shippingGoSendx[GoSend::getShipmentMethod()]['price']['total_price']??null;
+                if($shippingGoSend === null){
+                    $errorGosend = array_column($shippingGoSendx[GoSend::getShipmentMethod()]['errors']??[],'message');
+                    if(isset($errorGosend[0])){
+                        if($errorGosend[0] == 'Booking distance exceeds 40 kilometres'){
+                            $errorGosend[0] = 'Lokasi tujuan melebihi jarak maksimum pengantaran';
+                        }elseif($errorGosend[0] == 'Origin and destination cannot be same'){
+                            $errorGosend[0] = 'Lokasi outlet dan tujuan tidak boleh di lokasi yang sama';
+                        }elseif($errorGosend[0] == 'Origin and destination cannot be same'){
+                            $errorGosend[0] = 'Lokasi outlet dan tujuan tidak boleh di lokasi yang sama';
+                        }elseif($errorGosend[0] == 'The service is not yet available in this region'){
+                            $errorGosend[0] = 'Pengiriman tidak tersedia di lokasi Anda';
+                        }elseif($errorGosend[0] == "Sender's location is not serviceable"){
+                            $errorGosend[0] = 'Pengiriman tidak tersedia di lokasi Anda';
+                        }
+                    }
+                    $error_msg += $errorGosend?:['Gagal menghitung biaya pengantaran. Silakan coba kembali'];
+                }else{
+                    $post['shipping'] = $shippingGoSend;
+                    $shippingGoSend = 0;
+                }
+                $shipment_method = 'GO-SEND';
+                $shipment_courier = 'GO-SEND';
             }else{
-            	$post['shipping'] = $courierWHY['price'];
-	            $shipment_method = 'Wehelpyou';
-            	$shipment_courier = $courierWHY['courier'];
-            	if (WeHelpYou::isNotEnoughCredit($post['shipping'])) {
-            		return [
-	                    'status' => 'fail',
-	                    'messages' => ['Gagal menghitung biaya pengantaran. Silakan coba kembali']
-	                ];
-            	}
+                $post['shipping'] = $courierWHY['price'];
+                $shipment_method = 'Wehelpyou';
+                $shipment_courier = $courierWHY['courier'];
+                if (WeHelpYou::isNotEnoughCredit($post['shipping'])) {
+                    return [
+                        'status' => 'fail',
+                        'messages' => ['Gagal menghitung biaya pengantaran. Silakan coba kembali']
+                    ];
+                }
             }
             //cek free delivery
             // if($post['is_free'] == 'yes'){
@@ -811,15 +811,15 @@ class ApiOnlineTransaction extends Controller
             'shipment_courier'            => $shipment_courier ?? null,
             'transaction_notes'           => $post['notes'],
             'transaction_subtotal'        => $post['subtotal'],
-            'transaction_gross'  		  => $post['subtotal_final'],
+            'transaction_gross'           => $post['subtotal_final'],
             'transaction_shipment'        => $post['shipping'],
             'transaction_shipment_go_send'=> $shippingGoSend,
             'transaction_is_free'         => $isFree,
             'transaction_service'         => $post['service'],
             'transaction_discount'        => $post['discount'],
             'transaction_discount_delivery' => $post['discount_delivery'],
-            'transaction_discount_item' 	=> $promo_discount_item??0,
-            'transaction_discount_bill' 	=> $promo_discount_bill??0,
+            'transaction_discount_item'     => $promo_discount_item??0,
+            'transaction_discount_bill'     => $promo_discount_bill??0,
             'transaction_tax'             => $post['tax'],
             'transaction_grandtotal'      => $post['grandTotal'] + $shippingGoSend + $post['shipping'],
             'transaction_point_earned'    => $post['point'],
@@ -1140,14 +1140,14 @@ class ApiOnlineTransaction extends Controller
         }
 
         if ($scopeUser == 'apps') {
-	        $applyPromo = app($this->promo_trx)->applyPromoNewTrx($insertTransaction);
-	        if ($applyPromo['status'] == 'fail') {
-	        	DB::rollback();
-	            return $applyPromo;
-	        }
+            $applyPromo = app($this->promo_trx)->applyPromoNewTrx($insertTransaction);
+            if ($applyPromo['status'] == 'fail') {
+                DB::rollback();
+                return $applyPromo;
+            }
 
-	        $insertTransaction = $applyPromo['result'] ?? $insertTransaction;
-	    }
+            $insertTransaction = $applyPromo['result'] ?? $insertTransaction;
+        }
         
         array_push($dataDetailProduct, $productMidtrans);
 
@@ -1277,15 +1277,15 @@ class ApiOnlineTransaction extends Controller
                     $insertTransaction = Transaction::with('user.memberships', 'outlet', 'productTransaction')->where('transaction_receipt_number', $insertTransaction['transaction_receipt_number'])->first();
 
                     if ($request->id_deals_user && $scopeUser == 'apps') {
-		            	$voucherUsage = TransactionPromo::where('id_deals_user', $request->id_deals_user)->count();
-		                if (($voucherUsage ?? false) > 1) {
-		                    DB::rollBack();
-		                    return [
-		                        'status' => 'fail',
-		                        'messages' => ['Voucher sudah pernah digunakan']
-		                    ];
-		                }
-		            }
+                        $voucherUsage = TransactionPromo::where('id_deals_user', $request->id_deals_user)->count();
+                        if (($voucherUsage ?? false) > 1) {
+                            DB::rollBack();
+                            return [
+                                'status' => 'fail',
+                                'messages' => ['Voucher sudah pernah digunakan']
+                            ];
+                        }
+                    }
 
                     if ($configAdminOutlet && $configAdminOutlet['is_active'] == '1') {
                         $sendAdmin = app($this->notif)->sendNotif($insertTransaction);
@@ -1498,7 +1498,7 @@ class ApiOnlineTransaction extends Controller
             }
 
             if ($request->id_deals_user) {
-            	$voucherUsage = TransactionPromo::where('id_deals_user', $request->id_deals_user)->count();
+                $voucherUsage = TransactionPromo::where('id_deals_user', $request->id_deals_user)->count();
                 if (($voucherUsage ?? false) > 1) {
                     DB::rollBack();
                     return [
@@ -1850,43 +1850,44 @@ class ApiOnlineTransaction extends Controller
         $earnedPoint = $this->countTranscationPoint($post, $user);
         $cashback = $earnedPoint['cashback'] ?? 0;
 
-        $post['tax'] = 0;
+        // $post['tax'] = 0;
 
-        if ($outlet['is_tax']) {
-            $result['subtotal_product_service'] = 0;
-            $result['subtotal_product'] = 0;
-            if ($outlet['is_tax'] > 100) {
-                return [
-                    'status' => 'fail',
-                    'messages' => ['Invalid Outlet Tax']
-                ];
-            }
+        // if ($outlet['is_tax']) {
+        //     $result['subtotal_product_service'] = 0;
+        //     $result['subtotal_product'] = 0;
+        //     if ($outlet['is_tax'] > 100) {
+        //         return [
+        //             'status' => 'fail',
+        //             'messages' => ['Invalid Outlet Tax']
+        //         ];
+        //     }
 
-            foreach ($result['item_service'] as $k => $itemService) {
-                $itemService['product_tax'] = round($outlet['is_tax'] * $itemService['product_price'] / 110);
-                $itemService['product_price'] = $itemService['product_price'] - $itemService['product_tax'];
-                $result['item_service'][$k] = $itemService;
-                $result['subtotal_product_service'] += $itemService['product_price'];
-            }
+        //     foreach ($result['item_service'] as $k => $itemService) {
+        //         $itemService['product_tax'] = round($outlet['is_tax'] * $itemService['product_price'] / 110);
+        //         $itemService['product_price'] = $itemService['product_price'] - $itemService['product_tax'];
+        //         $result['item_service'][$k] = $itemService;
+        //         $result['subtotal_product_service'] += $itemService['product_price'];
+        //     }
 
-            foreach ($result['item'] as $k => $item) {
-                $item['qty'] = $item['qty']?? 1;
-                $item['product_tax'] = round($outlet['is_tax'] * $item['product_price'] / 110);
-                $item['product_price'] = $item['product_price'] - $item['product_tax'];
-                $item['product_tax_total'] = $item['product_tax'] * $item['qty'];
-                $item['product_price_total'] = $item['product_price'] * $item['qty'];;
-                $result['item'][$k] = $item;
-                $result['subtotal_product'] += $item['product_price_total'];
-            }
+        //     foreach ($result['item'] as $k => $item) {
+        //         $item['qty'] = $item['qty']?? 1;
+        //         $item['product_tax'] = round($outlet['is_tax'] * $item['product_price'] / 110);
+        //         $item['product_price'] = $item['product_price'] - $item['product_tax'];
+        //         $item['product_tax_total'] = $item['product_tax'] * $item['qty'];
+        //         $item['product_price_total'] = $item['product_price'] * $item['qty'];;
+        //         $result['item'][$k] = $item;
+        //         $result['subtotal_product'] += $item['product_price_total'];
+        //     }
 
-        }
+        // }
 
         $result['subtotal'] = $result['subtotal_product_service'] + $result['subtotal_product'];
         $result['shipping'] = $post['shipping']+$shippingGoSend;
         $result['discount'] = $post['discount'];
         $result['discount_delivery'] = $post['discount_delivery'];
         $result['cashback'] = $cashback;
-        $result['tax'] = array_sum(array_column($result['item_service'], 'product_tax')) + array_sum(array_column($result['item'], 'product_tax_total'));
+        // $result['tax'] = array_sum(array_column($result['item_service'], 'product_tax')) + array_sum(array_column($result['item'], 'product_tax_total'));
+        $result['tax'] = $post['tax'];
         $result['service'] = $post['service'];
         $result['grandtotal'] = (int)$result['subtotal'] + (int)(-$post['discount']) + (int)$post['service'] + (int)$result['tax'];
         $result['subscription'] = 0;
@@ -1903,7 +1904,7 @@ class ApiOnlineTransaction extends Controller
         $fake_request = new Request(['show_all' => 1]);
         $result['available_payment'] = $this->availablePayment($fake_request)['result'] ?? [];
 
-    	$result = app($this->promo_trx)->applyPromoCheckout($result);
+        $result = app($this->promo_trx)->applyPromoCheckout($result);
 
         if ($result['cashback']) {
             $result['point_earned'] = [
@@ -1938,6 +1939,7 @@ class ApiOnlineTransaction extends Controller
             $result['continue_checkout'] = false;
             $result['messages_all'] = implode('.', $error_msg);
         }
+        $result['tax'] = (int) $result['tax'];
         return MyHelper::checkGet($result);
     }
 
@@ -2883,54 +2885,54 @@ class ApiOnlineTransaction extends Controller
 
     public function checkPromoGetPoint($promo_source)
     {
-    	if (empty($promo_source)) {
-    		return 1;
-    	}
+        if (empty($promo_source)) {
+            return 1;
+        }
 
-    	if ($promo_source != 'promo_code' && $promo_source != 'voucher_online' && $promo_source != 'voucher_offline' && $promo_source != 'subscription') {
-    		return 0;
-    	}
+        if ($promo_source != 'promo_code' && $promo_source != 'voucher_online' && $promo_source != 'voucher_offline' && $promo_source != 'subscription') {
+            return 0;
+        }
 
-    	$config = app($this->promo)->promoGetCashbackRule();
-    	// $getData = Configs::whereIn('config_name',['promo code get point','voucher offline get point','voucher online get point'])->get()->toArray();
+        $config = app($this->promo)->promoGetCashbackRule();
+        // $getData = Configs::whereIn('config_name',['promo code get point','voucher offline get point','voucher online get point'])->get()->toArray();
 
-    	// foreach ($getData as $key => $value) {
-    	// 	$config[$value['config_name']] = $value['is_active'];
-    	// }
+        // foreach ($getData as $key => $value) {
+        //  $config[$value['config_name']] = $value['is_active'];
+        // }
 
-    	if ($promo_source == 'promo_code') {
-    		if ($config['promo code get point'] == 1) {
-    			return 1;
-    		}else{
-    			return 0;
-    		}
-    	}
+        if ($promo_source == 'promo_code') {
+            if ($config['promo code get point'] == 1) {
+                return 1;
+            }else{
+                return 0;
+            }
+        }
 
-    	if ($promo_source == 'voucher_online') {
-    		if ($config['voucher online get point'] == 1) {
-    			return 1;
-    		}else{
-    			return 0;
-    		}
-    	}
+        if ($promo_source == 'voucher_online') {
+            if ($config['voucher online get point'] == 1) {
+                return 1;
+            }else{
+                return 0;
+            }
+        }
 
-    	if ($promo_source == 'voucher_offline') {
-    		if ($config['voucher offline get point'] == 1) {
-    			return 1;
-    		}else{
-    			return 0;
-    		}
-    	}
+        if ($promo_source == 'voucher_offline') {
+            if ($config['voucher offline get point'] == 1) {
+                return 1;
+            }else{
+                return 0;
+            }
+        }
 
-    	if ($promo_source == 'subscription') {
-    		if ($config['subscription get point'] == 1) {
-    			return 1;
-    		}else{
-    			return 0;
-    		}
-    	}
+        if ($promo_source == 'subscription') {
+            if ($config['subscription get point'] == 1) {
+                return 1;
+            }else{
+                return 0;
+            }
+        }
 
-    	return 0;
+        return 0;
     }
     public function cancelTransaction(Request $request)
     {
@@ -3934,9 +3936,9 @@ class ApiOnlineTransaction extends Controller
             $dataDelivery = (array)$jsonDecode->data->partners;
             foreach ($dataDelivery as $val){
 
-            	if (empty($val)) {
-            		continue;
-            	}
+                if (empty($val)) {
+                    continue;
+                }
 
                 $check = array_search('wehelpyou_'.$val->courier, array_column($availableDelivery, 'code'));
                 if($check === false){
@@ -3958,41 +3960,41 @@ class ApiOnlineTransaction extends Controller
 
     public function setGrandtotalListDelivery($listDelivery, $grandtotal)
     {
-    	foreach ($listDelivery as $key => $delivery) {
-    		$listDelivery[$key]['total_payment'] = $grandtotal + $delivery['price'];
-    	}
-    	return $listDelivery;
+        foreach ($listDelivery as $key => $delivery) {
+            $listDelivery[$key]['total_payment'] = $grandtotal + $delivery['price'];
+        }
+        return $listDelivery;
     }
 
     public function getActiveCourier($listDelivery, $courier)
     {
-    	foreach ($listDelivery as $delivery) {
-    		if ((empty($courier) && $delivery['disable'] == 0)
-    			|| $delivery['courier'] == $courier
-    		) {
-    			return $delivery;
-    			break;
-    		}
-    	}
+        foreach ($listDelivery as $delivery) {
+            if ((empty($courier) && $delivery['disable'] == 0)
+                || $delivery['courier'] == $courier
+            ) {
+                return $delivery;
+                break;
+            }
+        }
 
-    	return null;
+        return null;
     }
 
     public function getCourierName(string $courier)
     {
-    	foreach ($this->listAvailableDelivery(WeHelpYou::listDeliveryRequest())['result']['delivery'] as $delivery) {
-    		if (strpos($delivery['code'], $courier) !== false) {
-				$courier = $delivery['delivery_name'];
-				break;
-			}
-    	}
-    	return $courier;
+        foreach ($this->listAvailableDelivery(WeHelpYou::listDeliveryRequest())['result']['delivery'] as $delivery) {
+            if (strpos($delivery['code'], $courier) !== false) {
+                $courier = $delivery['delivery_name'];
+                break;
+            }
+        }
+        return $courier;
     }
 
     public function countTranscationPoint($post, $user)
     {
-    	$post['point'] = app($this->setting_trx)->countTransaction('point', $post);
-    	$post['cashback'] = app($this->setting_trx)->countTransaction('cashback', $post);
+        $post['point'] = app($this->setting_trx)->countTransaction('point', $post);
+        $post['cashback'] = app($this->setting_trx)->countTransaction('cashback', $post);
 
         $countUserTrx = Transaction::where('id_user', $user['id'])->where('transaction_payment_status', 'Completed')->count();
 
@@ -4033,59 +4035,59 @@ class ApiOnlineTransaction extends Controller
                 $post['cashback'] = $post['cashback'];
             }
         }
-    	return [
-    		'point' => $post['point'] ?? 0,
-    		'cashback' => $post['cashback'] ?? 0
-    	];
+        return [
+            'point' => $post['point'] ?? 0,
+            'cashback' => $post['cashback'] ?? 0
+        ];
     }
 
     public function showListDelivery($showDelivery, $listDelivery)
     {
-    	if (empty($listDelivery) || $showDelivery != 1) {
-    		return $showDelivery;
-    	}
+        if (empty($listDelivery) || $showDelivery != 1) {
+            return $showDelivery;
+        }
 
-    	$showList = 0;
-    	foreach ($listDelivery as $val) {
-    		if ($val['disable']) {
-    			continue;
-    		}
+        $showList = 0;
+        foreach ($listDelivery as $val) {
+            if ($val['disable']) {
+                continue;
+            }
 
-    		$showList = 1;
-    		break;
-    	}
-    	
-    	return $showList;
+            $showList = 1;
+            break;
+        }
+        
+        return $showList;
     }
 
     public function showListDeliveryPickup($showDelivery, $id_outlet)
     {
-    	if ($showDelivery != 1) {
-    		return $showDelivery;
-    	}
+        if ($showDelivery != 1) {
+            return $showDelivery;
+        }
 
-    	$listDelivery = $this->listAvailableDelivery(WeHelpYou::listDeliveryRequest())['result']['delivery'] ?? [];
-    	$delivery_outlet = DeliveryOutlet::where('id_outlet', $id_outlet)->get();
-		$outletSetting = [];
-		foreach ($delivery_outlet as $val) {
-			$outletSetting[$val['code']] = $val;
-		}
+        $listDelivery = $this->listAvailableDelivery(WeHelpYou::listDeliveryRequest())['result']['delivery'] ?? [];
+        $delivery_outlet = DeliveryOutlet::where('id_outlet', $id_outlet)->get();
+        $outletSetting = [];
+        foreach ($delivery_outlet as $val) {
+            $outletSetting[$val['code']] = $val;
+        }
 
-    	$showList = 0;
-    	foreach ($listDelivery as $val) {
-    		if ($val['show_status'] != 1
-    			|| $val['available_status'] != 1
-    			|| empty($outletSetting[$val['code']])
-    			|| (isset($outletSetting[$val['code']]) && ($outletSetting[$val['code']]['available_status'] != 1 || $outletSetting[$val['code']]['show_status'] != 1))
-    		) {
-    			continue;
-    		}
+        $showList = 0;
+        foreach ($listDelivery as $val) {
+            if ($val['show_status'] != 1
+                || $val['available_status'] != 1
+                || empty($outletSetting[$val['code']])
+                || (isset($outletSetting[$val['code']]) && ($outletSetting[$val['code']]['available_status'] != 1 || $outletSetting[$val['code']]['show_status'] != 1))
+            ) {
+                continue;
+            }
 
-    		$showList = 1;
-    		break;
-    	}
+            $showList = 1;
+            break;
+        }
 
-    	return $showList;
+        return $showList;
     }
 
     public function cartTransaction(Request $request){
@@ -4356,7 +4358,7 @@ class ApiOnlineTransaction extends Controller
         if ($cashBack??false) {
             $result['point_earned'] = [
                 'value' => MyHelper::requestNumber($cashBack,'_CURRENCY'),
-                'text' 	=> MyHelper::setting('cashback_earned_text', 'value', 'Point yang akan didapatkan')
+                'text'  => MyHelper::setting('cashback_earned_text', 'value', 'Point yang akan didapatkan')
             ];
         }
 

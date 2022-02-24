@@ -1270,7 +1270,15 @@ class SettingsTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s'),
                 ),
-            
+            123 =>
+                array (
+                    'id_setting' => 124,
+                    'key' => 'mdr_formula',
+                    'value' => NULL,
+                    'value_text' => '{"xendit_dana":"0.015 * transaction_grandtotal","xendit_linkaja":"0.015 * transaction_grandtotal","xendit_shopeepay":"0.015 * transaction_grandtotal","xendit_kredivo":"0.023 * transaction_grandtotal","xendit_qris":"0.07 * transaction_grandtotal","xendit_credit_card":"(0.029 * transaction_grandtotal) + 2000"}',
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ),
         ));
     }
 }

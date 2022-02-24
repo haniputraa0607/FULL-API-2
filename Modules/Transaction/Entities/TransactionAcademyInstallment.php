@@ -20,7 +20,8 @@ class TransactionAcademyInstallment extends Model
         'deadline',
         'paid_status',
         'completed_installment_at',
-        'void_date'
+        'void_date',
+        'mdr_payment_installment'
     ];
 
 
@@ -54,7 +55,7 @@ class TransactionAcademyInstallment extends Model
         );
 
         $transactionAcademy = TransactionAcademy::where('id_transaction_academy', $this->id_transaction_academy)->first();
-        $transactionAcademy->triggerPaymentCompleted(['amount' => $this->amount]);
+        $transactionAcademy->triggerPaymentCompleted(['amount' => $this->amount, 'mdr_payment_installment' => $this->mdr_payment_installment]);
         \DB::commit();
         return true;
     }

@@ -1886,10 +1886,9 @@ class ApiOnlineTransaction extends Controller
         $result['discount'] = $post['discount'];
         $result['discount_delivery'] = $post['discount_delivery'];
         $result['cashback'] = $cashback;
-        // $result['tax'] = array_sum(array_column($result['item_service'], 'product_tax')) + array_sum(array_column($result['item'], 'product_tax_total'));
         $result['tax'] = $post['tax'];
         $result['service'] = $post['service'];
-        $result['grandtotal'] = (int)$result['subtotal'] + (int)(-$post['discount']) + (int)$post['service'] + (int)$result['tax'];
+        $result['grandtotal'] = (int)$result['subtotal'] + (int)(-$post['discount']) + (int)$post['service'];
         $result['subscription'] = 0;
         $result['used_point'] = 0;
         $balance = app($this->balance)->balanceNow($user->id);
@@ -1921,11 +1920,17 @@ class ApiOnlineTransaction extends Controller
 
         if (!empty($result['tax'])) {
             $result['payment_detail'][] = [
+                'name'          => 'Base Price:',
+                "is_discount"   => 0,
+                'amount'        => MyHelper::requestNumber((int) ($result['subtotal'] - $result['discount'] - $result['tax']),'_CURRENCY')
+            ];
+            $result['payment_detail'][] = [
                 'name'          => 'Tax:',
                 "is_discount"   => 0,
                 'amount'        => MyHelper::requestNumber((int) $result['tax'],'_CURRENCY')
             ];
         }
+
 
         $paymentDetailPromo = app($this->promo_trx)->paymentDetailPromo($result);
         $result['payment_detail'] = array_merge($result['payment_detail'], $paymentDetailPromo);
@@ -2428,7 +2433,7 @@ class ApiOnlineTransaction extends Controller
 
             if ($outlet['is_tax']) {
                 $service['product_tax'] = round($outlet['is_tax'] * $service['product_price'] / 110);
-                $service['product_price'] = $service['product_price'] - $service['product_tax'];
+                // $service['product_price'] = $service['product_price'] - $service['product_tax'];
             }
 
             $bookTime = date('Y-m-d H:i', strtotime(date('Y-m-d', strtotime($item['booking_date'])).' '.date('H:i', strtotime($item['booking_time']))));

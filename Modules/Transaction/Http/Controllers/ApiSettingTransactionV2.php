@@ -192,7 +192,7 @@ class ApiSettingTransactionV2 extends Controller
 
                 if ($outlet_tax) {
                     $productPrice['product_tax'] = round($outlet_tax * $productPrice['product_price'] / 110);
-                    $productPrice['product_price'] = $productPrice['product_price'] - $productPrice['product_tax'];
+                    // $productPrice['product_price'] = $productPrice['product_price'] - $productPrice['product_tax'];
                 }
 
                 $mod_subtotal = 0;
@@ -324,7 +324,7 @@ class ApiSettingTransactionV2 extends Controller
 
                 if ($outlet_tax) {
                     $academy['product_tax'] = round($outlet_tax * $academy['product_price'] / 110);
-                    $academy['product_price'] = $academy['product_price'] - $academy['product_tax'];
+                    // $academy['product_price'] = $academy['product_price'] - $academy['product_tax'];
                 }
 
                 $academyPrice = (int)$academy['product_price'];
@@ -369,8 +369,6 @@ class ApiSettingTransactionV2 extends Controller
             $subtotal = $data['subtotal'];
             $taxFormula = $this->convertFormula('tax');
             $value = $this->taxValue();
-
-            $count = (eval('return ' . preg_replace('/([a-zA-Z0-9]+)/', '\$$1', $taxFormula) . ';'));
 
             if ($discount_promo['item'] ?? false) {
                 $loopable = $discount_promo['item'];

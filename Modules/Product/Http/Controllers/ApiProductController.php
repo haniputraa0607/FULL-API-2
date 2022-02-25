@@ -3296,7 +3296,7 @@ class ApiProductController extends Controller
             $product = $product->orderBy($post['orderBy']);
         }
         else{
-            $product = $product->orderBy('id_product_icount','DESC');
+            $product = $product->orderBy('id_product_icount','ASC');
         }
 
         if(isset($post['admin_list'])){

@@ -22,6 +22,8 @@ use Modules\PromoCampaign\Entities\UserPromo;;
 use Modules\PromoCampaign\Entities\TransactionPromo;
 use Modules\PromoCampaign\Entities\PromoCampaignShipmentMethod;
 use Modules\PromoCampaign\Entities\PromoCampaignPaymentMethod;
+use Modules\Product\Entities\ProductGlobalPrice;
+use Modules\Product\Entities\ProductSpecialPrice;
 
 use Modules\Deals\Entities\DealsProductDiscount;
 use Modules\Deals\Entities\DealsProductDiscountRule;
@@ -393,15 +395,19 @@ class ApiPromoTransaction extends Controller
 		$dataTrx['discount_delivery'] = ($dataTrx['discount_delivery'] ?? 0) + ($dataDiscount['discount_delivery'] ?? 0);
 		$sharedPromo['shipping_promo'] = $sharedPromo['shipping'] - $dataTrx['discount_delivery'];
 
-		$dataTrx['tax'] = ($outlet['is_tax'] / 100) * $sharedPromo['subtotal_promo'];
+		if ($outlet['is_tax']) {
+			$tax = 0;
+			foreach ($sharedPromo['items'] as $item) {
+				$tax += ($item['new_price'] * $outlet['is_tax'] / (100 + $outlet['is_tax'])) * ($item['qty'] ?? 1);
+			}
+			$dataTrx['tax'] = $tax;
+		}
 
 		$dataTrx['grandtotal'] =  (int) $sharedPromo['subtotal_promo'] 
 								+ (int) $sharedPromo['service'] 
-								+ (int) $dataTrx['tax'] 
 								+ (int) $sharedPromo['shipping_promo'];
 
 		$dataTrx['total_payment'] = $dataTrx['grandtotal'] - ($dataTrx['used_point'] ?? 0);
-
 		$promoGetPoint = app($this->online_trx)->checkPromoGetPoint($promoCashback);
         if (!$promoGetPoint) {
 			$dataTrx['cashback'] = 0;
@@ -716,6 +722,8 @@ class ApiPromoTransaction extends Controller
 		$shared_promo 	= TemporaryDataManager::create('promo_trx');
 		$promo_item 	= $shared_promo['items'];
 		$discount 		= 0;
+
+		\Log::debug('primi_itim', $promo_item);
 
 		if (!$promo_rules->is_all_product) {
 			if ($promo[$promoSource.'_product_discount']->isEmpty()) {
@@ -1259,6 +1267,8 @@ class ApiPromoTransaction extends Controller
     {
     	// get data to calculate promo
     	$sharedPromoTrx = TemporaryDataManager::create('promo_trx');
+
+
     	$items = [];
     	// product
     	$items = array_merge($items, ($dataTrx['item'] ?? [])); 
@@ -1270,14 +1280,32 @@ class ApiPromoTransaction extends Controller
     	$items = array_merge($items, ($dataTrx['transaction_products'] ?? []));
 
     	$promoItems = [];
+    	$outlet = Outlet::find($dataTrx['outlet']['id_outlet']);
     	if (request()->transaction_from == 'academy' && isset($items['id_product'])) {
+
+    		$price = $items['product_price'];
+	    	if ($outlet->is_tax) {
+                if($outlet->outlet_different_price){
+                    $productPrice = ProductSpecialPrice::where(['id_product' => $items['id_product'], 'id_outlet' => $outlet['id_outlet']])->first();
+                    if($productPrice){
+                        $price = $productPrice['product_special_price'];
+                    }
+                }else{
+                    $productPrice = ProductGlobalPrice::where(['id_product' => $items['id_product']])->first();
+                    if($productPrice){
+                        $price = $productPrice['product_global_price'];
+                    }
+                }
+	    	}
+
     		$promoItems[] = [
     			'id_product' => $items['id_product'],
     			'id_brand' => $items['id_brand'],
-    			'product_price' => $items['product_price'],
+    			'product_price' => $price,
     			'product_type' => 'Academy',
     			'qty' => $items['qty']
     		];
+
     	} else {
 	    	foreach ($items as $val) {
 	    		$productType = 'Product';
@@ -1286,11 +1314,27 @@ class ApiPromoTransaction extends Controller
 	    		) {
 	    			$productType = 'Service';
 	    		}
+
+	    		$price = $val['product_price'] ?? $val['transaction_product_price'];
+		    	if ($outlet->is_tax) {
+	                if($outlet->outlet_different_price){
+	                    $productPrice = ProductSpecialPrice::where(['id_product' => $val['id_product'], 'id_outlet' => $outlet['id_outlet']])->first();
+	                    if($productPrice){
+	                        $price = $productPrice['product_special_price'];
+	                    }
+	                }else{
+	                    $productPrice = ProductGlobalPrice::where(['id_product' => $val['id_product']])->first();
+	                    if($productPrice){
+	                        $price = $productPrice['product_global_price'];
+	                    }
+	                }
+		    	}
+
 	    		$promoItems[] = [
 	    			'id_transaction_product' => $val['id_transaction_product'] ?? null,
 	    			'id_product' => $val['id_product'] ?? null,
     				'id_brand' => $val['id_brand'],
-    				'product_price' => $val['product_price'] ?? $val['transaction_product_price'],
+    				'product_price' => $price,
     				'product_type' => $val['type'] ?? $productType,
 	    			'qty' => $val['qty'] ?? $val['transaction_product_qty'] ?? 1
 	    		];
@@ -1380,6 +1424,7 @@ class ApiPromoTransaction extends Controller
     		}
     	}
 
+    	$data['outlet'] = ['id_outlet' => $data['id_outlet']];
     	foreach ($applyOrder as $apply) {
 	    	if ($apply == 'deals' && isset($userPromo['deals'])) {
 	    		$this->createSharedPromoTrx($data);
@@ -1451,13 +1496,11 @@ class ApiPromoTransaction extends Controller
 		$sharedPromo['subtotal_promo'] = $subtotal - $totalDiscount;
 		$sharedPromo['shipping_promo'] = $shipping - $totalDiscountDelivery;
 
-		$tax = ($outlet['is_tax'] / 100) * $sharedPromo['subtotal_promo'];
-
 		$grandtotal = $sharedPromo['subtotal_promo']
 					+ (int) $sharedPromo['service'] 
-					+ (int) $tax 
 					+ $sharedPromo['shipping_promo'];
 
+		$newTrxTax = 0;
 		switch ($dataDiscount['promo_type']) {
 			case 'Discount bill':
 				$totalDiscountBill = $totalDiscountBill + $discount;
@@ -1478,10 +1521,14 @@ class ApiPromoTransaction extends Controller
 						return $this->failResponse('Insert product promo failed');
 					}
 					
+					$newTax = $outlet['is_tax'] ? round((($tp->transaction_product_subtotal - ($tp->transaction_product_discount_all + $item['discount'])) / $tp->transaction_product_qty) * $outlet['is_tax'] / (100 + $outlet['is_tax'])) : 0;
 					$tp->update([
 						'transaction_product_discount' => $tp->transaction_product_discount + $item['discount'],
-						'transaction_product_discount_all' => $tp->transaction_product_discount_all + $item['discount']
+						'transaction_product_discount_all' => $tp->transaction_product_discount_all + $item['discount'],
+						'transaction_product_price_base' => $tp->transaction_product_price - $newTax,
+						'transaction_product_price_tax' => $newTax
 					]);
+					$newTrxTax += ($newTax * $tp->transaction_product_qty);
 
 					TransactionProductPromo::create([
 						'id_transaction_product' => $item['id_transaction_product'],
@@ -1502,7 +1549,7 @@ class ApiPromoTransaction extends Controller
 			'transaction_discount_delivery' => - $totalDiscountDelivery,
 			'transaction_discount_item' => $totalDiscountItem,
 			'transaction_discount_bill' => $totalDiscountBill,
-	    	'transaction_tax' => $tax,
+	    	'transaction_tax' => $newTrxTax,
 	    	'transaction_cashback_earned' => $cashback_earned,
 	    	'transaction_grandtotal' => $grandtotal
 		]);

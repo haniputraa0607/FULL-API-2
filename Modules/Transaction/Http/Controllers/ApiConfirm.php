@@ -256,15 +256,15 @@ class ApiConfirm extends Controller
             array_push($dataDetailProduct, $dataService);
         }
 
-        if ($check['transaction_tax'] > 0) {
-            $dataTax = [
-                'id'       => null,
-                'price'    => abs($check['transaction_tax']),
-                'name'     => 'Tax',
-                'quantity' => 1,
-            ];
-            array_push($dataDetailProduct, $dataTax);
-        }
+        // if ($check['transaction_tax'] > 0) {
+        //     $dataTax = [
+        //         'id'       => null,
+        //         'price'    => abs($check['transaction_tax']),
+        //         'name'     => 'Tax',
+        //         'quantity' => 1,
+        //     ];
+        //     array_push($dataDetailProduct, $dataTax);
+        // }
 
         if ($check['transaction_payment_subscription']) {
             $countGrandTotal -= $check['transaction_payment_subscription']['subscription_nominal'];

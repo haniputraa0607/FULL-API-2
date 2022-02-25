@@ -4,6 +4,7 @@ namespace Modules\Transaction\Entities;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Http\Models\Transaction;
+use Modules\Franchise\Entities\TransactionProduct;
 
 class TransactionAcademy extends \App\Http\Models\Template\TransactionService
 {
@@ -52,6 +53,8 @@ class TransactionAcademy extends \App\Http\Models\Template\TransactionService
             if(!empty($data['mdr_payment_installment'])){
                 $trx = Transaction::where('id_transaction', $this->id_transaction)->first();
                 $trx->update(['mdr' => $trx['mdr'] + $data['mdr_payment_installment']]);
+                $trxAcademy = TransactionProduct::where('id_transaction', $this->id_transaction)->first();
+                $trxAcademy->update(['mdr_product' => $trxAcademy['mdr_product'] + $data['mdr_payment_installment']]);
             }
         }
     }

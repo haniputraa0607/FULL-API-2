@@ -317,6 +317,7 @@ class Icount
                 "TaxNo" => '',
                 "AddressInvoice" => '',
                 "Notes" => '',
+                'MDRFee' => 0
             ];
 
             if(isset($request['id_transaction_payment'])){

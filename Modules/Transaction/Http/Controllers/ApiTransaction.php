@@ -5645,6 +5645,11 @@ class ApiTransaction extends Controller
         ];
 
         if (!empty($detail['transaction_tax'])) {
+            $paymentDetail[] = [
+                'name'          => 'Base Price',
+                "is_discount"   => 0,
+                'amount'        => MyHelper::requestNumber($detail['transaction_subtotal'] - $detail['transaction_tax'],'_CURRENCY')
+            ];
 	        $paymentDetail[] = [
 	            'name'          => 'Tax',
 	            "is_discount"   => 0,

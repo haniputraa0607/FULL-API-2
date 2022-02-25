@@ -1424,6 +1424,7 @@ class ApiPromoTransaction extends Controller
     		}
     	}
 
+    	$data['outlet'] = ['id_outlet' => $data['id_outlet']];
     	foreach ($applyOrder as $apply) {
 	    	if ($apply == 'deals' && isset($userPromo['deals'])) {
 	    		$this->createSharedPromoTrx($data);

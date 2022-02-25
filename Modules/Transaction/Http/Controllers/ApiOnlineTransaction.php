@@ -616,8 +616,7 @@ class ApiOnlineTransaction extends Controller
             'discount' => $post['discount'],
         ];
 
-        $post['tax'] = ($outlet['is_tax']/100) * $post['subtotal'];
-        $post['grandTotal'] = (int)$post['subtotal'] + (int)$post['discount'] + (int)$post['service'] + (int)$post['tax'] + (int)$post['shipping'] + (int)$post['discount_delivery'];
+        $post['grandTotal'] = (int)$post['subtotal'] + (int)$post['discount'] + (int)$post['service'] + (int)$post['shipping'] + (int)$post['discount_delivery'];
         // return $post;
         if ($post['type'] == 'Delivery') {
             $dataUser = [
@@ -974,8 +973,8 @@ class ApiOnlineTransaction extends Controller
                 'id_user'                      => $insertTransaction['id_user'],
                 'transaction_product_qty'      => $valueProduct['qty'],
                 'transaction_product_price'    => $valueProduct['transaction_product_price'],
-                'transaction_product_price_base' => $valueProduct['transaction_product_price'],
-                'transaction_product_price_tax'  => NULL,
+                'transaction_product_price_base' => $valueProduct['transaction_product_price'] - $valueProduct['product_tax'],
+                'transaction_product_price_tax'  => $valueProduct['product_tax'],
                 'transaction_product_discount'   => $this_discount,
                 'transaction_product_discount_all'   => $this_discount,
                 'transaction_product_base_discount' => $valueProduct['base_discount'] ?? 0,
@@ -3734,7 +3733,8 @@ class ApiOnlineTransaction extends Controller
                 'id_user'                      => $trx['id_user'],
                 'transaction_product_qty'      => 1,
                 'transaction_product_price'    => $price,
-                'transaction_product_price_base'    => $price,
+                'transaction_product_price_base'    => $price - ($itemProduct['product_tax'] ?? 0),
+                'transaction_product_price_tax'    => ($itemProduct['product_tax'] ?? 0),
                 'transaction_product_discount'   => 0,
                 'transaction_product_discount_all'   => 0,
                 'transaction_product_base_discount' => 0,

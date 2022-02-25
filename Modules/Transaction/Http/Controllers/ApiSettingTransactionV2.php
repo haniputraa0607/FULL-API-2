@@ -244,6 +244,7 @@ class ApiSettingTransactionV2 extends Controller
                 $price = (($productPrice['product_price'] + $mod_subtotal + $valueData['transaction_variant_subtotal']) * $valueData['qty']);
                 $valueData['transaction_product_subtotal'] = $price;
                 $valueData['transaction_product_tax_subtotal'] = ($productPrice['product_tax'] ?? 0) * $valueData['qty'];
+                $valueData['product_tax'] = ($productPrice['product_tax'] ?? 0);
                 array_push($dataSubtotal, $price);
                 array_push($dataSubtotalFinal, $price);
 
@@ -277,7 +278,7 @@ class ApiSettingTransactionV2 extends Controller
 
                     if ($outlet_tax) {
                         $service['product_tax'] = round($outlet_tax * $service['product_price'] / 110);
-                        $service['product_price'] = $service['product_price'] - $service['product_tax'];
+                        // $service['product_price'] = $service['product_price'] - $service['product_tax'];
                     }
 
                     if(empty($service['product_price'])){
@@ -483,9 +484,9 @@ class ApiSettingTransactionV2 extends Controller
                 }
             }
 
-            if ($tax) {
+            if ($outlet['is_tax']) {
                 $productPrice['product_tax'] = round($outlet['is_tax'] * $productPrice['product_price'] / 110);
-                $productPrice['product_price'] = $productPrice['product_price'] - $productPrice['product_tax'];
+                // $productPrice['product_price'] = $productPrice['product_price'] - $productPrice['product_tax'];
             }
 
             if (empty($productPrice)) {

@@ -76,7 +76,8 @@ class TransactionProduct extends Model
         'transaction_product_bundling_charged_central',
         'transaction_product_completed_at',
         'reject_at',
-        'reject_reason'
+        'reject_reason',
+        'mdr_product'
 	];
 	
 	public function modifiers()

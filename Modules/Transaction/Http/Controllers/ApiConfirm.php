@@ -113,7 +113,23 @@ class ApiConfirm extends Controller
             if(!empty($formula)){
                 try {
                     $mdr = MyHelper::calculator($formula, ['transaction_grandtotal' => $check['transaction_grandtotal']]);
-                    Transaction::where('id_transaction', $check['id_transaction'])->update(['mdr' => $mdr]);
+                    if(!empty($mdr)){
+                        Transaction::where('id_transaction', $check['id_transaction'])->update(['mdr' => $mdr]);
+                        $products = TransactionProduct::where('id_transaction', $check['id_transaction'])->get()->toArray();
+                        $count = count($products);
+                        $lastmdr = $mdr;
+                        $sum = array_sum(array_column($products, 'transaction_product_subtotal'));
+                        foreach ($products as $key=>$product){
+                            $index = $key+1;
+                            if($count == $index){
+                                $mdrProduct = $lastmdr;
+                            }else{
+                                $mdrProduct = ($product['transaction_product_subtotal'] * $mdr)/$sum;
+                                $lastmdr = $lastmdr - $mdrProduct;
+                            }
+                            TransactionProduct::where('id_transaction_product', $product['id_transaction_product'])->update(['mdr_product' => $mdrProduct]);
+                        }
+                    }
                 } catch (\Exception $e) {
                 }
             }

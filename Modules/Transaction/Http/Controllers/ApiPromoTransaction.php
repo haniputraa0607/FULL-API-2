@@ -1496,13 +1496,11 @@ class ApiPromoTransaction extends Controller
 		$sharedPromo['subtotal_promo'] = $subtotal - $totalDiscount;
 		$sharedPromo['shipping_promo'] = $shipping - $totalDiscountDelivery;
 
-		$tax = ($outlet['is_tax'] / 100) * $sharedPromo['subtotal_promo'];
-
 		$grandtotal = $sharedPromo['subtotal_promo']
 					+ (int) $sharedPromo['service'] 
-					+ (int) $tax 
 					+ $sharedPromo['shipping_promo'];
 
+		$newTrxTax = 0;
 		switch ($dataDiscount['promo_type']) {
 			case 'Discount bill':
 				$totalDiscountBill = $totalDiscountBill + $discount;
@@ -1523,10 +1521,14 @@ class ApiPromoTransaction extends Controller
 						return $this->failResponse('Insert product promo failed');
 					}
 					
+					$newTax = $outlet['is_tax'] ? round((($tp->transaction_product_subtotal - ($tp->transaction_product_discount_all + $item['discount'])) / $tp->transaction_product_qty) * $outlet['is_tax'] / (100 + $outlet['is_tax'])) : 0;
 					$tp->update([
 						'transaction_product_discount' => $tp->transaction_product_discount + $item['discount'],
-						'transaction_product_discount_all' => $tp->transaction_product_discount_all + $item['discount']
+						'transaction_product_discount_all' => $tp->transaction_product_discount_all + $item['discount'],
+						'transaction_product_price_base' => $tp->transaction_product_price - $newTax,
+						'transaction_product_price_tax' => $newTax
 					]);
+					$newTrxTax += ($newTax * $tp->transaction_product_qty);
 
 					TransactionProductPromo::create([
 						'id_transaction_product' => $item['id_transaction_product'],
@@ -1547,7 +1549,7 @@ class ApiPromoTransaction extends Controller
 			'transaction_discount_delivery' => - $totalDiscountDelivery,
 			'transaction_discount_item' => $totalDiscountItem,
 			'transaction_discount_bill' => $totalDiscountBill,
-	    	'transaction_tax' => $tax,
+	    	'transaction_tax' => $newTrxTax,
 	    	'transaction_cashback_earned' => $cashback_earned,
 	    	'transaction_grandtotal' => $grandtotal
 		]);

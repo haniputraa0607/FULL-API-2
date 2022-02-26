@@ -207,8 +207,8 @@ class ApiDealsWebview extends Controller
 
         $result['deals_content'][$i]['title'] = 'Tempat Penukaran';
         $result['deals_content'][$i]['is_outlet'] = 1;
-        $result['deals_content'][$i]['brand'] = $deals['brand']['name_brand'];
-        $result['deals_content'][$i]['brand_logo'] = $deals['brand']['logo_brand'];
+        $result['deals_content'][$i]['brand'] = $deals['brand']['name_brand'] ?? '';
+        $result['deals_content'][$i]['brand_logo'] = $deals['brand']['logo_brand'] ?? '';
 
         if ($deals['custom_outlet_text'] != null) {
             $result['deals_content'][$i]['detail'][] = $deals['custom_outlet_text'];

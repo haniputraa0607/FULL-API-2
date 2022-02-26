@@ -76,7 +76,7 @@ class XenditController extends Controller
             $validToken = null;
         }
 
-        if ($cat != $validToken) {
+        if ($validToken && $cat != $validToken) {
             $status_code = 401;
             $response    = [
                 'status'   => 'fail',

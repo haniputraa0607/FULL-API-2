@@ -376,6 +376,7 @@ class ApiLocationsController extends Controller
                         'id_product_icount'  => $value['id_product_icount'],
                         'unit'  => $value['unit'],
                         'qty'  => $value['qty'],
+                        'filter'  => $value['filter'],
                         'budget_code'  => $value['budget_code'],
                     ];
                 }, $starter);
@@ -799,6 +800,7 @@ class ApiLocationsController extends Controller
                 'id_product_icount'  => $value['id_product_icount'],
                 'unit'  => $value['unit'],
                 'qty'  => $value['qty'],
+                'filter'  => $value['filter'],
                 'budget_code'  => $value['budget_code'],
             ]);
         }

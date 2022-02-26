@@ -20,6 +20,8 @@ use Modules\Project\Entities\ProjectDesain;
 use Modules\Project\Entities\ProjectFitOut;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Project\Http\Requests\Project\UpdateProjectRequest;
+use Modules\Brand\Entities\BrandOutlet;
+
 class ApiProjectController extends Controller
 {
    public function __construct()
@@ -184,6 +186,13 @@ class ApiProjectController extends Controller
             'outlet_status' => 'Inactive',
             'is_tax' => $location->is_tax,
         ]);
+
+        $id_outlet = $outlet->id_outlet;
+        BrandOutlet::where('id_outlet',$id_outlet)->delete();
+        $brand_outlet = BrandOutlet::create([
+                    'id_outlet'=>$id_outlet,
+                    'id_brand'=>$location->id_brand
+                ]);
         try {
             for ($i=0; $i < $location->total_box; $i++) { 
                 $outlet->outlet_box()->create([

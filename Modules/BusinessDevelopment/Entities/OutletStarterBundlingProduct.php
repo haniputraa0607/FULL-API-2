@@ -12,6 +12,7 @@ class OutletStarterBundlingProduct extends Model
         'id_outlet_starter_bundling',
         'id_product_icount',
         'qty',
+        'filter',
         'unit',
         'budget_code',
         'description',

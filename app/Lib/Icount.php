@@ -19,7 +19,7 @@ class Icount
     }
 
     private static function getBaseUrl($company = null)
-	{
+    {
         if($company == 'PT IMS'){
             $baseUrl = env('ICOUNT_URL_IMS', null);    
         }elseif($company == 'PT IMA'){
@@ -28,7 +28,7 @@ class Icount
             $baseUrl = env('ICOUNT_URL', null);
         }
         return $baseUrl;
-	}
+    }
 
     public static function sendRequest($method = 'GET', $url = null, $request = null, $company = null, $logType = null, $orderId = null){
         $method = strtolower($method);
@@ -308,7 +308,7 @@ class Icount
                 "BranchID" => $request['id_branch'],
                 "BusinessPartnerID" => $request['id_business_partner'],
                 "VoucherNo" => "[AUTO]",
-                "TermOfPaymentID" => '11',
+                "TermOfPaymentID" => '011',
                 "TransDate" => $request['trans_date'],
                 "DueDate" => $request['due_date'],
                 "SalesmanID" => '',
@@ -356,11 +356,12 @@ class Icount
                     "Qty" => $transaction['transaction_product_qty'],
                     "Unit" => "PCS",
                     "Ratio" => "1",
-                    "Price" => (int) $transaction['transaction_product_price'],
+                    "Price" => $transaction['transaction_product_price_base'] != $transaction['transaction_product_price'] ? $transaction['transaction_product_price'] * 100 /110 : $transaction['transaction_product_price_base'],
                     "Disc" => null,
                     "DiscRp" => $transaction['discRp'] / $transaction['transaction_product_qty'],
                     "Description" => ""
                 ];
+                $data['MDRFee'] += $transaction['mdr_product'];
                 $key++;
             }
             if($company=='PT IMA'){

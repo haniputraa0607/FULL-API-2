@@ -13,6 +13,7 @@ class LocationOutletStarterBundlingProduct extends Model
         'id_location',
         'id_product_icount',
         'qty',
+        'filter',
         'unit',
         'budget_code',
         'description',

@@ -12,7 +12,9 @@ class RequestProductDetail extends Model
 	protected $fillable = [
         'id_request_product',
         'id_product_icount',
+        'unit',
         'value',
+        'filter',
         'status',
 	];
 

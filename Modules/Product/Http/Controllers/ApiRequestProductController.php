@@ -177,19 +177,22 @@ class ApiRequestProductController extends Controller
         $data_detail = [];
 
         foreach ($detail as $value) {
-            if(!isset($value['status']) && empty($value['status'])){
-                $value['status'] = NULL;   
-                if(isset($data['id_request_product'])){
-                    $value['status'] = 'Pending';
+            if(isset($value['id_product_icount']) && isset($value['unit']) && isset($value['qty'])){
+                if(!isset($value['status']) && empty($value['status'])){
+                    $value['status'] = NULL;   
+                    if(isset($data['id_request_product'])){
+                        $value['status'] = 'Pending';
+                    }
                 }
+                array_push($data_detail, [
+                    $col 	=> $id_req,
+                    'id_product_icount'  => $value['id_product_icount'],
+                    'unit'  => $value['unit'],
+                    'value'  => $value['qty'],
+                    'filter'  => $value['filter'],
+                    'status'  => $value['status'],
+                ]);
             }
-            array_push($data_detail, [
-                $col 	=> $id_req,
-                'id_product_icount'  => $value['id_product_icount'],
-                'unit'  => $value['unit'],
-                'value'  => $value['qty'],
-                'status'  => $value['status'],
-            ]);
         }
 
         if (!empty($data_detail)) {

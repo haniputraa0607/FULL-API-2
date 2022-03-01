@@ -1280,7 +1280,7 @@ class ApiPromoTransaction extends Controller
     	$items = array_merge($items, ($dataTrx['transaction_products'] ?? []));
 
     	$promoItems = [];
-    	$outlet = Outlet::find($dataTrx['outlet']['id_outlet']);
+    	$outlet = Outlet::find($dataTrx['outlet']['id_outlet'] ?? $dataTrx['id_outlet']);
     	if (request()->transaction_from == 'academy' && isset($items['id_product'])) {
 
     		$price = $items['product_price'];

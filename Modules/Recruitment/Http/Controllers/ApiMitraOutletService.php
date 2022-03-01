@@ -473,7 +473,7 @@ class ApiMitraOutletService extends Controller
 			]
 		];
     }
-     public function checkService(StartOutletServiceRequest $request)
+     public function checkStartService(StartOutletServiceRequest $request)
     {
     	$user = $request->user();
     	$trxReceiptNumber = $request->transaction_receipt_number;
@@ -677,7 +677,76 @@ class ApiMitraOutletService extends Controller
 
 		return ['status' => 'success'];
     }
+    
+    public function checkExtendService(Request $request)
+    {
+    	$user = $request->user();
 
+    	$service = TransactionProductService::where('transaction_product_services.id_user_hair_stylist', $user->id_user_hair_stylist)
+					->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+					->join('products', 'transaction_products.id_product', 'products.id_product')
+					->where('id_transaction_product_service', $request->id_transaction_product_service)
+					->first();
+
+		if (!$service) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Layanan tidak ditemukan']
+			];
+		}
+
+		if ($service->flag_update_schedule) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Waktu layanan sudah diperpanjang, tidak dapat memperpanjang waktu lebih dari sekali']
+			];
+		}
+
+		if ($service->service_status == 'Completed') {
+			return [
+				'status' => 'fail',
+				'messages' => ['Layanan sudah selesai']
+			];
+		}
+
+		if (empty($service->processing_time_service)) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Waktu pemrosesan tidak ditemukan']
+			];
+		}
+
+		$box = OutletBox::where('id_outlet_box', $service->id_outlet_box)->first();
+		$processingTime = $service->processing_time_service ?? 30;
+		$startTime = TransactionProductServiceLog::where('action', 'Start')
+					->where('id_transaction_product_service', $request->id_transaction_product_service)
+					->first();
+
+		if (!$startTime) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Waktu layanan dimulai tidak ditemukan']
+			];
+		}
+
+		$timeLeft = ($processingTime * 60) -  (strtotime(date('Y-m-d H:i:s')) - strtotime(date('Y-m-d H:i:s', strtotime($startTime->created_at))));
+		$newTime = ($processingTime * 60) + $timeLeft;
+		$newTime = ($newTime >= 1) ? $newTime : 0;
+		
+		$extended = new DateTime("+".  $newTime ." seconds");
+		$extendedTime = $extended->format('H:i:s');
+		
+    	
+    	$box_url = str_replace(['%box_code%', '%command%', '%status%', '%time%'], [$box->outlet_box_code, 1, 1, $processingTime], $box->outlet_box_url);
+
+		return [
+			'status' => 'success',
+			'result' =>[
+				'extended_time' => $newTime,
+				'outlet_box_url' => $box_url,
+			]
+		];
+    }
     public function extendService(Request $request)
     {
     	$user = $request->user();
@@ -784,7 +853,48 @@ class ApiMitraOutletService extends Controller
 			]
 		];
     }
+ public function checkCompleteService(Request $request)
+    {
+    	$user = $request->user();
+    	$service = TransactionProductService::where('id_user_hair_stylist', $user->id_user_hair_stylist)
+					->where('id_transaction_product_service', $request->id_transaction_product_service)
+					->first();
 
+		if (!$service) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Layanan tidak ditemukan']
+			];
+		}
+
+		if ($service->service_status == 'Completed') {
+			return [
+				'status' => 'fail',
+				'messages' => ['Layanan sudah selesai']
+			];
+		}
+
+		$box = OutletBox::where('id_outlet_box', $service->id_outlet_box)->first();
+
+		if (!$box) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Box tidak ditemukan']
+			];
+		}
+
+
+    	$box_url = str_replace(['%box_code%', '%command%', '%status%', '%time%'], [$box->outlet_box_code, 0, 0, 0], $box->outlet_box_url);
+
+		return [
+			'status' => 'success',
+			'result' => [
+				'id_outlet_box' => $box->id_outlet_box,
+		        'outlet_box_name' => $box->outlet_box_name,
+				'outlet_box_url' => $box_url,
+			]
+		];
+    }
     public function completeService(Request $request)
     {
     	$user = $request->user();

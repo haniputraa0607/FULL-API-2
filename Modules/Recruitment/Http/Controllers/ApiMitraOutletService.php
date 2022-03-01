@@ -677,44 +677,6 @@ class ApiMitraOutletService extends Controller
 
 		return ['status' => 'success'];
     }
-    public function checkStopService(Request $request)
-    {
-    	$user = $request->user();
-    	$service = TransactionProductService::where('id_user_hair_stylist', $user->id_user_hair_stylist)
-					->where('id_transaction_product_service', $request->id_transaction_product_service)
-					->first();
-
-		if (!$service) {
-			return [
-				'status' => 'fail',
-				'messages' => ['Layanan tidak ditemukan']
-			];
-		}
-
-		if ($service->service_status == 'Stopped') {
-			return [
-				'status' => 'fail',
-				'messages' => ['Layanan sudah dihentikan']
-			];
-		}
-
-		if ($service->service_status == 'Completed') {
-			return [
-				'status' => 'fail',
-				'messages' => ['Layanan sudah selesai']
-			];
-		}
-
-		$box = OutletBox::where('id_outlet_box', $service->id_outlet_box)->first();
-
-		if (!$box) {
-			return [
-				'status' => 'fail',
-				'messages' => ['Box tidak ditemukan']
-			];
-		}
-		return ['status' => 'success'];
-    }
     
     public function checkExtendService(Request $request)
     {
@@ -891,7 +853,48 @@ class ApiMitraOutletService extends Controller
 			]
 		];
     }
+ public function checkCompleteService(Request $request)
+    {
+    	$user = $request->user();
+    	$service = TransactionProductService::where('id_user_hair_stylist', $user->id_user_hair_stylist)
+					->where('id_transaction_product_service', $request->id_transaction_product_service)
+					->first();
 
+		if (!$service) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Layanan tidak ditemukan']
+			];
+		}
+
+		if ($service->service_status == 'Completed') {
+			return [
+				'status' => 'fail',
+				'messages' => ['Layanan sudah selesai']
+			];
+		}
+
+		$box = OutletBox::where('id_outlet_box', $service->id_outlet_box)->first();
+
+		if (!$box) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Box tidak ditemukan']
+			];
+		}
+
+
+    	$box_url = str_replace(['%box_code%', '%command%', '%status%', '%time%'], [$box->outlet_box_code, 0, 0, 0], $box->outlet_box_url);
+
+		return [
+			'status' => 'success',
+			'result' => [
+				'id_outlet_box' => $box->id_outlet_box,
+		        'outlet_box_name' => $box->outlet_box_name,
+				'outlet_box_url' => $box_url,
+			]
+		];
+    }
     public function completeService(Request $request)
     {
     	$user = $request->user();

@@ -160,9 +160,11 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
             Route::post('customer/history', 'ApiMitraOutletService@customerHistory');
         	Route::post('customer/queue', 'ApiMitraOutletService@customerQueue');
         	Route::post('customer/detail', 'ApiMitraOutletService@customerQueueDetail');
-        	Route::post('check', 'ApiMitraOutletService@checkService');
+        	Route::post('check-start', 'ApiMitraOutletService@checkStartService');
         	Route::post('start', 'ApiMitraOutletService@startService');
+        	Route::post('check-stop', 'ApiMitraOutletService@checkStopService');
         	Route::post('stop', 'ApiMitraOutletService@stopService');
+        	Route::post('check-extend', 'ApiMitraOutletService@checkExtendService');
         	Route::post('extend', 'ApiMitraOutletService@extendService');
         	Route::post('complete', 'ApiMitraOutletService@completeService');
         	Route::get('box', 'ApiMitraOutletService@availableBox');

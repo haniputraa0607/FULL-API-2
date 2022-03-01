@@ -647,7 +647,7 @@ class ApiAutoCrm extends Controller
                             case 'Home' :
                                 $dataOptional['id_reference'] = 0;
                                 break;
-                            case 'Claim Existing Point' :
+                            case 'claim_existing_point' :
                                  $dataOptional['id_reference'] = $variables['id_user'];
                                  break;
                             case 'Logout' :
@@ -815,7 +815,7 @@ class ApiAutoCrm extends Controller
                         case 'Home' :
                             $inbox['inboxes_id_reference'] = 0;
                             break;
-                        case 'Claim Existing Point' :
+                        case 'claim_existing_point' :
                             $inbox['inboxes_id_reference'] = $variables['id_user'];
                             break;
                         case 'home_service_history' :

@@ -473,7 +473,146 @@ class ApiMitraOutletService extends Controller
 			]
 		];
     }
+     public function checkService(StartOutletServiceRequest $request)
+    {
+    	$user = $request->user();
+    	$trxReceiptNumber = $request->transaction_receipt_number;
+    	$checkQr = Transaction::where('transaction_receipt_number',$trxReceiptNumber)
+    				->with('transaction_product_services')
+    				->first();
 
+    	if (!$checkQr) {
+    		return [
+				'status' => 'fail',
+				'title' => 'QR code tidak terdaftar',
+				'messages' => ['Tidak dapat memulai layanan menggunakan QR code ini.']
+			];
+    	}
+
+    	$isNotValidQr = true;
+    	foreach ($checkQr['transaction_product_services'] as $val) {
+    		if ($val['id_transaction_product_service'] == $request->id_transaction_product_service) {
+    			$isNotValidQr = false;
+    			break;
+    		}
+    	}
+
+    	if ($isNotValidQr) {
+    		return [
+				'status' => 'fail',
+				'title' => 'QR code tidak sesuai',
+				'messages' => ['Tidak dapat memulai layanan menggunakan QR code ini.']
+			];
+    	}
+
+    	$service = TransactionProductService::where('id_user_hair_stylist', $user->id_user_hair_stylist)
+					->where('id_transaction_product_service', $request->id_transaction_product_service)
+					->first();
+
+		if (!$service) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Layanan tidak ditemukan']
+			];
+		}
+
+		if ($service->service_status == 'In Progress') {
+			return [
+				'status' => 'fail',
+				'messages' => ['Layanan sudah dimulai']
+			];
+		}
+
+		if ($service->service_status == 'Completed') {
+			return [
+				'status' => 'fail',
+				'messages' => ['Layanan sudah selesai']
+			];
+		}
+
+		$schedule = HairstylistSchedule::join(
+			'hairstylist_schedule_dates', 
+			'hairstylist_schedules.id_hairstylist_schedule', 
+			'hairstylist_schedule_dates.id_hairstylist_schedule'
+		)
+ 		->where('id_user_hair_stylist', $user->id_user_hair_stylist)
+ 		->whereDate('date', date('Y-m-d'))
+ 		->first();
+
+ 		if (!$schedule) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Jadwal Hairstylist tidak ditemukan']
+			];
+		}
+
+ 		if (isset($schedule->id_outlet_box) && $schedule->id_outlet_box != $request->id_outlet_box) {
+ 			return [
+				'status' => 'fail',
+				'messages' => ['Tidak dapat menggunakan box yang berbeda']
+			];	
+ 		}
+
+		$box = OutletBox::where('id_outlet_box', $request->id_outlet_box)->first();
+
+		if (!$box) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Box tidak ditemukan']
+			];
+		}
+
+		if ($box->outlet_box_status != 'Active') {
+			return [
+				'status' => 'fail',
+				'messages' => ['Box tidak aktif']
+			];
+		}
+
+		if ($box->outlet_box_use_status != 0) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Box sedang digunakan']
+			];
+		}
+
+		$shift = app($this->mitra)->getOutletShift($user->id_outlet);
+		if (!$shift) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Shift outlet tidak ditemukan']
+			];
+		}
+
+		$usedBox = HairstylistSchedule::join(
+			'hairstylist_schedule_dates', 
+			'hairstylist_schedules.id_hairstylist_schedule', 
+			'hairstylist_schedule_dates.id_hairstylist_schedule'
+		)
+ 		->where('id_user_hair_stylist', '!=', $user->id_user_hair_stylist)
+ 		->whereDate('date', date('Y-m-d'))
+ 		->where('shift', $shift)
+ 		->where('id_outlet_box', $request->id_outlet_box)
+ 		->first();
+
+ 		if ($usedBox) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Box sudah dipilih oleh Hairstylist lain']
+			];
+		}
+
+    	$box_url = str_replace(['%box_code%', '%command%', '%status%', '%time%'], [$box->outlet_box_code, 1, 1, $service->transaction_product->product->processing_time_service], $box->outlet_box_url);
+
+		return [
+			'status' => 'success',
+			'result' => [
+				'id_outlet_box' => $box->id_outlet_box,
+                                'outlet_box_name' => $box->outlet_box_name,
+				'outlet_box_url' => $box_url,
+			]
+		];
+    }
     public function stopService(Request $request)
     {
     	$user = $request->user();

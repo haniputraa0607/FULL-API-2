@@ -30,6 +30,7 @@ use Modules\PromoCampaign\Entities\PromoCampaignReport;
 use DB;
 use App\Lib\MyHelper;
 
+use Modules\Users\Entities\OldMember;
 use Modules\Users\Http\Requests\Home;
 use Modules\Queue\Http\Controllers\ApiQueue;
 
@@ -570,6 +571,17 @@ class ApiHome extends Controller
             if (!$send) {
                 DB::rollback();
                 return response()->json(['status' => 'fail', 'messages' => ['Send notification failed']]);
+            }
+
+            //check member old for send notification
+            if($user->claim_point_status == 0){
+                $checkOldMember = OldMember::where('phone', $user['phone'])->where('claim_status', 0)->first();
+                if(!empty($checkOldMember['loyalty_point'])){
+                    app($this->autocrm)->SendAutoCRM('Claim Point Existing Member', $user['phone'], [
+                        'total_point_claim' => MyHelper::requestNumber((int) $checkOldMember['loyalty_point'], '_CURRENCY'),
+                        'id_user' => $user->id
+                    ]);
+                }
             }
         }
         $user->load(['city','city.province']);

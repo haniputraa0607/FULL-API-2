@@ -645,7 +645,10 @@ class ApiAutoCrm extends Controller
                                 }
                                 break;
                             case 'Home' :
-                                 $dataOptional['id_reference'] = 0;
+                                $dataOptional['id_reference'] = 0;
+                                break;
+                            case 'Claim Existing Point' :
+                                 $dataOptional['id_reference'] = $variables['id_user'];
                                  break;
                             case 'Logout' :
                                     if(!empty($user['id'])){
@@ -811,6 +814,9 @@ class ApiAutoCrm extends Controller
                             break;
                         case 'Home' :
                             $inbox['inboxes_id_reference'] = 0;
+                            break;
+                        case 'Claim Existing Point' :
+                            $inbox['inboxes_id_reference'] = $variables['id_user'];
                             break;
                         case 'home_service_history' :
                             $inbox['inboxes_clickto'] = $variables['mitra_get_order_clickto']??'home_service_history';

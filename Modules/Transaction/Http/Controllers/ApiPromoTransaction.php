@@ -398,7 +398,7 @@ class ApiPromoTransaction extends Controller
 		if ($outlet['is_tax']) {
 			$tax = 0;
 			foreach ($sharedPromo['items'] as $item) {
-				$tax += ($item['new_price'] * $outlet['is_tax'] / (100 + $outlet['is_tax'])) * ($item['qty'] ?? 1);
+				$tax += (($item['new_price'] ?? $item['product_price']) * $outlet['is_tax'] / (100 + $outlet['is_tax'])) * ($item['qty'] ?? 1);
 			}
 			$dataTrx['tax'] = $tax;
 		}

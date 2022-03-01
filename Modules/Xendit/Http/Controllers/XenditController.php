@@ -86,7 +86,7 @@ class XenditController extends Controller
         }
 
         // merge with checkstatus
-        $checkStatus = $this->checkStatus($request->external_id, $request->ewallet_type, $errors);
+        $checkStatus = $this->checkStatus($request->id, $request->ewallet_type, $errors);
         if (is_array($checkStatus)) {
             $request->merge($checkStatus);
         } else {
@@ -127,11 +127,19 @@ class XenditController extends Controller
 
             if (!$update) {
                 DB::rollBack();
-                $status_code = 500;
-                $response    = [
-                    'status'   => 'fail',
-                    'messages' => ['Failed update payment status'],
-                ];
+                if ($universalStatus == 'FAILED') {
+                    $status_code = 200;
+                    $response    = [
+                        'status'   => 'success',
+                        'messages' => ['Payment expired'],
+                    ];
+                } else {
+                    $status_code = 500;
+                    $response    = [
+                        'status'   => 'fail',
+                        'messages' => ['Failed update payment status'],
+                    ];
+                }
                 goto end;
             }
 
@@ -167,11 +175,19 @@ class XenditController extends Controller
 
             if (!$update) {
                 DB::rollBack();
-                $status_code = 500;
-                $response    = [
-                    'status'   => 'fail',
-                    'messages' => ['Failed update payment status'],
-                ];
+                if ($universalStatus == 'FAILED') {
+                    $status_code = 200;
+                    $response    = [
+                        'status'   => 'success',
+                        'messages' => ['Payment expired'],
+                    ];
+                } else {
+                    $status_code = 500;
+                    $response    = [
+                        'status'   => 'fail',
+                        'messages' => ['Failed update payment status'],
+                    ];
+                }
                 goto end;
             }
 
@@ -325,7 +341,7 @@ class XenditController extends Controller
             $result['found'] = $transactions->count();
             foreach ($transactions as $transaction) {
                 $errors = [];
-                $status = $this->checkStatus($transaction->external_id, $transaction->type, $errors);
+                $status = $this->checkStatus($transaction->xendit_id, $transaction->type, $errors);
                 if ($status) {
                     $universalStatus = $this->getUniversalStatusCode($status['status']);
                     if ($universalStatus == 'FAILED') {
@@ -384,7 +400,7 @@ class XenditController extends Controller
             $result['found'] = $deals_users->count();
             foreach ($deals_users as $deals_user) {
                 $errors = [];
-                $status = $this->checkStatus($deals_user->external_id, $deals_user->type, $errors);
+                $status = $this->checkStatus($deals_user->xendit_id, $deals_user->type, $errors);
                 if ($status) {
                     $universalStatus = $this->getUniversalStatusCode($status['status']);
                     if ($universalStatus == 'FAILED') {
@@ -442,7 +458,7 @@ class XenditController extends Controller
             $result['found'] = $subscription_users->count();
             foreach ($subscription_users as $subscription_user) {
                 $errors = [];
-                $status = $this->checkStatus($subscription_user->external_id, $subscription_user->type, $errors);
+                $status = $this->checkStatus($subscription_user->xendit_id, $subscription_user->type, $errors);
                 if ($status) {
                     $universalStatus = $this->getUniversalStatusCode($status['status']);
                     if ($universalStatus == 'FAILED') {
@@ -526,12 +542,12 @@ class XenditController extends Controller
         }
     }
 
-    public function checkStatus($external_id, $ewallet_type, &$errors = [])
+    public function checkStatus($id, $ewallet_type, &$errors = [])
     {
         CustomHttpClient::setLogType('check_status');
-        CustomHttpClient::setIdReference($external_id);
+        CustomHttpClient::setIdReference($id);
         try {
-            return \Xendit\EWallets::getPaymentStatus($external_id, $ewallet_type);
+            return \Xendit\Invoice::retrieve($id);
         } catch (\Exception $e) {
             $errors[] = $e->getMessage();
             return false;

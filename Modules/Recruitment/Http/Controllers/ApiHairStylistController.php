@@ -4,6 +4,7 @@ namespace Modules\Recruitment\Http\Controllers;
 
 use App\Http\Models\Outlet;
 use App\Http\Models\OutletSchedule;
+use App\Http\Models\Setting;
 use App\Jobs\UpdateScheduleHSJob;
 use App\Lib\MyHelper;
 use Illuminate\Http\Request;
@@ -93,6 +94,32 @@ class ApiHairStylistController extends Controller
             'user_hair_stylist_status' => 'Candidate',
             'user_hair_stylist_photo' => $post['user_hair_stylist_photo']??null
         ];
+
+        //check setting
+        $setting = Setting::where('key', 'candidate_hs_requirements')->first()['value_text']??'';
+        if(!empty(($setting))){
+            $setting = (array)json_decode($setting);
+            $age = $setting['age']??'';
+            $height = $setting['height']??'';
+
+            if(!empty($post['height']) && $post['height'] < $height){
+                $msg[] = 'Minimum height is '.$height.' cm';
+            }
+
+            if(!empty($post['birthdate'])){
+                $dateOfBirth = date('Y-m-d', strtotime($post['birthdate']));
+                $today = date("Y-m-d");
+                $diff = date_diff(date_create($dateOfBirth), date_create($today));
+                $currentage = (int)$diff->format('%y');
+                if($currentage > $age){
+                    $msg[] = 'Maximal age is '.$age;
+                }
+            }
+
+            if(!empty($msg)){
+                return response()->json(['status' => 'fail', 'messages' => $msg]);
+            }
+        }
 
         $create = UserHairStylist::create($dataCreate);
         if($create){
@@ -810,6 +837,30 @@ class ApiHairStylistController extends Controller
             return response()->json(['status' => 'success']);
         } else {
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    }
+
+    public function candidateSettingRequirements(Request $request){
+        $post = $request->json()->all();
+
+        if(empty($post)){
+            $setting = Setting::where('key', 'candidate_hs_requirements')->first()['value_text']??'';
+
+            if(!empty(($setting))){
+                $setting = (array)json_decode($setting);
+            }else{
+                $setting = [
+                    'age' => '',
+                    'height' => ''
+                ];
+            }
+
+            return response()->json(MyHelper::checkGet($setting));
+        }else{
+            $data = json_encode($post);
+            $update = Setting::updateOrCreate(['key' => 'candidate_hs_requirements'], ['value_text' => $data]);
+
+            return response()->json(MyHelper::checkUpdate($update));
         }
     }
 }

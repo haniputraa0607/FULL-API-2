@@ -637,7 +637,7 @@ class ApiOutletController extends Controller
         }elseif(isset($post['admin']) && isset($post['type']) && $post['type'] == 'export'){
             $outlet = Outlet::with(['user_outlets','city','today','product_prices','product_prices.product','location_outlet','location_outlet.location_partner'])->select('*');
         }elseif(isset($post['admin'])){
-            $outlet = Outlet::with(['user_outlets','city.province','today', 'outlet_schedules', 'outlet_schedules.time_shift', 'outlet_box','location_outlet','location_outlet.location_partner'])->select('*');
+            $outlet = Outlet::with(['user_outlets','city.province','today', 'outlet_schedules', 'outlet_schedules.time_shift', 'outlet_box','location_outlet','location_outlet.location_partner','brand_outlets'])->select('*');
 
             if(isset($post['outlet_academy_status'])){
                 $outlet = $outlet->where('outlet_academy_status', $post['outlet_academy_status']);
@@ -653,6 +653,7 @@ class ApiOutletController extends Controller
                 $outlet = $outlet->with(['product_detail' => function($pd){
                     $pd->with(['product' => function($p){
                         $p->select('id_product','product_name');
+                        $p->with(['brand_category']);
                     }]);
                 }, 'product_special_price','product_icount_outlet_stocks'=>function($pi){
                     $pi->with(['product_icount' => function($p){
@@ -858,6 +859,25 @@ class ApiOutletController extends Controller
                 ];
             },$outlet);
         }
+
+        if(isset($outlet[0])){
+            foreach($outlet[0]['brand_outlets'] as $brand_outlet){
+                $id_brand_outlet = $brand_outlet['id_brand'];
+                foreach($outlet[0]['product_detail'] as $key => $value){
+                    $cek = false;
+                    foreach($value['product']['brand_category'] as $brand){
+                        if($brand['id_brand']==$id_brand_outlet){
+                            $cek = true;
+                        }
+                    }
+                    if(!$cek){
+                        unset($outlet[0]['product_detail'][$key]);
+                    }
+                }
+            }
+        }
+
+
         if($outlet&&($post['id_outlet']??false)){
             $var=&$outlet[0];
             $var['deep_link_gojek']=$var['deep_link_gojek']??'';

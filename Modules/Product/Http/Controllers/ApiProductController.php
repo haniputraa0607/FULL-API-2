@@ -3225,7 +3225,7 @@ class ApiProductController extends Controller
             }elseif(isset($post['product_setting_type']) && $post['product_setting_type'] == 'outlet_product_detail'){
                 $product = ProductIcount::with(['category', 'discount', 'product_detail']);
             }else{
-                $product = ProductIcount::select();
+                $product = ProductIcount::select()->where('is_actived', 'true');
             }
 		}
 

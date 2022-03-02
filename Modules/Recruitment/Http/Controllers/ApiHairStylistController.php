@@ -99,8 +99,14 @@ class ApiHairStylistController extends Controller
         $setting = Setting::where('key', 'candidate_hs_requirements')->first()['value_text']??'';
         if(!empty(($setting))){
             $setting = (array)json_decode($setting);
-            $age = $setting['age']??'';
-            $height = $setting['height']??'';
+
+            if(strtolower($post['gender']) == 'male'){
+                $age = $setting['male_age']??'';
+                $height = $setting['male_height']??'';
+            }elseif(strtolower($post['gender']) == 'female'){
+                $age = $setting['female_age']??'';
+                $height = $setting['female_height']??'';
+            }
 
             if(!empty($post['height']) && $post['height'] < $height){
                 $msg[] = 'Minimum height is '.$height.' cm';
@@ -850,8 +856,10 @@ class ApiHairStylistController extends Controller
                 $setting = (array)json_decode($setting);
             }else{
                 $setting = [
-                    'age' => '',
-                    'height' => ''
+                    'male_age' => '',
+                    'male_height' => '',
+                    'female_age' => '',
+                    'female_height' => ''
                 ];
             }
 

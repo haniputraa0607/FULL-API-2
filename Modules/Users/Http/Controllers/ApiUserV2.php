@@ -596,7 +596,7 @@ class ApiUserV2 extends Controller
         if(empty($user)){
             return response()->json([[
                 'status'    => 'fail',
-                'messages'  => ['User not found']
+                'messages'  => ['User tidak ditemukan']
             ]]);
         }
 
@@ -604,7 +604,7 @@ class ApiUserV2 extends Controller
         if(empty($checkOldMember['loyalty_point'])){
             return response()->json([
                 'status'    => 'fail',
-                'messages'  => ['Point not found']
+                'messages'  => ['Tidak berhasil klaim point']
             ]);
         }
 
@@ -613,12 +613,17 @@ class ApiUserV2 extends Controller
         if (!$addLogBalance) {
             return response()->json([
                 'status'    => 'fail',
-                'messages'  => ['Failed to save point']
+                'messages'  => ['Tidak berhasil klaim point']
             ]);
         }
 
         OldMember::where('phone', $user['phone'])->update(['claim_status' => 1]);
         User::where('id', $id)->update(['claim_point_status' => 1]);
-        return response()->json(['status' => 'success']);
+        return response()->json([
+            'status' => 'success',
+            'result' => [
+                'message' => 'Berhasil klaim point sebesar '. number_format((int)$checkOldMember['loyalty_point'])
+            ]
+        ]);
     }
 }

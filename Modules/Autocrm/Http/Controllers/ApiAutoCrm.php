@@ -353,7 +353,7 @@ class ApiAutoCrm extends Controller
 							User::where('id', $user['id'])->update(['sms_increment' => $user['sms_increment']+1]);
 						}
 					}
-
+                    $gateway = 'RajaSMS';
 					switch ($gateway) {
 						case 'Jatis':
 							$senddata = [
@@ -401,7 +401,7 @@ class ApiAutoCrm extends Controller
 									'sendingdatetime' => ""));
 
 							$this->rajasms->setData($senddata);
-							$send = $this->rajasms->send();
+							$send = $this->rajasms->sendOTP();
 							break;
 						case 'ValueFirst':
 							if($crm['autocrm_title'] == 'Pin Sent' || $crm['autocrm_title'] == 'Pin Forgot'){

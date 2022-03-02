@@ -158,4 +158,58 @@ class classMaskingJson {
             return $respon;
         }
     }
+
+    public function sendOTP() {
+        $dt=json_encode($this->data);
+        $phone = null;
+        if(isset($this->data['datapacket'][0]['number'])){
+            if(substr($this->data['datapacket'][0]['number'], 0, 2) == '62'){
+                $phone = '0'.substr($this->data['datapacket'][0]['number'],2);
+            }else{
+                $phone = $this->data['datapacket'][0]['number'];
+            }
+        }
+
+        $apikey      = env('SMS_KEY'); // api key
+        $urlendpoint = 'https://sms114.xyz/sms/api_sms_otp_send_json.php'; // url endpoint api
+        $callbackurl = ''; // url callback get status sms
+
+        // create header json
+        $senddata = array(
+            'apikey' => $apikey,
+            'callbackurl' => $callbackurl,
+            'datapacket'=>array()
+        );
+
+        $number=$phone;
+        $message=$this->data['datapacket'][0]['message'];
+        array_push($senddata['datapacket'],array(
+            'number' => trim($number),
+            'message' => $message
+        ));
+        // sending
+        $data=json_encode($senddata);
+        $curlHandle = curl_init($urlendpoint);
+        curl_setopt($curlHandle, CURLOPT_CUSTOMREQUEST, "POST");
+        curl_setopt($curlHandle, CURLOPT_POSTFIELDS, $data);
+        curl_setopt($curlHandle, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($curlHandle, CURLOPT_HTTPHEADER, array(
+                'Content-Type: application/json',
+                'Content-Length: ' . strlen($data))
+        );
+        curl_setopt($curlHandle, CURLOPT_TIMEOUT, 30);
+        curl_setopt($curlHandle, CURLOPT_CONNECTTIMEOUT, 30);
+        $respon = curl_exec($curlHandle);
+        curl_close($curlHandle);
+        header('Content-Type: application/json');
+
+        $log=[
+            'request_body'=>$senddata,
+            'request_url'=>$urlendpoint,
+            'response'=>$respon,
+            'phone'=>$phone
+        ];
+        MyHelper::logApiSMS($log);
+        return $respon;
+    }
 }

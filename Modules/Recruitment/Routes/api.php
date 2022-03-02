@@ -30,6 +30,8 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
         Route::post('delete', 'ApiHairStylistController@delete');
         Route::post('info-order', 'ApiHairStylistController@totalOrder');
         Route::post('move-outlet', 'ApiHairStylistController@moveOutlet');
+        Route::get('setting-requirements', 'ApiHairStylistController@candidateSettingRequirements');
+        Route::post('setting-requirements', 'ApiHairStylistController@candidateSettingRequirements');
 
     	Route::group(['prefix' => 'schedule'], function () {
         	Route::post('list', 'ApiHairStylistScheduleController@list');

@@ -307,6 +307,8 @@ class ApiHairStylistScheduleController extends Controller
         	];
         }
 
+        $detail['attendance'] = HairstylistAttendance::whereIn('id_hairstylist_schedule_date', $detail->hairstylist_schedule_dates->pluck('id_hairstylist_schedule_date'))->whereDate('attendance_date', date('Y-m-d'))->first();
+
         $res = [
         	'detail' => $detail,
         	'list_date' => $resDate,

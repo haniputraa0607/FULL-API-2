@@ -353,7 +353,7 @@ class ApiAutoCrm extends Controller
 							User::where('id', $user['id'])->update(['sms_increment' => $user['sms_increment']+1]);
 						}
 					}
-                    $gateway = 'RajaSMS';
+
 					switch ($gateway) {
 						case 'Jatis':
 							$senddata = [

@@ -1189,7 +1189,7 @@ class ApiMitraOutletService extends Controller
 
  		$box = [];
  		if ($schedule) {
-                    $attendance = HairstylistAttendance::where('id_user_hair_stylist', '!=', $user->id_user_hair_stylist)
+                    $attendance = HairstylistAttendance::where('id_user_hair_stylist', '=', $user->id_user_hair_stylist)
                                 ->whereDate('attendance_date', date('Y-m-d'))
                                 ->wherenotnull('clock_in')
                                 ->wherenull('clock_out')
@@ -1372,7 +1372,7 @@ class ApiMitraOutletService extends Controller
 				'messages' => ['Box sudah dipilih oleh Hairstylist lain']
 			];
 		}
-                $attendance = HairstylistAttendance::where('id_user_hair_stylist', '!=', $user->id_user_hair_stylist)
+                $attendance = HairstylistAttendance::where('id_user_hair_stylist', '=', $user->id_user_hair_stylist)
                                 ->whereDate('attendance_date', date('Y-m-d'))
                                 ->wherenotnull('clock_in')
                                 ->wherenull('clock_out')

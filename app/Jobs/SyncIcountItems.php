@@ -84,6 +84,7 @@ class SyncIcountItems implements ShouldQueue
                         $ima = false;
                         $ims = true;
                     }
+                    // \Log::debug($id_items);
                     SyncIcountItems::dispatch(['page'=> $new_page,'id_items' => $id_items, 'ima' => $ima, 'ims' => $ims]);
                 }
                 else{

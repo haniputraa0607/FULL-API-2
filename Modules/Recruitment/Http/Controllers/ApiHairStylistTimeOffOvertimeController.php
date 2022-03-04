@@ -49,7 +49,7 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                     if($detail){
                         $send = [];
                         foreach($detail as $key => $data){
-                            if($data['date'] > date('Y-m-d 00:00:00')){
+                            if($data['date'] >= date('Y-m-d 00:00:00')){
                                 $send[$key]['id_hairstylist_schedule_date'] = $data['id_hairstylist_schedule_date'];
                                 $send[$key]['date'] = $data['date'];
                                 $send[$key]['date_format'] = date('d F Y', strtotime($data['date']));

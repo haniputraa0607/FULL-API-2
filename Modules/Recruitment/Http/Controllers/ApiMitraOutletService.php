@@ -462,7 +462,7 @@ class ApiMitraOutletService extends Controller
 			];	
     	}
 
-    	$box_url = str_replace(['%box_code%', '%command%', '%status%', '%time%'], [$box->outlet_box_code, 1, 1, $service->transaction_product->product->processing_time_service], $box->outlet_box_url);
+    	$box_url = str_replace(['%box_code%', '%command%', '%status%', '%time%'], [$box->outlet_box_code, 1, 1, $service->transaction_product->product->processing_time_service], $box->outlet_box_url ?: MyHelper::setting('outlet_box_default_url'));
 
 		return [
 			'status' => 'success',
@@ -602,7 +602,7 @@ class ApiMitraOutletService extends Controller
 			];
 		}
 
-    	$box_url = str_replace(['%box_code%', '%command%', '%status%', '%time%'], [$box->outlet_box_code, 1, 1, $service->transaction_product->product->processing_time_service], $box->outlet_box_url);
+    	$box_url = str_replace(['%box_code%', '%command%', '%status%', '%time%'], [$box->outlet_box_code, 1, 1, $service->transaction_product->product->processing_time_service], $box->outlet_box_url ?: MyHelper::setting('outlet_box_default_url'));
 
 		return [
 			'status' => 'success',
@@ -737,7 +737,7 @@ class ApiMitraOutletService extends Controller
 		$extendedTime = $extended->format('H:i:s');
 		
     	
-    	$box_url = str_replace(['%box_code%', '%command%', '%status%', '%time%'], [$box->outlet_box_code, 1, 1, $processingTime], $box->outlet_box_url);
+    	$box_url = str_replace(['%box_code%', '%command%', '%status%', '%time%'], [$box->outlet_box_code, 1, 1, $processingTime], $box->outlet_box_url ?: MyHelper::setting('outlet_box_default_url'));
 
 		return [
 			'status' => 'success',
@@ -843,7 +843,7 @@ class ApiMitraOutletService extends Controller
 			];	
     	}
 
-    	$box_url = str_replace(['%box_code%', '%command%', '%status%', '%time%'], [$box->outlet_box_code, 1, 1, $processingTime], $box->outlet_box_url);
+    	$box_url = str_replace(['%box_code%', '%command%', '%status%', '%time%'], [$box->outlet_box_code, 1, 1, $processingTime], $box->outlet_box_url ?: MyHelper::setting('outlet_box_default_url'));
 
 		return [
 			'status' => 'success',
@@ -884,7 +884,7 @@ class ApiMitraOutletService extends Controller
 		}
 
 
-    	$box_url = str_replace(['%box_code%', '%command%', '%status%', '%time%'], [$box->outlet_box_code, 0, 0, 0], $box->outlet_box_url);
+    	$box_url = str_replace(['%box_code%', '%command%', '%status%', '%time%'], [$box->outlet_box_code, 0, 0, 0], $box->outlet_box_url ?: MyHelper::setting('outlet_box_default_url'));
 
 		return [
 			'status' => 'success',
@@ -1013,7 +1013,7 @@ class ApiMitraOutletService extends Controller
 			];	
     	}
 
-    	$box_url = str_replace(['%box_code%', '%command%', '%status%', '%time%'], [$box->outlet_box_code, 0, 0, 0], $box->outlet_box_url);
+    	$box_url = str_replace(['%box_code%', '%command%', '%status%', '%time%'], [$box->outlet_box_code, 0, 0, 0], $box->outlet_box_url ?: MyHelper::setting('outlet_box_default_url'));
 
 		return [
 			'status' => 'success',

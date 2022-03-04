@@ -4009,6 +4009,37 @@ Message :
 	                'created_at' => '2022-02-04 09:53:17',
 	                'updated_at' => '2022-02-04 09:02:20',
 	            ),
+            126 =>
+                array (
+                    'id_autocrm' => 127,
+                    'autocrm_type' => 'Response',
+                    'autocrm_trigger' => 'Daily',
+                    'autocrm_cron_reference' => NULL,
+                    'autocrm_title' => 'Claim Point Existing Member',
+                    'autocrm_email_toogle' => '0',
+                    'autocrm_sms_toogle' => '0',
+                    'autocrm_push_toogle' => '0',
+                    'autocrm_inbox_toogle' => '0',
+                    'autocrm_forward_toogle' => '0',
+                    'autocrm_email_subject' => NULL,
+                    'autocrm_email_content' => NULL,
+                    'autocrm_sms_content' => NULL,
+                    'autocrm_push_subject' => NULL,
+                    'autocrm_push_content' => NULL,
+                    'autocrm_push_image' => NULL,
+                    'autocrm_push_clickto' => NULL,
+                    'autocrm_push_link' => NULL,
+                    'autocrm_push_id_reference' => NULL,
+                    'autocrm_inbox_subject' => NULL,
+                    'autocrm_inbox_content' => NULL,
+                    'autocrm_inbox_category' => NULL,
+                    'autocrm_forward_email' => NULL,
+                    'autocrm_forward_email_subject' => NULL,
+                    'autocrm_forward_email_content' => NULL,
+                    'custom_text_replace'=>'%total_point_claim%;',
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s')
+                ),
         );
 
         foreach ($rows as $row) {

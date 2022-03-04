@@ -83,6 +83,7 @@ class Transaction extends Model
 		'sales_type',
 		'transaction_device_type',
 		'transaction_grandtotal',
+        'mdr',
 		'transaction_point_earned',
 		'transaction_cashback_earned',
 		'transaction_payment_status',

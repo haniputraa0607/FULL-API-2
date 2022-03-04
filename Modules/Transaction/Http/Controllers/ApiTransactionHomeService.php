@@ -3,6 +3,7 @@
 namespace Modules\Transaction\Http\Controllers;
 
 use App\Http\Models\Configs;
+use App\Http\Models\DailyTransactions;
 use App\Http\Models\LogBalance;
 use App\Http\Models\Outlet;
 use App\Http\Models\OutletSchedule;
@@ -919,6 +920,15 @@ class ApiTransactionHomeService extends Controller
         }
 
         $insertTransaction = $applyPromo['result'] ?? $insertTransaction;
+
+        $dataDailyTrx = [
+            'id_transaction'    => $insertTransaction['id_transaction'],
+            'id_outlet'         => $outlet['id_outlet'],
+            'transaction_date'  => date('Y-m-d H:i:s', strtotime($insertTransaction['transaction_date'])),
+            'id_user'           => $user['id'],
+            'referral_code'     => NULL
+        ];
+        DailyTransactions::create($dataDailyTrx);
 
         DB::commit();
         if(!empty($arrHs)){

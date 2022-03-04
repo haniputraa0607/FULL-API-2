@@ -12,6 +12,8 @@ use App\Http\Models\Level;
 use App\Http\Models\Doctor;
 use App\Http\Models\Setting;
 use App\Http\Models\OauthAccessToken;
+use Modules\Balance\Http\Controllers\BalanceController;
+use Modules\Users\Entities\OldMember;
 use Modules\Users\Http\Requests\users_forgot;
 use Modules\Users\Http\Requests\users_phone;
 use Modules\Users\Http\Requests\users_phone_pin_admin;
@@ -585,5 +587,43 @@ class ApiUserV2 extends Controller
             ];
             return response()->json($result);
         }
+    }
+
+    public function claimPoint(Request $request){
+        $id = $request->user()->id;
+        $user = User::where('id', $id)->first();
+
+        if(empty($user)){
+            return response()->json([[
+                'status'    => 'fail',
+                'messages'  => ['User tidak ditemukan']
+            ]]);
+        }
+
+        $checkOldMember = OldMember::where('phone', $user['phone'])->where('claim_status', 0)->first();
+        if(empty($checkOldMember['loyalty_point'])){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Tidak berhasil klaim point']
+            ]);
+        }
+
+        $balanceController = new BalanceController();
+        $addLogBalance = $balanceController->addLogBalance($id, (int)$checkOldMember['loyalty_point'], null, "Claim Point", 0);
+        if (!$addLogBalance) {
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Tidak berhasil klaim point']
+            ]);
+        }
+
+        OldMember::where('phone', $user['phone'])->update(['claim_status' => 1]);
+        User::where('id', $id)->update(['claim_point_status' => 1]);
+        return response()->json([
+            'status' => 'success',
+            'result' => [
+                'message' => 'Berhasil klaim point sebesar '. number_format((int)$checkOldMember['loyalty_point'])
+            ]
+        ]);
     }
 }

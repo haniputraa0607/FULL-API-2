@@ -31,6 +31,7 @@ Route::group(['prefix' => 'api', 'middleware' => ['log_activities', 'user_agent'
         Route::group(['middleware' => ['auth:api']], function()
 	    {
         	Route::post('profile/update', 'ApiUser@profileUpdate');
+            Route::post('claim-point', 'ApiUserV2@claimPoint');
 	    });
 	});
 

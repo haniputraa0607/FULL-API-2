@@ -94,7 +94,8 @@ class User extends Authenticatable
         'otp_increment',
         'transaction_online',
         'transaction_online_status',
-        'user_time_zone_utc'
+        'user_time_zone_utc',
+        'claim_point_status'
 	];
 
 	public function city()

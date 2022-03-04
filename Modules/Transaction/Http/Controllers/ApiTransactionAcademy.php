@@ -2,6 +2,7 @@
 
 namespace Modules\Transaction\Http\Controllers;
 
+use App\Http\Models\DailyTransactions;
 use App\Http\Models\LogBalance;
 use App\Http\Models\Outlet;
 use App\Http\Models\Setting;
@@ -579,6 +580,15 @@ class ApiTransactionAcademy extends Controller
                 ]);
             }
         }
+
+        $dataDailyTrx = [
+            'id_transaction'    => $insertTransaction['id_transaction'],
+            'id_outlet'         => $outlet['id_outlet'],
+            'transaction_date'  => date('Y-m-d H:i:s', strtotime($insertTransaction['transaction_date'])),
+            'id_user'           => $user['id'],
+            'referral_code'     => NULL
+        ];
+        DailyTransactions::create($dataDailyTrx);
         DB::commit();
 
         $insertTransaction['id_transaction_academy_installment'] = TransactionAcademyInstallment::where('id_transaction_academy', $createTransactionAcademy['id_transaction_academy'])
@@ -844,7 +854,7 @@ class ApiTransactionAcademy extends Controller
                 } else {
                     $result['transaction_payment'][$key] = [
                         'name'      => $value['name'],
-                        'amount'    => MyHelper::requestNumber($value['amount'],'_CURRENCY')
+                        'amount'    => MyHelper::requestNumber((int)$value['amount'],'_CURRENCY')
                     ];
                 }
             }
@@ -1131,20 +1141,21 @@ class ApiTransactionAcademy extends Controller
                                         ->select('tax.type', 'tam.payment_type', 'installment_step', 'transaction_academy_installment.amount', 'transaction_academy_installment.paid_status')->orderBy('installment_step', 'asc')->get()->toArray();
 
                     foreach ($getPaymentMethod as $key=>$paymentMethod){
+                        $amount = $paymentMethod['amount'];
                         if(!empty($paymentMethod['type']) && $paymentMethod['paid_status'] == 'Completed'){
                             $trx['payment'][] = [
                                 'name'      => ($paymentMethod['installment_step'] == 1 ? 'DP'.' ('.$paymentMethod['type'].')' : 'Tahap '.($paymentMethod['installment_step']-1).' ('.$paymentMethod['type'].')'),
-                                'amount'    => number_format($paymentMethod['amount'],0,",",".")
+                                'amount'    => $amount
                             ];
                         }elseif(!empty($paymentMethod['payment_type']) && $paymentMethod['paid_status'] == 'Completed'){
                             $trx['payment'][] = [
                                 'name'      => ($paymentMethod['installment_step'] == 1 ? 'DP'.' ('.$paymentMethod['payment_type'].')' : 'Tahap '.($paymentMethod['installment_step']-1).' ('.$paymentMethod['payment_type'].')'),
-                                'amount'    => number_format($paymentMethod['amount'],0,",",".")
+                                'amount'    => $amount
                             ];
                         }else{
                             $trx['payment'][] = [
                                 'name'      => ($paymentMethod['installment_step'] == 1 ? 'DP'.' (Not Yet Paid)' : 'Tahap '.($paymentMethod['installment_step']-1).' (Not Yet Paid)'),
-                                'amount'    => number_format($paymentMethod['amount'],0,",",".")
+                                'amount'    => $amount
                             ];
                         }
                     }

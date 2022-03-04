@@ -750,6 +750,16 @@ class ApiAcademyController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Installment already paid']]);
         }
 
+        $expired   = date('Y-m-d H:i:s',strtotime('- 5minutes'));
+        if($dataInstallment['paid_status'] == 'Pending' && strtotime($dataInstallment['updated_at']) > strtotime($expired)){
+            return response()->json(['status' => 'fail', 'messages' => ['Installment still pending']]);
+        }elseif ($dataInstallment['paid_status'] == 'Pending' && strtotime($dataInstallment['updated_at']) <= strtotime($expired)){
+            if(strtolower($dataInstallment['installment_payment_type']) == 'midtrans'){
+                Midtrans::expire($dataInstallment['installment_receipt_number']);
+            }
+            $dataInstallment->update(['paid_status' => 'Cancelled']);
+        }
+
         if ($post['payment_type']) {
             $available_payment = app('Modules\Transaction\Http\Controllers\ApiOnlineTransaction')->availablePayment(new Request())['result'] ?? [];
             if (!in_array($post['payment_type'], array_column($available_payment, 'payment_gateway'))) {
@@ -760,31 +770,7 @@ class ApiAcademyController extends Controller
             }
         }
 
-        if($dataInstallment['paid_status'] == 'Pending'){
-            if($dataInstallment['installment_payment_type'] == 'Midtrans'){
-                $installmentMidtrans = TransactionAcademyInstallmentPaymentMidtrans::where('order_id', $dataInstallment['installment_receipt_number'])->first();
-                $res = [
-                    "snap_token" => $installmentMidtrans['token'],
-                    "redirect_url" => $installmentMidtrans['redirect_url']
-                ];
-            }elseif ($dataInstallment['installment_payment_type'] == 'Xendit'){
-                $installmentXendit = TransactionAcademyInstallmentPaymentXendit::where('external_id', $dataInstallment['installment_receipt_number'])->first();
-                $res = [
-                    "snap_token" => '',
-                    "redirect_url" => $installmentXendit['checkout_url']
-                ];
-            }
-
-            $res['transaction_data'] = [
-                "transaction_details" => [
-                    "order_id" => $dataInstallment['installment_receipt_number'],
-                    "gross_amount" => $dataInstallment['amount'],
-                    "id_transaction_academy_installment" =>  $dataInstallment['id_transaction_academy_installment'],
-                    "id_transaction" => $dataInstallment['id_transaction']
-                ]
-            ];
-            return response()->json(MyHelper::checkGet($res));
-        }elseif($dataInstallment['paid_status'] == 'Cancelled'){
+        if($dataInstallment['paid_status'] == 'Cancelled'){
             $insertUpdate = TransactionAcademyInstallmentUpdate::create(['id_transaction_academy_installment' => $dataInstallment['id_transaction_academy_installment'], 'installment_receipt_number_old' => $dataInstallment['installment_receipt_number']]);
             if($insertUpdate){
                 $trx = Transaction::join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')->where('id_transaction', $dataInstallment['id_transaction'])->first();
@@ -795,6 +781,20 @@ class ApiAcademyController extends Controller
 
         $dataInstallment->update(['installment_payment_type' => $request->payment_type]);
 
+        //update mdr
+        if(!empty($post['payment_type']) && !empty($post['payment_detail'])){
+            $code = strtolower($post['payment_type'].'_'.$post['payment_detail']);
+            $settingmdr = Setting::where('key', 'mdr_formula')->first()['value_text']??'';
+            $settingmdr = (array)json_decode($settingmdr);
+            $formula = $settingmdr[$code]??'';
+            if(!empty($formula)){
+                try {
+                    $mdr = MyHelper::calculator($formula, ['transaction_grandtotal' => $dataInstallment['amount']]);
+                    TransactionAcademyInstallment::where('id_transaction_academy_installment', $post['id_transaction_academy_installment'])->update(['mdr_payment_installment' => $mdr]);
+                } catch (\Exception $e) {
+                }
+            }
+        }
         $res = [];
         if ($request->json('payment_type') && $request->json('payment_type') == "Midtrans") {
             $pay = $this->midtrans($dataInstallment, $post);
@@ -867,7 +867,7 @@ class ApiAcademyController extends Controller
 
     public function xendit($data, $post)
     {
-        $paymentXendit = TransactionAcademyInstallmentPaymentXendit::where('id_transaction_academy', $data['id_transaction_academy'])->first();
+        $paymentXendit = TransactionAcademyInstallmentPaymentXendit::where('order_id', $data['installment_receipt_number'])->first();
         $post['payment_detail'] = request()->payment_detail;
         if (!($post['phone'] ?? false)) {
             $post['phone'] = request()->user()->phone;

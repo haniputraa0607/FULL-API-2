@@ -30,6 +30,8 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
         Route::post('delete', 'ApiHairStylistController@delete');
         Route::post('info-order', 'ApiHairStylistController@totalOrder');
         Route::post('move-outlet', 'ApiHairStylistController@moveOutlet');
+        Route::get('setting-requirements', 'ApiHairStylistController@candidateSettingRequirements');
+        Route::post('setting-requirements', 'ApiHairStylistController@candidateSettingRequirements');
 
     	Route::group(['prefix' => 'schedule'], function () {
         	Route::post('list', 'ApiHairStylistScheduleController@list');
@@ -160,10 +162,13 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
             Route::post('customer/history', 'ApiMitraOutletService@customerHistory');
         	Route::post('customer/queue', 'ApiMitraOutletService@customerQueue');
         	Route::post('customer/detail', 'ApiMitraOutletService@customerQueueDetail');
+        	Route::post('check-start', 'ApiMitraOutletService@checkStartService');
         	Route::post('start', 'ApiMitraOutletService@startService');
         	Route::post('stop', 'ApiMitraOutletService@stopService');
+        	Route::post('check-extend', 'ApiMitraOutletService@checkExtendService');
         	Route::post('extend', 'ApiMitraOutletService@extendService');
         	Route::post('complete', 'ApiMitraOutletService@completeService');
+        	Route::post('check-complete', 'ApiMitraOutletService@checkCompleteService');
         	Route::get('box', 'ApiMitraOutletService@availableBox');
             Route::post('payment-cash/detail', 'ApiMitraOutletService@paymentCashDetail');
             Route::post('payment-cash/completed', 'ApiMitraOutletService@paymentCashCompleted');

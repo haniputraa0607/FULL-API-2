@@ -2198,7 +2198,7 @@ class ApiProductController extends Controller
         $date = date('Y-m-d H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($date)));
         $currentDate = date('Y-m-d', strtotime($date));
         $currentHour = date('H:i:s', strtotime($date));
-        if(empty($val['today']['open']) || empty( $val['today']['close'])){
+        if(empty($outlet['today']['open']) || empty( $outlet['today']['close'])){
             $isClose = true;
         }else{
             $open = date('H:i:s', strtotime($outlet['today']['open']));
@@ -2369,9 +2369,11 @@ class ApiProductController extends Controller
 
         $messagesFailOutlet = '';
         if(empty($outlet['today']) && $isClose == true){
-            $messagesFailOutlet = 'Maaf outlet belum buka';
-        }elseif(!empty($outlet['today']) && $isClose == true){
+            $messagesFailOutlet = 'Maaf outlet belum buka.';
+        }elseif(!empty($outlet['today']) && !empty($open) && !empty($close) && $isClose == true){
             $messagesFailOutlet = 'Maaf outlet belum buka. Silahkan berkunjung kembali diantara pukul '.date('H:i', strtotime($open)).' sampai '.date('H:i', strtotime($close));
+        }elseif(!empty($outlet['today']) && (empty($open) || empty($close)) && $isClose == true){
+            $messagesFailOutlet = 'Maaf outlet belum buka.';
         }
 
         $resOutlet = [

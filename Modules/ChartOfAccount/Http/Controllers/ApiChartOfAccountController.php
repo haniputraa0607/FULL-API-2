@@ -77,20 +77,25 @@ class ApiChartOfAccountController extends Controller
         return response()->json(['status' => 'success', 'result' => $data]);
     }
     public function sync() {
-        $setting = Setting::where('key' , 'Sync Chart Icount')->first();
-        if($setting){
-            if($setting['value'] != 'finished'){
-                return ['status' => 'fail', 'messages' => ['Cant sync now, because sync is in progress']]; 
+        $log = MyHelper::logCron('Sync Item Icount');
+        try{
+            $setting = Setting::where('key' , 'Sync Chart Icount')->first();
+            if($setting){
+                if($setting['value'] != 'finished'){
+                    return ['status' => 'fail', 'messages' => ['Cant sync now, because sync is in progress']]; 
+                }
+            }else{
+                $create_setting = Setting::updateOrCreate(['key' => 'Sync Chart Icount'],['value' => 'start']);
             }
-        }else{
-            $create_setting = Setting::updateOrCreate(['key' => 'Sync Chart Icount'],['value' => 'start']);
-        }
-        $send = [
-            'page' => 1,
-            'id_chart' => null
-        ];
-        $sync_job = SyncIcountChartOfAccount::dispatch($send);
-        return ['status' => 'success', 'messages' => ['Success to sync with ICount']]; 
+            $send = [
+                'page' => 1,
+                'id_chart' => null
+            ];
+            $sync_job = SyncIcountChartOfAccount::dispatch($send);
+            return ['status' => 'success', 'messages' => ['Success to sync with ICount']]; 
+        } catch (\Exception $e) {
+            $log->fail($e->getMessage());
+        }    
     }
     public function list() {
         $data = ChartOfAccount::all();

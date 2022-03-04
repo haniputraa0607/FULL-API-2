@@ -27,6 +27,7 @@ use Modules\IPay88\Entities\SubscriptionPaymentIpay88;
 use Modules\IPay88\Entities\TransactionPaymentIpay88;
 use Modules\Report\Entities\DailyReportPayment;
 use Modules\Report\Entities\DailyReportPaymentDeals;
+use Modules\Report\Entities\DailyReportPaymentInstallment;
 use Modules\Report\Entities\DailyReportPaymentSubcription;
 use Modules\Report\Entities\ExportQueue;
 use Modules\Report\Http\Requests\DetailReport;
@@ -37,6 +38,11 @@ use Modules\ShopeePay\Entities\SubscriptionPaymentShopeePay;
 use Modules\ShopeePay\Entities\TransactionPaymentShopeePay;
 use Modules\Subscription\Entities\SubscriptionPaymentMidtran;
 use Modules\Subscription\Entities\SubscriptionPaymentOvo;
+use Modules\Transaction\Entities\TransactionAcademyInstallmentPaymentMidtrans;
+use Modules\Xendit\Entities\DealsPaymentXendit;
+use Modules\Xendit\Entities\SubscriptionPaymentXendit;
+use Modules\Xendit\Entities\TransactionAcademyInstallmentPaymentXendit;
+use Modules\Xendit\Entities\TransactionPaymentXendit;
 use Validator;
 use Hash;
 use DB;
@@ -60,6 +66,7 @@ class ApiReportPayment extends Controller
             $dealsSum = DailyReportPaymentDeals::where('payment_type', 'Midtrans');
             $trxSum = DailyReportPayment::where('payment_type', 'Midtrans');
             $subSum = DailyReportPaymentSubcription::where('payment_type', 'Midtrans');
+            $installmentSum = DailyReportPaymentInstallment::where('payment_type', 'Midtrans');
 
             if(isset($post['date_start']) && !empty($post['date_start']) &&
                 isset($post['date_end']) && !empty($post['date_end'])){
@@ -69,9 +76,10 @@ class ApiReportPayment extends Controller
                 $dealsSum = $dealsSum->whereDate('date', '>=', $start_date)->whereDate('date', '<=', $end_date);
                 $trxSum = $trxSum->whereDate('trx_date', '>=', $start_date)->whereDate('trx_date', '<=', $end_date);
                 $subSum = $subSum->whereDate('date', '>=', $start_date)->whereDate('date', '<=', $end_date);
+                $installmentSum = $subSum->whereDate('date', '>=', $start_date)->whereDate('date', '<=', $end_date);
             }
 
-            $sum = $dealsSum->sum('payment_nominal') + $trxSum->sum('trx_payment_nominal') + $subSum->sum('payment_nominal');
+            $sum = $dealsSum->sum('payment_nominal') + $trxSum->sum('trx_payment_nominal') + $subSum->sum('payment_nominal') + $installmentSum->sum('payment_nominal');
         }
 
         $data = $filter->orderBy('created_at', 'desc')->paginate(30);
@@ -101,8 +109,13 @@ class ApiReportPayment extends Controller
 
         $trx = TransactionPaymentMidtran::join('transactions', 'transactions.id_transaction', 'transaction_payment_midtrans.id_transaction')
             ->leftJoin('users', 'users.id', 'transactions.id_user')
-            ->join('transaction_pickups', 'transaction_pickups.id_transaction', 'transactions.id_transaction')
-            ->selectRaw("(CASE WHEN transaction_pickups.reject_type = 'point' THEN 'Reject To Point' ELSE 'Not Reject' END) as reject_type, transactions.transaction_payment_status as payment_status, payment_type,  transactions.id_transaction AS id_report, transactions.trasaction_type AS trx_type, transactions.transaction_receipt_number AS receipt_number, 'Transaction' AS type, transaction_payment_midtrans.created_at, transactions.`transaction_grandtotal` AS grand_total, gross_amount, users.name, users.phone, users.email");
+            ->selectRaw("NULL as reject_type, transactions.transaction_payment_status as payment_status, payment_type,  transactions.id_transaction AS id_report, transactions.transaction_from AS trx_type, transactions.transaction_receipt_number AS receipt_number, 'Transaction' AS type, transaction_payment_midtrans.created_at, transactions.`transaction_grandtotal` AS grand_total, gross_amount, users.name, users.phone, users.email");
+
+        $installment = TransactionAcademyInstallmentPaymentMidtrans::join('transaction_academy_installment', 'transaction_academy_installment.installment_receipt_number', 'transaction_academy_installment_payment_midtrans.order_id')
+            ->join('transaction_academy', 'transaction_academy.id_transaction_academy', 'transaction_academy_installment.id_transaction_academy')
+            ->join('transactions', 'transactions.id_transaction', 'transaction_academy.id_transaction')
+            ->leftJoin('users', 'users.id', 'transactions.id_user')
+            ->selectRaw("NULL as reject_type, transaction_academy_installment.paid_status as payment_status, payment_type, transaction_academy_installment.id_transaction_academy AS id_report, 'Academy' AS trx_type, transaction_academy_installment.installment_receipt_number AS receipt_number, 'Installment' AS type, transaction_academy_installment_payment_midtrans.created_at, transaction_academy_installment.amount AS grand_total, gross_amount, users.name, users.phone, users.email");
 
         if(isset($post['date_start']) && !empty($post['date_start']) &&
             isset($post['date_end']) && !empty($post['date_end'])){
@@ -115,22 +128,22 @@ class ApiReportPayment extends Controller
                 ->whereDate('subscription_payment_midtrans.created_at', '<=', $end_date);
             $trx = $trx->whereDate('transaction_payment_midtrans.created_at', '>=', $start_date)
                 ->whereDate('transaction_payment_midtrans.created_at', '<=', $end_date);
+            $installment = $installment->whereDate('transaction_academy_installment_payment_midtrans.created_at', '>=', $start_date)
+                ->whereDate('transaction_academy_installment_payment_midtrans.created_at', '<=', $end_date);
         }
 
         $unionWithDeals = 1;
         $unionWithSubscription = 1;
         $unionWithTrx = 1;
+        $unionWithInstallment = 1;
 
         if(isset($post['conditions']) && !empty($post['conditions'])){
             $checkFilterStatus = array_search('status', array_column($post['conditions'], 'subject'));
             if($checkFilterStatus === false){
                 $deals = $deals->where('deals_users.paid_status', 'Completed');
                 $subscription = $subscription->where('subscription_users.paid_status', 'Completed');
-                $trx = $trx->where('transactions.transaction_payment_status', 'Completed')
-                    ->where(function ($q){
-                        $q->whereNull('transaction_pickups.reject_type')
-                            ->orWhere('transaction_pickups.reject_type', 'point');
-                    });
+                $trx = $trx->where('transactions.transaction_payment_status', 'Completed');
+                $installment = $installment->where('transaction_academy_installment.paid_status', 'Completed');
             }
 
             $rule = 'and';
@@ -148,18 +161,26 @@ class ApiReportPayment extends Controller
                             $deals = $deals->where('deals_users.paid_status', $row['operator']);
                             $subscription = $subscription->where('subscription_users.paid_status', $row['operator']);
                             $trx = $trx->where('transactions.transaction_payment_status', $row['operator']);
+                            $installment = $deals->where('transaction_academy_installment.paid_status', $row['operator']);
                         }
 
                         if($row['subject'] == 'type'){
                             if($row['operator'] == 'Deals'){
                                 $unionWithSubscription = 0;
                                 $unionWithTrx = 0;
+                                $unionWithInstallment = 0;
                             }elseif($row['operator'] == 'Subscription'){
                                 $unionWithDeals = 0;
                                 $unionWithTrx = 0;
+                                $unionWithInstallment = 0;
                             }elseif($row['operator'] == 'Transaction'){
                                 $unionWithDeals = 0;
                                 $unionWithSubscription = 0;
+                                $unionWithInstallment = 0;
+                            }elseif($row['operator'] == 'Transaction Installment'){
+                                $unionWithDeals = 0;
+                                $unionWithSubscription = 0;
+                                $unionWithTrx = 0;
                             }
                         }
 
@@ -168,10 +189,12 @@ class ApiReportPayment extends Controller
                                 $deals = $deals->where('users.name', $row['parameter']);
                                 $subscription = $subscription->where('users.name', $row['parameter']);
                                 $trx = $trx->where('users.name', $row['parameter']);
+                                $installment = $installment->where('users.name', $row['parameter']);
                             }else{
                                 $deals = $deals->where('users.name', 'like', '%'.$row['parameter'].'%');
                                 $subscription = $subscription->where('users.name', 'like', '%'.$row['parameter'].'%');
                                 $trx = $trx->where('users.name', 'like', '%'.$row['parameter'].'%');
+                                $installment = $installment->where('users.name', 'like', '%'.$row['parameter'].'%');
                             }
                         }
 
@@ -180,10 +203,12 @@ class ApiReportPayment extends Controller
                                 $deals = $deals->where('users.phone', $row['parameter']);
                                 $subscription = $subscription->where('users.phone', $row['parameter']);
                                 $trx = $trx->where('users.phone', $row['parameter']);
+                                $installment = $installment->where('users.phone', $row['parameter']);
                             }else{
                                 $deals = $deals->where('users.phone', 'like', '%'.$row['parameter'].'%');
                                 $subscription = $subscription->where('users.phone', 'like', '%'.$row['parameter'].'%');
                                 $trx = $trx->where('users.phone', 'like', '%'.$row['parameter'].'%');
+                                $installment = $installment->where('users.phone', 'like', '%'.$row['parameter'].'%');
                             }
                         }
 
@@ -191,29 +216,24 @@ class ApiReportPayment extends Controller
                             $deals = $deals->where('deals_users.voucher_price_cash',$row['operator'] ,$row['parameter']);
                             $subscription = $subscription->where('subscription_users.subscription_price_cash',$row['operator'] ,$row['parameter']);
                             $trx = $trx->where('transactions.transaction_grandtotal',$row['operator'] ,$row['parameter']);
+                            $installment = $installment->where('transaction_academy_installment.amount',$row['operator'] ,$row['parameter']);
                         }
 
                         if($row['subject'] == 'amount'){
                             $deals = $deals->where('gross_amount',$row['operator'] ,$row['parameter']);
                             $subscription = $subscription->where('gross_amount',$row['operator'] ,$row['parameter']);
                             $trx = $trx->where('gross_amount',$row['operator'] ,$row['parameter']);
+                            $installment = $installment->where('gross_amount',$row['operator'] ,$row['parameter']);
                         }
 
                         if($row['subject'] == 'transaction_receipt_number'){
                             $unionWithDeals = 0;
                             $unionWithSubscription = 0;
+                            $unionWithInstallment = 0;
                             if($row['operator'] == '='){
                                 $trx = $trx->where('transactions.transaction_receipt_number',$row['parameter']);
                             }else{
                                 $trx = $trx->where('transactions.transaction_receipt_number', 'like', '%'.$row['parameter'].'%');
-                            }
-                        }
-
-                        if($row['subject'] == 'reject_type'){
-                            if($row['operator'] == 0){
-                                $trx = $trx->whereNull('transaction_pickups.reject_at');
-                            }else{
-                                $trx = $trx->where('transaction_pickups.reject_type', 'point');
                             }
                         }
                     }
@@ -222,6 +242,7 @@ class ApiReportPayment extends Controller
                 $unionWithDeals = 0;
                 $unionWithSubscription = 0;
                 $unionWithTrx = 0;
+                $unionWithInstallment = 0;
 
                 $arrSubject = array_column($post['conditions'], 'subject');
                 $arrSubjectUnique = array_unique($arrSubject);
@@ -280,11 +301,13 @@ class ApiReportPayment extends Controller
                     if(in_array('Deals', $arrOperatorUnique))$unionWithDeals = 1;
                     if(in_array('Subscription', $arrOperatorUnique))$unionWithSubscription = 1;
                     if(in_array('Transaction', $arrOperatorUnique))$unionWithTrx = 1;
+                    if(in_array('Transaction Installment', $arrOperatorUnique))$unionWithInstallment = 1;
                     if(in_array('transaction_receipt_number', $arrSubjectUnique))$unionWithTrx = 1;
                     if(!in_array('Deals', $arrOperatorUnique) && !in_array('Subscription', $arrOperatorUnique) && !in_array('Transaction', $arrOperatorUnique)){
                         $unionWithDeals = 1;
                         $unionWithSubscription = 1;
                         $unionWithTrx = 1;
+                        $unionWithInstallment = 0;
                     }
 
                     $deals = $deals->where(function ($subquery) use ($post){
@@ -402,13 +425,42 @@ class ApiReportPayment extends Controller
                                         $subquery = $subquery->orWhere('transactions.transaction_receipt_number', 'like', '%'.$row['parameter'].'%');
                                     }
                                 }
+                            }
+                        }
+                    });
 
-                                if($row['subject'] == 'reject_type'){
-                                    if($row['operator'] == 0){
-                                        $subquery = $subquery->orWhereNull('transaction_pickups.reject_at');
+                    $installment = $installment->where(function ($subquery) use ($post){
+                        foreach ($post['conditions'] as $row){
+                            if(is_object($row)){
+                                $row = (array)$row;
+                            }
+                            if(isset($row['subject'])){
+                                if($row['subject'] == 'status'){
+                                    $subquery = $subquery->orWhere('transaction_academy_installment.paid_status', $row['operator']);
+                                }
+
+                                if($row['subject'] == 'name'){
+                                    if($row['operator'] == '='){
+                                        $subquery = $subquery->orWhere('users.name', $row['parameter']);
                                     }else{
-                                        $subquery = $subquery->orWhere('transaction_pickups.reject_type', 'point');
+                                        $subquery = $subquery->orWhere('users.name', 'like', '%'.$row['parameter'].'%');
                                     }
+                                }
+
+                                if($row['subject'] == 'phone'){
+                                    if($row['operator'] == '='){
+                                        $subquery = $subquery->orWhere('users.phone', $row['parameter']);
+                                    }else{
+                                        $subquery = $subquery->orWhere('users.phone', 'like', '%'.$row['parameter'].'%');
+                                    }
+                                }
+
+                                if($row['subject'] == 'grandtotal'){
+                                    $subquery = $subquery->orWhere('transaction_academy_installment.amount',$row['operator'] ,$row['parameter']);
+                                }
+
+                                if($row['subject'] == 'amount'){
+                                    $subquery = $subquery->orWhere('gross_amount',$row['operator'] ,$row['parameter']);
                                 }
                             }
                         }
@@ -418,28 +470,489 @@ class ApiReportPayment extends Controller
         }else{
             $deals = $deals->where('deals_users.paid_status', 'Completed');
             $subscription = $subscription->where('subscription_users.paid_status', 'Completed');
-            $trx = $trx->where('transactions.transaction_payment_status', 'Completed')
-                    ->where(function ($q){
-                        $q->whereNull('transaction_pickups.reject_type')
-                            ->orWhere('transaction_pickups.reject_type', 'point');
-                    });
+            $trx = $trx->where('transactions.transaction_payment_status', 'Completed');
+            $installment = $installment->where('transaction_academy_installment.paid_status', 'Completed');
         }
 
         //union by type user choose
-        if($unionWithTrx == 1 && $unionWithDeals == 1 && $unionWithSubscription == 1){
+        if($unionWithTrx == 1 && $unionWithDeals == 1 && $unionWithSubscription == 1 && $unionWithInstallment == 1){
+            $data = $trx->unionAll($deals)->unionAll($subscription)->unionAll($installment);
+        }elseif($unionWithTrx == 1 && $unionWithDeals == 1 && $unionWithSubscription == 1 && $unionWithInstallment == 0){
             $data = $trx->unionAll($deals)->unionAll($subscription);
-        }elseif($unionWithTrx == 1 && $unionWithDeals == 1 && $unionWithSubscription == 0){
+        }elseif($unionWithTrx == 1 && $unionWithDeals == 1 && $unionWithSubscription == 0 && $unionWithInstallment == 0){
             $data = $trx->unionAll($deals);
-        }elseif($unionWithTrx == 1 && $unionWithDeals == 0 && $unionWithSubscription == 0){
+        }elseif($unionWithTrx == 1 && $unionWithDeals == 0 && $unionWithSubscription == 0 && $unionWithInstallment == 0){
             $data = $trx;
-        }elseif($unionWithTrx == 0 && $unionWithDeals == 1 && $unionWithSubscription == 1){
+        }elseif($unionWithTrx == 0 && $unionWithDeals == 1 && $unionWithSubscription == 1 && $unionWithInstallment == 1){
+            $data = $deals->unionAll($subscription)->unionAll($installment);
+        }elseif($unionWithTrx == 0 && $unionWithDeals == 1 && $unionWithSubscription == 1 && $unionWithInstallment == 0){
             $data = $deals->unionAll($subscription);
-        }elseif($unionWithTrx == 0 && $unionWithDeals == 1 && $unionWithSubscription == 0){
+        }elseif($unionWithTrx == 0 && $unionWithDeals == 1 && $unionWithSubscription == 0 && $unionWithInstallment == 1){
+            $data = $deals->unionAll($installment);
+        }elseif($unionWithTrx == 0 && $unionWithDeals == 1 && $unionWithSubscription == 0 && $unionWithInstallment == 0){
             $data = $deals;
-        }elseif($unionWithTrx == 1 && $unionWithDeals == 0 && $unionWithSubscription == 1){
-            $data = $trx->unionAll($subscription);
-        }elseif($unionWithTrx == 0 && $unionWithDeals == 0 && $unionWithSubscription == 1){
+        }elseif($unionWithTrx == 1 && $unionWithDeals == 0 && $unionWithSubscription == 1 && $unionWithInstallment == 1){
+            $data = $trx->unionAll($subscription)->unionAll($installment);
+        }elseif($unionWithTrx == 0 && $unionWithDeals == 0 && $unionWithSubscription == 1 && $unionWithInstallment == 1){
+            $data = $subscription->unionAll($installment);
+        }elseif($unionWithTrx == 0 && $unionWithDeals == 0 && $unionWithSubscription == 1 && $unionWithInstallment == 0){
             $data = $subscription;
+        }elseif($unionWithTrx == 1 && $unionWithDeals == 0 && $unionWithSubscription == 0 && $unionWithInstallment == 1){
+            $data = $trx->unionAll($installment);
+        }elseif($unionWithTrx == 0 && $unionWithDeals == 0 && $unionWithSubscription == 0 && $unionWithInstallment == 1){
+            $data = $installment;
+        }
+
+        return $data;
+    }
+
+    public function getReportXendit(Request $request){
+        $post = $request->json()->all();
+
+        $filter = $this->filterXendit($post);
+
+        if(isset($post['conditions']) && !empty($post['conditions'])){
+            $sum = $filter->pluck('amount')->toArray();
+            $sum = array_sum($sum);
+        }else{
+            $dealsSum = DailyReportPaymentDeals::where('payment_type', 'Xendit');
+            $trxSum = DailyReportPayment::where('payment_type', 'Xendit');
+            $subSum = DailyReportPaymentSubcription::where('payment_type', 'Xendit');
+            $installmentSum = DailyReportPaymentInstallment::where('payment_type', 'Xendit');
+
+            if(isset($post['date_start']) && !empty($post['date_start']) &&
+                isset($post['date_end']) && !empty($post['date_end'])){
+                $start_date = date('Y-m-d', strtotime($post['date_start']));
+                $end_date = date('Y-m-d', strtotime($post['date_end']));
+
+                $dealsSum = $dealsSum->whereDate('date', '>=', $start_date)->whereDate('date', '<=', $end_date);
+                $trxSum = $trxSum->whereDate('trx_date', '>=', $start_date)->whereDate('trx_date', '<=', $end_date);
+                $subSum = $subSum->whereDate('date', '>=', $start_date)->whereDate('date', '<=', $end_date);
+                $installmentSum = $subSum->whereDate('date', '>=', $start_date)->whereDate('date', '<=', $end_date);
+            }
+
+            $sum = $dealsSum->sum('payment_nominal') + $trxSum->sum('trx_payment_nominal') + $subSum->sum('payment_nominal') + $installmentSum->sum('payment_nominal');
+        }
+
+        $data = $filter->orderBy('created_at', 'desc')->paginate(30);
+
+        if($data){
+            $result = [
+                'status' => 'success',
+                'result' => [
+                    'data' => $data,
+                    'sum' => $sum
+                ]
+            ];
+
+            return response()->json($result);
+        }else{
+            return response()->json(MyHelper::checkGet($data));
+        }
+    }
+
+    public function filterXendit($post){
+        $deals = DealsPaymentXendit::join('deals_users', 'deals_users.id_deals_user', 'deals_payment_xendits.id_deals_user')
+            ->leftJoin('users', 'users.id', 'deals_users.id_user')
+            ->selectRaw("NULL as reject_type, deals_users.paid_status as payment_status, type as payment_type, deals_payment_xendits.id_deals AS id_report, NULL AS trx_type, NULL AS receipt_number, 'Deals' AS type, deals_payment_xendits.created_at, deals_users.`voucher_price_cash` AS grand_total, amount, users.name, users.phone, users.email");
+        $subscription = SubscriptionPaymentXendit::join('subscription_users', 'subscription_users.id_subscription_user', 'subscription_payment_xendits.id_subscription_user')
+            ->leftJoin('users', 'users.id', 'subscription_users.id_user')
+            ->selectRaw("NULL as reject_type, subscription_users.paid_status as payment_status, type as payment_type, subscription_payment_xendits.id_subscription AS id_report, NULL AS trx_type, NULL AS receipt_number, 'Subscription' AS type, subscription_payment_xendits.created_at, subscription_users.`subscription_price_cash` AS grand_total, amount, users.name, users.phone, users.email");
+
+        $trx = TransactionPaymentXendit::join('transactions', 'transactions.id_transaction', 'transaction_payment_xendits.id_transaction')
+            ->leftJoin('users', 'users.id', 'transactions.id_user')
+            ->selectRaw("NULL as reject_type, transactions.transaction_payment_status as payment_status, type as payment_type,  transactions.id_transaction AS id_report, transactions.transaction_from AS trx_type, transactions.transaction_receipt_number AS receipt_number, 'Transaction' AS type, transaction_payment_xendits.created_at, transactions.`transaction_grandtotal` AS grand_total, amount, users.name, users.phone, users.email");
+
+        $installment = TransactionAcademyInstallmentPaymentXendit::join('transaction_academy_installment', 'transaction_academy_installment.installment_receipt_number', 'transaction_academy_installment_payment_xendits.order_id')
+            ->join('transaction_academy', 'transaction_academy.id_transaction_academy', 'transaction_academy_installment.id_transaction_academy')
+            ->join('transactions', 'transactions.id_transaction', 'transaction_academy.id_transaction')
+            ->leftJoin('users', 'users.id', 'transactions.id_user')
+            ->selectRaw("NULL as reject_type, transaction_academy_installment.paid_status as payment_status, type as payment_type, transaction_academy_installment.id_transaction_academy AS id_report, 'Academy' AS trx_type, transaction_academy_installment.installment_receipt_number AS receipt_number, 'Installment' AS type, transaction_academy_installment_payment_xendits.created_at, transaction_academy_installment.amount AS grand_total, transaction_academy_installment_payment_xendits.amount, users.name, users.phone, users.email");
+
+        if(isset($post['date_start']) && !empty($post['date_start']) &&
+            isset($post['date_end']) && !empty($post['date_end'])){
+            $start_date = date('Y-m-d', strtotime($post['date_start']));
+            $end_date = date('Y-m-d', strtotime($post['date_end']));
+
+            $deals = $deals->whereDate('deals_payment_xendits.created_at', '>=', $start_date)
+                ->whereDate('deals_payment_xendits.created_at', '<=', $end_date);
+            $subscription = $subscription->whereDate('subscription_payment_xendits.created_at', '>=', $start_date)
+                ->whereDate('subscription_payment_xendits.created_at', '<=', $end_date);
+            $trx = $trx->whereDate('transaction_payment_xendits.created_at', '>=', $start_date)
+                ->whereDate('transaction_payment_xendits.created_at', '<=', $end_date);
+            $installment = $installment->whereDate('transaction_academy_installment_payment_xendits.created_at', '>=', $start_date)
+                ->whereDate('transaction_academy_installment_payment_xendits.created_at', '<=', $end_date);
+        }
+
+        $unionWithDeals = 1;
+        $unionWithSubscription = 1;
+        $unionWithTrx = 1;
+        $unionWithInstallment = 1;
+
+        if(isset($post['conditions']) && !empty($post['conditions'])){
+            $checkFilterStatus = array_search('status', array_column($post['conditions'], 'subject'));
+            if($checkFilterStatus === false){
+                $deals = $deals->where('deals_users.paid_status', 'Completed');
+                $subscription = $subscription->where('subscription_users.paid_status', 'Completed');
+                $trx = $trx->where('transactions.transaction_payment_status', 'Completed');
+                $installment = $installment->where('transaction_academy_installment.paid_status', 'Completed');
+            }
+
+            $rule = 'and';
+            if(isset($post['rule'])){
+                $rule = $post['rule'];
+            }
+
+            if($rule == 'and'){
+                foreach ($post['conditions'] as $row){
+                    if(is_object($row)){
+                        $row = (array)$row;
+                    }
+                    if(isset($row['subject'])){
+                        if($row['subject'] == 'status'){
+                            $deals = $deals->where('deals_users.paid_status', $row['operator']);
+                            $subscription = $subscription->where('subscription_users.paid_status', $row['operator']);
+                            $trx = $trx->where('transactions.transaction_payment_status', $row['operator']);
+                            $installment = $deals->where('transaction_academy_installment.paid_status', $row['operator']);
+                        }
+
+                        if($row['subject'] == 'type'){
+                            if($row['operator'] == 'Deals'){
+                                $unionWithSubscription = 0;
+                                $unionWithTrx = 0;
+                                $unionWithInstallment = 0;
+                            }elseif($row['operator'] == 'Subscription'){
+                                $unionWithDeals = 0;
+                                $unionWithTrx = 0;
+                                $unionWithInstallment = 0;
+                            }elseif($row['operator'] == 'Transaction'){
+                                $unionWithDeals = 0;
+                                $unionWithSubscription = 0;
+                                $unionWithInstallment = 0;
+                            }elseif($row['operator'] == 'Transaction Installment'){
+                                $unionWithDeals = 0;
+                                $unionWithSubscription = 0;
+                                $unionWithTrx = 0;
+                            }
+                        }
+
+                        if($row['subject'] == 'name'){
+                            if($row['operator'] == '='){
+                                $deals = $deals->where('users.name', $row['parameter']);
+                                $subscription = $subscription->where('users.name', $row['parameter']);
+                                $trx = $trx->where('users.name', $row['parameter']);
+                                $installment = $installment->where('users.name', $row['parameter']);
+                            }else{
+                                $deals = $deals->where('users.name', 'like', '%'.$row['parameter'].'%');
+                                $subscription = $subscription->where('users.name', 'like', '%'.$row['parameter'].'%');
+                                $trx = $trx->where('users.name', 'like', '%'.$row['parameter'].'%');
+                                $installment = $installment->where('users.name', 'like', '%'.$row['parameter'].'%');
+                            }
+                        }
+
+                        if($row['subject'] == 'phone'){
+                            if($row['operator'] == '='){
+                                $deals = $deals->where('users.phone', $row['parameter']);
+                                $subscription = $subscription->where('users.phone', $row['parameter']);
+                                $trx = $trx->where('users.phone', $row['parameter']);
+                                $installment = $installment->where('users.phone', $row['parameter']);
+                            }else{
+                                $deals = $deals->where('users.phone', 'like', '%'.$row['parameter'].'%');
+                                $subscription = $subscription->where('users.phone', 'like', '%'.$row['parameter'].'%');
+                                $trx = $trx->where('users.phone', 'like', '%'.$row['parameter'].'%');
+                                $installment = $installment->where('users.phone', 'like', '%'.$row['parameter'].'%');
+                            }
+                        }
+
+                        if($row['subject'] == 'grandtotal'){
+                            $deals = $deals->where('deals_users.voucher_price_cash',$row['operator'] ,$row['parameter']);
+                            $subscription = $subscription->where('subscription_users.subscription_price_cash',$row['operator'] ,$row['parameter']);
+                            $trx = $trx->where('transactions.transaction_grandtotal',$row['operator'] ,$row['parameter']);
+                            $installment = $installment->where('transaction_academy_installment.amount',$row['operator'] ,$row['parameter']);
+                        }
+
+                        if($row['subject'] == 'amount'){
+                            $deals = $deals->where('amount',$row['operator'] ,$row['parameter']);
+                            $subscription = $subscription->where('amount',$row['operator'] ,$row['parameter']);
+                            $trx = $trx->where('amount',$row['operator'] ,$row['parameter']);
+                            $installment = $installment->where('transaction_academy_installment_payment_xendits.amount',$row['operator'] ,$row['parameter']);
+                        }
+
+                        if($row['subject'] == 'transaction_receipt_number'){
+                            $unionWithDeals = 0;
+                            $unionWithSubscription = 0;
+                            $unionWithInstallment = 0;
+                            if($row['operator'] == '='){
+                                $trx = $trx->where('transactions.transaction_receipt_number',$row['parameter']);
+                            }else{
+                                $trx = $trx->where('transactions.transaction_receipt_number', 'like', '%'.$row['parameter'].'%');
+                            }
+                        }
+                    }
+                }
+            }else{
+                $unionWithDeals = 0;
+                $unionWithSubscription = 0;
+                $unionWithTrx = 0;
+                $unionWithInstallment = 0;
+
+                $arrSubject = array_column($post['conditions'], 'subject');
+                $arrSubjectUnique = array_unique($arrSubject);
+
+                $arrOperator = array_column($post['conditions'], 'operator');
+                $arrOperatorUnique = array_unique($arrOperator);
+
+                if(in_array('transaction_receipt_number', $arrSubjectUnique) && count($arrSubject) == 1){
+                    $unionWithTrx = 1;
+
+                    $trx = $trx->where(function ($subquery) use ($post){
+                        foreach ($post['conditions'] as $row){
+                            if(is_object($row)){
+                                $row = (array)$row;
+                            }
+                            if(isset($row['subject'])){
+                                if($row['subject'] == 'status'){
+                                    $subquery = $subquery->orWhere('transactions.transaction_payment_status', $row['operator']);
+                                }
+
+                                if($row['subject'] == 'name'){
+                                    if($row['operator'] == '='){
+                                        $subquery = $subquery->orWhere('users.name', $row['parameter']);
+                                    }else{
+                                        $subquery = $subquery->orWhere('users.name', 'like', '%'.$row['parameter'].'%');
+                                    }
+                                }
+
+                                if($row['subject'] == 'phone'){
+                                    if($row['operator'] == '='){
+                                        $subquery = $subquery->orWhere('users.phone', $row['parameter']);
+                                    }else{
+                                        $subquery = $subquery->orWhere('users.phone', 'like', '%'.$row['parameter'].'%');
+                                    }
+                                }
+
+                                if($row['subject'] == 'grandtotal'){
+                                    $subquery = $subquery->orWhere('transactions.transaction_grandtotal',$row['operator'] ,$row['parameter']);
+                                }
+
+                                if($row['subject'] == 'amount'){
+                                    $subquery = $subquery->orWhere('gross_amount',$row['operator'] ,$row['parameter']);
+                                }
+
+                                if($row['subject'] == 'transaction_receipt_number'){
+                                    if($row['operator'] == '='){
+                                        $subquery = $subquery->orWhere('transactions.transaction_receipt_number',$row['parameter']);
+                                    }else{
+                                        $subquery = $subquery->orWhere('transactions.transaction_receipt_number', 'like', '%'.$row['parameter'].'%');
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }else{
+                    if(in_array('Deals', $arrOperatorUnique))$unionWithDeals = 1;
+                    if(in_array('Subscription', $arrOperatorUnique))$unionWithSubscription = 1;
+                    if(in_array('Transaction', $arrOperatorUnique))$unionWithTrx = 1;
+                    if(in_array('Transaction Installment', $arrOperatorUnique))$unionWithInstallment = 1;
+                    if(in_array('transaction_receipt_number', $arrSubjectUnique))$unionWithTrx = 1;
+                    if(!in_array('Deals', $arrOperatorUnique) && !in_array('Subscription', $arrOperatorUnique) && !in_array('Transaction', $arrOperatorUnique)){
+                        $unionWithDeals = 1;
+                        $unionWithSubscription = 1;
+                        $unionWithTrx = 1;
+                        $unionWithInstallment = 0;
+                    }
+
+                    $deals = $deals->where(function ($subquery) use ($post){
+                        foreach ($post['conditions'] as $row){
+                            if(is_object($row)){
+                                $row = (array)$row;
+                            }
+                            if(isset($row['subject'])){
+                                if($row['subject'] == 'status'){
+                                    $subquery = $subquery->orWhere('deals_users.paid_status', $row['operator']);
+                                }
+
+                                if($row['subject'] == 'name'){
+                                    if($row['operator'] == '='){
+                                        $subquery = $subquery->orWhere('users.name', $row['parameter']);
+                                    }else{
+                                        $subquery = $subquery->orWhere('users.name', 'like', '%'.$row['parameter'].'%');
+                                    }
+                                }
+
+                                if($row['subject'] == 'phone'){
+                                    if($row['operator'] == '='){
+                                        $subquery = $subquery->orWhere('users.phone', $row['parameter']);
+                                    }else{
+                                        $subquery = $subquery->orWhere('users.phone', 'like', '%'.$row['parameter'].'%');
+                                    }
+                                }
+
+                                if($row['subject'] == 'grandtotal'){
+                                    $subquery = $subquery->orWhere('transactions.voucher_price_cash',$row['operator'] ,$row['parameter']);
+                                }
+
+                                if($row['subject'] == 'amount'){
+                                    $subquery = $subquery->orWhere('amount',$row['operator'] ,$row['parameter']);
+                                }
+                            }
+                        }
+                    });
+
+                    $subscription = $subscription->where(function ($subquery) use ($post){
+                        foreach ($post['conditions'] as $row){
+                            if(is_object($row)){
+                                $row = (array)$row;
+                            }
+                            if(isset($row['subject'])){
+                                if($row['subject'] == 'status'){
+                                    $subquery = $subquery->orWhere('subscription_users.paid_status', $row['operator']);
+                                }
+
+                                if($row['subject'] == 'name'){
+                                    if($row['operator'] == '='){
+                                        $subquery = $subquery->orWhere('users.name', $row['parameter']);
+                                    }else{
+                                        $subquery = $subquery->orWhere('users.name', 'like', '%'.$row['parameter'].'%');
+                                    }
+                                }
+
+                                if($row['subject'] == 'phone'){
+                                    if($row['operator'] == '='){
+                                        $subquery = $subquery->orWhere('users.phone', $row['parameter']);
+                                    }else{
+                                        $subquery = $subquery->orWhere('users.phone', 'like', '%'.$row['parameter'].'%');
+                                    }
+                                }
+
+                                if($row['subject'] == 'grandtotal'){
+                                    $subquery = $subquery->orWhere('subscription_users.subscription_price_cash',$row['operator'] ,$row['parameter']);
+                                }
+
+                                if($row['subject'] == 'amount'){
+                                    $subquery = $subquery->orWhere('amount',$row['operator'] ,$row['parameter']);
+                                }
+                            }
+                        }
+                    });
+
+                    $trx = $trx->where(function ($subquery) use ($post){
+                        foreach ($post['conditions'] as $row){
+                            if(is_object($row)){
+                                $row = (array)$row;
+                            }
+                            if(isset($row['subject'])){
+                                if($row['subject'] == 'status'){
+                                    $subquery = $subquery->orWhere('transactions.transaction_payment_status', $row['operator']);
+                                }
+
+                                if($row['subject'] == 'name'){
+                                    if($row['operator'] == '='){
+                                        $subquery = $subquery->orWhere('users.name', $row['parameter']);
+                                    }else{
+                                        $subquery = $subquery->orWhere('users.name', 'like', '%'.$row['parameter'].'%');
+                                    }
+                                }
+
+                                if($row['subject'] == 'phone'){
+                                    if($row['operator'] == '='){
+                                        $subquery = $subquery->orWhere('users.phone', $row['parameter']);
+                                    }else{
+                                        $subquery = $subquery->orWhere('users.phone', 'like', '%'.$row['parameter'].'%');
+                                    }
+                                }
+
+                                if($row['subject'] == 'grandtotal'){
+                                    $subquery = $subquery->orWhere('transactions.transaction_grandtotal',$row['operator'] ,$row['parameter']);
+                                }
+
+                                if($row['subject'] == 'amount'){
+                                    $subquery = $subquery->orWhere('amount',$row['operator'] ,$row['parameter']);
+                                }
+
+                                if($row['subject'] == 'transaction_receipt_number'){
+                                    if($row['operator'] == '='){
+                                        $subquery = $subquery->orWhere('transactions.transaction_receipt_number',$row['parameter']);
+                                    }else{
+                                        $subquery = $subquery->orWhere('transactions.transaction_receipt_number', 'like', '%'.$row['parameter'].'%');
+                                    }
+                                }
+                            }
+                        }
+                    });
+
+                    $installment = $installment->where(function ($subquery) use ($post){
+                        foreach ($post['conditions'] as $row){
+                            if(is_object($row)){
+                                $row = (array)$row;
+                            }
+                            if(isset($row['subject'])){
+                                if($row['subject'] == 'status'){
+                                    $subquery = $subquery->orWhere('transaction_academy_installment.paid_status', $row['operator']);
+                                }
+
+                                if($row['subject'] == 'name'){
+                                    if($row['operator'] == '='){
+                                        $subquery = $subquery->orWhere('users.name', $row['parameter']);
+                                    }else{
+                                        $subquery = $subquery->orWhere('users.name', 'like', '%'.$row['parameter'].'%');
+                                    }
+                                }
+
+                                if($row['subject'] == 'phone'){
+                                    if($row['operator'] == '='){
+                                        $subquery = $subquery->orWhere('users.phone', $row['parameter']);
+                                    }else{
+                                        $subquery = $subquery->orWhere('users.phone', 'like', '%'.$row['parameter'].'%');
+                                    }
+                                }
+
+                                if($row['subject'] == 'grandtotal'){
+                                    $subquery = $subquery->orWhere('transaction_academy_installment.amount',$row['operator'] ,$row['parameter']);
+                                }
+
+                                if($row['subject'] == 'amount'){
+                                    $subquery = $subquery->orWhere('transaction_academy_installment_payment_xendits.amount',$row['operator'] ,$row['parameter']);
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        }else{
+            $deals = $deals->where('deals_users.paid_status', 'Completed');
+            $subscription = $subscription->where('subscription_users.paid_status', 'Completed');
+            $trx = $trx->where('transactions.transaction_payment_status', 'Completed');
+            $installment = $installment->where('transaction_academy_installment.paid_status', 'Completed');
+        }
+
+        //union by type user choose
+        if($unionWithTrx == 1 && $unionWithDeals == 1 && $unionWithSubscription == 1 && $unionWithInstallment == 1){
+            $data = $trx->unionAll($deals)->unionAll($subscription)->unionAll($installment);
+        }elseif($unionWithTrx == 1 && $unionWithDeals == 1 && $unionWithSubscription == 1 && $unionWithInstallment == 0){
+            $data = $trx->unionAll($deals)->unionAll($subscription);
+        }elseif($unionWithTrx == 1 && $unionWithDeals == 1 && $unionWithSubscription == 0 && $unionWithInstallment == 0){
+            $data = $trx->unionAll($deals);
+        }elseif($unionWithTrx == 1 && $unionWithDeals == 0 && $unionWithSubscription == 0 && $unionWithInstallment == 0){
+            $data = $trx;
+        }elseif($unionWithTrx == 0 && $unionWithDeals == 1 && $unionWithSubscription == 1 && $unionWithInstallment == 1){
+            $data = $deals->unionAll($subscription)->unionAll($installment);
+        }elseif($unionWithTrx == 0 && $unionWithDeals == 1 && $unionWithSubscription == 1 && $unionWithInstallment == 0){
+            $data = $deals->unionAll($subscription);
+        }elseif($unionWithTrx == 0 && $unionWithDeals == 1 && $unionWithSubscription == 0 && $unionWithInstallment == 1){
+            $data = $deals->unionAll($installment);
+        }elseif($unionWithTrx == 0 && $unionWithDeals == 1 && $unionWithSubscription == 0 && $unionWithInstallment == 0){
+            $data = $deals;
+        }elseif($unionWithTrx == 1 && $unionWithDeals == 0 && $unionWithSubscription == 1 && $unionWithInstallment == 1){
+            $data = $trx->unionAll($subscription)->unionAll($installment);
+        }elseif($unionWithTrx == 0 && $unionWithDeals == 0 && $unionWithSubscription == 1 && $unionWithInstallment == 1){
+            $data = $subscription->unionAll($installment);
+        }elseif($unionWithTrx == 0 && $unionWithDeals == 0 && $unionWithSubscription == 1 && $unionWithInstallment == 0){
+            $data = $subscription;
+        }elseif($unionWithTrx == 1 && $unionWithDeals == 0 && $unionWithSubscription == 0 && $unionWithInstallment == 1){
+            $data = $trx->unionAll($installment);
+        }elseif($unionWithTrx == 0 && $unionWithDeals == 0 && $unionWithSubscription == 0 && $unionWithInstallment == 1){
+            $data = $installment;
         }
 
         return $data;
@@ -1247,6 +1760,8 @@ class ApiReportPayment extends Controller
                 $data = $this->filterIpay88($filter);
             }elseif ($filter['type'] == 'midtrans'){
                 $data = $this->filterMidtrans($filter);
+            }elseif ($filter['type'] == 'xendit'){
+                $data = $this->filterXendit($filter);
             }elseif ($filter['type'] == 'shopee'){
                 $data = $this->filterShopee($filter);
             }
@@ -1255,7 +1770,6 @@ class ApiReportPayment extends Controller
 
                 yield [
                     'Date' => date('d M Y H:i', strtotime($val['created_at'])),
-                    'Reject type' => $val['reject_type'],
                     'Status' => $val['payment_status'],
                     'Type' => $val['type'],
                     'Payment Type' => $val['payment_type'],

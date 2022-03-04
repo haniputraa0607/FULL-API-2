@@ -1054,7 +1054,7 @@ class ApiPartnersController extends Controller
                             "location" => Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->first(),
                             "confir" => ConfirmationLetter::where('id_partner',$post["id_partner"])->first(),
                         ];
-                        $invoiceCL = Icount::ApiInvoiceConfirmationLetter($data_send_2, $data_send_2['location']['company_type']);
+                        $invoiceCL = Icount::ApiInvoiceConfirmationLetter($data_send_2, 'PT IMA');
                         if($invoiceCL['response']['Status']=='1' && $invoiceCL['response']['Message']=='success'){
                             $data_invoCL = $invoiceCL['response']['Data'][0];
                             $val = Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->get('value_detail')[0]['value_detail'];
@@ -1766,7 +1766,7 @@ class ApiPartnersController extends Controller
                             "location" => Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->first(),
                             "confir" => ConfirmationLetter::where('id_partner',$post["id_partner"])->first(),
                         ];
-                        $invoiceCL = Icount::ApiInvoiceConfirmationLetter($data_send_2, $data_send_2['location']['company_type']);
+                        $invoiceCL = Icount::ApiInvoiceConfirmationLetter($data_send_2, 'PT IMA');
                         if($invoiceCL['response']['Status']=='1' && $invoiceCL['response']['Message']=='success'){
                             $data_invoCL = $invoiceCL['response']['Data'][0];
                             $val = Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->get('value_detail')[0]['value_detail'];

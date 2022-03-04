@@ -14,6 +14,12 @@ use Modules\Product\Entities\DeliveryProduct;
 use Modules\Product\Entities\DeliveryProductDetail;
 use Modules\Product\Entities\DeliveryRequestProduct;
 use Monolog\Handler\NullHandler;
+use App\Lib\Icount;
+use Modules\BusinessDevelopment\Entities\ConfirmationLetter;
+use Modules\BusinessDevelopment\Entities\Location;
+use Modules\BusinessDevelopment\Entities\Partner;
+use Modules\Project\Entities\InvoiceSpk;
+use Modules\Project\Entities\Project;
 
 class ApiRequestProductController extends Controller
 {
@@ -184,14 +190,18 @@ class ApiRequestProductController extends Controller
                         $value['status'] = 'Pending';
                     }
                 }
-                array_push($data_detail, [
+                $push =  [
                     $col 	=> $id_req,
                     'id_product_icount'  => $value['id_product_icount'],
                     'unit'  => $value['unit'],
                     'value'  => $value['qty'],
                     'filter'  => $value['filter'],
                     'status'  => $value['status'],
-                ]);
+                ];
+                if(isset($data['id_request_product'])){
+                    $push['budget_code'] = $value['budget_code'];
+                }
+                array_push($data_detail, $push);
             }
         }
 
@@ -268,7 +278,7 @@ class ApiRequestProductController extends Controller
                 $update = RequestProduct::where('id_request_product',$post['id_request_product'])->update($store_request);
                 if($update) {
                     if (isset($post['product_icount'])) {
-                        $save_detail = $this->saveDetail($post, $post['product_icount']);
+                        $save_detail = $this->saveDetail($post, $cek_input['product_icount']);
                         if (!$save_detail) {
                             DB::rollback();
                             return response()->json(['status' => 'fail', 'messages' => ['Failed add request hair stylist']]);
@@ -279,6 +289,48 @@ class ApiRequestProductController extends Controller
                 }   
             } else {
                 return response()->json(['status' => 'fail', 'messages' => ['Id Outlet not found']]);
+            }
+            if($store_request['status']=='Completed'){
+                $data_send['location'] = Location::where('id_location',$cek_outlet['id_location'])->first();
+                $data_send['partner'] = Partner::where('id_partner',$data_send['location']['id_partner'])->first();
+                $data_send['confir'] = ConfirmationLetter::where('id_partner',$data_send['location']['id_partner'])->where('id_location',$data_send['location']['id_location'])->first();
+                $data_send["location_bundling"] = RequestProductDetail::where('id_request_product',$post['id_request_product'])->where('status','Approved')->join('product_icounts','product_icounts.id_product_icount','request_product_details.id_product_icount')->get()->toArray();
+                $data_send["location_bundling"] = array_map(function($val){
+                    $val['qty'] = $val['value'];
+                    unset($val['value']);
+                    return $val;
+                },$data_send['location_bundling']);
+                $project = Project::where('id_partner',$data_send['location']['id_partner'])->where('id_location',$data_send['location']['id_location'])->first();
+                $invoice = Icount::ApiPurchaseSPK($data_send,$data_send['location']['company_type']);
+                if($invoice['response']['Status']=='1' && $invoice['response']['Message']=='success'){
+                    $data_invoice = [
+                        'id_project'=>$project['id_project'],
+                        'id_request_product'=>$post['id_request_product'],
+                        'id_sales_invoice'=>$invoice['response']['Data'][0]['SalesInvoiceID']??null,
+                        'id_business_partner'=>$invoice['response']['Data'][0]['BusinessPartnerID'],
+                        'id_branch'=>$invoice['response']['Data'][0]['BranchID'],
+                        'dpp'=>$invoice['response']['Data'][0]['DPP']??null,
+                        'dpp_tax'=>$invoice['response']['Data'][0]['DPPTax']??null,
+                        'tax'=>$invoice['response']['Data'][0]['Tax']??null,
+                        'tax_value'=>$invoice['response']['Data'][0]['TaxValue']??null,
+                        'tax_date'=>date('Y-m-d H:i:s',strtotime($invoice['response']['Data'][0]['TaxDate']??date('Y-m-d'))),
+                        'netto'=>$invoice['response']['Data'][0]['Netto']??null,
+                        'amount'=>$invoice['response']['Data'][0]['Amount']??null,
+                        'outstanding'=>$invoice['response']['Data'][0]['Outstanding']??null,
+                        'value_detail'=>json_encode($invoice['response']['Data'][0]['Detail']),  
+                        'message'=>$invoice['response']['Message'],
+                    ];
+                    $input = InvoiceSpk::create($data_invoice);
+                }else{
+                    $data_invoice = [
+                        'id_project'=>$project['id_project'],
+                        'id_request_product'=>$post['id_request_product'],
+                        'status_invoice_spk'=>0,
+                        'message'=>$invoice['response']['Message'],
+                        'value_detail'=>json_encode($invoice['response']['Data']),  
+                    ];
+                    $input = InvoiceSpk::create($data_invoice);
+                }
             }
             DB::commit();
             if($store_request['status']!='Pending'){
@@ -331,12 +383,17 @@ class ApiRequestProductController extends Controller
         if (isset($data['product_icount'])) {
             $status = 'Pending';
             $v_status = true;
-            foreach($data['product_icount'] as $product){
+            foreach($data['product_icount'] as $key => $product){
                 if($product['status'] == 'Approved' || $product['status'] == 'Rejected'){
-                    $status = 'On Progress';
+                    $status = 'Completed';
                 }else{
                     $v_status = false;
                 }
+
+                if($product['status'] != 'Approved'){
+                    $data['product_icount'][$key]['status'] = 'Rejected';
+                }
+
             }
             if($v_status){
                 $status = 'Completed';
@@ -345,6 +402,7 @@ class ApiRequestProductController extends Controller
         }
         return [
             'store_request' => $store_request,
+            'product_icount' => $data['product_icount']
         ];
 
     }

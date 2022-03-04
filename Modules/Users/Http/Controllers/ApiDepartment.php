@@ -197,19 +197,24 @@ class ApiDepartment extends Controller
     }
 
     public function syncIcount(Request $request){
-        $setting = Setting::where('key' , 'Sync Department Icount')->first();
-        if($setting){
-            if($setting['value'] != 'finished'){
-                return ['status' => 'fail', 'messages' => ['Cant sync now, because sync is in progress']]; 
+        $log = MyHelper::logCron('Sync Department Icount');
+        try{
+            $setting = Setting::where('key' , 'Sync Department Icount')->first();
+            if($setting){
+                if($setting['value'] != 'finished'){
+                    return ['status' => 'fail', 'messages' => ['Cant sync now, because sync is in progress']]; 
+                }
+            }else{
+                $create_setting = Setting::updateOrCreate(['key' => 'Sync Department Icount'],['value' => 'start']);
             }
-        }else{
-            $create_setting = Setting::updateOrCreate(['key' => 'Sync Department Icount'],['value' => 'start']);
-        }
-        $send = [
-            'page' => 1,
-            'id_departments' => null
-        ];
-        $sync_job = SyncIcountDepartment::dispatch($send);
-        return ['status' => 'success', 'messages' => ['Success to sync with ICount']]; 
+            $send = [
+                'page' => 1,
+                'id_departments' => null
+            ];
+            $sync_job = SyncIcountDepartment::dispatch($send);
+            return ['status' => 'success', 'messages' => ['Success to sync with ICount']]; 
+        } catch (\Exception $e) {
+            $log->fail($e->getMessage());
+        }    
     }
 }

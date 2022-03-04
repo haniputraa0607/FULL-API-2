@@ -2616,7 +2616,7 @@ class MyHelper{
         $phone = str_replace('+', '', $phone);
 
         if(substr($phone, 0, 2) == 62){
-            $phone = str_replace('62', '0', $phone);
+            $phone = '0' . substr($phone, 2);
         }
 
         if(substr($phone, 0, 1) == '0'){

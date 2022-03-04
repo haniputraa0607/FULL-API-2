@@ -861,7 +861,7 @@ class ApiOutletController extends Controller
         }
 
         if(isset($outlet[0])){
-            foreach($outlet[0]['brand_outlets'] as $brand_outlet){
+            foreach($outlet[0]['brand_outlets'] ?? [] as $brand_outlet){
                 $id_brand_outlet = $brand_outlet['id_brand'];
                 foreach($outlet[0]['product_detail'] as $key => $value){
                     $cek = false;

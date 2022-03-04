@@ -13,6 +13,7 @@ use DB;
 use App\Lib\MyHelper;
 use Modules\Recruitment\Entities\HairStylistTimeOff;
 use Modules\Recruitment\Entities\HairstylistOverTime;
+use Modules\Transaction\Entities\HairstylistNotAvailable;
 
 
 class ApiHairStylistTimeOffOvertimeController extends Controller
@@ -49,7 +50,7 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                     if($detail){
                         $send = [];
                         foreach($detail as $key => $data){
-                            if($data['date'] > date('Y-m-d 00:00:00')){
+                            if($data['date'] >= date('Y-m-d 00:00:00')){
                                 $send[$key]['id_hairstylist_schedule_date'] = $data['id_hairstylist_schedule_date'];
                                 $send[$key]['date'] = $data['date'];
                                 $send[$key]['date_format'] = date('d F Y', strtotime($data['date']));
@@ -278,6 +279,22 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                         'status' => 'success', 
                         'messages' => ['Failed to updated a request hair stylist time off']
                     ]);
+                }
+                if(isset($post['approve'])){
+                    $data_not_avail = [
+                        "id_outlet" => $data_update['id_outlet'],
+                        "id_user_hair_stylist" => $data_update['id_user_hair_stylist'],
+                        "booking_start" => date('Y-m-d', strtotime($data_update['date'])).' '.$data_update['start_time'],
+                        "booking_end" => date('Y-m-d', strtotime($data_update['date'])).' '.$data_update['end_time'],
+                    ];
+                    $store_not_avail = HairstylistNotAvailable::create($data_not_avail);
+                    if(!$store_not_avail){
+                        DB::rollBack();
+                        return response()->json([
+                            'status' => 'success', 
+                            'messages' => ['Failed to updated a request hair stylist time off']
+                        ]);
+                    }
                 }
                 DB::commit();
                 return response()->json([

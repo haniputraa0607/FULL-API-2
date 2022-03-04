@@ -240,6 +240,10 @@ class Kernel extends ConsoleKernel
         $schedule->call('Modules\Recruitment\Http\Controllers\ApiIncome@cron_end')->monthlyOn(Config::get('app.income_date_end'),'00:01');
 
 
+        $schedule->call('Modules\ChartOfAccount\Http\Controllers\ApiChartOfAccountController@sync')->dailyAt('00:10');
+        $schedule->call('Modules\Users\Http\Controllers\ApiDepartment@syncIcount')->dailyAt('00:10');
+        $schedule->call('Modules\Product\Http\Controllers\ApiProductController@syncIcount')->dailyAt('00:10');
+
     }
 
     /**

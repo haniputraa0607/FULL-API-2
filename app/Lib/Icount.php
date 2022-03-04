@@ -124,7 +124,7 @@ class Icount
     }
     public static function ApiInvoiceConfirmationLetter($request, $company = null, $logType = null, $orderId = null){
         $data = [
-            "SalesOrderID" => $request['partner']['id_sales_order'],
+            "SalesOrderID" => '011',
             "VoucherNo" => $request['partner']['voucher_no'],
             "TransDate" => $request['location']['trans_date'],
             "DueDate" => $request['location']['due_date'],
@@ -146,15 +146,16 @@ class Icount
                 ]
             ]
         ];
-        if($company=='PT IMS'){
-            $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
-            $data['BranchID'] = $request['location']['id_branch_ima'];
-        }else{
+        if($company=='PT IMA'){
             if(isset($request['partner']['id_business_partner_ima']) && !empty($request['partner']['id_business_partner_ima'])){
                 $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
+            }elseif(isset($request['partner']['id_business_partner']) && !empty($request['partner']['id_business_partner'])){
+                $data['BusinessPartnerID'] = $request['partner']['id_business_partner'];
             }
-            if(isset($request['partner']['id_branch_ima']) && !empty($request['partner']['id_branch_ima'])){
-                $data['BranchID'] = $request['location']['id_branch_ima']; 
+            if(isset($request['location']['id_branch_ima']) && !empty($request['location']['id_branch_ima'])){
+                $data['BranchID'] = $request['location']['id_branch_ima'];
+            }elseif(isset($request['location']['id_branch']) && !empty($request['location']['id_branch'])){
+                $data['BranchID'] = $request['location']['id_branch'];
             }
         }
         return self::sendRequest('POST', '/partner_initiation/do_invoice_cl', $data, 'PT IMA', $logType, $orderId);
@@ -183,15 +184,16 @@ class Icount
                 ]
             ]
         ];
-        if($company=='PT IMS'){
-            $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
-            $data['BranchID'] = $request['location']['id_branch_ima'];
-        }else{
+        if($company=='PT IMA'){
             if(isset($request['partner']['id_business_partner_ima']) && !empty($request['partner']['id_business_partner_ima'])){
                 $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
+            }elseif(isset($request['partner']['id_business_partner']) && !empty($request['partner']['id_business_partner'])){
+                $data['BusinessPartnerID'] = $request['partner']['id_business_partner'];
             }
-            if(isset($request['partner']['id_branch_ima']) && !empty($request['partner']['id_branch_ima'])){
-                $data['BranchID'] = $request['location']['id_branch_ima']; 
+            if(isset($request['location']['id_branch_ima']) && !empty($request['location']['id_branch_ima'])){
+                $data['BranchID'] = $request['location']['id_branch_ima'];
+            }elseif(isset($request['location']['id_branch']) && !empty($request['location']['id_branch'])){
+                $data['BranchID'] = $request['location']['id_branch'];
             }
         }
         return self::sendRequest('POST', '/partner_initiation/do_invoice_spk', $data, 'PT IMA', $logType, $orderId);
@@ -220,15 +222,16 @@ class Icount
                 ]
             ]
         ];
-        if($company=='PT IMS'){
-            $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
-            $data['BranchID'] = $request['location']['id_branch_ima'];
-        }else{
+        if($company=='PT IMA'){
             if(isset($request['partner']['id_business_partner_ima']) && !empty($request['partner']['id_business_partner_ima'])){
                 $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
+            }elseif(isset($request['partner']['id_business_partner']) && !empty($request['partner']['id_business_partner'])){
+                $data['BusinessPartnerID'] = $request['partner']['id_business_partner'];
             }
-            if(isset($request['partner']['id_branch_ima']) && !empty($request['partner']['id_branch_ima'])){
-                $data['BranchID'] = $request['location']['id_branch_ima']; 
+            if(isset($request['location']['id_branch_ima']) && !empty($request['location']['id_branch_ima'])){
+                $data['BranchID'] = $request['location']['id_branch_ima'];
+            }elseif(isset($request['location']['id_branch']) && !empty($request['location']['id_branch'])){
+                $data['BranchID'] = $request['location']['id_branch'];
             }
         }
         return self::sendRequest('POST', '/partner_initiation/do_invoice_bap', $data, 'PT IMA', $logType, $orderId);
@@ -282,18 +285,19 @@ class Icount
             "Notes" => $request['partner']['notes'],
             "Detail" => $detail
         ];
-        if($company=='PT IMS'){
-            $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
-            $data['BranchID'] = $request['location']['id_branch_ima'];
-        }else{
+        if($company=='PT IMA'){
             if(isset($request['partner']['id_business_partner_ima']) && !empty($request['partner']['id_business_partner_ima'])){
                 $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
+            }elseif(isset($request['partner']['id_business_partner']) && !empty($request['partner']['id_business_partner'])){
+                $data['BusinessPartnerID'] = $request['partner']['id_business_partner'];
             }
-            if(isset($request['partner']['id_branch_ima']) && !empty($request['partner']['id_branch_ima'])){
-                $data['BranchID'] = $request['location']['id_branch_ima']; 
+            if(isset($request['location']['id_branch_ima']) && !empty($request['location']['id_branch_ima'])){
+                $data['BranchID'] = $request['location']['id_branch_ima'];
+            }elseif(isset($request['location']['id_branch']) && !empty($request['location']['id_branch'])){
+                $data['BranchID'] = $request['location']['id_branch'];
             }
         }
-        return self::sendRequest('POST', '/partner_initiation/purchase_request_spk', $data, 'PT IMA', $logType, $orderId);
+        return self::sendRequest('POST', '/partner_initiation/purchase_request_spk', $data, $company, $logType, $orderId);
     }
 
     public static function ApiCreateOrderPOO($request, $company = null, $logType = null, $orderId = null){
@@ -417,9 +421,13 @@ class Icount
         }else{
             if(isset($request['partner']['id_business_partner_ima']) && !empty($request['partner']['id_business_partner_ima'])){
                 $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
+            }elseif(isset($request['partner']['id_business_partner']) && !empty($request['partner']['id_business_partner'])){
+                $data['BusinessPartnerID'] = $request['partner']['id_business_partner'];
             }
-            if(isset($request['partner']['id_branch_ima']) && !empty($request['partner']['id_branch_ima'])){
-                $data['BranchID'] = $request['location']['id_branch_ima']; 
+            if(isset($request['location']['id_branch_ima']) && !empty($request['location']['id_branch_ima'])){
+                $data['BranchID'] = $request['location']['id_branch_ima'];
+            }elseif(isset($request['location']['id_branch']) && !empty($request['location']['id_branch'])){
+                $data['BranchID'] = $request['location']['id_branch'];
             }
         }
         return self::sendRequest('POST', '/sales/sharing_management_fee', $data, $company, $logType, $orderId);
@@ -462,9 +470,13 @@ class Icount
         }else{
             if(isset($request['partner']['id_business_partner_ima']) && !empty($request['partner']['id_business_partner_ima'])){
                 $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
+            }elseif(isset($request['partner']['id_business_partner']) && !empty($request['partner']['id_business_partner'])){
+                $data['BusinessPartnerID'] = $request['partner']['id_business_partner'];
             }
-            if(isset($request['partner']['id_branch_ima']) && !empty($request['partner']['id_branch_ima'])){
-                $data['BranchID'] = $request['location']['id_branch_ima']; 
+            if(isset($request['location']['id_branch_ima']) && !empty($request['location']['id_branch_ima'])){
+                $data['BranchID'] = $request['location']['id_branch_ima'];
+            }elseif(isset($request['location']['id_branch']) && !empty($request['location']['id_branch'])){
+                $data['BranchID'] = $request['location']['id_branch'];
             }
         }
         return self::sendRequest('POST', '/sales/sharing_management_fee', $data, $company, $logType, $orderId);

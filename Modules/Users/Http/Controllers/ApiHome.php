@@ -575,10 +575,11 @@ class ApiHome extends Controller
 
             //check member old for send notification
             if($user->claim_point_status == 0){
-                $checkOldMember = OldMember::where('phone', $user['phone'])->where('claim_status', 0)->first();
-                if(!empty($checkOldMember['loyalty_point'])){
+                $checkOldMember = OldMember::where('phone', $user['phone'])->where('claim_status', 0)->get()->toArray();
+                $sumPoint = array_sum(array_column($checkOldMember, 'loyalty_point'));
+                if(!empty($sumPoint)){
                     app($this->autocrm)->SendAutoCRM('Claim Point Existing Member', $user['phone'], [
-                        'total_point_claim' => MyHelper::requestNumber((int) $checkOldMember['loyalty_point'], '_CURRENCY'),
+                        'total_point_claim' => MyHelper::requestNumber((int) $sumPoint, '_CURRENCY'),
                         'id_user' => $user->id
                     ]);
                 }

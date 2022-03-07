@@ -137,7 +137,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
     });
 });
 
-Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mitra'], function () {
+Route::group(['middleware' => ['log_activities_mitra_apps', 'user_agent'], 'prefix' => 'mitra'], function () {
     Route::get('splash','ApiMitra@splash');
     Route::group(['middleware' => ['auth_client', 'scopes:mitra-apps']], function()
     {

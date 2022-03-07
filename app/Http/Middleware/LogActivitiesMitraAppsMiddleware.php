@@ -42,15 +42,6 @@ class LogActivitiesMitraAppsMiddleware
                 if($requestnya == '[]') $requestnya = null;
                 $urlexp = explode('/',$url);
 
-                if(isset($urlexp[6])){
-                    $module = $urlexp[6];
-                }elseif(isset($urlexp[4])){
-                    $module = $urlexp[4];
-                }
-                
-                
-                if(stristr($url, 'mitra')) $module = 'Mitra App';
-
                 if(stristr($url, 'mitra/phone/check')) $subject = 'Phone Check';
                 if(stristr($url, 'mitra/pin/forgot')) $subject = 'Pin Forgot';
                 if(stristr($url, 'mitra/pin/verify')) $subject = 'Pin Verify';
@@ -90,7 +81,7 @@ class LogActivitiesMitraAppsMiddleware
                 
                 $data = [
                     'url' 		        => $url,
-                    'subject' 	        => $subject,
+                    'subject' 	        => $subject??'Unknown',
                     'phone' 		    => $phone??null,
                     'user' 		        => $dtUser,
                     'request' 		    => MyHelper::encrypt2019($requestnya),

@@ -1185,35 +1185,35 @@ class ApiMitraOutletService extends Controller
  		->whereIn('shift', $shift)
  		->first();
 
- 		$shift = $schedule->shift;
 
  		$box = [];
  		if ($schedule) {
-                    $attendance = HairstylistAttendance::where('id_user_hair_stylist', '=', $user->id_user_hair_stylist)
-                                ->whereDate('attendance_date', date('Y-m-d'))
-                                ->wherenotnull('clock_in')
-                                ->wherenull('clock_out')
-                                ->first();
-                        if (!$attendance) {
-                                $box = [];
-                        }else{
-                            if ($schedule->id_outlet_box) {
-	 			$box = OutletBox::where([
-					['id_outlet', $user->id_outlet],
-					['id_outlet_box', $schedule->id_outlet_box],
-					['outlet_box_status', 'Active']
-				])->get();
-	 		} else {
-				$box = OutletBox::where([
-					['id_outlet', $user->id_outlet],
-					['outlet_box_status', 'Active']
-				])
-				->whereDoesntHave('hairstylist_schedule_dates', function($q) use ($shift){
-					$q->whereDate('date', date('Y-m-d'))
-			 		->where('shift', $shift);
-				})->get();
-	 		}
-                        }
+	 		$shift = $schedule->shift;
+            $attendance = HairstylistAttendance::where('id_user_hair_stylist', '=', $user->id_user_hair_stylist)
+	                ->whereDate('attendance_date', date('Y-m-d'))
+	                ->wherenotnull('clock_in')
+	                ->wherenull('clock_out')
+	                ->first();
+	        if (!$attendance) {
+	                $box = [];
+	        }else{
+	            if ($schedule->id_outlet_box) {
+		 			$box = OutletBox::where([
+						['id_outlet', $user->id_outlet],
+						['id_outlet_box', $schedule->id_outlet_box],
+						['outlet_box_status', 'Active']
+					])->get();
+		 		} else {
+					$box = OutletBox::where([
+						['id_outlet', $user->id_outlet],
+						['outlet_box_status', 'Active']
+					])
+					->whereDoesntHave('hairstylist_schedule_dates', function($q) use ($shift){
+						$q->whereDate('date', date('Y-m-d'))
+				 		->where('shift', $shift);
+					})->get();
+		 		}
+            }
 	 		
  		}
 

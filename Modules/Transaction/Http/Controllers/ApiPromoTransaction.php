@@ -723,8 +723,6 @@ class ApiPromoTransaction extends Controller
 		$promo_item 	= $shared_promo['items'];
 		$discount 		= 0;
 
-		\Log::debug('primi_itim', $promo_item);
-
 		if (!$promo_rules->is_all_product) {
 			if ($promo[$promoSource.'_product_discount']->isEmpty()) {
 				return $this->failResponse('Produk tidak ditemukan');

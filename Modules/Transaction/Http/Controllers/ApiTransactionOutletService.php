@@ -52,6 +52,7 @@ use App\Http\Models\LogTransactionUpdate;
 use Modules\ProductVariant\Entities\ProductVariant;
 use Modules\ProductVariant\Entities\TransactionProductVariant;
 use Modules\ShopeePay\Entities\TransactionPaymentShopeePay;
+use Modules\Xendit\Entities\TransactionPaymentXendit;
 use App\Http\Models\DealsUser;
 use App\Http\Models\DealsPaymentMidtran;
 use App\Http\Models\DealsPaymentManual;
@@ -252,7 +253,7 @@ class ApiTransactionOutletService extends Controller
 
         $trxPayment = $this->transactionPayment($trx);
         $trx['payment'] = $trxPayment['payment'];
-
+       
         $trx->load('user','outlet');
         $result = [
             'id_transaction'                => $trx['id_transaction'],
@@ -503,6 +504,19 @@ class ApiTransactionOutletService extends Controller
                                     $paymentGateway = 'Shopeepay';
                                 }
                                 break;
+                            case 'Xendit':
+                                $payXendit = TransactionPaymentXendit::find($dataPay['id_payment']);
+                                $payment[$dataKey]['name']      = 'Xendit'.' - '.$payXendit->type??'';
+                                $payment[$dataKey]['amount']    = $payXendit->amount / 100;
+                                $payment[$dataKey]['reject']    = $payXendit->err_reason?:'payment expired';
+                                if($trx['transaction_payment_status'] == 'Pending') {
+                                    $redirectUrl = $payXendit->redirect_url_http;
+                                    $redirectUrlApp = $payXendit->redirect_url_app;
+                                    $continuePayment =  true;
+                                    $totalPayment = $payXendit->amount / 100;
+                                    $paymentGateway = 'Xendit';
+                                }
+                                break;
                             case 'Offline':
                                 $payment = TransactionPaymentOffline::where('id_transaction', $trx['id_transaction'])->get();
                                 foreach ($payment as $key => $value) {
@@ -626,6 +640,32 @@ class ApiTransactionOutletService extends Controller
                             $shopeeTimer = (int) MyHelper::setting('shopeepay_validity_period', 'value', 300);
                             $shopeeMessage ='Sorry, your payment has expired';
                             $paymentGateway = 'Shopeepay';
+                        }
+                    }else{
+                        $dataPay = TransactionPaymentBalance::find($dataPay['id_payment']);
+                        $payment[$dataKey]              = $dataPay;
+                        $trx['balance']                = $dataPay['balance_nominal'];
+                        $payment[$dataKey]['name']      = 'Balance';
+                        $payment[$dataKey]['amount']    = $dataPay['balance_nominal'];
+                    }
+                }
+                $trx['payment'] = $payment;
+                break;
+            case 'Xendit':
+                $multiPayment = TransactionMultiplePayment::where('id_transaction', $trx['id_transaction'])->get();
+                $payment = [];
+                foreach($multiPayment as $dataKey => $dataPay){
+                    if($dataPay['type'] == 'Xendit'){
+                        $payXendit = TransactionPaymentXendit::find($dataPay['id_payment']);
+                        $payment[$dataKey]['name']      = 'Xendit'.' - '.$payXendit->type??'';
+                        $payment[$dataKey]['amount']    = $payXendit->amount / 100;
+                        $payment[$dataKey]['reject']    = $payXendit->err_reason?:'payment expired';
+                        if($trx['transaction_payment_status'] == 'Pending') {
+                            $redirectUrl = $payXendit->redirect_url_http;
+                            $redirectUrlApp = $payXendit->redirect_url_app;
+                            $continuePayment =  true;
+                            $totalPayment = $payXendit->amount / 100;
+                            $paymentGateway = 'Xendit';
                         }
                     }else{
                         $dataPay = TransactionPaymentBalance::find($dataPay['id_payment']);

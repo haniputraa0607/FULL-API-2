@@ -1499,6 +1499,19 @@ class ApiTransactionHomeService extends Controller
                                     $paymentGateway = 'Shopeepay';
                                 }
                                 break;
+                            case 'Xendit':
+                                $payXendit = TransactionPaymentXendit::find($dataPay['id_payment']);
+                                $payment[$dataKey]['name']      = 'Xendit'.' - '.$payXendit->type??'';
+                                $payment[$dataKey]['amount']    = $payXendit->amount;
+                                $payment[$dataKey]['reject']    = $payXendit->err_reason?:'payment expired';
+                                if($trx['transaction_payment_status'] == 'Pending') {
+                                    $redirectUrl = $payXendit->redirect_url_http;
+                                    $redirectUrlApp = $payXendit->redirect_url_app;
+                                    $continuePayment =  true;
+                                    $totalPayment = $payXendit->amount / 100;
+                                    $paymentGateway = 'Xendit';
+                                }
+                            break;
                             case 'Offline':
                                 $payment = TransactionPaymentOffline::where('id_transaction', $trx['id_transaction'])->get();
                                 foreach ($payment as $key => $value) {
@@ -1633,6 +1646,32 @@ class ApiTransactionHomeService extends Controller
                 }
                 $trx['payment'] = $payment;
                 break;
+            case 'Xendit':
+            $multiPayment = TransactionMultiplePayment::where('id_transaction', $trx['id_transaction'])->get();
+            $payment = [];
+            foreach($multiPayment as $dataKey => $dataPay){
+                if($dataPay['type'] == 'Xendit'){
+                    $payXendit = TransactionPaymentXendit::find($dataPay['id_payment']);
+                    $payment[$dataKey]['name']      = 'Xendit'.' - '.$payXendit->type??'';
+                    $payment[$dataKey]['amount']    = $payXendit->amount ;
+                    $payment[$dataKey]['reject']    = $payXendit->err_reason?:'payment expired';
+                    if($trx['transaction_payment_status'] == 'Pending') {
+                        $redirectUrl = $payXendit->redirect_url_http;
+                        $redirectUrlApp = $payXendit->redirect_url_app;
+                        $continuePayment =  true;
+                        $totalPayment = $payXendit->amount;
+                        $paymentGateway = 'Xendit';
+                    }
+                }else{
+                    $dataPay = TransactionPaymentBalance::find($dataPay['id_payment']);
+                    $payment[$dataKey]              = $dataPay;
+                    $trx['balance']                = $dataPay['balance_nominal'];
+                    $payment[$dataKey]['name']      = 'Balance';
+                    $payment[$dataKey]['amount']    = $dataPay['balance_nominal'];
+                }
+            }
+            $trx['payment'] = $payment;
+            break;
             case 'Offline':
                 $payment = TransactionPaymentOffline::where('id_transaction', $trx['id_transaction'])->get();
                 foreach ($payment as $key => $value) {

@@ -507,7 +507,7 @@ class ApiTransactionOutletService extends Controller
                             case 'Xendit':
                                 $payXendit = TransactionPaymentXendit::find($dataPay['id_payment']);
                                 $payment[$dataKey]['name']      = 'Xendit'.' - '.$payXendit->type??'';
-                                $payment[$dataKey]['amount']    = $payXendit->amount / 100;
+                                $payment[$dataKey]['amount']    = $payXendit->amount;
                                 $payment[$dataKey]['reject']    = $payXendit->err_reason?:'payment expired';
                                 if($trx['transaction_payment_status'] == 'Pending') {
                                     $redirectUrl = $payXendit->redirect_url_http;
@@ -658,13 +658,13 @@ class ApiTransactionOutletService extends Controller
                     if($dataPay['type'] == 'Xendit'){
                         $payXendit = TransactionPaymentXendit::find($dataPay['id_payment']);
                         $payment[$dataKey]['name']      = 'Xendit'.' - '.$payXendit->type??'';
-                        $payment[$dataKey]['amount']    = $payXendit->amount / 100;
+                        $payment[$dataKey]['amount']    = $payXendit->amount ;
                         $payment[$dataKey]['reject']    = $payXendit->err_reason?:'payment expired';
                         if($trx['transaction_payment_status'] == 'Pending') {
                             $redirectUrl = $payXendit->redirect_url_http;
                             $redirectUrlApp = $payXendit->redirect_url_app;
                             $continuePayment =  true;
-                            $totalPayment = $payXendit->amount / 100;
+                            $totalPayment = $payXendit->amount;
                             $paymentGateway = 'Xendit';
                         }
                     }else{

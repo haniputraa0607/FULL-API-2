@@ -23,7 +23,7 @@ use Modules\Product\Entities\ProductDetail;
 use Modules\Product\Entities\ProductStockLog;
 use Modules\Product\Entities\ProductSpecialPrice;
 use Modules\Product\Entities\ProductGlobalPrice;
-
+use Modules\Xendit\Entities\TransactionPaymentXendit;
 use Modules\Transaction\Entities\TransactionShop;
 
 use Modules\Transaction\Http\Requests\Transaction\NewTransaction;

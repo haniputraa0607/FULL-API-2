@@ -871,4 +871,82 @@ class ApiHairStylistController extends Controller
             return response()->json(MyHelper::checkUpdate($update));
         }
     }
+
+    public function exportCommision(Request $request){
+        $post = $request->json()->all();
+
+        $dateStart = date('Y-m-d', strtotime($post['date_start']));
+        $dateEnd = date('Y-m-d', strtotime($post['date_end']));
+        $idOutlets = $post['id_outlet'];
+
+        $outletService = Transaction::join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+            ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+            ->join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')
+            ->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_product_services.id_user_hair_stylist')
+            ->join('products', 'products.id_product', 'transaction_products.id_product')
+            ->whereDate('schedule_date', '>=', $dateStart)->whereDate('schedule_date', '<=', $dateEnd)
+            ->whereIn('transactions.id_outlet', $idOutlets)
+            ->whereNotNull('transaction_products.transaction_product_completed_at')
+            ->groupBy('schedule_date', 'transaction_product_services.id_user_hair_stylist', 'transaction_products.id_product')
+            ->select('schedule_date', 'transactions.id_outlet', 'transaction_product_services.id_user_hair_stylist', 'transaction_products.id_product', 'fullname', 'outlet_name', 'product_name', DB::raw('COUNT(transaction_products.id_product) as total'))
+            ->get()->toArray();
+
+        $homeService = Transaction::join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+            ->join('transaction_home_services', 'transaction_home_services.id_transaction', 'transaction_products.id_transaction')
+            ->join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')
+            ->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_home_services.id_user_hair_stylist')
+            ->join('products', 'products.id_product', 'transaction_products.id_product')
+            ->whereDate('schedule_date', '>=', $dateStart)->whereDate('schedule_date', '<=', $dateEnd)
+            ->whereIn('transactions.id_outlet', $idOutlets)
+            ->whereNotNull('transaction_products.transaction_product_completed_at')
+            ->groupBy('schedule_date', 'transaction_home_services.id_user_hair_stylist', 'transaction_products.id_product')
+            ->select('schedule_date', 'transactions.id_outlet', 'transaction_home_services.id_user_hair_stylist', 'transaction_products.id_product', 'fullname', 'outlet_name', 'product_name', DB::raw('COUNT(transaction_products.id_product) as total'))
+            ->get()->toArray();
+
+        $datas = array_merge($outletService, $homeService);
+        $dates = [];
+        $tmp = $dateStart;
+        $i=0;
+        while(strtotime($tmp) <= strtotime($dateEnd)) {
+            $dateTimeConvert = date('Y-m-d', strtotime("+".$i." days", strtotime($dateStart)));
+            if(strtotime($dateTimeConvert) > strtotime($dateEnd)){
+                break;
+            }
+            $tmp = $dateTimeConvert;
+            $dates[] = $dateTimeConvert;
+            $i++;
+        }
+
+        $tmpData = [];
+        foreach ($datas as $data){
+            $key = $data['id_product'].'|'.$data['id_user_hair_stylist'].'|'.$data['id_outlet'];
+            $tmpData[$key] = [
+                'Name' => $data['fullname'],
+                'Outlet' => $data['outlet_name'],
+                'Product' => $data['product_name'],
+                'Total' => 0
+            ];
+
+            foreach ($dates as $date){
+                $tmpData[$key][$date] = 0;
+                if($date == $data['schedule_date']){
+                    $tmpData[$key][$date] = $tmpData[$key][$date]+$data['total'];
+                    $tmpData[$key]['Total'] = $tmpData[$key]['Total'] + $data['total'];
+                }
+            }
+        }
+
+        $res = [];
+        foreach ($tmpData as $dt){
+            foreach ($dt as $key=>$value){
+                if(is_int($value)){
+                    $dt[$key] = number_format($value);
+                }
+            }
+
+            $res[] = $dt;
+        }
+
+        return response()->json(['status' => 'success', 'result' => $res]);
+    }
 }

@@ -38,6 +38,7 @@ use App\Lib\MyHelper;
 use DB;
 use DateTime;
 use Modules\Recruitment\Entities\HairstylistAttendance;
+use Modules\Recruitment\Entities\HairstylistAttendanceLog;
 
 class ApiMitraOutletService extends Controller
 {
@@ -1190,34 +1191,38 @@ class ApiMitraOutletService extends Controller
  		if ($schedule) {
 	 		$shift = $schedule->shift;
                         $attendance = HairstylistAttendance::where('id_user_hair_stylist', '=', $user->id_user_hair_stylist)
-	                ->whereDate('attendance_date', date('Y-m-d'))
-	                ->wherenotnull('clock_in')
-	                ->wherenull('clock_out')
-	                ->first();
+                            ->whereDate('attendance_date', date('Y-m-d'))
+                            ->wherenotnull('clock_in')
+                            ->first();
 	        if (!$attendance) {
 	                $box = [];
                         $outlet_box = null;
 	        }else{
-	            if ($schedule->id_outlet_box) {
-		 			$box = OutletBox::where([
-						['id_outlet', $user->id_outlet],
-						['id_outlet_box', $schedule->id_outlet_box],
-						['outlet_box_status', 'Active']
-					])->get();
-                                         $outlet_box = $schedule->id_outlet_box;
-		 		} else {
-					$box = OutletBox::where([
-						['id_outlet', $user->id_outlet],
-						['outlet_box_status', 'Active']
-					])
-					->whereDoesntHave('hairstylist_schedule_dates', function($q) use ($shift){
-						$q->whereDate('date', date('Y-m-d'))
-				 		->where('shift', $shift);
-					})->get();
-                                         $outlet_box = null;
-		 		}
-            }
-	 		
+                    $log = HairstylistAttendanceLog::where(array('id_hairstylist_attendance'=>$attendance->id_hairstylist_attendance))->orderby('id_hairstylist_attendance_log','desc')->first();
+	            if($log->type == 'clock_in'){
+                    if ($schedule->id_outlet_box) {
+                                $box = OutletBox::where([
+                                        ['id_outlet', $user->id_outlet],
+                                        ['id_outlet_box', $schedule->id_outlet_box],
+                                        ['outlet_box_status', 'Active']
+                                ])->get();
+                                     $outlet_box = $schedule->id_outlet_box;
+                            } else {
+                                $box = OutletBox::where([
+                                        ['id_outlet', $user->id_outlet],
+                                        ['outlet_box_status', 'Active']
+                                ])
+                                ->whereDoesntHave('hairstylist_schedule_dates', function($q) use ($shift){
+                                        $q->whereDate('date', date('Y-m-d'))
+                                        ->where('shift', $shift);
+                                })->get();
+                                 $outlet_box = null;
+                            }
+                        }else{
+                            $box = [];
+                            $outlet_box = null;
+                        }       
+                   }
  		}
 
 		$res = [

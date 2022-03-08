@@ -871,6 +871,7 @@ class ApiConfirm extends Controller
                 $saveMultiple = TransactionMultiplePayment::updateOrCreate([
                     'id_transaction' => $paymentXendit->id_transaction,
                     'type'           => 'Xendit',
+                    'payment_detail' => $post['payment_detail']
                 ], $dataMultiple);
 
                 $result = [
@@ -897,7 +898,7 @@ class ApiConfirm extends Controller
                     app($this->trx)->bookHS($check['id_transaction']);
                     app($this->trx)->bookProductStock($check['id_transaction']);
                 }
-
+                Transaction::where('id_transaction', $post['id'])->update(['trasaction_payment_type' => $post['payment_type']]);
                 return [
                     'status' => 'success',
                     'result' => $result

@@ -291,7 +291,9 @@ class ApiPartnersController extends Controller
             },'partner_locations.location_starter.product','partner_step','partner_new_step','partner_confirmation','partner_survey','partner_legal_agreement', 'first_location', 'first_location.location_starter.product', ])->first();
             if(($partner['partner_step'])){
                 foreach($partner['partner_step'] as $step){
+                    $step['file'] = null;
                     if(isset($step['attachment']) && !empty($step['attachment'])){
+                        $step['file'] = str_replace('file/follow_up/', '', $step['attachment']) ;
                         $step['attachment'] = env('STORAGE_URL_API').$step['attachment'];
                     }
                 }
@@ -413,7 +415,10 @@ class ApiPartnersController extends Controller
                 $data_update['end_date'] = $post['end_date'];
             }
             if (isset($post['status_steps'])) {
-                $data_update['status_steps'] = $post['status_steps'];
+                $cek_status_step = StepsLog::where('id_partner',$post['id_partner'])->where('follow_up',$post['status_steps'])->first();
+                if(!$cek_status_step){
+                    $data_update['status_steps'] = $post['status_steps'];
+                }
             }
             if (isset($post['title'])) {
                 $data_update['title'] = $post['title'];

@@ -73,6 +73,35 @@ class ApiHairStylistController extends Controller
             }
         }
 
+        //check setting
+        $hsStatus = 'Candidate';
+        $setting = Setting::where('key', 'candidate_hs_requirements')->first()['value_text']??'';
+        if(!empty(($setting))){
+            $setting = (array)json_decode($setting);
+
+            if(strtolower($post['gender']) == 'male'){
+                $age = $setting['male_age']??'';
+                $height = $setting['male_height']??'';
+            }elseif(strtolower($post['gender']) == 'female'){
+                $age = $setting['female_age']??'';
+                $height = $setting['female_height']??'';
+            }
+
+            if(!empty($post['height']) && $post['height'] < $height){
+                $hsStatus = 'Rejected';
+            }
+
+            if(!empty($post['birthdate'])){
+                $dateOfBirth = date('Y-m-d', strtotime($post['birthdate']));
+                $today = date("Y-m-d");
+                $diff = date_diff(date_create($dateOfBirth), date_create($today));
+                $currentage = (int)$diff->format('%y');
+                if($currentage > $age){
+                    $hsStatus = 'Rejected';
+                }
+            }
+        }
+
         $dataCreate = [
             'level' => (empty($post['level']) ? null : $post['level']),
             'email' => $post['email'],
@@ -91,41 +120,9 @@ class ApiHairStylistController extends Controller
             'recent_address' => (empty($post['recent_address']) ? null : $post['recent_address']),
             'postal_code' => (empty($post['postal_code']) ? null : $post['postal_code']),
             'marital_status' => (empty($post['marital_status']) ? null : $post['marital_status']),
-            'user_hair_stylist_status' => 'Candidate',
+            'user_hair_stylist_status' => $hsStatus,
             'user_hair_stylist_photo' => $post['user_hair_stylist_photo']??null
         ];
-
-        //check setting
-        $setting = Setting::where('key', 'candidate_hs_requirements')->first()['value_text']??'';
-        if(!empty(($setting))){
-            $setting = (array)json_decode($setting);
-
-            if(strtolower($post['gender']) == 'male'){
-                $age = $setting['male_age']??'';
-                $height = $setting['male_height']??'';
-            }elseif(strtolower($post['gender']) == 'female'){
-                $age = $setting['female_age']??'';
-                $height = $setting['female_height']??'';
-            }
-
-            if(!empty($post['height']) && $post['height'] < $height){
-                $msg[] = 'Minimum height is '.$height.' cm';
-            }
-
-            if(!empty($post['birthdate'])){
-                $dateOfBirth = date('Y-m-d', strtotime($post['birthdate']));
-                $today = date("Y-m-d");
-                $diff = date_diff(date_create($dateOfBirth), date_create($today));
-                $currentage = (int)$diff->format('%y');
-                if($currentage > $age){
-                    $msg[] = 'Maximal age is '.$age;
-                }
-            }
-
-            if(!empty($msg)){
-                return response()->json(['status' => 'fail', 'messages' => $msg]);
-            }
-        }
 
         $create = UserHairStylist::create($dataCreate);
         if($create){

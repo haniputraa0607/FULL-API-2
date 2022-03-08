@@ -888,7 +888,7 @@ class ApiHairStylistController extends Controller
             ->whereIn('transactions.id_outlet', $idOutlets)
             ->whereNotNull('transaction_products.transaction_product_completed_at')
             ->groupBy('schedule_date', 'transaction_product_services.id_user_hair_stylist', 'transaction_products.id_product')
-            ->select('schedule_date', 'transactions.id_outlet', 'transaction_product_services.id_user_hair_stylist', 'transaction_products.id_product', 'fullname', 'outlet_name', 'product_name', DB::raw('COUNT(transaction_products.id_product) as total'))
+            ->select('schedule_date', 'transactions.id_outlet', 'transaction_product_services.id_user_hair_stylist', 'transaction_products.id_product', 'fullname', 'outlet_name', 'product_name', DB::raw('SUM(transaction_products.transaction_product_qty) as total'))
             ->get()->toArray();
 
         $homeService = Transaction::join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
@@ -900,7 +900,7 @@ class ApiHairStylistController extends Controller
             ->whereIn('transactions.id_outlet', $idOutlets)
             ->whereNotNull('transaction_products.transaction_product_completed_at')
             ->groupBy('schedule_date', 'transaction_home_services.id_user_hair_stylist', 'transaction_products.id_product')
-            ->select('schedule_date', 'transactions.id_outlet', 'transaction_home_services.id_user_hair_stylist', 'transaction_products.id_product', 'fullname', 'outlet_name', 'product_name', DB::raw('COUNT(transaction_products.id_product) as total'))
+            ->select('schedule_date', 'transactions.id_outlet', 'transaction_home_services.id_user_hair_stylist', 'transaction_products.id_product', 'fullname', 'outlet_name', 'product_name', DB::raw('SUM(transaction_products.transaction_product_qty) as total'))
             ->get()->toArray();
 
         $datas = array_merge($outletService, $homeService);
@@ -920,15 +920,19 @@ class ApiHairStylistController extends Controller
         $tmpData = [];
         foreach ($datas as $data){
             $key = $data['id_product'].'|'.$data['id_user_hair_stylist'].'|'.$data['id_outlet'];
-            $tmpData[$key] = [
-                'Name' => $data['fullname'],
-                'Outlet' => $data['outlet_name'],
-                'Product' => $data['product_name'],
-                'Total' => 0
-            ];
+            if(!isset($tmpData[$key])){
+                $tmpData[$key] = [
+                    'Name' => $data['fullname'],
+                    'Outlet' => $data['outlet_name'],
+                    'Product' => $data['product_name'],
+                    'Total' => 0
+                ];
+            }
 
             foreach ($dates as $date){
-                $tmpData[$key][$date] = 0;
+                if(empty($tmpData[$key][$date])){
+                    $tmpData[$key][$date] = 0;
+                }
                 if($date == $data['schedule_date']){
                     $tmpData[$key][$date] = $tmpData[$key][$date]+$data['total'];
                     $tmpData[$key]['Total'] = $tmpData[$key]['Total'] + $data['total'];

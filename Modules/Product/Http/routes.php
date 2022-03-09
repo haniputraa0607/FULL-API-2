@@ -199,6 +199,10 @@ Route::group(['prefix' => 'api/req-product','middleware' => ['log_activities','a
     Route::any('all', 'ApiRequestProductController@all');
 });
 
+Route::group(['prefix' => 'api/icount/req-product', 'namespace' => 'Modules\Product\Http\Controllers'], function() {
+    Route::post('/callback','ApiRequestProductController@callbackRequest');
+});
+
 Route::group(['prefix' => 'api/dev-product','middleware' => ['log_activities','auth:api', 'scopes:be'], 'namespace' => 'Modules\Product\Http\Controllers'], function(){
     Route::post('create', 'ApiRequestProductController@createDev');
     Route::post('delete', 'ApiRequestProductController@destroyDev');

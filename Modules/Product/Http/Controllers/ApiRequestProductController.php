@@ -20,6 +20,10 @@ use Modules\BusinessDevelopment\Entities\Location;
 use Modules\BusinessDevelopment\Entities\Partner;
 use Modules\Project\Entities\InvoiceSpk;
 use Modules\Project\Entities\Project;
+use Validator;
+use Modules\Product\Http\Requests\CallbackRequest;
+use App\Http\Models\Setting;
+
 
 class ApiRequestProductController extends Controller
 {
@@ -40,12 +44,13 @@ class ApiRequestProductController extends Controller
         $post = $request->all();
 
         $request_product = RequestProduct::join('users','users.id','=','request_products.id_user_request')
-                                         ->join('outlets','outlets.id_outlet','=','request_products.id_outlet')
-                                         ->select(
+                                        ->join('outlets','outlets.id_outlet','=','request_products.id_outlet')
+                                        ->with(['request_product_user_approve' => function($u){$u->select('id','name');}])
+                                        ->select(
                                             'request_products.*',
                                             'outlets.outlet_name',
                                             'users.name',
-                                         );
+                                        );
 
         if(isset($post['conditions']) && !empty($post['conditions'])){
             $rule = 'and';
@@ -290,8 +295,9 @@ class ApiRequestProductController extends Controller
             } else {
                 return response()->json(['status' => 'fail', 'messages' => ['Id Outlet not found']]);
             }
-            if($store_request['status']=='Completed'){
+            if($store_request['status']=='Completed By User'){
                 $data_send['location'] = Location::where('id_location',$cek_outlet['id_location'])->first();
+                $data_send['location']['no_spk'] = $store_request['code'];
                 $data_send['partner'] = Partner::where('id_partner',$data_send['location']['id_partner'])->first();
                 $data_send['confir'] = ConfirmationLetter::where('id_partner',$data_send['location']['id_partner'])->where('id_location',$data_send['location']['id_location'])->first();
                 $data_send["location_bundling"] = RequestProductDetail::where('id_request_product',$post['id_request_product'])->where('status','Approved')->join('product_icounts','product_icounts.id_product_icount','request_product_details.id_product_icount')->get()->toArray();
@@ -321,15 +327,12 @@ class ApiRequestProductController extends Controller
                         'message'=>$invoice['response']['Message'],
                     ];
                     $input = InvoiceSpk::create($data_invoice);
+                    $update_request_pro = RequestProduct::where('id_request_product',$post['id_request_product'])->update(['id_purchase_request' => $invoice['response']['Data'][0]['PurchaseRequestID']]);
                 }else{
-                    $data_invoice = [
-                        'id_project'=>$project['id_project'],
-                        'id_request_product'=>$post['id_request_product'],
-                        'status_invoice_spk'=>0,
-                        'message'=>$invoice['response']['Message'],
-                        'value_detail'=>json_encode($invoice['response']['Data']),  
-                    ];
-                    $input = InvoiceSpk::create($data_invoice);
+                    return response()->json([
+                        'status'    => 'fail',
+                        'messages'  => ['Failed to send purchase to ICOUNT']
+                    ]);
                 }
             }
             DB::commit();
@@ -385,7 +388,7 @@ class ApiRequestProductController extends Controller
             $v_status = true;
             foreach($data['product_icount'] as $key => $product){
                 if($product['status'] == 'Approved' || $product['status'] == 'Rejected'){
-                    $status = 'Completed';
+                    $status = 'Completed By User';
                 }else{
                     $v_status = false;
                 }
@@ -396,7 +399,7 @@ class ApiRequestProductController extends Controller
 
             }
             if($v_status){
-                $status = 'Completed';
+                $status = 'Completed By User';
             }
             $store_request['status'] = $status;
         }
@@ -746,5 +749,17 @@ class ApiRequestProductController extends Controller
             'store_request' => $store_request,
         ];
 
+    }
+
+    public function callbackRequest(CallbackRequest $request){
+        $post = $request->all();
+
+        if($post['status'] == 'Approve'){
+            $status = 'Completed By Finance';
+        }else if($post['status'] == 'Reject'){
+            $status = 'Rejected';
+        }
+        $data = RequestProduct::where('id_purchase_request', $post['PurchaseInvoiceID'])->where('status','!=','Completed By Finance')->update(['status'=>$status]);
+        return response()->json(['status' => 'success']); 
     }
 }

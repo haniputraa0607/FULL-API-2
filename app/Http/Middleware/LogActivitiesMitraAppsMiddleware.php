@@ -84,9 +84,9 @@ class LogActivitiesMitraAppsMiddleware
                     'subject' 	        => $subject??'Unknown',
                     'phone' 		    => $phone??null,
                     'user' 		        => $dtUser,
-                    'request' 		    => MyHelper::encrypt2019($requestnya),
+                    'request' 		    => $requestnya,
                     'response_status'   => $status,
-                    'response' 		    => MyHelper::encrypt2019(json_encode($response)),
+                    'response' 		    => json_encode($response),
                     'ip' 		        => $ip,
                     'useragent' 	    => $userAgent
                 ];

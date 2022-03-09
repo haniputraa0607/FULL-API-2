@@ -3278,6 +3278,10 @@ class ApiProductController extends Controller
             $product->where('product_icounts.company_type', $post['company_type']);
         }
 
+        if (isset($post['buyable'])) {
+            $product->where('product_icounts.is_buyable', $post['buyable']);
+        }
+
         if (isset($post['product_code'])) {
             $product->where('code', $post['product_code']);
         }

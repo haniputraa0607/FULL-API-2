@@ -436,7 +436,10 @@ class ApiLocationsController extends Controller
                     "date"   => date("Y-m-d"),
                     "path" => '1'
                 ];
-                $store = ConfirmationLetter::create($creatConf);
+                $cek_cl = ConfirmationLetter::where('id_partner',$post['id_partner'])->where('id_location',$post['id_location'])->first();
+                if(!$cek_cl){
+                    $store = ConfirmationLetter::create($creatConf);
+                }
 
                 //spk
                 $yearMonth = 'SPK/'.$year.'/'.$month.'/';

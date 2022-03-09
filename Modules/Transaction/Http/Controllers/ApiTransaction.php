@@ -117,6 +117,7 @@ class ApiTransaction extends Controller
         date_default_timezone_set('Asia/Jakarta');
         $this->shopeepay      = 'Modules\ShopeePay\Http\Controllers\ShopeePayController';
         $this->trx_outlet_service = "Modules\Transaction\Http\Controllers\ApiTransactionOutletService";
+        $this->trx = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
         $this->home_service_status = [
             'Finding Hair Stylist' => ['code' => 1, 'text' => 'Mencari hair stylist'],
             'Get Hair Stylist' => ['code' => 2, 'text' => 'Dapat hair stylist'],
@@ -6542,5 +6543,236 @@ class ApiTransaction extends Controller
     function signature(Signature $request) {
         $data = hash_hmac('sha256',$request->PurchaseInvoiceID.$request->status.$request->date_disburse,$request->api_secret);
         return $data;
+    }
+
+    public function exportSalesReport(Request $request){
+        $post = $request->json()->all();
+
+        $dateStart = date('Y-m-d', strtotime($post['date_start']));
+        $dateEnd = date('Y-m-d', strtotime($post['date_end']));
+        $idOutlets = $post['id_outlet'];
+
+        $services = Product::where('product_type', 'service')->select('id_product', 'product_name')->get()->toArray();
+
+        $outletService = Transaction::join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+            ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+            ->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_product_services.id_user_hair_stylist')
+            ->join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')
+            ->join('products', 'products.id_product', 'transaction_products.id_product')
+            ->whereDate('schedule_date', '>=', $dateStart)->whereDate('schedule_date', '<=', $dateEnd)
+            ->whereIn('transactions.id_outlet', $idOutlets)
+            ->whereNotNull('transaction_products.transaction_product_completed_at')
+            ->groupBy('schedule_date', 'transactions.id_outlet', 'transaction_products.id_product')
+            ->select('schedule_date', 'transactions.id_outlet', 'transaction_products.id_product', 'outlet_name', 'product_name',
+                DB::raw('SUM(transaction_products.transaction_product_discount_all) as discount'),
+                DB::raw('SUM(transaction_products.transaction_product_price*transaction_products.transaction_product_qty) as gross_sales'),
+                DB::raw('SUM(transaction_products.transaction_product_price_base*transaction_products.transaction_product_qty) as net_sales'),
+                DB::raw('SUM(transaction_products.transaction_product_price_tax*transaction_products.transaction_product_qty) as tax'),
+                DB::raw('SUM(transaction_products.transaction_product_qty) as total'))
+            ->get()->toArray();
+
+        $countOrderOutlet = Transaction::join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+            ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+            ->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_product_services.id_user_hair_stylist')
+            ->join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')
+            ->join('products', 'products.id_product', 'transaction_products.id_product')
+            ->whereDate('schedule_date', '>=', $dateStart)->whereDate('schedule_date', '<=', $dateEnd)
+            ->whereIn('transactions.id_outlet', $idOutlets)
+            ->whereNotNull('transaction_products.transaction_product_completed_at')
+            ->groupBy('schedule_date', 'transactions.id_outlet')
+            ->select('schedule_date', 'transactions.id_outlet', DB::raw('COUNT(Distinct transactions.id_transaction) as total'), DB::raw("group_concat(transaction_products.id_transaction_product separator ',') as trx_product_id"))
+            ->get()->toArray();
+
+        $homeService = Transaction::join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+            ->join('transaction_home_services', 'transaction_home_services.id_transaction', 'transaction_products.id_transaction')
+            ->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_home_services.id_user_hair_stylist')
+            ->join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')
+            ->join('products', 'products.id_product', 'transaction_products.id_product')
+            ->whereDate('schedule_date', '>=', $dateStart)->whereDate('schedule_date', '<=', $dateEnd)
+            ->whereIn('transactions.id_outlet', $idOutlets)
+            ->whereNotNull('transaction_products.transaction_product_completed_at')
+            ->groupBy('schedule_date', 'transactions.id_outlet', 'transaction_products.id_product')
+            ->select('schedule_date', 'transactions.id_outlet', 'transaction_products.id_product', 'outlet_name', 'product_name',
+                DB::raw('SUM(transaction_products.transaction_product_discount_all) as discount'),
+                DB::raw('SUM(transaction_products.transaction_product_price*transaction_products.transaction_product_qty) as gross_sales'),
+                DB::raw('SUM(transaction_products.transaction_product_price_base*transaction_products.transaction_product_qty) as net_sales'),
+                DB::raw('SUM(transaction_products.transaction_product_price_tax*transaction_products.transaction_product_qty) as tax'),
+                DB::raw('SUM(transaction_products.transaction_product_qty) as total'))
+            ->get()->toArray();
+
+        $countOrderHome = Transaction::join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+            ->join('transaction_home_services', 'transaction_home_services.id_transaction', 'transaction_products.id_transaction')
+            ->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_home_services.id_user_hair_stylist')
+            ->join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')
+            ->join('products', 'products.id_product', 'transaction_products.id_product')
+            ->whereDate('schedule_date', '>=', $dateStart)->whereDate('schedule_date', '<=', $dateEnd)
+            ->whereIn('transactions.id_outlet', $idOutlets)
+            ->whereNotNull('transaction_products.transaction_product_completed_at')
+            ->groupBy('schedule_date', 'transactions.id_outlet', 'transaction_products.id_product')
+            ->groupBy('schedule_date', 'transactions.id_outlet')
+            ->select('schedule_date', 'transactions.id_outlet', DB::raw('COUNT(Distinct transactions.id_transaction) as total'), DB::raw("group_concat(transaction_products.id_transaction_product separator ',') as trx_product_id"))
+            ->get()->toArray();
+
+        $countOrder = array_merge($countOrderOutlet, $countOrderHome);
+        $tmpCount = [];
+        $tmpPayment = [];
+        foreach ($countOrder as $count){
+            if(!isset($tmpCount[$count['schedule_date'].'|'.$count['id_outlet']])){
+                $tmpCount[$count['schedule_date'].'|'.$count['id_outlet']] = 0;
+            }
+            $tmpCount[$count['schedule_date'].'|'.$count['id_outlet']] += $count['total'];
+
+            if(!isset($tmpPayment[$count['schedule_date'].'|'.$count['id_outlet']])){
+                $tmpPayment[$count['schedule_date'].'|'.$count['id_outlet']] = [];
+            }
+            $explode = explode(',', $count['trx_product_id']);
+            $tmpPayment[$count['schedule_date'].'|'.$count['id_outlet']] = array_unique(array_merge($tmpPayment[$count['schedule_date'].'|'.$count['id_outlet']], $explode));
+        }
+
+        $datas = array_merge($outletService, $homeService);
+        $tmpData = [];
+        $payments = app($this->trx)->availablePayment(new Request())['result'] ?? [];
+        foreach ($datas as $data){
+            $key = $data['schedule_date'].'|'.$data['id_outlet'];
+            if(!isset($tmpData[$key])){
+                $tmpData[$key] = [
+                    'Date' => date('Y-m-d', strtotime($data['schedule_date'])),
+                    'Outlet' => $data['outlet_name']
+                ];
+            }
+
+            foreach ($services as $service){
+                $serviceName = str_replace('"', "", $service['product_name']);
+                if(empty($tmpData[$key][$serviceName])){
+                    $tmpData[$key][$serviceName] = 0;
+                }
+                if($service['id_product'] == $data['id_product']){
+                    $tmpData[$key][$serviceName] = $tmpData[$key][$serviceName] + $data['total'];
+                }
+            }
+
+            if(!isset($tmpData[$key]['Qty Order'])){
+                $tmpData[$key]['Qty Order'] = 0;
+                $tmpData[$key]['Qty Item'] = 0;
+                $tmpData[$key]['Gross Sales'] = 0;
+                $tmpData[$key]['Refund'] = 0;
+                $tmpData[$key]['Promo'] = 0;
+                $tmpData[$key]['Discount'] = 0;
+                $tmpData[$key]['Net Sales'] = 0;
+                $tmpData[$key]['Tax'] = 0;
+                $tmpData[$key]['Rounding'] = 0;
+                $tmpData[$key]['Total Sales'] = 0;
+            }
+
+            $tmpData[$key]['Qty Order'] = $tmpCount[$key] ??0;
+            $tmpData[$key]['Qty Item'] += $data['total'];
+            $tmpData[$key]['Gross Sales'] += $data['gross_sales'];
+            $tmpData[$key]['Refund'] = 0;
+            $tmpData[$key]['Promo'] += $data['discount'];
+            $tmpData[$key]['Discount'] += $data['discount'];
+            $tmpData[$key]['Net Sales'] += $data['net_sales'];
+            $tmpData[$key]['Tax'] += $data['tax'];
+            $tmpData[$key]['Rounding'] = 0;
+            $tmpData[$key]['Total Sales'] += $data['net_sales'];
+
+            foreach ($payments as $payment){
+                $paymentName = $payment['payment_gateway'].'-'.$payment['payment_method'];
+                if($payment['payment_gateway'] == 'Cash'){
+                    $paymentName = $payment['payment_method'];
+                }
+
+                if(!isset($tmpData[$key]['Qty Order '.$paymentName])){
+                    $tmpData[$key]['Qty Order '.$paymentName] = [];
+                    $tmpData[$key]['Qty Item '.$paymentName] = 0;
+                    $tmpData[$key]['Gross Sales '.$paymentName] = 0;
+                    $tmpData[$key]['Refund '.$paymentName] = 0;
+                    $tmpData[$key]['Promo '.$paymentName] = 0;
+                    $tmpData[$key]['Discount '.$paymentName] = 0;
+                    $tmpData[$key]['Net Sales '.$paymentName] = 0;
+                    $tmpData[$key]['Tax '.$paymentName] = 0;
+                    $tmpData[$key]['Rounding '.$paymentName] = 0;
+                    $tmpData[$key]['Total Sales '.$paymentName] = 0;
+                }
+            }
+        }
+
+        $tmpPaymentNotFound = [];
+        foreach ($tmpData as $key=>$tmp){
+            $getTrxProductId = $tmpPayment[$key];
+            $transactions = Transaction::join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+                ->leftJoin('transaction_payment_midtrans', 'transactions.id_transaction', '=', 'transaction_payment_midtrans.id_transaction')
+                ->leftJoin('transaction_payment_xendits', 'transactions.id_transaction', '=', 'transaction_payment_xendits.id_transaction')
+                ->whereIn('id_transaction_product', $getTrxProductId)->select('transactions.trasaction_payment_type', 'transaction_products.*', 'transaction_payment_xendits.type', 'payment_type')->get()->toArray();
+
+            foreach ($transactions as $transaction){
+                if(!empty($transaction['type'])){
+                    $paymentGateway = 'Xendit-'.$transaction['type'];
+                }elseif (!empty($transaction['payment_type'])){
+                    $paymentGateway = 'Midtrans-'.$transaction['payment_type'];
+                }else{
+                    $paymentGateway = $transaction['trasaction_payment_type'];
+                }
+
+                $index = $paymentGateway;
+                if(!isset($tmpData[$key]['Qty Order '.$index])){
+                    $tmpPaymentNotFound[] = $index;
+                    $tmpData[$key]['Qty Order '.$index] = [];
+                    $tmpData[$key]['Qty Item '.$index] = 0;
+                    $tmpData[$key]['Gross Sales '.$index] = 0;
+                    $tmpData[$key]['Refund '.$index] = 0;
+                    $tmpData[$key]['Promo '.$index] = 0;
+                    $tmpData[$key]['Discount '.$index] = 0;
+                    $tmpData[$key]['Net Sales '.$index] = 0;
+                    $tmpData[$key]['Tax '.$index] = 0;
+                    $tmpData[$key]['Rounding '.$index] = 0;
+                    $tmpData[$key]['Total Sales '.$index] = 0;
+                }
+
+                $tmpData[$key]['Qty Order '.$index][] = $transaction['id_transaction'];
+                $tmpData[$key]['Qty Item '.$index] += $transaction['transaction_product_qty'];
+                $tmpData[$key]['Gross Sales '.$index] += $transaction['transaction_product_price'];
+                $tmpData[$key]['Refund '.$index] = 0;
+                $tmpData[$key]['Promo '.$index] += $transaction['transaction_product_discount_all'];
+                $tmpData[$key]['Discount '.$index] += $transaction['transaction_product_discount_all'];
+                $tmpData[$key]['Net Sales '.$index] += $transaction['transaction_product_price_base'];
+                $tmpData[$key]['Tax '.$index] += $transaction['transaction_product_price_tax'];
+                $tmpData[$key]['Rounding '.$index] = 0;
+                $tmpData[$key]['Total Sales '.$index] += $transaction['transaction_product_price_base'];
+            }
+        }
+
+        $res = [];
+        foreach ($tmpData as $index=>$dt){
+            foreach ($tmpPaymentNotFound as $val){
+                if(!isset($dt['Qty Order '.$val])){
+                    $dt['Qty Order '.$val] = [];
+                    $dt['Qty Item '.$val] = 0;
+                    $dt['Gross Sales '.$val] = 0;
+                    $dt['Refund '.$val] = 0;
+                    $dt['Promo '.$val] = 0;
+                    $dt['Discount '.$val] = 0;
+                    $dt['Net Sales '.$val] = 0;
+                    $dt['Tax '.$val] = 0;
+                    $dt['Rounding '.$val] = 0;
+                    $dt['Total Sales '.$val] = 0;
+                }
+            }
+            foreach ($dt as $key=>$value){
+                if(is_array($value)){
+                    $dt[$key] = number_format(count(array_unique($value)));
+                }
+
+                if(is_float($value)){
+                    $value = (int)$value;
+                }
+
+                if(is_int($value)){
+                    $dt[$key] = number_format($value);
+                }
+            }
+            $res[] = $dt;
+        }
+
+        return response()->json(['status' => 'success', 'result' => $res]);
     }
 }

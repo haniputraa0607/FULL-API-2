@@ -298,6 +298,15 @@ class ApiPartnersController extends Controller
                     }
                 }
             } 
+            if(($partner['partner_new_step'])){
+                foreach($partner['partner_new_step'] as $step){
+                    $step['file'] = null;
+                    if(isset($step['attachment']) && !empty($step['attachment'])){
+                        $step['file'] = str_replace('file/follow_up/', '', $step['attachment']) ;
+                        $step['attachment'] = env('STORAGE_URL_API').$step['attachment'];
+                    }
+                }
+            } 
             if(($partner['partner_confirmation'])){
                 foreach($partner['partner_confirmation'] as $confir){
                     if(isset($confir['attachment']) && !empty($confir['attachment'])){
@@ -1678,11 +1687,13 @@ class ApiPartnersController extends Controller
         $post = $request['post_follow_up'];
         if(isset($post['id_partner']) && !empty($post['id_partner'])){
             DB::beginTransaction();
-            $data_store = [
+            $key = [
                 "index" => $post["index"],
                 "id_partner" => $post["id_partner"],
                 "id_location" => $post["id_location"],
                 "follow_up" => $post["follow_up"],
+            ];
+            $data_store = [
                 "note" => $post["note"],
             ];
             if (isset($post['attachment']) && !empty($post['attachment'])) {
@@ -1698,7 +1709,7 @@ class ApiPartnersController extends Controller
                     return $result;
                 }
             }
-            $store = NewStepsLog::create($data_store);
+            $store = NewStepsLog::updateOrCreate($key,$data_store);
             if (!$store) {
                 DB::rollback();
                 return response()->json(['status' => 'fail', 'messages' => ['Failed add follow up data']]);

@@ -6668,12 +6668,11 @@ class ApiTransaction extends Controller
             $tmpData[$key]['Qty Item'] += $data['total'];
             $tmpData[$key]['Gross Sales'] += $data['gross_sales'];
             $tmpData[$key]['Refund'] = 0;
-            $tmpData[$key]['Promo'] += $data['discount'];
             $tmpData[$key]['Discount'] += $data['discount'];
-            $tmpData[$key]['Net Sales'] += $data['net_sales'];
+            $tmpData[$key]['Net Sales'] += ($data['gross_sales'] - $data['discount']);
             $tmpData[$key]['Tax'] += $data['tax'];
             $tmpData[$key]['Rounding'] = 0;
-            $tmpData[$key]['Total Sales'] += $data['net_sales'];
+            $tmpData[$key]['Total Sales'] += ($data['gross_sales'] - $data['discount'] - $data['tax']);
 
             foreach ($payments as $payment){
                 $paymentName = $payment['payment_gateway'].'-'.$payment['payment_method'];
@@ -6732,12 +6731,11 @@ class ApiTransaction extends Controller
                 $tmpData[$key]['Qty Item '.$index] += $transaction['transaction_product_qty'];
                 $tmpData[$key]['Gross Sales '.$index] += $transaction['transaction_product_price'];
                 $tmpData[$key]['Refund '.$index] = 0;
-                $tmpData[$key]['Promo '.$index] += $transaction['transaction_product_discount_all'];
                 $tmpData[$key]['Discount '.$index] += $transaction['transaction_product_discount_all'];
-                $tmpData[$key]['Net Sales '.$index] += $transaction['transaction_product_price_base'];
+                $tmpData[$key]['Net Sales '.$index] += ($transaction['transaction_product_price'] - $transaction['transaction_product_discount_all']);
                 $tmpData[$key]['Tax '.$index] += $transaction['transaction_product_price_tax'];
                 $tmpData[$key]['Rounding '.$index] = 0;
-                $tmpData[$key]['Total Sales '.$index] += $transaction['transaction_product_price_base'];
+                $tmpData[$key]['Total Sales '.$index] += ($transaction['transaction_product_price'] - $transaction['transaction_product_discount_all'] - $transaction['transaction_product_price_tax']);
             }
         }
 

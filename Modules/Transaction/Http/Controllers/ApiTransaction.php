@@ -6729,10 +6729,10 @@ class ApiTransaction extends Controller
 
                 $tmpData[$key]['Qty Order '.$index][] = $transaction['id_transaction'];
                 $tmpData[$key]['Qty Item '.$index] += $transaction['transaction_product_qty'];
-                $tmpData[$key]['Gross Sales '.$index] += $transaction['transaction_product_price'];
+                $tmpData[$key]['Gross Sales '.$index] += ($transaction['transaction_product_price'] * $transaction['transaction_product_qty']);
                 $tmpData[$key]['Refund '.$index] = 0;
                 $tmpData[$key]['Discount '.$index] += $transaction['transaction_product_discount_all'];
-                $tmpData[$key]['Net Sales '.$index] += ($transaction['transaction_product_price'] - $transaction['transaction_product_discount_all']);
+                $tmpData[$key]['Net Sales '.$index] += (($transaction['transaction_product_price'] * $transaction['transaction_product_qty']) - $transaction['transaction_product_discount_all']);
                 $tmpData[$key]['Tax '.$index] += $transaction['transaction_product_price_tax'];
                 $tmpData[$key]['Rounding '.$index] = 0;
                 $tmpData[$key]['Total Sales '.$index] += ($transaction['transaction_product_price'] - $transaction['transaction_product_discount_all'] - $transaction['transaction_product_price_tax']);

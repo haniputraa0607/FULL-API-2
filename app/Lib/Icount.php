@@ -35,10 +35,15 @@ class Icount
         $header = [
             "Content-Type" => "application/x-www-form-urlencoded"
         ];
+        if($url == '/sales/create_order_poo'){
+            $time_out = 2;
+        }else{
+            $time_out = 1;
+        }
         if ($method == 'get') {
             $response = MyHelper::getWithTimeout(self::getBaseUrl($company) . $url, null, $request, $header, 65, $fullResponse);
         }else{
-            $response = MyHelper::postWithTimeout(self::getBaseUrl($company) . $url, null, $request, 1, $header, 65, $fullResponse);
+            $response = MyHelper::postWithTimeout(self::getBaseUrl($company) . $url, null, $request, $time_out, $header, 65, $fullResponse);
         }   
 
         try {
@@ -302,6 +307,8 @@ class Icount
 
     public static function ApiCreateOrderPOO($request, $company = null, $logType = null, $orderId = null){
         if(isset($request['transaction']) && !empty($request['transaction'])){
+            $due_date = Setting::where('key','due_date')->first()['value'] ?? 30;
+            $due_date = date('Y-m-d', strtotime('+'.$due_date.' days', strtotime(date('Y-m-d'))));
             $penjulana_outlet = Setting::where('key','penjualan_outlet')->first();
             $availablePayment = config('payment_method');
             $setting  = json_decode(MyHelper::setting('active_payment_methods', 'value_text', '[]'), true) ?? [];
@@ -313,8 +320,8 @@ class Icount
                 "BusinessPartnerID" => $request['id_business_partner'],
                 "VoucherNo" => "[AUTO]",
                 "TermOfPaymentID" => '011',
-                "TransDate" => $request['trans_date'],
-                "DueDate" => $request['due_date'],
+                "TransDate" => date('Y-m-d'),
+                "DueDate" => $due_date,
                 "SalesmanID" => '',
                 "ReferenceNo" => '',
                 "Tax" => $request['ppn'],
@@ -361,7 +368,7 @@ class Icount
                     "Unit" => "PCS",
                     "Ratio" => "1",
                     "Price" => $transaction['transaction_product_price_base'] != $transaction['transaction_product_price'] ? $transaction['transaction_product_price'] * 100 /110 : $transaction['transaction_product_price_base'],
-                    "Disc" => null,
+                    "Disc" => "0",
                     "DiscRp" => $transaction['discRp'] / $transaction['transaction_product_qty'],
                     "Description" => ""
                 ];

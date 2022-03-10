@@ -205,4 +205,13 @@ class Controller extends BaseController
     		'result' => $query
     	];
 	}
+
+	public function postLog(Request $request)
+	{
+		file_put_contents('log_post/log' . date('YmdHis') . '.json', json_encode($request->all()));
+		return [
+			'status' => 'success',
+			'result' => $request->all()
+		];
+	}
 }

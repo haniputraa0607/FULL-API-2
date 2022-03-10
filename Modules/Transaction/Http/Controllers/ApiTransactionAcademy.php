@@ -660,6 +660,8 @@ class ApiTransactionAcademy extends Controller
         $list = Transaction::where('transaction_from', 'academy')
             ->join('transaction_academy','transactions.id_transaction', 'transaction_academy.id_transaction')
             ->join('users','transactions.id_user','=','users.id')
+            ->leftJoin('transaction_payment_midtrans', 'transactions.id_transaction', '=', 'transaction_payment_midtrans.id_transaction')
+            ->leftJoin('transaction_payment_xendits', 'transactions.id_transaction', '=', 'transaction_payment_xendits.id_transaction')
             ->with('user')
             ->select(
                 'transaction_academy.*',
@@ -746,6 +748,24 @@ class ApiTransactionAcademy extends Controller
                 if ($rules = $new_rule[$col_name] ?? false) {
                     foreach ($rules as $rul) {
                         $model2->$where('users.'.$col_name, $rul['operator'], $rul['parameter']);
+                    }
+                }
+            }
+
+            $inner = ['payment'];
+            foreach ($inner as $col_name) {
+                if ($rules = $new_rule[$col_name] ?? false) {
+                    foreach ($rules as $rul) {
+                        $explode = explode('-', $rul['parameter']);
+                        $paymentGateway = $explode[0];
+                        $paymentMethod = $explode[1];
+                        if($paymentGateway == 'Cash'){
+                            $model2->$where('transactions.trasaction_payment_type', 'Cash');
+                        }elseif($paymentGateway == 'Midtrans'){
+                            $model2->$where('transaction_payment_midtrans.payment_type',  $paymentMethod);
+                        }elseif($paymentGateway == 'Xendit'){
+                            $model2->$where('transaction_payment_xendits.type',  $paymentMethod);
+                        }
                     }
                 }
             }

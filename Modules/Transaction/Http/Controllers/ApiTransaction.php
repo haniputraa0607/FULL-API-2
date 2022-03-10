@@ -6079,21 +6079,22 @@ class ApiTransaction extends Controller
         $log = MyHelper::logCron('Create Order POO Icount');
         try{
             $date_now = date('Y-m-d');
-            // $date_trans = date('Y-m-d', strtotime($date_now));
-            $date_trans = date('Y-m-d');
+            $date_trans = date('Y-m-d', strtotime('-1 days', strtotime($date_now)));
             $outlets_mid = Outlet::join('locations','locations.id_location','=','outlets.id_location')
                             ->join('transactions','transactions.id_outlet','=','outlets.id_outlet')
+                            ->join('transaction_outlet_services','transaction_outlet_services.id_transaction','=','transactions.id_transaction')
                             ->leftJoin('partners','partners.id_partner','=','locations.id_partner');
 
             $outlets_xen = Outlet::join('locations','locations.id_location','=','outlets.id_location')
                             ->join('transactions','transactions.id_outlet','=','outlets.id_outlet')
+                            ->join('transaction_outlet_services','transaction_outlet_services.id_transaction','=','transactions.id_transaction')
                             ->leftJoin('partners','partners.id_partner','=','locations.id_partner'); 
 
-            $outlets_mid->join('transaction_payment_midtrans','transaction_payment_midtrans.id_transaction','=','transactions.id_transaction')->whereDate('transactions.transaction_date', '=', $date_trans);
+            $outlets_mid->join('transaction_payment_midtrans','transaction_payment_midtrans.id_transaction','=','transactions.id_transaction')->whereDate('transaction_outlet_services.completed_at', '=', $date_trans);
             $outlets_mid->select('outlets.*','partners.*','locations.*','transaction_payment_midtrans.id_transaction_payment','transaction_payment_midtrans.payment_type')->groupBy('outlets.id_outlet','transaction_payment_midtrans.payment_type')->orderBy('outlets.id_outlet', 'DESC');
             $outlets_mid =  $outlets_mid->get()->toArray();
 
-            $outlets_xen->join('transaction_payment_xendits','transaction_payment_xendits.id_transaction','=','transactions.id_transaction')->whereDate('transactions.transaction_date', '=', $date_trans);
+            $outlets_xen->join('transaction_payment_xendits','transaction_payment_xendits.id_transaction','=','transactions.id_transaction')->whereDate('transaction_outlet_services.completed_at', '=', $date_trans);
             $outlets_xen->select('outlets.*','partners.*','locations.*','transaction_payment_xendits.id_transaction_payment_xendit','transaction_payment_xendits.type')->groupBy('outlets.id_outlet','transaction_payment_xendits.type')->orderBy('outlets.id_outlet', 'DESC');
             $outlets_xen =  $outlets_xen->get()->toArray();
 
@@ -6129,7 +6130,7 @@ class ApiTransaction extends Controller
                     $transaction->join('transaction_payment_xendits','transaction_payment_xendits.id_transaction','=','transactions.id_transaction');
                     $group = 'transaction_payment_xendits.type';
                 }
-                $transaction->whereDate('transactions.transaction_date', '=', $date_trans)->where('outlets.id_outlet', '=', $outlet['id_outlet'])->where('transactions.transaction_payment_status','Completed')->whereNotNull('transaction_outlet_services.completed_at');
+                $transaction->whereDate('transaction_outlet_services.completed_at', '=', $date_trans)->where('outlets.id_outlet', '=', $outlet['id_outlet'])->where('transactions.transaction_payment_status','Completed')->whereNotNull('transaction_outlet_services.completed_at');
                 
                 if(isset($outlet['id_transaction_payment'])){
                     $transaction->where('transaction_payment_midtrans.payment_type', '=', $outlet['payment_type']);
@@ -6224,7 +6225,7 @@ class ApiTransaction extends Controller
                     }
                 }
                 $new++;
-            }
+            }   
 
             $create_order_poo= [];
             foreach($new_outlets as $n => $new_outlet){

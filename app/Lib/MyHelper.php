@@ -1543,6 +1543,25 @@ class MyHelper{
 		if ($form_type == 0) {
 			$content['json'] = (array)$post;
 		}
+        elseif ($form_type == 2) {
+			foreach($post as $key => $value){
+                if($key!='Detail'){
+                    $content['multipart'][] = [
+                        'name' => $key,
+                        'contents' => $value,
+                    ];   
+                }else{
+                    foreach($value as $index => $array_detail){
+                        foreach($array_detail as $key_detail => $detail){
+                            $content['multipart'][] = [
+                                'name' => $key.'['.$index.']'.'['.$key_detail.']',
+                                'contents' => $detail,
+                            ];  
+                        }
+                    }
+                }
+            }
+		}
 		else {
 			$content['form_params'] = $post;
 		}
@@ -1558,6 +1577,9 @@ class MyHelper{
 					$content['headers'][$key] = $dataHeader;
 				}
 			}
+		}
+        if ($form_type == 2) {
+            unset($content['headers']['Content-Type']);
 		}
 		$content['timeout'] = $timeout;
 

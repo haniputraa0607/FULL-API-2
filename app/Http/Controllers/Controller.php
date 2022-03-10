@@ -208,9 +208,11 @@ class Controller extends BaseController
 
 	public function postLog(Request $request)
 	{
-		file_put_contents('log_post/log' . date('YmdHis') . '.json', json_encode($request->all()));
+        $filename = 'log_post/log' . date('YmdHis') . '-' . rand(0,9) . '.json';
+		file_put_contents($filename, json_encode($request->all()));
 		return [
 			'status' => 'success',
+			'log_url' => url($filename),
 			'result' => $request->all()
 		];
 	}

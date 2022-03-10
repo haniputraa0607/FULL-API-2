@@ -101,6 +101,8 @@ class ApiTransactionOutletService extends Controller
 	            ->join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')
 	            ->leftJoin('transaction_products','transactions.id_transaction','=','transaction_products.id_transaction')
 	            ->leftJoin('transaction_product_services','transactions.id_transaction','=','transaction_product_services.id_transaction')
+                ->leftJoin('transaction_payment_midtrans', 'transactions.id_transaction', '=', 'transaction_payment_midtrans.id_transaction')
+                ->leftJoin('transaction_payment_xendits', 'transactions.id_transaction', '=', 'transaction_payment_xendits.id_transaction')
 	            ->leftJoin('products','products.id_product','=','transaction_products.id_product')
 	            ->with('user')
 	            ->select(
@@ -110,7 +112,7 @@ class ApiTransactionOutletService extends Controller
 	            	'transaction_products.*',
 	            	'outlets.*',
 	            	'users.*',
-	            	'transactions.*',
+	            	'transactions.*'
 	            )
 	            ->groupBy('transactions.id_transaction');
 
@@ -203,6 +205,24 @@ class ApiTransactionOutletService extends Controller
                 if ($rules = $new_rule[$col_name] ?? false) {
                     foreach ($rules as $rul) {
                         $model2->$where('transactions.'.$col_name, $rul['operator'], $rul['parameter']);
+                    }
+                }
+            }
+
+            $inner = ['payment'];
+            foreach ($inner as $col_name) {
+                if ($rules = $new_rule[$col_name] ?? false) {
+                    foreach ($rules as $rul) {
+                        $explode = explode('-', $rul['parameter']);
+                        $paymentGateway = $explode[0];
+                        $paymentMethod = $explode[1];
+                        if($paymentGateway == 'Cash'){
+                            $model2->$where('transactions.trasaction_payment_type', 'Cash');
+                        }elseif($paymentGateway == 'Midtrans'){
+                            $model2->$where('transaction_payment_midtrans.payment_type',  $paymentMethod);
+                        }elseif($paymentGateway == 'Xendit'){
+                            $model2->$where('transaction_payment_xendits.type',  $paymentMethod);
+                        }
                     }
                 }
             }
@@ -934,6 +954,8 @@ class ApiTransactionOutletService extends Controller
 	            ->leftJoin('transaction_products','transactions.id_transaction','=','transaction_products.id_transaction')
 	            ->leftJoin('transaction_product_services','transactions.id_transaction','=','transaction_product_services.id_transaction')
 	            ->leftJoin('products','products.id_product','=','transaction_products.id_product')
+                ->leftJoin('transaction_payment_midtrans', 'transactions.id_transaction', '=', 'transaction_payment_midtrans.id_transaction')
+                ->leftJoin('transaction_payment_xendits', 'transactions.id_transaction', '=', 'transaction_payment_xendits.id_transaction')
 	            ->with('user')
 	            ->where('transaction_payment_status', 'Completed')
 	            ->whereNull('transaction_outlet_services.completed_at')

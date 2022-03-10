@@ -12,6 +12,9 @@ use Illuminate\Http\Request;
 | is assigned the "api" middleware group. Enjoy building your API!
 |
 */
+Route::group(['middleware' => ['auth:api', 'scopes:be'], 'prefix' => 'hairstylist/be'], function () {
+    Route::post('export-commision', 'ApiHairStylistController@exportCommision');
+});
 
 Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'recruitment'], function () {
 
@@ -137,7 +140,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
     });
 });
 
-Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mitra'], function () {
+Route::group(['middleware' => ['log_activities_mitra_apps', 'user_agent'], 'prefix' => 'mitra'], function () {
     Route::get('splash','ApiMitra@splash');
     Route::group(['middleware' => ['auth_client', 'scopes:mitra-apps']], function()
     {

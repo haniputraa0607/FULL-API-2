@@ -4,6 +4,7 @@ namespace Modules\Product\Http\Controllers;
 
 use App\Http\Models\Holiday;
 use Modules\Recruitment\Entities\HairstylistAttendance;
+use Modules\Recruitment\Entities\HairstylistAttendanceLog;
 use Storage;
 use App\Http\Models\OauthAccessToken;
 use App\Http\Models\Product;
@@ -2671,7 +2672,8 @@ class ApiProductController extends Controller
 
                 if(!empty($clockInOut) && !empty($clockInOut['clock_in']) && strtotime($bookTime) >= strtotime($clockInOut['clock_in'])){
                     $availableStatus = true;
-                    if(!empty($clockInOut['clock_out']) && strtotime($bookTime) > strtotime($clockInOut['clock_out'])){
+                    $lastAction = HairstylistAttendanceLog::where('id_hairstylist_attendance', $clockInOut['id_hairstylist_attendance'])->orderBy('datetime', 'desc')->first();
+                    if(!empty($clockInOut['clock_out']) && $lastAction['type'] == 'clock_out' && strtotime($bookTime) > strtotime($clockInOut['clock_out'])){
                         $availableStatus = false;
                     }
                 }

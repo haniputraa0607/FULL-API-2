@@ -600,8 +600,9 @@ class ApiUserV2 extends Controller
             ]]);
         }
 
-        $checkOldMember = OldMember::where('phone', $user['phone'])->where('claim_status', 0)->first();
-        if(empty($checkOldMember['loyalty_point'])){
+        $checkOldMember = OldMember::where('phone', $user['phone'])->where('claim_status', 0)->get()->toArray();
+        $sumPoint = array_sum(array_column($checkOldMember, 'loyalty_point'));
+        if(empty($sumPoint)){
             return response()->json([
                 'status'    => 'fail',
                 'messages'  => ['Tidak berhasil klaim point']
@@ -609,7 +610,7 @@ class ApiUserV2 extends Controller
         }
 
         $balanceController = new BalanceController();
-        $addLogBalance = $balanceController->addLogBalance($id, (int)$checkOldMember['loyalty_point'], null, "Claim Point", 0);
+        $addLogBalance = $balanceController->addLogBalance($id, (int)$sumPoint, null, "Claim Point", 0);
         if (!$addLogBalance) {
             return response()->json([
                 'status'    => 'fail',
@@ -622,7 +623,7 @@ class ApiUserV2 extends Controller
         return response()->json([
             'status' => 'success',
             'result' => [
-                'message' => 'Berhasil klaim point sebesar '. number_format((int)$checkOldMember['loyalty_point'])
+                'message' => 'Berhasil klaim point sebesar '. number_format((int)$sumPoint)
             ]
         ]);
     }

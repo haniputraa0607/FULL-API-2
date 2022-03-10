@@ -50,6 +50,7 @@ use Modules\Product\Entities\ProductDetail;
 use Modules\Product\Entities\ProductGlobalPrice;
 use Modules\Product\Entities\ProductSpecialPrice;
 use Modules\Recruitment\Entities\HairstylistAttendance;
+use Modules\Recruitment\Entities\HairstylistAttendanceLog;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\SettingFraud\Entities\FraudSetting;
@@ -4679,7 +4680,8 @@ class ApiOnlineTransaction extends Controller
 
             if(!empty($clockInOut) && !empty($clockInOut['clock_in']) && strtotime($data['booking_time']) >= strtotime($clockInOut['clock_in'])){
                 $availableStatus = true;
-                if(!empty($clockInOut['clock_out']) && strtotime($data['booking_time']) > strtotime($clockInOut['clock_out'])){
+                $lastAction = HairstylistAttendanceLog::where('id_hairstylist_attendance', $clockInOut['id_hairstylist_attendance'])->orderBy('datetime', 'desc')->first();
+                if(!empty($clockInOut['clock_out']) && $lastAction['type'] == 'clock_out' && strtotime($data['booking_time']) > strtotime($clockInOut['clock_out'])){
                     $availableStatus = false;
                 }
             }

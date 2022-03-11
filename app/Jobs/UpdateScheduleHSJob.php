@@ -35,7 +35,21 @@ class UpdateScheduleHSJob implements ShouldQueue
      */
     public function handle()
     {
-        $idUserHairStylist = $this->data['id_user_hair_stylist'];
+        if(!empty($this->data['id_outlet'])){
+            $getHS = UserHairStylist::where('id_outlet', $this->data['id_outlet'])->pluck('id_user_hair_stylist')->toArray();
+            foreach ($getHS as $idUserHairStylist){
+                $this->update($idUserHairStylist);
+            }
+        }else{
+            $idUserHairStylist = $this->data['id_user_hair_stylist'];
+            $this->update($idUserHairStylist);
+        }
+
+        return true;
+    }
+
+    function update($id_user_hair_stylist){
+        $idUserHairStylist = $id_user_hair_stylist;
         $detail = UserHairStylist::where('id_user_hair_stylist', $idUserHairStylist)->first();
         $currentMonth = date('m');
         $currentYear = date('Y');

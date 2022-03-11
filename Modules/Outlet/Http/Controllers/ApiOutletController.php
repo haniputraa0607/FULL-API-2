@@ -3,6 +3,7 @@
 namespace Modules\Outlet\Http\Controllers;
 
 use App\Jobs\SyncronPlasticTypeOutlet;
+use App\Jobs\UpdateScheduleHSJob;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
@@ -2601,6 +2602,7 @@ class ApiOutletController extends Controller
             OutletTimeShift::insert($insertShift);
         }
 
+        UpdateScheduleHSJob::dispatch(['id_outlet' => $post['id_outlet']])->allOnConnection('database');
         DB::commit();
         return response()->json(['status' => 'success']);
     }

@@ -307,8 +307,9 @@ class Icount
 
     public static function ApiCreateOrderPOO($request, $company = null, $logType = null, $orderId = null){
         if(isset($request['transaction']) && !empty($request['transaction'])){
+            $trans_date = date('Y-m-d', strtotime($request['completed_at']));
             $due_date = Setting::where('key','due_date')->first()['value'] ?? 30;
-            $due_date = date('Y-m-d', strtotime('+'.$due_date.' days', strtotime(date('Y-m-d'))));
+            $due_date = date('Y-m-d', strtotime('+'.$due_date.' days', strtotime($trans_date)));
             $penjulana_outlet = Setting::where('key','penjualan_outlet')->first();
             $availablePayment = config('payment_method');
             $setting  = json_decode(MyHelper::setting('active_payment_methods', 'value_text', '[]'), true) ?? [];
@@ -320,7 +321,7 @@ class Icount
                 "BusinessPartnerID" => $request['id_business_partner'],
                 "VoucherNo" => "[AUTO]",
                 "TermOfPaymentID" => '011',
-                "TransDate" => date('Y-m-d'),
+                "TransDate" => $trans_date,
                 "DueDate" => $due_date,
                 "SalesmanID" => '',
                 "ReferenceNo" => '',

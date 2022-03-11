@@ -3279,7 +3279,7 @@ class ApiProductController extends Controller
         }
 
         if (isset($post['buyable'])) {
-            $product->where('product_icounts.is_buyable', $post['buyable']);
+            $product->where('product_icounts.is_buyable', $post['buyable'])->where('product_icounts.is_sellable', $post['buyable']);
         }
 
         if (isset($post['product_code'])) {

@@ -6562,16 +6562,16 @@ class ApiTransaction extends Controller
 
         $services = Product::where('product_type', 'service')->select('id_product', 'product_name')->get()->toArray();
 
-        $outletService = Transaction::join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
-            ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
-            ->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_product_services.id_user_hair_stylist')
+        $datas = Transaction::join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
             ->join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')
             ->join('products', 'products.id_product', 'transaction_products.id_product')
-            ->whereDate('schedule_date', '>=', $dateStart)->whereDate('schedule_date', '<=', $dateEnd)
+            ->whereDate('transaction_date', '>=', $dateStart)->whereDate('transaction_date', '<=', $dateEnd)
+            ->where('transaction_payment_status', 'Completed')
             ->whereIn('transactions.id_outlet', $idOutlets)
-            ->whereNotNull('transaction_products.transaction_product_completed_at')
-            ->groupBy('schedule_date', 'transactions.id_outlet', 'transaction_products.id_product')
-            ->select('schedule_date', 'transactions.id_outlet', 'transaction_products.id_product', 'outlet_name', 'product_name',
+            ->whereIn('transaction_from', ['outlet-service', 'home-service'])
+            ->where('transaction_products.type', 'service')
+            ->groupBy(DB::raw('DATE(transaction_date)'), 'transactions.id_outlet', 'transaction_products.id_product')
+            ->select(DB::raw('DATE(transaction_date) as transaction_date'), 'transactions.id_outlet', 'transaction_products.id_product', 'outlet_name', 'product_name',
                 DB::raw('SUM(transaction_products.transaction_product_discount_all) as discount'),
                 DB::raw('SUM(transaction_products.transaction_product_price*transaction_products.transaction_product_qty) as gross_sales'),
                 DB::raw('SUM(transaction_products.transaction_product_price_base*transaction_products.transaction_product_qty) as net_sales'),
@@ -6579,72 +6579,41 @@ class ApiTransaction extends Controller
                 DB::raw('SUM(transaction_products.transaction_product_qty) as total'))
             ->get()->toArray();
 
-        $countOrderOutlet = Transaction::join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
-            ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
-            ->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_product_services.id_user_hair_stylist')
+        $count = Transaction::join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
             ->join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')
             ->join('products', 'products.id_product', 'transaction_products.id_product')
-            ->whereDate('schedule_date', '>=', $dateStart)->whereDate('schedule_date', '<=', $dateEnd)
+            ->whereDate('transaction_date', '>=', $dateStart)->whereDate('transaction_date', '<=', $dateEnd)
+            ->where('transaction_payment_status', 'Completed')
             ->whereIn('transactions.id_outlet', $idOutlets)
-            ->whereNotNull('transaction_products.transaction_product_completed_at')
-            ->groupBy('schedule_date', 'transactions.id_outlet')
-            ->select('schedule_date', 'transactions.id_outlet', DB::raw('COUNT(Distinct transactions.id_transaction) as total'), DB::raw("group_concat(transaction_products.id_transaction_product separator ',') as trx_product_id"))
+            ->whereIn('transaction_from', ['outlet-service', 'home-service'])
+            ->where('transaction_products.type', 'service')
+            ->groupBy(DB::raw('DATE(transaction_date)'), 'transactions.id_outlet')
+            ->select(DB::raw('DATE(transaction_date) as transaction_date'), 'transactions.id_outlet', DB::raw('COUNT(Distinct transactions.id_transaction) as total'), DB::raw("group_concat(transaction_products.id_transaction_product separator ',') as trx_product_id"))
             ->get()->toArray();
 
-        $homeService = Transaction::join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
-            ->join('transaction_home_services', 'transaction_home_services.id_transaction', 'transaction_products.id_transaction')
-            ->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_home_services.id_user_hair_stylist')
-            ->join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')
-            ->join('products', 'products.id_product', 'transaction_products.id_product')
-            ->whereDate('schedule_date', '>=', $dateStart)->whereDate('schedule_date', '<=', $dateEnd)
-            ->whereIn('transactions.id_outlet', $idOutlets)
-            ->whereNotNull('transaction_products.transaction_product_completed_at')
-            ->groupBy('schedule_date', 'transactions.id_outlet', 'transaction_products.id_product')
-            ->select('schedule_date', 'transactions.id_outlet', 'transaction_products.id_product', 'outlet_name', 'product_name',
-                DB::raw('SUM(transaction_products.transaction_product_discount_all) as discount'),
-                DB::raw('SUM(transaction_products.transaction_product_price*transaction_products.transaction_product_qty) as gross_sales'),
-                DB::raw('SUM(transaction_products.transaction_product_price_base*transaction_products.transaction_product_qty) as net_sales'),
-                DB::raw('SUM(transaction_products.transaction_product_price_tax*transaction_products.transaction_product_qty) as tax'),
-                DB::raw('SUM(transaction_products.transaction_product_qty) as total'))
-            ->get()->toArray();
-
-        $countOrderHome = Transaction::join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
-            ->join('transaction_home_services', 'transaction_home_services.id_transaction', 'transaction_products.id_transaction')
-            ->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_home_services.id_user_hair_stylist')
-            ->join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')
-            ->join('products', 'products.id_product', 'transaction_products.id_product')
-            ->whereDate('schedule_date', '>=', $dateStart)->whereDate('schedule_date', '<=', $dateEnd)
-            ->whereIn('transactions.id_outlet', $idOutlets)
-            ->whereNotNull('transaction_products.transaction_product_completed_at')
-            ->groupBy('schedule_date', 'transactions.id_outlet', 'transaction_products.id_product')
-            ->groupBy('schedule_date', 'transactions.id_outlet')
-            ->select('schedule_date', 'transactions.id_outlet', DB::raw('COUNT(Distinct transactions.id_transaction) as total'), DB::raw("group_concat(transaction_products.id_transaction_product separator ',') as trx_product_id"))
-            ->get()->toArray();
-
-        $countOrder = array_merge($countOrderOutlet, $countOrderHome);
+        $countOrder = $count;
         $tmpCount = [];
         $tmpPayment = [];
         foreach ($countOrder as $count){
-            if(!isset($tmpCount[$count['schedule_date'].'|'.$count['id_outlet']])){
-                $tmpCount[$count['schedule_date'].'|'.$count['id_outlet']] = 0;
+            if(!isset($tmpCount[$count['transaction_date'].'|'.$count['id_outlet']])){
+                $tmpCount[$count['transaction_date'].'|'.$count['id_outlet']] = 0;
             }
-            $tmpCount[$count['schedule_date'].'|'.$count['id_outlet']] += $count['total'];
+            $tmpCount[$count['transaction_date'].'|'.$count['id_outlet']] += $count['total'];
 
-            if(!isset($tmpPayment[$count['schedule_date'].'|'.$count['id_outlet']])){
-                $tmpPayment[$count['schedule_date'].'|'.$count['id_outlet']] = [];
+            if(!isset($tmpPayment[$count['transaction_date'].'|'.$count['id_outlet']])){
+                $tmpPayment[$count['transaction_date'].'|'.$count['id_outlet']] = [];
             }
             $explode = explode(',', $count['trx_product_id']);
-            $tmpPayment[$count['schedule_date'].'|'.$count['id_outlet']] = array_unique(array_merge($tmpPayment[$count['schedule_date'].'|'.$count['id_outlet']], $explode));
+            $tmpPayment[$count['transaction_date'].'|'.$count['id_outlet']] = array_unique(array_merge($tmpPayment[$count['transaction_date'].'|'.$count['id_outlet']], $explode));
         }
 
-        $datas = array_merge($outletService, $homeService);
         $tmpData = [];
         $payments = app($this->trx)->availablePayment(new Request())['result'] ?? [];
         foreach ($datas as $data){
-            $key = $data['schedule_date'].'|'.$data['id_outlet'];
+            $key = $data['transaction_date'].'|'.$data['id_outlet'];
             if(!isset($tmpData[$key])){
                 $tmpData[$key] = [
-                    'Date' => date('Y-m-d', strtotime($data['schedule_date'])),
+                    'Date' => date('Y-m-d', strtotime($data['transaction_date'])),
                     'Outlet' => $data['outlet_name']
                 ];
             }

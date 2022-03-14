@@ -23,6 +23,7 @@ use Modules\Project\Entities\Project;
 use Validator;
 use Modules\Product\Http\Requests\CallbackRequest;
 use App\Http\Models\Setting;
+use App\Http\Models\User;
 
 
 class ApiRequestProductController extends Controller
@@ -275,6 +276,7 @@ class ApiRequestProductController extends Controller
     {
         $post = $request->all();
         if (!empty($post)) {
+            $old_data = RequestProduct::where('id_request_product',$post['id_request_product'])->first();
             $cek_input = $this->checkInputUpdate($post);
             $store_request = $cek_input['store_request'];
             $cek_outlet = Outlet::where(['id_outlet'=>$store_request['id_outlet']])->first();
@@ -337,12 +339,43 @@ class ApiRequestProductController extends Controller
                 }
             }
             DB::commit();
-            if($store_request['status']!='Pending'){
+            $user_request = User::where('id',$store_request['id_user_request'])->first();
+            if($old_data['status'] == $store_request['status']){
                 if (\Module::collections()->has('Autocrm')) {
                 
                     $autocrm = app($this->autocrm)->SendAutoCRM(
                         'Update Request Product',
                         auth()->user()->phone,
+                    );
+                    // return $autocrm;
+                    if (!$autocrm) {
+                        return response()->json([
+                            'status'    => 'fail',
+                            'messages'  => ['Failed to send']
+                        ]);
+                    }
+                }
+            }else if($old_data['status'] == 'Pending' && $store_request['status'] == 'Completed By User'){
+                if (\Module::collections()->has('Autocrm')) {
+                    
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Product Request Approved by Admin',
+                        $user_request['phone'],
+                    );
+                    // return $autocrm;
+                    if (!$autocrm) {
+                        return response()->json([
+                            'status'    => 'fail',
+                            'messages'  => ['Failed to send']
+                        ]);
+                    }
+                }
+            }else if($old_data['status'] == 'Pending' && $store_request['status'] == 'Rejected'){
+                if (\Module::collections()->has('Autocrm')) {
+                    
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Product Request Rejected by Admin',
+                        $user_request['phone'],
                     );
                     // return $autocrm;
                     if (!$autocrm) {
@@ -385,11 +418,14 @@ class ApiRequestProductController extends Controller
             $store_request['note_approve'] = $data['note_approve'];
         }
         if (isset($data['product_icount'])) {
-            $status = 'Pending';
             $v_status = true;
+            $reject = false;
             foreach($data['product_icount'] as $key => $product){
-                if($product['status'] == 'Approved' || $product['status'] == 'Rejected'){
+                if($product['status'] == 'Approved'){
                     $status = 'Completed By User';
+                    $reject = false;
+                }else if($product['status'] == 'Rejected'){
+                    $reject = true;
                 }else{
                     $v_status = false;
                 }
@@ -401,6 +437,9 @@ class ApiRequestProductController extends Controller
             }
             if($v_status){
                 $status = 'Completed By User';
+            }
+            if($reject){
+                $status = 'Rejected';
             }
             $store_request['status'] = $status;
         }
@@ -760,7 +799,77 @@ class ApiRequestProductController extends Controller
         }else if($post['status'] == 'Reject'){
             $status = 'Rejected';
         }
-        $data = RequestProduct::where('id_purchase_request', $post['PurchaseInvoiceID'])->where('status','!=','Completed By Finance')->update(['status'=>$status]);
-        return response()->json(['status' => 'success']); 
+        $update = RequestProduct::where('id_purchase_request', $post['PurchaseInvoiceID'])->where('status','!=','Completed By Finance')->update(['status'=>$status]);
+        if($update){
+            $data_req = RequestProduct::where('id_purchase_request', $post['PurchaseInvoiceID'])->first();
+            $user_req = User::where('id',$data_req['id_user_request'])->first();
+            $user_approve = User::where('id',$data_req['id_user_approve'])->first();
+
+            if($status == 'Completed By Finance'){
+                if (\Module::collections()->has('Autocrm')) {
+                
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Product Request Approved by Finance',
+                        $user_req['phone'],
+                    );
+                    // return $autocrm;
+                    if (!$autocrm) {
+                        return response()->json([
+                            'status'    => 'fail',
+                            'messages'  => ['Failed to send']
+                        ]);
+                    }
+                }
+
+                if (\Module::collections()->has('Autocrm')) {
+                
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Product Request Approved by Finance',
+                        $user_approve['phone'],
+                    );
+                    // return $autocrm;
+                    if (!$autocrm) {
+                        return response()->json([
+                            'status'    => 'fail',
+                            'messages'  => ['Failed to send']
+                        ]);
+                    }
+                }
+            }else{
+                if (\Module::collections()->has('Autocrm')) {
+                
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Product Request Rejected by Finance',
+                        $user_req['phone'],
+                    );
+                    // return $autocrm;
+                    if (!$autocrm) {
+                        return response()->json([
+                            'status'    => 'fail',
+                            'messages'  => ['Failed to send']
+                        ]);
+                    }
+                }
+
+                if (\Module::collections()->has('Autocrm')) {
+                
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Product Request Rejected by Finance',
+                        $user_approve['phone'],
+                    );
+                    // return $autocrm;
+                    if (!$autocrm) {
+                        return response()->json([
+                            'status'    => 'fail',
+                            'messages'  => ['Failed to send']
+                        ]);
+                    }
+                }
+            }
+
+            return response()->json(['status' => 'success']); 
+        }else{
+            return response()->json(['status' => 'fail']);
+        }
     }
 }

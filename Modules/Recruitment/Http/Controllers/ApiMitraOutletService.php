@@ -1243,8 +1243,7 @@ class ApiMitraOutletService extends Controller
 				->join('products', 'transaction_products.id_product', 'products.id_product')
 				->join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')
 				->where(function($q) {
-	    			$q->whereNotNull('transaction_outlet_services.completed_at');
-	    			$q->whereNotNull('transaction_product_completed_at');					
+	    			$q->whereNotNull('transaction_product_services.completed_at');		
 	    			$q->Where('service_status', '=', 'Completed');
 				})
     			->where('transaction_product_services.id_user_hair_stylist', $user->id_user_hair_stylist)

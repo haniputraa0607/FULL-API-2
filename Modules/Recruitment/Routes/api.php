@@ -14,6 +14,10 @@ use Illuminate\Http\Request;
 */
 Route::group(['middleware' => ['auth:api', 'scopes:be'], 'prefix' => 'hairstylist/be'], function () {
     Route::post('export-commision', 'ApiHairStylistController@exportCommision');
+    Route::post('category/create', 'ApiHairStylistController@createCategory');
+    Route::any('category', 'ApiHairStylistController@listCategory');
+    Route::post('category/update', 'ApiHairStylistController@updateCategory');
+    Route::post('category/delete', 'ApiHairStylistController@deleteCategory');
 });
 
 Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'recruitment'], function () {

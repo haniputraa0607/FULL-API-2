@@ -31,6 +31,7 @@ use Modules\IPay88\Entities\TransactionPaymentIpay88;
 use Modules\Product\Entities\ProductDetail;
 use Modules\Product\Entities\ProductProductIcount;
 use Modules\Product\Entities\ProductStockLog;
+use Modules\ProductService\Entities\ProductHairstylistCategory;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Recruitment\Entities\HairstylistLocation;
@@ -119,11 +120,6 @@ class ApiTransactionHomeService extends Controller
             $arrProccessingTime[] = $processingTime * $item['qty'];
         }
 
-        $post['sum_time'] = array_sum($arrProccessingTime);
-        $checkHS = $this->checkAvailableHS($post, [], $user);
-        $idHs = $checkHS['id_user_hair_stylist']??null;
-        $errAll = array_merge($errAll, $checkHS['error_all']??[]);
-
         $post['item_service'] = $this->mergeService($post['item_service']);
         $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
         $outlet = Outlet::where('id_outlet', $outletHomeService)->first();
@@ -140,12 +136,32 @@ class ApiTransactionHomeService extends Controller
         if(empty($brand)){
             return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
         }
+
+        if(!empty($post['id_user_hair_stylist'])){
+            $hsFavorite = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->first();
+        }
+
+        $tmpHsCatGroup = [];
+        $tmpHsCat = [];
         foreach ($post['item_service']??[] as $key=>$item){
             $err = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
                 ->where('products.id_product', $item['id_product'])
                 ->select('products.*', 'product_global_price as product_price')
                 ->first();
+
+            //check category hs when use hs favorite
+            $hsCat = ProductHairstylistCategory::where('id_product', $service['id_product'])->pluck('id_hairstylist_category')->toArray();
+            if(!empty($hsFavorite['id_hairstylist_category']) && !empty($hsCat) && !in_array($hsFavorite['id_hairstylist_category'], $hsCat)){
+                $idHsCategory = $hsFavorite['id_hairstylist_category'];
+                $err[] = 'Service tidak available untuk hairstylist favorite Anda';
+                $errAll[] = 'Service tidak available untuk hairstylist favorite Anda';
+            }
+
+            foreach ($hsCat as $cat){
+                $tmpHsCatGroup[$cat] = ($tmpHsCatGroup[$cat]??0) + 1;
+                $tmpHsCat[$service['id_product']][] = $cat;
+            }
 
             if(empty($service)){
                 $err[] = 'Service tidak tersedia';
@@ -188,6 +204,21 @@ class ApiTransactionHomeService extends Controller
             }
             $subtotal = $subtotal + ((int)$service['product_price'] * $item['qty']);
         }
+
+        if(empty($idHsCategory)){
+            $idHsCategory = array_search(max($tmpHsCatGroup), $tmpHsCatGroup);
+            foreach ($tmpHsCat as $category){
+                if(!in_array($idHsCategory, $category)){
+                    $errAll[] = 'Service tidak dapat dipesan bersamaan';
+                    break;
+                }
+            }
+        }
+
+        $post['sum_time'] = array_sum($arrProccessingTime);
+        $checkHS = $this->checkAvailableHS($post, [], $user, $idHsCategory);
+        $idHs = $checkHS['id_user_hair_stylist']??null;
+        $errAll = array_merge($errAll, $checkHS['error_all']??[]);
 
         if(!empty($errAll)){
             $continueCheckOut = false;
@@ -352,11 +383,6 @@ class ApiTransactionHomeService extends Controller
             $arrProccessingTime[] = $processingTime * $item['qty'];
         }
 
-        $post['sum_time'] = array_sum($arrProccessingTime);
-        $checkHS = $this->checkAvailableHS($post, [], $user);
-        $idHs = $checkHS['id_user_hair_stylist']??null;
-        $errAll = array_merge($errAll, $checkHS['error_all']??[]);
-
         $post['item_service'] = $this->mergeService($post['item_service']);
         $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
         $outlet = Outlet::where('id_outlet', $outletHomeService)->first();
@@ -374,6 +400,8 @@ class ApiTransactionHomeService extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
         }
         $totalItem = 0;
+        $tmpHsCatGroup = [];
+        $tmpHsCat = [];
         foreach ($post['item_service']??[] as $key=>$item){
             $err = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
@@ -388,11 +416,25 @@ class ApiTransactionHomeService extends Controller
                 continue;
             }
 
+            $hsCat = ProductHairstylistCategory::where('id_product', $service['id_product'])->pluck('id_hairstylist_category')->toArray();
+            foreach ($hsCat as $cat){
+                $tmpHsCatGroup[$cat] = ($tmpHsCatGroup[$cat]??0) + 1;
+                $tmpHsCat[$service['id_product']][] = $cat;
+            }
+
             if(!empty($idHs) && $post['preference_hair_stylist'] == 'favorite'){
                 $hs = UserHairStylist::where('id_user_hair_stylist', $idHs)->where('user_hair_stylist_status', 'Active')->first();
                 if(empty($hs)){
                     $err[] = "Outlet hair stylist not found";
                     $errAll[] = 'Outlet hair stylist not found';
+                    unset($item[$key]);
+                    continue;
+                }
+
+                if(!empty($hs) && !empty($hsCat) && !in_array($hs['id_hairstylist_category'], $hsCat)){
+                    $idHsCategory = $hs['id_hairstylist_category'];
+                    $err[] = 'Service tidak available untuk hairstylist favorite Anda';
+                    $errAll[] = 'Service tidak available untuk hairstylist favorite Anda';
                     unset($item[$key]);
                     continue;
                 }
@@ -440,6 +482,21 @@ class ApiTransactionHomeService extends Controller
                 $continueCheckOut = false;
             }
         }
+
+        if(empty($idHsCategory)){
+            $idHsCategory = array_search(max($tmpHsCatGroup), $tmpHsCatGroup);
+            foreach ($tmpHsCat as $category){
+                if(!in_array($idHsCategory, $category)){
+                    $errAll[] = 'Service tidak dapat dipesan bersamaan';
+                    break;
+                }
+            }
+        }
+
+        $post['sum_time'] = array_sum($arrProccessingTime);
+        $checkHS = $this->checkAvailableHS($post, [], $user, $idHsCategory);
+        $idHs = $checkHS['id_user_hair_stylist']??null;
+        $errAll = array_merge($errAll, $checkHS['error_all']??[]);
 
         $post['item_service'] = $itemService;
         $grandTotal = app($this->setting_trx)->grandTotal();
@@ -627,17 +684,6 @@ class ApiTransactionHomeService extends Controller
             $arrProccessingTime[] = $processingTime * $item['qty'];
         }
 
-        $post['sum_time'] = array_sum($arrProccessingTime);
-        $checkHS = $this->checkAvailableHS($post, [], $user);
-        if(!empty($checkHS['error_all'])){
-            return response()->json([
-                'status'    => 'fail',
-                'messages'  => [(empty($checkHS['error_all'])? null:implode(".", array_unique($checkHS['error_all'])))]
-            ]);
-        }
-        $idHs = $checkHS['id_user_hair_stylist'];
-        $arrHs = (!empty($checkHS['all_id_hs']) ? $checkHS['all_id_hs'] : [$checkHS['id_user_hair_stylist']]);
-
         $post['item_service'] = $this->mergeService($post['item_service']);
         $errItem = [];
         $post['id_outlet'] = null;
@@ -656,6 +702,12 @@ class ApiTransactionHomeService extends Controller
         if(empty($brand)){
             return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
         }
+
+        $tmpHsCatGroup = [];
+        $tmpHsCat = [];
+        if(!empty($post['id_user_hair_stylist'])){
+            $hsFavorite = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->first();
+        }
         foreach ($post['item_service']??[] as $key=>$item){
             $detailStock = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
@@ -665,6 +717,17 @@ class ApiTransactionHomeService extends Controller
 
             if(empty($service)){
                 $errItem[] = 'Service tidak tersedia';
+            }
+
+            $hsCat = ProductHairstylistCategory::where('id_product', $service['id_product'])->pluck('id_hairstylist_category')->toArray();
+            foreach ($hsCat as $cat){
+                $tmpHsCatGroup[$cat] = ($tmpHsCatGroup[$cat]??0) + 1;
+                $tmpHsCat[$service['id_product']][] = $cat;
+            }
+
+            if(!empty($hsFavorite['id_hairstylist_category']) && !empty($hsCat) && !in_array($hsFavorite['id_hairstylist_category'], $hsCat)){
+                $idHsCategory = $hsFavorite['id_hairstylist_category'];
+                $errItem[] = 'Service tidak available untuk hairstylist favorite Anda';
             }
 
             $getProductDetail = ProductDetail::where('id_product', $service['id_product'])->where('id_outlet', $outlet['id_outlet'])->first();
@@ -694,6 +757,29 @@ class ApiTransactionHomeService extends Controller
                 "detail_stock" => $detailStock
             ];
         }
+
+        if(empty($idHsCategory)){
+            $idHsCategory = array_search(max($tmpHsCatGroup), $tmpHsCatGroup);
+            foreach ($tmpHsCat as $category){
+                if(!in_array($idHsCategory, $category)){
+                    return response()->json([
+                        'status'    => 'fail',
+                        'messages'  => ['Service tidak dapat dipesan bersamaan']
+                    ]);
+                }
+            }
+        }
+
+        $post['sum_time'] = array_sum($arrProccessingTime);
+        $checkHS = $this->checkAvailableHS($post, [], $user, $idHsCategory);
+        if(!empty($checkHS['error_all'])){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => [(empty($checkHS['error_all'])? null:implode(".", array_unique($checkHS['error_all'])))]
+            ]);
+        }
+        $idHs = $checkHS['id_user_hair_stylist'];
+        $arrHs = (!empty($checkHS['all_id_hs']) ? $checkHS['all_id_hs'] : [$checkHS['id_user_hair_stylist']]);
 
         if(!empty($errItem)){
             return response()->json([
@@ -951,7 +1037,7 @@ class ApiTransactionHomeService extends Controller
         ]);
     }
 
-    function checkAvailableHS($post, $rejectHS = [], $user = []){
+    function checkAvailableHS($post, $rejectHS = [], $user = [], $idHsCategory = null){
         $userTimeZone = (empty($user['user_time_zone_utc']) ? 7 : $user['user_time_zone_utc']);
         $diffTimeZone = $userTimeZone - 7;
         $currentDate = date('Y-m-d H:i:s');
@@ -977,7 +1063,11 @@ class ApiTransactionHomeService extends Controller
         $bookDay = $day[date('D', strtotime($bookDate))];
         $maximumRadius = (int)(Setting::where('key', 'home_service_hs_maximum_radius')->first()['value']??25);
         if($post['preference_hair_stylist'] == 'favorite'){
-            $check = FavoriteUserHiarStylist::where('id_user', $user['id'])->where('id_user_hair_stylist', $post['id_user_hair_stylist'])->first();
+            $check = FavoriteUserHiarStylist::where('id_user', $user['id'])->where('id_user_hair_stylist', $post['id_user_hair_stylist']);
+            if(!empty($idHsCategory)){
+                $check = $check->where('id_hairstylist_category', $idHsCategory);
+            }
+            $check = $check->first();
             if(empty($check)){
                 $errAll[] = "Hair stylist favorite tidak ditemukan";
             }
@@ -1036,6 +1126,10 @@ class ApiTransactionHomeService extends Controller
 
             if($post['preference_hair_stylist'] !== 'all'){
                 $listHs = $listHs->where('gender', $post['preference_hair_stylist']);
+            }
+
+            if(!empty($idHsCategory)){
+                $listHs = $listHs->where('id_hairstylist_category', $idHsCategory);
             }
 
             $hsNotAvailable = array_unique(array_merge($hsNotAvailable, $rejectHS));

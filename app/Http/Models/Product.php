@@ -270,6 +270,10 @@ class Product extends Model
             ->join('theory_categories', 'theory_categories.id_theory_category', 'product_academy_theory_categories.id_theory_category');
     }
 
+    public function product_hs_category() {
+        return $this->hasMany(\Modules\ProductService\Entities\ProductHairstylistCategory::class, 'id_product', 'id_product');
+    }
+
     
     /**
      * Generate fresh product variant tree

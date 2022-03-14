@@ -61,7 +61,7 @@ class ApiProductServiceController extends Controller
             }elseif(isset($post['product_setting_type']) && $post['product_setting_type'] == 'outlet_product_detail'){
                 $product = Product::with(['category', 'discount', 'product_detail'])->where('products.product_type', 'service');
             }else{
-                $product = Product::with(['category', 'discount','product_icount_use_ima' => function($ima){$ima->where('company_type','ima');},'product_icount_use_ims' => function($ims){$ims->where('company_type','ims');}]);
+                $product = Product::with(['category', 'product_hs_category', 'discount','product_icount_use_ima' => function($ima){$ima->where('company_type','ima');},'product_icount_use_ims' => function($ims){$ims->where('company_type','ims');}]);
             }
         }
 
@@ -200,14 +200,22 @@ class ApiProductServiceController extends Controller
             ->leftJoin('product_global_price', 'product_global_price.id_product', '=', 'products.id_product')
             ->where('product_type', 'service')
             ->where('available_home_service', 1)
-            ->with(['photos'])
+            ->with(['photos', 'product_hs_category'])
             ->having('product_price', '>', 0)
             ->orderBy('products.position')
             ->orderBy('products.id_product')
             ->get()->toArray();
 
+        if(!empty($post['id_user_hair_stylist'])){
+            $hsFavorite = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->first();
+        }
         $resProdService = [];
         foreach ($productServie as $val){
+            //check category hs when use hs favorite
+            if(!empty($hsFavorite['id_hairstylist_category']) && !empty($val['product_hs_category']) && !in_array($hsFavorite['id_hairstylist_category'], array_column($val['product_hs_category'], 'id_hairstylist_category'))){
+                continue;
+            }
+
             $stock = 'Available';
             $getProductDetail = ProductDetail::where('id_product', $val['id_product'])->where('id_outlet', $outlet['id_outlet'])->first();
             $val['visibility_outlet'] = $getProductDetail['product_detail_visibility']??null;

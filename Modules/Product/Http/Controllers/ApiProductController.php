@@ -3,6 +3,7 @@
 namespace Modules\Product\Http\Controllers;
 
 use App\Http\Models\Holiday;
+use Modules\ProductService\Entities\ProductHairstylistCategory;
 use Modules\Recruitment\Entities\HairstylistAttendance;
 use Modules\Recruitment\Entities\HairstylistAttendanceLog;
 use Storage;
@@ -1215,6 +1216,19 @@ class ApiProductController extends Controller
             ];
             $store_icount = app('\Modules\Product\Http\Controllers\ApiProductProductIcountController')->update(New Request($product_use));
             unset($post['product_icount_ima']);
+        }
+
+        if(!empty($post['product_hs_category'])){
+            ProductHairstylistCategory::where('id_product', $post['id_product'])->delete();
+            $insertProductHsCategory = [];
+            foreach ($post['product_hs_category'] as $hsCat){
+                $insertProductHsCategory[] = [
+                    "id_product" => $post['id_product'],
+                    'id_hairstylist_category' => $hsCat
+                ];
+            }
+            ProductHairstylistCategory::insert($insertProductHsCategory);
+            unset($post['product_hs_category']);
         }
 
         // promo_category
@@ -2631,6 +2645,12 @@ class ApiProductController extends Controller
 
         $post['id_outlet'] = $outlet['id_outlet'];
 
+        //product category hs
+        $hsCat = [];
+        if(!empty($post['id_product'])){
+            $hsCat = ProductHairstylistCategory::where('id_product', $post['id_product'])->pluck('id_hairstylist_category')->toArray();
+        }
+
         //get Schedule
         $day = [
             'Mon' => 'Senin',
@@ -2695,6 +2715,10 @@ class ApiProductController extends Controller
                 ->first();
 
             if(!empty($notAvailable)){
+                $availableStatus = false;
+            }
+
+            if(!empty($hsCat) && !in_array($val['id_hairstylist_category'], $hsCat)){
                 $availableStatus = false;
             }
 
@@ -3279,7 +3303,7 @@ class ApiProductController extends Controller
         }
 
         if (isset($post['buyable'])) {
-            $product->where('product_icounts.is_buyable', $post['buyable']);
+            $product->where('product_icounts.is_buyable', $post['buyable'])->where('product_icounts.is_sellable', $post['buyable']);
         }
 
         if (isset($post['product_code'])) {

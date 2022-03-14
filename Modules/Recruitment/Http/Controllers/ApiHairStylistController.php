@@ -10,6 +10,7 @@ use App\Lib\MyHelper;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
+use Modules\Recruitment\Entities\HairstylistCategory;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Recruitment\Entities\UserHairStylistDocuments;
 use Modules\Recruitment\Entities\HairstylistSchedule;	
@@ -949,5 +950,49 @@ class ApiHairStylistController extends Controller
         }
 
         return response()->json(['status' => 'success', 'result' => $res]);
+    }
+
+    public function createCategory(Request $request){
+        $post = $request->json()->all();
+
+        $save = HairstylistCategory::create($post);
+        return response()->json(MyHelper::checkUpdate($save));
+    }
+
+    public function listCategory(Request $request){
+        $post = $request->json()->all();
+        if(!empty($post['id_hairstylist_category'])){
+            $data = HairstylistCategory::where('id_hairstylist_category', $post['id_hairstylist_category'])->first();
+        }else{
+            $data = HairstylistCategory::get()->toArray();
+        }
+
+        return response()->json(MyHelper::checkGet($data));
+    }
+
+    public function updateCategory(Request $request){
+        $post = $request->json()->all();
+
+        if(!empty($post['id_hairstylist_category'])){
+            $save = HairstylistCategory::where('id_hairstylist_category', $post['id_hairstylist_category'])->update([
+                'hairstylist_category_name' => $post['hairstylist_category_name']
+            ]);
+
+            return response()->json(MyHelper::checkUpdate($save));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    }
+
+    public function deleteCategory(Request $request){
+        $post = $request->json()->all();
+
+        if(!empty($post['id_hairstylist_category'])){
+            $save = HairstylistCategory::where('id_hairstylist_category', $post['id_hairstylist_category'])->delete();
+
+            return response()->json(MyHelper::checkDelete($save));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
     }
 }

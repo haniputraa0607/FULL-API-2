@@ -218,3 +218,12 @@ Route::group(['prefix' => 'api/mitra/req-product','middleware' => ['log_activiti
     Route::post('confirm', 'ApiMitraRequestProductController@confirm');
     Route::post('/{type?}', 'ApiMitraRequestProductController@index');
 });
+
+Route::group(['prefix' => 'api/product-catalog','middleware' => ['log_activities','auth:api', 'scopes:be'], 'namespace' => 'Modules\Product\Http\Controllers'], function(){
+    Route::post('create', 'ApiProductCatalogController@create');
+    Route::post('delete', 'ApiProductCatalogController@destroy');
+    Route::post('detail', 'ApiProductCatalogController@show');
+    Route::post('update', 'ApiProductCatalogController@update');
+    Route::post('/', 'ApiProductCatalogController@index');
+    Route::any('all', 'ApiProductCatalogController@all');
+});

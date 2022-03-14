@@ -36,7 +36,7 @@ class CallbackRequest extends FormRequest
             return false;
         }); 
         $validator->addExtension('status', function ($attribute, $value, $parameters, $validator) {
-            if($value == 'Approve'||$value=="Reject"){
+            if($value == 'Approve'|| $value == 'Reject'){
                 return true; 
             } 
             return false;

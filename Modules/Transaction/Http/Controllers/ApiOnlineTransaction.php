@@ -31,6 +31,7 @@ use Modules\Product\Entities\ProductProductIcount;
 use Modules\Product\Entities\ProductStockLog;
 use Modules\ProductBundling\Entities\BundlingOutlet;
 use Modules\ProductBundling\Entities\BundlingProduct;
+use Modules\ProductService\Entities\ProductHairstylistCategory;
 use Modules\ProductService\Entities\ProductServiceUse;
 use Modules\ProductVariant\Entities\ProductVariantGroup;
 use Modules\ProductVariant\Entities\ProductVariantGroupDetail;
@@ -2446,6 +2447,13 @@ class ApiOnlineTransaction extends Controller
                 continue;
             }
 
+            $hsCat = ProductHairstylistCategory::where('id_product', $service['id_product'])->pluck('id_hairstylist_category')->toArray();
+            if(!empty($hsCat) && !in_array($hs['id_hairstylist_category'], $hsCat)){
+                $errorHsNotAvailable[] = $item['user_hair_stylist_name']." (kategori tidak sesuai)";
+                unset($post['item_service'][$key]);
+                continue;
+            }
+
             if(strtotime($currentDate) > strtotime($bookTime)){
                 $errorBookTime[] = $item['user_hair_stylist_name']." (".MyHelper::dateFormatInd($bookTime).')';
                 unset($post['item_service'][$key]);
@@ -4503,6 +4511,11 @@ class ApiOnlineTransaction extends Controller
             $hs = UserHairStylist::where('id_user_hair_stylist', $item['id_user_hair_stylist'])->where('user_hair_stylist_status', 'Active')->first();
             if(empty($hs)){
                 $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
+            }
+
+            $hsCat = ProductHairstylistCategory::where('id_product', $service['id_product'])->pluck('id_hairstylist_category')->toArray();
+            if(!empty($hsCat) && !in_array($hs['id_hairstylist_category'], $hsCat)){
+                $err[] = "Hair stylist tidak tersedia untuk service ".$service['product_name'];
             }
 
             //get hs schedule

@@ -205,7 +205,7 @@ class ApiTransactionHomeService extends Controller
             $subtotal = $subtotal + ((int)$service['product_price'] * $item['qty']);
         }
 
-        if(empty($idHsCategory)){
+        if(empty($idHsCategory) && !empty($tmpHsCatGroup)){
             $idHsCategory = array_search(max($tmpHsCatGroup), $tmpHsCatGroup);
             foreach ($tmpHsCat as $category){
                 if(!in_array($idHsCategory, $category)){
@@ -483,7 +483,7 @@ class ApiTransactionHomeService extends Controller
             }
         }
 
-        if(empty($idHsCategory)){
+        if(empty($idHsCategory) && !empty($tmpHsCatGroup)){
             $idHsCategory = array_search(max($tmpHsCatGroup), $tmpHsCatGroup);
             foreach ($tmpHsCat as $category){
                 if(!in_array($idHsCategory, $category)){
@@ -758,7 +758,7 @@ class ApiTransactionHomeService extends Controller
             ];
         }
 
-        if(empty($idHsCategory)){
+        if(empty($idHsCategory) && !empty($tmpHsCatGroup)){
             $idHsCategory = array_search(max($tmpHsCatGroup), $tmpHsCatGroup);
             foreach ($tmpHsCat as $category){
                 if(!in_array($idHsCategory, $category)){

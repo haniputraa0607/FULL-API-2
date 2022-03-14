@@ -378,11 +378,20 @@ class ApiHairStylistScheduleController extends Controller
         	}
         }
 
+        $fixedSchedule = HairstylistScheduleDate::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->join('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')->select('hairstylist_schedule_dates.id_hairstylist_schedule_date', 'date')->get();
+        $fixedScheduleDateId = $fixedSchedule->pluck('id_hairstylist_schedule_date');
+        $fixedScheduleDate = $fixedSchedule->pluck('date')->map(function($item) {return date('Y-m-d', strtotime($item));});
+
         $newData = [];
         foreach ($post['schedule'] as $key => $val) {
         	if (empty($val)) {
         		continue;
         	}
+
+        	if (in_array(date('Y-m-d', strtotime($key)), $fixedScheduleDate->toArray()) || date('Y-m-d', strtotime($key)) < date('Y-m-d')) {
+        		continue;
+        	}
+
         	$request_by = 'Admin';
         	$created_at = date('Y-m-d H:i:s');
         	$updated_at = date('Y-m-d H:i:s');
@@ -432,7 +441,7 @@ class ApiHairStylistScheduleController extends Controller
         DB::beginTransaction();
 
         $update = HairstylistSchedule::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->update(['last_updated_by' => $request->user()->id]);
-        $delete = HairstylistScheduleDate::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->delete();
+        $delete = HairstylistScheduleDate::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->whereDate('date', '>=', date('Y-m-d'))->whereNotIn('id_hairstylist_schedule_date', $fixedScheduleDateId)->delete();
         $save 	= HairstylistScheduleDate::insert($newData);
     	HairstylistSchedule::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->first()->refreshTimeShift();
 

@@ -34,6 +34,7 @@ use Modules\Transaction\Entities\TransactionPaymentCash;
 use Modules\UserFeedback\Entities\UserFeedbackLog;
 use Modules\Franchise\Entities\PromoCampaign;
 use Modules\PromoCampaign\Entities\TransactionPromo;
+use Modules\Xendit\Entities\TransactionAcademyInstallmentPaymentXendit;
 use Modules\Xendit\Entities\TransactionPaymentXendit;
 class ApiTransactionAcademy extends Controller
 {
@@ -50,6 +51,7 @@ class ApiTransactionAcademy extends Controller
         $this->transaction   = "Modules\Transaction\Http\Controllers\ApiTransaction";
         $this->outlet        = "Modules\Outlet\Http\Controllers\ApiOutletController";
         $this->promo_trx 	 = "Modules\Transaction\Http\Controllers\ApiPromoTransaction";
+        $this->xendit = "Modules\Xendit\Http\Controllers\XenditController";
     }
 
     public function check(Request $request) {
@@ -1306,16 +1308,41 @@ class ApiTransactionAcademy extends Controller
         $trx = TransactionAcademyInstallment::where(['installment_receipt_number' => $request->receipt_number])->first();
 
         if($trx->paid_status != 'Pending'){
-            return MyHelper::checkGet([],'Transaction cannot be canceled');
+            return [
+                'status'=>'fail',
+                'messages' => ['Transaksi tidak dapat dibatalkan.']
+            ];
         }
 
         $payment_type = $trx->installment_payment_type;
 
         switch (strtolower($payment_type)) {
             case 'midtrans':
-                Midtrans::expire($trx->installment_receipt_number);
-                $trx->triggerPaymentCancelled();
-                return ['status'=>'success'];
+                $midtransStatus = Midtrans::status($trx->installment_receipt_number);
+                if ((($midtransStatus['status'] ?? false) == 'fail' && ($midtransStatus['messages'][0] ?? false) == 'Midtrans payment not found') || in_array(($midtransStatus['response']['transaction_status'] ?? false), ['deny', 'cancel', 'expire', 'failure']) || ($midtransStatus['status_code'] ?? false) == '404') {
+                    $connectMidtrans = Midtrans::expire($trx->installment_receipt_number);
+
+                    if($connectMidtrans){
+                        $trx->triggerPaymentCancelled();
+                        return ['status'=>'success', 'result' => ['message' => 'Pembayaran berhasil dibatalkan']];
+                    }
+                }
+            case 'xendit':
+                $dtXendit = TransactionAcademyInstallmentPaymentXendit::where('order_id', $trx->installment_receipt_number)->first();
+                $status = app('Modules\Xendit\Http\Controllers\XenditController')->checkStatus($dtXendit->xendit_id, $dtXendit->type);
+
+                if ($status && $status['status'] == 'PENDING' && !empty($status['id'])) {
+                    $cancel = app('Modules\Xendit\Http\Controllers\XenditController')->expireInvoice($status['id']);
+
+                    if($cancel){
+                        $trx->triggerPaymentCancelled();
+                        return ['status'=>'success', 'result' => ['message' => 'Pembayaran berhasil dibatalkan']];
+                    }
+                }
+                return [
+                    'status'=>'fail',
+                    'messages' => ['Transaksi tidak dapat dibatalkan karena proses pembayaran sedang berlangsung']
+                ];
         }
         return ['status' => 'fail', 'messages' => ["Cancel $payment_type transaction is not supported yet"]];
     }

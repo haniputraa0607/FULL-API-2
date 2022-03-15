@@ -13,6 +13,7 @@ use DB;
 use Modules\Product\Entities\DeliveryProduct;
 use Modules\Product\Entities\DeliveryProductDetail;
 use Modules\Product\Entities\DeliveryRequestProduct;
+use Modules\Product\Entities\ProductCatalog;
 use Monolog\Handler\NullHandler;
 use App\Lib\Icount;
 use Modules\BusinessDevelopment\Entities\ConfirmationLetter;
@@ -108,6 +109,9 @@ class ApiRequestProductController extends Controller
         if (!empty($post)) {
             if (isset($post['id_outlet'])) {
                 $store_request['id_outlet'] = $post['id_outlet'];
+            }
+            if (isset($post['id_product_catalog'])) {
+                $store_request['id_product_catalog'] = $post['id_product_catalog'];
             }
             if (isset($post['type'])) {
                 $store_request['type'] = $post['type'];
@@ -251,7 +255,9 @@ class ApiRequestProductController extends Controller
     {
         $post = $request->all();
         if(isset($post['id_request_product']) && !empty($post['id_request_product'])){
-            $request_product = RequestProduct::where('id_request_product', $post['id_request_product'])->with(['request_product_detail','request_product_user_request','request_product_user_approve','request_product_outlet','request_product_outlet.location_outlet'])->first();
+            $request_product = RequestProduct::join('product_catalogs','product_catalogs.id_product_catalog','=','request_products.id_product_catalog')
+                            ->where('id_request_product', $post['id_request_product'])->select('request_products.*','product_catalogs.id_product_catalog','product_catalogs.name as catalog_name')
+                            ->with(['request_product_detail','request_product_user_request','request_product_user_approve','request_product_outlet','request_product_outlet.location_outlet'])->first();
             if($request_product==null){
                 return response()->json(['status' => 'success', 'result' => [
                     'request_product' => 'Empty',
@@ -871,5 +877,10 @@ class ApiRequestProductController extends Controller
         }else{
             return response()->json(['status' => 'fail']);
         }
+    }
+
+    public function listCatalog(Request $request){
+        $catalogs = ProductCatalog::where('status', 1)->get()->toArray();
+        return $catalogs;
     }
 }

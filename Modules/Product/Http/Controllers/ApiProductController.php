@@ -70,6 +70,7 @@ use Modules\ProductService\Entities\ProductServiceUse;
 use Modules\Product\Entities\ProductCommissionDefault;
 use Modules\Product\Http\Requests\product\Commission;
 use App\Jobs\SyncIcountItems;
+use Modules\Product\Entities\ProductCatalogDetail;
 
 class ApiProductController extends Controller
 {
@@ -3329,6 +3330,25 @@ class ApiProductController extends Controller
         }
 
         $product = $product->toArray();
+
+        if(isset($post['catalog'])){
+            $catalog = ProductCatalogDetail::where('id_product_catalog',$post['catalog'])->get()->toArray();
+            $new_product = [];
+            foreach($product as $val){
+                $check = false;
+                foreach($catalog as $cat){
+                    if($val['id_product_icount'] == $cat['id_product_icount']){
+                        $check = true;
+                        $val['budget_code'] = $cat['budget_code'];
+                    }
+                }
+                if($check){
+                    $new_product[] = $val;
+                }
+            }
+            return $new_product;
+
+        }
 
         return response()->json(MyHelper::checkGet($product));
     }

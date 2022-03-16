@@ -1086,7 +1086,7 @@ class ApiTransactionHomeService extends Controller
                 $errAll[] = "Hair stylist jauh dari lokasi Anda";
             }
 
-            if($bookDate == date('Y-m-d') && $hs['home_service_status'] == 0){
+            if($hs['home_service_status'] == 0){
                 $errAll[] = "Hair stylist tidak available";
             }
 
@@ -1144,7 +1144,7 @@ class ApiTransactionHomeService extends Controller
                     continue;
                 }
 
-                if($bookDate == date('Y-m-d') && $val['home_service_status'] == 0){
+                if($val['home_service_status'] == 0){
                     continue;
                 }
 

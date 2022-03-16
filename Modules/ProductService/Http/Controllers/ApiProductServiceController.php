@@ -513,7 +513,7 @@ class ApiProductServiceController extends Controller
                 continue;
             }
 
-            if($bookDate == date('Y-m-d') && $val['home_service_status'] == 0){
+            if($val['home_service_status'] == 0){
                 $available = false;
             }
 

@@ -1585,7 +1585,7 @@ class ApiPromoTransaction extends Controller
     	$deals->update(['deals_total_used' => $deals->deals_total_used + 1]);
 
         $createTrxVoucher = TransactionVoucher::create([
-            'id_deals_voucher' => $dealsUser->id_deals_user,
+            'id_deals_voucher' => $dealsUser->id_deals_voucher,
             'id_user' => $trx->id_user,
             'id_transaction' => $trx->id_transaction
         ]);

@@ -613,6 +613,7 @@ class Transaction extends Model
     	$tax_percent = $this->outlet->is_tax ?: 0;
     	$payment_type = $this->transaction_multiple_payment()->where('type', '<>', 'Balance')->get()->pluck('type')->first();
 
+    	$payment_detail = null;
     	switch ($payment_type) {
     		case 'Midtrans':
     			$payment = $this->transaction_payment_midtrans()->first();
@@ -663,7 +664,7 @@ class Transaction extends Model
         foreach ($products as $key => $product) {
             $price_plus_tax = $product['transaction_product_price'] - ($product['transaction_product_discount_all'] / $product['transaction_product_qty']);
         	$tax_product = round(($price_plus_tax * $tax_percent / (100 + $tax_percent)), 2);
-        	$base_product = $price_plus_tax - $tax_product;
+        	$base_product = $product['transaction_product_price'] - $tax_product;
             TransactionProduct::where('id_transaction_product', $product['id_transaction_product'])->update([
 				'transaction_product_price_base' => $base_product,
 				'transaction_product_price_tax' => $tax_product,

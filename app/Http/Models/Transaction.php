@@ -10,6 +10,7 @@ namespace App\Http\Models;
 use Illuminate\Database\Eloquent\Model;
 use App\Lib\MyHelper;
 use App\Jobs\FraudJob;
+use Modules\Xendit\Entities\TransactionPaymentXendit;
 
 /**
  * Class Transaction
@@ -145,6 +146,11 @@ class Transaction extends Model
 	public function transaction_payment_midtrans()
 	{
 		return $this->hasOne(\App\Http\Models\TransactionPaymentMidtran::class, 'id_transaction');
+	}
+
+	public function transaction_payment_xendit()
+	{
+		return $this->hasOne(\App\Http\Models\TransactionPaymentXendit::class, 'id_transaction');
 	}
 
 	public function transaction_payment_offlines()
@@ -600,5 +606,69 @@ class Transaction extends Model
     public function getOrderIdAttribute()
     {
     	return $this->transaction_receipt_number;
+    }
+
+    public function recalculateTaxandMDR()
+    {
+    	$tax_percent = $this->outlet->is_tax ?: 0;
+    	$payment_type = $this->transaction_multiple_payment()->where('type', '<>', 'Balance')->get()->pluck('type')->first();
+
+    	switch ($payment_type) {
+    		case 'Midtrans':
+    			$payment = $this->transaction_payment_midtrans()->first();
+    			$payment_detail = optional($payment)->payment_type;
+    			break;
+    		case 'Xendit':
+    			$payment = $this->transaction_payment_xendit()->first();
+    			$payment_detail = optional($payment)->type;
+    			break;
+    	}
+
+        $products = TransactionProduct::where('id_transaction', $this->id_transaction)->get()->toArray();
+
+        //update mdr
+        if($payment_type && $payment_detail){
+            $code = strtolower($payment_type.'_'.$payment_detail);
+            $settingmdr = Setting::where('key', 'mdr_formula')->first()['value_text']??'';
+            $settingmdr = (array)json_decode($settingmdr);
+            $formula = $settingmdr[$code]??'';
+            if(!empty($formula)){
+                try {
+                    $mdr = MyHelper::calculator($formula, ['transaction_grandtotal' => $this->transaction_grandtotal]);
+                    if(!empty($mdr)){
+                        $this->update(['mdr' => $mdr]);
+                        $count = count($products);
+                        $lastmdr = $mdr;
+                        // $sum = array_sum(array_column($products, 'transaction_product_subtotal'));
+                        $sum = $this->transaction_grandtotal;
+                        foreach ($products as $key=>$product){
+                            $index = $key+1;
+				            $price_plus_tax = $product['transaction_product_price'] - ($product['transaction_product_discount_all'] / $product['transaction_product_qty']);
+                            if($count == $index){
+                                $mdrProduct = $lastmdr;
+                            }else{
+                                $mdrProduct = (($price_plus_tax * $product['transaction_product_qty']) * $mdr) / $sum;
+                                $lastmdr = $lastmdr - $mdrProduct;
+                            }
+                            TransactionProduct::where('id_transaction_product', $product['id_transaction_product'])->update(['mdr_product' => $mdrProduct]);
+                        }
+                    }
+                } catch (\Exception $e) {
+                }
+            }
+        }
+
+    	// update tax
+    	$tax = round(($this->transaction_grandtotal * $tax_percent / (100 + $tax_percent)), 2);
+        foreach ($products as $key => $product) {
+            $price_plus_tax = $product['transaction_product_price'] - ($product['transaction_product_discount_all'] / $product['transaction_product_qty']);
+        	$tax_product = round(($price_plus_tax * $tax_percent / (100 + $tax_percent)), 2);
+        	$base_product = $price_plus_tax - $tax_product;
+            TransactionProduct::where('id_transaction_product', $product['id_transaction_product'])->update([
+				'transaction_product_price_base' => $base_product,
+				'transaction_product_price_tax' => $tax_product,
+            ]);
+        }
+        $this->update(['transaction_tax' => $tax]);
     }
 }

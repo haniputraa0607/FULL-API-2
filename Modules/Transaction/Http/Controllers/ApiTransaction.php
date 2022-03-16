@@ -6090,6 +6090,11 @@ class ApiTransaction extends Controller
                             ->join('transaction_outlet_services','transaction_outlet_services.id_transaction','=','transactions.id_transaction')
                             ->leftJoin('partners','partners.id_partner','=','locations.id_partner'); 
 
+            $outlets_cash = Outlet::join('locations','locations.id_location','=','outlets.id_location')
+                            ->join('transactions','transactions.id_outlet','=','outlets.id_outlet')
+                            ->join('transaction_outlet_services','transaction_outlet_services.id_transaction','=','transactions.id_transaction')
+                            ->leftJoin('partners','partners.id_partner','=','locations.id_partner');
+
             $outlets_mid->join('transaction_payment_midtrans','transaction_payment_midtrans.id_transaction','=','transactions.id_transaction')->whereDate('transaction_outlet_services.completed_at', '=', $date_trans)->where('transactions.flag_icount','0');
             $outlets_mid->select('outlets.*','partners.*','locations.*','transaction_payment_midtrans.id_transaction_payment','transaction_payment_midtrans.payment_type','transaction_outlet_services.completed_at')->groupBy('outlets.id_outlet','transaction_payment_midtrans.payment_type')->orderBy('outlets.id_outlet', 'DESC');
             $outlets_mid =  $outlets_mid->get()->toArray();
@@ -6098,6 +6103,10 @@ class ApiTransaction extends Controller
             $outlets_xen->select('outlets.*','partners.*','locations.*','transaction_payment_xendits.id_transaction_payment_xendit','transaction_payment_xendits.type','transaction_outlet_services.completed_at')->groupBy('outlets.id_outlet','transaction_payment_xendits.type')->orderBy('outlets.id_outlet', 'DESC');
             $outlets_xen =  $outlets_xen->get()->toArray();
 
+            $outlets_cash->join('transaction_payment_cash','transaction_payment_cash.id_transaction','=','transactions.id_transaction')->whereDate('transaction_outlet_services.completed_at', '=', $date_trans)->where('transactions.flag_icount','0');
+            $outlets_cash->select('outlets.*','partners.*','locations.*','transaction_payment_cash.id_transaction_payment_cash','transaction_outlet_services.completed_at')->groupBy('outlets.id_outlet')->orderBy('outlets.id_outlet', 'DESC');
+            $outlets_cash =  $outlets_cash->get()->toArray();
+            
             $outlets = [];
             if($outlets_mid){
                 foreach($outlets_mid as $key => $mid){
@@ -6115,6 +6124,14 @@ class ApiTransaction extends Controller
                     }
                 }
             }
+            if($outlets_cash){
+                foreach($outlets_cash as $cash){
+                    if(isset($cash) && !empty($cash)){
+                        $outlets[$index_outlets] = $cash;
+                        $index_outlets++;
+                    }
+                }
+            }
             $i = 0;
 
             foreach($outlets as $key => $outlet){
@@ -6123,12 +6140,15 @@ class ApiTransaction extends Controller
                                 ->leftJoin('transaction_products','transaction_products.id_transaction','transactions.id_transaction')
                                 ->leftJoin('users','transactions.id_user','=','users.id')
                                 ->leftJoin('products','products.id_product','=','transaction_products.id_product');
+
                 if(isset($outlet['id_transaction_payment'])){
                     $transaction->join('transaction_payment_midtrans','transaction_payment_midtrans.id_transaction','=','transactions.id_transaction');
                     $group = 'transaction_payment_midtrans.payment_type';
                 }elseif(isset($outlet['id_transaction_payment_xendit'])){
                     $transaction->join('transaction_payment_xendits','transaction_payment_xendits.id_transaction','=','transactions.id_transaction');
                     $group = 'transaction_payment_xendits.type';
+                }elseif(isset($outlet['id_transaction_payment_cash'])){
+                    $transaction->join('transaction_payment_cash','transaction_payment_cash.id_transaction','=','transactions.id_transaction');
                 }
                 $transaction->whereDate('transaction_outlet_services.completed_at', '=', $date_trans)->where('transactions.flag_icount','0')->where('outlets.id_outlet', '=', $outlet['id_outlet'])->where('transactions.transaction_payment_status','Completed')->whereNotNull('transaction_outlet_services.completed_at');
                 
@@ -6146,8 +6166,11 @@ class ApiTransaction extends Controller
                                         ELSE 0 END
                                         ) as discRp
                                     '))
-                            ->groupBy('transactions.id_transaction','transaction_products.id_transaction_product',$group);  
+                            ->groupBy('transactions.id_transaction','transaction_products.id_transaction_product');  
 
+                if(!isset($outlet['id_transaction_payment_cash'])){
+                    $transaction->groupBy($group);
+                }
                 $outlets[$key]['trans_date'] = $date_trans;
                 $outlets[$key]['due_date'] = $date_trans;
                 $transaction->orderBy('transactions.id_transaction', 'DESC');
@@ -6194,19 +6217,11 @@ class ApiTransaction extends Controller
 
                         if($tran['transaction_tax']==0){
                             $new_transaction_non[$new_trans_non] = $tran;
-                            if($tran['transaction_discount_bill']!=0 && $tran['transaction_product_discount'] != 0){
-                                $new_transaction_non[$new_trans_non]['discRp'] = floor($tran['discRp'] + ($tran['transaction_discount_bill'] * $tran['transaction_product_price'] / $tran['total_product']));
-                            }elseif($tran['transaction_discount_bill']!=0){
-                                $new_transaction_non[$new_trans_non]['discRp'] = floor($tran['discRp'] * $tran['transaction_product_price'] / $tran['total_product']);
-                            }
+                            $new_transaction_non[$new_trans_non]['total_price'] = $tran['transaction_subtotal'] - $tran['transaction_product_discount'] - $tran['transaction_discount_bill'];
                             $new_trans_non++;
                         }else{
                             $new_transaction[$new_trans_use] = $tran;
-                            if($tran['transaction_discount_bill']!=0 && $tran['transaction_product_discount'] != 0){
-                                $new_transaction[$new_trans_use]['discRp'] = floor($tran['discRp'] + ($tran['transaction_discount_bill'] * $tran['transaction_product_price'] / $tran['total_product']));
-                            }elseif($tran['transaction_discount_bill']!=0){
-                                $new_transaction[$new_trans_use]['discRp'] = floor($tran['discRp'] * $tran['transaction_product_price'] / $tran['total_product']);
-                            }
+                            $new_transaction[$new_trans_use]['total_price'] = $tran['transaction_subtotal'] - $tran['transaction_product_discount'] - $tran['transaction_discount_bill'];
                             $new_trans_use++;
                         }
 
@@ -6216,21 +6231,23 @@ class ApiTransaction extends Controller
                         $new_outlets[$new] = $outlet;
                         $new_outlets[$new]['transaction'] = $new_transaction;
                         $new_outlets[$new]['ppn'] = 10;
+                        $new++;
+
                     }
                     if($new_transaction_non){
-                        $new = $new + 1;
                         $new_outlets[$new] = $outlet;
                         $new_outlets[$new]['transaction'] = $new_transaction_non;
                         $new_outlets[$new]['ppn'] = 0;
+                        $new++;
                     }
                 }
-                $new++;
             }   
 
             $create_order_poo= [];
             foreach($new_outlets as $n => $new_outlet){
                     $create_order_poo[$n] = Icount::ApiCreateOrderPOO($new_outlet, $new_outlet['company_type']);
             }
+
             foreach($create_order_poo as $c => $poo){
                 if($poo['status_code'] == 200 && $poo['response']['Message'] == 'success'){
                     foreach($new_outlets[$c]['transaction'] as $detail_trans){
@@ -6238,7 +6255,7 @@ class ApiTransaction extends Controller
                     }
                 }
             }
-            
+
             $log->success('success');
             return response()->json(['status' => 'success','data' => $create_order_poo]);
 

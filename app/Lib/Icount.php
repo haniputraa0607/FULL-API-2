@@ -348,15 +348,22 @@ class Icount
                     }
                 }
                 $data['ReferenceNo'] = strtoupper($request['type']);
+            }elseif(isset($request['id_transaction_payment_cash'])){
+                $request['type'] = ucfirst(strtolower('Cash'));
+                foreach($availablePayment as $a => $paymentc){
+                    if(strtolower($paymentc['payment_method']) == strtolower($request['type']) && $paymentc['payment_gateway'] == 'Cash'){
+                        $data['ChartOfAccountID'] = ChartOfAccount::where('id_chart_of_account',$paymentc['chart_of_account_id'])->first()['ChartOfAccountID'];
+                    }
+                }
+                $data['ReferenceNo'] = strtoupper($request['type']);
             }
             
             $transactions = [];
             foreach($request['transaction'] as $key => $transaction){
-                if(!isset($transactions[$transaction['id_product']])){
-                    $transactions[$transaction['id_product']] = $transaction;
+                if(!isset($transactions[$transaction['id_product'].$transaction['total_price']])){
+                    $transactions[$transaction['id_product'].$transaction['total_price']] = $transaction;
                 }else{
-                    $transactions[$transaction['id_product']]['transaction_product_qty'] += $transaction['transaction_product_qty'];
-                    $transactions[$transaction['id_product']]['discRp'] += $transaction['discRp'];
+                    $transactions[$transaction['id_product'].$transaction['total_price']]['transaction_product_qty'] += $transaction['transaction_product_qty'];
                 }
             }
             $key = 0;
@@ -368,9 +375,9 @@ class Icount
                     "Qty" => $transaction['transaction_product_qty'],
                     "Unit" => "PCS",
                     "Ratio" => "1",
-                    "Price" => $transaction['transaction_product_price_base'] != $transaction['transaction_product_price'] ? $transaction['transaction_product_price'] * 100 /110 : $transaction['transaction_product_price_base'],
+                    "Price" => $transaction['total_price'],
                     "Disc" => "0",
-                    "DiscRp" => $transaction['discRp'] / $transaction['transaction_product_qty'],
+                    "DiscRp" => "0",
                     "Description" => ""
                 ];
                 $data['MDRFee'] += $transaction['mdr_product'];
@@ -384,6 +391,7 @@ class Icount
                     $data['BranchID'] = $request['id_branch_ima']; 
                 }
             }
+
             return self::sendRequest('POST', '/sales/create_order_poo', $data, $company, $logType, $orderId);
         }else{
             $data = [];

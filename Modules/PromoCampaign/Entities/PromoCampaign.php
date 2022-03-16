@@ -68,7 +68,6 @@ class PromoCampaign extends Eloquent
 		'last_updated_by',
 		'campaign_name',
 		'promo_title',
-        'promo_campaign_description',
 		'promo_image',
 		'code_type',
 		'prefix_code',

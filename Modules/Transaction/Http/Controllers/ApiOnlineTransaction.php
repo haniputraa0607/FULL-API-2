@@ -110,6 +110,7 @@ use Modules\ProductVariant\Entities\ProductVariant;
 use App\Http\Models\TransactionMultiplePayment;
 use Modules\ProductBundling\Entities\Bundling;
 use Modules\Transaction\Entities\HairstylistNotAvailable;
+use Modules\Xendit\Entities\TransactionPaymentXendit;
 
 class ApiOnlineTransaction extends Controller
 {
@@ -2962,7 +2963,10 @@ class ApiOnlineTransaction extends Controller
         }
 
         if($trx->transaction_payment_status != 'Pending'){
-            return MyHelper::checkGet([],'Transaction cannot be canceled');
+            return [
+                'status'=>'fail',
+                'messages' => ['Transaksi tidak dapat dibatalkan.']
+            ];
         }
         $user = $request->user();
         $payment_type = $trx->trasaction_payment_type;
@@ -2989,9 +2993,31 @@ class ApiOnlineTransaction extends Controller
                     'messages' => $errors?:['Something went wrong']
                 ];
             case 'midtrans':
-                Midtrans::expire($trx->transaction_receipt_number);
-                $trx->triggerPaymentCancelled();
-                return ['status'=>'success'];
+                $midtransStatus = Midtrans::status($trx['id_transaction']);
+                if ((($midtransStatus['status'] ?? false) == 'fail' && ($midtransStatus['messages'][0] ?? false) == 'Midtrans payment not found') || in_array(($midtransStatus['response']['transaction_status'] ?? false), ['deny', 'cancel', 'expire', 'failure']) || ($midtransStatus['status_code'] ?? false) == '404') {
+                    $connectMidtrans = Midtrans::expire($trx['transaction_receipt_number']);
+
+                    if($connectMidtrans){
+                        $trx->triggerPaymentCancelled();
+                        return ['status'=>'success', 'result' => ['message' => 'Pembayaran berhasil dibatalkan']];
+                    }
+                }
+            case 'xendit':
+                $dtXendit = TransactionPaymentXendit::where('id_transaction', $trx['id_transaction'])->first();
+                $status = app('Modules\Xendit\Http\Controllers\XenditController')->checkStatus($dtXendit->xendit_id, $dtXendit->type);
+
+                if ($status && $status['status'] == 'PENDING' && !empty($status['id'])) {
+                    $cancel = app('Modules\Xendit\Http\Controllers\XenditController')->expireInvoice($status['id']);
+
+                    if($cancel){
+                        $trx->triggerPaymentCancelled();
+                        return ['status'=>'success', 'result' => ['message' => 'Pembayaran berhasil dibatalkan']];
+                    }
+                }
+                return [
+                    'status'=>'fail',
+                    'messages' => ['Transaksi tidak dapat dibatalkan karena proses pembayaran sedang berlangsung']
+                ];
         }
         return ['status' => 'fail', 'messages' => ["Cancel $payment_type transaction is not supported yet"]];
     }

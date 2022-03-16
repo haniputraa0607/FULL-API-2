@@ -71,6 +71,7 @@ use Modules\ProductService\Entities\ProductServiceUse;
 use Modules\Product\Entities\ProductCommissionDefault;
 use Modules\Product\Http\Requests\product\Commission;
 use App\Jobs\SyncIcountItems;
+use Modules\Product\Entities\ProductCatalogDetail;
 
 class ApiProductController extends Controller
 {
@@ -2254,7 +2255,6 @@ class ApiProductController extends Controller
             ->where('brand_outlet.id_outlet', '=', $outlet['id_outlet'])
             ->where('brand_product.id_brand', '=', $brand['id_brand'])
             ->where('product_type', 'service')
-            ->where('available_home_service', 0)
             ->whereRaw('products.id_product in (CASE
                         WHEN (select product_detail.id_product from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . '  order by id_product_detail desc limit 1)
                         is NULL AND products.product_visibility = "Visible" THEN products.id_product
@@ -3353,6 +3353,25 @@ class ApiProductController extends Controller
         }
 
         $product = $product->toArray();
+
+        if(isset($post['catalog'])){
+            $catalog = ProductCatalogDetail::where('id_product_catalog',$post['catalog'])->get()->toArray();
+            $new_product = [];
+            foreach($product as $val){
+                $check = false;
+                foreach($catalog as $cat){
+                    if($val['id_product_icount'] == $cat['id_product_icount']){
+                        $check = true;
+                        $val['budget_code'] = $cat['budget_code'];
+                    }
+                }
+                if($check){
+                    $new_product[] = $val;
+                }
+            }
+            return $new_product;
+
+        }
 
         return response()->json(MyHelper::checkGet($product));
     }

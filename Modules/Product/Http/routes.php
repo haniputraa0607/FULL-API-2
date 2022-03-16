@@ -197,6 +197,7 @@ Route::group(['prefix' => 'api/req-product','middleware' => ['log_activities','a
     Route::post('update', 'ApiRequestProductController@update');
     Route::post('/', 'ApiRequestProductController@index');
     Route::any('all', 'ApiRequestProductController@all');
+    Route::any('list-catalog', 'ApiRequestProductController@listCatalog');
 });
 
 Route::group(['prefix' => 'api/icount/req-product', 'namespace' => 'Modules\Product\Http\Controllers'], function() {

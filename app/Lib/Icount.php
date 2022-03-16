@@ -380,7 +380,7 @@ class Icount
                     "DiscRp" => "0",
                     "Description" => ""
                 ];
-                $data['MDRFee'] += $transaction['mdr_product'];
+                $data['MDRFee'] += $transaction['mdr_product'] * $transaction['transaction_product_qty'];
                 $key++;
             }
             if($company=='PT IMA'){

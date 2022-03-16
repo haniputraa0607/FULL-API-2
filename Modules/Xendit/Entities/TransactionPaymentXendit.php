@@ -46,6 +46,7 @@ class TransactionPaymentXendit extends Model
             'transaction_from' => $this->transaction->transaction_from,
         ], $errors);
         if ($create) {
+            $this->xendit_id = $create['id'] ?? null;
             $this->business_id = $create['business_id'] ?? null;
             $this->checkout_url = $create['invoice_url'] ?? null;
             $this->external_id = $create['external_id'] ?? $this->external_id;

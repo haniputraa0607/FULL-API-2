@@ -2254,7 +2254,6 @@ class ApiProductController extends Controller
             ->where('brand_outlet.id_outlet', '=', $outlet['id_outlet'])
             ->where('brand_product.id_brand', '=', $brand['id_brand'])
             ->where('product_type', 'service')
-            ->where('available_home_service', 0)
             ->whereRaw('products.id_product in (CASE
                         WHEN (select product_detail.id_product from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . '  order by id_product_detail desc limit 1)
                         is NULL AND products.product_visibility = "Visible" THEN products.id_product

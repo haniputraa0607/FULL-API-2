@@ -553,4 +553,15 @@ class XenditController extends Controller
             return false;
         }
     }
+
+    public function expireInvoice($id, &$errors = []){
+        CustomHttpClient::setLogType('expire_invoice');
+        CustomHttpClient::setIdReference($id);
+        try {
+            return \Xendit\Invoice::expireInvoice($id);
+        } catch (\Exception $e) {
+            $errors[] = $e->getMessage();
+            return false;
+        }
+    }
 }

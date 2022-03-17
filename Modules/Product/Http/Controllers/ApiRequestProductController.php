@@ -294,7 +294,7 @@ class ApiRequestProductController extends Controller
                         $save_detail = $this->saveDetail($post, $cek_input['product_icount']);
                         if (!$save_detail) {
                             DB::rollback();
-                            return response()->json(['status' => 'fail', 'messages' => ['Failed add request hair stylist']]);
+                            return response()->json(['status' => 'fail', 'messages' => ['Failed update request product']]);
                         }
                     }else{
                         RequestProductDetail::where('product_icount', $post['product_icount'])->delete();
@@ -417,11 +417,14 @@ class ApiRequestProductController extends Controller
         if (isset($data['note_request'])) {
             $store_request['note_request'] = $data['note_request'];
         }
-        if (isset($data['id_user_approve'])) {
-            $store_request['id_user_approve'] = $data['id_user_approve'];
-        }
+        
+        $store_request['id_user_approve'] = auth()->user()->id;
+
         if (isset($data['note_approve'])) {
             $store_request['note_approve'] = $data['note_approve'];
+        }
+        if (isset($data['status'])) {
+            $store_request['status'] = $data['status'];
         }
         if (isset($data['product_icount'])) {
             $v_status = true;
@@ -436,13 +439,13 @@ class ApiRequestProductController extends Controller
                     $v_status = false;
                 }
 
-                if($product['status'] != 'Approved'){
-                    $data['product_icount'][$key]['status'] = 'Rejected';
-                }
-
             }
             if($v_status){
                 $status = 'Completed By User';
+            }else{
+                if (isset($data['status'])) {
+                    $status = $data['status'];
+                }
             }
             if($reject){
                 $status = 'Rejected';

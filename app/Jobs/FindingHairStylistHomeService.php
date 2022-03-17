@@ -66,6 +66,13 @@ class FindingHairStylistHomeService implements ShouldQueue
 
             if($trxHomeService['preference_hair_stylist'] == 'Favorite'){
                 $getHs = $arrHS[0]??null;
+                if(!empty($getHs)){
+                    $hs = UserHairStylist::where('id_user_hair_stylist', $getHs)->where('user_hair_stylist_status', 'Active')->first();
+                    if($hs['home_service_status'] == 0){
+                        TransactionHomeServiceHairStylistFinding::where('id_transaction', $data['id_transaction'])->where('id_user_hair_stylist', $hs['id_user_hair_stylist'])->update(['status' => 'Reject']);
+                        $getHs = null;
+                    }
+                }
             }else{
                 foreach ($arrHS as $idHs){
                     $err = [];
@@ -78,6 +85,12 @@ class FindingHairStylistHomeService implements ShouldQueue
                         $hs = UserHairStylist::where('id_user_hair_stylist', $idHs)->where('user_hair_stylist_status', 'Active')->first();
                         if(empty($hs)){
                             $err[] = "Outlet hair stylist not found";
+                            continue;
+                        }
+
+                        if($hs['home_service_status'] == 0){
+                            $err[] = "Status home service inactive";
+                            TransactionHomeServiceHairStylistFinding::where('id_transaction', $data['id_transaction'])->where('id_user_hair_stylist', $hs['id_user_hair_stylist'])->update(['status' => 'Reject']);
                             continue;
                         }
 

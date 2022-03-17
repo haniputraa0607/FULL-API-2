@@ -234,14 +234,14 @@ class ApiDashboardController extends Controller
                $before = [];
                $now = [];
                $lastyear = [];
-               $s = 4;
+               $i = 0;
                $array= array();
-               for ($i = 0; $i == $s; $s--) {
+               for ($s = 4; $s >= $i; $s--) {
                    $bulan = date('M',strtotime('-'.$s.'month'.$request->dari));
                    $awal = date('Y-m-01',strtotime('-'.$s.'month'.$request->dari));
                    $akhir = date('Y-m-t',strtotime('-'.$s.'month'.$request->dari));
                    $n_now = $transaction = Transaction::where(array('id_outlet'=>$request->id_outlet))
-                       ->wheredate('transactions.transaction_date',$date_now)
+                       ->whereBetween('transactions.transaction_date',[$awal,$akhir])
                        ->where('transaction_outlet_services.reject_at', NULL)
                            ->where('transactions.transaction_payment_status', 'Completed')
                        ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
@@ -252,16 +252,13 @@ class ApiDashboardController extends Controller
                        $angka_now += $value['transaction_gross'];
                    }
                    $n_before = $transaction = Transaction::where(array('id_outlet'=>$request->id_outlet))
-                       ->wheredate('transactions.transaction_date',$date_before)
+                       ->whereBetween('transactions.transaction_date',[$awal,$akhir])
                        ->where('transaction_outlet_services.reject_at', NULL)
                            ->where('transactions.transaction_payment_status', 'Completed')
                        ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
                        ->join('transaction_product_services', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
                        ->count();
-                   $angka_before = 0;
-                   foreach ($n_before as $value) {
-                       $angka_before += $value['transaction_gross'];
-                   }
+                   $angka_before = $n_before;
                    if($angka_before == 0 && $angka_now==0){
                        $average = 0;
                    }else{

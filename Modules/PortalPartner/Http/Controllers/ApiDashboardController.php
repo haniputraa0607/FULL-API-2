@@ -39,7 +39,6 @@ class ApiDashboardController extends Controller
                                         transaction_products.id_product
                                         ) as jml
                                     '))
-                       ->orderby('jml','DESC')
                        ->get();
        return response()->json(['status' => 'success', 'result' => $transaction]);  
        }else{

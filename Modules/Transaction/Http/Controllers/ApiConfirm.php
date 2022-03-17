@@ -79,6 +79,10 @@ class ApiConfirm extends Controller
         $productMidtrans   = [];
         $dataDetailProduct = [];
 
+        // refresh tax and mdr
+        $trx = Transaction::find($post['id']);
+        optional($trx)->recalculateTaxandMDR();
+
         $check = Transaction::with('transaction_shipments', 'productTransaction.product', 'productTransaction.product_variant_group','outlet_name', 'transaction_payment_subscription')->where('id_transaction', $post['id'])->first();
 
         if (empty($check)) {

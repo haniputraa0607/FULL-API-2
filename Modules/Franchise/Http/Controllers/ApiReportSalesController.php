@@ -21,7 +21,6 @@ class ApiReportSalesController extends Controller
         if(!$request->id_outlet){
         	return response()->json(['status' => 'fail', 'messages' => ['ID outlet can not be empty']]);
         }
-
     	$report = Transaction::where('transactions.id_outlet', $request->id_outlet)
     				->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
 					->select(DB::raw('
@@ -42,15 +41,22 @@ class ApiReportSalesController extends Controller
 							+ CASE WHEN transactions.transaction_discount_delivery IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_delivery) ELSE 0 END
 							+ CASE WHEN transactions.transaction_discount_bill IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_bill) ELSE 0 END
 						) as total_discount,
+                                                 #total_subtotal_complete_payment
+                                                COUNT(CASE WHEN transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" THEN 1 ELSE 0 END) as total_subtotal_complete_payment,
+                                                
+                                                # total_grandtotal_complete_payment
+						COUNT(CASE WHEN transactions.transaction_grandtotal IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed"  THEN 1 ELSE 0 END) as total_grandtotal_complete_payment,
 
 						# grandtotal
 						SUM(CASE WHEN transactions.transaction_grandtotal IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN transactions.transaction_grandtotal ELSE 0 END) as total_grandtotal,
 
 						# payment complete
-						COUNT(CASE WHEN transactions.transaction_payment_status = "Completed" THEN 1 ELSE NULL END) as total_complete_payment,
+						sum(CASE WHEN transactions.transaction_payment_status = "Completed" THEN 1 ELSE NULL END) as total_complete_payment,
 
-                        #accept
-                        COUNT(CASE WHEN transactions.id_transaction AND transaction_outlet_services.reject_at IS NULL THEN 1 ELSE NULL END) as total_accept
+                                                #accept
+                                                COUNT(CASE WHEN transactions.id_transaction AND transaction_outlet_services.reject_at IS NULL THEN 1 ELSE NULL END) as total_accept
+                                                
+                                               
 					'));
 
         if(isset($post['filter_type']) && $post['filter_type'] == 'range_date'){
@@ -80,16 +86,16 @@ class ApiReportSalesController extends Controller
     	}*/
 
     	$result = [
+            'total_transaction' => [
+                'title' => 'Total Order ',
+                'amount' => number_format($report['total_transaction']??0,0,",","."),
+                "tooltip" => 'Jumlah semua transaksi',
+                "show" => 1
+            ],
             'total_subtotal' => [
                 'title' => 'Penjualan Kotor',
                 'amount' => 'Rp. '.number_format($report['total_subtotal']??0,0,",","."),
                 "tooltip" => 'Total nominal transaksi sebelum dipotong diskon',
-                "show" => 1
-            ],
-            'total_discount' => [
-                'title' => 'Total Diskon',
-                'amount' => 'Rp. '.number_format($report['total_discount']??0,0,",","."),
-                "tooltip" => 'Total diskon transaksi (diskon produk dan diskon bill)',
                 "show" => 1
             ],
             'total_grandtotal' => [
@@ -98,24 +104,24 @@ class ApiReportSalesController extends Controller
                 "tooltip" => 'Total nominal transaksi setelah dipotong diskon dan ditambah pajak',
                 "show" => 1
             ],
-            'total_complete_payment' => [
+             'total_complete_payment' => [
                 'title' => 'Pembayaran Sukses',
                 'amount' => number_format($report['total_complete_payment']??0,0,",","."),
                 "tooltip" => 'jumlah transaksi dengan status pembayaran sukses (mengabaikan status reject order)',
                 "show" => 1
             ],
-    		'total_transaction' => [
-                'title' => 'Total Order',
-                'amount' => number_format($report['total_transaction']??0,0,",","."),
-                "tooltip" => 'Jumlah semua transaksi',
+            'total_subtotal_complete_payment' => [
+                'title' => 'Penjualan Kotor (Pembayaran Sukses)',
+                'amount' => number_format($report['total_subtotal_complete_payment']??0,0,",","."),
+                "tooltip" => 'Total nominal transaksi sebelum dipotong diskon dengan status pembayaran sukses',
                 "show" => 1
             ],
-            'total_accept' => [
-                'title' => 'Order Diterima',
-                'amount' => number_format($report['total_accept']??0,0,",","."),
-                "tooltip" => 'Jumlah transaksi yang diterima oleh outlet',
+            'total_grandtotal_complete_payment' => [
+                'title' => 'Penjualan Bersih (Pembayaran Sukses)',
+                'amount' => number_format($report['total_grandtotal_complete_payment']??0,0,",","."),
+                "tooltip" => 'Total nominal transaksi setelah dipotong diskon dan ditambah pajak dengan status pembayaran sukses',
                 "show" => 1
-            ]
+            ],
     	];
 
         return MyHelper::checkGet($result);

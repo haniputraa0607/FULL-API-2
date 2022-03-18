@@ -3,6 +3,8 @@
 namespace Modules\Transaction\Entities;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Http\Models\Transaction;
+use Modules\Franchise\Entities\TransactionProduct;
 
 class TransactionAcademy extends \App\Http\Models\Template\TransactionService
 {
@@ -12,6 +14,7 @@ class TransactionAcademy extends \App\Http\Models\Template\TransactionService
 
     protected $fillable   = [
         'id_transaction',
+        'final_score',
         'payment_method',
         'total_installment',
         'amount_completed',
@@ -46,6 +49,13 @@ class TransactionAcademy extends \App\Http\Models\Template\TransactionService
                 'amount_completed' => $this->amount_completed + $data['amount'],
                 'amount_not_completed' => $this->amount_not_completed - $data['amount']
             ]);
+
+            if(!empty($data['mdr_payment_installment'])){
+                $trx = Transaction::where('id_transaction', $this->id_transaction)->first();
+                $trx->update(['mdr' => $trx['mdr'] + $data['mdr_payment_installment']]);
+                $trxAcademy = TransactionProduct::where('id_transaction', $this->id_transaction)->first();
+                $trxAcademy->update(['mdr_product' => $trxAcademy['mdr_product'] + $data['mdr_payment_installment']]);
+            }
         }
     }
 }

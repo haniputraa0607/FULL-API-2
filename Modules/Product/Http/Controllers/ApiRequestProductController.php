@@ -13,7 +13,19 @@ use DB;
 use Modules\Product\Entities\DeliveryProduct;
 use Modules\Product\Entities\DeliveryProductDetail;
 use Modules\Product\Entities\DeliveryRequestProduct;
+use Modules\Product\Entities\ProductCatalog;
 use Monolog\Handler\NullHandler;
+use App\Lib\Icount;
+use Modules\BusinessDevelopment\Entities\ConfirmationLetter;
+use Modules\BusinessDevelopment\Entities\Location;
+use Modules\BusinessDevelopment\Entities\Partner;
+use Modules\Project\Entities\InvoiceSpk;
+use Modules\Project\Entities\Project;
+use Validator;
+use Modules\Product\Http\Requests\CallbackRequest;
+use App\Http\Models\Setting;
+use App\Http\Models\User;
+
 
 class ApiRequestProductController extends Controller
 {
@@ -34,12 +46,13 @@ class ApiRequestProductController extends Controller
         $post = $request->all();
 
         $request_product = RequestProduct::join('users','users.id','=','request_products.id_user_request')
-                                         ->join('outlets','outlets.id_outlet','=','request_products.id_outlet')
-                                         ->select(
+                                        ->join('outlets','outlets.id_outlet','=','request_products.id_outlet')
+                                        ->with(['request_product_user_approve' => function($u){$u->select('id','name');}])
+                                        ->select(
                                             'request_products.*',
                                             'outlets.outlet_name',
                                             'users.name',
-                                         );
+                                        );
 
         if(isset($post['conditions']) && !empty($post['conditions'])){
             $rule = 'and';
@@ -96,6 +109,9 @@ class ApiRequestProductController extends Controller
         if (!empty($post)) {
             if (isset($post['id_outlet'])) {
                 $store_request['id_outlet'] = $post['id_outlet'];
+            }
+            if (isset($post['id_product_catalog'])) {
+                $store_request['id_product_catalog'] = $post['id_product_catalog'];
             }
             if (isset($post['type'])) {
                 $store_request['type'] = $post['type'];
@@ -177,16 +193,26 @@ class ApiRequestProductController extends Controller
         $data_detail = [];
 
         foreach ($detail as $value) {
-            if(!isset($value['status']) && empty($value['status'])){
-                $value['status'] = NULL;   
+            if(isset($value['id_product_icount']) && isset($value['unit']) && isset($value['qty'])){
+                if(!isset($value['status']) && empty($value['status'])){
+                    $value['status'] = NULL;   
+                    if(isset($data['id_request_product'])){
+                        $value['status'] = 'Pending';
+                    }
+                }
+                $push =  [
+                    $col 	=> $id_req,
+                    'id_product_icount'  => $value['id_product_icount'],
+                    'unit'  => $value['unit'],
+                    'value'  => $value['qty'],
+                    'filter'  => $value['filter'],
+                    'status'  => $value['status'],
+                ];
+                if(isset($data['id_request_product'])){
+                    $push['budget_code'] = $value['budget_code'];
+                }
+                array_push($data_detail, $push);
             }
-            array_push($data_detail, [
-                $col 	=> $id_req,
-                'id_product_icount'  => $value['id_product_icount'],
-                'unit'  => $value['unit'],
-                'value'  => $value['qty'],
-                'status'  => $value['status'],
-            ]);
         }
 
         if (!empty($data_detail)) {
@@ -229,7 +255,9 @@ class ApiRequestProductController extends Controller
     {
         $post = $request->all();
         if(isset($post['id_request_product']) && !empty($post['id_request_product'])){
-            $request_product = RequestProduct::where('id_request_product', $post['id_request_product'])->with(['request_product_detail','request_product_user_request','request_product_user_approve','request_product_outlet'])->first();
+            $request_product = RequestProduct::join('product_catalogs','product_catalogs.id_product_catalog','=','request_products.id_product_catalog')
+                            ->where('id_request_product', $post['id_request_product'])->select('request_products.*','product_catalogs.id_product_catalog','product_catalogs.name as catalog_name')
+                            ->with(['request_product_detail','request_product_user_request','request_product_user_approve','request_product_outlet','request_product_outlet.location_outlet'])->first();
             if($request_product==null){
                 return response()->json(['status' => 'success', 'result' => [
                     'request_product' => 'Empty',
@@ -254,6 +282,7 @@ class ApiRequestProductController extends Controller
     {
         $post = $request->all();
         if (!empty($post)) {
+            $old_data = RequestProduct::where('id_request_product',$post['id_request_product'])->first();
             $cek_input = $this->checkInputUpdate($post);
             $store_request = $cek_input['store_request'];
             $cek_outlet = Outlet::where(['id_outlet'=>$store_request['id_outlet']])->first();
@@ -262,10 +291,10 @@ class ApiRequestProductController extends Controller
                 $update = RequestProduct::where('id_request_product',$post['id_request_product'])->update($store_request);
                 if($update) {
                     if (isset($post['product_icount'])) {
-                        $save_detail = $this->saveDetail($post, $post['product_icount']);
+                        $save_detail = $this->saveDetail($post, $cek_input['product_icount']);
                         if (!$save_detail) {
                             DB::rollback();
-                            return response()->json(['status' => 'fail', 'messages' => ['Failed add request hair stylist']]);
+                            return response()->json(['status' => 'fail', 'messages' => ['Failed update request product']]);
                         }
                     }else{
                         RequestProductDetail::where('product_icount', $post['product_icount'])->delete();
@@ -274,13 +303,85 @@ class ApiRequestProductController extends Controller
             } else {
                 return response()->json(['status' => 'fail', 'messages' => ['Id Outlet not found']]);
             }
+            if($store_request['status']=='Completed By User'){
+                $data_send['location'] = Location::where('id_location',$cek_outlet['id_location'])->first();
+                $data_send['location']['no_spk'] = $store_request['code'];
+                $data_send['location']['trans_date'] = date('Y-m-d');
+                $data_send['partner'] = Partner::where('id_partner',$data_send['location']['id_partner'])->first();
+                $data_send['confir'] = ConfirmationLetter::where('id_partner',$data_send['location']['id_partner'])->where('id_location',$data_send['location']['id_location'])->first();
+                $data_send["location_bundling"] = RequestProductDetail::where('id_request_product',$post['id_request_product'])->where('status','Approved')->join('product_icounts','product_icounts.id_product_icount','request_product_details.id_product_icount')->get()->toArray();
+                $data_send["location_bundling"] = array_map(function($val){
+                    $val['qty'] = $val['value'];
+                    unset($val['value']);
+                    return $val;
+                },$data_send['location_bundling']);
+                $project = Project::where('id_partner',$data_send['location']['id_partner'])->where('id_location',$data_send['location']['id_location'])->first();
+                $invoice = Icount::ApiPurchaseSPK($data_send,$data_send['location']['company_type']);
+                if($invoice['response']['Status']=='1' && $invoice['response']['Message']=='success'){
+                    $data_invoice = [
+                        'id_project'=>$project['id_project'],
+                        'id_request_product'=>$post['id_request_product'],
+                        'id_sales_invoice'=>$invoice['response']['Data'][0]['SalesInvoiceID']??null,
+                        'id_business_partner'=>$invoice['response']['Data'][0]['BusinessPartnerID'],
+                        'id_branch'=>$invoice['response']['Data'][0]['BranchID'],
+                        'dpp'=>$invoice['response']['Data'][0]['DPP']??null,
+                        'dpp_tax'=>$invoice['response']['Data'][0]['DPPTax']??null,
+                        'tax'=>$invoice['response']['Data'][0]['Tax']??null,
+                        'tax_value'=>$invoice['response']['Data'][0]['TaxValue']??null,
+                        'tax_date'=>date('Y-m-d H:i:s',strtotime($invoice['response']['Data'][0]['TaxDate']??date('Y-m-d'))),
+                        'netto'=>$invoice['response']['Data'][0]['Netto']??null,
+                        'amount'=>$invoice['response']['Data'][0]['Amount']??null,
+                        'outstanding'=>$invoice['response']['Data'][0]['Outstanding']??null,
+                        'value_detail'=>json_encode($invoice['response']['Data'][0]['Detail']),  
+                        'message'=>$invoice['response']['Message'],
+                    ];
+                    $input = InvoiceSpk::create($data_invoice);
+                    $update_request_pro = RequestProduct::where('id_request_product',$post['id_request_product'])->update(['id_purchase_request' => $invoice['response']['Data'][0]['PurchaseRequestID']]);
+                }else{
+                    return response()->json([
+                        'status'    => 'fail',
+                        'messages'  => ['Failed to send purchase to ICOUNT']
+                    ]);
+                }
+            }
             DB::commit();
-            if($store_request['status']!='Pending'){
+            $user_request = User::where('id',$store_request['id_user_request'])->first();
+            if($old_data['status'] == $store_request['status']){
                 if (\Module::collections()->has('Autocrm')) {
                 
                     $autocrm = app($this->autocrm)->SendAutoCRM(
                         'Update Request Product',
                         auth()->user()->phone,
+                    );
+                    // return $autocrm;
+                    if (!$autocrm) {
+                        return response()->json([
+                            'status'    => 'fail',
+                            'messages'  => ['Failed to send']
+                        ]);
+                    }
+                }
+            }else if($old_data['status'] == 'Pending' && $store_request['status'] == 'Completed By User'){
+                if (\Module::collections()->has('Autocrm')) {
+                    
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Product Request Approved by Admin',
+                        $user_request['phone'],
+                    );
+                    // return $autocrm;
+                    if (!$autocrm) {
+                        return response()->json([
+                            'status'    => 'fail',
+                            'messages'  => ['Failed to send']
+                        ]);
+                    }
+                }
+            }else if($old_data['status'] == 'Pending' && $store_request['status'] == 'Rejected'){
+                if (\Module::collections()->has('Autocrm')) {
+                    
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Product Request Rejected by Admin',
+                        $user_request['phone'],
                     );
                     // return $autocrm;
                     if (!$autocrm) {
@@ -316,29 +417,44 @@ class ApiRequestProductController extends Controller
         if (isset($data['note_request'])) {
             $store_request['note_request'] = $data['note_request'];
         }
-        if (isset($data['id_user_approve'])) {
-            $store_request['id_user_approve'] = $data['id_user_approve'];
-        }
+        
+        $store_request['id_user_approve'] = auth()->user()->id;
+
         if (isset($data['note_approve'])) {
             $store_request['note_approve'] = $data['note_approve'];
         }
+        if (isset($data['status'])) {
+            $store_request['status'] = $data['status'];
+        }
         if (isset($data['product_icount'])) {
-            $status = 'Pending';
             $v_status = true;
-            foreach($data['product_icount'] as $product){
-                if($product['status'] == 'Approved' || $product['status'] == 'Rejected'){
-                    $status = 'On Progress';
+            $reject = false;
+            foreach($data['product_icount'] as $key => $product){
+                if($product['status'] == 'Approved'){
+                    $status = 'Completed By User';
+                    $reject = false;
+                }else if($product['status'] == 'Rejected'){
+                    $reject = true;
                 }else{
                     $v_status = false;
                 }
+
             }
             if($v_status){
-                $status = 'Completed';
+                $status = 'Completed By User';
+            }else{
+                if (isset($data['status'])) {
+                    $status = $data['status'];
+                }
+            }
+            if($reject){
+                $status = 'Rejected';
             }
             $store_request['status'] = $status;
         }
         return [
             'store_request' => $store_request,
+            'product_icount' => $data['product_icount']
         ];
 
     }
@@ -591,7 +707,7 @@ class ApiRequestProductController extends Controller
     {
         $post = $request->all();
         if(isset($post['id_delivery_product']) && !empty($post['id_delivery_product'])){
-            $delivery_product = DeliveryProduct::where('id_delivery_product', $post['id_delivery_product'])->with(['delivery_product_detail','delivery_product_user_delivery','delivery_product_user_accept','delivery_product_outlet','delivery_request_products','request'])->first();
+            $delivery_product = DeliveryProduct::where('id_delivery_product', $post['id_delivery_product'])->with(['delivery_product_detail','delivery_product_user_delivery','delivery_product_user_accept','delivery_product_outlet','delivery_product_outlet.location_outlet','delivery_request_products','request'])->first();
             if($delivery_product==null){
                 return response()->json(['status' => 'success', 'result' => [
                     'delivery_product' => 'Empty',
@@ -682,5 +798,92 @@ class ApiRequestProductController extends Controller
             'store_request' => $store_request,
         ];
 
+    }
+
+    public function callbackRequest(CallbackRequest $request){
+        $post = $request->all();
+
+        if($post['status'] == 'Approve'){
+            $status = 'Completed By Finance';
+        }else if($post['status'] == 'Reject'){
+            $status = 'Rejected';
+        }
+        $update = RequestProduct::where('id_purchase_request', $post['PurchaseInvoiceID'])->where('status','!=','Completed By Finance')->update(['status'=>$status]);
+        if($update){
+            $data_req = RequestProduct::where('id_purchase_request', $post['PurchaseInvoiceID'])->first();
+            $user_req = User::where('id',$data_req['id_user_request'])->first();
+            $user_approve = User::where('id',$data_req['id_user_approve'])->first();
+
+            if($status == 'Completed By Finance'){
+                if (\Module::collections()->has('Autocrm')) {
+                
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Product Request Approved by Finance',
+                        $user_req['phone'],
+                    );
+                    // return $autocrm;
+                    if (!$autocrm) {
+                        return response()->json([
+                            'status'    => 'fail',
+                            'messages'  => ['Failed to send']
+                        ]);
+                    }
+                }
+
+                if (\Module::collections()->has('Autocrm')) {
+                
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Product Request Approved by Finance',
+                        $user_approve['phone'],
+                    );
+                    // return $autocrm;
+                    if (!$autocrm) {
+                        return response()->json([
+                            'status'    => 'fail',
+                            'messages'  => ['Failed to send']
+                        ]);
+                    }
+                }
+            }else{
+                if (\Module::collections()->has('Autocrm')) {
+                
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Product Request Rejected by Finance',
+                        $user_req['phone'],
+                    );
+                    // return $autocrm;
+                    if (!$autocrm) {
+                        return response()->json([
+                            'status'    => 'fail',
+                            'messages'  => ['Failed to send']
+                        ]);
+                    }
+                }
+
+                if (\Module::collections()->has('Autocrm')) {
+                
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Product Request Rejected by Finance',
+                        $user_approve['phone'],
+                    );
+                    // return $autocrm;
+                    if (!$autocrm) {
+                        return response()->json([
+                            'status'    => 'fail',
+                            'messages'  => ['Failed to send']
+                        ]);
+                    }
+                }
+            }
+
+            return response()->json(['status' => 'success']); 
+        }else{
+            return response()->json(['status' => 'fail']);
+        }
+    }
+
+    public function listCatalog(Request $request){
+        $catalogs = ProductCatalog::where('status', 1)->get()->toArray();
+        return $catalogs;
     }
 }

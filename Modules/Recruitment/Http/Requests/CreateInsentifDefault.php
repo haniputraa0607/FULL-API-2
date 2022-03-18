@@ -12,8 +12,9 @@ class CreateInsentifDefault extends FormRequest
     {
         return [
             'name'        => 'required',
-            'value'               => 'required',
-            'formula'              => 'required',
+            'code'        => 'required|unique:hairstylist_group_default_insentifs,code',
+            'value'       => 'required',
+            'formula'     => 'required',
            ]; 
     }
     public function withValidator($validator)

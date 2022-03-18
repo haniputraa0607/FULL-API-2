@@ -503,6 +503,16 @@ class ApiMitra extends Controller
         	return $status;
         }
 
+    	$mitraSchedule = HairstylistScheduleDate::join('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
+                ->whereNotNull('approve_at')->where('id_user_hair_stylist', $id_user_hair_stylist)
+                ->whereDate('date', date('Y-m-d', strtotime($today)))
+                ->first();
+
+		if (!$mitraSchedule) {
+        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal shift pada hari.";
+        	return $status;
+        }
+
         $outletShift = OutletTimeShift::where('id_outlet_schedule', $outletSchedule->id_outlet_schedule)
         				->where(function($q) use ($curTime) {
         					$q->where(function($q2) use ($curTime) {
@@ -516,17 +526,14 @@ class ApiMitra extends Controller
         									->orWhere('shift_time_end', '>', $curTime);	
         							});
         					});
-        				})->first()['shift'] ?? null;
+        				})
+        				->where('shift', $mitraSchedule->shift)
+        				->first()['shift'] ?? null;
 
 		if (!$outletShift) {
-        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Outlet tidak memiliki jadwal shift pada jam ini.";
+        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal shift pada hari dan jam ini.";
         	return $status;
         }
-
-    	$mitraSchedule = HairstylistScheduleDate::join('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
-                ->whereNotNull('approve_at')->where('id_user_hair_stylist', $id_user_hair_stylist)
-                ->whereDate('date', date('Y-m-d', strtotime($today)))
-                ->first();
 
         if (!$mitraSchedule) {
         	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal layanan outlet hari ini.";
@@ -667,12 +674,16 @@ class ApiMitra extends Controller
 		return MyHelper::checkGet($comment);
     }
 
-    public function getOutletShift($id_outlet, $dateTime = null)
+    public function getOutletShift($id_outlet, $dateTime = null, $array = false)
     {
     	$res = null;
     	$outlet = Outlet::find($id_outlet);
     	if (!$outlet) {
     		return $res;
+    	}
+
+    	if (!$outlet->city) {
+    		throw new \Exception('Incomplete Outlet Data. Contact CS');
     	}
 
     	$timezone = $outlet->city->province->time_zone_utc;
@@ -705,7 +716,11 @@ class ApiMitra extends Controller
         							});
         					});
         				})
-        				->first();
+        				->{$array ? 'get' : 'first'}();
+
+        if ($array) {
+        	return $outletShift->pluck('shift');
+        }
 
 		if (!$outletShift) {
 			return $res;
@@ -716,6 +731,10 @@ class ApiMitra extends Controller
 
     public function setTimezone()
     {
+    	if (!request()->user()->outlet->city) {
+    		throw new \Exception('Incomplete Outlet Data. Contact CS');
+    	}
+
     	return MyHelper::setTimezone(request()->user()->outlet->city->province->time_zone_utc);
     }
 

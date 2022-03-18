@@ -19,6 +19,7 @@ class TransactionHomeService extends \App\Http\Models\Template\TransactionServic
         'id_user_address',
         'id_user_hair_stylist',
         'status',
+        'completed_at',
         'schedule_date',
         'schedule_set_time',
         'schedule_time',

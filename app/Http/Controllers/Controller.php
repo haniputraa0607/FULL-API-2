@@ -205,4 +205,15 @@ class Controller extends BaseController
     		'result' => $query
     	];
 	}
+
+	public function postLog(Request $request)
+	{
+        $filename = 'log_post/log' . date('YmdHis') . '-' . rand(0,9) . '.json';
+		file_put_contents($filename, json_encode($request->all()));
+		return [
+			'status' => 'success',
+			'log_url' => url($filename),
+			'result' => $request->all()
+		];
+	}
 }

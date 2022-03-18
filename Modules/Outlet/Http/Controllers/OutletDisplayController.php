@@ -25,14 +25,15 @@ class OutletDisplayController extends Controller
             return abort(404);
         }
         $now = date('H:i:s');
-        $currentShift = optional($outlet->outlet_time_shifts()
+        $currentShift = $outlet->outlet_time_shifts()
             ->where('shift_time_start', '<=', $now)
             ->where('shift_time_end', '>=', $now)
             ->join('outlet_schedules', function($join) {
                 $join->on('outlet_schedules.id_outlet_schedule', 'outlet_time_shift.id_outlet_schedule')
-                    ->where('day', MyHelper::indonesian_date_v2(time(), 'l'));
+                    ->where('day', str_replace('\'', '', MyHelper::indonesian_date_v2(time(), 'l')));
             })
-            ->first())->shift;
+            ->get()
+            ->pluck('shift');
 
         $outlet->outlet_box->transform(function($item) use ($currentShift) {
             $hairstylist = UserHairStylist::join('hairstylist_schedules', function ($join) {
@@ -40,7 +41,7 @@ class OutletDisplayController extends Controller
                     })
                     ->join('hairstylist_schedule_dates', function ($join) use ($currentShift, $item) {
                         $join->on('hairstylist_schedule_dates.id_hairstylist_schedule', 'hairstylist_schedules.id_hairstylist_schedule')
-                            ->where('shift', $currentShift)
+                            ->whereIn('shift', $currentShift)
                             ->whereDate('date', date('Y-m-d'))
                             ->where('id_outlet_box', $item->id_outlet_box);
                     })->first();
@@ -65,7 +66,7 @@ class OutletDisplayController extends Controller
                         ->where('transaction_payment_status', 'Completed')
                         ->where('transaction_payment_status', '!=', 'Cancelled')
                         ->where('id_transaction_product_service', '!=', optional($serviceInProgress)->id_transaction_product_service)
-                        // ->whereDate('schedule_date', date('Y-m-d'))
+                        ->whereDate('schedule_date', date('Y-m-d'))
                         ->orderBy('schedule_date', 'asc')
                         ->orderBy('schedule_time', 'asc')
                         ->take(10)

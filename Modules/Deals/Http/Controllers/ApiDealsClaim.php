@@ -56,7 +56,7 @@ class ApiDealsClaim extends Controller
 	            // CEK VALID DATE
 	            if ($this->checkValidDate($dataDeals)) {
 	                // if (!empty($dataDeals->deals_voucher_price_cash) || $dataDeals->deals_promo_id_type == "nominal") {
-	                if (!empty($dataDeals->deals_voucher_price_cash)) {
+	                if (!empty($dataDeals->deals_voucher_price_cash) || !empty($dataDeals->deals_voucher_price_point) ) {
 	                    return response()->json([
 	                        'status' => 'fail',
 	                        'messages' => ['You have to pay deals.']
@@ -203,28 +203,26 @@ class ApiDealsClaim extends Controller
 		                        // if(isset($voucher['deals_voucher']['id_deals'])){
 		                        //     $voucher['deals'] = Deal::find($voucher['deals_voucher']['id_deals']);
 		                        // }
-                                for($i = 0; $i < $dataDeals->total_deals_user; $i++){
-                                    if(\Module::collections()->has('Autocrm')) {
-                                        $phone=$request->user()->phone;
-                                        $autocrm = app($this->autocrm)->SendAutoCRM('Claim Free Deals Success', $phone,
-                                            [
-                                                'claimed_at'       => $voucher[$i]['claimed_at'],
-                                                'deals_title'      => $dataDeals->deals_title,
-                                                'id_deals_user'    => $voucher[$i]['id_deals_user'],
-                                                'id_deals'         => $dataDeals->id_deals,
-                                                'id_brand'         => $dataDeals->id_brand
-                                            ]
-                                        );
-                                    }
+                                if(\Module::collections()->has('Autocrm')) {
+                                    $phone=$request->user()->phone;
+                                    $autocrm = app($this->autocrm)->SendAutoCRM('Claim Free Deals Success', $phone,
+                                        [
+                                            'claimed_at'       => $voucher[0]['claimed_at'],
+                                            'deals_title'      => $dataDeals->deals_title,
+                                            'id_deals_user'    => $voucher[0]['id_deals_user'],
+                                            'id_deals'         => $dataDeals->id_deals,
+                                            'id_brand'         => $dataDeals->id_brand
+                                        ]
+                                    );
                                 }
-                                for($i = 0; $i < $dataDeals->total_deals_user; $i++){
-                                    $return[$i]=[
-                                        'id_deals_user'=>$voucher[$i]['id_deals_user'],
-                                        'id_deals_voucher'=>$voucher[$i]['id_deals_voucher'],
-                                        'paid_status'=>$voucher[$i]['paid_status'],
-                                        'webview_later'=>config('url.api_url').'api/webview/mydeals/'.$voucher[$i]['id_deals_user']
-                                    ];
-                                }
+
+                                $return = [
+                                    'id_deals_user'=>$voucher[0]['id_deals_user'],
+                                    'id_deals_voucher'=>$voucher[0]['id_deals_voucher'],
+                                    'paid_status'=>$voucher[0]['paid_status'],
+                                    'webview_later'=>config('url.api_url').'api/webview/mydeals/'.$voucher[0]['id_deals_user']
+                                ];
+
 		                        return response()->json(MyHelper::checkCreate($return));
 	                        }
 	                        else {

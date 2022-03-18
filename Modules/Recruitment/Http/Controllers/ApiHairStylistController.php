@@ -2,20 +2,29 @@
 
 namespace Modules\Recruitment\Http\Controllers;
 
+use App\Http\Models\Outlet;
+use App\Http\Models\OutletSchedule;
+use App\Http\Models\Setting;
+use App\Jobs\UpdateScheduleHSJob;
 use App\Lib\MyHelper;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
+use Modules\Recruitment\Entities\HairstylistCategory;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Recruitment\Entities\UserHairStylistDocuments;
 use Modules\Recruitment\Entities\HairstylistSchedule;	
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use Modules\Outlet\Entities\OutletBox;
 use App\Http\Models\LogOutletBox;
+use Modules\Recruitment\Entities\UserHairStylistTheory;
 use Modules\Recruitment\Http\Requests\user_hair_stylist_create;
 use Image;
 use DB;
 use Modules\Recruitment\Entities\UserHairStylistExperience;
+use Modules\Transaction\Entities\TransactionHomeService;
+use Modules\Transaction\Entities\TransactionProductService;
+use App\Http\Models\Transaction;
 
 class ApiHairStylistController extends Controller
 {
@@ -65,6 +74,35 @@ class ApiHairStylistController extends Controller
             }
         }
 
+        //check setting
+        $hsStatus = 'Candidate';
+        $setting = Setting::where('key', 'candidate_hs_requirements')->first()['value_text']??'';
+        if(!empty(($setting))){
+            $setting = (array)json_decode($setting);
+
+            if(strtolower($post['gender']) == 'male'){
+                $age = $setting['male_age']??'';
+                $height = $setting['male_height']??'';
+            }elseif(strtolower($post['gender']) == 'female'){
+                $age = $setting['female_age']??'';
+                $height = $setting['female_height']??'';
+            }
+
+            if(!empty($post['height']) && $post['height'] < $height){
+                $hsStatus = 'Rejected';
+            }
+
+            if(!empty($post['birthdate'])){
+                $dateOfBirth = date('Y-m-d', strtotime($post['birthdate']));
+                $today = date("Y-m-d");
+                $diff = date_diff(date_create($dateOfBirth), date_create($today));
+                $currentage = (int)$diff->format('%y');
+                if($currentage > $age){
+                    $hsStatus = 'Rejected';
+                }
+            }
+        }
+
         $dataCreate = [
             'level' => (empty($post['level']) ? null : $post['level']),
             'email' => $post['email'],
@@ -83,7 +121,7 @@ class ApiHairStylistController extends Controller
             'recent_address' => (empty($post['recent_address']) ? null : $post['recent_address']),
             'postal_code' => (empty($post['postal_code']) ? null : $post['postal_code']),
             'marital_status' => (empty($post['marital_status']) ? null : $post['marital_status']),
-            'user_hair_stylist_status' => 'Candidate',
+            'user_hair_stylist_status' => $hsStatus,
             'user_hair_stylist_photo' => $post['user_hair_stylist_photo']??null
         ];
 
@@ -364,6 +402,15 @@ class ApiHairStylistController extends Controller
                     unset($detail['experiences']);
                     $detail['experiences'] = $value_experinces;
                 }
+
+                if(!empty($detail['documents'])){
+                    foreach ($detail['documents'] as $key=>$doc){
+                        if($doc['document_type'] == 'Training Completed'){
+                            $theories = UserHairStylistTheory::where('id_user_hair_stylist_document', $doc['id_user_hair_stylist_document'])->get()->toArray();
+                            $detail['documents'][$key]['theories'] = $theories;
+                        }
+                    }
+                }
             }
             return response()->json(MyHelper::checkGet($detail));
         }else{
@@ -385,33 +432,62 @@ class ApiHairStylistController extends Controller
                     }
                 }
 
-                $createDoc = UserHairStylistDocuments::create([
-                    'id_user_hair_stylist' => $post['id_user_hair_stylist'],
-                    'document_type' => $post['data_document']['document_type'],
-                    'process_date' => date('Y-m-d H:i:s', strtotime($post['data_document']['process_date']??date('Y-m-d H:i:s'))),
-                    'process_name_by' => $post['data_document']['process_name_by']??null,
-                    'process_notes' => $post['data_document']['process_notes'],
-                    'attachment' => $path??null,
-                    'created_at' => date('Y-m-d H:i:s'),
-                    'updated_at' => date('Y-m-d H:i:s')
-                ]);
-                if(!$createDoc){
-                    return response()->json(MyHelper::checkCreate($createDoc));
+                if(!empty($post['data_document'])){
+                    $idCat = $post['data_document']['id_theory_category'] ?? null;
+                    $createDoc = UserHairStylistDocuments::create([
+                        'id_user_hair_stylist' => $post['id_user_hair_stylist'],
+                        'id_theory_category' => $idCat,
+                        'document_type' => $post['data_document']['document_type'],
+                        'process_date' => date('Y-m-d H:i:s', strtotime($post['data_document']['process_date']??date('Y-m-d H:i:s'))),
+                        'process_name_by' => $post['data_document']['process_name_by']??null,
+                        'process_notes' => $post['data_document']['process_notes'],
+                        'attachment' => $path??null,
+                        'conclusion_status' => $post['conclusion_status'][$idCat]??null,
+                        'conclusion_score' => $post['conclusion_score'][$idCat]??null,
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s')
+                    ]);
+                    if(!$createDoc){
+                        return response()->json(MyHelper::checkCreate($createDoc));
+                    }
                 }
 
-                $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update(['user_hair_stylist_status' => $post['update_type']]);
+                if((!empty($post['data_document']['document_type']) && $post['data_document']['document_type'] != 'Training Completed') ||
+                    empty($post['data_document']['document_type'])){
+                    $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update(['user_hair_stylist_status' => $post['update_type']]);
 
-                if($update && $post['update_type'] == 'Rejected'){
-                    $autocrm = app($this->autocrm)->SendAutoCRM(
-                        'Rejected Candidate Hair Stylist',
-                        $getData['phone_number'],
-                        [
-                            'fullname' => $getData['fullname'],
-                            'phone_number' => $getData['phone_number'],
-                            'email' => $getData['email']
-                        ], null, false, false, 'hairstylist'
-                    );
+                    if($update && $post['update_type'] == 'Rejected'){
+                        UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update([
+                                'user_hair_stylist_passed_status' => $post['user_hair_stylist_passed_status'],
+                                'user_hair_stylist_score' => $post['user_hair_stylist_score']
+                                ]);
+                        $autocrm = app($this->autocrm)->SendAutoCRM(
+                            'Rejected Candidate Hair Stylist',
+                            $getData['phone_number'],
+                            [
+                                'fullname' => $getData['fullname'],
+                                'phone_number' => $getData['phone_number'],
+                                'email' => $getData['email']
+                            ], null, false, false, 'hairstylist'
+                        );
+                    }
+                }else if($post['data_document']['theory']){
+                    $insertTheory = [];
+                    foreach ($post['data_document']['theory'] as $theory){
+                        if($post['data_document']['id_theory_category'] == $theory['id_theory_category']){
+                            $theory['id_user_hair_stylist_document'] = $createDoc['id_user_hair_stylist_document'];
+                            $theory['created_at'] = date('Y-m-d H:i:s');
+                            $theory['updated_at'] = date('Y-m-d H:i:s');
+                            unset($theory['id_theory_category']);
+                            $insertTheory[] = $theory;
+                        }
+                    }
+
+                    if(!empty($insertTheory)){
+                        $update = UserHairStylistTheory::insert($insertTheory);
+                    }
                 }
+
                 return response()->json(MyHelper::checkUpdate($update));
             }
 
@@ -442,17 +518,23 @@ class ApiHairStylistController extends Controller
                     return response()->json(['status' => 'fail', 'messages' => ['Hs not found']]);
                 }
 
+                //generate code
+                $count = UserHairStylist::whereNotNull('user_hair_stylist_code')->count();
+                $currentYear = substr(date('Y'), -2);
+                $currentMonth = date('m');
+
                 unset($post['update_type']);
                 unset($post['pin']);
                 unset($post['pin2']);
                 unset($post['auto_generate_pin']);
                 unset($post['action_type']);
                 $data = $post;
+                $data['user_hair_stylist_code'] = 'IXO'.$currentYear.$currentMonth.sprintf("%04d", ($count+1));
                 $data['password'] = bcrypt($pin);
                 $data['join_date'] = date('Y-m-d H:i:s');
                 $data['approve_by'] = $request->user()->id;
                 $data['user_hair_stylist_status'] = 'Active';
-                $data['user_hair_stylist_photo'] = $post['user_hair_stylist_photo'];
+                $data['user_hair_stylist_photo'] = $post['user_hair_stylist_photo']??null;
                 $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update($data);
 
                 $autocrm = app($this->autocrm)->SendAutoCRM(
@@ -467,6 +549,12 @@ class ApiHairStylistController extends Controller
                 );
 
             }else{
+                $check = UserHairStylist::where('nickname', $post['nickname'])->whereNotIn('id_user_hair_stylist', [$post['id_user_hair_stylist']])->first();
+
+                if(!empty($check)){
+                    return response()->json(['status' => 'fail', 'messages' => ['Nickname already use with hairstylist : '.$check['fullname']]]);
+                }
+
                 unset($post['data_document']);
                 unset($post['action_type']);
                 $checkPhone = UserHairStylist::where(function ($q) use ($post){
@@ -606,6 +694,304 @@ class ApiHairStylistController extends Controller
 			}
             return response()->json(MyHelper::checkUpdate($update));
         } else {
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    }
+
+    function totalOrder(Request $request){
+        $post = $request->json()->all();
+
+        if (!empty($post['id_user_hair_stylist'])) {
+            $hs = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->first();
+            if(empty($hs)){
+                return response()->json(['status' => 'fail', 'messages' => ['Hair stylist not found']]);
+            }
+
+            $currentDate = date('Y-m-d');
+            $outletService = TransactionProductService::where('id_user_hair_stylist', $post['id_user_hair_stylist'])
+                                ->whereDate('schedule_date', '>=', $currentDate)
+                                ->where(function ($q){
+                                    $q->where('service_status', '<>', 'Completed')
+                                        ->orWhereNull('service_status');
+                                })
+                                ->pluck('id_transaction')->toArray();
+            $homeService = TransactionHomeService::where('id_user_hair_stylist', $post['id_user_hair_stylist'])
+                                ->whereDate('schedule_date', '>=', $currentDate)
+                                ->where(function ($q){
+                                    $q->whereNotIn('status', ['Completed', 'Cancelled'])
+                                        ->orWhereNull('status');
+                                })
+                                ->pluck('id_transaction')->toArray();
+
+            if(!empty($outletService)) {
+                $trxOutlet = Transaction::where('transaction_payment_status', 'Completed')->where('transaction_from', 'outlet-service')
+                    ->whereIn('id_transaction', $outletService)->where('id_outlet', $hs['id_outlet'])->with(['user', 'outlet'])->get()->toArray();
+            }
+
+            if(!empty($homeService)) {
+                $trxHome = Transaction::where('transaction_payment_status', 'Completed')->where('transaction_from', 'home-service')
+                    ->whereIn('id_transaction', $homeService)->with(['user', 'outlet'])->get()->toArray();
+            }
+
+            $res = [
+                'order_outlet' => $trxOutlet??[],
+                'order_home' => $trxHome??[]
+            ];
+            return response()->json(MyHelper::checkGet($res));
+        } else {
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    }
+
+    function moveOutlet(Request $request){
+        $post = $request->json()->all();
+
+        if (!empty($post['id_user_hair_stylist'])) {
+            $hs = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->first();
+            if(empty($hs)){
+                return response()->json(['status' => 'fail', 'messages' => ['Hair stylist not found']]);
+            }
+
+            $outlet = Outlet::where('id_outlet', $post['id_outlet'])->first();
+            if(empty($outlet)){
+                return response()->json(['status' => 'fail', 'messages' => ['Outlet not found']]);
+            }
+            if($hs['id_outlet'] != $post['id_outlet']){
+                $days = [
+                    'Mon' => 'Senin',
+                    'Tue' => 'Selasa',
+                    'Wed' => 'Rabu',
+                    'Thu' => 'Kamis',
+                    'Fri' => 'Jumat',
+                    'Sat' => 'Sabtu',
+                    'Sun' => 'Minggu'
+                ];
+
+                $currentDate = date('Y-m-d');
+                $outletService = TransactionProductService::where('id_user_hair_stylist', $post['id_user_hair_stylist'])
+                    ->whereDate('schedule_date', '>=', $currentDate)
+                    ->where(function ($q){
+                        $q->where('service_status', '<>', 'Completed')
+                            ->orWhereNull('service_status');
+                    })
+                    ->pluck('id_transaction')->toArray();
+                $homeService = TransactionHomeService::where('id_user_hair_stylist', $post['id_user_hair_stylist'])
+                    ->whereDate('schedule_date', '>=', $currentDate)
+                    ->where(function ($q){
+                        $q->whereNotIn('status', ['Completed', 'Cancelled'])
+                            ->orWhereNull('status');
+                    })
+                    ->pluck('id_transaction')->toArray();
+
+                if(!empty($outletService)) {
+                    $trxOutlet = Transaction::where('transaction_payment_status', 'Completed')->where('transaction_from', 'outlet-service')
+                        ->whereIn('id_transaction', $outletService)->where('id_outlet', $hs['id_outlet'])->with(['user', 'outlet'])->get()->toArray();
+                }
+
+                if(!empty($homeService)) {
+                    $trxHome = Transaction::join('transaction_home_services', 'transaction_home_services.id_transaction', 'transactions.id_transaction')
+                        ->where('transaction_payment_status', 'Completed')->where('transaction_from', 'home-service')
+                        ->whereIn('transactions.id_transaction', $homeService)->with(['user', 'outlet'])->get()->toArray();
+                }
+
+                if(!empty($trxOutlet)){
+                    return response()->json(['status' => 'fail', 'messages' => ['Hair stylist have outlet transaction']]);
+                }
+
+                $conflictTrx = [];
+                if(!empty($homeService)){
+                    $getScheduleOutlet = OutletSchedule::where('id_outlet', $post['id_outlet'])->with('time_shift')->get()->toArray();
+                    $columnDay = array_column($getScheduleOutlet, 'day');
+                    foreach ($trxHome as $home){
+                        $day = $days[date('D', strtotime($home['schedule_date']))];
+                        $search = array_search($day,$columnDay);
+                        if($search !== false){
+                            $shift = HairstylistScheduleDate::leftJoin('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
+                                ->where('id_user_hair_stylist', $post['id_user_hair_stylist'])
+                                ->whereDate('date', $home['schedule_date'])
+                                ->first()['shift']??'';
+
+                            $dataOutletShift = $getScheduleOutlet[$search]['time_shift'];
+                            $columnShift = array_search($shift, array_column($dataOutletShift, 'shift'));
+                            if(empty($shift) || $columnShift === false){
+                                continue;
+                            }
+                            $start = date('H:i:s', strtotime($dataOutletShift[$columnShift]['shift_time_start']));
+                            $end = date('H:i:s', strtotime($dataOutletShift[$columnShift]['shift_time_end']));
+
+                            if(strtotime($home['schedule_time']) >= strtotime($start) && strtotime($home['schedule_time']) < strtotime($end)){
+                                $conflictTrx[] = $home['transaction_receipt_number'];
+                            }
+                        }
+                    }
+                }
+
+                if(!empty($conflictTrx)){
+                    return response()->json(['status' => 'fail', 'messages' => ['Transaction Home service have conflict with schedule outlet '.$outlet['outlet_name'].' : '.implode(', ', $conflictTrx)]]);
+                }
+
+                $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update(['id_outlet' => $post['id_outlet']]);
+                if($update){
+                    UpdateScheduleHSJob::dispatch(['id_user_hair_stylist' => $post['id_user_hair_stylist']])->allOnConnection('database');
+                }
+
+                return response()->json(MyHelper::checkUpdate($update));
+            }
+
+            return response()->json(['status' => 'success']);
+        } else {
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    }
+
+    public function candidateSettingRequirements(Request $request){
+        $post = $request->json()->all();
+
+        if(empty($post)){
+            $setting = Setting::where('key', 'candidate_hs_requirements')->first()['value_text']??'';
+
+            if(!empty(($setting))){
+                $setting = (array)json_decode($setting);
+            }else{
+                $setting = [
+                    'male_age' => '',
+                    'male_height' => '',
+                    'female_age' => '',
+                    'female_height' => ''
+                ];
+            }
+
+            return response()->json(MyHelper::checkGet($setting));
+        }else{
+            $data = json_encode($post);
+            $update = Setting::updateOrCreate(['key' => 'candidate_hs_requirements'], ['value_text' => $data]);
+
+            return response()->json(MyHelper::checkUpdate($update));
+        }
+    }
+
+    public function exportCommision(Request $request){
+        $post = $request->json()->all();
+
+        $dateStart = date('Y-m-d', strtotime($post['date_start']));
+        $dateEnd = date('Y-m-d', strtotime($post['date_end']));
+        $idOutlets = $post['id_outlet'];
+
+        $outletService = Transaction::join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+            ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+            ->join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')
+            ->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_product_services.id_user_hair_stylist')
+            ->join('products', 'products.id_product', 'transaction_products.id_product')
+            ->whereDate('transaction_products.transaction_product_completed_at', '>=', $dateStart)->whereDate('transaction_products.transaction_product_completed_at', '<=', $dateEnd)
+            ->whereIn('transactions.id_outlet', $idOutlets)
+            ->whereNotNull('transaction_products.transaction_product_completed_at')
+            ->groupBy(DB::raw('transaction_products.transaction_product_completed_at'), 'transaction_product_services.id_user_hair_stylist', 'transaction_products.id_product')
+            ->select(DB::raw('DATE(transaction_products.transaction_product_completed_at) as schedule_date'), 'transactions.id_outlet', 'transaction_product_services.id_user_hair_stylist', 'transaction_products.id_product', 'fullname', 'outlet_name', 'product_name', DB::raw('SUM(transaction_products.transaction_product_qty) as total'))
+            ->get()->toArray();
+
+        $homeService = Transaction::join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+            ->join('transaction_home_services', 'transaction_home_services.id_transaction', 'transaction_products.id_transaction')
+            ->join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')
+            ->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_home_services.id_user_hair_stylist')
+            ->join('products', 'products.id_product', 'transaction_products.id_product')
+            ->whereDate('transaction_products.transaction_product_completed_at', '>=', $dateStart)->whereDate('transaction_products.transaction_product_completed_at', '<=', $dateEnd)
+            ->whereIn('transactions.id_outlet', $idOutlets)
+            ->whereNotNull('transaction_products.transaction_product_completed_at')
+            ->groupBy(DB::raw('transaction_products.transaction_product_completed_at'), 'transaction_home_services.id_user_hair_stylist', 'transaction_products.id_product')
+            ->select(DB::raw('DATE(transaction_products.transaction_product_completed_at) as schedule_date'), 'transactions.id_outlet', 'transaction_home_services.id_user_hair_stylist', 'transaction_products.id_product', 'fullname', 'outlet_name', 'product_name', DB::raw('SUM(transaction_products.transaction_product_qty) as total'))
+            ->get()->toArray();
+
+        $datas = array_merge($outletService, $homeService);
+        $dates = [];
+        $tmp = $dateStart;
+        $i=0;
+        while(strtotime($tmp) <= strtotime($dateEnd)) {
+            $dateTimeConvert = date('Y-m-d', strtotime("+".$i." days", strtotime($dateStart)));
+            if(strtotime($dateTimeConvert) > strtotime($dateEnd)){
+                break;
+            }
+            $tmp = $dateTimeConvert;
+            $dates[] = $dateTimeConvert;
+            $i++;
+        }
+
+        $tmpData = [];
+        foreach ($datas as $data){
+            $key = $data['id_product'].'|'.$data['id_user_hair_stylist'].'|'.$data['id_outlet'];
+            if(!isset($tmpData[$key])){
+                $tmpData[$key] = [
+                    'Name' => $data['fullname'],
+                    'Outlet' => $data['outlet_name'],
+                    'Product' => $data['product_name'],
+                    'Total' => 0
+                ];
+            }
+
+            foreach ($dates as $date){
+                if(empty($tmpData[$key][$date])){
+                    $tmpData[$key][$date] = 0;
+                }
+                if($date == $data['schedule_date']){
+                    $tmpData[$key][$date] = $tmpData[$key][$date]+$data['total'];
+                    $tmpData[$key]['Total'] = $tmpData[$key]['Total'] + $data['total'];
+                }
+            }
+        }
+
+        $res = [];
+        foreach ($tmpData as $dt){
+            foreach ($dt as $key=>$value){
+                if(is_int($value)){
+                    $dt[$key] = number_format($value);
+                }
+            }
+
+            $res[] = $dt;
+        }
+
+        return response()->json(['status' => 'success', 'result' => $res]);
+    }
+
+    public function createCategory(Request $request){
+        $post = $request->json()->all();
+
+        $save = HairstylistCategory::create($post);
+        return response()->json(MyHelper::checkUpdate($save));
+    }
+
+    public function listCategory(Request $request){
+        $post = $request->json()->all();
+        if(!empty($post['id_hairstylist_category'])){
+            $data = HairstylistCategory::where('id_hairstylist_category', $post['id_hairstylist_category'])->first();
+        }else{
+            $data = HairstylistCategory::get()->toArray();
+        }
+
+        return response()->json(MyHelper::checkGet($data));
+    }
+
+    public function updateCategory(Request $request){
+        $post = $request->json()->all();
+
+        if(!empty($post['id_hairstylist_category'])){
+            $save = HairstylistCategory::where('id_hairstylist_category', $post['id_hairstylist_category'])->update([
+                'hairstylist_category_name' => $post['hairstylist_category_name']
+            ]);
+
+            return response()->json(MyHelper::checkUpdate($save));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    }
+
+    public function deleteCategory(Request $request){
+        $post = $request->json()->all();
+
+        if(!empty($post['id_hairstylist_category'])){
+            $save = HairstylistCategory::where('id_hairstylist_category', $post['id_hairstylist_category'])->delete();
+
+            return response()->json(MyHelper::checkDelete($save));
+        }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
         }
     }

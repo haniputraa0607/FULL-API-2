@@ -1057,7 +1057,7 @@ Message :
                 'autocrm_email_subject' => '',
                 'autocrm_email_content' => '',
                 'autocrm_sms_content' => '',
-                'autocrm_push_subject' => 'Selamat bergabung di aplikasi RESTO!',
+                'autocrm_push_subject' => 'Selamat bergabung di aplikasi!',
                 'autocrm_push_content' => 'Silahkan lengkapi data diri kamu untuk mendapatkan Champoints tambahan, tingkatkan transaksi kamu untuk mendapatkan Champoints dan tukarkan dengan penawaran menarik dari kami.',
                 'autocrm_push_image' => NULL,
                 'autocrm_push_clickto' => 'Profil',
@@ -3980,8 +3980,39 @@ Message :
 	                'updated_at' => '2022-02-04 09:02:20',
 	            ),
             126 =>
+                array (
+                    'id_autocrm' => 127,
+                    'autocrm_type' => 'Response',
+                    'autocrm_trigger' => 'Daily',
+                    'autocrm_cron_reference' => NULL,
+                    'autocrm_title' => 'Claim Point Existing Member',
+                    'autocrm_email_toogle' => '0',
+                    'autocrm_sms_toogle' => '0',
+                    'autocrm_push_toogle' => '0',
+                    'autocrm_inbox_toogle' => '0',
+                    'autocrm_forward_toogle' => '0',
+                    'autocrm_email_subject' => NULL,
+                    'autocrm_email_content' => NULL,
+                    'autocrm_sms_content' => NULL,
+                    'autocrm_push_subject' => NULL,
+                    'autocrm_push_content' => NULL,
+                    'autocrm_push_image' => NULL,
+                    'autocrm_push_clickto' => NULL,
+                    'autocrm_push_link' => NULL,
+                    'autocrm_push_id_reference' => NULL,
+                    'autocrm_inbox_subject' => NULL,
+                    'autocrm_inbox_content' => NULL,
+                    'autocrm_inbox_category' => NULL,
+                    'autocrm_forward_email' => NULL,
+                    'autocrm_forward_email_subject' => NULL,
+                    'autocrm_forward_email_content' => NULL,
+                    'custom_text_replace'=>'%total_point_claim%;',
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s')
+                ),
+            127 =>
 	            array (
-	                'id_autocrm' => 127,
+	                'id_autocrm' => 128,
 	                'autocrm_type' => 'Response',
 	                'autocrm_trigger' => 'Daily',
 	                'autocrm_cron_reference' => NULL,
@@ -4010,9 +4041,9 @@ Message :
 	                'created_at' => date('Y-m-d H:i:s'),
 	                'updated_at' => date('Y-m-d H:i:s'),
 	            ),
-            127 =>
+            128 =>
 	            array (
-	                'id_autocrm' => 128,
+	                'id_autocrm' => 129,
 	                'autocrm_type' => 'Response',
 	                'autocrm_trigger' => 'Daily',
 	                'autocrm_cron_reference' => NULL,
@@ -4041,9 +4072,9 @@ Message :
 	                'created_at' => date('Y-m-d H:i:s'),
 	                'updated_at' => date('Y-m-d H:i:s'),
 	            ),
-            128 =>
+            129 =>
 	            array (
-	                'id_autocrm' => 129,
+	                'id_autocrm' => 130,
 	                'autocrm_type' => 'Response',
 	                'autocrm_trigger' => 'Daily',
 	                'autocrm_cron_reference' => NULL,
@@ -4072,9 +4103,9 @@ Message :
 	                'created_at' => date('Y-m-d H:i:s'),
 	                'updated_at' => date('Y-m-d H:i:s'),
 	            ),
-            129 =>
+            130 =>
 	            array (
-	                'id_autocrm' => 130,
+	                'id_autocrm' => 131,
 	                'autocrm_type' => 'Response',
 	                'autocrm_trigger' => 'Daily',
 	                'autocrm_cron_reference' => NULL,
@@ -4106,7 +4137,12 @@ Message :
         );
 
         foreach ($rows as $row) {
-            Autocrm::updateOrCreate(['autocrm_title' => $row['autocrm_title']], $row);
+            Autocrm::updateOrCreate(['autocrm_title' => $row['autocrm_title']], [
+                'autocrm_type' => $row['autocrm_type'],
+                'autocrm_trigger' => $row['autocrm_trigger'],
+                'autocrm_title' => $row['autocrm_title'],
+                'custom_text_replace'=> $row['custom_text_replace'],
+            ]);
         }
     }
 }

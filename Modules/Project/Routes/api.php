@@ -35,6 +35,8 @@ use Illuminate\Http\Request;
      Route::post('/list/desain', ['middleware'=>['feature_control:402','scopes:be'], 'uses' => 'ApiDesainController@index']);
      Route::post('/next/desain', ['middleware'=>['feature_control:405','scopes:be'], 'uses' => 'ApiDesainController@nextStep']);
     //contract
+    Route::post('/invoice_spk/contract', ['middleware'=>['feature_control:403','scopes:be'], 'uses' => 'ApiContractController@invoice_spk']);
+    Route::post('/purchase_spk/contract', ['middleware'=>['feature_control:403','scopes:be'], 'uses' => 'ApiContractController@purchase_spk']);
     Route::post('/create/contract', ['middleware'=>['feature_control:403','scopes:be'], 'uses' => 'ApiContractController@create']);
     Route::post('/delete/contract', ['middleware'=>['feature_control:406','scopes:be'], 'uses' => 'ApiContractController@destroy']);
     Route::post('/next/contract', ['middleware'=>['feature_control:405','scopes:be'], 'uses' => 'ApiContractController@nextStep']);
@@ -43,6 +45,7 @@ use Illuminate\Http\Request;
     Route::get('/detail/no_loi', ['middleware'=>['feature_control:404','scopes:be'], 'uses' => 'ApiContractController@no_loi']);
     
     //fitout
+     Route::post('/invoice_bap/fitout', ['middleware'=>['feature_control:403','scopes:be'], 'uses' => 'ApiFitOutController@invoice_bap']);
      Route::post('/create/fitout', ['middleware'=>['feature_control:403','scopes:be'], 'uses' => 'ApiFitOutController@create']);
      Route::post('/delete/fitout', ['middleware'=>['feature_control:406','scopes:be'], 'uses' => 'ApiFitOutController@destroy']);
      Route::post('/list/fitout', ['middleware'=>['feature_control:402','scopes:be'], 'uses' => 'ApiFitOutController@index']);

@@ -7,6 +7,7 @@ use App\Http\Requests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
 use App\Http\Models\LogApiIcount;
+use Modules\ChartOfAccount\Entities\ChartOfAccount;
 use App\Http\Models\Setting;
 use App\Lib\MyHelper;
 
@@ -18,7 +19,7 @@ class Icount
     }
 
     private static function getBaseUrl($company = null)
-	{
+    {
         if($company == 'PT IMS'){
             $baseUrl = env('ICOUNT_URL_IMS', null);    
         }elseif($company == 'PT IMA'){
@@ -27,17 +28,22 @@ class Icount
             $baseUrl = env('ICOUNT_URL', null);
         }
         return $baseUrl;
-	}
+    }
 
     public static function sendRequest($method = 'GET', $url = null, $request = null, $company = null, $logType = null, $orderId = null){
         $method = strtolower($method);
         $header = [
             "Content-Type" => "application/x-www-form-urlencoded"
         ];
+        if($url == '/sales/create_order_poo'){
+            $time_out = 2;
+        }else{
+            $time_out = 1;
+        }
         if ($method == 'get') {
             $response = MyHelper::getWithTimeout(self::getBaseUrl($company) . $url, null, $request, $header, 65, $fullResponse);
         }else{
-            $response = MyHelper::postWithTimeout(self::getBaseUrl($company) . $url, null, $request, 1, $header, 65, $fullResponse);
+            $response = MyHelper::postWithTimeout(self::getBaseUrl($company) . $url, null, $request, $time_out, $header, 65, $fullResponse);
         }   
 
         try {
@@ -114,7 +120,7 @@ class Icount
         }else{
             if(isset($request['partner']['id_business_partner_ima']) && !empty($request['partner']['id_business_partner_ima'])){
                 $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
-            }else{
+            }elseif(isset($request['partner']['id_business_partner']) && !empty($request['partner']['id_business_partner'])){
                 $data['BusinessPartnerID'] = $request['partner']['id_business_partner'];
             }
         }
@@ -123,7 +129,7 @@ class Icount
     }
     public static function ApiInvoiceConfirmationLetter($request, $company = null, $logType = null, $orderId = null){
         $data = [
-            "SalesOrderID" => $request['partner']['id_sales_order'],
+            "SalesOrderID" => '011',
             "VoucherNo" => $request['partner']['voucher_no'],
             "TransDate" => $request['location']['trans_date'],
             "DueDate" => $request['location']['due_date'],
@@ -145,15 +151,16 @@ class Icount
                 ]
             ]
         ];
-        if($company=='PT IMS'){
-            $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
-            $data['BranchID'] = $request['location']['id_branch_ima'];
-        }else{
+        if($company=='PT IMA'){
             if(isset($request['partner']['id_business_partner_ima']) && !empty($request['partner']['id_business_partner_ima'])){
                 $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
+            }elseif(isset($request['partner']['id_business_partner']) && !empty($request['partner']['id_business_partner'])){
+                $data['BusinessPartnerID'] = $request['partner']['id_business_partner'];
             }
-            if(isset($request['partner']['id_branch_ima']) && !empty($request['partner']['id_branch_ima'])){
-                $data['BranchID'] = $request['location']['id_branch_ima']; 
+            if(isset($request['location']['id_branch_ima']) && !empty($request['location']['id_branch_ima'])){
+                $data['BranchID'] = $request['location']['id_branch_ima'];
+            }elseif(isset($request['location']['id_branch']) && !empty($request['location']['id_branch'])){
+                $data['BranchID'] = $request['location']['id_branch'];
             }
         }
         return self::sendRequest('POST', '/partner_initiation/do_invoice_cl', $data, 'PT IMA', $logType, $orderId);
@@ -161,13 +168,13 @@ class Icount
     public static function ApiInvoiceSPK($request, $company = null, $logType = null, $orderId = null){
         $data = [
             "SalesOrderID" => $request['partner']['id_sales_order'],
-            "VoucherNo" => $request['partner']['voucher_no'],
+            "VoucherNo" => '[AUTO]',
             "TransDate" => $request['location']['trans_date'],
             "DueDate" => $request['location']['due_date'],
             "BusinessPartnerID" => $request['partner']['id_business_partner'],
             "BranchID" => $request['location']['id_branch'],
             "TermOfPaymentID" => $request['location']['id_term_of_payment'],
-            "ReferenceNo" => $request['confir']['no_letter'],
+            "ReferenceNo" => $request['location']['no_spk'],
             "TaxNo" => '',
             "Notes" => $request['partner']['notes'],
             "Detail" => [
@@ -182,15 +189,16 @@ class Icount
                 ]
             ]
         ];
-        if($company=='PT IMS'){
-            $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
-            $data['BranchID'] = $request['location']['id_branch_ima'];
-        }else{
+        if($company=='PT IMA'){
             if(isset($request['partner']['id_business_partner_ima']) && !empty($request['partner']['id_business_partner_ima'])){
                 $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
+            }elseif(isset($request['partner']['id_business_partner']) && !empty($request['partner']['id_business_partner'])){
+                $data['BusinessPartnerID'] = $request['partner']['id_business_partner'];
             }
-            if(isset($request['partner']['id_branch_ima']) && !empty($request['partner']['id_branch_ima'])){
-                $data['BranchID'] = $request['location']['id_branch_ima']; 
+            if(isset($request['location']['id_branch_ima']) && !empty($request['location']['id_branch_ima'])){
+                $data['BranchID'] = $request['location']['id_branch_ima'];
+            }elseif(isset($request['location']['id_branch']) && !empty($request['location']['id_branch'])){
+                $data['BranchID'] = $request['location']['id_branch'];
             }
         }
         return self::sendRequest('POST', '/partner_initiation/do_invoice_spk', $data, 'PT IMA', $logType, $orderId);
@@ -198,13 +206,13 @@ class Icount
     public static function ApiInvoiceBAP($request, $company = null, $logType = null, $orderId = null){
         $data = [
             "SalesOrderID" => $request['partner']['id_sales_order'],
-            "VoucherNo" => $request['partner']['voucher_no'],
+            "VoucherNo" => "[AUTO]",
             "TransDate" => $request['location']['trans_date'],
             "DueDate" => $request['location']['due_date'],
             "BusinessPartnerID" => $request['partner']['id_business_partner'],
             "BranchID" => $request['location']['id_branch'],
             "TermOfPaymentID" => $request['location']['id_term_of_payment'],
-            "ReferenceNo" => $request['confir']['no_letter'],
+            "ReferenceNo" => "",
             "TaxNo" => '',
             "Notes" => $request['partner']['notes'],
             "Detail" => [
@@ -219,15 +227,16 @@ class Icount
                 ]
             ]
         ];
-        if($company=='PT IMS'){
-            $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
-            $data['BranchID'] = $request['location']['id_branch_ima'];
-        }else{
+        if($company=='PT IMA'){
             if(isset($request['partner']['id_business_partner_ima']) && !empty($request['partner']['id_business_partner_ima'])){
                 $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
+            }elseif(isset($request['partner']['id_business_partner']) && !empty($request['partner']['id_business_partner'])){
+                $data['BusinessPartnerID'] = $request['partner']['id_business_partner'];
             }
-            if(isset($request['partner']['id_branch_ima']) && !empty($request['partner']['id_branch_ima'])){
-                $data['BranchID'] = $request['location']['id_branch_ima']; 
+            if(isset($request['location']['id_branch_ima']) && !empty($request['location']['id_branch_ima'])){
+                $data['BranchID'] = $request['location']['id_branch_ima'];
+            }elseif(isset($request['location']['id_branch']) && !empty($request['location']['id_branch'])){
+                $data['BranchID'] = $request['location']['id_branch'];
             }
         }
         return self::sendRequest('POST', '/partner_initiation/do_invoice_bap', $data, 'PT IMA', $logType, $orderId);
@@ -272,81 +281,107 @@ class Icount
         }
         
         $data = [
-            "VoucherNo" => $request['partner']['voucher_no'],
+            "VoucherNo" => "[AUTO]",
             "TransDate" => $request['location']['trans_date'],
             "DueDate" => $request['location']['due_date'],
             "BusinessPartnerID" => $request['partner']['id_business_partner'],
             "BranchID" => $request['location']['id_branch'],
-            "ReferenceNo" => $request['confir']['no_letter'],
+            "ReferenceNo" => $request['location']['no_spk'],
             "Notes" => $request['partner']['notes'],
             "Detail" => $detail
         ];
-        if($company=='PT IMS'){
-            $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
-            $data['BranchID'] = $request['location']['id_branch_ima'];
-        }else{
+        if($company=='PT IMA'){
             if(isset($request['partner']['id_business_partner_ima']) && !empty($request['partner']['id_business_partner_ima'])){
                 $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
+            }elseif(isset($request['partner']['id_business_partner']) && !empty($request['partner']['id_business_partner'])){
+                $data['BusinessPartnerID'] = $request['partner']['id_business_partner'];
             }
-            if(isset($request['partner']['id_branch_ima']) && !empty($request['partner']['id_branch_ima'])){
-                $data['BranchID'] = $request['location']['id_branch_ima']; 
+            if(isset($request['location']['id_branch_ima']) && !empty($request['location']['id_branch_ima'])){
+                $data['BranchID'] = $request['location']['id_branch_ima'];
+            }elseif(isset($request['location']['id_branch']) && !empty($request['location']['id_branch'])){
+                $data['BranchID'] = $request['location']['id_branch'];
             }
         }
-        return self::sendRequest('POST', '/partner_initiation/purchase_request_spk', $data, 'PT IMA', $logType, $orderId);
+        return self::sendRequest('POST', '/partner_initiation/purchase_request_spk', $data, $company, $logType, $orderId);
     }
 
     public static function ApiCreateOrderPOO($request, $company = null, $logType = null, $orderId = null){
         if(isset($request['transaction']) && !empty($request['transaction'])){
+            $trans_date = date('Y-m-d', strtotime($request['completed_at']));
+            $due_date = Setting::where('key','due_date')->first()['value'] ?? 30;
+            $due_date = date('Y-m-d', strtotime('+'.$due_date.' days', strtotime($trans_date)));
             $penjulana_outlet = Setting::where('key','penjualan_outlet')->first();
             $availablePayment = config('payment_method');
             $setting  = json_decode(MyHelper::setting('active_payment_methods', 'value_text', '[]'), true) ?? [];
             foreach($setting as $s => $set){
                 $availablePayment[$set['code']]['chart_of_account_id'] = $set['id_chart_of_account'] ?? false;
             }
-            // return $availablePayment;
             $data = [
                 "BranchID" => $request['id_branch'],
                 "BusinessPartnerID" => $request['id_business_partner'],
                 "VoucherNo" => "[AUTO]",
-                "TermOfPaymentID" => '11',
-                "TransDate" => $request['trans_date'],
-                "DueDate" => $request['due_date'],
+                "TermOfPaymentID" => '011',
+                "TransDate" => $trans_date,
+                "DueDate" => $due_date,
                 "SalesmanID" => '',
                 "ReferenceNo" => '',
                 "Tax" => $request['ppn'],
                 "TaxNo" => '',
                 "AddressInvoice" => '',
                 "Notes" => '',
+                'MDRFee' => 0
             ];
+
             if(isset($request['id_transaction_payment'])){
                 $request['payment_type'] = ucfirst(strtolower($request['payment_type']));
                 foreach($availablePayment as $a => $payment){
-                    if($payment['payment_method'] == $request['payment_type'] && $payment['payment_gateway'] == 'Midtrans'){
-                        $data['ChartOfAccountID'] = $payment['chart_of_account_id'];
+                    if(strtolower($payment['payment_method']) == strtolower($request['payment_type']) && $payment['payment_gateway'] == 'Midtrans'){
+                        $data['ChartOfAccountID'] = ChartOfAccount::where('id_chart_of_account',$payment['chart_of_account_id'])->first()['ChartOfAccountID'];
                     }
                 }
-            }else{
+                $data['ReferenceNo'] = strtoupper($request['payment_type']);
+            }elseif(isset($request['id_transaction_payment_xendit'])){
                 $request['type'] = ucfirst(strtolower($request['type']));
                 foreach($availablePayment as $a => $paymentx){
-                    if($paymentx['payment_method'] == $request['type'] && $paymentx['payment_gateway'] == 'Xendit'){
-                        $data['ChartOfAccountID'] = $paymentx['chart_of_account_id'];
+                    if(strtolower($paymentx['payment_method']) == strtolower($request['type']) && $paymentx['payment_gateway'] == 'Xendit'){
+                        $data['ChartOfAccountID'] = ChartOfAccount::where('id_chart_of_account',$paymentx['chart_of_account_id'])->first()['ChartOfAccountID'];
                     }
                 }
+                $data['ReferenceNo'] = strtoupper($request['type']);
+            }elseif(isset($request['id_transaction_payment_cash'])){
+                $request['type'] = ucfirst(strtolower('Cash'));
+                foreach($availablePayment as $a => $paymentc){
+                    if(strtolower($paymentc['payment_method']) == strtolower($request['type']) && $paymentc['payment_gateway'] == 'Cash'){
+                        $data['ChartOfAccountID'] = ChartOfAccount::where('id_chart_of_account',$paymentc['chart_of_account_id'])->first()['ChartOfAccountID'];
+                    }
+                }
+                $data['ReferenceNo'] = strtoupper($request['type']);
             }
             
+            $transactions = [];
             foreach($request['transaction'] as $key => $transaction){
+                if(!isset($transactions[$transaction['id_product'].$transaction['total_price']])){
+                    $transactions[$transaction['id_product'].$transaction['total_price']] = $transaction;
+                }else{
+                    $transactions[$transaction['id_product'].$transaction['total_price']]['transaction_product_qty'] += $transaction['transaction_product_qty'];
+                }
+            }
+            $key = 0;
+
+            foreach($transactions as $transaction){
                 $data['Detail'][$key] = [
-                    "ItemID" => $penjulana_outlet['value'],
+                    "ItemID" => $transaction['id_item_icount'] ?? $penjulana_outlet['value'],
                     "Name" => $transaction['product_name'],
                     "Qty" => $transaction['transaction_product_qty'],
                     "Unit" => "PCS",
                     "Ratio" => "1",
-                    "Price" => $transaction['transaction_product_price'],
-                    "Disc" => ($transaction['discRp']*100)/($transaction['discRp']+$transaction['transaction_grandtotal']),
-                    "DiscRp" => $transaction['discRp'],
+                    "Price" => $transaction['total_price'],
+                    "Disc" => "0",
+                    "DiscRp" => "0",
                     "Description" => ""
                 ];
-                
+                $data['MDRFee'] += $transaction['mdr_product'] * $transaction['transaction_product_qty'];
+                $key++;
             }
             if($company=='PT IMA'){
                 if(isset($request['id_business_partner_ima']) && !empty($request['id_business_partner_ima'])){
@@ -356,6 +391,7 @@ class Icount
                     $data['BranchID'] = $request['id_branch_ima']; 
                 }
             }
+
             return self::sendRequest('POST', '/sales/create_order_poo', $data, $company, $logType, $orderId);
         }else{
             $data = [];
@@ -401,9 +437,13 @@ class Icount
         }else{
             if(isset($request['partner']['id_business_partner_ima']) && !empty($request['partner']['id_business_partner_ima'])){
                 $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
+            }elseif(isset($request['partner']['id_business_partner']) && !empty($request['partner']['id_business_partner'])){
+                $data['BusinessPartnerID'] = $request['partner']['id_business_partner'];
             }
-            if(isset($request['partner']['id_branch_ima']) && !empty($request['partner']['id_branch_ima'])){
-                $data['BranchID'] = $request['location']['id_branch_ima']; 
+            if(isset($request['location']['id_branch_ima']) && !empty($request['location']['id_branch_ima'])){
+                $data['BranchID'] = $request['location']['id_branch_ima'];
+            }elseif(isset($request['location']['id_branch']) && !empty($request['location']['id_branch'])){
+                $data['BranchID'] = $request['location']['id_branch'];
             }
         }
         return self::sendRequest('POST', '/sales/sharing_management_fee', $data, $company, $logType, $orderId);
@@ -446,9 +486,13 @@ class Icount
         }else{
             if(isset($request['partner']['id_business_partner_ima']) && !empty($request['partner']['id_business_partner_ima'])){
                 $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
+            }elseif(isset($request['partner']['id_business_partner']) && !empty($request['partner']['id_business_partner'])){
+                $data['BusinessPartnerID'] = $request['partner']['id_business_partner'];
             }
-            if(isset($request['partner']['id_branch_ima']) && !empty($request['partner']['id_branch_ima'])){
-                $data['BranchID'] = $request['location']['id_branch_ima']; 
+            if(isset($request['location']['id_branch_ima']) && !empty($request['location']['id_branch_ima'])){
+                $data['BranchID'] = $request['location']['id_branch_ima'];
+            }elseif(isset($request['location']['id_branch']) && !empty($request['location']['id_branch'])){
+                $data['BranchID'] = $request['location']['id_branch'];
             }
         }
         return self::sendRequest('POST', '/sales/sharing_management_fee', $data, $company, $logType, $orderId);
@@ -459,7 +503,10 @@ class Icount
     public static function ItemList($page = 1, $request = null, $company = null, $logType = null, $orderId = null){
         return self::sendRequest('GET', '/item/list?Limit=20&Page='.$page , $request, $company, $logType, $orderId);
     }
-    public static function ChartOfAccount($request = null, $logType = null, $orderId = null){
-        return self::sendRequest('GET', '/chart_of_account/list', $request, $logType, $orderId);
+    public static function DepartmentList($page = 1, $request = null, $company = null, $logType = null, $orderId = null){
+        return self::sendRequest('GET', '/department/list?Limit=20&Page='.$page , $request, $company, $logType, $orderId);
+    }
+    public static function ChartOfAccount($page = 1, $request = null, $company = null, $logType = null, $orderId = null){
+        return self::sendRequest('GET', '/chart_of_account/list?Limit=20&Page='.$page , $request, $logType, $orderId);
     }
 }

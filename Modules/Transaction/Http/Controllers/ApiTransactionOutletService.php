@@ -52,6 +52,7 @@ use App\Http\Models\LogTransactionUpdate;
 use Modules\ProductVariant\Entities\ProductVariant;
 use Modules\ProductVariant\Entities\TransactionProductVariant;
 use Modules\ShopeePay\Entities\TransactionPaymentShopeePay;
+use Modules\Xendit\Entities\TransactionPaymentXendit;
 use App\Http\Models\DealsUser;
 use App\Http\Models\DealsPaymentMidtran;
 use App\Http\Models\DealsPaymentManual;
@@ -100,6 +101,8 @@ class ApiTransactionOutletService extends Controller
 	            ->join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')
 	            ->leftJoin('transaction_products','transactions.id_transaction','=','transaction_products.id_transaction')
 	            ->leftJoin('transaction_product_services','transactions.id_transaction','=','transaction_product_services.id_transaction')
+                ->leftJoin('transaction_payment_midtrans', 'transactions.id_transaction', '=', 'transaction_payment_midtrans.id_transaction')
+                ->leftJoin('transaction_payment_xendits', 'transactions.id_transaction', '=', 'transaction_payment_xendits.id_transaction')
 	            ->leftJoin('products','products.id_product','=','transaction_products.id_product')
 	            ->with('user')
 	            ->select(
@@ -109,7 +112,7 @@ class ApiTransactionOutletService extends Controller
 	            	'transaction_products.*',
 	            	'outlets.*',
 	            	'users.*',
-	            	'transactions.*',
+	            	'transactions.*'
 	            )
 	            ->groupBy('transactions.id_transaction');
 
@@ -205,6 +208,24 @@ class ApiTransactionOutletService extends Controller
                     }
                 }
             }
+
+            $inner = ['payment'];
+            foreach ($inner as $col_name) {
+                if ($rules = $new_rule[$col_name] ?? false) {
+                    foreach ($rules as $rul) {
+                        $explode = explode('-', $rul['parameter']);
+                        $paymentGateway = $explode[0];
+                        $paymentMethod = $explode[1];
+                        if($paymentGateway == 'Cash'){
+                            $model2->$where('transactions.trasaction_payment_type', 'Cash');
+                        }elseif($paymentGateway == 'Midtrans'){
+                            $model2->$where('transaction_payment_midtrans.payment_type',  $paymentMethod);
+                        }elseif($paymentGateway == 'Xendit'){
+                            $model2->$where('transaction_payment_xendits.type',  $paymentMethod);
+                        }
+                    }
+                }
+            }
         });
 
         if ($rules = $new_rule['transaction_date'] ?? false) {
@@ -252,7 +273,7 @@ class ApiTransactionOutletService extends Controller
 
         $trxPayment = $this->transactionPayment($trx);
         $trx['payment'] = $trxPayment['payment'];
-
+       
         $trx->load('user','outlet');
         $result = [
             'id_transaction'                => $trx['id_transaction'],
@@ -264,6 +285,8 @@ class ApiTransactionOutletService extends Controller
             'transaction_subtotal'          => MyHelper::requestNumber($trx['transaction_subtotal'],'_CURRENCY'),
             'transaction_discount'          => MyHelper::requestNumber($trx['transaction_discount'],'_CURRENCY'),
             'transaction_cashback_earned'   => MyHelper::requestNumber($trx['transaction_cashback_earned'],'_POINT'),
+            'transaction_tax'               => $trx['transaction_tax'],
+            'mdr'                           => $trx['mdr'],
             'trasaction_payment_type'       => $trx['trasaction_payment_type'],
             'transaction_payment_status'    => $trx['transaction_payment_status'],
             'continue_payment'              => $trxPayment['continue_payment'],
@@ -333,7 +356,7 @@ class ApiTransactionOutletService extends Controller
                 }
             }
         }
-        
+        \Log::info($result);
         return MyHelper::checkGet($result);
     }
 
@@ -503,6 +526,19 @@ class ApiTransactionOutletService extends Controller
                                     $paymentGateway = 'Shopeepay';
                                 }
                                 break;
+                            case 'Xendit':
+                                $payXendit = TransactionPaymentXendit::find($dataPay['id_payment']);
+                                $payment[$dataKey]['name']      = $payXendit->type??'';
+                                $payment[$dataKey]['amount']    = $payXendit->amount;
+                                $payment[$dataKey]['reject']    = $payXendit->err_reason?:'payment expired';
+                                if($trx['transaction_payment_status'] == 'Pending') {
+                                    $redirectUrl = $payXendit->redirect_url_http;
+                                    $redirectUrlApp = $payXendit->redirect_url_app;
+                                    $continuePayment =  true;
+                                    $totalPayment = $payXendit->amount;
+                                    $paymentGateway = 'Xendit';
+                                }
+                                break;
                             case 'Offline':
                                 $payment = TransactionPaymentOffline::where('id_transaction', $trx['id_transaction'])->get();
                                 foreach ($payment as $key => $value) {
@@ -626,6 +662,32 @@ class ApiTransactionOutletService extends Controller
                             $shopeeTimer = (int) MyHelper::setting('shopeepay_validity_period', 'value', 300);
                             $shopeeMessage ='Sorry, your payment has expired';
                             $paymentGateway = 'Shopeepay';
+                        }
+                    }else{
+                        $dataPay = TransactionPaymentBalance::find($dataPay['id_payment']);
+                        $payment[$dataKey]              = $dataPay;
+                        $trx['balance']                = $dataPay['balance_nominal'];
+                        $payment[$dataKey]['name']      = 'Balance';
+                        $payment[$dataKey]['amount']    = $dataPay['balance_nominal'];
+                    }
+                }
+                $trx['payment'] = $payment;
+                break;
+            case 'Xendit':
+                $multiPayment = TransactionMultiplePayment::where('id_transaction', $trx['id_transaction'])->get();
+                $payment = [];
+                foreach($multiPayment as $dataKey => $dataPay){
+                    if($dataPay['type'] == 'Xendit'){
+                        $payXendit = TransactionPaymentXendit::find($dataPay['id_payment']);
+                        $payment[$dataKey]['name']      = $payXendit->type??'';
+                        $payment[$dataKey]['amount']    = $payXendit->amount ;
+                        $payment[$dataKey]['reject']    = $payXendit->err_reason?:'payment expired';
+                        if($trx['transaction_payment_status'] == 'Pending') {
+                            $redirectUrl = $payXendit->redirect_url_http;
+                            $redirectUrlApp = $payXendit->redirect_url_app;
+                            $continuePayment =  true;
+                            $totalPayment = $payXendit->amount;
+                            $paymentGateway = 'Xendit';
                         }
                     }else{
                         $dataPay = TransactionPaymentBalance::find($dataPay['id_payment']);
@@ -894,6 +956,8 @@ class ApiTransactionOutletService extends Controller
 	            ->leftJoin('transaction_products','transactions.id_transaction','=','transaction_products.id_transaction')
 	            ->leftJoin('transaction_product_services','transactions.id_transaction','=','transaction_product_services.id_transaction')
 	            ->leftJoin('products','products.id_product','=','transaction_products.id_product')
+                ->leftJoin('transaction_payment_midtrans', 'transactions.id_transaction', '=', 'transaction_payment_midtrans.id_transaction')
+                ->leftJoin('transaction_payment_xendits', 'transactions.id_transaction', '=', 'transaction_payment_xendits.id_transaction')
 	            ->with('user')
 	            ->where('transaction_payment_status', 'Completed')
 	            ->whereNull('transaction_outlet_services.completed_at')

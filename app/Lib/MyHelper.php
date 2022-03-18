@@ -1543,6 +1543,25 @@ class MyHelper{
 		if ($form_type == 0) {
 			$content['json'] = (array)$post;
 		}
+        elseif ($form_type == 2) {
+			foreach($post as $key => $value){
+                if($key!='Detail'){
+                    $content['multipart'][] = [
+                        'name' => $key,
+                        'contents' => $value,
+                    ];   
+                }else{
+                    foreach($value as $index => $array_detail){
+                        foreach($array_detail as $key_detail => $detail){
+                            $content['multipart'][] = [
+                                'name' => $key.'['.$index.']'.'['.$key_detail.']',
+                                'contents' => $detail,
+                            ];  
+                        }
+                    }
+                }
+            }
+		}
 		else {
 			$content['form_params'] = $post;
 		}
@@ -1558,6 +1577,9 @@ class MyHelper{
 					$content['headers'][$key] = $dataHeader;
 				}
 			}
+		}
+        if ($form_type == 2) {
+            unset($content['headers']['Content-Type']);
 		}
 		$content['timeout'] = $timeout;
 
@@ -2616,7 +2638,7 @@ class MyHelper{
         $phone = str_replace('+', '', $phone);
 
         if(substr($phone, 0, 2) == 62){
-            $phone = str_replace('62', '0', $phone);
+            $phone = '0' . substr($phone, 2);
         }
 
         if(substr($phone, 0, 1) == '0'){
@@ -3279,7 +3301,7 @@ class MyHelper{
      */
     public static function calculator($formula, $variables)
     {
-    	extract($variables);
+        extract($variables);
     	$formula = preg_replace('/([a-zA-Z][a-zA-Z0-9_]*)/', '$$1', $formula);
     	return eval('return '. $formula . ';');
     }

@@ -10,6 +10,7 @@ use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Recruitment\Entities\UserHairStylistDocuments;
 use Modules\Recruitment\Http\Requests\user_hair_stylist_create;
 use Modules\Recruitment\Http\Requests\CreateGroup;
+use Modules\Recruitment\Http\Requests\UpdateGroup;
 use Modules\Recruitment\Http\Requests\CreateGroupCommission;
 use Modules\Recruitment\Http\Requests\UpdateGroupCommission;
 use Modules\Recruitment\Http\Requests\InviteHS;
@@ -97,11 +98,6 @@ class ApiHairStylistGroupController extends Controller
             }
         }
     }
-    public function index_old()
-    {
-        $data = HairstylistGroup::all();
-        return MyHelper::checkGet($data);
-    }
     public function detail(Request $request)
     {
         if($request->id_hairstylist_group!=''){
@@ -169,7 +165,7 @@ class ApiHairStylistGroupController extends Controller
     }
     public function update_commission(UpdateGroupCommission $request)
     {
-        if($request->percent == 'on'){
+        if(isset($request->percent)){
             $percent = 1;
         }else{
             $percent = 0;
@@ -276,5 +272,12 @@ class ApiHairStylistGroupController extends Controller
         }
          return response()->json($data);
     }
-    
+    public function setting_potongan(Request $request) {
+        $potongan = HairstylistGroupPotonganDefault::get();
+        return MyHelper::checkGet($potongan);
+    }
+    public function setting_insentif(Request $request) {
+        $insentif = HairstylistGroupInsentifDefault::get();
+        return MyHelper::checkGet($insentif);
+    }
 }

@@ -12,6 +12,8 @@ use App\Http\Models\Level;
 use App\Http\Models\Doctor;
 use App\Http\Models\Setting;
 use App\Http\Models\OauthAccessToken;
+use Modules\Balance\Http\Controllers\BalanceController;
+use Modules\Users\Entities\OldMember;
 use Modules\Users\Http\Requests\users_forgot;
 use Modules\Users\Http\Requests\users_phone;
 use Modules\Users\Http\Requests\users_phone_pin_admin;
@@ -399,12 +401,12 @@ class ApiUserV2 extends Controller
             ->get()
             ->toArray();
         if ($data) {
-            if(!empty($data[0]['pin_changed']) && empty($data[0]['phone_verified']) && !password_verify($request->json('pin_old'), $data[0]['otp_forgot'])){
+            if(!empty($data[0]['otp_forgot']) && !empty($data[0]['phone_verified']) && !password_verify($request->json('pin_old'), $data[0]['otp_forgot'])){
                 return response()->json([
                     'status'    => 'fail',
                     'messages'    => ['Current PIN doesn\'t match']
                 ]);
-            }elseif(!empty($data[0]['pin_changed']) && !empty($data[0]['phone_verified']) && !Auth::attempt(['phone' => $phone, 'password' => $request->json('pin_old')])){
+            }elseif(empty($data[0]['otp_forgot']) && !empty($data[0]['pin_changed']) && !empty($data[0]['phone_verified']) && !Auth::attempt(['phone' => $phone, 'password' => $request->json('pin_old')])){
                 return response()->json([
                     'status'    => 'fail',
                     'messages'    => ['Current PIN doesn\'t match']
@@ -412,7 +414,7 @@ class ApiUserV2 extends Controller
             }
 
             $pin     = bcrypt($request->json('pin_new'));
-            $update = User::where('id', '=', $data[0]['id'])->update(['password' => $pin, 'phone_verified' => '1', 'pin_changed' => '1']);
+            $update = User::where('id', '=', $data[0]['id'])->update(['password' => $pin, 'otp_forgot' => null, 'phone_verified' => '1', 'pin_changed' => '1']);
             if (\Module::collections()->has('Autocrm')) {
                 if ($data[0]['first_pin_change'] < 1) {
                     $autocrm = app($this->autocrm)->SendAutoCRM('Pin Changed', $phone);
@@ -509,16 +511,13 @@ class ApiUserV2 extends Controller
                     $dateOtpTimeExpired = date("Y-m-d H:i:s", strtotime("+30 minutes"));
                 }
 
-                $update = User::where('id', '=', $data[0]['id'])->update(['otp_forgot' => $password, 'phone_verified' => '0', 'otp_valid_time' => $dateOtpTimeExpired]);
+                $update = User::where('id', '=', $data[0]['id'])->update(['otp_forgot' => $password, 'otp_valid_time' => $dateOtpTimeExpired]);
 
                 if (!empty($request->header('user-agent-view'))) {
                     $useragent = $request->header('user-agent-view');
                 } else {
                     $useragent = $_SERVER['HTTP_USER_AGENT'];
                 }
-
-                $del = OauthAccessToken::join('oauth_access_token_providers', 'oauth_access_tokens.id', 'oauth_access_token_providers.oauth_access_token_id')
-                    ->where('oauth_access_tokens.user_id', $data[0]['id'])->where('oauth_access_token_providers.provider', 'users')->delete();
 
                 if (stristr($useragent, 'iOS')) $useragent = 'iOS';
                 if (stristr($useragent, 'okhttp')) $useragent = 'Android';
@@ -588,5 +587,44 @@ class ApiUserV2 extends Controller
             ];
             return response()->json($result);
         }
+    }
+
+    public function claimPoint(Request $request){
+        $id = $request->user()->id;
+        $user = User::where('id', $id)->first();
+
+        if(empty($user)){
+            return response()->json([[
+                'status'    => 'fail',
+                'messages'  => ['User tidak ditemukan']
+            ]]);
+        }
+
+        $checkOldMember = OldMember::where('phone', $user['phone'])->where('claim_status', 0)->get()->toArray();
+        $sumPoint = array_sum(array_column($checkOldMember, 'loyalty_point'));
+        if(empty($sumPoint)){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Tidak berhasil klaim point']
+            ]);
+        }
+
+        $balanceController = new BalanceController();
+        $addLogBalance = $balanceController->addLogBalance($id, (int)$sumPoint, null, "Claim Point", 0);
+        if (!$addLogBalance) {
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Tidak berhasil klaim point']
+            ]);
+        }
+
+        OldMember::where('phone', $user['phone'])->update(['claim_status' => 1]);
+        User::where('id', $id)->update(['claim_point_status' => 1]);
+        return response()->json([
+            'status' => 'success',
+            'result' => [
+                'message' => 'Berhasil klaim point sebesar '. number_format((int)$sumPoint)
+            ]
+        ]);
     }
 }

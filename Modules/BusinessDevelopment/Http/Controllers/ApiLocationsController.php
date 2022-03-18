@@ -24,6 +24,7 @@ use Image;
 use Modules\BusinessDevelopment\Entities\NewStepsLog;
 use Modules\BusinessDevelopment\Entities\StepsLog;
 use Modules\BusinessDevelopment\Http\Requests\LandingPage\StoreNewLocation;
+use App\Http\Models\Setting;
 
 class ApiLocationsController extends Controller
 {
@@ -194,7 +195,7 @@ class ApiLocationsController extends Controller
     {
         $post = $request->all();
         if(isset($post['id_location']) && !empty($post['id_location'])){
-            $location = Location::where('id_location', $post['id_location'])->with(['location_partner','location_city','location_step','location_survey','location_confirmation','location_starter.product'])->first();
+            $location = Location::where('id_location', $post['id_location'])->with(['location_partner','location_city.province','location_step','location_survey','location_confirmation','location_starter.product'])->first();
             if(($location['location_step'])){
                 foreach($location['location_step'] as $step){
                     if(isset($step['attachment']) && !empty($step['attachment'])){
@@ -221,6 +222,9 @@ class ApiLocationsController extends Controller
                     }
                 }
             } 
+            if(isset($location['value_detail']) && !empty($location['value_detail'])){
+                $location['value_detail_decode'] = json_decode($location['value_detail']??'' , true);
+            }
             if($location==null){
                 return response()->json(['status' => 'success', 'result' => [
                     'location' => 'Empty',
@@ -258,7 +262,7 @@ class ApiLocationsController extends Controller
                 $data_update['name'] = $post['name'];
             }
             if (isset($post['code'])) {
-                $cek_code = Location::where('code', $post['code'])->first();
+                $cek_code = Location::where('code', $post['code'])->where('id_location','<>',$post['id_location'])->first();
                 if($cek_code){
                     return response()->json(['status' => 'duplicate_code', 'messages' => ['Location code must be different']]);
                 }else{
@@ -372,6 +376,7 @@ class ApiLocationsController extends Controller
                         'id_product_icount'  => $value['id_product_icount'],
                         'unit'  => $value['unit'],
                         'qty'  => $value['qty'],
+                        'filter'  => $value['filter'],
                         'budget_code'  => $value['budget_code'],
                     ];
                 }, $starter);
@@ -413,15 +418,37 @@ class ApiLocationsController extends Controller
             if (isset($post['sharing_percent'])) {
                 $data_update['sharing_percent'] = $post['sharing_percent'];
             }
-            if(isset($data_update['start_date']) && isset($data_update['end_date'])){
-                $start = explode('-', $data_update['start_date']);
-                $end = explode('-', $data_update['end_date']);
-                try{
-                    $partner_controller = New ApiPartnersController;
-                    $waktu = $partner_controller->timeTotal($start,$end);
-                }catch(\Exception $e) {
-                    return response()->json(['status' => 'fail_date', 'messages' => ['Start Date and End Date must be at least 3 years apar']]);
+            if (isset($post['from']) && $post['from'] == 'Select Location') {
+                $year = date('y');
+                $month = date('m');
+                //confir letter
+                $yearMonthSPK = 'CL/'.$year.'/'.$month.'/';
+                $cl = ConfirmationLetter::where('no_letter','like', $yearMonthSPK.'%')->count() + 1;
+                if($cl < 10){
+                    $cl = '0'.$cl;
                 }
+                $no_cl = 'CL/'.$year.'/'.$month.'/'.$cl;
+                $creatConf = [
+                    "id_partner"   => $post['id_partner'],
+                    "id_location"   => $post['id_location'],
+                    "no_letter"   => $no_cl,
+                    "location"   => '1',
+                    "date"   => date("Y-m-d"),
+                    "path" => '1'
+                ];
+                $cek_cl = ConfirmationLetter::where('id_partner',$post['id_partner'])->where('id_location',$post['id_location'])->first();
+                if(!$cek_cl){
+                    $store = ConfirmationLetter::create($creatConf);
+                }
+
+                //spk
+                $yearMonth = 'SPK/'.$year.'/'.$month.'/';
+                $no_spk = Location::where('no_spk','like', $yearMonth.'%')->count() + 1;
+                if($no_spk < 10 ){
+                    $no_spk = '0'.$no_spk;
+                }
+                $no_spk = $yearMonth.$no_spk;
+                $data_update['no_spk'] = $no_spk;
             }
             $old_status = Location::where('id_location', $post['id_location'])->get('status')[0]['status'];
             $update = Location::where('id_location', $post['id_location'])->update($data_update);
@@ -430,35 +457,6 @@ class ApiLocationsController extends Controller
                 return response()->json(['status' => 'fail', 'messages' => ['Failed update location']]);
             }
             DB::commit();
-            // $new_id_partner = Location::where('id_location', $post['id_location'])->get('id_partner')[0]['id_partner'];
-            // if($new_id_partner){
-            //     $partner = Partner::where('id_partner',$new_id_partner)->get()[0];
-            //     if(isset($data_update['status'])){
-            //         if($old_status=='Candidate' && $data_update['status'] == 'Active'){
-            //             if (\Module::collections()->has('Autocrm')) {
-            //                 $autocrm = app($this->autocrm)->SendAutoCRM(
-            //                     'Updated Candidate Location to Location',
-            //                     $partner['phone'],
-            //                     [
-            //                         'name' => $partner['name'],
-            //                     ], null, null, null, null, null, null, null, 1,
-            //                 );
-            //                 // return $autocrm;
-            //                 if ($autocrm) {
-            //                     return response()->json([
-            //                         'status'    => 'success',
-            //                         'messages'  => ['Approved sent to email partner']
-            //                     ]);
-            //                 } else {
-            //                     return response()->json([
-            //                         'status'    => 'fail',
-            //                         'messages'  => ['Failed to send']
-            //                     ]);
-            //                 }
-            //             }
-            //         }
-            //     }
-            // }
             if(isset($request['data_confir']) && !empty($request['data_confir'])){
                 $confir = new ApiPartnersController;
                 $confir_letter = $confir->createConfirLetter($request['data_confir']);
@@ -585,7 +583,7 @@ class ApiLocationsController extends Controller
                             "location" => Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->first(),
                             "confir" => ConfirmationLetter::where('id_partner',$post["id_partner"])->first(),
                         ];
-                        $invoiceCL = Icount::ApiInvoiceConfirmationLetter($data_send_2);
+                        $invoiceCL = Icount::ApiInvoiceConfirmationLetter($data_send_2, 'PT IMA');
                         if($invoiceCL['response']['Status']=='1' && $invoiceCL['response']['Message']=='success'){
                             $data_invoCL = $invoiceCL['response']['Data'][0];
                             $val = Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->get('value_detail')[0]['value_detail'];
@@ -735,6 +733,8 @@ class ApiLocationsController extends Controller
                 $data_request['pic_contact'] = $checkPhoneFormat['phone'];
             }
 
+            $loc_code = $this->locationCode();
+
             $data_loc = [
                 "name"   => $data_request['name'],
                 "address"   => $data_request['address'],
@@ -748,6 +748,7 @@ class ApiLocationsController extends Controller
                 "pic_name"   => $data_request['pic_name'],
                 "pic_contact"   => $data_request['pic_contact'],
                 "location_notes"   => $data_request['notes'],
+                "code" => $loc_code
             ];
 
             if (isset($post['location_image']) && !empty($post['location_image'])) {
@@ -776,6 +777,22 @@ class ApiLocationsController extends Controller
         }           
     }
 
+    public function locationCode(){
+        $year = date('y');
+        $month = date('m');
+        $yearMonth = 'LOC'.$year.$month;
+        $no = Location::where('code','like', $yearMonth.'%')->count() + 1;
+        if($no < 10 ){
+            $no = '000'.$no;
+        }elseif($no < 100 && $no >= 10){
+            $no = '00'.$no;
+        }elseif($no < 1000 && $no >= 100){
+            $no = '0'.$no;
+        }
+        $no = $yearMonth.$no;
+        return $no;
+    }
+
     public function addLocationProductStarter($data){
 
         $data_product = [];
@@ -786,6 +803,7 @@ class ApiLocationsController extends Controller
                 'id_product_icount'  => $value['id_product_icount'],
                 'unit'  => $value['unit'],
                 'qty'  => $value['qty'],
+                'filter'  => $value['filter'],
                 'budget_code'  => $value['budget_code'],
             ]);
         }
@@ -816,6 +834,46 @@ class ApiLocationsController extends Controller
             ];
         }
         
+    }
+
+    public function settingUpdate(Request $request){
+        $post = $request->all();
+
+        $update['before'] = Setting::updateOrCreate(['key' => $post['key'].'_before'],['value_text' => $post['value_before']]);
+        $update['after'] = Setting::updateOrCreate(['key' => $post['key'].'_after'],['value_text' => $post['value_after']]);
+
+        return response()->json(MyHelper::checkUpdate($update));
+    }
+
+    public function valueBeforeAfter(Request $request, $key){
+        $post = $request->all();
+        
+        if($key=='partner'){
+            $key_setting_before = 'setting_partner_content_before';
+            $key_setting_after = 'setting_partner_content_after';
+        }elseif($key=='location'){
+            $key_setting_before = 'setting_locations_content_before';
+            $key_setting_after = 'setting_locations_content_after';
+        }elseif($key=='hairstylist'){
+            $key_setting_before = 'setting_hairstylist_content_before';
+            $key_setting_after = 'setting_hairstylist_content_after';
+        }
+        
+        $before = Setting::where('key', $key_setting_before)->first();
+        if($before){
+            $data['before']['id_setting'] = $before['id_setting'];
+            $data['before']['value_text'] = $before['value_text'];
+        }else{
+            $data['before'] = null;
+        }
+        $after = Setting::where('key', $key_setting_after)->first();
+        if($after){
+            $data['after']['id_setting'] = $after['id_setting'];
+            $data['after']['value_text'] = $after['value_text'];
+        }else{
+            $data['after'] = null;
+        }
+        return MyHelper::checkGet($data);
     }
 
 }

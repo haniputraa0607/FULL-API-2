@@ -527,7 +527,7 @@ class ApiNews extends Controller
             $query->select('id_news_category', 'category_name');
         }])->leftJoin('news_categories', 'news_categories.id_news_category', 'news.id_news_category');
 
-        if (!$request->json('admin')) {
+        if (!$request->json('admin') && MyHelper::config(124)) {
             $news->whereHas('newsCategory');
         }
 

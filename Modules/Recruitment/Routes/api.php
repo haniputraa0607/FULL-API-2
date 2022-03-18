@@ -12,6 +12,13 @@ use Illuminate\Http\Request;
 | is assigned the "api" middleware group. Enjoy building your API!
 |
 */
+Route::group(['middleware' => ['auth:api', 'scopes:be'], 'prefix' => 'hairstylist/be'], function () {
+    Route::post('export-commision', 'ApiHairStylistController@exportCommision');
+    Route::post('category/create', 'ApiHairStylistController@createCategory');
+    Route::any('category', 'ApiHairStylistController@listCategory');
+    Route::post('category/update', 'ApiHairStylistController@updateCategory');
+    Route::post('category/delete', 'ApiHairStylistController@deleteCategory');
+});
 
 Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'recruitment'], function () {
 
@@ -28,6 +35,10 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
         Route::post('update-box', 'ApiHairStylistController@updateBox');
         Route::post('detail/document', 'ApiHairStylistController@detailDocument');
         Route::post('delete', 'ApiHairStylistController@delete');
+        Route::post('info-order', 'ApiHairStylistController@totalOrder');
+        Route::post('move-outlet', 'ApiHairStylistController@moveOutlet');
+        Route::get('setting-requirements', 'ApiHairStylistController@candidateSettingRequirements');
+        Route::post('setting-requirements', 'ApiHairStylistController@candidateSettingRequirements');
 
     	Route::group(['prefix' => 'schedule'], function () {
         	Route::post('list', 'ApiHairStylistScheduleController@list');
@@ -35,6 +46,25 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
         	Route::post('update', 'ApiHairStylistScheduleController@update');
         	Route::get('outlet', 'ApiHairStylistScheduleController@outlet');
         	Route::get('year-list', 'ApiHairStylistScheduleController@getScheduleYear');
+        	Route::post('create', 'ApiHairStylistScheduleController@create');
+    	});
+
+    	Route::group(['prefix' => 'timeoff'], function () {
+        	Route::post('list', 'ApiHairStylistTimeOffOvertimeController@listTimeOff');
+        	Route::post('delete', 'ApiHairStylistTimeOffOvertimeController@deleteTimeOff');
+        	Route::post('detail', 'ApiHairStylistTimeOffOvertimeController@detailTimeOff');
+        	Route::post('update', 'ApiHairStylistTimeOffOvertimeController@updateTimeOff');
+        	Route::post('create', 'ApiHairStylistTimeOffOvertimeController@createTimeOff');
+        	Route::post('list-hs', 'ApiHairStylistTimeOffOvertimeController@listHS');
+        	Route::post('list-date', 'ApiHairStylistTimeOffOvertimeController@listDate');
+    	});
+
+    	Route::group(['prefix' => 'overtime'], function () {
+        	Route::post('list', 'ApiHairStylistTimeOffOvertimeController@listOvertime');
+        	Route::post('detail', 'ApiHairStylistTimeOffOvertimeController@detailOvertime');
+        	Route::post('update', 'ApiHairStylistTimeOffOvertimeController@updateOvertime');
+        	Route::post('create', 'ApiHairStylistTimeOffOvertimeController@createOvertime');
+        	Route::post('delete', 'ApiHairStylistTimeOffOvertimeController@deleteOvertime');
     	});
 
     	Route::group(['prefix' => 'announcement'], function () {
@@ -66,6 +96,8 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
             Route::any('list_group', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@list_group']);
             Route::any('list_default_insentif', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@list_default_insentif']);
             Route::any('list_default_potongan', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@list_default_potongan']);
+            Route::any('setting_insentif', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@setting_insentif']);
+            Route::any('setting_potongan', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@setting_potongan']);
             Route::group(['prefix' => 'insentif'], function () {
                 Route::post('/', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupInsentifController@index']);
                 Route::post('create', ['middleware' => 'feature_control:394','uses' =>'ApiHairStylistGroupInsentifController@create']);
@@ -112,7 +144,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
     });
 });
 
-Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mitra'], function () {
+Route::group(['middleware' => ['log_activities_mitra_apps', 'user_agent'], 'prefix' => 'mitra'], function () {
     Route::get('splash','ApiMitra@splash');
     Route::group(['middleware' => ['auth_client', 'scopes:mitra-apps']], function()
     {
@@ -137,10 +169,13 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
             Route::post('customer/history', 'ApiMitraOutletService@customerHistory');
         	Route::post('customer/queue', 'ApiMitraOutletService@customerQueue');
         	Route::post('customer/detail', 'ApiMitraOutletService@customerQueueDetail');
+        	Route::post('check-start', 'ApiMitraOutletService@checkStartService');
         	Route::post('start', 'ApiMitraOutletService@startService');
         	Route::post('stop', 'ApiMitraOutletService@stopService');
+        	Route::post('check-extend', 'ApiMitraOutletService@checkExtendService');
         	Route::post('extend', 'ApiMitraOutletService@extendService');
         	Route::post('complete', 'ApiMitraOutletService@completeService');
+        	Route::post('check-complete', 'ApiMitraOutletService@checkCompleteService');
         	Route::get('box', 'ApiMitraOutletService@availableBox');
             Route::post('payment-cash/detail', 'ApiMitraOutletService@paymentCashDetail');
             Route::post('payment-cash/completed', 'ApiMitraOutletService@paymentCashCompleted');
@@ -198,7 +233,11 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'mit
 
         Route::post('expense/outlet/create', 'ApiMitra@expenseOutletCreate');
         Route::post('expense/outlet/history', 'ApiMitra@expenseOutletHistory');
-
+        
+        Route::group(['prefix' => 'income'], function () {
+            Route::post('cron_middle', 'ApiIncome@cron_middle');
+            Route::post('cron_end', 'ApiIncome@cron_end');
+        });
 	});
 
     Route::group(['middleware' => ['auth:mitra', 'scopes:mitra-apps'], 'prefix' => 'attendance'], function () {

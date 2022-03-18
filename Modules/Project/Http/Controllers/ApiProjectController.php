@@ -20,6 +20,8 @@ use Modules\Project\Entities\ProjectDesain;
 use Modules\Project\Entities\ProjectFitOut;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Project\Http\Requests\Project\UpdateProjectRequest;
+use Modules\Brand\Entities\BrandOutlet;
+
 class ApiProjectController extends Controller
 {
    public function __construct()
@@ -184,6 +186,13 @@ class ApiProjectController extends Controller
             'outlet_status' => 'Inactive',
             'is_tax' => $location->is_tax,
         ]);
+
+        $id_outlet = $outlet->id_outlet;
+        BrandOutlet::where('id_outlet',$id_outlet)->delete();
+        $brand_outlet = BrandOutlet::create([
+                    'id_outlet'=>$id_outlet,
+                    'id_brand'=>$location->id_brand
+                ]);
         try {
             for ($i=0; $i < $location->total_box; $i++) { 
                 $outlet->outlet_box()->create([
@@ -221,24 +230,27 @@ class ApiProjectController extends Controller
         
     }
     function outlet_code(){
-        $outlet = Outlet::orderby('created_at','desc')->first();
-        $awal = "M";
-        if($outlet){
-         $angka = str_replace($awal,"", $outlet->outlet_code);
-         $u = 1; 
-         for($x = 0; $x < $u; $x++){
-             $angka++;
-            $outlet_code = $awal.$angka;
-            $outlet = Outlet::where(array('outlet_code'=>$outlet_code))->first();
-            if(!$outlet){
-                $outlet_code;
-                break;
+        $s = 1;
+        $year = date('y');
+        $month = date('m');
+        $yearMonth = 'OUT'.$year.$month;
+        $nom = Outlet::count();
+        for ($x = 0; $x < $s; $x++) {
+            $nom++;
+            if($nom < 10 ){
+                $nom = '000'.$nom;
+            }elseif($nom < 100 && $nom >= 10){
+                $nom = '00'.$nom;
+            }elseif($nom < 1000 && $nom >= 100){
+                $nom = '0'.$nom;
             }
-            $u++;
-         }
-        return $outlet_code;
+            $no = $yearMonth.$nom;
+            $cek = Outlet::where('outlet_code',$no)->first();
+            if($cek){
+                $s++;
+            }
         }
-        return $awal."1";
+        return $no;
     }
      public function excel(Request $request){
         if(isset($request->id_project)){

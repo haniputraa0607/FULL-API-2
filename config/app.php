@@ -1,5 +1,4 @@
 <?php
-
 return [
 	'api_url' => env('APP_API_URL'),
     /*
@@ -14,7 +13,8 @@ return [
     */
 
     'name' => env('APP_NAME', 'Laravel'),
-
+    'income_date_end' => env('DATE_END_INCOME', 25),
+    'income_date_middle' => env('DATE_MIDDLE_INCOME', 11),
     /*
     |--------------------------------------------------------------------------
     | Application Environment

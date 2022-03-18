@@ -8,7 +8,7 @@ use App\Http\Models\ProductPhoto;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
-use Modules\Academy\Entities\ProductAcademyTheory;
+use Modules\Academy\Entities\ProductAcademyTheoryCategory;
 use Modules\Franchise\Entities\Setting;
 use Modules\Outlet\Http\Requests\Outlet\OutletList;
 use Modules\Product\Entities\ProductDetail;
@@ -122,20 +122,20 @@ class ApiProductAcademyController extends Controller
     public function academyTheory(Request $request){
         $post = $request->json()->all();
 
-        if(!empty($post['theory']) && !empty($post['id_product'])){
+        if(!empty($post['id_product'])){
             $insert = [];
-            ProductAcademyTheory::where('id_product', $post['id_product'])->delete();
-            foreach ($post['theory'] as $dt){
+            $save = ProductAcademyTheoryCategory::where('id_product', $post['id_product'])->delete();
+            foreach ($post['theory']??[] as $dt){
                 $insert[] = [
                     'id_product' => $post['id_product'],
-                    'id_theory' => $dt,
+                    'id_theory_category' => $dt,
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s')
                 ];
             }
 
             if(!empty($insert)){
-                $save = ProductAcademyTheory::insert($insert);
+                $save = ProductAcademyTheoryCategory::insert($insert);
             }
 
             return response()->json(MyHelper::checkUpdate($save));

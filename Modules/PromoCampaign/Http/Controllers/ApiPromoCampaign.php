@@ -2337,6 +2337,37 @@ class ApiPromoCampaign extends Controller
 	                $product = $product->whereIn('brands.id_brand',$post['brand']);
 	            }
 
+                if (!empty($post['service'])) {
+
+                    $product = $product->where(function($pro)use($post){
+                        if(in_array('Outlet Service',$post['service'])){
+                            $pro = $pro->orWhere(function($q){
+                                $q = $q->where('products.product_type', 'product')->orWhere(function($q2){
+                                    $q2 = $q2->where('products.product_type', 'service')->where('products.available_home_service', 0);
+                                });
+                            });
+                        }
+
+                        if(in_array('Home Service',$post['service'])){
+                            $pro = $pro->orWhere(function($q){
+                                $q = $q->where('products.product_type', 'service');
+                            });
+                        }
+
+                        if(in_array('Academy',$post['service'])){
+                            $pro = $pro->orWhere(function($q){
+                                $q = $q->where('products.product_type', 'academy');
+                            });
+                        }
+
+                        if(in_array('Online Shop',$post['service'])){
+                            $pro = $pro->orWhere(function($q){
+                                $q = $q->whereNotNull('products.id_product_group');
+                            });
+                        }
+                    });
+	            }
+
             	$product = $product->get()->toArray();
 
             	$data = array_merge($data, $product);
@@ -2356,8 +2387,8 @@ class ApiPromoCampaign extends Controller
 
             	$product_variant = $product_variant->get()->toArray();
 
+                $formatted_product_variant = [];
 	            if ($product_variant) {
-	            	$formatted_product_variant = [];
 		            foreach ($product_variant as $value) {
 		            	$variant = '';
 		            	if (!empty($value)) {
@@ -4031,13 +4062,13 @@ class ApiPromoCampaign extends Controller
     public function onGoingPromoCampaign(Request $request){
         $post = $request->all();
         
-
+				$now = date('Y-m-d H-i-s');
         $home_text = Setting::whereIn('key',['share_promo_code'])->get()->keyBy('key');
         $text['share'] = $home_text['share_promo_code']['value_text'] ?? 'Bagikan %promo_code% ke teman-teman'; //dummy
 
         $promo_campaign = PromoCampaign::select('id_promo_campaign', 'promo_title', 'promo_image', 'date_start', 'date_end', 'code_type', 'promo_description')
-                ->where('date_end','>=',DB::raw('CURRENT_TIMESTAMP()'))
-                ->where('date_start','<=',DB::raw('CURRENT_TIMESTAMP()'))
+                ->where('date_end','>=',$now)
+                ->where('date_start','<=',$now)
                 ->whereHas('brands',function($query){
                     $query->where('brand_active',1);
                 })
@@ -4076,6 +4107,7 @@ class ApiPromoCampaign extends Controller
 
     public function detailOnGoingPromoCampaign(Request $request){
         $post = $request->all();
+				$now = date('Y-m-d H-i-s');
         if(isset($post['id_promo_campaign']) && !empty($post['id_promo_campaign'])){
             $id_promo = $post['id_promo_campaign'];
             $home_text = Setting::whereIn('key',['share_promo_code'])->get()->keyBy('key');
@@ -4083,8 +4115,8 @@ class ApiPromoCampaign extends Controller
     
             $promo_campaign = PromoCampaign::select('id_promo_campaign', 'promo_title', 'promo_image', 'date_start', 'date_end', 'code_type', 'promo_description')
                     ->where('id_promo_campaign',$id_promo)
-                    ->where('date_end','>=',DB::raw('CURRENT_TIMESTAMP()'))
-                    ->where('date_start','<=',DB::raw('CURRENT_TIMESTAMP()'))
+                    ->where('date_end','>=',$now)
+                    ->where('date_start','<=',$now)
                     ->whereHas('brands',function($query){
                         $query->where('brand_active',1);
                     })

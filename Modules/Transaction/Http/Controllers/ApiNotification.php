@@ -97,7 +97,18 @@ class ApiNotification extends Controller {
 
         try{
             // CHECK ORDER ID
-            if (stristr($midtrans['order_id'], config('configs.PREFIX_TRANSACTION_NUMBER'))) {
+            if(substr_count($midtrans['order_id'],"-") >= 2){
+                $installment = TransactionAcademyInstallmentPaymentMidtrans::where('order_id', $midtrans['order_id'])->first();
+
+                if ($installment) {
+                    $checkInstallmentPayment = $this->checkInstallmentPayment($installment, $midtrans);
+
+                    if ($checkInstallmentPayment) {
+                        DB::commit();
+                        return response()->json(['status' => 'success']);
+                    }
+                }
+            }elseif(substr_count($midtrans['order_id'],"-") == 1){
                 // TRANSACTION
                 $transac = Transaction::with('user.memberships', 'logTopup')->where('transaction_receipt_number', $midtrans['order_id'])->first();
     
@@ -298,20 +309,7 @@ class ApiNotification extends Controller {
                         return response()->json(['status' => 'success']);
                     }
                 }
-            }
-            else if (stristr($midtrans['order_id'], "INS")) {
-                $installment = TransactionAcademyInstallmentPaymentMidtrans::where('order_id', $midtrans['order_id'])->first();
-
-                if ($installment) {
-                    $checkInstallmentPayment = $this->checkInstallmentPayment($installment, $midtrans);
-
-                    if ($checkInstallmentPayment) {
-                        DB::commit();
-                        return response()->json(['status' => 'success']);
-                    }
-                }
-            }
-            else {
+            }else {
                 if (stristr($midtrans['order_id'], "TOP")) {
                     //topup
                     DB::beginTransaction();

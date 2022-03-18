@@ -15,6 +15,7 @@ use Modules\Brand\Entities\Brand;
 use Modules\Product\Entities\ProductDetail;
 use App\Lib\MyHelper;
 use DB;
+use Modules\Product\Entities\ProductSpecialPrice;
 use Modules\ProductService\Entities\ProductServiceUse;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use Modules\Recruitment\Entities\UserHairStylist;
@@ -60,7 +61,7 @@ class ApiProductServiceController extends Controller
             }elseif(isset($post['product_setting_type']) && $post['product_setting_type'] == 'outlet_product_detail'){
                 $product = Product::with(['category', 'discount', 'product_detail'])->where('products.product_type', 'service');
             }else{
-                $product = Product::with(['category', 'discount', 'product_icount_use'])->where('products.product_type', 'service');
+                $product = Product::with(['category', 'product_hs_category', 'discount','product_icount_use_ima' => function($ima){$ima->where('company_type','ima');},'product_icount_use_ims' => function($ims){$ims->where('company_type','ims');}]);
             }
         }
 
@@ -93,11 +94,23 @@ class ApiProductServiceController extends Controller
         }
 
         if (isset($post['product_code'])) {
-            $product->with(['global_price','product_special_price','product_tags','brands','product_promo_categories'=>function($q){$q->select('product_promo_categories.id_product_promo_category');}])->where('products.product_code', $post['product_code']);
+            $product->with(['global_price','product_special_price','product_tags','brands','product_promo_categories'=>function($q){$q->select('product_promo_categories.id_product_promo_category');},'product_detail'=>function($detail){
+                $detail->join('outlets','outlets.id_outlet','=', 'product_detail.id_outlet');
+                $detail->groupBy('product_detail.id_outlet');
+                $detail->SelectRaw( 'id_product,
+                                    product_detail_stock_item,
+                                    product_detail_stock_status,
+                                    product_detail.id_outlet,
+                                    outlet_name');
+            }])->where('products.product_code', $post['product_code']);
         }
 
         if (isset($post['update_price']) && $post['update_price'] == 1) {
             $product->where('product_variant_status', 0);
+        }
+
+        if(isset($post['product_type'])){
+            $product = $product->where('product_type', $post['product_type']);
         }
 
         if (isset($post['product_name'])) {
@@ -178,22 +191,53 @@ class ApiProductServiceController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
         }
 
+        $stockStatus = $post['stock_status']??false;
+
         $productServie = Product::select([
             'products.id_product', 'products.product_name', 'products.product_code', 'products.product_description', 'product_variant_status',
-            'product_global_price.product_global_price as product_price', 'processing_time_service'
-        ])
+            'product_global_price.product_global_price as product_price', 'processing_time_service', 'product_visibility'
+            ])
             ->leftJoin('product_global_price', 'product_global_price.id_product', '=', 'products.id_product')
             ->where('product_type', 'service')
-            ->where('product_visibility', 'Visible')
             ->where('available_home_service', 1)
-            ->with(['photos'])
+            ->with(['photos', 'product_hs_category'])
             ->having('product_price', '>', 0)
             ->orderBy('products.position')
             ->orderBy('products.id_product')
             ->get()->toArray();
 
+        if(!empty($post['id_user_hair_stylist'])){
+            $hsFavorite = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->first();
+        }
         $resProdService = [];
         foreach ($productServie as $val){
+            //check category hs when use hs favorite
+            if(!empty($hsFavorite['id_hairstylist_category']) && !empty($val['product_hs_category']) && !in_array($hsFavorite['id_hairstylist_category'], array_column($val['product_hs_category'], 'id_hairstylist_category'))){
+                continue;
+            }
+
+            $stock = 'Available';
+            $getProductDetail = ProductDetail::where('id_product', $val['id_product'])->where('id_outlet', $outlet['id_outlet'])->first();
+            $val['visibility_outlet'] = $getProductDetail['product_detail_visibility']??null;
+
+            if($val['visibility_outlet'] == 'Hidden' || (empty($val['visibility_outlet']) && $val['product_visibility'] == 'Hidden')){
+                continue;
+            }
+
+            if($stockStatus === false && !is_null($getProductDetail['product_detail_stock_item']) && $getProductDetail['product_detail_stock_item'] <= 0){
+                continue;
+            }
+
+            if($stockStatus === true && !is_null($getProductDetail['product_detail_stock_item']) && $getProductDetail['product_detail_stock_item'] <= 0){
+                $stock = 'Sold Out';
+            }elseif ($stockStatus === true && is_null($getProductDetail['product_detail_stock_item']) && ($getProductDetail['product_detail_stock_status'] == 'Sold Out' || $getProductDetail['product_detail_status'] == 'Inactive')){
+                $stock = 'Sold Out';
+            }
+
+            if($stock == 'Available' && is_null($getProductDetail['product_detail_stock_item'])){
+                $getProductDetail['product_detail_stock_item'] = 50;
+            }
+
             $resProdService[] = [
                 'id_product' => $val['id_product'],
                 'id_brand' => $brand['id_brand'],
@@ -203,6 +247,8 @@ class ApiProductServiceController extends Controller
                 'product_price' => (int)$val['product_price'],
                 'string_product_price' => 'Rp '.number_format((int)$val['product_price'],0,",","."),
                 'processing_time' => (int)$val['processing_time_service'],
+                'product_stock_status' => $stock,
+                'qty_stock' => (int)$getProductDetail['product_detail_stock_item'],
                 'photo' => (empty($val['photos'][0]['product_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$val['photos'][0]['product_photo'])
             ];
         }
@@ -306,7 +352,7 @@ class ApiProductServiceController extends Controller
             'id_brand' => $brand['id_brand']??null,
             'product_code' => $product['product_code'],
             'product_name' => $product['product_name'],
-            'product_description' => $product['product_description'],
+            'product_description' => (empty($product['product_description']) ? '' : $product['product_description']),
             'product_price' => (int)$product['product_price'],
             'string_product_price' => 'Rp '.number_format((int)$product['product_price'],0,",","."),
             'photo' => (empty($product['photos'][0]['product_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$product['photos'][0]['product_photo']),
@@ -467,7 +513,7 @@ class ApiProductServiceController extends Controller
                 continue;
             }
 
-            if($bookDate == date('Y-m-d') && $val['home_service_status'] == 0){
+            if($val['home_service_status'] == 0){
                 $available = false;
             }
 
@@ -476,10 +522,8 @@ class ApiProductServiceController extends Controller
                         ->orderBy('booking_start', 'asc')->first()['booking_start']??'';
                 if(!empty($nextSchedule) && strtotime(date('Y-m-d', strtotime($nextSchedule))) <= strtotime($bookDate)){
                     $availableText = 'Tersedia sampai pukul '.date('H:i', strtotime($nextSchedule));
-                }elseif(!empty($shiftTimeStart)){
+                }elseif(!empty($shiftTimeStart) && strtotime($bookTime) < strtotime($shiftTimeStart)){
                     $availableText = 'Tersedia sampai pukul '.date('H:i', strtotime($shiftTimeStart));
-                }else{
-                    $availableText = 'Tersedia sampai pukul '.date('H:i', strtotime($timeEnd));
                 }
             }else{
                 $availableText = '';

@@ -10,6 +10,7 @@ use Illuminate\Routing\Controller;
 use App\Http\Models\Transaction;
 use App\Http\Models\TransactionProduct;
 
+use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use Modules\UserRating\Entities\UserRatingLog;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Transaction\Entities\HairstylistNotAvailable;
@@ -34,6 +35,20 @@ class ApiMitraHomeService extends Controller
     public function activeInactiveHomeService(Request $request)
     {
     	$user = $request->user();
+    	if($request->status == 1){
+            $shift = HairstylistScheduleDate::leftJoin('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
+                ->whereNotNull('approve_at')->where('id_user_hair_stylist', $user->id_user_hair_stylist)
+                ->whereDate('date', date('Y-m-d'))
+                ->first();
+            if(!empty($shift)){
+                $current = date('H:i:s');
+                $shiftTimeStart = date('H:i:s', strtotime($shift['time_start']));
+                $shiftTimeEnd = date('H:i:s', strtotime($shift['time_end']));
+                if(strtotime($current) >= strtotime($shiftTimeStart) && strtotime($current) < strtotime($shiftTimeEnd)){
+                    return response()->json(['status' => 'fail', 'messages' => ['Tidak bisa mengaktifkan home service karena Anda memiliki jadwal outlet service.']]);
+                }
+            }
+        }
     	$update = UserHairStylist::where('id_user_hair_stylist', $user->id_user_hair_stylist)->update(['home_service_status' => $request->status]);
         return response()->json(MyHelper::checkUpdate($update));
     }
@@ -224,6 +239,8 @@ class ApiMitraHomeService extends Controller
 				            ]);
 
 				            Transaction::where('id_transaction', $detail['id_transaction'])->update(['show_rate_popup' => '1']);
+                            TransactionProduct::where('id_transaction', $detail['id_transaction'])->where('type', 'Service')->update(['transaction_product_completed_at' => date('Y-m-d H:i:s')]);
+                            TransactionHomeService::where('id_transaction', $detail['id_transaction'])->update(['completed_at' => date('Y-m-d H:i:s')]);
                         }
                     }
 

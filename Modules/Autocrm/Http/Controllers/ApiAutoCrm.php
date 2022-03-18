@@ -401,7 +401,7 @@ class ApiAutoCrm extends Controller
 									'sendingdatetime' => ""));
 
 							$this->rajasms->setData($senddata);
-							$send = $this->rajasms->send();
+							$send = $this->rajasms->sendOTP();
 							break;
 						case 'ValueFirst':
 							if($crm['autocrm_title'] == 'Pin Sent' || $crm['autocrm_title'] == 'Pin Forgot'){
@@ -575,7 +575,7 @@ class ApiAutoCrm extends Controller
                             case 'history_academy' :
                             case 'history_payment':
                             case 'History Transaction' :
-                                if($crm['autocrm_push_clickto'] == 'History Transaction'){
+                                if($crm['autocrm_push_clickto'] == 'History Transaction' && !empty($inboxFrom)){
                                     $dataOptional['type'] = 'history_'.str_replace('-', '_', $inboxFrom);
                                 }
 
@@ -645,7 +645,10 @@ class ApiAutoCrm extends Controller
                                 }
                                 break;
                             case 'Home' :
-                                 $dataOptional['id_reference'] = 0;
+                                $dataOptional['id_reference'] = 0;
+                                break;
+                            case 'claim_existing_point' :
+                                 $dataOptional['id_reference'] = $variables['id_user'];
                                  break;
                             case 'Logout' :
                                     if(!empty($user['id'])){
@@ -768,7 +771,7 @@ class ApiAutoCrm extends Controller
                         case 'history_academy' :
                         case 'history_payment':
                         case 'History Transaction' :
-                            if($crm['autocrm_inbox_clickto'] == 'History Transaction'){
+                            if($crm['autocrm_inbox_clickto'] == 'History Transaction' && !empty($inboxFrom)){
                                 $inbox['inboxes_clickto'] = 'history_'.str_replace('-', '_', $inboxFrom);
                             }
 
@@ -811,6 +814,9 @@ class ApiAutoCrm extends Controller
                             break;
                         case 'Home' :
                             $inbox['inboxes_id_reference'] = 0;
+                            break;
+                        case 'claim_existing_point' :
+                            $inbox['inboxes_id_reference'] = $variables['id_user'];
                             break;
                         case 'home_service_history' :
                             $inbox['inboxes_clickto'] = $variables['mitra_get_order_clickto']??'home_service_history';

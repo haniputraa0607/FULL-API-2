@@ -37,8 +37,11 @@ class UserHairStylist extends Authenticatable
 	protected $fillable = [
 	    'id_outlet',
 		'id_bank_account',
+        'id_hairstylist_category',
         'user_hair_stylist_status',
         'user_hair_stylist_code',
+        'user_hair_stylist_score',
+        'user_hair_stylist_passed_status',
         'nickname',
         'email',
         'phone_number',

@@ -2,6 +2,7 @@
 
 namespace Modules\Transaction\Http\Controllers;
 
+use App\Http\Models\DailyTransactions;
 use App\Http\Models\LogBalance;
 use App\Http\Models\Outlet;
 use App\Http\Models\Setting;
@@ -33,7 +34,8 @@ use Modules\Transaction\Entities\TransactionPaymentCash;
 use Modules\UserFeedback\Entities\UserFeedbackLog;
 use Modules\Franchise\Entities\PromoCampaign;
 use Modules\PromoCampaign\Entities\TransactionPromo;
-
+use Modules\Xendit\Entities\TransactionAcademyInstallmentPaymentXendit;
+use Modules\Xendit\Entities\TransactionPaymentXendit;
 class ApiTransactionAcademy extends Controller
 {
     function __construct() {
@@ -49,6 +51,7 @@ class ApiTransactionAcademy extends Controller
         $this->transaction   = "Modules\Transaction\Http\Controllers\ApiTransaction";
         $this->outlet        = "Modules\Outlet\Http\Controllers\ApiOutletController";
         $this->promo_trx 	 = "Modules\Transaction\Http\Controllers\ApiPromoTransaction";
+        $this->xendit = "Modules\Xendit\Http\Controllers\XenditController";
     }
 
     public function check(Request $request) {
@@ -236,7 +239,7 @@ class ApiTransactionAcademy extends Controller
             $result['payment_detail'][] = [
                 'name'          => 'Tax:',
                 "is_discount"   => 0,
-                'amount'        => MyHelper::requestNumber((int) $post['tax'],'_CURRENCY')
+                'amount'        => MyHelper::requestNumber(roun($post['tax']),'_CURRENCY')
             ];
         }
 
@@ -446,7 +449,8 @@ class ApiTransactionAcademy extends Controller
             ]);
         }
 
-        $receipt = config('configs.PREFIX_TRANSACTION_NUMBER').'-'.MyHelper::createrandom(4,'Angka').time().substr($insertTransaction['id_outlet'], 0, 4);
+        $countReciptNumber = Transaction::where('id_outlet', $insertTransaction['id_outlet'])->count();
+        $receipt = 'TRX'.substr($outlet['outlet_code'], -4).'-'.sprintf("%05d", $countReciptNumber);
         $updateReceiptNumber = Transaction::where('id_transaction', $insertTransaction['id_transaction'])->update([
             'transaction_receipt_number' => $receipt
         ]);
@@ -560,7 +564,7 @@ class ApiTransactionAcademy extends Controller
                 $installment[] = [
                     'installment_step' => $key+1,
                     'id_transaction_academy' => $createTransactionAcademy['id_transaction_academy'],
-                    'installment_receipt_number' => 'INS-'.MyHelper::createrandom(4,'Angka').time().substr($createTransactionAcademy['id_transaction_academy'], 0, 4),
+                    'installment_receipt_number' => 'TRX'.substr($outlet['outlet_code'], -4).'-'.substr($insertTransaction['transaction_receipt_number'], -5).'-'.sprintf("%02d", ($key+1)),
                     'percent' => $value['percent'],
                     'amount' => $value['amount'],
                     'deadline' => ($key==0 ? date('Y-m-d') : date('Y-m-d', strtotime("+".$key." month", strtotime($startDeadline)))),
@@ -578,6 +582,15 @@ class ApiTransactionAcademy extends Controller
                 ]);
             }
         }
+
+        $dataDailyTrx = [
+            'id_transaction'    => $insertTransaction['id_transaction'],
+            'id_outlet'         => $outlet['id_outlet'],
+            'transaction_date'  => date('Y-m-d H:i:s', strtotime($insertTransaction['transaction_date'])),
+            'id_user'           => $user['id'],
+            'referral_code'     => NULL
+        ];
+        DailyTransactions::create($dataDailyTrx);
         DB::commit();
 
         $insertTransaction['id_transaction_academy_installment'] = TransactionAcademyInstallment::where('id_transaction_academy', $createTransactionAcademy['id_transaction_academy'])
@@ -649,6 +662,8 @@ class ApiTransactionAcademy extends Controller
         $list = Transaction::where('transaction_from', 'academy')
             ->join('transaction_academy','transactions.id_transaction', 'transaction_academy.id_transaction')
             ->join('users','transactions.id_user','=','users.id')
+            ->leftJoin('transaction_payment_midtrans', 'transactions.id_transaction', '=', 'transaction_payment_midtrans.id_transaction')
+            ->leftJoin('transaction_payment_xendits', 'transactions.id_transaction', '=', 'transaction_payment_xendits.id_transaction')
             ->with('user')
             ->select(
                 'transaction_academy.*',
@@ -738,6 +753,24 @@ class ApiTransactionAcademy extends Controller
                     }
                 }
             }
+
+            $inner = ['payment'];
+            foreach ($inner as $col_name) {
+                if ($rules = $new_rule[$col_name] ?? false) {
+                    foreach ($rules as $rul) {
+                        $explode = explode('-', $rul['parameter']);
+                        $paymentGateway = $explode[0];
+                        $paymentMethod = $explode[1];
+                        if($paymentGateway == 'Cash'){
+                            $model2->$where('transactions.trasaction_payment_type', 'Cash');
+                        }elseif($paymentGateway == 'Midtrans'){
+                            $model2->$where('transaction_payment_midtrans.payment_type',  $paymentMethod);
+                        }elseif($paymentGateway == 'Xendit'){
+                            $model2->$where('transaction_payment_xendits.type',  $paymentMethod);
+                        }
+                    }
+                }
+            }
         });
 
         if ($rules = $new_rule['transaction_date'] ?? false) {
@@ -783,6 +816,8 @@ class ApiTransactionAcademy extends Controller
             'transaction_subtotal'          => MyHelper::requestNumber($trx['transaction_subtotal'],'_CURRENCY'),
             'transaction_discount'          => MyHelper::requestNumber($trx['transaction_discount'],'_CURRENCY'),
             'transaction_cashback_earned'   => MyHelper::requestNumber($trx['transaction_cashback_earned'],'_POINT'),
+            'transaction_tax'               => $trx['transaction_tax'],
+            'mdr'                           => $trx['mdr'],
             'trasaction_payment_type'       => $trx['trasaction_payment_type'],
             'trasaction_type'               => $trx['trasaction_type'],
             'transaction_payment_status'    => $trx['transaction_payment_status'],
@@ -843,7 +878,7 @@ class ApiTransactionAcademy extends Controller
                 } else {
                     $result['transaction_payment'][$key] = [
                         'name'      => $value['name'],
-                        'amount'    => MyHelper::requestNumber($value['amount'],'_CURRENCY')
+                        'amount'    => MyHelper::requestNumber((int)$value['amount'],'_CURRENCY')
                     ];
                 }
             }
@@ -965,6 +1000,19 @@ class ApiTransactionAcademy extends Controller
                                     $shopeeTimer = (int) MyHelper::setting('shopeepay_validity_period', 'value', 300);
                                     $shopeeMessage ='Sorry, your payment has expired';
                                     $paymentGateway = 'Shopeepay';
+                                }
+                                break;
+                            case 'Xendit':
+                                $payXendit = TransactionPaymentXendit::find($dataPay['id_payment']);
+                                $payment[$dataKey]['name']      = $payXendit->type??'';
+                                $payment[$dataKey]['amount']    = $payXendit->amount;
+                                $payment[$dataKey]['reject']    = $payXendit->err_reason?:'payment expired';
+                                if($trx['transaction_payment_status'] == 'Pending') {
+                                    $redirectUrl = $payXendit->redirect_url_http;
+                                    $redirectUrlApp = $payXendit->redirect_url_app;
+                                    $continuePayment =  true;
+                                    $totalPayment = $payXendit->amount;
+                                    $paymentGateway = 'Xendit';
                                 }
                                 break;
                             case 'Offline':
@@ -1101,6 +1149,32 @@ class ApiTransactionAcademy extends Controller
                 }
                 $trx['payment'] = $payment;
                 break;
+            case 'Xendit':
+                $multiPayment = TransactionMultiplePayment::where('id_transaction', $trx['id_transaction'])->get();
+                $payment = [];
+                foreach($multiPayment as $dataKey => $dataPay){
+                    if($dataPay['type'] == 'Xendit'){
+                        $payXendit = TransactionPaymentXendit::find($dataPay['id_payment']);
+                        $payment[$dataKey]['name']      = $payXendit->type??'';
+                        $payment[$dataKey]['amount']    = $payXendit->amount ;
+                        $payment[$dataKey]['reject']    = $payXendit->err_reason?:'payment expired';
+                        if($trx['transaction_payment_status'] == 'Pending') {
+                            $redirectUrl = $payXendit->redirect_url_http;
+                            $redirectUrlApp = $payXendit->redirect_url_app;
+                            $continuePayment =  true;
+                            $totalPayment = $payXendit->amount;
+                            $paymentGateway = 'Xendit';
+                        }
+                    }else{
+                        $dataPay = TransactionPaymentBalance::find($dataPay['id_payment']);
+                        $payment[$dataKey]              = $dataPay;
+                        $trx['balance']                = $dataPay['balance_nominal'];
+                        $payment[$dataKey]['name']      = 'Balance';
+                        $payment[$dataKey]['amount']    = $dataPay['balance_nominal'];
+                    }
+                }
+                $trx['payment'] = $payment;
+                break;
             case 'Offline':
                 $payment = TransactionPaymentOffline::where('id_transaction', $trx['id_transaction'])->get();
                 foreach ($payment as $key => $value) {
@@ -1130,20 +1204,21 @@ class ApiTransactionAcademy extends Controller
                                         ->select('tax.type', 'tam.payment_type', 'installment_step', 'transaction_academy_installment.amount', 'transaction_academy_installment.paid_status')->orderBy('installment_step', 'asc')->get()->toArray();
 
                     foreach ($getPaymentMethod as $key=>$paymentMethod){
+                        $amount = $paymentMethod['amount'];
                         if(!empty($paymentMethod['type']) && $paymentMethod['paid_status'] == 'Completed'){
                             $trx['payment'][] = [
                                 'name'      => ($paymentMethod['installment_step'] == 1 ? 'DP'.' ('.$paymentMethod['type'].')' : 'Tahap '.($paymentMethod['installment_step']-1).' ('.$paymentMethod['type'].')'),
-                                'amount'    => number_format($paymentMethod['amount'],0,",",".")
+                                'amount'    => $amount
                             ];
                         }elseif(!empty($paymentMethod['payment_type']) && $paymentMethod['paid_status'] == 'Completed'){
                             $trx['payment'][] = [
                                 'name'      => ($paymentMethod['installment_step'] == 1 ? 'DP'.' ('.$paymentMethod['payment_type'].')' : 'Tahap '.($paymentMethod['installment_step']-1).' ('.$paymentMethod['payment_type'].')'),
-                                'amount'    => number_format($paymentMethod['amount'],0,",",".")
+                                'amount'    => $amount
                             ];
                         }else{
                             $trx['payment'][] = [
                                 'name'      => ($paymentMethod['installment_step'] == 1 ? 'DP'.' (Not Yet Paid)' : 'Tahap '.($paymentMethod['installment_step']-1).' (Not Yet Paid)'),
-                                'amount'    => number_format($paymentMethod['amount'],0,",",".")
+                                'amount'    => $amount
                             ];
                         }
                     }
@@ -1185,11 +1260,6 @@ class ApiTransactionAcademy extends Controller
             'name'      => 'Subtotal',
             'desc'      => $totalItem . ' items',
             'amount'    => MyHelper::requestNumber($trx['transaction_subtotal'],'_CURRENCY')
-        ];
-        $paymentDetail[] = [
-            'name'      => 'Tax',
-            'desc'      => '10%',
-            'amount'    => MyHelper::requestNumber($trx['transaction_tax'],'_CURRENCY')
         ];
 
         // if ($trx['transaction_discount']) {
@@ -1235,16 +1305,41 @@ class ApiTransactionAcademy extends Controller
         $trx = TransactionAcademyInstallment::where(['installment_receipt_number' => $request->receipt_number])->first();
 
         if($trx->paid_status != 'Pending'){
-            return MyHelper::checkGet([],'Transaction cannot be canceled');
+            return [
+                'status'=>'fail',
+                'messages' => ['Transaksi tidak dapat dibatalkan.']
+            ];
         }
 
         $payment_type = $trx->installment_payment_type;
 
         switch (strtolower($payment_type)) {
             case 'midtrans':
-                Midtrans::expire($trx->installment_receipt_number);
-                $trx->triggerPaymentCancelled();
-                return ['status'=>'success'];
+                $midtransStatus = Midtrans::status($trx->installment_receipt_number);
+                if ((($midtransStatus['status'] ?? false) == 'fail' && ($midtransStatus['messages'][0] ?? false) == 'Midtrans payment not found') || in_array(($midtransStatus['response']['transaction_status'] ?? false), ['deny', 'cancel', 'expire', 'failure']) || ($midtransStatus['status_code'] ?? false) == '404') {
+                    $connectMidtrans = Midtrans::expire($trx->installment_receipt_number);
+
+                    if($connectMidtrans){
+                        $trx->triggerPaymentCancelled();
+                        return ['status'=>'success', 'result' => ['message' => 'Pembayaran berhasil dibatalkan']];
+                    }
+                }
+            case 'xendit':
+                $dtXendit = TransactionAcademyInstallmentPaymentXendit::where('order_id', $trx->installment_receipt_number)->first();
+                $status = app('Modules\Xendit\Http\Controllers\XenditController')->checkStatus($dtXendit->xendit_id, $dtXendit->type);
+
+                if ($status && $status['status'] == 'PENDING' && !empty($status['id'])) {
+                    $cancel = app('Modules\Xendit\Http\Controllers\XenditController')->expireInvoice($status['id']);
+
+                    if($cancel){
+                        $trx->triggerPaymentCancelled();
+                        return ['status'=>'success', 'result' => ['message' => 'Pembayaran berhasil dibatalkan']];
+                    }
+                }
+                return [
+                    'status'=>'fail',
+                    'messages' => ['Transaksi tidak dapat dibatalkan karena proses pembayaran sedang berlangsung']
+                ];
         }
         return ['status' => 'fail', 'messages' => ["Cancel $payment_type transaction is not supported yet"]];
     }

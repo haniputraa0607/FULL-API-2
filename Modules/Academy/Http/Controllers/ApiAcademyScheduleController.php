@@ -24,6 +24,9 @@ use App\Http\Models\Setting;
 use App\Http\Models\OauthAccessToken;
 use App\Http\Models\Product;
 use App\Http\Models\ProductPrice;
+use Modules\Academy\Entities\ProductAcademyTheoryCategory;
+use Modules\Academy\Entities\Theory;
+use Modules\Academy\Entities\TheoryCategory;
 use Modules\Outlet\Entities\DeliveryOutlet;
 use Modules\Outlet\Entities\OutletBox;
 use Modules\POS\Http\Requests\reqMember;
@@ -38,9 +41,12 @@ use App\Imports\ExcelImport;
 use App\Imports\FirstSheetOnlyImport;
 
 use App\Lib\MyHelper;
+use Modules\Transaction\Entities\TransactionAcademy;
 use Modules\Transaction\Entities\TransactionAcademyInstallment;
 use Modules\Transaction\Entities\TransactionAcademySchedule;
 use Modules\Transaction\Entities\TransactionAcademyScheduleDayOff;
+use Modules\Transaction\Entities\TransactionAcademyScheduleTheory;
+use Modules\Transaction\Entities\TransactionAcademyScheduleTheoryCategory;
 use Validator;
 use Hash;
 use DB;
@@ -357,6 +363,226 @@ class ApiAcademyScheduleController extends Controller
             }
 
             return response()->json(MyHelper::checkUpdate($save));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    }
+
+    public function outletCourseAcademy(Request $request){
+        $post = $request->json()->all();
+
+        if(!empty($post['id_outlet'])){
+            $listCourse = Transaction::join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')
+                        ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+                        ->join('products', 'products.id_product', 'transaction_products.id_product')
+                        ->where('transaction_from', 'academy')
+                        ->where('transactions.id_outlet', $post['id_outlet'])
+                        ->groupBy('transaction_products.id_product')
+                        ->select('products.id_product', 'products.product_code', 'products.product_name', DB::raw('COUNT(transactions.id_user) as total_student'))
+                        ->get()->toArray();
+            return response()->json(MyHelper::checkGet($listCourse));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    }
+
+    public function detailOutletCourseAcademy(Request $request){
+        $post = $request->json()->all();
+
+        if(!empty($post['id_outlet']) && !empty($post['id_product'])){
+            $outlet = Outlet::where('id_outlet', $post['id_outlet'])->first();
+            $course = Product::where('id_product', $post['id_product'])->first();
+            $listUser = Transaction::join('users', 'users.id', 'transactions.id_user')
+                ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+                ->join('transaction_academy', 'transaction_academy.id_transaction', 'transactions.id_transaction')
+                ->where('transaction_from', 'academy')
+                ->where('transactions.id_outlet', $post['id_outlet'])
+                ->where('transaction_products.id_product', $post['id_product'])
+                ->select('users.name', 'users.id', 'users.phone', 'users.email', 'transaction_academy.id_transaction_academy', 'final_score');
+
+            if(!empty($request->rule)){
+                $this->filterList($listUser, $request->rule, $request->operator ?: 'and');
+            }
+
+            $listUser = $listUser->get()->toArray();
+            foreach($listUser as $key=>$user){
+                $nextMetting = TransactionAcademySchedule::where('id_transaction_academy', $user['id_transaction_academy'])
+                                ->where('id_user', $user['id'])->where('transaction_academy_schedule_status', 'Not Started')
+                                ->orderBy('schedule_date', 'asc')->first();
+                $listUser[$key]['next_meeting'] = $nextMetting;
+            }
+
+            $res = [
+                'outlet' => $outlet,
+                'course' => $course,
+                'users' => $listUser
+            ];
+            return response()->json(MyHelper::checkGet($res));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    }
+
+    public function attendanceOutletCourseAcademy(Request $request){
+        $post = $request->json()->all();
+
+        if(!empty($post['id_transaction_academy_schedule']) && !empty($post['id_transaction_academy'])){
+            $save = TransactionAcademySchedule::where('id_transaction_academy_schedule', $post['id_transaction_academy_schedule'])->update(['transaction_academy_schedule_status' => $post['transaction_academy_schedule_status']]);
+            if($save && !empty($post['theory'])){
+                $insert = [];
+                foreach ($post['conclusion_score'] as $id=>$value){
+                    $saveCategory = TransactionAcademyScheduleTheoryCategory::updateOrCreate(['id_theory_category' => $id, 'id_transaction_academy' => $post['id_transaction_academy']],
+                                ['conclusion_score' => $value]);
+
+                    if($saveCategory){
+                        foreach ($post['theory'] as $theory){
+                            if(!empty($theory['id_theory']) && $theory['parent_category'] == $id && !empty($theory['score'])){
+                                $insert[] = [
+                                    'id_transaction_academy_schedule' => $post['id_transaction_academy_schedule'],
+                                    'id_transaction_academy_schedule_theory_category' => $saveCategory['id_transaction_academy_schedule_theory_category'],
+                                    'id_theory' => $theory['id_theory'],
+                                    'theory_title' => $theory['title'],
+                                    'score' => $theory['score'],
+                                    'created_at' => date('Y-m-d H:i:s'),
+                                    'updated_at' => date('Y-m-d H:i:s')
+                                ];
+                            }
+                        }
+                    }
+                }
+
+                if(!empty($insert)){
+                    $save = TransactionAcademyScheduleTheory::insert($insert);
+                }
+            }
+
+            return response()->json(MyHelper::checkUpdate($save));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    }
+
+    public function detailAttendanceOutletCourseAcademy(Request $request){
+        $post = $request->json()->all();
+
+        if(!empty($post['id_transaction_academy_schedule'])){
+            $detailSchedule = TransactionAcademySchedule::where('id_transaction_academy_schedule', $post['id_transaction_academy_schedule'])->first();
+
+            if(!empty($detailSchedule)){
+                $trx = Transaction::join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+                    ->join('transaction_academy', 'transaction_academy.id_transaction', 'transactions.id_transaction')
+                    ->where('id_transaction_academy', $detailSchedule['id_transaction_academy'])->first();
+
+                if(!empty($trx)){
+                    $user = User::where('id', $trx['id_user'])->first();
+                    $outlet = Outlet::where('id_outlet', $trx['id_outlet'])->first();
+                    $course = Product::where('id_product', $trx['id_product'])->first();
+                    $theoryCategory = TheoryCategory::join('product_academy_theory_categories', 'product_academy_theory_categories.id_theory_category', 'theory_categories.id_theory_category')
+                                    ->where('id_product', $trx['id_product'])
+                                    ->where('id_parent_theory_category', 0)
+                                    ->with('theory')->get()->toArray();
+                    $allConclusion = TransactionAcademyScheduleTheoryCategory::where('id_transaction_academy', $detailSchedule['id_transaction_academy'])->get()->toArray();
+
+                    foreach ($theoryCategory as $key=>$tc){
+                        $checkConclusion = array_search($tc['id_theory_category'], array_column($allConclusion, 'id_theory_category'));
+                        if(!empty($allConclusion[$checkConclusion]['conclusion_score'])){
+                            $theoryCategory[$key]['conclusion_score'] = $allConclusion[$checkConclusion]['conclusion_score'];
+                        }
+
+                        $allIDTheory = TransactionAcademyScheduleTheory::join('transaction_academy_schedule_theory_categories', 'transaction_academy_schedule_theories.id_transaction_academy_schedule_theory_category',
+                                        'transaction_academy_schedule_theory_categories.id_transaction_academy_schedule_theory_category')
+                                        ->where('id_theory_category', $tc['id_theory_category'])->get()->toArray();
+
+                        $allID = array_column($allIDTheory, 'id_theory');
+                        $allScore = array_column($allIDTheory, 'score');
+
+                        foreach ($tc['theory'] as $i=>$theory){
+                            $check = array_search($theory['id_theory'],$allID);
+                            if($check === false){
+                                $theoryCategory[$key]['theory'][$i]['checked'] = 0;
+                                $theoryCategory[$key]['theory'][$i]['score'] = 0;
+                            }else{
+                                $theoryCategory[$key]['theory'][$i]['checked'] = 1;
+                                $theoryCategory[$key]['theory'][$i]['score'] = $allScore[$check];
+                            }
+                        }
+
+                        $child = TheoryCategory::where('id_parent_theory_category', $tc['id_theory_category'])->with('theory')->get()->toArray();
+                        foreach ($child as $keyChild=>$c){
+                            foreach ($c['theory'] as $j=>$theoryChild){
+                                $check = array_search($theoryChild['id_theory'],$allID);
+                                if($check === false){
+                                    $child[$keyChild]['theory'][$j]['checked'] = 0;
+                                    $child[$keyChild]['theory'][$j]['score'] = 0;
+                                }else{
+                                    $child[$keyChild]['theory'][$j]['checked'] = 1;
+                                    $child[$keyChild]['theory'][$j]['score'] = $allScore[$check];
+                                }
+                            }
+                        }
+                        $theoryCategory[$key]['child'] = $child;
+                    }
+
+                    $res = [
+                        'detail' => $detailSchedule,
+                        'user' => $user,
+                        'outlet' => $outlet,
+                        'course' => $course,
+                        'theory_category' => $theoryCategory
+                    ];
+                    return response()->json(MyHelper::checkGet($res));
+                }
+            }
+
+            return response()->json(MyHelper::checkGet([]));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    }
+
+    public function finalScoreOutletCourseAcademy(Request $request){
+        $post = $request->json()->all();
+
+        if(!empty($post['id_transaction_academy'])){
+            $update = TransactionAcademy::where('id_transaction_academy', $post['id_transaction_academy'])->update(['final_score' => $post['final_score']]);
+            return response()->json(MyHelper::checkUpdate($update));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    }
+
+    public function courseDetailHistory(Request $request){
+        $post = $request->json()->all();
+
+        if(!empty($post['id_transaction_academy'])){
+            $trx = Transaction::join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+                ->join('transaction_academy', 'transaction_academy.id_transaction', 'transactions.id_transaction')
+                ->where('id_transaction_academy', $post['id_transaction_academy'])->first();
+            if(!empty($trx)){
+                $user = User::where('id', $trx['id_user'])->first();
+                $outlet = Outlet::where('id_outlet', $trx['id_outlet'])->first();
+                $course = Product::where('id_product', $trx['id_product'])->first();
+                $conclusion = TransactionAcademyScheduleTheoryCategory::join('theory_categories', 'theory_categories.id_theory_category', 'transaction_academy_schedule_theory_categories.id_theory_category')
+                                ->where('id_transaction_academy', $post['id_transaction_academy'])->get()->toArray();
+                $schedule = TransactionAcademySchedule::where('id_transaction_academy', $post['id_transaction_academy'])->orderBy('schedule_date', 'asc')->get()->toArray();
+
+                foreach ($schedule as $j=>$s){
+                    $learn = TransactionAcademyScheduleTheory::where('id_transaction_academy_schedule', $s['id_transaction_academy_schedule'])->get()->toArray();
+                    $schedule[$j]['theory'] = $learn;
+                }
+
+                $res = [
+                    'final_score' => $trx['final_score']??0,
+                    'user' => $user,
+                    'outlet' => $outlet,
+                    'course' => $course,
+                    'conclusion' => $conclusion,
+                    'schedule' => $schedule
+                ];
+                return response()->json(MyHelper::checkGet($res));
+            }
+
+            return response()->json(MyHelper::checkGet([]));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
         }

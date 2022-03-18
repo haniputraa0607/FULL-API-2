@@ -9,6 +9,7 @@ use Illuminate\Routing\Controller;
 use Modules\Transaction\Entities\HairstylistNotAvailable;
 use Modules\Transaction\Entities\LogInvalidTransaction;
 use Modules\Transaction\Entities\TransactionProductService;
+use Modules\Xendit\Entities\TransactionPaymentXendit;
 use Queue;
 use App\Lib\Midtrans;
 
@@ -72,7 +73,12 @@ class ApiCronTrxController extends Controller
             $now       = date('Y-m-d H:i:s');
             $expired   = date('Y-m-d H:i:s',strtotime('- 5minutes'));
 
-            $getTrx = Transaction::where('transaction_payment_status', 'Pending')->whereNotIn('trasaction_payment_type', ['Installment','Cash'])->where('transaction_date', '<=', $expired)->get();
+            $getTrx = Transaction::where('transaction_payment_status', 'Pending')
+                ->where(function ($q){
+                    $q->whereNotIn('trasaction_payment_type', ['Installment','Cash'])
+                        ->orWhereNull('trasaction_payment_type');
+                })
+                ->where('transaction_date', '<=', $expired)->get();
 
             if (empty($getTrx)) {
                 $log->success('empty');
@@ -93,10 +99,56 @@ class ApiCronTrxController extends Controller
                     continue;
                 }
                 if($singleTrx->trasaction_payment_type == 'Midtrans') {
+                    $dtMidtrans = TransactionPaymentMidtran::where('id_transaction', $singleTrx->id_transaction)->first();
+                    if(empty($dtMidtrans)){
+                        continue;
+                    }
+
+                    if($dtMidtrans['payment_type'] == 'Credit Card'){
+                        $trxDate = strtotime($singleTrx->transaction_date);
+                        $currentDate = strtotime(date('Y-m-d H:i:s'));
+                        $mins = ($currentDate - $trxDate) / 60;
+                        if($mins < 15){
+                            continue;
+                        }
+                    }
+
                     $midtransStatus = Midtrans::status($singleTrx->id_transaction);
-                    if ((($midtransStatus['status'] ?? false) == 'fail' && ($midtransStatus['messages'][0] ?? false) == 'Midtrans payment not found') || in_array(($midtransStatus['response']['transaction_status'] ?? false), ['deny', 'cancel', 'expire', 'failure']) || ($midtransStatus['status_code'] ?? false) == '404') {
+                    if(!empty($midtransStatus['status_code']) && $midtransStatus['status_code'] == 200){
+                        $singleTrx->triggerPaymentCompleted();
+                        continue;
+                    }elseif ((($midtransStatus['status'] ?? false) == 'fail' && ($midtransStatus['messages'][0] ?? false) == 'Midtrans payment not found') || in_array(($midtransStatus['response']['transaction_status'] ?? false), ['deny', 'cancel', 'expire', 'failure']) || ($midtransStatus['status_code'] ?? false) == '404') {
                         $connectMidtrans = Midtrans::expire($singleTrx->transaction_receipt_number);
-                    } else {
+
+                        if(!$connectMidtrans){
+                            continue;
+                        }
+                    }
+                }elseif ($singleTrx->trasaction_payment_type == 'Xendit'){
+                    $dtXendit = TransactionPaymentXendit::where('id_transaction', $singleTrx->id_transaction)->first();
+                    if(empty($dtXendit['xendit_id'])){
+                        continue;
+                    }
+
+                    if($dtXendit['type'] == 'CREDIT_CARD'){
+                        $trxDate = strtotime($singleTrx->transaction_date);
+                        $currentDate = strtotime(date('Y-m-d H:i:s'));
+                        $mins = ($currentDate - $trxDate) / 60;
+                        if($mins < 15){
+                            continue;
+                        }
+                    }
+
+                    $status = app('Modules\Xendit\Http\Controllers\XenditController')->checkStatus($dtXendit->xendit_id, $dtXendit->type);
+                    if ($status && $status['status'] == 'PENDING') {
+                        $cancel = app('Modules\Xendit\Http\Controllers\XenditController')->expireInvoice($dtXendit['xendit_id']);
+                        if(!$cancel){
+                            continue;
+                        }
+                    }elseif($status && $status['status'] == 'COMPLETED'){
+                        $singleTrx->triggerPaymentCompleted();
+                        continue;
+                    }else{
                         continue;
                     }
                 }elseif($singleTrx->trasaction_payment_type == 'Ipay88') {

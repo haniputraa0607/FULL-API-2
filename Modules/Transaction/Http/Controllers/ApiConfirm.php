@@ -79,6 +79,10 @@ class ApiConfirm extends Controller
         $productMidtrans   = [];
         $dataDetailProduct = [];
 
+        // refresh tax and mdr
+        $trx = Transaction::find($post['id']);
+        optional($trx)->recalculateTaxandMDR();
+
         $check = Transaction::with('transaction_shipments', 'productTransaction.product', 'productTransaction.product_variant_group','outlet_name', 'transaction_payment_subscription')->where('id_transaction', $post['id'])->first();
 
         if (empty($check)) {
@@ -101,6 +105,38 @@ class ApiConfirm extends Controller
 
         if(!isset($post['payment_detail'])){
             $post['payment_detail'] = null;
+        }
+
+
+        //update mdr
+        if(!empty($post['payment_type']) && !empty($post['payment_detail'])){
+            $code = strtolower($post['payment_type'].'_'.$post['payment_detail']);
+            $settingmdr = Setting::where('key', 'mdr_formula')->first()['value_text']??'';
+            $settingmdr = (array)json_decode($settingmdr);
+            $formula = $settingmdr[$code]??'';
+            if(!empty($formula)){
+                try {
+                    $mdr = MyHelper::calculator($formula, ['transaction_grandtotal' => $check['transaction_grandtotal']]);
+                    if(!empty($mdr)){
+                        Transaction::where('id_transaction', $check['id_transaction'])->update(['mdr' => $mdr]);
+                        $products = TransactionProduct::where('id_transaction', $check['id_transaction'])->get()->toArray();
+                        $count = count($products);
+                        $lastmdr = $mdr;
+                        $sum = array_sum(array_column($products, 'transaction_product_subtotal'));
+                        foreach ($products as $key=>$product){
+                            $index = $key+1;
+                            if($count == $index){
+                                $mdrProduct = $lastmdr;
+                            }else{
+                                $mdrProduct = ($product['transaction_product_subtotal'] * $mdr)/$sum;
+                                $lastmdr = $lastmdr - $mdrProduct;
+                            }
+                            TransactionProduct::where('id_transaction_product', $product['id_transaction_product'])->update(['mdr_product' => $mdrProduct]);
+                        }
+                    }
+                } catch (\Exception $e) {
+                }
+            }
         }
 
         $checkPayment = TransactionMultiplePayment::where('id_transaction', $check['id_transaction'])->first();
@@ -240,15 +276,15 @@ class ApiConfirm extends Controller
             array_push($dataDetailProduct, $dataService);
         }
 
-        if ($check['transaction_tax'] > 0) {
-            $dataTax = [
-                'id'       => null,
-                'price'    => abs($check['transaction_tax']),
-                'name'     => 'Tax',
-                'quantity' => 1,
-            ];
-            array_push($dataDetailProduct, $dataTax);
-        }
+        // if ($check['transaction_tax'] > 0) {
+        //     $dataTax = [
+        //         'id'       => null,
+        //         'price'    => abs($check['transaction_tax']),
+        //         'name'     => 'Tax',
+        //         'quantity' => 1,
+        //     ];
+        //     array_push($dataDetailProduct, $dataTax);
+        // }
 
         if ($check['transaction_payment_subscription']) {
             $countGrandTotal -= $check['transaction_payment_subscription']['subscription_nominal'];
@@ -839,6 +875,7 @@ class ApiConfirm extends Controller
                 $saveMultiple = TransactionMultiplePayment::updateOrCreate([
                     'id_transaction' => $paymentXendit->id_transaction,
                     'type'           => 'Xendit',
+                    'payment_detail' => $post['payment_detail']
                 ], $dataMultiple);
 
                 $result = [
@@ -865,7 +902,7 @@ class ApiConfirm extends Controller
                     app($this->trx)->bookHS($check['id_transaction']);
                     app($this->trx)->bookProductStock($check['id_transaction']);
                 }
-
+                Transaction::where('id_transaction', $post['id'])->update(['trasaction_payment_type' => $post['payment_type']]);
                 return [
                     'status' => 'success',
                     'result' => $result

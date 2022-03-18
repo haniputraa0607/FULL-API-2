@@ -34,6 +34,8 @@ use Modules\UserRating\Entities\UserRatingLog;
 use App\Lib\MyHelper;
 use DB;
 use DateTime;
+use UserHairStylist as GlobalUserHairStylist;
+use App\Http\Models\Outlet;
 
 class ApiMitraShopService extends Controller
 {
@@ -49,7 +51,8 @@ class ApiMitraShopService extends Controller
     {
     	$user = $request->user();
 
-    	$trx = Transaction::where('transaction_receipt_number', $request->transaction_receipt_number)->first();
+        $trxReceiptNumber = $request->transaction_receipt_number;
+    	$trx = Transaction::where('transaction_receipt_number', $trxReceiptNumber)->first();
     	if (!$trx) {
     		return ['status' => 'fail', 'messages' => ['Transaksi tidak ditemukan']];
     	}
@@ -121,7 +124,9 @@ class ApiMitraShopService extends Controller
     public function confirmShopService(Request $request)
     {
     	$user = $request->user();
-    	$trx = Transaction::where('transaction_receipt_number', $request->transaction_receipt_number)->first();
+
+        $trxReceiptNumber = $request->transaction_receipt_number;
+    	$trx = Transaction::where('transaction_receipt_number', $trxReceiptNumber)->first();
     	if (!$trx) {
     		return ['status' => 'fail', 'messages' => ['Transaksi tidak ditemukan']];
     	}
@@ -176,6 +181,19 @@ class ApiMitraShopService extends Controller
             	'receipt_number' => $trx['transaction_receipt_number']
             ], null, false, false, 'hairstylist'
         );
+        if($user['level']!='Supervisor'){
+            $spv = UserHairStylist::where('id_outlet',$user['id_outlet'])->where('level','Supervisor')->first();
+            app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
+                'Mitra SPV - Transaction Product Taken',
+                $spv['phone_number'],
+                [
+                    'date' => $trx['transaction_date'],
+                    'outlet_name' => $trx['outlet']['outlet_name'],
+                    'detail' => $detail ?? null,
+                    'receipt_number' => $trx['transaction_receipt_number']
+                ], null, false, false, 'hairstylist'
+            );
+        }
 
         // notif user customer
         app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(

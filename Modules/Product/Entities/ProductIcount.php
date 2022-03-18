@@ -13,6 +13,7 @@ class ProductIcount extends Model
 	protected $fillable = [
         'id_item',
         'id_company',
+        'company_type',
         'code',
         'name',
         'id_brand',
@@ -102,11 +103,11 @@ class ProductIcount extends Model
         if (!$unit) {
             $unit = $this->unit1;
         }
-        $product_uses = ProductProductIcount::where('id_product_icount', $id_product_icount)->where('unit', $unit)->get()->toArray();
+        $product_uses = ProductProductIcount::join('product_icounts','product_icounts.id_product_icount','product_product_icounts.id_product_icount')->where('product_product_icounts.id_product_icount', $id_product_icount)->where('product_product_icounts.unit', $unit)->where('product_icounts.company_type', $this->company_type)->get()->toArray();
 
         if($product_uses){
             foreach($product_uses as $key => $product_use){
-                $get_product_uses = ProductProductIcount::where('id_product',$product_use['id_product'])->get()->toArray();
+                $get_product_uses = ProductProductIcount::join('product_icounts','product_icounts.id_product_icount','product_product_icounts.id_product_icount')->where('product_product_icounts.id_product',$product_use['id_product'])->where('product_icounts.company_type', $this->company_type)->get()->toArray();
                 if($get_product_uses){
                     $cek_use = true;
                     $value = 0;
@@ -145,7 +146,7 @@ class ProductIcount extends Model
                                     $service = true;
                                 }
                             }else{
-                                $cek_another_use = ProductIcountOutletStock::where('id_product_icount',$get_product_use['id_product_icount'])->where('unit',$get_product_use['unit'])->first();
+                                $cek_another_use = ProductIcountOutletStock::where('id_product_icount',$get_product_use['id_product_icount'])->where('unit',$get_product_use['unit'])->where('id_outlet',$id_outlet)->first();
                                 if($cek_another_use){
                                     $another_value = $cek_another_use['stock']/$get_product_use['qty'];
                                     $another_value = floor($another_value);

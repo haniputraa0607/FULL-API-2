@@ -2,6 +2,7 @@
 
 namespace Modules\Transaction\Http\Controllers;
 
+use App\Http\Models\DailyTransactions;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
@@ -22,7 +23,7 @@ use Modules\Product\Entities\ProductDetail;
 use Modules\Product\Entities\ProductStockLog;
 use Modules\Product\Entities\ProductSpecialPrice;
 use Modules\Product\Entities\ProductGlobalPrice;
-
+use Modules\Xendit\Entities\TransactionPaymentXendit;
 use Modules\Transaction\Entities\TransactionShop;
 
 use Modules\Transaction\Http\Requests\Transaction\NewTransaction;
@@ -700,7 +701,7 @@ class ApiTransactionShop extends Controller
 	        $result['payment_detail'][] = [
 	            'name'          => 'Tax:',
 	            "is_discount"   => 0,
-	            'amount'        => number_format(((int) $result['tax']),0,',','.')
+	            'amount'        => number_format(((int) round($result['tax'])),0,',','.')
 
 	        ];
         }
@@ -953,8 +954,6 @@ class ApiTransactionShop extends Controller
         $earnedPoint = app($this->online_trx)->countTranscationPoint($post, $user);
         $cashback = $earnedPoint['cashback'] ?? 0;
 
-        $receipt = config('configs.PREFIX_TRANSACTION_NUMBER').'-'.MyHelper::createrandom(4,'Angka').time().substr($post['id_outlet'], 0, 4);
-
         $listDelivery = $this->listDelivery();
         $deliv = $this->findDelivery($listDelivery, $request->delivery_name, $request->delivery_method);
         if (empty($deliv)) {
@@ -972,7 +971,6 @@ class ApiTransactionShop extends Controller
         $transaction = [
             'id_outlet'                   => $post['id_outlet'],
             'id_user'                     => $request->user()->id,
-            'transaction_receipt_number'  => $receipt,
             'transaction_date'            => date('Y-m-d H:i:s'),
             'transaction_shipment'        => $post['shipping'] ?? 0,
             'transaction_service'         => $post['service'] ?? 0,
@@ -1013,6 +1011,21 @@ class ApiTransactionShop extends Controller
                 'messages'  => ['Insert Transaction Failed']
             ]);
         }
+
+        $countReciptNumber = Transaction::where('id_outlet', $insertTransaction['id_outlet'])->count();
+        $receipt = '#'.substr($outlet['outlet_code'], -4).'-'.sprintf("%05d", $countReciptNumber);
+        $updateReceiptNumber = Transaction::where('id_transaction', $insertTransaction['id_transaction'])->update([
+            'transaction_receipt_number' => $receipt
+        ]);
+        if (!$updateReceiptNumber) {
+            DB::rollback();
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Insert Transaction Failed']
+            ]);
+        }
+        $insertTransaction['transaction_receipt_number'] = $receipt;
+
 
         $createTransactionShop = TransactionShop::create([
         	'id_transaction' => $insertTransaction['id_transaction'],
@@ -1094,7 +1107,14 @@ class ApiTransactionShop extends Controller
         }
 
         $insertTransaction = $applyPromo['result'] ?? $insertTransaction;
-
+        $dataDailyTrx = [
+            'id_transaction'    => $insertTransaction['id_transaction'],
+            'id_outlet'         => $outlet['id_outlet'],
+            'transaction_date'  => date('Y-m-d H:i:s', strtotime($insertTransaction['transaction_date'])),
+            'id_user'           => $user['id'],
+            'referral_code'     => NULL
+        ];
+        DailyTransactions::create($dataDailyTrx);
         DB::commit();
 
         return response()->json([
@@ -1313,11 +1333,11 @@ class ApiTransactionShop extends Controller
             'amount'        => number_format(((int) $detail['transaction_shipment']),0,',','.')
         ];
 
-        if (!empty($detail['transaction_tax'])) {
+        if (!empty($detail['transaction_tax']) && empty($request->admin)) {
 	        $paymentDetail[] = [
 	            'name'          => 'Tax',
 	            "is_discount"   => 0,
-	            'amount'        => number_format(((int) $detail['transaction_tax']),0,',','.')
+	            'amount'        => number_format(((int) round($detail['transaction_tax'])),0,',','.')
 
 	        ];
         }
@@ -1437,6 +1457,7 @@ class ApiTransactionShop extends Controller
 			'transaction_grandtotal' => $detail['transaction_grandtotal'],
 			'transaction_product_subtotal' => $subtotalProduct,
 			'transaction_tax' => $detail['transaction_tax'],
+            'mdr' => $detail['mdr'],
 			'currency' => 'Rp',
 			'status' => $status,
 			'shop_status' => $detail['shop_status'],
@@ -1531,6 +1552,8 @@ class ApiTransactionShop extends Controller
             ->join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')
             ->leftJoin('transaction_products','transactions.id_transaction','=','transaction_products.id_transaction')
             ->leftJoin('products','products.id_product','=','transaction_products.id_product')
+            ->leftJoin('transaction_payment_midtrans', 'transactions.id_transaction', '=', 'transaction_payment_midtrans.id_transaction')
+            ->leftJoin('transaction_payment_xendits', 'transactions.id_transaction', '=', 'transaction_payment_xendits.id_transaction')
             ->with('user')
             ->select(
                 'transaction_shops.*',
@@ -1631,6 +1654,24 @@ class ApiTransactionShop extends Controller
                 if ($rules = $new_rule[$col_name] ?? false) {
                     foreach ($rules as $rul) {
                         $model2->$where('transactions.'.$col_name, $rul['operator'], $rul['parameter']);
+                    }
+                }
+            }
+
+            $inner = ['payment'];
+            foreach ($inner as $col_name) {
+                if ($rules = $new_rule[$col_name] ?? false) {
+                    foreach ($rules as $rul) {
+                        $explode = explode('-', $rul['parameter']);
+                        $paymentGateway = $explode[0];
+                        $paymentMethod = $explode[1];
+                        if($paymentGateway == 'Cash'){
+                            $model2->$where('transactions.trasaction_payment_type', 'Cash');
+                        }elseif($paymentGateway == 'Midtrans'){
+                            $model2->$where('transaction_payment_midtrans.payment_type',  $paymentMethod);
+                        }elseif($paymentGateway == 'Xendit'){
+                            $model2->$where('transaction_payment_xendits.type',  $paymentMethod);
+                        }
                     }
                 }
             }

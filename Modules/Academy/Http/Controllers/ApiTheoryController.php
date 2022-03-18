@@ -8,14 +8,16 @@ use App\Http\Models\ProductPhoto;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
-use Modules\Academy\Entities\ProductAcademyTheory;
 use Modules\Academy\Entities\Theory;
 use Modules\Academy\Entities\TheoryCategory;
 use Modules\Franchise\Entities\Setting;
 use Modules\Outlet\Http\Requests\Outlet\OutletList;
+use Modules\POS\Http\Requests\reqBulkMenu;
 use Modules\Product\Entities\ProductDetail;
 use DB;
 use App\Lib\MyHelper;
+use Modules\Recruitment\Entities\UserHairStylistTheory;
+use Modules\Transaction\Entities\TransactionAcademyScheduleTheory;
 
 class ApiTheoryController extends Controller
 {
@@ -120,11 +122,20 @@ class ApiTheoryController extends Controller
                 $data['parent_name'] = TheoryCategory::where('id_theory_category', $data['id_parent_theory_category'])->first()['theory_category_name']??'';
             }
         }else{
-            $data = Theory::leftJoin('theory_categories', 'theory_categories.id_theory_category', 'theories.id_theory_category')->get()->toArray();
+            $data = Theory::leftJoin('theory_categories', 'theory_categories.id_theory_category', 'theories.id_theory_category')
+                    ->leftJoin('theory_categories as parent', 'theory_categories.id_parent_theory_category', 'parent.id_theory_category');
 
-            foreach ($data as $key => $value) {
-                $data[$key]['parent_name'] = TheoryCategory::where('id_theory_category', $value['id_parent_theory_category'])->first()['theory_category_name']??'';
+            if(!empty($post['id_category']) && $post['id_category'] != 'all'){
+                $check = strpos($post['id_category'],"all");
+                if($check === false){
+                    $data = $data->where('theory_categories.id_theory_category', $post['id_category']);
+                }else{
+                    $id = str_replace('all-', '', $post['id_category']);
+                    $data = $data->where('parent.id_theory_category', $id);
+                }
             }
+
+            $data = $data->select('theories.*', 'theory_categories.*', 'parent.theory_category_name as parent_name')->get()->toArray();
         }
 
         return response()->json(MyHelper::checkGet($data));
@@ -171,10 +182,31 @@ class ApiTheoryController extends Controller
         $post = $request->json()->all();
 
         if(!empty($post['id_theory'])){
+            $checkInHS = UserHairStylistTheory::where('id_theory', $post['id_theory'])->first();
+            if(!empty($checkInHS)){
+                return response()->json(['status' => 'fail', 'messages' => ['Can not delete this theory. Theory already use in hair stylist or academy.']]);
+            }
+
+            $checkITrx = TransactionAcademyScheduleTheory::where('id_theory', $post['id_theory'])->first();
+            if(!empty($checkITrx)){
+                return response()->json(['status' => 'fail', 'messages' => ['Can not delete this theory. Theory already use in hair stylist or academy.']]);
+            }
+
             $delete = Theory::where('id_theory', $post['id_theory'])->delete();
             return response()->json(MyHelper::checkDelete($delete));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
         }
+    }
+
+    public function categoryTheory(){
+        $data = TheoryCategory::where('id_parent_theory_category', 0)->with(['theory'])->get()->toArray();
+
+        foreach ($data as $key=>$dt){
+            $child = TheoryCategory::where('id_parent_theory_category', $dt['id_theory_category'])->with(['theory'])->get()->toArray();
+            $data[$key]['child'] = $child;
+        }
+
+        return response()->json(MyHelper::checkGet($data));
     }
 }

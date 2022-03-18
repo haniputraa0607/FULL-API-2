@@ -44,6 +44,7 @@ class ApiHairStylistGroupPotonganController extends Controller
                 ])->update([
                     "value"   =>  $request->value,
                     "formula"   =>  $request->formula,
+                    "code"   =>  $request->code,
                 ]);
         }else{
         $store = HairstylistGroupPotongan::create([
@@ -51,6 +52,7 @@ class ApiHairStylistGroupPotonganController extends Controller
                     "id_hairstylist_group_default_potongans"   =>  $request->id_hairstylist_group_default_potongans,
                     "value"   =>  $request->value,
                     "formula"   =>  $request->formula,
+                    "code"   =>  $request->code,
                 ]);
         }
         return response()->json(MyHelper::checkCreate($store));
@@ -60,6 +62,7 @@ class ApiHairStylistGroupPotonganController extends Controller
         $store = HairstylistGroupPotongan::where(array('id_hairstylist_group_potongan'=>$request->id_hairstylist_group_potongan))->update([
                     "value"   =>  $request->value,
                     "formula"   =>  $request->formula,
+                    "code"   =>  $request->code,
                 ]);
         if($store){
             $store =HairstylistGroupPotongan::where(array('id_hairstylist_group_potongan'=>$request->id_hairstylist_group_potongan))->first();
@@ -81,7 +84,12 @@ class ApiHairStylistGroupPotonganController extends Controller
     public function delete(Request $request)
     {
         if($request->id_hairstylist_group_default_potongans && $request->id_hairstylist_group){
+        $store = HairstylistGroupPotongan::where(array('id_hairstylist_group_default_potongans'=>$request->id_hairstylist_group_default_potongans,'id_hairstylist_group'=>$request->id_hairstylist_group))->first();
+        if($store){
         $store = HairstylistGroupPotongan::where(array('id_hairstylist_group_default_potongans'=>$request->id_hairstylist_group_default_potongans,'id_hairstylist_group'=>$request->id_hairstylist_group))->delete();
+        }else{
+            $store = 1;
+        }
         return response()->json(MyHelper::checkCreate($store));
         }
         return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
@@ -91,10 +99,15 @@ class ApiHairStylistGroupPotonganController extends Controller
             $data = array();
             $potongan = HairstylistGroupPotonganDefault::get();
             foreach ($potongan as $value) {
+                $value['default']    = 0;
+                $value['default_formula'] = $value['formula'];
+                $value['default_value'] = $value['value'];
                 $insen = HairstylistGroupPotongan::where(array('id_hairstylist_group_default_potongans'=>$value['id_hairstylist_group_default_potongans'],'id_hairstylist_group'=>$request->id_hairstylist_group))->first();
                 if($insen){
                    $value['value']      = $insen->value; 
-                   $value['formula']    = $insen->formula; 
+                   $value['formula']    = $insen->formula;
+                   $value['code']       = $insen->code;
+                   $value['default']    = 1;
                 }
                 array_push($data,$value);
             }
@@ -123,8 +136,9 @@ class ApiHairStylistGroupPotonganController extends Controller
              foreach ($data as $value) {
                  $cek = HairstylistGroupPotongan::where(array('id_hairstylist_group'=>$request->id_hairstylist_group,'id_hairstylist_group_default_potongans'=>$value['id_hairstylist_group_default_potongans']))->first();
                  if($cek){
-                     $value['value'] = $cek->value;
+                     $value['value']   = $cek->value;
                      $value['formula'] = $cek->formula;
+                     $value['code']    = $cek->code;
                  }
                  array_push($list,$value);
              }
@@ -136,6 +150,7 @@ class ApiHairStylistGroupPotonganController extends Controller
     {
         $store = HairstylistGroupPotonganDefault::create([
                     "name"   =>  $request->name,
+                    "code"   => $request->code,
                     "value"   =>  $request->value,
                     "formula"   =>  $request->formula,
                 ]);
@@ -144,7 +159,8 @@ class ApiHairStylistGroupPotonganController extends Controller
     public function update_default(UpdateDefaultPotongan $request)
     {
         $store = HairstylistGroupPotonganDefault::where(array('id_hairstylist_group_default_potongans'=>$request->id_hairstylist_group_default_potongans))->update([
-                      "name"   =>  $request->name,
+                    "name"   =>  $request->name,
+                    "code"   => $request->code,
                     "value"   =>  $request->value,
                     "formula"   =>  $request->formula,
                 ]);
@@ -228,4 +244,5 @@ class ApiHairStylistGroupPotonganController extends Controller
         }
         return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
     }
+    
 }

@@ -3,6 +3,7 @@
 namespace Modules\Transaction\Http\Controllers;
 
 use App\Http\Models\Configs;
+use App\Http\Models\DailyTransactions;
 use App\Http\Models\LogBalance;
 use App\Http\Models\Outlet;
 use App\Http\Models\OutletSchedule;
@@ -30,6 +31,7 @@ use Modules\IPay88\Entities\TransactionPaymentIpay88;
 use Modules\Product\Entities\ProductDetail;
 use Modules\Product\Entities\ProductProductIcount;
 use Modules\Product\Entities\ProductStockLog;
+use Modules\ProductService\Entities\ProductHairstylistCategory;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Recruitment\Entities\HairstylistLocation;
@@ -51,7 +53,7 @@ use Modules\Transaction\Entities\TransactionHomeServiceHairStylistFinding;
 use DB;
 use Modules\Franchise\Entities\PromoCampaign;
 use Modules\PromoCampaign\Entities\TransactionPromo;
-
+use Modules\Xendit\Entities\TransactionPaymentXendit;
 class ApiTransactionHomeService extends Controller
 {
     function __construct() {
@@ -118,11 +120,6 @@ class ApiTransactionHomeService extends Controller
             $arrProccessingTime[] = $processingTime * $item['qty'];
         }
 
-        $post['sum_time'] = array_sum($arrProccessingTime);
-        $checkHS = $this->checkAvailableHS($post, [], $user);
-        $idHs = $checkHS['id_user_hair_stylist']??null;
-        $errAll = array_merge($errAll, $checkHS['error_all']??[]);
-
         $post['item_service'] = $this->mergeService($post['item_service']);
         $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
         $outlet = Outlet::where('id_outlet', $outletHomeService)->first();
@@ -139,6 +136,13 @@ class ApiTransactionHomeService extends Controller
         if(empty($brand)){
             return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
         }
+
+        if(!empty($post['id_user_hair_stylist'])){
+            $hsFavorite = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->first();
+        }
+
+        $tmpHsCatGroup = [];
+        $tmpHsCat = [];
         foreach ($post['item_service']??[] as $key=>$item){
             $err = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
@@ -146,8 +150,22 @@ class ApiTransactionHomeService extends Controller
                 ->select('products.*', 'product_global_price as product_price')
                 ->first();
 
+            //check category hs when use hs favorite
+            $hsCat = ProductHairstylistCategory::where('id_product', $service['id_product'])->pluck('id_hairstylist_category')->toArray();
+            if(!empty($hsFavorite['id_hairstylist_category']) && !empty($hsCat) && !in_array($hsFavorite['id_hairstylist_category'], $hsCat)){
+                $idHsCategory = $hsFavorite['id_hairstylist_category'];
+                $err[] = 'Service tidak available untuk hairstylist favorite Anda';
+                $errAll[] = 'Service tidak available untuk hairstylist favorite Anda';
+            }
+
+            foreach ($hsCat as $cat){
+                $tmpHsCatGroup[$cat] = ($tmpHsCatGroup[$cat]??0) + 1;
+                $tmpHsCat[$service['id_product']][] = $cat;
+            }
+
             if(empty($service)){
                 $err[] = 'Service tidak tersedia';
+                $errAll[] = 'Service tidak tersedia';
             }
 
             $getProductDetail = ProductDetail::where('id_product', $service['id_product'])->where('id_outlet', $outlet['id_outlet'])->first();
@@ -155,10 +173,18 @@ class ApiTransactionHomeService extends Controller
 
             if($service['visibility_outlet'] == 'Hidden' || (empty($service['visibility_outlet']) && $service['product_visibility'] == 'Hidden')){
                 $err[] = 'Service tidak tersedia';
+                $errAll[] = 'Service '.$service['product_name'].' tidak tersedia';
             }
 
             if(!is_null($getProductDetail['product_detail_stock_item']) && $item['qty'] > $getProductDetail['product_detail_stock_item']){
-                $err[] = 'Stok habis';
+                $err[] = 'Service tidak tersedia';
+                $errAll[] = 'Service '.$service['product_name'].' tidak tersedia';
+            }elseif (is_null($getProductDetail['product_detail_stock_item']) && ($getProductDetail['product_detail_stock_status'] == 'Sold Out' || $getProductDetail['product_detail_status'] == 'Inactive')){
+                $err[] = 'Service tidak tersedia';
+                $errAll[] = 'Service '.$service['product_name'].' tidak tersedia';
+            }elseif(empty($getProductDetail)){
+                $err[] = 'Service tidak tersedia';
+                $errAll[] = 'Service '.$service['product_name'].' tidak tersedia';
             }
 
             $itemService[$key] = [
@@ -178,6 +204,21 @@ class ApiTransactionHomeService extends Controller
             }
             $subtotal = $subtotal + ((int)$service['product_price'] * $item['qty']);
         }
+
+        if(empty($idHsCategory) && !empty($tmpHsCatGroup)){
+            $idHsCategory = array_search(max($tmpHsCatGroup), $tmpHsCatGroup);
+            foreach ($tmpHsCat as $category){
+                if(!in_array($idHsCategory, $category)){
+                    $errAll[] = 'Service tidak dapat dipesan bersamaan';
+                    break;
+                }
+            }
+        }
+
+        $post['sum_time'] = array_sum($arrProccessingTime);
+        $checkHS = $this->checkAvailableHS($post, [], $user, $idHsCategory);
+        $idHs = $checkHS['id_user_hair_stylist']??null;
+        $errAll = array_merge($errAll, $checkHS['error_all']??[]);
 
         if(!empty($errAll)){
             $continueCheckOut = false;
@@ -342,11 +383,6 @@ class ApiTransactionHomeService extends Controller
             $arrProccessingTime[] = $processingTime * $item['qty'];
         }
 
-        $post['sum_time'] = array_sum($arrProccessingTime);
-        $checkHS = $this->checkAvailableHS($post, [], $user);
-        $idHs = $checkHS['id_user_hair_stylist']??null;
-        $errAll = array_merge($errAll, $checkHS['error_all']??[]);
-
         $post['item_service'] = $this->mergeService($post['item_service']);
         $outletHomeService = Setting::where('key', 'default_outlet_home_service')->first()['value']??null;
         $outlet = Outlet::where('id_outlet', $outletHomeService)->first();
@@ -364,6 +400,8 @@ class ApiTransactionHomeService extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
         }
         $totalItem = 0;
+        $tmpHsCatGroup = [];
+        $tmpHsCat = [];
         foreach ($post['item_service']??[] as $key=>$item){
             $err = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
@@ -378,11 +416,25 @@ class ApiTransactionHomeService extends Controller
                 continue;
             }
 
+            $hsCat = ProductHairstylistCategory::where('id_product', $service['id_product'])->pluck('id_hairstylist_category')->toArray();
+            foreach ($hsCat as $cat){
+                $tmpHsCatGroup[$cat] = ($tmpHsCatGroup[$cat]??0) + 1;
+                $tmpHsCat[$service['id_product']][] = $cat;
+            }
+
             if(!empty($idHs) && $post['preference_hair_stylist'] == 'favorite'){
                 $hs = UserHairStylist::where('id_user_hair_stylist', $idHs)->where('user_hair_stylist_status', 'Active')->first();
                 if(empty($hs)){
                     $err[] = "Outlet hair stylist not found";
                     $errAll[] = 'Outlet hair stylist not found';
+                    unset($item[$key]);
+                    continue;
+                }
+
+                if(!empty($hs) && !empty($hsCat) && !in_array($hs['id_hairstylist_category'], $hsCat)){
+                    $idHsCategory = $hs['id_hairstylist_category'];
+                    $err[] = 'Service tidak available untuk hairstylist favorite Anda';
+                    $errAll[] = 'Service tidak available untuk hairstylist favorite Anda';
                     unset($item[$key]);
                     continue;
                 }
@@ -430,6 +482,21 @@ class ApiTransactionHomeService extends Controller
                 $continueCheckOut = false;
             }
         }
+
+        if(empty($idHsCategory) && !empty($tmpHsCatGroup)){
+            $idHsCategory = array_search(max($tmpHsCatGroup), $tmpHsCatGroup);
+            foreach ($tmpHsCat as $category){
+                if(!in_array($idHsCategory, $category)){
+                    $errAll[] = 'Service tidak dapat dipesan bersamaan';
+                    break;
+                }
+            }
+        }
+
+        $post['sum_time'] = array_sum($arrProccessingTime);
+        $checkHS = $this->checkAvailableHS($post, [], $user, $idHsCategory);
+        $idHs = $checkHS['id_user_hair_stylist']??null;
+        $errAll = array_merge($errAll, $checkHS['error_all']??[]);
 
         $post['item_service'] = $itemService;
         $grandTotal = app($this->setting_trx)->grandTotal();
@@ -532,7 +599,7 @@ class ApiTransactionHomeService extends Controller
             $result['payment_detail'][] = [
                 'name' => 'Tax:',
                 "is_discount" => 0,
-                'amount' => MyHelper::requestNumber((int)$post['tax'], '_CURRENCY')
+                'amount' => MyHelper::requestNumber(round($post['tax']), '_CURRENCY')
             ];
         }
 
@@ -617,17 +684,6 @@ class ApiTransactionHomeService extends Controller
             $arrProccessingTime[] = $processingTime * $item['qty'];
         }
 
-        $post['sum_time'] = array_sum($arrProccessingTime);
-        $checkHS = $this->checkAvailableHS($post, [], $user);
-        if(!empty($checkHS['error_all'])){
-            return response()->json([
-                'status'    => 'fail',
-                'messages'  => [(empty($checkHS['error_all'])? null:implode(".", array_unique($checkHS['error_all'])))]
-            ]);
-        }
-        $idHs = $checkHS['id_user_hair_stylist'];
-        $arrHs = (!empty($checkHS['all_id_hs']) ? $checkHS['all_id_hs'] : [$checkHS['id_user_hair_stylist']]);
-
         $post['item_service'] = $this->mergeService($post['item_service']);
         $errItem = [];
         $post['id_outlet'] = null;
@@ -646,6 +702,12 @@ class ApiTransactionHomeService extends Controller
         if(empty($brand)){
             return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
         }
+
+        $tmpHsCatGroup = [];
+        $tmpHsCat = [];
+        if(!empty($post['id_user_hair_stylist'])){
+            $hsFavorite = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->first();
+        }
         foreach ($post['item_service']??[] as $key=>$item){
             $detailStock = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
@@ -655,6 +717,17 @@ class ApiTransactionHomeService extends Controller
 
             if(empty($service)){
                 $errItem[] = 'Service tidak tersedia';
+            }
+
+            $hsCat = ProductHairstylistCategory::where('id_product', $service['id_product'])->pluck('id_hairstylist_category')->toArray();
+            foreach ($hsCat as $cat){
+                $tmpHsCatGroup[$cat] = ($tmpHsCatGroup[$cat]??0) + 1;
+                $tmpHsCat[$service['id_product']][] = $cat;
+            }
+
+            if(!empty($hsFavorite['id_hairstylist_category']) && !empty($hsCat) && !in_array($hsFavorite['id_hairstylist_category'], $hsCat)){
+                $idHsCategory = $hsFavorite['id_hairstylist_category'];
+                $errItem[] = 'Service tidak available untuk hairstylist favorite Anda';
             }
 
             $getProductDetail = ProductDetail::where('id_product', $service['id_product'])->where('id_outlet', $outlet['id_outlet'])->first();
@@ -684,6 +757,29 @@ class ApiTransactionHomeService extends Controller
                 "detail_stock" => $detailStock
             ];
         }
+
+        if(empty($idHsCategory) && !empty($tmpHsCatGroup)){
+            $idHsCategory = array_search(max($tmpHsCatGroup), $tmpHsCatGroup);
+            foreach ($tmpHsCat as $category){
+                if(!in_array($idHsCategory, $category)){
+                    return response()->json([
+                        'status'    => 'fail',
+                        'messages'  => ['Service tidak dapat dipesan bersamaan']
+                    ]);
+                }
+            }
+        }
+
+        $post['sum_time'] = array_sum($arrProccessingTime);
+        $checkHS = $this->checkAvailableHS($post, [], $user, $idHsCategory);
+        if(!empty($checkHS['error_all'])){
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => [(empty($checkHS['error_all'])? null:implode(".", array_unique($checkHS['error_all'])))]
+            ]);
+        }
+        $idHs = $checkHS['id_user_hair_stylist'];
+        $arrHs = (!empty($checkHS['all_id_hs']) ? $checkHS['all_id_hs'] : [$checkHS['id_user_hair_stylist']]);
 
         if(!empty($errItem)){
             return response()->json([
@@ -786,7 +882,8 @@ class ApiTransactionHomeService extends Controller
             ]);
         }
 
-        $receipt = config('configs.PREFIX_TRANSACTION_NUMBER').'-'.MyHelper::createrandom(4,'Angka').time().substr($insertTransaction['id_outlet'], 0, 4);
+        $countReciptNumber = Transaction::where('id_outlet', $insertTransaction['id_outlet'])->count();
+        $receipt = 'TRX'.substr($outlet['outlet_code'], -4).'-'.sprintf("%05d", $countReciptNumber);
         $updateReceiptNumber = Transaction::where('id_transaction', $insertTransaction['id_transaction'])->update([
             'transaction_receipt_number' => $receipt
         ]);
@@ -910,6 +1007,15 @@ class ApiTransactionHomeService extends Controller
 
         $insertTransaction = $applyPromo['result'] ?? $insertTransaction;
 
+        $dataDailyTrx = [
+            'id_transaction'    => $insertTransaction['id_transaction'],
+            'id_outlet'         => $outlet['id_outlet'],
+            'transaction_date'  => date('Y-m-d H:i:s', strtotime($insertTransaction['transaction_date'])),
+            'id_user'           => $user['id'],
+            'referral_code'     => NULL
+        ];
+        DailyTransactions::create($dataDailyTrx);
+
         DB::commit();
         if(!empty($arrHs)){
             $insertTmpHS = [];
@@ -931,7 +1037,7 @@ class ApiTransactionHomeService extends Controller
         ]);
     }
 
-    function checkAvailableHS($post, $rejectHS = [], $user = []){
+    function checkAvailableHS($post, $rejectHS = [], $user = [], $idHsCategory = null){
         $userTimeZone = (empty($user['user_time_zone_utc']) ? 7 : $user['user_time_zone_utc']);
         $diffTimeZone = $userTimeZone - 7;
         $currentDate = date('Y-m-d H:i:s');
@@ -957,7 +1063,11 @@ class ApiTransactionHomeService extends Controller
         $bookDay = $day[date('D', strtotime($bookDate))];
         $maximumRadius = (int)(Setting::where('key', 'home_service_hs_maximum_radius')->first()['value']??25);
         if($post['preference_hair_stylist'] == 'favorite'){
-            $check = FavoriteUserHiarStylist::where('id_user', $user['id'])->where('id_user_hair_stylist', $post['id_user_hair_stylist'])->first();
+            $check = FavoriteUserHiarStylist::where('id_user', $user['id'])->where('id_user_hair_stylist', $post['id_user_hair_stylist']);
+            if(!empty($idHsCategory)){
+                $check = $check->where('id_hairstylist_category', $idHsCategory);
+            }
+            $check = $check->first();
             if(empty($check)){
                 $errAll[] = "Hair stylist favorite tidak ditemukan";
             }
@@ -976,7 +1086,7 @@ class ApiTransactionHomeService extends Controller
                 $errAll[] = "Hair stylist jauh dari lokasi Anda";
             }
 
-            if($bookDate == date('Y-m-d') && $hs['home_service_status'] == 0){
+            if($hs['home_service_status'] == 0){
                 $errAll[] = "Hair stylist tidak available";
             }
 
@@ -1018,6 +1128,10 @@ class ApiTransactionHomeService extends Controller
                 $listHs = $listHs->where('gender', $post['preference_hair_stylist']);
             }
 
+            if(!empty($idHsCategory)){
+                $listHs = $listHs->where('id_hairstylist_category', $idHsCategory);
+            }
+
             $hsNotAvailable = array_unique(array_merge($hsNotAvailable, $rejectHS));
             $listHs = $listHs->whereNotIn('id_user_hair_stylist', $hsNotAvailable)->get()->toArray();
             foreach ($listHs as $val){
@@ -1030,7 +1144,7 @@ class ApiTransactionHomeService extends Controller
                     continue;
                 }
 
-                if($bookDate == date('Y-m-d') && $val['home_service_status'] == 0){
+                if($val['home_service_status'] == 0){
                     continue;
                 }
 
@@ -1145,6 +1259,8 @@ class ApiTransactionHomeService extends Controller
         $list = Transaction::where('transaction_from', 'home-service')
             ->join('transaction_home_services','transactions.id_transaction', 'transaction_home_services.id_transaction')
             ->join('users','transactions.id_user','=','users.id')
+            ->leftJoin('transaction_payment_midtrans', 'transactions.id_transaction', '=', 'transaction_payment_midtrans.id_transaction')
+            ->leftJoin('transaction_payment_xendits', 'transactions.id_transaction', '=', 'transaction_payment_xendits.id_transaction')
             ->with('user')
             ->select(
                 'transaction_home_services.*',
@@ -1237,6 +1353,24 @@ class ApiTransactionHomeService extends Controller
                     }
                 }
             }
+
+            $inner = ['payment'];
+            foreach ($inner as $col_name) {
+                if ($rules = $new_rule[$col_name] ?? false) {
+                    foreach ($rules as $rul) {
+                        $explode = explode('-', $rul['parameter']);
+                        $paymentGateway = $explode[0];
+                        $paymentMethod = $explode[1];
+                        if($paymentGateway == 'Cash'){
+                            $model2->$where('transactions.trasaction_payment_type', 'Cash');
+                        }elseif($paymentGateway == 'Midtrans'){
+                            $model2->$where('transaction_payment_midtrans.payment_type',  $paymentMethod);
+                        }elseif($paymentGateway == 'Xendit'){
+                            $model2->$where('transaction_payment_xendits.type',  $paymentMethod);
+                        }
+                    }
+                }
+            }
         });
 
         if ($rules = $new_rule['transaction_date'] ?? false) {
@@ -1278,12 +1412,14 @@ class ApiTransactionHomeService extends Controller
         $result = [
             'id_transaction'                => $trx['id_transaction'],
             'transaction_receipt_number'    => $trx['transaction_receipt_number'],
-            'receipt_qrcode' 				=> 'https://chart.googleapis.com/chart?chl=' . $trx['transaction_receipt_number'] . '&chs=250x250&cht=qr&chld=H%7C0',
+            'receipt_qrcode' 				=> 'https://chart.googleapis.com/chart?chl=' .$trx['transaction_receipt_number'].'&chs=250x250&cht=qr&chld=H%7C0',
             'transaction_date'              => date('d M Y H:i', strtotime($trx['transaction_date'])),
             'transaction_grandtotal'        => MyHelper::requestNumber($trx['transaction_grandtotal'],'_CURRENCY'),
             'transaction_subtotal'          => MyHelper::requestNumber($trx['transaction_subtotal'],'_CURRENCY'),
             'transaction_discount'          => MyHelper::requestNumber($trx['transaction_discount'],'_CURRENCY'),
             'transaction_cashback_earned'   => MyHelper::requestNumber($trx['transaction_cashback_earned'],'_POINT'),
+            'transaction_tax'               => $trx['transaction_tax'],
+            'mdr'                           => $trx['mdr'],
             'trasaction_payment_type'       => $trx['trasaction_payment_type'],
             'trasaction_type'               => $trx['trasaction_type'],
             'transaction_payment_status'    => $trx['transaction_payment_status'],
@@ -1479,6 +1615,19 @@ class ApiTransactionHomeService extends Controller
                                     $paymentGateway = 'Shopeepay';
                                 }
                                 break;
+                            case 'Xendit':
+                                $payXendit = TransactionPaymentXendit::find($dataPay['id_payment']);
+                                $payment[$dataKey]['name']      = $payXendit->type??'';
+                                $payment[$dataKey]['amount']    = $payXendit->amount;
+                                $payment[$dataKey]['reject']    = $payXendit->err_reason?:'payment expired';
+                                if($trx['transaction_payment_status'] == 'Pending') {
+                                    $redirectUrl = $payXendit->redirect_url_http;
+                                    $redirectUrlApp = $payXendit->redirect_url_app;
+                                    $continuePayment =  true;
+                                    $totalPayment = $payXendit->amount;
+                                    $paymentGateway = 'Xendit';
+                                }
+                            break;
                             case 'Offline':
                                 $payment = TransactionPaymentOffline::where('id_transaction', $trx['id_transaction'])->get();
                                 foreach ($payment as $key => $value) {
@@ -1613,6 +1762,32 @@ class ApiTransactionHomeService extends Controller
                 }
                 $trx['payment'] = $payment;
                 break;
+            case 'Xendit':
+            $multiPayment = TransactionMultiplePayment::where('id_transaction', $trx['id_transaction'])->get();
+            $payment = [];
+            foreach($multiPayment as $dataKey => $dataPay){
+                if($dataPay['type'] == 'Xendit'){
+                    $payXendit = TransactionPaymentXendit::find($dataPay['id_payment']);
+                    $payment[$dataKey]['name']      = $payXendit->type??'';
+                    $payment[$dataKey]['amount']    = $payXendit->amount ;
+                    $payment[$dataKey]['reject']    = $payXendit->err_reason?:'payment expired';
+                    if($trx['transaction_payment_status'] == 'Pending') {
+                        $redirectUrl = $payXendit->redirect_url_http;
+                        $redirectUrlApp = $payXendit->redirect_url_app;
+                        $continuePayment =  true;
+                        $totalPayment = $payXendit->amount;
+                        $paymentGateway = 'Xendit';
+                    }
+                }else{
+                    $dataPay = TransactionPaymentBalance::find($dataPay['id_payment']);
+                    $payment[$dataKey]              = $dataPay;
+                    $trx['balance']                = $dataPay['balance_nominal'];
+                    $payment[$dataKey]['name']      = 'Balance';
+                    $payment[$dataKey]['amount']    = $dataPay['balance_nominal'];
+                }
+            }
+            $trx['payment'] = $payment;
+            break;
             case 'Offline':
                 $payment = TransactionPaymentOffline::where('id_transaction', $trx['id_transaction'])->get();
                 foreach ($payment as $key => $value) {
@@ -1668,11 +1843,6 @@ class ApiTransactionHomeService extends Controller
             'name'      => 'Subtotal',
             'desc'      => $totalItem . ' items',
             'amount'    => MyHelper::requestNumber($trx['transaction_subtotal'],'_CURRENCY')
-        ];
-        $paymentDetail[] = [
-            'name'      => 'Tax',
-            'desc'      => '10%',
-            'amount'    => MyHelper::requestNumber($trx['transaction_tax'],'_CURRENCY')
         ];
 
         // if ($trx['transaction_discount']) {

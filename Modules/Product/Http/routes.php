@@ -197,6 +197,11 @@ Route::group(['prefix' => 'api/req-product','middleware' => ['log_activities','a
     Route::post('update', 'ApiRequestProductController@update');
     Route::post('/', 'ApiRequestProductController@index');
     Route::any('all', 'ApiRequestProductController@all');
+    Route::any('list-catalog', 'ApiRequestProductController@listCatalog');
+});
+
+Route::group(['prefix' => 'api/icount/req-product', 'namespace' => 'Modules\Product\Http\Controllers'], function() {
+    Route::post('/callback','ApiRequestProductController@callbackRequest');
 });
 
 Route::group(['prefix' => 'api/dev-product','middleware' => ['log_activities','auth:api', 'scopes:be'], 'namespace' => 'Modules\Product\Http\Controllers'], function(){
@@ -213,4 +218,13 @@ Route::group(['prefix' => 'api/mitra/req-product','middleware' => ['log_activiti
     Route::post('detail/{type?}', 'ApiMitraRequestProductController@show');
     Route::post('confirm', 'ApiMitraRequestProductController@confirm');
     Route::post('/{type?}', 'ApiMitraRequestProductController@index');
+});
+
+Route::group(['prefix' => 'api/product-catalog','middleware' => ['log_activities','auth:api', 'scopes:be'], 'namespace' => 'Modules\Product\Http\Controllers'], function(){
+    Route::post('create', 'ApiProductCatalogController@create');
+    Route::post('delete', 'ApiProductCatalogController@destroy');
+    Route::post('detail', 'ApiProductCatalogController@show');
+    Route::post('update', 'ApiProductCatalogController@update');
+    Route::post('/', 'ApiProductCatalogController@index');
+    Route::any('all', 'ApiProductCatalogController@all');
 });

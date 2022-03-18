@@ -39,7 +39,16 @@ class ApiRequestHairStylistController extends Controller
             }
             if($rule == 'and'){
                 foreach ($post['conditions'] as $condition){
-                    if(isset($condition['subject'])){                
+                    if(isset($condition['subject'])){      
+
+                        if($condition['subject']=='status'){
+                            $condition['parameter'] = $condition['operator'];
+                            $condition['operator'] = '=';
+                        }elseif($condition['subject']=='outlet_name'){
+                            $request_mitra = $request_mitra->join('outlets','outlets.id_outlet','=','request_hair_stylists.id_outlet');
+                            $condition['subject'] = 'outlets.outlet_name';
+                        }
+                        
                         if($condition['operator'] == '='){
                             $request_mitra = $request_mitra->where($condition['subject'], $condition['parameter']);
                         }else{
@@ -51,6 +60,12 @@ class ApiRequestHairStylistController extends Controller
                 $request_mitra = $request_mitra->where(function ($q) use ($post){
                     foreach ($post['conditions'] as $condition){
                         if(isset($condition['subject'])){
+
+                            if($condition['subject']=='status'){
+                                $condition['parameter'] = $condition['operator'];
+                                $condition['operator'] = '=';
+                            }
+
                             if($condition['operator'] == '='){
                                 $q->orWhere($condition['subject'], $condition['parameter']);
                             }else{
@@ -62,16 +77,25 @@ class ApiRequestHairStylistController extends Controller
             }
         }
         if(isset($post['order']) && isset($post['order_type'])){
-            if(isset($post['page'])){
-                $request_mitra = $request_mitra->orderBy($post['order'], $post['order_type'])->paginate($request->length ?: 10);
+            if($post['order']=='outlet_name'){
+                $request_mitra = $request_mitra->join('outlets','outlets.id_outlet','=','request_hair_stylists.id_outlet');
+                if(isset($post['page'])){
+                    $request_mitra = $request_mitra->orderBy('outlets.outlet_name', $post['order_type'])->paginate($request->length ?: 10);
+                }else{
+                    $request_mitra = $request_mitra->orderBy('outlets.outlet_name', $post['order_type'])->get()->toArray();
+                }
             }else{
-                $request_mitra = $request_mitra->orderBy($post['order'], $post['order_type'])->get()->toArray();
+                if(isset($post['page'])){
+                    $request_mitra = $request_mitra->orderBy('request_hair_stylists.'.$post['order'], $post['order_type'])->paginate($request->length ?: 10);
+                }else{
+                    $request_mitra = $request_mitra->orderBy('request_hair_stylists.'.$post['order'], $post['order_type'])->get()->toArray();
+                }
             }
         }else{
             if(isset($post['page'])){
-                $request_mitra = $request_mitra->orderBy('created_at', 'desc')->paginate($request->length ?: 10);
+                $request_mitra = $request_mitra->orderBy('request_hair_stylists.created_at', 'desc')->paginate($request->length ?: 10);
             }else{
-                $request_mitra = $request_mitra->orderBy('created_at', 'desc')->get()->toArray();
+                $request_mitra = $request_mitra->orderBy('request_hair_stylists.created_at', 'desc')->get()->toArray();
             }
         }
         return MyHelper::checkGet($request_mitra);
@@ -218,7 +242,7 @@ class ApiRequestHairStylistController extends Controller
     }
 
     public function listOutlet(Request $request){
-        $outlet = Outlet::where('outlet_status','active')->get()->toArray();
+        $outlet = Outlet::with('location_outlet')->where('outlet_status','active')->get()->toArray();
         if($outlet){
             return response()->json(MyHelper::checkCreate($outlet));
         }else{

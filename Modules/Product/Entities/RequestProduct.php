@@ -20,7 +20,9 @@ class RequestProduct extends Model
         'note_request',
         'id_user_approve',
         'note_approve',
-        'status'
+        'status',
+        'id_product_catalog',
+        'id_purchase_request'
 	];
 
     public function request_product_detail(){

@@ -3,6 +3,7 @@
 namespace Modules\Outlet\Http\Controllers;
 
 use App\Jobs\SyncronPlasticTypeOutlet;
+use App\Jobs\UpdateScheduleHSJob;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
@@ -22,12 +23,14 @@ use App\Http\Models\Configs;
 use App\Http\Models\OutletSchedule;
 use App\Http\Models\Setting;
 use App\Http\Models\OauthAccessToken;
-use App\Http\Models\Product;
+use App\Http\Models\Product;;
 use App\Http\Models\ProductPrice;
 use Modules\Outlet\Entities\DeliveryOutlet;
 use Modules\Outlet\Entities\OutletBox;
 use Modules\Outlet\Entities\OutletTimeShift;
 use Modules\Product\Entities\ProductDetail;
+use Modules\Product\Entities\ProductIcount;
+use Modules\Product\Entities\ProductIcountOutletStock;
 use Modules\Product\Entities\ProductGlobalPrice;
 use Modules\Product\Entities\ProductSpecialPrice;
 use Modules\Franchise\Entities\UserFranchise;
@@ -630,13 +633,12 @@ class ApiOutletController extends Controller
      */
     function listOutlet(OutletList $request) {
         $post = $request->json()->all();
-
         if (isset($post['webview'])) {
             $outlet = Outlet::with(['today', 'brands']);
         }elseif(isset($post['admin']) && isset($post['type']) && $post['type'] == 'export'){
-            $outlet = Outlet::with(['user_outlets','city','today','product_prices','product_prices.product'])->select('*');
+            $outlet = Outlet::with(['user_outlets','city','today','product_prices','product_prices.product','location_outlet','location_outlet.location_partner'])->select('*');
         }elseif(isset($post['admin'])){
-            $outlet = Outlet::with(['user_outlets','city.province','today', 'outlet_schedules', 'outlet_schedules.time_shift', 'outlet_box'])->select('*');
+            $outlet = Outlet::with(['user_outlets','city.province','today', 'outlet_schedules', 'outlet_schedules.time_shift', 'outlet_box','location_outlet','location_outlet.location_partner','brand_outlets'])->select('*');
 
             if(isset($post['outlet_academy_status'])){
                 $outlet = $outlet->where('outlet_academy_status', $post['outlet_academy_status']);
@@ -649,7 +651,16 @@ class ApiOutletController extends Controller
                     $q->where('id_product', $post['id_product']);
                 }]);
             }else{
-                $outlet = $outlet->with(['product_detail', 'product_special_price']);
+                $outlet = $outlet->with(['product_detail' => function($pd){
+                    $pd->with(['product' => function($p){
+                        $p->select('id_product','product_name');
+                        $p->with(['brand_category']);
+                    }]);
+                }, 'product_special_price','product_icount_outlet_stocks'=>function($pi){
+                    $pi->with(['product_icount' => function($p){
+                        $p->select('id_product_icount','name');
+                    }]);
+                }]);
             }
         }
         elseif($post['simple_result']??false) {
@@ -849,6 +860,25 @@ class ApiOutletController extends Controller
                 ];
             },$outlet);
         }
+
+        if(isset($outlet[0])){
+            foreach($outlet[0]['brand_outlets'] ?? [] as $brand_outlet){
+                $id_brand_outlet = $brand_outlet['id_brand'];
+                foreach($outlet[0]['product_detail'] ?? [] as $key => $value){
+                    $cek = false;
+                    foreach($value['product']['brand_category'] ?? [] as $brand){
+                        if($brand['id_brand']==$id_brand_outlet){
+                            $cek = true;
+                        }
+                    }
+                    if(!$cek){
+                        unset($outlet[0]['product_detail'][$key]);
+                    }
+                }
+            }
+        }
+
+
         if($outlet&&($post['id_outlet']??false)){
             $var=&$outlet[0];
             $var['deep_link_gojek']=$var['deep_link_gojek']??'';
@@ -2549,10 +2579,11 @@ class ApiOutletController extends Controller
         }
 
         $insertShift = [];
+        OutletTimeShift::where('id_outlet', $post['id_outlet'])->delete();
         foreach ($post['data_shift'] as $dt_shift){
             foreach ($dt_shift as $shift){
                 if(date('H:i', strtotime($shift['start'])) == '00:00' ||
-                    date('H:i', strtotime($shift['end'])) == '00:00'){
+                    date('H:i', strtotime($shift['end'])) == '00:00' || empty($shift['id_outlet_schedule'])){
                     continue;
                 }
                 $insertShift[] = [
@@ -2568,10 +2599,10 @@ class ApiOutletController extends Controller
         }
 
         if(!empty($insertShift)){
-            OutletTimeShift::where('id_outlet', $post['id_outlet'])->delete();
             OutletTimeShift::insert($insertShift);
         }
 
+        UpdateScheduleHSJob::dispatch(['id_outlet' => $post['id_outlet']])->allOnConnection('database');
         DB::commit();
         return response()->json(['status' => 'success']);
     }

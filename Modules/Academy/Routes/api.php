@@ -28,6 +28,13 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
 
     Route::post('transaction/user/schedule/day-off', 'ApiAcademyScheduleController@listDayOffUserAcademy');
     Route::post('transaction/user/schedule/day-off/action', 'ApiAcademyScheduleController@actionDayOffUserAcademy');
+
+    Route::post('transaction/outlet/course', 'ApiAcademyScheduleController@outletCourseAcademy');
+    Route::post('transaction/outlet/course/detail', 'ApiAcademyScheduleController@detailOutletCourseAcademy');
+    Route::post('transaction/outlet/course/detail/attendance', 'ApiAcademyScheduleController@detailAttendanceOutletCourseAcademy');
+    Route::post('transaction/outlet/course/attendance', 'ApiAcademyScheduleController@attendanceOutletCourseAcademy');
+    Route::post('transaction/outlet/course/final-score', 'ApiAcademyScheduleController@finalScoreOutletCourseAcademy');
+    Route::post('transaction/outlet/course/user-detail', 'ApiAcademyScheduleController@courseDetailHistory');
 });
 
 Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scopes:be'], 'prefix' => 'theory'], function () {
@@ -38,6 +45,7 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
     Route::post('delete', 'ApiTheoryController@theoryDelete');
     Route::post('create', 'ApiTheoryController@theoryCreate');
     Route::post('update', 'ApiTheoryController@theoryUpdate');
+    Route::get('with-category', 'ApiTheoryController@categoryTheory');
 });
 
 Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scopes:apps'], 'prefix' => 'academy'], function () {

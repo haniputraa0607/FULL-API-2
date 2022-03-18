@@ -20,7 +20,8 @@ class TransactionAcademyInstallment extends Model
         'deadline',
         'paid_status',
         'completed_installment_at',
-        'void_date'
+        'void_date',
+        'mdr_payment_installment'
     ];
 
 
@@ -38,21 +39,23 @@ class TransactionAcademyInstallment extends Model
             'completed_installment_at' => $currentDate
         ]);
 
-        $phone = TransactionAcademy::join('transactions', 'transactions.id_transaction', 'transaction_academy.id_transaction')
-                    ->join('users', 'users.id', 'transactions.id_user')->first()['phone']??null;
+        $trx = TransactionAcademy::join('transactions', 'transactions.id_transaction', 'transaction_academy.id_transaction')
+                    ->where('id_transaction_academy', $this->id_transaction_academy)
+                    ->join('users', 'users.id', 'transactions.id_user')->first();
 
         app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
             'Payment Academy Installment Completed',
-            $phone,
+            $trx['phone'],
             [
                 'completed_date'=> $currentDate,
                 'installment_step' => MyHelper::numberToRomanRepresentation($this->installment_step),
-                'total_amount'      => $this->amount
+                'total_amount'      => $this->amount,
+                'id_transaction' => $trx['id_transaction']
             ]
         );
 
         $transactionAcademy = TransactionAcademy::where('id_transaction_academy', $this->id_transaction_academy)->first();
-        $transactionAcademy->triggerPaymentCompleted(['amount' => $this->amount]);
+        $transactionAcademy->triggerPaymentCompleted(['amount' => $this->amount, 'mdr_payment_installment' => $this->mdr_payment_installment]);
         \DB::commit();
         return true;
     }
@@ -69,16 +72,18 @@ class TransactionAcademyInstallment extends Model
             'updated_at' => $currentDate
         ]);
 
-        $phone = TransactionAcademy::join('transactions', 'transactions.id_transaction', 'transaction_academy.id_transaction')
-                ->join('users', 'users.id', 'transactions.id_user')->first()['phone']??null;
+        $trx = TransactionAcademy::join('transactions', 'transactions.id_transaction', 'transaction_academy.id_transaction')
+                ->where('id_transaction_academy', $this->id_transaction_academy)
+                ->join('users', 'users.id', 'transactions.id_user')->first();
 
         app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
             'Payment Academy Installment Cancelled',
-            $phone,
+            $trx['phone'],
             [
                 'completed_date'=> $currentDate,
                 'installment_step' => MyHelper::numberToRomanRepresentation($this->installment_step),
-                'total_amount'      => $this->amount
+                'total_amount'      => $this->amount,
+                'id_transaction' => $trx['id_transaction']
             ]
         );
 

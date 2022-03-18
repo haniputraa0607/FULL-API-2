@@ -73,6 +73,8 @@ class ApiManageHomeService extends Controller
         $list = Transaction::where('transaction_from', 'home-service')
             ->join('transaction_home_services','transactions.id_transaction', 'transaction_home_services.id_transaction')
             ->join('users','transactions.id_user','=','users.id')
+            ->leftJoin('transaction_payment_midtrans', 'transactions.id_transaction', '=', 'transaction_payment_midtrans.id_transaction')
+            ->leftJoin('transaction_payment_xendits', 'transactions.id_transaction', '=', 'transaction_payment_xendits.id_transaction')
             ->with('user')
             ->where('transaction_payment_status', 'Completed')
             ->where(function($q) {
@@ -171,6 +173,24 @@ class ApiManageHomeService extends Controller
                     }
                 }
             }
+
+            $inner = ['payment'];
+            foreach ($inner as $col_name) {
+                if ($rules = $new_rule[$col_name] ?? false) {
+                    foreach ($rules as $rul) {
+                        $explode = explode('-', $rul['parameter']);
+                        $paymentGateway = $explode[0];
+                        $paymentMethod = $explode[1];
+                        if($paymentGateway == 'Cash'){
+                            $model2->$where('transactions.trasaction_payment_type', 'Cash');
+                        }elseif($paymentGateway == 'Midtrans'){
+                            $model2->$where('transaction_payment_midtrans.payment_type',  $paymentMethod);
+                        }elseif($paymentGateway == 'Xendit'){
+                            $model2->$where('transaction_payment_xendits.type',  $paymentMethod);
+                        }
+                    }
+                }
+            }
         });
 
         if ($rules = $new_rule['transaction_date'] ?? false) {
@@ -210,7 +230,7 @@ class ApiManageHomeService extends Controller
         $result = [
             'id_transaction'                => $trx['id_transaction'],
             'transaction_receipt_number'    => $trx['transaction_receipt_number'],
-            'receipt_qrcode' 				=> 'https://chart.googleapis.com/chart?chl=' . $trx['transaction_receipt_number'] . '&chs=250x250&cht=qr&chld=H%7C0',
+            'receipt_qrcode' 				=> 'https://chart.googleapis.com/chart?chl=' . str_replace('#', '', $trx['transaction_receipt_number']) . '&chs=250x250&cht=qr&chld=H%7C0',
             'transaction_date'              => date('d M Y H:i', strtotime($trx['transaction_date'])),
             'transaction_grandtotal'        => MyHelper::requestNumber($trx['transaction_grandtotal'],'_CURRENCY'),
             'transaction_subtotal'          => MyHelper::requestNumber($trx['transaction_subtotal'],'_CURRENCY'),

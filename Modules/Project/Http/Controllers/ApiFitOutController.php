@@ -100,7 +100,7 @@ class ApiFitOutController extends Controller
                             "location" => Location::where('id_location',$project->id_location)->first(),
                             "confir" => ConfirmationLetter::where('id_partner',$project->id_partner)->first(),
                         ];
-       $invoice = Icount::ApiInvoiceBAP($data_send,$data_send['location']['company_type']);
+       $invoice = Icount::ApiInvoiceBAP($data_send,'PT IMA');
             if($invoice['response']['Status']=='1' && $invoice['response']['Message']=='success'){
              $data_invoice = [
                  'id_project'=>$request->id_project,
@@ -116,10 +116,17 @@ class ApiFitOutController extends Controller
                  'amount'=>$invoice['response']['Data'][0]['Amount'],
                  'outstanding'=>$invoice['response']['Data'][0]['Outstanding'],
                  'value_detail'=>json_encode($invoice['response']['Data'][0]['Detail']),  
+                  'message'=>$invoice['response']['Message']
              ];
               $input = InvoiceBap::create($data_invoice);
            }else{
-               return response()->json(['status' => 'fail', 'messages' => ['Proses Fit Out Gagal']]);    
+               $data_invoice = [
+                 'id_project'=>$request->id_project,
+                 'status_invoice_bap'=>0,
+                 'message'=>$purchase['response']['message'],
+                 'value_detail'=>json_encode($invoice['response']['Data']),  
+             ];
+              $input = InvoiceBap::create($data_invoice);   
            }
         $fitOut = ProjectFitOut::where(array('id_project'=>$request->id_project,'status'=>'Process'))->get();
         foreach ($fitOut as $value) {
@@ -158,6 +165,53 @@ class ApiFitOutController extends Controller
         return response()->json(['status' => 'success', 'messages' => ['Data berhasil dihapus']]);
         }
         return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+    }
+    public function invoice_bap(Request $request)
+    {
+        if(isset($request->id_project)){
+        $project = Project::where('id_project', $request->id_project)->first();
+         if($project){
+             $data_send = [
+                            "partner" => Partner::where('id_partner',$project->id_partner)->first(),
+                            "location" => Location::where('id_location',$project->id_location)->first(),
+                            "confir" => ConfirmationLetter::where('id_partner',$project->id_partner)->first(),
+                        ];
+       $invoice = Icount::ApiInvoiceBAP($data_send,'PT IMA']);
+            if($invoice['response']['Status']=='1' && $invoice['response']['Message']=='success'){
+             $data_invoice = [
+                 'id_sales_invoice'=>$invoice['response']['Data'][0]['SalesInvoiceID'],
+                 'id_business_partner'=>$invoice['response']['Data'][0]['BusinessPartnerID'],
+                 'id_branch'=>$invoice['response']['Data'][0]['BranchID'],
+                 'dpp'=>$invoice['response']['Data'][0]['DPP'],
+                 'dpp_tax'=>$invoice['response']['Data'][0]['DPPTax'],
+                 'tax'=>$invoice['response']['Data'][0]['Tax'],
+                 'tax_value'=>$invoice['response']['Data'][0]['TaxValue'],
+                 'tax_date'=>date('Y-m-d H:i:s',strtotime($invoice['response']['Data'][0]['TaxDate'])),
+                 'netto'=>$invoice['response']['Data'][0]['Netto'],
+                 'amount'=>$invoice['response']['Data'][0]['Amount'],
+                 'outstanding'=>$invoice['response']['Data'][0]['Outstanding'],
+                 'value_detail'=>json_encode($invoice['response']['Data'][0]['Detail']),  
+                 'status_invoice_bap'=>1,
+                 'message'=>$invoice['response']['Message'],
+             ];
+              $input = InvoiceBap::where(array('id_project'=>$request->id_project))->update($data_invoice);
+           }else{
+               $data_invoice = [
+                 'status_invoice_bap'=>0,
+                 'message'=>$invoice['response']['Message'],
+                 'value_detail'=>json_encode($invoice['response']['Data']),  
+             ];
+              $input = InvoiceBap::where(array('id_project'=>$request->id_project))->update($data_invoice);   
+              return response()->json(['status' => 'fail','messages'=>$invoice['response']['Message']]);
+           }
+        
+         return response()->json(['status' => 'success']);
+         }
+         return response()->json(['status' => 'fail', 'messages' => 'Tidak dalam proses fit out']);
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
+    
     }
     public function index(Request $request)
     {

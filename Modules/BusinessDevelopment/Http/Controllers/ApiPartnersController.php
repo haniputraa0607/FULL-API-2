@@ -161,6 +161,8 @@ class ApiPartnersController extends Controller
                 $data_request_partner['mobile'] = $checkPhoneFormat['phone'];
             }
 
+            $partner_code = $this->partnerCode();
+
             DB::beginTransaction();
             $store = Partner::create([
                 "title"          => $data_request_partner['title'],
@@ -171,6 +173,7 @@ class ApiPartnersController extends Controller
                 "email"          => $data_request_partner['email'],
                 "address"        => $data_request_partner['address'],
                 "notes"          => $data_request_partner['notes'],
+                "code"          => $partner_code
             ]);
             if ($store) {
                 if (isset($post['location'])) {
@@ -222,6 +225,22 @@ class ApiPartnersController extends Controller
         }    
     }
 
+    public function partnerCode(){
+        $year = date('y');
+        $month = date('m');
+        $yearMonth = 'P'.$year.$month;
+        $no = Partner::where('code','like', $yearMonth.'%')->count() + 1;
+        if($no < 10 ){
+            $no = '000'.$no;
+        }elseif($no < 100 && $no >= 10){
+            $no = '00'.$no;
+        }elseif($no < 1000 && $no >= 100){
+            $no = '0'.$no;
+        }
+        $no = $yearMonth.$no;
+        return $no;
+    }
+
     public function new(Request $request){
         $post = $request->all();
 
@@ -264,10 +283,26 @@ class ApiPartnersController extends Controller
     {
         $post = $request->all();
         if(isset($post['id_partner']) && !empty($post['id_partner'])){
-            $partner = Partner::where('id_partner', $post['id_partner'])->with(['partner_bank_account','partner_locations','partner_locations.location_starter.product','partner_step','partner_new_step','partner_confirmation','partner_survey','partner_legal_agreement', 'first_location', 'first_location.location_starter.product'])->first();
+            $partner = Partner::where('id_partner', $post['id_partner'])->with(['partner_bank_account','partner_locations'=>function($l){
+                $l->with(['location_city'=>function($c){
+                    $c->with(['province']);
+                }]);
+                $l->orderBy('id_location');
+            },'partner_locations.location_starter.product','partner_step','partner_new_step','partner_confirmation','partner_survey','partner_legal_agreement', 'first_location', 'first_location.location_starter.product', ])->first();
             if(($partner['partner_step'])){
                 foreach($partner['partner_step'] as $step){
+                    $step['file'] = null;
                     if(isset($step['attachment']) && !empty($step['attachment'])){
+                        $step['file'] = str_replace('file/follow_up/', '', $step['attachment']) ;
+                        $step['attachment'] = env('STORAGE_URL_API').$step['attachment'];
+                    }
+                }
+            } 
+            if(($partner['partner_new_step'])){
+                foreach($partner['partner_new_step'] as $step){
+                    $step['file'] = null;
+                    if(isset($step['attachment']) && !empty($step['attachment'])){
+                        $step['file'] = str_replace('file/follow_up/', '', $step['attachment']) ;
                         $step['attachment'] = env('STORAGE_URL_API').$step['attachment'];
                     }
                 }
@@ -283,6 +318,13 @@ class ApiPartnersController extends Controller
                 foreach($partner['partner_legal_agreement'] as $legal){
                     if(isset($legal['attachment']) && !empty($legal['attachment'])){
                         $legal['attachment'] = env('STORAGE_URL_API').$legal['attachment'];
+                    }
+                }
+            } 
+            if(($partner['partner_locations'])){
+                foreach($partner['partner_locations'] as $loc){
+                    if(isset($loc['value_detail']) && !empty($loc['value_detail'])){
+                        $loc['value_detail_decode'] = json_decode($loc['value_detail']??'' , true);
                     }
                 }
             } 
@@ -322,23 +364,19 @@ class ApiPartnersController extends Controller
     public function update(Request $request)
     {
         $post = $request->all();
+        $data_update = [];
         if (isset($post['id_partner']) && !empty($post['id_partner'])) {
             DB::beginTransaction();
             if (isset($post['name'])) {
                 $data_update['name'] = $post['name'];
             }
             if (isset($post['code'])) {
-                $cek_code = Partner::where('code', $post['code'])->first();
+                $cek_code = Partner::where('code', $post['code'])->where('id_partner','<>',$post['id_partner'])->first();
                 if($cek_code){
                     return response()->json(['status' => 'duplicate_code', 'messages' => ['Partner code must be different']]);
                 }else{
                     $data_update['code'] = $post['code'];
                 }
-            }
-            if (isset($post['mobile']) && $post['mobile'] == 'default') {
-                $data_update['mobile'] = Partner::where('id_partner', $post['id_partner'])->get('phone')[0]['phone'];
-            }elseif(isset($post['mobile'])){
-                $data_update['mobile'] = $post['mobile'];
             }
             if (isset($post['contact_person'])) {
                 $data_update['contact_person'] = $post['contact_person'];
@@ -347,7 +385,16 @@ class ApiPartnersController extends Controller
                 $data_update['gender'] = $post['gender'];
             }
             if (isset($post['phone'])) {
+                $cek_unique_mobile = Partner::where('id_partner','<>',$post['id_partner'])->where('phone',$post['phone'])->first();
+                if($cek_unique_mobile){
+                    return response()->json(['status' => 'fail', 'messages' => ['The phone has already been taken by another partner']]);
+                }
                 $data_update['phone'] = $post['phone'];
+            }
+            if (isset($post['mobile']) && $post['mobile'] == 'default') {
+                $data_update['mobile'] = Partner::where('id_partner', $post['id_partner'])->get('phone')[0]['phone'];
+            }elseif(isset($post['mobile'])){
+                $data_update['mobile'] = $post['mobile'];
             }
             if (isset($post['email'])) {
                 $data_update['email'] = $post['email'];
@@ -377,7 +424,10 @@ class ApiPartnersController extends Controller
                 $data_update['end_date'] = $post['end_date'];
             }
             if (isset($post['status_steps'])) {
-                $data_update['status_steps'] = $post['status_steps'];
+                $cek_status_step = StepsLog::where('id_partner',$post['id_partner'])->where('follow_up',$post['status_steps'])->first();
+                if(!$cek_status_step){
+                    $data_update['status_steps'] = $post['status_steps'];
+                }
             }
             if (isset($post['title'])) {
                 $data_update['title'] = $post['title'];
@@ -408,15 +458,6 @@ class ApiPartnersController extends Controller
             }
             if (isset($post['sharing_percent'])) {
                 $data_update['sharing_percent'] = $post['sharing_percent'];
-            }
-            if(isset($data_update['start_date']) && isset($data_update['end_date'])){
-                $start = explode('-', $data_update['start_date']);
-                $end = explode('-', $data_update['end_date']);
-                try{
-                    $waktu = $this->timeTotal($start,$end);
-                }catch(\Exception $e) {
-                    return response()->json(['status' => 'fail_date', 'messages' => ['Start Date and End Date must be at least 3 years apar']]);
-                }
             }
             $old_status = Partner::where('id_partner', $post['id_partner'])->get('status')[0]['status'];
             $old_phone = Partner::where('id_partner', $post['id_partner'])->get('phone')[0]['phone'];
@@ -515,14 +556,14 @@ class ApiPartnersController extends Controller
         if (isset($post['id']) && !empty($post['id'])) {
             //cek code partner
             if($post['table']=='Partners' && ($post['partner_code'] ?? false)){
-                $cek_code_partner = Partner::where('code', $post['partner_code'])->first();
+                $cek_code_partner = Partner::where('code', $post['partner_code'])->where('id_partner','<>',$post['id'])->first();
                 if($cek_code_partner){
                     return response()->json(['status' => 'duplicate_code', 'messages' => ['Partner code must be different']]);
                 }else{
                     return true;
                 }
             }elseif($post['table']=='Locations' && ($post['location_code'] ?? false)){
-                $cek_code_location = Location::where('code', $post['location_code'])->first();
+                $cek_code_location = Location::where('code', $post['location_code'])->where('id_location','<>',$post['id'])->first();
                 if($cek_code_location){
                     return response()->json(['status' => 'duplicate_code', 'messages' => ['Location code must be different']]);
                 }else{
@@ -774,15 +815,23 @@ class ApiPartnersController extends Controller
             $cek_partner = Partner::where(['id_partner'=>$id_partner])->first();
             if($cek_partner){
                 
-                $checkPhoneFormat = MyHelper::phoneCheckFormat($post['phone']);
-                if (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'fail') {
-                    return response()->json([
-                        'status' => 'fail',
-                        'message' => 'Format nomor HP tidak benar, minimal 10 angka dan maksimal 14 angka'
-                    ]);
-                } elseif (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'success') {
-                    $post['phone'] = $checkPhoneFormat['phone'];
+                if (isset($post['phone'])) {
+                    $cek_unique_mobile = Partner::where('id_partner','<>',$id_partner)->where('phone',$post['phone'])->first();
+                    if($cek_unique_mobile){
+                        return response()->json(['status' => 'fail', 'messages' => ['The phone has already been taken by another partner']]);
+                    }
+
+                    $checkPhoneFormat = MyHelper::phoneCheckFormat($post['phone']);
+                    if (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'fail') {
+                        return response()->json([
+                            'status' => 'fail',
+                            'message' => 'Format nomor HP tidak benar, minimal 10 angka dan maksimal 14 angka'
+                        ]);
+                    } elseif (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'success') {
+                        $post['phone'] = $checkPhoneFormat['phone'];
+                    }
                 }
+
 
                 DB::beginTransaction();
                 $store = PartnersLog::create([
@@ -1019,7 +1068,7 @@ class ApiPartnersController extends Controller
                             "location" => Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->first(),
                             "confir" => ConfirmationLetter::where('id_partner',$post["id_partner"])->first(),
                         ];
-                        $invoiceCL = Icount::ApiInvoiceConfirmationLetter($data_send_2, $data_send_2['location']['company_type']);
+                        $invoiceCL = Icount::ApiInvoiceConfirmationLetter($data_send_2, 'PT IMA');
                         if($invoiceCL['response']['Status']=='1' && $invoiceCL['response']['Message']=='success'){
                             $data_invoCL = $invoiceCL['response']['Data'][0];
                             $val = Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->get('value_detail')[0]['value_detail'];
@@ -1046,6 +1095,10 @@ class ApiPartnersController extends Controller
                             }
                             app('\Modules\Project\Http\Controllers\ApiProjectController')->initProject($data_send['partner'], $data_send['location']);
                             
+                            $update_this_partner = $this->update(New Request($post['partner']));
+                            if(!$update_this_partner){
+                                return response()->json(['status' => 'fail', 'messages' => ['Failed to updated partner']]);
+                            }
                             //make legal agreement
                             $legal_agree = $this->createLegalAgreement($data_send['partner'], $data_send['location']);
                             if(!$legal_agree){
@@ -1075,9 +1128,11 @@ class ApiPartnersController extends Controller
             $cek_partner = Partner::where(['id_partner'=>$post['id_partner']])->first();
             if($cek_partner){
                 DB::beginTransaction();
-                $creatConf = [
+                $key = [
                     "id_partner"   => $post['id_partner'],
                     "id_location"   => $post['id_location'],
+                ];
+                $creatConf = [
                     "no_letter"   => $post['no_letter'],
                     "location"   => $post['location'],
                     "date"   => date("Y-m-d"),
@@ -1085,20 +1140,27 @@ class ApiPartnersController extends Controller
                 $data['partner'] = $cek_partner;
                 $data['letter'] = $creatConf;
                 $data['location'] = Location::where(['id_partner'=>$post['id_partner']])->where(['id_location'=>$post['id_location']])->first();
-                $data['city'] = City::where(['id_city'=>$data['location']['id_city']])->first();
+                $data['city'] = City::with(['province'])->where(['id_city'=>$data['location']['id_city']])->first();
+                $setting_first_side = Setting::where('key','confirmation_letter_first_side')->get('value_text')->first();
+                $first_side = [];
+                if($setting_first_side){
+                    $first_side = json_decode($setting_first_side['value_text']??'' , true);
+                }
                 $waktu = $this->timeTotal(explode('-', $data['partner']['start_date']),explode('-', $data['partner']['end_date']));
                 $send['data'] = [
-                    'pihak_dua' => $this->pihakDua($data['partner']['contact_person'],$data['partner']['gender']),
+                    'pihak_dua' => $this->pihakDua($data['partner']['name'],$data['partner']['title']),
+                    'location_name' => $data['location']['name'],
                     'ttd_pihak_dua' => $data['partner']['contact_person'],
                     'lokasi_surat' => $data['letter']['location'],
                     'tanggal_surat' => $this->letterDate($data['letter']['date']),
                     'no_surat' => $data['letter']['no_letter'],
-                    'location_mall' => strtoupper($data['location']['mall']),
-                    'location_city' => strtoupper($data['city']['city_name']),
+                    'box' => $data['location']['total_box'],
+                    'location_city' => ucwords(strtolower($data['city']['city_name'])),
+                    'location_province' => $data['city']['province']['province_name'],
                     'address' => $data['location']['address'],
                     'large' => $data['location']['location_large'],
-                    'partnership_fee' => $this->rupiah($data['location']['partnership_fee']),
-                    'partnership_fee_string' => $this->stringNominal($data['location']['partnership_fee']).' Rupiah',
+                    'partnership_fee' => $this->rupiah($data['location']['partnership_fee']+$data['location']['partnership_fee']*10/100),
+                    'partnership_fee_string' => $this->stringNominal($data['location']['partnership_fee']+$data['location']['partnership_fee']*10/100).' Rupiah',
                     'dp' => $this->rupiah($data['location']['partnership_fee']*0.2),
                     'dp_string' => $this->stringNominal($data['location']['partnership_fee']*0.2).' Rupiah',
                     'dp2' => $this->rupiah($data['location']['partnership_fee']*0.3),
@@ -1106,20 +1168,20 @@ class ApiPartnersController extends Controller
                     'final' => $this->rupiah($data['location']['partnership_fee']*0.5),
                     'final_string' => $this->stringNominal($data['location']['partnership_fee']*0.5).' Rupiah',
                     'total_waktu' => $waktu['total'],
-                    'sisa_waktu' => $waktu['sisa'],
+                    'position_name' => isset($general['position_name']) ? $general['position_name'] : 'Alese Sandria',
+                    'position' => isset($general['position']) ? $general['position'] : 'General Manager',
                 ];
-                if(isset($data['location']['notes']) && !empty($data['location']['notes'])){
-                    $send['data']['angsuran'] = $data['location']['notes'];
-                }
                 $content = Setting::where('key','confirmation_letter_tempalate')->get('value_text')->first()['value_text'];
                 $pdf_contect['content'] = $this->textReplace($content,$send['data']);
                 // return $pdf_contect['content'];
                 $no = str_replace('/', '_', $post['no_letter']);
                 $path = $this->confirmation.'confirmation_'.$no.'.pdf';
-                $pdf = PDF::loadView('businessdevelopment::confirmation', $pdf_contect );
+                $pdf_contect['title'] = 'Confirmation Letter '.$post['no_letter'];
+                // return view('businessdevelopment::confirmation_dummy');
+                $pdf = PDF::loadView('businessdevelopment::confirmation', $pdf_contect);
                 Storage::put($path, $pdf->output(),'public');
                 $creatConf['attachment'] = $path;
-                $store = ConfirmationLetter::create($creatConf);
+                $store = ConfirmationLetter::updateOrCreate($key,$creatConf);
                 if(!$store) {
                     DB::rollback();
                     return ['status' => 'fail', 'messages' => ['Failed create confirmation letter']];
@@ -1135,14 +1197,8 @@ class ApiPartnersController extends Controller
         }
     }
 
-    public function pihakDua($name, $gender){
-        $gender_name = '';
-        if($gender=='Man'){
-            $gender_name = 'BAPAK';
-        }elseif($gender=='Woman'){
-            $gender_name = 'IBU';
-        }
-        return $pihakDua = $gender_name.' '.strtoupper($name);
+    public function pihakDua($name, $title){
+        return $pihakDua = strtoupper($title).' '.strtoupper($name);
     }
     public function letterDate($date){
         $bulan = array (1=>'Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember');
@@ -1224,7 +1280,17 @@ class ApiPartnersController extends Controller
             }
             $string_tahun = strtolower($this->stringNominal($tahun));
             $string_tanggal = strtolower($this->stringNominal($tanggal));
-            $total_waktu = $tahun.' ('.$string_tahun.')'.' tahun '.$tanggal.' ('.$string_tanggal.')'.' hari';
+            if($tahun>0){
+                $string_year = $tahun.' ('.$string_tahun.')'.' tahun ';
+            }else{
+                $string_year = null;
+            }
+            if($tanggal>0){
+                $string_date = $tanggal.' ('.$string_tanggal.')'.' hari';
+            }else{
+                $string_date = null;
+            }
+            $total_waktu = $string_year.$string_date;
             $array_waktu = [
                 0 => $tahun,
                 2 => $tanggal,
@@ -1242,7 +1308,17 @@ class ApiPartnersController extends Controller
             }
             $string_tahun = strtolower($this->stringNominal($tahun));
             $string_bulan = strtolower($this->stringNominal($bulan));
-            $total_waktu = $tahun.' ('.$string_tahun.')'.' tahun '.$bulan.' ('.$string_bulan.')'.' bulan';
+            if($tahun>0){
+                $string_year = $tahun.' ('.$string_tahun.')'.' tahun ';
+            }else{
+                $string_year = null;
+            }
+            if($bulan>0){
+                $string_month = $bulan.' ('.$string_bulan.')'.' bulan';
+            }else{
+                $string_month = null;
+            }
+            $total_waktu = $string_year.$string_month;
             $array_waktu = [
                 0 => $tahun,
                 1 => $bulan,
@@ -1276,7 +1352,22 @@ class ApiPartnersController extends Controller
                 $string_tahun = strtolower($this->stringNominal($tahun));
                 $string_bulan = strtolower($this->stringNominal($bulan));
                 $string_tanggal = strtolower($this->stringNominal($tanggal));
-                $total_waktu = $tahun.' ('.$string_tahun.')'.' tahun '.$bulan.' ('.$string_bulan.')'.' bulan '.$tanggal.' ('.$string_tanggal.')'.' hari';
+                if($tahun>0){
+                    $string_year = $tahun.' ('.$string_tahun.')'.' tahun ';
+                }else{
+                    $string_year = null;
+                }
+                if($bulan>0){
+                    $string_month = $bulan.' ('.$string_bulan.')'.' bulan';
+                }else{
+                    $string_month = null;
+                }
+                if($tanggal>0){
+                    $string_date = $tanggal.' ('.$string_tanggal.')'.' hari';
+                }else{
+                    $string_date = null;
+                }
+                $total_waktu = $string_year.$string_month.$string_date;
                 $array_waktu = [
                     0 => $tahun,
                     1 => $bulan,
@@ -1288,7 +1379,17 @@ class ApiPartnersController extends Controller
                     $tanggal = ($jumlah_hari-$start_date[2])+$end_date[2];
                     $string_tahun = strtolower($this->stringNominal($tahun));
                     $string_tanggal = strtolower($this->stringNominal($tanggal));
-                    $total_waktu = $tahun.' ('.$string_tahun.')'.' tahun '.$tanggal.' ('.$string_tanggal.')'.' hari';
+                    if($tahun>0){
+                        $string_year = $tahun.' ('.$string_tahun.')'.' tahun ';
+                    }else{
+                        $string_year = null;
+                    }
+                    if($tanggal>0){
+                        $string_date = $tanggal.' ('.$string_tanggal.')'.' hari';
+                    }else{
+                        $string_date = null;
+                    }
+                    $total_waktu = $string_year.$string_date;
                     $array_waktu = [
                         0 => $tahun,
                         2 => $tanggal,
@@ -1300,7 +1401,22 @@ class ApiPartnersController extends Controller
                     $string_tahun = strtolower($this->stringNominal($tahun));
                     $string_bulan = strtolower($this->stringNominal($bulan));
                     $string_tanggal = strtolower($this->stringNominal($tanggal));
-                    $total_waktu = $tahun.' ('.$string_tahun.')'.' tahun '.$bulan.' ('.$string_bulan.')'.' bulan '.$tanggal.' ('.$string_tanggal.')'.' hari';
+                    if($tahun>0){
+                        $string_year = $tahun.' ('.$string_tahun.')'.' tahun ';
+                    }else{
+                        $string_year = null;
+                    }
+                    if($bulan>0){
+                        $string_month = $bulan.' ('.$string_bulan.')'.' bulan';
+                    }else{
+                        $string_month = null;
+                    }
+                    if($tanggal>0){
+                        $string_date = $tanggal.' ('.$string_tanggal.')'.' hari';
+                    }else{
+                        $string_date = null;
+                    }
+                    $total_waktu = $string_year.$string_month.$string_date;
                     $array_waktu = [
                         0 => $tahun,
                         1 => $bulan,
@@ -1315,7 +1431,22 @@ class ApiPartnersController extends Controller
                     $string_tahun = strtolower($this->stringNominal($tahun));
                     $string_bulan = strtolower($this->stringNominal($bulan));
                     $string_tanggal = strtolower($this->stringNominal($tanggal));
-                    $total_waktu = $tahun.' ('.$string_tahun.')'.' tahun '.$bulan.' ('.$string_bulan.')'.' bulan '.$tanggal.' ('.$string_tanggal.')'.' hari';
+                    if($tahun>0){
+                        $string_year = $tahun.' ('.$string_tahun.')'.' tahun ';
+                    }else{
+                        $string_year = null;
+                    }
+                    if($bulan>0){
+                        $string_month = $bulan.' ('.$string_bulan.')'.' bulan';
+                    }else{
+                        $string_month = null;
+                    }
+                    if($tanggal>0){
+                        $string_date = $tanggal.' ('.$string_tanggal.')'.' hari';
+                    }else{
+                        $string_date = null;
+                    }
+                    $total_waktu = $string_year.$string_month.$string_date;
                     $array_waktu = [
                         0 => $tahun,
                         1 => $bulan,
@@ -1325,31 +1456,8 @@ class ApiPartnersController extends Controller
             }
             
         }
-        $sisa = $array_waktu[0] - 3;
-        if($sisa==0){
-            if(isset($array_waktu[1]) && isset($array_waktu[2])){
-                $string_sisa = ' + '.$array_waktu[1].' ('.strtolower($this->stringNominal($array_waktu[1])).')'.' bulan '.$array_waktu[2].' ('.strtolower($this->stringNominal($array_waktu[2])).')'.' hari berikutnya;';
-            }elseif(isset($array_waktu[1])){
-                $string_sisa = ' + '.$array_waktu[1].' ('.strtolower($this->stringNominal($array_waktu[1])).')'.' bulan berikutnya;';
-            }elseif(isset($array_waktu[2])){
-                $string_sisa = ' + '.$array_waktu[2].' ('.strtolower($this->stringNominal($array_waktu[2])).')'.' hari berikutnya;';
-            }else{
-                $string_sisa = ';';
-            }
-        }else{
-            if(isset($array_waktu[1]) && isset($array_waktu[2])){
-                $string_sisa = ' + '.$sisa.' ('.strtolower($this->stringNominal($sisa)).')'.' tahun '.$array_waktu[1].' ('.strtolower($this->stringNominal($array_waktu[1])).')'.' bulan '.$array_waktu[2].' ('.strtolower($this->stringNominal($array_waktu[2])).')'.' hari berikutnya;';
-            }elseif(isset($array_waktu[1])){
-                $string_sisa = ' + '.$sisa.' ('.strtolower($this->stringNominal($sisa)).')'.' tahun '.$array_waktu[1].' ('.strtolower($this->stringNominal($array_waktu[1])).')'.' bulan berikutnya;';
-            }elseif(isset($array_waktu[2])){
-                $string_sisa = ' + '.$sisa.' ('.strtolower($this->stringNominal($sisa)).')'.' tahun '.$array_waktu[2].' ('.strtolower($this->stringNominal($array_waktu[2])).')'.' hari berikutnya;';
-            }else{
-                $string_sisa = ' + '.$sisa.' ('.strtolower($this->stringNominal($sisa)).')'.' tahun;';
-            }
-        }
         return [
-            'total' => $total_waktu,
-            'sisa' =>$string_sisa
+            'total' => $total_waktu
         ];
     }
 
@@ -1358,10 +1466,12 @@ class ApiPartnersController extends Controller
         $text = str_replace('%tanggal_surat%',$data['tanggal_surat'],$text);
         $text = str_replace('%no_surat%',$data['no_surat'],$text);
         $text = str_replace('%pihak_dua%',$data['pihak_dua'],$text);
-        $text = str_replace('%location_mall%',$data['location_mall'],$text);
+        $text = str_replace('%location_name%',$data['location_name'],$text);
         $text = str_replace('%location_city%',$data['location_city'],$text);
+        $text = str_replace('%location_province%',$data['location_province'],$text);
         $text = str_replace('%address%',$data['address'],$text);
         $text = str_replace('%large%',$data['large'],$text);
+        $text = str_replace('%box%',$data['box'],$text);
         $text = str_replace('%partnership_fee%',$data['partnership_fee'],$text);
         $text = str_replace('%partnership_fee_string%',$data['partnership_fee_string'],$text);
         $text = str_replace('%dp%',$data['dp'],$text);
@@ -1371,14 +1481,9 @@ class ApiPartnersController extends Controller
         $text = str_replace('%final%',$data['final'],$text);
         $text = str_replace('%final_string%',$data['final_string'],$text);
         $text = str_replace('%total_waktu%',$data['total_waktu'],$text);
-        $text = str_replace('%sisa_waktu%',$data['sisa_waktu'],$text);
         $text = str_replace('%ttd_pihak_dua%',$data['ttd_pihak_dua'],$text);
-        if(isset($data['angsuran'])){
-            $angsuran = '<li>'.$data['angsuran'].';</li>';
-            $text = str_replace('%angsuran%',$angsuran,$text);
-        }else{
-            $text = str_replace('%angsuran%','',$text);
-        }
+        $text = str_replace('%position_name%',$data['position_name'],$text);
+        $text = str_replace('%position%',$data['position'],$text);
         return $text;
     }
 
@@ -1582,11 +1687,13 @@ class ApiPartnersController extends Controller
         $post = $request['post_follow_up'];
         if(isset($post['id_partner']) && !empty($post['id_partner'])){
             DB::beginTransaction();
-            $data_store = [
+            $key = [
                 "index" => $post["index"],
                 "id_partner" => $post["id_partner"],
                 "id_location" => $post["id_location"],
                 "follow_up" => $post["follow_up"],
+            ];
+            $data_store = [
                 "note" => $post["note"],
             ];
             if (isset($post['attachment']) && !empty($post['attachment'])) {
@@ -1602,7 +1709,7 @@ class ApiPartnersController extends Controller
                     return $result;
                 }
             }
-            $store = NewStepsLog::create($data_store);
+            $store = NewStepsLog::updateOrCreate($key,$data_store);
             if (!$store) {
                 DB::rollback();
                 return response()->json(['status' => 'fail', 'messages' => ['Failed add follow up data']]);
@@ -1675,7 +1782,7 @@ class ApiPartnersController extends Controller
                             "location" => Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->first(),
                             "confir" => ConfirmationLetter::where('id_partner',$post["id_partner"])->first(),
                         ];
-                        $invoiceCL = Icount::ApiInvoiceConfirmationLetter($data_send_2, $data_send_2['location']['company_type']);
+                        $invoiceCL = Icount::ApiInvoiceConfirmationLetter($data_send_2, 'PT IMA');
                         if($invoiceCL['response']['Status']=='1' && $invoiceCL['response']['Message']=='success'){
                             $data_invoCL = $invoiceCL['response']['Data'][0];
                             $val = Location::where('id_partner',$post["id_partner"])->where('id_location',$post["id_location"])->get('value_detail')[0]['value_detail'];

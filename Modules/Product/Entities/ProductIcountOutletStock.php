@@ -3,6 +3,7 @@
 namespace Modules\Product\Entities;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Http\Models\Outlet;
 
 class ProductIcountOutletStock extends Model
 {
@@ -15,4 +16,13 @@ class ProductIcountOutletStock extends Model
         'unit',
         'stock',
     ];
+
+    public function outlet()
+    {
+        return $this->belongsTo(Outlet::class, 'id_outlet');
+    }
+
+    public function product_icount(){
+        return $this->belongsTo(\Modules\Product\Entities\ProductIcount::class, 'id_product_icount');
+    }
 }

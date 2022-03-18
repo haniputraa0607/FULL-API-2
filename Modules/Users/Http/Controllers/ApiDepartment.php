@@ -8,6 +8,9 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Log;
 
 use Modules\Users\Entities\Department;
+use App\Jobs\SyncIcountDepartment;
+use App\Http\Models\Setting;
+use App\Lib\Icount;
 use App\Lib\MyHelper;
 use DB;
 
@@ -191,5 +194,27 @@ class ApiDepartment extends Controller
         }else{
             return true;
         }
+    }
+
+    public function syncIcount(Request $request){
+        $log = MyHelper::logCron('Sync Department Icount');
+        try{
+            $setting = Setting::where('key' , 'Sync Department Icount')->first();
+            if($setting){
+                if($setting['value'] != 'finished'){
+                    return ['status' => 'fail', 'messages' => ['Cant sync now, because sync is in progress']]; 
+                }
+            }else{
+                $create_setting = Setting::updateOrCreate(['key' => 'Sync Department Icount'],['value' => 'start']);
+            }
+            $send = [
+                'page' => 1,
+                'id_departments' => null
+            ];
+            $sync_job = SyncIcountDepartment::dispatch($send);
+            return ['status' => 'success', 'messages' => ['Success to sync with ICount']]; 
+        } catch (\Exception $e) {
+            $log->fail($e->getMessage());
+        }    
     }
 }

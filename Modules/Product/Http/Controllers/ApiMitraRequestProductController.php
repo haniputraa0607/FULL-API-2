@@ -15,6 +15,7 @@ use DB;
 use App\Lib\MyHelper;
 use Modules\Product\Entities\DeliveryProductImage;
 use Modules\Product\Entities\ProductIcount;
+use Modules\Product\Http\Requests\product\ConfirmDeliveryProduct;
 
 class ApiMitraRequestProductController extends Controller
 {
@@ -182,7 +183,7 @@ class ApiMitraRequestProductController extends Controller
                             }else{
                                 $delivery_product = $delivery_product->first();
                             }
-                            
+  
             if($delivery_product){
 
                 $delivery_product = array_map(function($value){
@@ -196,19 +197,13 @@ class ApiMitraRequestProductController extends Controller
                 },array($delivery_product))[0];
 
                 if($delivery_product['id_delivery_product']){
-                    $products = DeliveryRequestProduct::with(['delivery_product' => function($query) {
-                                    $query->select('id_delivery_product');
-                                    $query->with(['delivery_product_detail' => function($query) {
-                                        $query->with(['delivery_product_icount' => function($query){
+                    $products = DeliveryProductDetail::with(['delivery_product_icount' => function($query){
                                                 $query->select('id_product_icount','name');
-                                        }]);
-                                    }]);
-                                }])
-                                ->where('id_delivery_product',$post['id_delivery_product'])->get()->toArray();
-                    
+                                        }])->where('id_delivery_product',$post['id_delivery_product'])->get()->toArray();
+
                     $dev = 0;
-                    if ($products[0]['delivery_product']) {
-                        foreach ($products[0]['delivery_product']['delivery_product_detail'] as $detail) {
+                    if ($products) {
+                        foreach ($products as $detail) {
                             $delivery[$dev] = [
                                 "id_product_icount" => $detail['delivery_product_icount']['id_product_icount'],
                                 "product_name" => $detail['delivery_product_icount']['name'],
@@ -256,7 +251,7 @@ class ApiMitraRequestProductController extends Controller
         }
     }
 
-    public function confirm(Request $request){
+    public function confirm(ConfirmDeliveryProduct $request){
         $post = $request->all();
         if (isset($post['id_delivery_product']) && !empty($post['id_delivery_product'])) {
             
@@ -276,10 +271,21 @@ class ApiMitraRequestProductController extends Controller
                 $files = [];
                 foreach ($post['attachment'] as $i => $attachment){
                     if(!empty($attachment)){
-                        $encode = base64_encode(fread(fopen($attachment, "r"), filesize($attachment)));
+                        try{
+                            $encode = base64_encode(fread(fopen($attachment, "r"), filesize($attachment)));
+                        }catch(\Exception $e) {
+                            return response()->json(['status' => 'fail', 'messages' => ['The Attachment File may not be greater than 2 MB']]);
+                        }
                         $originalName = $attachment->getClientOriginalName();
-                        $name = pathinfo($originalName, PATHINFO_FILENAME);
-                        $ext = pathinfo($originalName, PATHINFO_EXTENSION);
+                        if($originalName == ''){
+                            $ext = 'png';
+                            $dev = DeliveryProduct::where('id_delivery_product',$post['id_delivery_product'])->first();
+                            $name = $dev['code'];
+                            $name = str_replace('-','_',$name);
+                        }else{
+                            $name = pathinfo($originalName, PATHINFO_FILENAME);
+                            $ext = pathinfo($originalName, PATHINFO_EXTENSION);
+                        }
                         $upload = MyHelper::uploadFile($encode, $this->deliv_path, $ext, date('YmdHis').'_'.$name);
                         if (isset($upload['status']) && $upload['status'] == "success") {
                             $save_image = [
@@ -301,7 +307,7 @@ class ApiMitraRequestProductController extends Controller
             if($post['detail']){
                 foreach($post['detail'] as $key => $product){
                     $product_icount = new ProductIcount();
-                    $update_stock = $product_icount->find($product['id_product_icount'])->addLogStockProductIcount($product['delivered'],$product['unit'],'Delivery Product',$post['id_delivery_product']);
+                    $update_stock = $product_icount->find($product['id_product_icount'])->addLogStockProductIcount($product['received'],$product['unit'],'Delivery Product',$post['id_delivery_product']);
                     if($product['received'] == $product['delivered']){
                         $status = 'Enough';
                     }elseif($product['received'] < $product['delivered']){

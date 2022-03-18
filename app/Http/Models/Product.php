@@ -249,7 +249,10 @@ class Product extends Model
         return $this->hasMany(\Modules\ProductService\Entities\ProductServiceUse::class, 'id_product_service', 'id_product');
     }
 
-    public function product_icount_use() {
+    public function product_icount_use_ima() {
+        return $this->hasMany(\Modules\Product\Entities\ProductProductIcount::class, 'id_product', 'id_product');
+    }
+    public function product_icount_use_ims() {
         return $this->hasMany(\Modules\Product\Entities\ProductProductIcount::class, 'id_product', 'id_product');
     }
 
@@ -263,8 +266,12 @@ class Product extends Model
     }
 
     public function product_academy_theory() {
-        return $this->hasMany(\Modules\Academy\Entities\ProductAcademyTheory::class, 'id_product', 'id_product')
-            ->join('theories', 'theories.id_theory', 'product_academy_theory.id_theory');
+        return $this->hasMany(\Modules\Academy\Entities\ProductAcademyTheoryCategory::class, 'id_product', 'id_product')
+            ->join('theory_categories', 'theory_categories.id_theory_category', 'product_academy_theory_categories.id_theory_category');
+    }
+
+    public function product_hs_category() {
+        return $this->hasMany(\Modules\ProductService\Entities\ProductHairstylistCategory::class, 'id_product', 'id_product');
     }
 
     

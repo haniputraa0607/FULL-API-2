@@ -1545,7 +1545,11 @@ class ApiDeals extends Controller
 
     /*Welcome Voucher*/
     function listDealsWelcomeVoucher(Request $request){
+        $now = date('Y-m-d H:i:s');
         $getDeals = Deal::where('deals_type','WelcomeVoucher')
+            ->where('deals_start', "<", $now)
+            ->where('deals_end', ">", $now)
+            ->where('step_complete', 1)
             ->select('deals.*')
             ->get()->toArray();
         $configUseBrand = Configs::where('config_name', 'use brand')->first();

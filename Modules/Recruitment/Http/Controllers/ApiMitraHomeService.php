@@ -240,6 +240,7 @@ class ApiMitraHomeService extends Controller
 
 				            Transaction::where('id_transaction', $detail['id_transaction'])->update(['show_rate_popup' => '1']);
                             TransactionProduct::where('id_transaction', $detail['id_transaction'])->where('type', 'Service')->update(['transaction_product_completed_at' => date('Y-m-d H:i:s')]);
+                            TransactionHomeService::where('id_transaction', $detail['id_transaction'])->update(['completed_at' => date('Y-m-d H:i:s')]);
                         }
                     }
 

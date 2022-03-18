@@ -4043,7 +4043,12 @@ Message :
         );
 
         foreach ($rows as $row) {
-            Autocrm::updateOrCreate(['autocrm_title' => $row['autocrm_title']], $row);
+            Autocrm::updateOrCreate(['autocrm_title' => $row['autocrm_title']], [
+                'autocrm_type' => $row['autocrm_type'],
+                'autocrm_trigger' => $row['autocrm_trigger'],
+                'autocrm_title' => $row['autocrm_title'],
+                'custom_text_replace'=> $row['custom_text_replace'],
+            ]);
         }
     }
 }

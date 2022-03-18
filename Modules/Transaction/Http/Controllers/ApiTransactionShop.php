@@ -701,7 +701,7 @@ class ApiTransactionShop extends Controller
 	        $result['payment_detail'][] = [
 	            'name'          => 'Tax:',
 	            "is_discount"   => 0,
-	            'amount'        => number_format(((int) $result['tax']),0,',','.')
+	            'amount'        => number_format(((int) round($result['tax'])),0,',','.')
 
 	        ];
         }
@@ -1333,11 +1333,11 @@ class ApiTransactionShop extends Controller
             'amount'        => number_format(((int) $detail['transaction_shipment']),0,',','.')
         ];
 
-        if (!empty($detail['transaction_tax'])) {
+        if (!empty($detail['transaction_tax']) && empty($request->admin)) {
 	        $paymentDetail[] = [
 	            'name'          => 'Tax',
 	            "is_discount"   => 0,
-	            'amount'        => number_format(((int) $detail['transaction_tax']),0,',','.')
+	            'amount'        => number_format(((int) round($detail['transaction_tax'])),0,',','.')
 
 	        ];
         }
@@ -1457,6 +1457,7 @@ class ApiTransactionShop extends Controller
 			'transaction_grandtotal' => $detail['transaction_grandtotal'],
 			'transaction_product_subtotal' => $subtotalProduct,
 			'transaction_tax' => $detail['transaction_tax'],
+            'mdr' => $detail['mdr'],
 			'currency' => 'Rp',
 			'status' => $status,
 			'shop_status' => $detail['shop_status'],

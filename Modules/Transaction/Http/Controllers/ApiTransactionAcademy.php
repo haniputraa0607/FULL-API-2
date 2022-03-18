@@ -239,7 +239,7 @@ class ApiTransactionAcademy extends Controller
             $result['payment_detail'][] = [
                 'name'          => 'Tax:',
                 "is_discount"   => 0,
-                'amount'        => MyHelper::requestNumber((int) $post['tax'],'_CURRENCY')
+                'amount'        => MyHelper::requestNumber(roun($post['tax']),'_CURRENCY')
             ];
         }
 
@@ -816,6 +816,8 @@ class ApiTransactionAcademy extends Controller
             'transaction_subtotal'          => MyHelper::requestNumber($trx['transaction_subtotal'],'_CURRENCY'),
             'transaction_discount'          => MyHelper::requestNumber($trx['transaction_discount'],'_CURRENCY'),
             'transaction_cashback_earned'   => MyHelper::requestNumber($trx['transaction_cashback_earned'],'_POINT'),
+            'transaction_tax'               => $trx['transaction_tax'],
+            'mdr'                           => $trx['mdr'],
             'trasaction_payment_type'       => $trx['trasaction_payment_type'],
             'trasaction_type'               => $trx['trasaction_type'],
             'transaction_payment_status'    => $trx['transaction_payment_status'],
@@ -1258,11 +1260,6 @@ class ApiTransactionAcademy extends Controller
             'name'      => 'Subtotal',
             'desc'      => $totalItem . ' items',
             'amount'    => MyHelper::requestNumber($trx['transaction_subtotal'],'_CURRENCY')
-        ];
-        $paymentDetail[] = [
-            'name'      => 'Tax',
-            'desc'      => '10%',
-            'amount'    => MyHelper::requestNumber($trx['transaction_tax'],'_CURRENCY')
         ];
 
         // if ($trx['transaction_discount']) {

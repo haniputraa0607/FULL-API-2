@@ -1929,7 +1929,7 @@ class ApiOnlineTransaction extends Controller
             $result['payment_detail'][] = [
                 'name'          => 'Tax:',
                 "is_discount"   => 0,
-                'amount'        => MyHelper::requestNumber((int) $result['tax'],'_CURRENCY')
+                'amount'        => MyHelper::requestNumber(round($result['tax']),'_CURRENCY')
             ];
         }
 

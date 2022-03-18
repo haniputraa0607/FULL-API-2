@@ -5654,7 +5654,7 @@ class ApiTransaction extends Controller
             $paymentDetail[] = [
                 'name'          => 'Tax',
                 "is_discount"   => 0,
-                'amount'        => MyHelper::requestNumber($detail['transaction_tax'],'_CURRENCY')
+                'amount'        => MyHelper::requestNumber(round($detail['transaction_tax']),'_CURRENCY')
             ];
         }
 
@@ -5964,7 +5964,7 @@ class ApiTransaction extends Controller
             $paymentDetail[] = [
                 'name'          => 'Tax',
                 "is_discount"   => 0,
-                'amount'        => MyHelper::requestNumber($detail['transaction_tax'],'_CURRENCY')
+                'amount'        => MyHelper::requestNumber(round($detail['transaction_tax']),'_CURRENCY')
             ];
         }
 

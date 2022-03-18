@@ -285,6 +285,8 @@ class ApiTransactionOutletService extends Controller
             'transaction_subtotal'          => MyHelper::requestNumber($trx['transaction_subtotal'],'_CURRENCY'),
             'transaction_discount'          => MyHelper::requestNumber($trx['transaction_discount'],'_CURRENCY'),
             'transaction_cashback_earned'   => MyHelper::requestNumber($trx['transaction_cashback_earned'],'_POINT'),
+            'transaction_tax'               => $trx['transaction_tax'],
+            'mdr'                           => $trx['mdr'],
             'trasaction_payment_type'       => $trx['trasaction_payment_type'],
             'transaction_payment_status'    => $trx['transaction_payment_status'],
             'continue_payment'              => $trxPayment['continue_payment'],
@@ -354,7 +356,7 @@ class ApiTransactionOutletService extends Controller
                 }
             }
         }
-        
+        \Log::info($result);
         return MyHelper::checkGet($result);
     }
 

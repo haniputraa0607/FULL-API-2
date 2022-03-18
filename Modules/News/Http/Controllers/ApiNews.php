@@ -10,11 +10,13 @@ use App\Http\Models\NewsOutlet;
 use App\Http\Models\NewsProduct;
 use App\Http\Models\Configs;
 
+use App\Http\Models\OauthAccessToken;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 
 use App\Lib\MyHelper;
+use Lcobucci\JWT\Parser;
 use Validator;
 use Hash;
 use DB;
@@ -26,6 +28,7 @@ use Modules\News\Http\Requests\Create;
 use Modules\News\Http\Requests\Update;
 use Modules\News\Http\Requests\CreateRelation;
 use Modules\News\Http\Requests\DeleteRelation;
+use App\Http\Models\Setting;
 
 class ApiNews extends Controller
 {
@@ -230,6 +233,25 @@ class ApiNews extends Controller
     {
         // data news
         $post = $request->json()->all();
+        $bearerToken = $request->bearerToken();
+        $tokenId = (new Parser())->parse($bearerToken)->getHeader('jti');
+        $getOauth = OauthAccessToken::find($tokenId);
+        $scopeUser = str_replace(str_split('[]""'),"",$getOauth['scopes']);
+
+        if($scopeUser == 'client'){
+            if(empty($post['api_key']) || empty($post['api_secret'])){
+                return [
+                    'status' => 'fail',
+                    'messages' => ['Api key or secret can not be empty']
+                ];
+            }
+
+            $api = $this->checkApi($post['api_key'], $post['api_secret']);
+            if ($api['status'] != 'success') {
+                return response()->json($api);
+            }
+        }
+
         if (isset($request->news_video)) {
             $post['news_video'] = '';
             foreach ($request->news_video as $vid_url) {
@@ -287,7 +309,7 @@ class ApiNews extends Controller
                 }
             }
             DB::commit();
-            if ($save) {
+            if ($save && !empty($request->user()->phone)) {
                 $send = app($this->autocrm)->SendAutoCRM('Create News', $request->user()->phone, [
                     'id_news' => $save->id_news,
                     'news_content' => $data['news_content_long'] ?? '',
@@ -315,6 +337,25 @@ class ApiNews extends Controller
     {
         // info news
         $post = $request->json()->all();
+        $bearerToken = $request->bearerToken();
+        $tokenId = (new Parser())->parse($bearerToken)->getHeader('jti');
+        $getOauth = OauthAccessToken::find($tokenId);
+        $scopeUser = str_replace(str_split('[]""'),"",$getOauth['scopes']);
+
+        if($scopeUser == 'client'){
+            if(empty($post['api_key']) || empty($post['api_secret'])){
+                return [
+                    'status' => 'fail',
+                    'messages' => ['Api key or secret can not be empty']
+                ];
+            }
+
+            $api = $this->checkApi($post['api_key'], $post['api_secret']);
+            if ($api['status'] != 'success') {
+                return response()->json($api);
+            }
+        }
+
         if ($request->news_video && is_array($request->news_video) && $request->news_video[0]) {
             $post['news_video'] = '';
             foreach ($request->news_video as $vid_url) {
@@ -382,7 +423,7 @@ class ApiNews extends Controller
                     $saveForm = NewsFormStructure::create($dataForm);
                 }
             }
-            if ($save) {
+            if ($save && !empty($request->user()->phone)) {
                 $data['news_image_dalam'] = $save['news_image_dalam'];
                 $send = app($this->autocrm)->SendAutoCRM('Update News', $request->user()->phone, [
                     'id_news' => $request->json('id_news'),
@@ -426,6 +467,25 @@ class ApiNews extends Controller
     function delete(Request $request)
     {
         // info news
+        $post = $request->json()->all();
+        $bearerToken = $request->bearerToken();
+        $tokenId = (new Parser())->parse($bearerToken)->getHeader('jti');
+        $getOauth = OauthAccessToken::find($tokenId);
+        $scopeUser = str_replace(str_split('[]""'),"",$getOauth['scopes']);
+
+        if($scopeUser == 'client'){
+            if(empty($post['api_key']) || empty($post['api_secret'])){
+                return [
+                    'status' => 'fail',
+                    'messages' => ['Api key or secret can not be empty']
+                ];
+            }
+
+            $api = $this->checkApi($post['api_key'], $post['api_secret']);
+            if ($api['status'] != 'success') {
+                return response()->json($api);
+            }
+        }
         $dataNews = News::where('id_news', $request->json('id_news'))->get()->toArray();
 
         if (empty($dataNews)) {
@@ -522,6 +582,25 @@ class ApiNews extends Controller
     function listNews(Request $request)
     {
         $post = $request->json()->all();
+
+        $bearerToken = $request->bearerToken();
+        $tokenId = (new Parser())->parse($bearerToken)->getHeader('jti');
+        $getOauth = OauthAccessToken::find($tokenId);
+        $scopeUser = str_replace(str_split('[]""'),"",$getOauth['scopes']);
+
+        if($scopeUser == 'client'){
+            if(empty($post['api_key']) || empty($post['api_secret'])){
+                return [
+                    'status' => 'fail',
+                    'messages' => ['Api key or secret can not be empty']
+                ];
+            }
+
+            $api = $this->checkApi($post['api_key'], $post['api_secret']);
+            if ($api['status'] != 'success') {
+                return response()->json($api);
+            }
+        }
 
         $news = News::with(['newsCategory' => function ($query) {
             $query->select('id_news_category', 'category_name');
@@ -813,6 +892,116 @@ class ApiNews extends Controller
         // update position
         foreach ($post['news_ids'] as $key => $news_id) {
             $update = News::find($news_id)->update(['news_order'=>$key+1]);
+        }
+
+        return ['status' => 'success'];
+    }
+
+    public function clientDetail(Request $request){
+        $post = $request->json()->all();
+
+        if(empty($post['api_key']) || empty($post['api_secret'])){
+            return [
+                'status' => 'fail',
+                'messages' => ['Api key or secret can not be empty']
+            ];
+        }
+
+        $api = $this->checkApi($post['api_key'], $post['api_secret']);
+        if ($api['status'] != 'success') {
+            return response()->json($api);
+        }
+
+        $news = News::with(['newsCategory' => function ($query) {
+            $query->select('id_news_category', 'category_name');
+        }])->leftJoin('news_categories', 'news_categories.id_news_category', 'news.id_news_category');
+
+        if (!$request->json('admin') && MyHelper::config(124)) {
+            $news->whereHas('newsCategory');
+        }
+
+        if (!isset($post['id_news'])) {
+            $news->select('id_news', 'news.id_news_category', 'news_title', 'news_publish_date', 'news_expired_date', 'news_post_date', 'news_slug', 'news_content_short', 'news_image_luar', 'news_image_dalam');
+        } else {
+            $news->with('news_form_structures');
+        }
+        if (isset($post['id_news'])) {
+            $news->where('id_news', $post['id_news'])->with(['newsOutlet', 'newsProduct', 'newsOutlet.outlet.city', 'newsOutlet.outlet.photos', 'newsProduct.product.photos']);
+        }
+
+        if (isset($post['news_slug'])) {
+            $news->slug($post['news_slug'])->with(['newsOutlet', 'newsProduct', 'newsOutlet.outlet.city', 'newsOutlet.outlet.photos', 'newsProduct.product.photos']);
+        }
+
+        if ($post['id_news_category'] ?? false) {
+            $news->where('news.id_news_category', $post['id_news_category']);
+        } elseif (($post['id_news_category'] ?? false) === 0 || ($post['id_news_category'] ?? false) === '0') {
+            $news->where('news.id_news_category', null);
+        }
+
+        if (isset($post['published'])) {
+            $now = date('Y-m-d');
+            $news->where('news_publish_date', '<=', $now);
+            $news->where(function ($query) use ($now) {
+                $query->where('news_expired_date', '>=', $now)
+                    ->orWhere('news_expired_date', null);
+            });
+        }
+
+        if (isset($post['admin'])) {
+            $news = $news
+                ->select('*')->orderBy('news_post_date', 'DESC')->get()->toArray();
+        } else {
+
+            if (!isset($post['id_news'])) {
+                $news = $news->orderBy('news_category_order', 'asc')->orderBy('news_order', 'asc')->orderBy('news_post_date', 'DESC')->orderBy('id_news', 'DESC')->paginate(10)->toArray();
+            } else {
+                $news = $news->orderBy('news_category_order', 'asc')->orderBy('news_order', 'asc')->orderBy('news_post_date', 'DESC')->orderBy('id_news', 'DESC')->get()->toArray();
+            }
+        }
+        if (isset($news['data'])) {
+            $updateNews = &$news['data'];
+        } else {
+            $updateNews = &$news;
+        }
+        array_walk($updateNews, function (&$newsItem) use ($post) {
+            $newsItem['news_category'] = $newsItem['news_category'] ?: ['id_news_category' => 0, 'category_name' => 'Uncategories'];
+            $newsItem['news_post_date_indo'] = (is_null($newsItem['news_post_date'])) ? '' : MyHelper::indonesian_date_v2($newsItem['news_post_date'], 'd F Y H:i');
+        });
+        if (!$updateNews) {
+            return response()->json(MyHelper::checkGet([], 'Belum ada berita'));
+        }
+
+        $res = $news[0]??[];
+        if(!empty($res)){
+            $res['news_image_luar'] = $res['url_news_image_luar'];
+            $res['news_image_dalam'] = $res['url_news_image_dalam'];
+            unset($res['url_news_image_luar']);
+            unset($res['url_news_image_dalam']);
+        }
+        return response()->json(MyHelper::checkGet($res));
+    }
+
+    public static function checkApi($key, $secret)
+    {
+        $api_key = Setting::where('key', 'api_key')->first();
+        if (empty($api_key)) {
+            return ['status' => 'fail', 'messages' => ['api_key not found']];
+        }
+
+        $api_key = $api_key['value'];
+        if ($api_key != $key) {
+            return ['status' => 'fail', 'messages' => ['api_key isn\’t match']];
+        }
+
+        $api_secret = Setting::where('key', 'api_secret')->first();
+        if (empty($api_secret)) {
+            return ['status' => 'fail', 'messages' => ['api_secret not found']];
+        }
+
+        $api_secret = $api_secret['value'];
+        if ($api_secret != $secret) {
+            return ['status' => 'fail', 'messages' => ['api_secret isn\’t match']];
         }
 
         return ['status' => 'success'];

@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Database\Seeder;
+use App\Http\Models\Configs;
 
 class ConfigsTableSeeder extends Seeder
 {
@@ -12,11 +13,8 @@ class ConfigsTableSeeder extends Seeder
      */
     public function run()
     {
-        
 
-        \DB::table('configs')->delete();
-        
-        \DB::table('configs')->insert(array (
+        $rows = array (
             0 => 
             array (
                 'id_config' => 1,
@@ -1160,8 +1158,14 @@ class ConfigsTableSeeder extends Seeder
                 'created_at' => '2021-09-29 10:57:33',
                 'updated_at' => '2021-09-29 10:57:33',
             ),
-        ));
-        
-        
+        );
+
+        foreach ($rows as $row) {
+            Configs::updateOrCreate(['id_config' => $row['id_config']], [
+                'config_name' => $row['config_name'],
+                'description' => $row['description'],
+                'is_active' => $row['is_active'],
+            ]);
+        }
     }
 }

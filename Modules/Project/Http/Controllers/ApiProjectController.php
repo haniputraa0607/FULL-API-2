@@ -234,7 +234,7 @@ class ApiProjectController extends Controller
         $year = date('y');
         $month = date('m');
         $yearMonth = 'OUT'.$year.$month;
-        $nom = Outlet::where('outlet_code','like', $yearMonth.'%')->count();
+        $nom = Outlet::count();
         for ($x = 0; $x < $s; $x++) {
             $nom++;
             if($nom < 10 ){

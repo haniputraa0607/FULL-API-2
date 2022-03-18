@@ -1301,7 +1301,7 @@ class PromoCampaignTools{
 		$user = $this->userFilter($id_user, $promo->user_type, $promo->specific_user, $phone);
 
         if(!$user){
-        	if ($promo->specific_user == 'New user') 
+        	if ($promo->user_type == 'New user') 
 	    	{
         		$errors[]='Promo hanya berlaku untuk pengguna baru';
 	    	}

@@ -1,4 +1,12 @@
 <?php
+Route::group(['middleware' => ['auth_client', 'scopes:client', 'log_activities'], 'prefix' => 'api/client/news', 'namespace' => 'Modules\News\Http\Controllers'], function()
+{
+    Route::any('list', 'ApiNews@listNews');
+    Route::post('create', 'ApiNews@create');
+    Route::post('delete', 'ApiNews@delete');
+    Route::post('detail', 'ApiNews@clientDetail');
+    Route::post('update', 'ApiNews@update');
+});
 
 Route::group(['middleware' => ['auth:api','user_agent', 'scopes:apps', 'log_activities'], 'prefix' => 'api/news', 'namespace' => 'Modules\News\Http\Controllers'], function()
 {

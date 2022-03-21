@@ -25,22 +25,43 @@ class ApiDashboardController extends Controller
     }
 
     public function index(Request $request) {
-           if(isset($request->id_outlet) && !empty($request->id_outlet) && isset($request->dari) && !empty($request->dari) && isset($request->sampai) && !empty($request->sampai) ){
-        $transaction = Product::join('transaction_products','transaction_products.id_product','products.id_product')
+        if(isset($request->id_outlet) && !empty($request->id_outlet) && isset($request->dari) && !empty($request->dari) && isset($request->sampai) && !empty($request->sampai) && isset($request->setfilter) && !empty($request->setfilter)){
+            $transaction = Product::join('transaction_products','transaction_products.id_product','products.id_product')
                        ->join('transactions','transactions.id_transaction','transaction_products.id_transaction')
                        ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
                        ->where('transaction_outlet_services.reject_at', NULL)
                        ->where(array('transactions.id_outlet'=>$request->id_outlet,'transactions.transaction_payment_status'=>"Completed"))
                        ->whereBetween('transactions.completed_at',[$request->dari,$request->sampai])
                        ->groupby('products.id_product')
-                       ->select('products.id_product','products.product_code','products.product_name',
+                       ->select('products.product_name as network',
                                  DB::raw('
                                         count(
                                         transaction_products.id_product
-                                        ) as jml
-                                    '))
-                       ->get();
-       return response()->json(['status' => 'success', 'result' => $transaction]);  
+                                        ) as MAU
+                                    '));
+                            $transaction = $transaction->orderby('MAU','DESC');                    
+                        if($request->setfilter == 3){
+                            $transaction = $transaction->limit(3);
+                        }elseif($request->setfilter == 5){
+                            $transaction = $transaction->limit(5);
+                        }elseif($request->setfilter == 10){
+                            $transaction = $transaction->limit(10);
+                        }                
+                        $transaction = $transaction->get()->toArray();
+                        
+            $array = array();
+            foreach ($transaction as $value) {
+                if(strlen($value['network'])>10){
+                    $text = substr($value['network'],0,10);
+                }else{
+                    $text = $value['network'];
+                }
+                $array[] = array(
+                    'network'=>$text,
+                    'MAU'=>$value['MAU']
+                );
+            }
+       return response()->json(['status' => 'success', 'result' => $array]);  
        }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incomplete data']]);
         }
@@ -174,7 +195,7 @@ class ApiDashboardController extends Controller
                $s = 1;
                $array= array();
                for ($i = 0; $i < $s; $i++) {
-                   $dates = date('d',strtotime('+'.$i.'day'.$request->dari));
+                   $dates = date('d M',strtotime('+'.$i.'day'.$request->dari));
                    $date_now = date('Y-m-d',strtotime('+'.$i.'day'.$request->dari));
                    $date_before = date('Y-m-d',strtotime('+'.$i.'day - 1 month'.$request->dari));
                    $date_lastyear = date('Y-m-d',strtotime('+'.$i.'day - 1 year'.$request->dari));
@@ -211,12 +232,14 @@ class ApiDashboardController extends Controller
                    foreach ($n_lastyear as $value) {
                        $angka_lastyear += $value['transaction_gross'];
                    }
-                   array_push($array,array(
+                   if($angka_now != 0 || $angka_before != 0){
+                    array_push($array,array(
                        'date'=>$dates,
                        'now'=>$angka_now,
                        'before'=>$angka_before,
                        'lastyear'=>$angka_lastyear,
                    ));
+                   }
                    if($date_now != $request->sampai){
                        $s++;
                    }
@@ -230,47 +253,34 @@ class ApiDashboardController extends Controller
     public function monthly(Request $request) {
         //status
            if(isset($request->id_outlet) && !empty($request->id_outlet) && isset($request->dari) && !empty($request->dari) && isset($request->sampai) && !empty($request->sampai) ){
-               $before = [];
-               $now = [];
-               $lastyear = [];
-               $i = 0;
-               $array= array();
-               for ($s = 4; $s >= $i; $s--) {
-                   $bulan = date('M',strtotime('-'.$s.'month'.$request->dari));
-                   $awal = date('Y-m-01',strtotime('-'.$s.'month'.$request->dari));
-                   $akhir = date('Y-m-t',strtotime('-'.$s.'month'.$request->dari));
-                   $n_now = $transaction = Transaction::where(array('id_outlet'=>$request->id_outlet))
-                       ->whereBetween('transactions.transaction_date',[$awal,$akhir])
+               $transaction = Transaction::where(array('id_outlet'=>$request->id_outlet))
+                       ->whereBetween('transactions.transaction_date',[$request->dari,$request->sampai])
                        ->where('transaction_outlet_services.reject_at', NULL)
-                           ->where('transactions.transaction_payment_status', 'Completed')
                        ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
                        ->join('transaction_product_services', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
+                       ->select(DB::raw('DATE_FORMAT(transactions.transaction_date, "%d %M %y") as date'),DB::raw('
+                                        count(
+                                       CASE WHEN
+                                       transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" THEN 1 ELSE 0
+                                       END
+                                        ) as total_order
+                                    '),
+                               DB::raw('
+                                        sum(
+                                       CASE WHEN
+                                       transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" THEN transaction_grandtotal - (transaction_discount+transaction_tax) ELSE 0
+                                       END
+                                        ) as revenue
+                                        '),
+                               )
+                       ->groupby('date')
+                       ->orderby('transactions.transaction_date','asc')
                        ->get();
-                   $angka_now = 0;
-                   foreach ($n_now as $value) {
-                       $angka_now += $value['transaction_gross'];
-                   }
-                   $n_before = $transaction = Transaction::where(array('id_outlet'=>$request->id_outlet))
-                       ->whereBetween('transactions.transaction_date',[$awal,$akhir])
-                       ->where('transaction_outlet_services.reject_at', NULL)
-                           ->where('transactions.transaction_payment_status', 'Completed')
-                       ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
-                       ->join('transaction_product_services', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
-                       ->count();
-                   $angka_before = $n_before;
-                   if($angka_before == 0 && $angka_now==0){
-                       $average = 0;
-                   }else{
-                       $average = $angka_now/$angka_before;
-                   }
-                   array_push($array,array(
-                       'month'=>$bulan,
-                       'revenue'=>$angka_now,
-                       'order'=>$angka_before,
-                       'average'=>$average,
-                   ));
+               $array = array();
+               foreach ($transaction as $value) {
+                   $value['average'] = $value['revenue']/$value['total_order'];
+                   array_push($array,$value);
                }
-            
        return response()->json(['status' => 'success', 'result' => $array]);  
        }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incomplete data']]);
@@ -289,7 +299,7 @@ class ApiDashboardController extends Controller
                                        transactions.transaction_payment_status = "Completed" THEN transaction_grandtotal ELSE 0
                                        END
                                         ) as jumlah
-                                    ')
+                                    '),
                                )
                        ->groupby('date')
                        ->orderby('transactions.transaction_date','asc')

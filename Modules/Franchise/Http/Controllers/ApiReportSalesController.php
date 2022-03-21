@@ -87,37 +87,37 @@ class ApiReportSalesController extends Controller
 
     	$result = [
             'total_transaction' => [
-                'title' => 'Total Order ',
+                'title' => 'Total Order Completed',
                 'amount' => number_format($report['total_transaction']??0,0,",","."),
                 "tooltip" => 'Jumlah semua transaksi',
                 "show" => 1
             ],
             'total_subtotal' => [
-                'title' => 'Penjualan Kotor',
+                'title' => 'Total Revenue',
                 'amount' => 'Rp. '.number_format($report['total_subtotal']??0,0,",","."),
                 "tooltip" => 'Total nominal transaksi sebelum dipotong diskon',
                 "show" => 1
             ],
             'total_grandtotal' => [
-                'title' => 'Penjualan Bersih',
+                'title' => 'Total Diskon Given',
                 'amount' => 'Rp. '.number_format($report['total_grandtotal']??0,0,",","."),
                 "tooltip" => 'Total nominal transaksi setelah dipotong diskon dan ditambah pajak',
                 "show" => 1
             ],
              'total_complete_payment' => [
-                'title' => 'Pembayaran Sukses',
+                'title' => 'Total Tax Charged',
                 'amount' => number_format($report['total_complete_payment']??0,0,",","."),
                 "tooltip" => 'jumlah transaksi dengan status pembayaran sukses (mengabaikan status reject order)',
                 "show" => 1
             ],
             'total_subtotal_complete_payment' => [
-                'title' => 'Penjualan Kotor (Pembayaran Sukses)',
+                'title' => 'Total MDR Paid',
                 'amount' => number_format($report['total_subtotal_complete_payment']??0,0,",","."),
                 "tooltip" => 'Total nominal transaksi sebelum dipotong diskon dengan status pembayaran sukses',
                 "show" => 1
             ],
             'total_grandtotal_complete_payment' => [
-                'title' => 'Penjualan Bersih (Pembayaran Sukses)',
+                'title' => 'Total Net Sales',
                 'amount' => number_format($report['total_grandtotal_complete_payment']??0,0,",","."),
                 "tooltip" => 'Total nominal transaksi setelah dipotong diskon dan ditambah pajak dengan status pembayaran sukses',
                 "show" => 1

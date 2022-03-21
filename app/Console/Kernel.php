@@ -214,7 +214,7 @@ class Kernel extends ConsoleKernel
          * Send Daily Report Transactions to Icount
          * run every minute
          */
-        $schedule->call('Modules\Transaction\Http\Controllers\ApiTransaction@CronICountPOO')->cron('*/30 * * * *');
+        $schedule->call('Modules\Transaction\Http\Controllers\ApiTransaction@CronICountPOO')->dailyAt('00:05');
 
         /**
          * Cancel pending hair stylist for home service

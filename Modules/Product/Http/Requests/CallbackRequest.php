@@ -13,7 +13,7 @@ class CallbackRequest extends FormRequest
     public function rules()
     {
         return [
-            'PurchaseInvoiceID'    => 'required|cek',
+            'PurchaseRequestID'    => 'required|cek',
             'status'               => 'required|status', 
             'api_key'              => 'required|api_key',
             'signature'            => 'required|signature'
@@ -44,8 +44,8 @@ class CallbackRequest extends FormRequest
         $validator->addExtension('signature', function ($attribute, $value, $parameters, $validator) {
             $request = $validator->getData();
             $api_secret = Setting::where('key','api_secret')->first();
-            if(isset($request['PurchaseInvoiceID'])&&isset($request['status'])){
-                $enkrip = hash_hmac('sha256',$request['PurchaseInvoiceID'].$request['status'],$api_secret->value??true);
+            if(isset($request['PurchaseRequestID'])&&isset($request['status'])){
+                $enkrip = hash_hmac('sha256',$request['PurchaseRequestID'].$request['status'],$api_secret->value??true);
                 if($enkrip == $value){
                     return true; 
                 }
@@ -56,7 +56,7 @@ class CallbackRequest extends FormRequest
     public function messages()
     {
         return [
-            'cek' => 'Invalid PurchaseInvoiceID or Request Product status has been completed',
+            'cek' => 'Invalid PurchaseRequestID or Request Product status has been completed',
             'status' => "Invalid status, status must be Approve or Reject",
             'signature' => 'Signature doesnt match',
             'api_key' => 'Api Key Invalid'

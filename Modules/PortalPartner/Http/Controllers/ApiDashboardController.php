@@ -116,7 +116,7 @@ class ApiDashboardController extends Controller
     public function daily(Request $request) {
         //status
            if(isset($request->id_outlet) && !empty($request->id_outlet) && isset($request->dari) && !empty($request->dari) && isset($request->sampai) && !empty($request->sampai) ){
-            $transaction = Transaction::where(array('id_outlet'=>$request->id_outlet))
+            $transaction = Transaction::where(array('transactions.id_outlet'=>$request->id_outlet))
                        ->whereBetween('transactions.transaction_date',[$request->dari,$request->sampai])
                        ->where('transaction_outlet_services.reject_at', NULL)
                        ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
@@ -133,28 +133,32 @@ class ApiDashboardController extends Controller
                                DB::raw('
                                         sum(
                                        CASE WHEN
-                                       transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" THEN trasaction_gross - transaction_tax ELSE 0
+                                       transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" THEN transaction_gross - transaction_tax ELSE 0
                                        END
                                         ) as revenue
                                         '),
                                DB::raw('
-                                      SUM(
-                                        CASE WHEN  transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed"  THEN transactions.trasaction_grandtotal
-                                                ELSE 0 END
-                                        ) as grand_total,
-                                        #refund all
-                                        SUM( CASE WHEN transactions.reject_at IS NOT AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" THEN transactions.transaction_grandtotal
-                                                        ELSE 0 END
-                                                ) as refund_all,
-                                        #refund product
-                                        SUM(
-                                        CASE WHEN transactions.reject_at IS NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transaction_products.reject_at IS NULL THEN transaction_products.transaction_variant_subtotal
-                                                        ELSE 0 END
-                                                ) as refund_product,
-                                        #total net sales        
-                                        SUM(
-                                                grand_total - (refund_product + refund_all + total_discount + total_tax)
-							) as net_sales,        
+                                        sum(
+                                       CASE WHEN
+                                       transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" THEN transaction_grandtotal ELSE 0
+                                       END
+                                        ) as grand_total
+                                        '),
+                               DB::raw('
+                                        sum(
+                                       CASE WHEN
+                                       transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transactions.reject_at IS NOT NULL
+                                       THEN transaction_grandtotal ELSE 0
+                                       END
+                                        ) as refund_all
+                                        '),
+                               DB::raw('
+                                        sum(
+                                       CASE WHEN
+                                       transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transaction_products.reject_at IS NULL
+                                       THEN transaction_products.transaction_variant_subtotal ELSE 0
+                                       END
+                                        ) as refund_product
                                         '),
                                DB::raw('
                                       SUM(
@@ -163,7 +167,7 @@ class ApiDashboardController extends Controller
                                                     ELSE 0 END
                                             + CASE WHEN transactions.transaction_discount_delivery IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_delivery) ELSE 0 END
                                             + CASE WHEN transactions.transaction_discount_bill IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_bill) ELSE 0 END
-                                    ) as diskon,
+                                    ) as diskon
                                         '),
                                DB::raw('
                                         sum(
@@ -179,11 +183,7 @@ class ApiDashboardController extends Controller
                                        END
                                         ) as mdr
                                         '),
-                               DB::raw('
-                                        sum(
-                                        net_sales + mdr
-                                        ) as net_sales_mdr
-                                        '),
+                               
                                DB::raw('
                                         count(DISTINCT 
                                        CASE WHEN
@@ -195,6 +195,12 @@ class ApiDashboardController extends Controller
                        ->groupby('date')
                        ->orderby('transactions.transaction_date','asc')
                        ->get();
+            $array = array();
+            foreach ($transaction as $value) {
+                $value['net_sales'] = $value['grand_total'] - ($value['refund_product']+$value['refund_all']+$value['total_discount']+$value['total_tax']);
+                $value['net_sales_mdr'] = $value['net_sales'] - $value['mdr'];
+                $array[] = $value;
+            }
        return response()->json(['status' => 'success', 'result' => $transaction]);  
        }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incomplete data']]);
@@ -282,7 +288,7 @@ class ApiDashboardController extends Controller
                                  DB::raw('
                                         sum(
                                        CASE WHEN
-                                       transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" THEN trasaction_grandtotal - transaction_tax ELSE 0
+                                       transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" THEN transaction_grandtotal - transaction_tax ELSE 0
                                        END
                                         ) as revenue
                                         '),

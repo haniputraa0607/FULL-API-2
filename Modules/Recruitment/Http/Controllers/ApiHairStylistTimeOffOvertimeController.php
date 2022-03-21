@@ -46,6 +46,15 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                 $schedule = HairstylistSchedule::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->where('schedule_month', $post['month'])->where('schedule_year', $post['year'])->first();
                 if($schedule){
                     $id_schedule = $schedule['id_hairstylist_schedule'];
+
+                    if(isset($post['date'])){
+                        $time = HairstylistScheduleDate::where('id_hairstylist_schedule',$id_schedule)->where('date',$post['date'])->first();
+                        return response()->json([
+                            'status' => 'success', 
+                            'result' => $time
+                        ]); 
+                    }
+
                     $detail = HairstylistScheduleDate::where('id_hairstylist_schedule',$id_schedule)->get()->toArray();
                     if($detail){
                         $send = [];

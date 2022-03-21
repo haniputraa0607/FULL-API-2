@@ -215,13 +215,15 @@ class ApiDashboardController extends Controller
                $s = 1;
                $array= array();
                for ($i = 0; $i < $s; $i++) {
-                   $dates = date('M Y',strtotime('+'.$i.'day'.$request->dari));
-                   $date_now = date('Y-m',strtotime('+'.$i.'day'.$request->dari));
-                   $date_before = date('Y-m',strtotime('+'.$i.'day - 1 month'.$request->dari));
-                   $date_before = date('Y-m',strtotime('+'.$i.'day - 1 month'.$request->dari));
-                   $date_lastyear = date('Y-m',strtotime('+'.$i.'day - 1 year'.$request->dari));
+                   $dates = date('M Y',strtotime('+'.$i.'month'.$request->dari));
+                   $date_now_awal = date('Y-m-01',strtotime('+'.$i.'month'.$request->dari));
+				   $date_now_akhir = date('Y-m-t',strtotime('+'.$i.'month'.$request->dari));
+                   $date_before_awal = date('Y-m-01',strtotime('+'.$i.'month'.'- 1 month'.$request->dari));
+				   $date_before_akhir = date('Y-m-t',strtotime('+'.$i.'month'.'- 1 month'.$request->dari));
+                   $date_lastyear_awal = date('Y-m-01',strtotime('+'.$i.'month'.'- 1 year'.$request->dari));
+				   $date_lastyear_akhir = date('Y-mt',strtotime('+'.$i.'month'.'- 1 year'.$request->dari));
                    $n_now = $transaction = Transaction::where(array('id_outlet'=>$request->id_outlet))
-                       ->whereMonth('transactions.transaction_date',$date_now)
+                       ->whereBetween('transactions.transaction_date',[$date_now_awal,$date_now_akhir])
                        ->where('transaction_outlet_services.reject_at', NULL)
                        ->where('transactions.transaction_payment_status', 'Completed')
                        ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
@@ -232,7 +234,7 @@ class ApiDashboardController extends Controller
                        $angka_now += $value['transaction_gross'];
                    }
                    $n_before = $transaction = Transaction::where(array('id_outlet'=>$request->id_outlet))
-                       ->whereMonth('transactions.transaction_date',$date_before)
+					   ->whereBetween('transactions.transaction_date',[$date_before_awal,$date_before_akhir])
                        ->where('transaction_outlet_services.reject_at', NULL)
                        ->where('transactions.transaction_payment_status', 'Completed')
                        ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
@@ -243,7 +245,7 @@ class ApiDashboardController extends Controller
                        $angka_before += $value['transaction_gross'] - $value['transaction_tax']??0;
                    }
                    $n_lastyear = $transaction = Transaction::where(array('id_outlet'=>$request->id_outlet))
-                       ->whereMonth('transactions.transaction_date',$date_lastyear)
+					   ->whereBetween('transactions.transaction_date',[$date_lastyear_awal,$date_lastyear_akhir])
                        ->where('transaction_outlet_services.reject_at', NULL)
                        ->where('transactions.transaction_payment_status', 'Completed')
                        ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
@@ -261,7 +263,7 @@ class ApiDashboardController extends Controller
                        'lastyear'=>$angka_lastyear,
                    ));
                    }
-                   if($date_now != date('Y-m',strtotime($request->sampai))){
+                   if($dates != date('M Y',strtotime($request->sampai))){
                        $s++;
                    }
                }

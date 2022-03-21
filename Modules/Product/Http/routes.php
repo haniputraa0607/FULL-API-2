@@ -54,6 +54,7 @@ Route::group(['prefix' => 'api/product','middleware' => ['log_activities','auth:
     Route::get('list/ajax', 'ApiProductController@listProductAjaxSimple');
     Route::any('be/commission', 'ApiProductController@commission');
     Route::any('be/commission/create', 'ApiProductController@commission_create');
+    Route::post('be/available-hs', 'ApiProductController@outletServiceAvailableHs');
     /* photo */
     Route::group(['prefix' => 'photo'], function() {
         Route::post('create', 'ApiProductController@uploadPhotoProduct');

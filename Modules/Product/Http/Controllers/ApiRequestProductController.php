@@ -808,9 +808,9 @@ class ApiRequestProductController extends Controller
         }else if($post['status'] == 'Reject'){
             $status = 'Rejected';
         }
-        $update = RequestProduct::where('id_purchase_request', $post['PurchaseInvoiceID'])->where('status','!=','Completed By Finance')->update(['status'=>$status]);
+        $update = RequestProduct::where('id_purchase_request', $post['PurchaseRequestID'] ?? $post['PurchaseRequestID'])->where('status','!=','Completed By Finance')->update(['status'=>$status]);
         if($update){
-            $data_req = RequestProduct::where('id_purchase_request', $post['PurchaseInvoiceID'])->first();
+            $data_req = RequestProduct::where('id_purchase_request', $post['PurchaseRequestID'])->first();
             $user_req = User::where('id',$data_req['id_user_request'])->first();
             $user_approve = User::where('id',$data_req['id_user_approve'])->first();
 

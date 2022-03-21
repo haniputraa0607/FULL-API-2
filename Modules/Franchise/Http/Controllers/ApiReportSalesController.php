@@ -62,13 +62,9 @@ class ApiReportSalesController extends Controller
 							) as refund_product,
                                                 # Total
 						SUM(
-							CASE WHEN  transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed"  THEN transactions.trasaction_grandtotal
+							CASE WHEN  transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed"  THEN transactions.transaction_grandtotal
 								ELSE 0 END
 							) as grand_total,
-                                                #net_sales 
-                                                SUM(
-                                                grand_total - (refund_product + refund_all + total_discount + total_tax)
-							) as total_net_sales,
                                                 
                                                 #revenue
                                                 SUM(
@@ -93,7 +89,7 @@ class ApiReportSalesController extends Controller
         if (!$report) {
         	return response()->json(['status' => 'fail', 'messages' => ['Empty']]);
         }
-
+        $total_net_sales = $report['grand_total'] - ($report['refund_product']+$report['refund_all']+$report['total_discount']+$report['total_tax']);
         /*$report['acceptance_rate'] = 0;
     	if ($report['total_accept']) {
     		$report['acceptance_rate'] = floor(( $report['total_accept'] / ($report['total_accept'] + $report['total_reject']) ) * 100);
@@ -136,7 +132,7 @@ class ApiReportSalesController extends Controller
             ],
             'total_net_sales' => [
                 'title' => 'Total Net Sales',
-                'amount' => 'Rp. '.number_format($report['total_net_sales']??0,0,",","."),
+                'amount' => 'Rp. '.number_format($total_net_sales??0,0,",","."),
                 "tooltip" => 'Total pendapatan bersih dari trasaksi',
                 "show" => 1
             ],

@@ -44,8 +44,8 @@ class ApiDashboardController extends Controller
                             $transaction = $transaction->limit(3);
                         }elseif($request->setfilter == 5){
                             $transaction = $transaction->limit(5);
-                        }elseif($request->setfilter == 10){
-                            $transaction = $transaction->limit(10);
+                        }else{
+                            $transaction = $transaction->limit(9);
                         }                
                         $transaction = $transaction->get()->toArray();
                         

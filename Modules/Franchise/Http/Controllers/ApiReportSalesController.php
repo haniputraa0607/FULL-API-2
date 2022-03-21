@@ -52,7 +52,7 @@ class ApiReportSalesController extends Controller
 							) as total_mdr,
                                                         
                                                 #refund all
-                                                SUM( CASE WHEN transactions.reject_at IS NOT AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" THEN transactions.transaction_grandtotal
+                                                SUM( CASE WHEN transactions.reject_at IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" THEN transactions.transaction_grandtotal
 								ELSE 0 END
 							) as refund_all,
                                                 #refund product
@@ -66,11 +66,11 @@ class ApiReportSalesController extends Controller
 								ELSE 0 END
 							) as grand_total,
                                                 
-                                                #revenue
-                                                SUM(
+							#revenue
+							SUM(
 							CASE WHEN transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transactions.reject_at IS NULL THEN transactions.transaction_gross
 								ELSE 0 END
-							) as total_revenue,
+							) as total_revenue
 					'));
 
         if(isset($post['filter_type']) && $post['filter_type'] == 'range_date'){

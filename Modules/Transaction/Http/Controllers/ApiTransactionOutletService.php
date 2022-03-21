@@ -1081,6 +1081,7 @@ class ApiTransactionOutletService extends Controller
 					'hairstylist_name' => $product['transaction_product_service']['user_hair_stylist']['nickname'],
 					'schedule_date' => MyHelper::dateFormatInd($product['transaction_product_service']['schedule_date'], true, false),
 					'schedule_time' => MyHelper::adjustTimezone($product['transaction_product_service']['schedule_time'], $timezone, 'H:i'),
+                    'id_product' => $product['product']['id_product'],
 					'product_name' => $product['product']['product_name'],
 					'subtotal' => 'IDR '.number_format(($product['transaction_product_subtotal']),0,',','.'),
 					'order_id' => $product['transaction_product_service']['order_id'],

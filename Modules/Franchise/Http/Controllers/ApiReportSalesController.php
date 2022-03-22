@@ -33,7 +33,7 @@ class ApiReportSalesController extends Controller
 						Date(transactions.transaction_date) as transaction_date,
 
 						# total transaksi
-						COUNT(CASE WHEN transactions.id_transaction IS NOT NULL AND  transactions.reject_at IS NULL THEN 1 ELSE NULL END) AS total_transaction, 
+						COUNT( CASE WHEN transaction_outlet_services.reject_at IS NULL THEN 1 ELSE 0 END) AS total_transaction, 
                                                 
                                                 # tax
 						SUM(
@@ -66,15 +66,15 @@ class ApiReportSalesController extends Controller
 							) as refund_product,
                                                 # Total
 						SUM(
-							CASE WHEN   transactions.transaction_grandtotal IS NOT NULL THEN transactions.transaction_grandtotal
-								ELSE 0 END
-							) as grand_total,
-                                                
-							#revenue
-							SUM(
-							CASE WHEN transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transactions.reject_at IS NULL THEN transactions.transaction_gross - transactions.transaction_tax
-								ELSE 0 END
-							) as total_revenue
+                                                CASE WHEN   transactions.transaction_grandtotal IS NOT NULL THEN transactions.transaction_grandtotal
+                                                        ELSE 0 END
+                                                ) as grand_total,
+
+                                                #revenue
+                                                SUM(
+                                                CASE WHEN transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transactions.reject_at IS NULL THEN transactions.transaction_gross - transactions.transaction_tax
+                                                        ELSE 0 END
+                                                ) as total_revenue
 					'));
 
         $report = $report->first();

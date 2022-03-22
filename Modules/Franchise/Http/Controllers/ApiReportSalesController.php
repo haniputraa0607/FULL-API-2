@@ -69,7 +69,7 @@ class ApiReportSalesController extends Controller
 
                                                 #revenue
                                                 SUM(
-                                                CASE WHEN transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transactions.reject_at IS NULL THEN transactions.transaction_gross - transactions.transaction_tax
+                                                CASE WHEN transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transactions.reject_at IS NULL THEN transactions.transaction_gross 
                                                         ELSE 0 END
                                                 ) as total_revenue
 					'));

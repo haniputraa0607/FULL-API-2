@@ -133,7 +133,7 @@ class ApiDashboardController extends Controller
                                DB::raw('
                                         sum(
                                        CASE WHEN
-                                       transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transactions.reject_at IS NULL THEN transactions.transaction_gross - transactions.transaction_tax
+                                       transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transactions.reject_at IS NULL THEN transactions.transaction_gross 
                                        END
                                         ) as revenue
                                         '),
@@ -216,12 +216,26 @@ class ApiDashboardController extends Controller
                $array= array();
                for ($i = 0; $i < $s; $i++) {
                    $dates = date('M Y',strtotime('+'.$i.'month'.$request->dari));
+                   if($dates != date('M Y',strtotime($request->sampai))){
+                       $s++;
+                   }
                    $date_now_awal = date('Y-m-01',strtotime('+'.$i.'month'.$request->dari));
-				   $date_now_akhir = date('Y-m-t',strtotime('+'.$i.'month'.$request->dari));
+                   $date_now_akhir = date('Y-m-t',strtotime('+'.$i.'month'.$request->dari));
                    $date_before_awal = date('Y-m-01',strtotime('+'.$i.'month'.'- 1 month'.$request->dari));
-				   $date_before_akhir = date('Y-m-t',strtotime('+'.$i.'month'.'- 1 month'.$request->dari));
+                   $date_before_akhir = date('Y-m-t',strtotime('+'.$i.'month'.'- 1 month'.$request->dari));
                    $date_lastyear_awal = date('Y-m-01',strtotime('+'.$i.'month'.'- 1 year'.$request->dari));
-				   $date_lastyear_akhir = date('Y-mt',strtotime('+'.$i.'month'.'- 1 year'.$request->dari));
+		   $date_lastyear_akhir = date('Y-m-t',strtotime('+'.$i.'month'.'- 1 year'.$request->dari));
+                   
+                   if($i==0){
+                   $date_now_awal = date('Y-m-d',strtotime('+'.$i.'month'.$request->dari));
+                   $date_before_awal = date('Y-m-d',strtotime('+'.$i.'month'.'- 1 month'.$request->dari));
+                   $date_lastyear_awal = date('Y-m-d',strtotime('+'.$i.'month'.'- 1 year'.$request->dari));
+		   }
+                   if($dates == date('M Y',strtotime($request->sampai))){
+                       $date_now_akhir = date('Y-m-d',strtotime($request->sampai));
+                       $date_before_akhir = date('Y-m-d',strtotime('- 1 month'.$request->sampai));
+                       $date_lastyear_akhir = date('Y-m-d',strtotime('- 1 year'.$request->sampai));
+                   }
                    $n_now = Transaction::where(array('transactions.id_outlet'=>$request->id_outlet))
                        ->whereDate('transactions.transaction_date', '>=', $date_now_awal)->whereDate('transactions.transaction_date', '<=', $date_now_akhir)
                        ->where('transaction_outlet_services.reject_at', NULL)
@@ -233,7 +247,7 @@ class ApiDashboardController extends Controller
                        ->select(
                         DB::raw('
                                  SUM(
-                                 CASE WHEN transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transactions.reject_at IS NULL THEN transactions.transaction_gross - transactions.transaction_tax
+                                 CASE WHEN transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transactions.reject_at IS NULL THEN transactions.transaction_gross 
                                          ELSE 0 END
                                  ) as revenue
                                  ')
@@ -250,7 +264,7 @@ class ApiDashboardController extends Controller
                        ->select(
                         DB::raw('
                                  SUM(
-                                 CASE WHEN transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transactions.reject_at IS NULL THEN transactions.transaction_gross - transactions.transaction_tax
+                                 CASE WHEN transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transactions.reject_at IS NULL THEN transactions.transaction_gross 
                                          ELSE 0 END
                                  ) as revenue
                                  ')
@@ -267,13 +281,14 @@ class ApiDashboardController extends Controller
                        ->select(
                         DB::raw('
                                  SUM(
-                                 CASE WHEN transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transactions.reject_at IS NULL THEN transactions.transaction_gross - transactions.transaction_tax
+                                 CASE WHEN transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transactions.reject_at IS NULL THEN transactions.transaction_gross 
                                          ELSE 0 END
                                  ) as revenue
                                  ')
                        )
                        ->first();
-                   if($n_now['revenue']??0 != 0 || $n_before['revenue']??0 != 0 ||$n_lastyear['revenue']??0 != 0){
+                   $array = array();
+                    if($n_now['revenue']??0 != 0 || $n_before['revenue']??0 != 0 ||$n_lastyear['revenue']??0 != 0){
                     array_push($array,array(
                        'date'=>$dates,
                        'now'=>floor($n_now['revenue']??0),
@@ -281,9 +296,8 @@ class ApiDashboardController extends Controller
                        'lastyear'=>floor($n_lastyear['revenue']??0),
                    ));
                    }
-                   if($dates != date('M Y',strtotime($request->sampai))){
-                       $s++;
-                   }
+
+                   
                }
             
        return response()->json(['status' => 'success', 'result' => $array]);  
@@ -312,7 +326,7 @@ class ApiDashboardController extends Controller
                                  DB::raw('
                                         sum(
                                        CASE WHEN
-                                       transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transactions.reject_at IS NULL THEN transactions.transaction_gross - transactions.transaction_tax
+                                       transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transactions.reject_at IS NULL THEN transactions.transaction_gross 
                                         ELSE 0 END
                                         ) as revenue
                                         '),

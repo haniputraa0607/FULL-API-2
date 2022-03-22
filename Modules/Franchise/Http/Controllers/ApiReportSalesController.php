@@ -21,68 +21,61 @@ class ApiReportSalesController extends Controller
         if(!$request->id_outlet){
         	return response()->json(['status' => 'fail', 'messages' => ['ID outlet can not be empty']]);
         }
-    	$report = Transaction::where('transactions.id_outlet', $request->id_outlet)
-    				->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
-    				->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+    	$report = Transaction::where(array('transactions.id_outlet'=>$request->id_outlet))
+                       ->whereDate('transactions.transaction_date', '>=', $request->dari)->whereDate('transactions.transaction_date', '<=', $request->sampai)
+                       ->where('transaction_outlet_services.reject_at', NULL)
+                       ->where('transactions.transaction_payment_status', 'Completed')
+                       ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
+                       ->join('transaction_product_services', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
+                       ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
 					->select(DB::raw('
 						# tanggal transaksi
 						Date(transactions.transaction_date) as transaction_date,
 
 						# total transaksi
-						COUNT(CASE WHEN transactions.id_transaction IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transactions.reject_at IS NULL THEN 1 ELSE NULL END) AS total_transaction, 
+						COUNT(CASE WHEN transactions.id_transaction IS NOT NULL AND  transactions.reject_at IS NULL THEN 1 ELSE NULL END) AS total_transaction, 
                                                 
                                                 # tax
 						SUM(
-							CASE WHEN transactions.transaction_tax IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transactions.reject_at IS NULL THEN transactions.transaction_tax
+							CASE WHEN transactions.transaction_tax IS NOT NULL AND transactions.reject_at IS NULL THEN transactions.transaction_tax
 								ELSE 0 END
 							) as total_tax,
 						# diskon
 						SUM(
-							CASE WHEN transactions.transaction_discount_item IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed"  AND transactions.reject_at IS NULL THEN ABS(transactions.transaction_discount_item) 
-								WHEN transactions.transaction_discount IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount)
+							CASE WHEN transactions.transaction_discount_item IS NOT NULL  AND transactions.reject_at IS NULL THEN ABS(transactions.transaction_discount_item) 
+								WHEN transactions.transaction_discount IS NOT NULL  THEN ABS(transactions.transaction_discount)
 								ELSE 0 END
-							+ CASE WHEN transactions.transaction_discount_delivery IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_delivery) ELSE 0 END
-							+ CASE WHEN transactions.transaction_discount_bill IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_bill) ELSE 0 END
+							+ CASE WHEN transactions.transaction_discount_delivery IS NOT NULL  THEN ABS(transactions.transaction_discount_delivery) ELSE 0 END
+							+ CASE WHEN transactions.transaction_discount_bill IS NOT NULL  THEN ABS(transactions.transaction_discount_bill) ELSE 0 END
 						) as total_discount,
                                                 
                                                 #mdr 
                                                 SUM(
-							CASE WHEN transactions.transaction_tax IS NOT NULL AND transactions.reject_at IS NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" THEN transactions.mdr
+							CASE WHEN transactions.transaction_tax IS NOT NULL AND transactions.reject_at IS NULL  THEN transactions.mdr
 								ELSE 0 END
 							) as total_mdr,
                                                         
                                                 #refund all
-                                                SUM( CASE WHEN transactions.reject_at IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" THEN transactions.transaction_grandtotal
+                                                SUM( CASE WHEN transactions.reject_at IS NOT NULL  THEN transactions.transaction_grandtotal
 								ELSE 0 END
 							) as refund_all,
                                                 #refund product
                                                 SUM(
-                                                CASE WHEN transactions.reject_at IS NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transaction_products.reject_at IS NULL THEN transaction_products.transaction_variant_subtotal
+                                                CASE WHEN transactions.reject_at IS NULL  AND transaction_products.reject_at IS NULL THEN transaction_products.transaction_variant_subtotal
 								ELSE 0 END
 							) as refund_product,
                                                 # Total
 						SUM(
-							CASE WHEN  transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed"  THEN transactions.transaction_grandtotal
+							CASE WHEN   transactions.transaction_grandtotal IS NOT NULL THEN transactions.transaction_grandtotal
 								ELSE 0 END
 							) as grand_total,
                                                 
 							#revenue
 							SUM(
-							CASE WHEN transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transactions.reject_at IS NULL THEN transactions.transaction_gross
+							CASE WHEN transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transactions.reject_at IS NULL THEN transactions.transaction_gross - transactions.transaction_tax
 								ELSE 0 END
 							) as total_revenue
 					'));
-
-        if(isset($post['filter_type']) && $post['filter_type'] == 'range_date'){
-            $dateStart = date('Y-m-d', strtotime($post['date_start']));
-            $dateEnd = date('Y-m-d', strtotime($post['date_end']));
-            $report = $report->whereDate('transactions.transaction_date', '>=', $dateStart)->whereDate('transactions.transaction_date', '<=', $dateEnd);
-        }elseif (isset($post['filter_type']) && $post['filter_type'] == 'today'){
-            $currentDate = date('Y-m-d');
-            $report = $report->whereDate('transactions.transaction_date', $currentDate);
-        }else{
-            $report = $report->whereDate('transactions.transaction_date', date('Y-m-d'));
-        }
 
         $report = $report->first();
 

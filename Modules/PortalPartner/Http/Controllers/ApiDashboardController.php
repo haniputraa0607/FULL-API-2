@@ -125,13 +125,13 @@ class ApiDashboardController extends Controller
                        ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
                        ->select(DB::raw('DATE_FORMAT(transactions.transaction_date, "%d-%m-%Y") as date'),DB::raw('
                                         count(
-                                      CASE WHEN transaction_outlet_services.reject_at IS NULL THEN 1 ELSE 0
+                                      CASE WHEN  transaction_outlet_services.reject_at IS NULL THEN 1 ELSE 0 END
                                         ) as jumlah
                                     '),
                                DB::raw('
                                         sum(
                                        CASE WHEN
-                                       transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" THEN transaction_gross - transaction_tax ELSE 0
+                                       transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transactions.reject_at IS NULL THEN transactions.transaction_gross - transactions.transaction_tax
                                        END
                                         ) as revenue
                                         '),
@@ -220,48 +220,60 @@ class ApiDashboardController extends Controller
 				   $date_before_akhir = date('Y-m-t',strtotime('+'.$i.'month'.'- 1 month'.$request->dari));
                    $date_lastyear_awal = date('Y-m-01',strtotime('+'.$i.'month'.'- 1 year'.$request->dari));
 				   $date_lastyear_akhir = date('Y-mt',strtotime('+'.$i.'month'.'- 1 year'.$request->dari));
-                   $n_now = $transaction = Transaction::where(array('transactions.id_outlet'=>$request->id_outlet))
-                       ->whereBetween('transactions.transaction_date',[$date_now_awal,$date_now_akhir])
+                   $n_now = Transaction::where(array('transactions.id_outlet'=>$request->id_outlet))
+                       ->whereDate('transactions.transaction_date', '>=', $date_now_awal)->whereDate('transactions.transaction_date', '<=', $date_now_akhir)
                        ->where('transaction_outlet_services.reject_at', NULL)
                        ->where('transactions.transaction_payment_status', 'Completed')
                        ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
                        ->join('transaction_product_services', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
                        ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
-                       ->get();
-                   $angka_now = 0;
-                   foreach ($n_now as $value) {
-                       $angka_now += $value['transaction_gross']- $value['transaction_tax']??0;
-                   }
-                   $n_before = $transaction = Transaction::where(array('transactions.id_outlet'=>$request->id_outlet))
-					   ->whereBetween('transactions.transaction_date',[$date_before_awal,$date_before_akhir])
+                       ->select(
+                        DB::raw('
+                                 SUM(
+                                 CASE WHEN transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transactions.reject_at IS NULL THEN transactions.transaction_gross - transactions.transaction_tax
+                                         ELSE 0 END
+                                 ) as revenue
+                                 ')
+                       )
+                       ->first();
+                   $n_before = Transaction::where(array('transactions.id_outlet'=>$request->id_outlet))
+                       ->whereDate('transactions.transaction_date', '>=', $date_before_awal)->whereDate('transactions.transaction_date', '<=', $date_before_akhir)
                        ->where('transaction_outlet_services.reject_at', NULL)
                        ->where('transactions.transaction_payment_status', 'Completed')
                        ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
                        ->join('transaction_product_services', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
                        ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
-                       ->get();
-                   $angka_before = 0;
-                   foreach ($n_before as $value) {
-                       $angka_before += $value['transaction_gross'] - $value['transaction_tax']??0;
-                   }
-                   $n_lastyear = $transaction = Transaction::where(array('transactions.id_outlet'=>$request->id_outlet))
-					   ->whereBetween('transactions.transaction_date',[$date_lastyear_awal,$date_lastyear_akhir])
+                       ->select(
+                        DB::raw('
+                                 SUM(
+                                 CASE WHEN transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transactions.reject_at IS NULL THEN transactions.transaction_gross - transactions.transaction_tax
+                                         ELSE 0 END
+                                 ) as revenue
+                                 ')
+                       )
+                       ->first();
+                   $n_lastyear = Transaction::where(array('transactions.id_outlet'=>$request->id_outlet))
+                       ->whereDate('transactions.transaction_date', '>=', $date_lastyear_awal)->whereDate('transactions.transaction_date', '<=', $date_lastyear_akhir)
                        ->where('transaction_outlet_services.reject_at', NULL)
                        ->where('transactions.transaction_payment_status', 'Completed')
                        ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
                        ->join('transaction_product_services', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
                        ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
-                       ->get();
-                   $angka_lastyear = 0;
-                   foreach ($n_lastyear as $value) {
-                       $angka_lastyear += $value['transaction_gross']- $value['transaction_tax']??0;
-                   }
-                   if($angka_now != 0 || $angka_before != 0){
+                       ->select(
+                        DB::raw('
+                                 SUM(
+                                 CASE WHEN transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transactions.reject_at IS NULL THEN transactions.transaction_gross - transactions.transaction_tax
+                                         ELSE 0 END
+                                 ) as revenue
+                                 ')
+                       )
+                       ->first();
+                   if($n_now['revenue']??0 != 0 || $n_before['revenue']??0 != 0 ||$n_lastyear['revenue']??0 != 0){
                     array_push($array,array(
                        'date'=>$dates,
-                       'now'=>$angka_now,
-                       'before'=>$angka_before,
-                       'lastyear'=>$angka_lastyear,
+                       'now'=>floor($n_now['revenue']??0),
+                       'before'=>floor($n_before['revenue']??0),
+                       'lastyear'=>floor($n_lastyear['revenue']??0),
                    ));
                    }
                    if($dates != date('M Y',strtotime($request->sampai))){
@@ -294,8 +306,8 @@ class ApiDashboardController extends Controller
                                  DB::raw('
                                         sum(
                                        CASE WHEN
-                                       transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" THEN transaction_gross - transaction_tax ELSE 0
-                                       END
+                                       transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transactions.reject_at IS NULL THEN transactions.transaction_gross - transactions.transaction_tax
+                                        ELSE 0 END
                                         ) as revenue
                                         '),
                                )

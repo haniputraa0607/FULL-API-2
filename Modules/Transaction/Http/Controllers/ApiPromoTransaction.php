@@ -395,19 +395,20 @@ class ApiPromoTransaction extends Controller
 		$dataTrx['discount_delivery'] = ($dataTrx['discount_delivery'] ?? 0) + ($dataDiscount['discount_delivery'] ?? 0);
 		$sharedPromo['shipping_promo'] = $sharedPromo['shipping'] - $dataTrx['discount_delivery'];
 
-		if ($outlet['is_tax']) {
-			$tax = 0;
-			foreach ($sharedPromo['items'] as $item) {
-				$tax += (($item['new_price'] ?? $item['product_price']) * $outlet['is_tax'] / (100 + $outlet['is_tax'])) * ($item['qty'] ?? 1);
-			}
-			$dataTrx['tax'] = $tax;
-		}
+		// if ($outlet['is_tax']) {
+		// 	$tax = 0;
+		// 	foreach ($sharedPromo['items'] as $item) {
+		// 		$tax += (($item['new_price'] ?? $item['product_price']) * $outlet['is_tax'] / (100 + $outlet['is_tax'])) * ($item['qty'] ?? 1);
+		// 	}
+		// 	$dataTrx['tax'] = $tax;
+		// }
 
 		$dataTrx['grandtotal'] =  (int) $sharedPromo['subtotal_promo'] 
 								+ (int) $sharedPromo['service'] 
 								+ (int) $sharedPromo['shipping_promo'];
 
 		$dataTrx['total_payment'] = $dataTrx['grandtotal'] - ($dataTrx['used_point'] ?? 0);
+        $dataTrx['tax'] = (int) ($dataTrx['grandtotal'] * ($outlet['is_tax'] ?? 0) / (100 + ($outlet['is_tax'] ?? 0)));
 		$promoGetPoint = app($this->online_trx)->checkPromoGetPoint($promoCashback);
         if (!$promoGetPoint) {
 			$dataTrx['cashback'] = 0;
@@ -880,11 +881,11 @@ class ApiPromoTransaction extends Controller
 		$minmax = ($min_qty != $max_qty ? "$min_qty sampai $max_qty" : $min_qty)." item";
 		
 		if (!$promo_rules[0]->is_all_product) {
-			if ($promo[$source.'_tier_discount_product']->isEmpty()) {
+			if ($promo[$promoSource.'_tier_discount_product']->isEmpty()) {
 				return $this->failResponse('Produk tidak ditemukan');
 			}
 
-			$check_product = $this->checkProductRule($promo, $promo_brand, $promo_product, $trxs);
+			$check_product = $pct->checkProductRule($promo, $promo_brand, $promo_product, $promo_item);
 
 			if (!$check_product) {
 				$message = $pct->getMessage('error_tier_discount')['value_text'] = 'Promo hanya berlaku jika membeli <b>%product%</b> sebanyak %minmax%.'; 

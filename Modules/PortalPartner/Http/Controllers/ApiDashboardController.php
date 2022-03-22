@@ -125,7 +125,7 @@ class ApiDashboardController extends Controller
                        ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
                        ->select(DB::raw('DATE_FORMAT(transactions.transaction_date, "%d-%m-%Y") as date'),DB::raw('
                                         count(
-                                      CASE WHEN transaction_outlet_services.reject_at IS NULL THEN 1 ELSE 0
+                                      CASE WHEN  transaction_outlet_services.reject_at IS NULL THEN 1 ELSE NULL END
                                         ) as jumlah
                                     '),
                                DB::raw('

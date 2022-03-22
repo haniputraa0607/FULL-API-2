@@ -395,13 +395,13 @@ class ApiPromoTransaction extends Controller
 		$dataTrx['discount_delivery'] = ($dataTrx['discount_delivery'] ?? 0) + ($dataDiscount['discount_delivery'] ?? 0);
 		$sharedPromo['shipping_promo'] = $sharedPromo['shipping'] - $dataTrx['discount_delivery'];
 
-		if ($outlet['is_tax']) {
-			$tax = 0;
-			foreach ($sharedPromo['items'] as $item) {
-				$tax += (($item['new_price'] ?? $item['product_price']) * $outlet['is_tax'] / (100 + $outlet['is_tax'])) * ($item['qty'] ?? 1);
-			}
-			$dataTrx['tax'] = $tax;
-		}
+		// if ($outlet['is_tax']) {
+		// 	$tax = 0;
+		// 	foreach ($sharedPromo['items'] as $item) {
+		// 		$tax += (($item['new_price'] ?? $item['product_price']) * $outlet['is_tax'] / (100 + $outlet['is_tax'])) * ($item['qty'] ?? 1);
+		// 	}
+		// 	$dataTrx['tax'] = $tax;
+		// }
 
 		$dataTrx['grandtotal'] =  (int) $sharedPromo['subtotal_promo'] 
 								+ (int) $sharedPromo['service'] 

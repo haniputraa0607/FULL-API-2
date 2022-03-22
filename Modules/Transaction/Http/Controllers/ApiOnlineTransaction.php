@@ -1888,9 +1888,9 @@ class ApiOnlineTransaction extends Controller
         $result['discount'] = $post['discount'];
         $result['discount_delivery'] = $post['discount_delivery'];
         $result['cashback'] = $cashback;
-        $result['tax'] = $post['tax'];
         $result['service'] = $post['service'];
         $result['grandtotal'] = (int)$result['subtotal'] + (int)(-$post['discount']) + (int)$post['service'];
+        $result['tax'] = (int) ($result['grandtotal'] * ($outlet['is_tax'] ?? 0) / (100 + ($outlet['is_tax'] ?? 0)));
         $result['subscription'] = 0;
         $result['used_point'] = 0;
         $balance = app($this->balance)->balanceNow($user->id);

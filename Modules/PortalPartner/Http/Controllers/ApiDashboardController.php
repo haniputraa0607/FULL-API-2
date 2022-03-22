@@ -116,7 +116,7 @@ class ApiDashboardController extends Controller
     public function daily(Request $request) {
         //status
            if(isset($request->id_outlet) && !empty($request->id_outlet) && isset($request->dari) && !empty($request->dari) && isset($request->sampai) && !empty($request->sampai) ){
-             $transaction = Transaction::where(array('transactions.id_outlet'=>$request->id_outlet))
+            $transaction = Transaction::where(array('transactions.id_outlet'=>$request->id_outlet))
                        ->whereDate('transactions.transaction_date', '>=', $request->dari)->whereDate('transactions.transaction_date', '<=', $request->sampai)
                        ->where('transaction_outlet_services.reject_at', NULL)
                        ->where('transactions.transaction_payment_status', 'Completed')
@@ -125,7 +125,7 @@ class ApiDashboardController extends Controller
                        ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
                        ->select(DB::raw('DATE_FORMAT(transactions.transaction_date, "%d-%m-%Y") as date'),DB::raw('
                                         count(
-                                      CASE WHEN transactions.id_transaction IS NOT NULL AND  transactions.reject_at IS NULL THEN 1 ELSE NULL END
+                                      CASE WHEN transaction_outlet_services.reject_at IS NULL THEN 1 ELSE 0
                                         ) as jumlah
                                     '),
                                DB::raw('
@@ -287,7 +287,7 @@ class ApiDashboardController extends Controller
                        ->select(DB::raw('DATE_FORMAT(transactions.transaction_date, "%d %M %y") as date'),DB::raw('
                                         count(
                                        CASE WHEN
-                                       transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" THEN 1 ELSE 0
+                                       transaction_outlet_services.reject_at IS NULL THEN 1 ELSE 0
                                        END
                                         ) as total_order
                                     '),

@@ -30,6 +30,7 @@ use Modules\Favorite\Entities\FavoriteUserHiarStylist;
 use Modules\IPay88\Entities\TransactionPaymentIpay88;
 use Modules\Product\Entities\ProductDetail;
 use Modules\Product\Entities\ProductStockLog;
+use Modules\ProductService\Entities\ProductHairstylistCategory;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Recruitment\Entities\HairstylistLocation;
@@ -316,13 +317,14 @@ class ApiManageHomeService extends Controller
     	$hs = UserHairStylist::where('user_hair_stylist_status', 'Active');
 
     	if (isset($request->id_trx)) {
-	    	$id_city = TransactionHomeService::join(
+	    	$trx = TransactionHomeService::join(
 	    					'subdistricts', 
 	    					'transaction_home_services.destination_id_subdistrict', 
 	    					'subdistricts.id_subdistrict'
 	    				)
 	    				->where('id_transaction', $request->id_trx)
-	    				->first()['id_city'] ?? null;
+	    				->first();
+            $id_city = $trx['id_city']??null;
     	}
 
     	if (isset($id_city)) {
@@ -337,8 +339,87 @@ class ApiManageHomeService extends Controller
     			$q->orWhere('fullname', 'like', '%' . $request->keyword . '%');
     		});
     	}
-    	$hs = $hs->get();
+    	$hs = $hs->get()->toArray();
 
+    	if(!empty($trx)){
+    	    if(!empty($trx['id_user_hair_stylist'])){
+                $idHsCategory = UserHairStylist::where('id_user_hair_stylist', $trx['id_user_hair_stylist'])->first()['id_hairstylist_category']??null;
+            }
+
+            $tmpHsCatGroup = [];
+            $tmpHsCat = [];
+            $arrProccessingTime = [];
+    	    $trxProduct = TransactionProduct::join('products', 'products.id_product', 'transaction_products.id_product')
+                            ->where('id_transaction', $trx['id_transaction'])->get()->toArray();
+    	    foreach ($trxProduct as $val){
+                $hsCat = ProductHairstylistCategory::where('id_product', $val['id_product'])->pluck('id_hairstylist_category')->toArray();
+                foreach ($hsCat as $cat){
+                    $tmpHsCatGroup[$cat] = ($tmpHsCatGroup[$cat]??0) + 1;
+                    $tmpHsCat[$val['id_product']][] = $cat;
+                }
+
+                $processingTime = Product::where('id_product', $val['id_product'])->first()['processing_time_service']??0;
+                $arrProccessingTime[] = $processingTime * $val['transaction_product_qty'];
+            }
+
+
+            if(empty($idHsCategory) && !empty($tmpHsCatGroup)){
+                $idHsCategory = array_search(max($tmpHsCatGroup), $tmpHsCatGroup);
+            }
+
+    	    $sumtime = array_sum($arrProccessingTime);
+    	    $bookDate = date('Y-m-d', strtotime($trx['schedule_date']));
+            $bookTime = date('H:i:s', strtotime($trx['schedule_time']));
+            if(!empty($request->schedule_date)){
+                $bookDate = date('Y-m-d', strtotime($request->schedule_date));
+                $bookTime = date('H:i:s', strtotime($request->schedule_time));
+            }
+            $startTime = date('Y-m-d H:i:s', strtotime($bookDate.' '.$bookTime));
+            $endTime = date('Y-m-d H:i', strtotime("+".$sumtime." minutes", strtotime($startTime)));
+            $day = [
+                'Mon' => 'Senin',
+                'Tue' => 'Selasa',
+                'Wed' => 'Rabu',
+                'Thu' => 'Kamis',
+                'Fri' => 'Jumat',
+                'Sat' => 'Sabtu',
+                'Sun' => 'Minggu'
+            ];
+            $bookDay = $day[date('D', strtotime($bookDate))];
+
+            $hsNotAvailable = HairstylistNotAvailable::whereRaw('((booking_start >= "'.$startTime.'" AND booking_end <= "'.$endTime.'")
+                            OR (booking_start <= "'.$startTime.'" AND booking_end >= "'.$endTime.'"))')
+                ->pluck('id_user_hair_stylist')->toArray();
+            foreach ($hs as $key=>$val){
+                if(!empty($idHsCategory) && !empty($val['id_user_hair_stylist']) && $val['id_user_hair_stylist'] != $idHsCategory){
+                    unset($hs[$key]);
+                }
+
+                if(array_search($val['id_user_hair_stylist'], $hsNotAvailable)!== false){
+                    unset($hs[$key]);
+                }
+
+                //check schedule hs
+                $shift = HairstylistScheduleDate::leftJoin('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
+                        ->whereNotNull('approve_at')->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
+                        ->whereDate('date', $bookDate)
+                        ->first()['shift']??'';
+                if(!empty($shift)){
+                    $idOutletSchedule = OutletSchedule::where('id_outlet', $val['id_outlet'])
+                            ->where('day', $bookDay)->first()['id_outlet_schedule']??null;
+                    $getTimeShift = app($this->product)->getTimeShift(strtolower($shift),$val['id_outlet'], $idOutletSchedule);
+                    if(!empty($getTimeShift['start']) && !empty($getTimeShift['end'])){
+                        $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
+                        $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
+                        if(($bookTime >= $shiftTimeStart) && ($bookTime <= $shiftTimeEnd)){
+                            unset($hs[$key]);
+                        }
+                    }
+                }
+            }
+        }
+
+        $hs = array_values($hs);
     	return MyHelper::checkGet($hs);
     }
 

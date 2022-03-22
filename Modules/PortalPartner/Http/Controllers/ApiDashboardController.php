@@ -287,7 +287,6 @@ class ApiDashboardController extends Controller
                                  ')
                        )
                        ->first();
-                   $array = array();
                     if($n_now['revenue']??0 != 0 || $n_before['revenue']??0 != 0 ||$n_lastyear['revenue']??0 != 0){
                     array_push($array,array(
                        'date'=>$dates,

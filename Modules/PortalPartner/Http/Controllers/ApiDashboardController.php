@@ -34,7 +34,7 @@ class ApiDashboardController extends Controller
                        ->where(array('transactions.id_outlet'=>$request->id_outlet,'transactions.transaction_payment_status'=>"Completed"))
                        ->whereDate('transactions.transaction_date', '>=', $request->dari)->whereDate('transactions.transaction_date', '<=', $request->sampai)
                        ->groupby('transaction_products.id_product')
-                       ->select('products.product_name as network',
+                       ->select('products.product_name as network','products.product_code',
                                  DB::raw('
                                         count(
                                         transaction_products.id_product
@@ -46,16 +46,16 @@ class ApiDashboardController extends Controller
                         }elseif($request->setfilter == 5){
                             $transaction = $transaction->limit(5);
                         }else{
-                            $transaction = $transaction->limit(9);
+                            $transaction = $transaction->limit(10);
                         }                
                         $transaction = $transaction->get()->toArray();
                         
             $array = array();
             foreach ($transaction as $value) {
                 if(strlen($value['network'])>10){
-                    $text = substr($value['network'],0,10);
+                    $text = substr($value['network'],0,10).' ('.$value['product_code'].')';
                 }else{
-                    $text = $value['network'];
+                    $text = $value['network'].' ('.$value['product_code'].')';
                 }
                 $array[] = array(
                     'network'=>$text,

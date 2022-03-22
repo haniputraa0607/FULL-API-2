@@ -880,7 +880,7 @@ class ApiPromoTransaction extends Controller
 		$minmax = ($min_qty != $max_qty ? "$min_qty sampai $max_qty" : $min_qty)." item";
 		
 		if (!$promo_rules[0]->is_all_product) {
-			if ($promo[$source.'_tier_discount_product']->isEmpty()) {
+			if ($promo[$promoSource.'_tier_discount_product']->isEmpty()) {
 				return $this->failResponse('Produk tidak ditemukan');
 			}
 

@@ -24,6 +24,7 @@ class ApiReportSalesController extends Controller
     	$report = Transaction::where(array('transactions.id_outlet'=>$request->id_outlet))
                        ->whereDate('transactions.transaction_date', '>=', $request->dari)->whereDate('transactions.transaction_date', '<=', $request->sampai)
                        ->where('transaction_outlet_services.reject_at', NULL)
+                       ->where('transactions.reject_at', NULL)
                        ->where('transactions.transaction_payment_status', 'Completed')
                        ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
                        ->join('transaction_product_services', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
@@ -55,10 +56,6 @@ class ApiReportSalesController extends Controller
 								ELSE 0 END
 							) as total_mdr,
                                                         
-                                                #refund all
-                                                SUM( CASE WHEN transactions.reject_at IS NOT NULL  THEN transactions.transaction_grandtotal
-								ELSE 0 END
-							) as refund_all,
                                                 #refund product
                                                 SUM(
                                                 CASE WHEN transactions.reject_at IS NULL  AND transaction_products.reject_at IS NULL THEN transaction_products.transaction_variant_subtotal
@@ -82,7 +79,7 @@ class ApiReportSalesController extends Controller
         if (!$report) {
         	return response()->json(['status' => 'fail', 'messages' => ['Empty']]);
         }
-        $total_net_sales = $report['grand_total'] - ($report['refund_product']+$report['refund_all']+$report['total_discount']+$report['total_tax']);
+        $total_net_sales = $report['grand_total'] - ($report['refund_product']+$report['total_discount']+$report['total_tax']);
         /*$report['acceptance_rate'] = 0;
     	if ($report['total_accept']) {
     		$report['acceptance_rate'] = floor(( $report['total_accept'] / ($report['total_accept'] + $report['total_reject']) ) * 100);

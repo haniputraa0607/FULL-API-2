@@ -884,7 +884,7 @@ class ApiPromoTransaction extends Controller
 				return $this->failResponse('Produk tidak ditemukan');
 			}
 
-			$check_product = $this->checkProductRule($promo, $promo_brand, $promo_product, $trxs);
+			$check_product = $pct->checkProductRule($promo, $promo_brand, $promo_product, $promo_item);
 
 			if (!$check_product) {
 				$message = $pct->getMessage('error_tier_discount')['value_text'] = 'Promo hanya berlaku jika membeli <b>%product%</b> sebanyak %minmax%.'; 

@@ -4,6 +4,7 @@ namespace Modules\Product\Entities;
 
 use CreateProductIcountOutletStockLogsTable;
 use Illuminate\Database\Eloquent\Model;
+use App\Http\Models\Outlet;
 
 class ProductIcount extends Model
 {
@@ -45,6 +46,11 @@ class ProductIcount extends Model
         'is_deleted',
         'is_actived'
 	];
+
+    public function getCompanyAttribute()
+    {
+        return $this->company_type == 'ims' ? 'PT IMS' : 'PT IMA';
+    }
 
     function product_icount_outlet_stocks() {
         return $this->hasMany(ProductIcountOutletStock::class, 'id_product_icount');
@@ -92,6 +98,10 @@ class ProductIcount extends Model
 
     public function refreshStock($id_outlet, $unit = null, $new_outlet_stock = null)
     {
+        $outlet = Outlet::with('location_outlet')->find($id_outlet);
+        if (!$outlet || !$outlet['location_outlet'] || $outlet['location_outlet']['company_type'] != $this->company) {
+            return;
+        }
         if (!$new_outlet_stock) {
             $new_outlet_stock = $this->product_icount_outlet_stocks()
                 ->where('id_outlet', $id_outlet)

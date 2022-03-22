@@ -408,6 +408,7 @@ class ApiPromoTransaction extends Controller
 								+ (int) $sharedPromo['shipping_promo'];
 
 		$dataTrx['total_payment'] = $dataTrx['grandtotal'] - ($dataTrx['used_point'] ?? 0);
+        $dataTrx['tax'] = (int) ($dataTrx['grandtotal'] * ($outlet['is_tax'] ?? 0) / (100 + ($outlet['is_tax'] ?? 0)));
 		$promoGetPoint = app($this->online_trx)->checkPromoGetPoint($promoCashback);
         if (!$promoGetPoint) {
 			$dataTrx['cashback'] = 0;

@@ -1924,7 +1924,7 @@ class ApiOnlineTransaction extends Controller
             $result['payment_detail'][] = [
                 'name'          => 'Base Price:',
                 "is_discount"   => 0,
-                'amount'        => MyHelper::requestNumber((int) ($result['subtotal'] - $result['discount'] - $result['tax']),'_CURRENCY')
+                'amount'        => MyHelper::requestNumber((int) ($result['subtotal'] - $result['tax']),'_CURRENCY')
             ];
             $result['payment_detail'][] = [
                 'name'          => 'Tax:',

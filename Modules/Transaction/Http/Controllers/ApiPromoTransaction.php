@@ -584,7 +584,7 @@ class ApiPromoTransaction extends Controller
         	}
 
         	if ($promo->user_limit && !$used_code) {
-        		$used_diff_code = PromoCampaignReport::where('id_promo_campaign', $id_promo)
+        		$used_diff_code = PromoCampaignReport::where('id_promo_campaign', $promo->id_promo_campaign)
         						->where('id_user', $user->id)
         						->distinct()
         						->count('id_promo_campaign_promo_code');

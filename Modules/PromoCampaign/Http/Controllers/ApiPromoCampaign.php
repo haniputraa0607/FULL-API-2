@@ -4072,6 +4072,7 @@ class ApiPromoCampaign extends Controller
                 ->whereHas('brands',function($query){
                     $query->where('brand_active',1);
                 })
+                ->where('promo_campaign_visibility', 'Visible')
                 ->OrderBy('id_promo_campaign', 'DESC');
         
         if(isset($post['page'])){
@@ -4146,4 +4147,15 @@ class ApiPromoCampaign extends Controller
         }
     }
 
+    public function updateVisibility(Request $request){
+        $post = $request->all();
+
+        if(!empty($post['id_promo_campaign'])){
+            $update = PromoCampaign::where('id_promo_campaign', $post['id_promo_campaign'])->update(['promo_campaign_visibility' => $post['promo_campaign_visibility']]);
+
+            return response()->json(MyHelper::checkUpdate($update));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    }
 }

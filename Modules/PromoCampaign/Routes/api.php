@@ -40,6 +40,8 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'scopes:be'], 'pref
     Route::post('promo-description', 'ApiPromo@updatePromoDescription');
 
     Route::get('active-campaign', 'ApiPromoCampaign@activeCampaign');
+
+    Route::post('update-visibility', 'ApiPromoCampaign@updateVisibility');
 });
 
 Route::group(['middleware' => ['auth:api', 'log_activities', 'scopes:be'], 'prefix' => 'promo-setting'], function () {

@@ -593,6 +593,12 @@ class ApiTransactionAcademy extends Controller
         DailyTransactions::create($dataDailyTrx);
         DB::commit();
 
+        if(!empty($insertTransaction['id_transaction']) && $insertTransaction['transaction_grandtotal'] == 0){
+            $trx = Transaction::where('id_transaction', $insertTransaction['id_transaction'])->first();
+            optional($trx)->recalculateTaxandMDR();
+            $trx->triggerPaymentCompleted();
+        }
+
         $insertTransaction['id_transaction_academy_installment'] = TransactionAcademyInstallment::where('id_transaction_academy', $createTransactionAcademy['id_transaction_academy'])
                                                                     ->where('installment_step', 1)->first()['id_transaction_academy_installment']??null;
         return response()->json([

@@ -10,6 +10,7 @@ use App\Lib\MyHelper;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
+use Modules\ProductService\Entities\ProductHairstylistCategory;
 use Modules\Recruitment\Entities\HairstylistCategory;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Recruitment\Entities\UserHairStylistDocuments;
@@ -989,7 +990,9 @@ class ApiHairStylistController extends Controller
 
         if(!empty($post['id_hairstylist_category'])){
             $save = HairstylistCategory::where('id_hairstylist_category', $post['id_hairstylist_category'])->delete();
-
+            if($save){
+                ProductHairstylistCategory::where('id_hairstylist_category', $post['id_hairstylist_category'])->delete();
+            }
             return response()->json(MyHelper::checkDelete($save));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);

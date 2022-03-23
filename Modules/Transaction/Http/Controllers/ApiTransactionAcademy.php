@@ -261,7 +261,7 @@ class ApiTransactionAcademy extends Controller
             ]);
         }
 
-        $post['payment_method'] = $post['payment_method']??null;
+        $post['payment_method'] = $post['payment_method']??'one_time_payment';
         if($post['payment_method'] == 'installment' && empty($post['installment'])){
             return response()->json([
                 'status'    => 'fail',

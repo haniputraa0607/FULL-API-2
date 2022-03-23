@@ -1031,6 +1031,12 @@ class ApiTransactionHomeService extends Controller
             TransactionHomeServiceHairStylistFinding::insert($insertTmpHS);
         }
 
+        if(!empty($insertTransaction['id_transaction']) && $insertTransaction['transaction_grandtotal'] == 0){
+            $trx = Transaction::where('id_transaction', $insertTransaction['id_transaction'])->first();
+            optional($trx)->recalculateTaxandMDR();
+            $trx->triggerPaymentCompleted();
+        }
+
         return response()->json([
             'status'   => 'success',
             'result'   => $insertTransaction

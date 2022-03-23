@@ -582,7 +582,7 @@ class ApiTransactionHomeService extends Controller
         $result['messages_all'] = (empty($errAll)? null:implode(".", array_unique($errAll)));
         $fake_request = new Request(['show_all' => 1]);
         $result['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
-
+        $result['id_outlet'] = $outlet['id_outlet'];
         $result = app($this->promo_trx)->applyPromoCheckout($result);
 
         if ($result['cashback']) {

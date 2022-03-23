@@ -147,14 +147,6 @@ class ApiDashboardController extends Controller
                                DB::raw('
                                         sum(
                                        CASE WHEN
-                                       transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transactions.reject_at IS NOT NULL
-                                       THEN transaction_grandtotal ELSE 0
-                                       END
-                                        ) as refund_all
-                                        '),
-                               DB::raw('
-                                        sum(
-                                       CASE WHEN
                                        transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transaction_products.reject_at IS NULL
                                        THEN transaction_products.transaction_variant_subtotal ELSE 0
                                        END
@@ -197,7 +189,7 @@ class ApiDashboardController extends Controller
                        ->get();
             $array = array();
             foreach ($transaction as $value) {
-                $value['net_sales'] = $value['grand_total'] - ($value['refund_product']+$value['refund_all']+$value['total_discount']+$value['total_tax']);
+                $value['net_sales'] = $value['grand_total'] - ($value['refund_product']+$value['total_discount']+$value['total_tax']);
                 $value['net_sales_mdr'] = $value['net_sales'] - $value['mdr'];
                 $array[] = $value;
             }

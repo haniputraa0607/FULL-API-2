@@ -189,7 +189,7 @@ class ApiDashboardController extends Controller
                        ->get();
             $array = array();
             foreach ($transaction as $value) {
-                $value['net_sales'] = $value['grand_total'] - ($value['refund_product']+$value['total_discount']+$value['total_tax']);
+                $value['net_sales'] = $value['total_revenue'] - ($value['refund_product']+$value['total_discount']+$value['total_tax']);
                 $value['net_sales_mdr'] = $value['net_sales'] - $value['mdr'];
                 $array[] = $value;
             }

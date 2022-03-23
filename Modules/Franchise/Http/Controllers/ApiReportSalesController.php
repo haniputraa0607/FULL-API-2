@@ -61,11 +61,6 @@ class ApiReportSalesController extends Controller
                                                 CASE WHEN transactions.reject_at IS NULL  AND transaction_products.reject_at IS NULL THEN transaction_products.transaction_variant_subtotal
 								ELSE 0 END
 							) as refund_product,
-                                                # Total
-						SUM(
-                                                CASE WHEN   transactions.transaction_grandtotal IS NOT NULL THEN transactions.transaction_grandtotal
-                                                        ELSE 0 END
-                                                ) as grand_total,
 
                                                 #revenue
                                                 SUM(
@@ -79,7 +74,7 @@ class ApiReportSalesController extends Controller
         if (!$report) {
         	return response()->json(['status' => 'fail', 'messages' => ['Empty']]);
         }
-        $total_net_sales = $report['grand_total'] - ($report['refund_product']+$report['total_discount']+$report['total_tax']);
+        $total_net_sales = $report['total_revenue'] - ($report['refund_product']+$report['total_discount']+$report['total_tax']);
         /*$report['acceptance_rate'] = 0;
     	if ($report['total_accept']) {
     		$report['acceptance_rate'] = floor(( $report['total_accept'] / ($report['total_accept'] + $report['total_reject']) ) * 100);

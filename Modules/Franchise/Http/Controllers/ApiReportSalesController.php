@@ -34,7 +34,7 @@ class ApiReportSalesController extends Controller
 						Date(transactions.transaction_date) as transaction_date,
 
 						# total transaksi
-						COUNT( CASE WHEN transaction_outlet_services.reject_at IS NULL THEN 1 ELSE 0 END) AS total_transaction, 
+						COUNT( CASE WHEN transactions.id_transaction IS NULL THEN 1 ELSE 0 END) AS total_transaction, 
                                                 
                                                 # tax
 						SUM(

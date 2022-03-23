@@ -123,8 +123,8 @@ class ApiDashboardController extends Controller
                        ->where('transactions.reject_at', NULL)
                        ->where('transactions.transaction_payment_status', 'Completed')
                        ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
-                       ->join('transaction_product_services', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
                        ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+                       ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
                        ->select(DB::raw('DATE_FORMAT(transactions.transaction_date, "%d-%m-%Y") as date'),DB::raw('
                                         count(
                                       CASE WHEN  transaction_outlet_services.reject_at IS NULL THEN 1 ELSE 0 END
@@ -234,8 +234,8 @@ class ApiDashboardController extends Controller
                        ->where('transactions.transaction_payment_status', 'Completed')
                        ->where('transactions.reject_at', NULL)
                        ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
-                       ->join('transaction_product_services', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
                        ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+                       ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
                        ->select(
                         DB::raw('
                                  SUM(
@@ -251,8 +251,8 @@ class ApiDashboardController extends Controller
                        ->where('transactions.reject_at', NULL)
                        ->where('transactions.transaction_payment_status', 'Completed')
                        ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
-                       ->join('transaction_product_services', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
                        ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+                       ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
                        ->select(
                         DB::raw('
                                  SUM(
@@ -268,8 +268,8 @@ class ApiDashboardController extends Controller
                        ->where('transactions.reject_at', NULL)
                        ->where('transactions.transaction_payment_status', 'Completed')
                        ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
-                       ->join('transaction_product_services', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
                        ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+                       ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
                        ->select(
                         DB::raw('
                                  SUM(
@@ -305,8 +305,8 @@ class ApiDashboardController extends Controller
                        ->where('transactions.reject_at', NULL)
                        ->where('transactions.transaction_payment_status', 'Completed')
                        ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
-                       ->join('transaction_product_services', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
                        ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+                       ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
                        ->select(DB::raw('DATE_FORMAT(transactions.transaction_date, "%d %M %y") as date'),DB::raw('
                                         count(
                                        CASE WHEN
@@ -344,8 +344,8 @@ class ApiDashboardController extends Controller
                        ->whereDate('transactions.transaction_date', '>=', $request->dari)->whereDate('transactions.transaction_date', '<=', $request->sampai)
                        ->where('transaction_outlet_services.reject_at', NULL)
                        ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
-                       ->join('transaction_product_services', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
                        ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+                       ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
                        ->select(DB::raw('DATE_FORMAT(transactions.transaction_date, "%Y-%m-%d") as date'),DB::raw('
                                         sum(
                                        CASE WHEN

@@ -144,11 +144,9 @@ class ApiDashboardController extends Controller
                                         '),
                                DB::raw('
                                       SUM(
-                                            CASE WHEN transactions.transaction_discount_item IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed"  AND transactions.reject_at IS NULL THEN ABS(transactions.transaction_discount_item) 
-                                                    WHEN transactions.transaction_discount IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount)
-                                                    ELSE 0 END
-                                            + CASE WHEN transactions.transaction_discount_delivery IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_delivery) ELSE 0 END
-                                            + CASE WHEN transactions.transaction_discount_bill IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_bill) ELSE 0 END
+                                          CASE WHEN
+                                       transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" THEN abs(transaction_discount) ELSE 0
+                                       END
                                     ) as diskon
                                         '),
                                DB::raw('

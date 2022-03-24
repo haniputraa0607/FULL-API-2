@@ -40,13 +40,11 @@ class ApiReportSalesController extends Controller
 								ELSE 0 END
 							) as total_tax,
 						# diskon
-						SUM(
-							CASE WHEN transactions.transaction_discount_item IS NOT NULL  AND transactions.reject_at IS NULL THEN ABS(transactions.transaction_discount_item) 
-								WHEN transactions.transaction_discount IS NOT NULL  THEN ABS(transactions.transaction_discount)
-								ELSE 0 END
-							+ CASE WHEN transactions.transaction_discount_delivery IS NOT NULL  THEN ABS(transactions.transaction_discount_delivery) ELSE 0 END
-							+ CASE WHEN transactions.transaction_discount_bill IS NOT NULL  THEN ABS(transactions.transaction_discount_bill) ELSE 0 END
-						) as total_discount,
+						 SUM(
+                                                    CASE WHEN
+                                                     transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" THEN abs(transaction_discount) ELSE 0
+                                                     END
+                                                  ) as total_discount,
                                                 
                                                 #mdr 
                                                 SUM(

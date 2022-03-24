@@ -52,16 +52,30 @@ class ApiDashboardController extends Controller
                         }                
                         $transaction = $transaction->get()->toArray();
             $array = array();
+            $nama = array();
             foreach ($transaction as $value) {
-                if(strlen($value['network'])>10){
-                    $text = substr($value['network'],0,10).' ('.$value['product_code'].')';
-                }else{
-                    $text = $value['network'].' ('.$value['product_code'].')';
+                $s = 1;
+                $n = 8;
+                for ($x = 0; $x <= $s; $x++) {
+                   if(strlen($value['network'])>$n){
+                    $text = substr($value['network'],0,$n);
+                    }else{
+                        $text = $value['network'];
+                    }
+                    
+                    if(!in_array($text, $nama)){
+                        array_push($nama,$text);
+                        $array[] = array(
+                            'network'=>$text,
+                            'MAU'=>$value['MAU'],
+                            'label'=>$value['network'],
+                        );
+                         break;
+                    }else{
+                        $s++;
+                        $n++;
+                    }
                 }
-                $array[] = array(
-                    'network'=>$text,
-                    'MAU'=>$value['MAU']
-                );
             }
        return response()->json(['status' => 'success', 'result' => $array]); 
        }else{

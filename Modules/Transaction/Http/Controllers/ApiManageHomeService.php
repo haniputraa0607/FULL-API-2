@@ -248,6 +248,7 @@ class ApiManageHomeService extends Controller
             'destination_short_address'     => $trx['destination_short_address'],
             'destination_address_name'      => $trx['destination_address_name'],
             'destination_note'              => $trx['destination_note'],
+            'preference_hair_stylist'       => $trx['preference_hair_stylist'],
             'id_user_hair_stylist'          => $trx['id_user_hair_stylist'],
             'hair_stylist_status'           => $trx['status'],
             'hair_stylist_name'             => $trx['nickname'] ? $trx['nickname'] . ' - ' . $trx['fullname'] : null,
@@ -314,32 +315,17 @@ class ApiManageHomeService extends Controller
 
     public function findHairstylist(Request $request)
     {
-    	$hs = UserHairStylist::where('user_hair_stylist_status', 'Active');
+    	$hs = UserHairStylist::where('user_hair_stylist_status', 'Active')->get()->toArray();
 
     	if (isset($request->id_trx)) {
 	    	$trx = TransactionHomeService::join(
-	    					'subdistricts', 
-	    					'transaction_home_services.destination_id_subdistrict', 
+	    					'subdistricts',
+	    					'transaction_home_services.destination_id_subdistrict',
 	    					'subdistricts.id_subdistrict'
 	    				)
 	    				->where('id_transaction', $request->id_trx)
 	    				->first();
-            $id_city = $trx['id_city']??null;
     	}
-
-    	if (isset($id_city)) {
-    		$hs->whereHas('outlet', function($q) use ($id_city) {
-    			$q->where('id_city', $id_city);
-    		});
-    	}
-
-    	if ($request->keyword) {
-    		$hs->where(function($q) use ($request){
-    			$q->where('nickname', 'like', '%' . $request->keyword . '%');
-    			$q->orWhere('fullname', 'like', '%' . $request->keyword . '%');
-    		});
-    	}
-    	$hs = $hs->get()->toArray();
 
     	if(!empty($trx)){
     	    if(!empty($trx['id_user_hair_stylist'])){
@@ -390,13 +376,22 @@ class ApiManageHomeService extends Controller
             $hsNotAvailable = HairstylistNotAvailable::whereRaw('((booking_start >= "'.$startTime.'" AND booking_end <= "'.$endTime.'")
                             OR (booking_start <= "'.$startTime.'" AND booking_end >= "'.$endTime.'"))')
                 ->pluck('id_user_hair_stylist')->toArray();
+            $maximumRadius = (int)(Setting::where('key', 'home_service_hs_maximum_radius')->first()['value']??25);
             foreach ($hs as $key=>$val){
+                $distance = (float)app($this->outlet)->distance($trx['destination_latitude'], $trx['destination_longitude'], $val['latitude'], $val['longitude'], "K");
+                if($distance > $maximumRadius){
+                    unset($hs[$key]);
+                    continue;
+                }
+
                 if(!empty($idHsCategory) && !empty($val['id_user_hair_stylist']) && $val['id_user_hair_stylist'] != $idHsCategory){
                     unset($hs[$key]);
+                    continue;
                 }
 
                 if(array_search($val['id_user_hair_stylist'], $hsNotAvailable)!== false){
                     unset($hs[$key]);
+                    continue;
                 }
 
                 //check schedule hs
@@ -413,6 +408,7 @@ class ApiManageHomeService extends Controller
                         $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
                         if(($bookTime >= $shiftTimeStart) && ($bookTime <= $shiftTimeEnd)){
                             unset($hs[$key]);
+                            continue;
                         }
                     }
                 }

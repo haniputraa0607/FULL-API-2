@@ -105,6 +105,13 @@ class ApiHairstylistAttendanceController extends Controller
         $outlet = $hairstylist->outlet;
         $attendance = $hairstylist->getAttendanceByDate(date('Y-m-d'));
 
+        if ($request->type == 'clock_out' && !$attendance->logs()->where('type', 'clock_in')->exists()) {
+            return [
+                'status' => 'fail',
+                'messages' => ['Tidak bisa melakukan Clock Out sebelum melakukan Clock In'],
+            ];
+        }
+
         $maximumRadius = MyHelper::setting('hairstylist_attendance_max_radius', 'value', 50);
         $distance = MyHelper::getDistance($request->latitude, $request->longitude, $outlet->outlet_latitude, $outlet->outlet_longitude);
         $outsideRadius = $distance > $maximumRadius;

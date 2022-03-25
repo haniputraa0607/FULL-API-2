@@ -74,13 +74,7 @@ class UpdateScheduleHSJob implements ShouldQueue
                 continue;
             }
 
-            $update = HairstylistSchedule::updateOrCreate([
-                'id_user_hair_stylist' => $idUserHairStylist,
-                'id_outlet' => $detail['id_outlet'],
-                'schedule_month' => $currentMonth,
-                'schedule_year' => $currentYear
-            ]);
-            $idSchedule = $update['id_hairstylist_schedule'];
+            $update = HairstylistSchedule::where('id_hairstylist_schedule', $schedule['id_hairstylist_schedule'])->update(['id_outlet' => $detail['id_outlet']]);
 
             if($update){
                 foreach ($getAllShift as $shift){
@@ -91,7 +85,6 @@ class UpdateScheduleHSJob implements ShouldQueue
                             ->where('id_outlet_schedule', $outlet['id_outlet_schedule'])->where('shift', $shift['shift'])->first();
                         HairstylistScheduleDate::where('id_hairstylist_schedule_date', $shift['id_hairstylist_schedule_date'])
                             ->update([
-                                'id_hairstylist_schedule' => $idSchedule,
                                 'time_start' => $shiftTime['shift_time_start'],
                                 'time_end' => $shiftTime['shift_time_end']
                             ]);

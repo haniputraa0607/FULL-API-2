@@ -2,6 +2,7 @@
 
 namespace Modules\Recruitment\Http\Controllers;
 
+use App\Http\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
@@ -762,6 +763,30 @@ class ApiHairstylistAttendanceController extends Controller
             return response()->json(['success']);
         } catch (\Exception $e) {
             $log->fail($e->getMessage());
+        }
+    }
+
+    public function setting(Request $request){
+        $post = $request->json()->all();
+
+        if(empty($post)){
+            $clockin = Setting::where('key', 'clock_in_tolerance')->first()['value']??null;
+            $clockout = Setting::where('key', 'clock_out_tolerance')->first()['value']??null;
+            $radius = Setting::where('key', 'hairstylist_attendance_max_radius')->first()['value']??null;
+
+            $result = [
+                'clock_in_tolerance' => $clockin,
+                'clock_out_tolerance' => $clockout,
+                'hairstylist_attendance_max_radius' => $radius
+            ];
+
+            return response()->json(MyHelper::checkGet($result));
+        }else{
+            Setting::updateOrCreate(['key' => 'clock_in_tolerance'], ['value' => $post['clock_in_tolerance']]);
+            Setting::updateOrCreate(['key' => 'clock_out_tolerance'], ['value' => $post['clock_out_tolerance']]);
+            Setting::updateOrCreate(['key' => 'hairstylist_attendance_max_radius'], ['value' => $post['hairstylist_attendance_max_radius']]);
+
+            return response()->json(MyHelper::checkUpdate(true));
         }
     }
 }

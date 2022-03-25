@@ -52,16 +52,30 @@ class ApiDashboardController extends Controller
                         }                
                         $transaction = $transaction->get()->toArray();
             $array = array();
+            $nama = array();
             foreach ($transaction as $value) {
-                if(strlen($value['network'])>10){
-                    $text = substr($value['network'],0,10).' ('.$value['product_code'].')';
-                }else{
-                    $text = $value['network'].' ('.$value['product_code'].')';
+                $s = 1;
+                $n = 8;
+                for ($x = 0; $x <= $s; $x++) {
+                   if(strlen($value['network'])>$n){
+                    $text = substr($value['network'],0,$n);
+                    }else{
+                        $text = $value['network'];
+                    }
+                    
+                    if(!in_array($text, $nama)){
+                        array_push($nama,$text);
+                        $array[] = array(
+                            'network'=>$text,
+                            'MAU'=>$value['MAU'],
+                            'label'=>$value['network'],
+                        );
+                         break;
+                    }else{
+                        $s++;
+                        $n++;
+                    }
                 }
-                $array[] = array(
-                    'network'=>$text,
-                    'MAU'=>$value['MAU']
-                );
             }
        return response()->json(['status' => 'success', 'result' => $array]); 
        }else{
@@ -144,11 +158,9 @@ class ApiDashboardController extends Controller
                                         '),
                                DB::raw('
                                       SUM(
-                                            CASE WHEN transactions.transaction_discount_item IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed"  AND transactions.reject_at IS NULL THEN ABS(transactions.transaction_discount_item) 
-                                                    WHEN transactions.transaction_discount IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount)
-                                                    ELSE 0 END
-                                            + CASE WHEN transactions.transaction_discount_delivery IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_delivery) ELSE 0 END
-                                            + CASE WHEN transactions.transaction_discount_bill IS NOT NULL AND transaction_outlet_services.reject_at IS NULL THEN ABS(transactions.transaction_discount_bill) ELSE 0 END
+                                          CASE WHEN
+                                       transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" THEN abs(transaction_discount) ELSE 0
+                                       END
                                     ) as diskon
                                         '),
                                DB::raw('

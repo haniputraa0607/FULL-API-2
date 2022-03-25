@@ -13,6 +13,7 @@ use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use App\Http\Models\Holiday;
 use App\Http\Models\Outlet;
 use DB;
+use function Clue\StreamFilter\fun;
 
 class ApiHairStylistScheduleController extends Controller
 {
@@ -103,7 +104,14 @@ class ApiHairStylistScheduleController extends Controller
                         }
 
                         if ($row['subject'] == 'id_outlet') {
-                                $data->where('hairstylist_schedules.id_outlet', $row['operator']);
+                            $data->where(function ($q) use($row){
+                                $q->where('hairstylist_schedules.id_outlet', $row['operator'])
+                                ->orWhereIn('hairstylist_schedules.id_user_hair_stylist', function($query) use($row){
+                                    $query->select('hairstylist_attendances.id_user_hair_stylist')
+                                        ->from('hairstylist_attendances')
+                                        ->where('hairstylist_attendances.id_outlet', $row['operator']);
+                                });
+                            });
                         }
 
                         if ($row['subject'] == 'status') {
@@ -166,7 +174,14 @@ class ApiHairStylistScheduleController extends Controller
             				}
 
             				if ($row['subject'] == 'id_outlet') {
-            						$subquery->orWhere('hairstylist_schedules.id_outlet', $row['operator']);
+                                $subquery->orWhere(function ($q) use($row){
+                                    $q->where('hairstylist_schedules.id_outlet', $row['operator'])
+                                        ->orWhereIn('hairstylist_schedules.id_user_hair_stylist', function($query) use($row){
+                                            $query->select('hairstylist_attendances.id_user_hair_stylist')
+                                                ->from('hairstylist_attendances')
+                                                ->where('hairstylist_attendances.id_outlet', $row['operator']);
+                                        });
+                                });
             				}
 
             				if($row['subject'] == 'status') {
@@ -176,7 +191,7 @@ class ApiHairStylistScheduleController extends Controller
             							break;
 
         							case 'Rejected':
-	                        			$data->orWhere(function($q) {
+                                        $subquery->orWhere(function($q) {
 	                        				$q->whereNotNull('reject_at');
 	                        				$q->whereNull('approve_at');
 	                        			});
@@ -192,11 +207,11 @@ class ApiHairStylistScheduleController extends Controller
             				}
 
 	                        if ($row['subject'] == 'month') {
-	                            $data->orWhere('schedule_month', $row['operator']);
+                                $subquery->orWhere('schedule_month', $row['operator']);
 	                        }
 
 	                        if ($row['subject'] == 'year') {
-	                            $data->orWhere('schedule_year', $row['operator']);
+                                $subquery->orWhere('schedule_year', $row['operator']);
 	                        }
             			}
                     }
@@ -210,7 +225,21 @@ class ApiHairStylistScheduleController extends Controller
 		        	'outlets.outlet_name', 
 		        	'outlets.outlet_code', 
 		        	'approver.name as approve_by_name'
-		        )->paginate(25);
+		        )->paginate(25)->toArray();
+
+        foreach ($data['data']??[] as $key=>$value){
+            $outlet = [];
+            $outlet = HairstylistScheduleDate::join('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+                    ->where('hairstylist_schedule_dates.id_hairstylist_schedule', $value['id_hairstylist_schedule'])
+                    ->whereNotIn('hairstylist_attendances.id_outlet', [$value['id_outlet']])
+                    ->join('outlets', 'outlets.id_outlet', 'hairstylist_attendances.id_outlet')
+                    ->groupBy('outlets.id_outlet')->select('outlets.outlet_name', 'outlets.outlet_code')->get()->toArray();
+            $outlet[] = [
+                'outlet_name' => $value['outlet_name'],
+                'outlet_code' => $value['outlet_code']
+            ];
+            $data['data'][$key]['attendance_outlet'] = array_map("unserialize", array_unique(array_map("serialize", $outlet)));;
+        }
 
         return response()->json(MyHelper::checkGet($data));
     }

@@ -31,6 +31,7 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefi
     Route::post('/delete', ['middleware'=>['feature_control:341','scopes:be'],'uses' => 'ApiPartnersController@destroy']);
     Route::post('/edit', ['middleware'=>['feature_control:339','scopes:be'],'uses' => 'ApiPartnersController@edit']);
     Route::post('/update', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@update']);
+    Route::post('/reject-icount', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@rejectIcount']);
     Route::post('/cek-duplikat', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@cekDuplikat']);
     Route::post('/create-follow-up', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@followUp']);
     Route::post('/new-follow-up', ['middleware'=>['feature_control:340','scopes:be'],'uses' => 'ApiPartnersController@followUpNewLoc']);

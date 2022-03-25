@@ -45,6 +45,7 @@ use Modules\BusinessDevelopment\Entities\OutletStarterBundlingProduct;
 use Modules\Product\Entities\ProductIcount;
 use Modules\BusinessDevelopment\Http\Requests\LandingPage\StoreNewLocation;
 use Modules\BusinessDevelopment\Http\Requests\LandingPage\StoreNewPartner;
+use Modules\BusinessDevelopment\Entities\InitBranch;
 
 use function GuzzleHttp\json_decode;
 
@@ -288,7 +289,7 @@ class ApiPartnersController extends Controller
                     $c->with(['province']);
                 }]);
                 $l->orderBy('id_location');
-            },'partner_locations.location_starter.product','partner_step','partner_new_step','partner_confirmation','partner_survey','partner_legal_agreement', 'first_location', 'first_location.location_starter.product', ])->first();
+            },'partner_locations.location_starter.product','partner_locations.location_init','partner_step','partner_new_step','partner_confirmation','partner_survey','partner_legal_agreement', 'first_location', 'first_location.location_starter.product', ])->first();
             if(($partner['partner_step'])){
                 foreach($partner['partner_step'] as $step){
                     $step['file'] = null;
@@ -1044,6 +1045,8 @@ class ApiPartnersController extends Controller
                         $partner_init['id_sales_order'] = $data_init_ims['SalesOrderID'];
                         $partner_init['id_sales_order_detail'] = $data_init_ims['Detail'][0]['SalesOrderDetailID'];
                         $location_init['id_branch_ima'] = $data_init_ims['Branch']['BranchID'];
+
+                        $data_db_init = $data_init_ims;
                     }else{
                         $partner_init['id_sales_order'] = $data_init['SalesOrderID'];
                         $partner_init['id_sales_order_detail'] = $data_init['Detail'][0]['SalesOrderDetailID'];
@@ -1053,10 +1056,38 @@ class ApiPartnersController extends Controller
                             "tax_value" => $data_init['TaxValue'],
                             "netto" => $data_init['Netto'],
                         ];    
+
+                        $data_db_init = $data_init;
+
                     }
+
+                    $send_init = [
+                        "id_sales_order" => $data_db_init['SalesOrderID'],
+                        "id_company" => $data_db_init['CompanyID'],
+                        "no_voucher" => $data_db_init['VoucherNo'],
+                        "amount" => $data_db_init['Amount'],
+                        "tax" => $data_db_init['Tax'],
+                        "tax_value" => $data_db_init['TaxValue'],
+                        "netto" => $data_db_init['Netto'],
+                        "id_sales_order_detail" => $data_db_init['Detail'][0]['SalesOrderDetailID'],
+                        "id_item" => $data_db_init['Detail'][0]['ItemID'],
+                        "qty" => $data_db_init['Detail'][0]['Qty'],
+                        "unit" => $data_db_init['Detail'][0]['Unit'],
+                        "ratio" => $data_db_init['Detail'][0]['Ratio'],
+                        "unit_ratio" => $data_db_init['Detail'][0]['UnitRatio'],
+                        "price" => $data_db_init['Detail'][0]['Price'],
+                        "detail_name" => $data_db_init['Detail'][0]['Name'],
+                        "disc" => $data_db_init['Detail'][0]['Disc'],
+                        "disc_value" => $data_db_init['Detail'][0]['DiscValue'],
+                        "disc_rp" => $data_db_init['Detail'][0]['DiscRp'],
+                        "description" => $data_db_init['Detail'][0]['Description'],
+                        "outstanding" => $data_db_init['Detail'][0]['Outstanding'],
+                        "item" => $data_db_init['Detail'][0]['Item'],
+                    ];
                     
                     $location_init['value_detail'] = json_encode($value_detail);
                     $update_partner_init = Partner::where('id_partner', $post['id_partner'])->update($partner_init);
+                    $create_init_branch = InitBranch::updateOrCreate(["id_partner" => $post['id_partner'],"id_location" => $post['id_location']],$send_init);
                     if($update_partner_init){
                         $update_location_init = Location::where('id_partner', $post['id_partner'])->where('id_location',$post["id_location"])->update($location_init);
                         if(!$update_location_init){
@@ -1830,6 +1861,16 @@ class ApiPartnersController extends Controller
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }
+    }
+
+    public function rejectIcount(Request $request){
+        $post = $request->all();
+
+        $send = [
+            'id_partner' => $post['id_partner'],
+            'status'     => 'Rejected'
+        ];
+        return $this->update(New Request($send));
     }
 }
 

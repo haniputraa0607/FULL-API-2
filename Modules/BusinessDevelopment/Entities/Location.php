@@ -77,5 +77,8 @@ class Location extends Model
     public function location_starter(){
         return $this->hasMany(LocationOutletStarterBundlingProduct::class, 'id_location');
     }
+    public function location_init(){
+        return $this->hasOne(InitBranch::class, 'id_location');
+    }
 
 }

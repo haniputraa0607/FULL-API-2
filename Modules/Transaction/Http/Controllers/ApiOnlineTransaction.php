@@ -2540,6 +2540,10 @@ class ApiOnlineTransaction extends Controller
                         return ['status'=>'success', 'result' => ['message' => 'Pembayaran berhasil dibatalkan']];
                     }
                 }
+                return [
+                    'status'=>'fail',
+                    'messages' => ['Transaksi tidak dapat dibatalkan karena proses pembayaran sedang berlangsung']
+                ];
             case 'xendit':
                 $dtXendit = TransactionPaymentXendit::where('id_transaction', $trx['id_transaction'])->first();
                 $status = app('Modules\Xendit\Http\Controllers\XenditController')->checkStatus($dtXendit->xendit_id, $dtXendit->type);

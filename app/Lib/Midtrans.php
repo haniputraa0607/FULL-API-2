@@ -169,6 +169,19 @@ class Midtrans {
         $url    = env('BASE_MIDTRANS_SANDBOX').'/v2/'.$order_id.'/expire';
         $status = MyHelper::post($url, Self::bearer(), ['data' => 'expired']);
 
+        try {
+            LogMidtrans::create([
+                'type'                 => 'expire',
+                'id_reference'         => $order_id,
+                'request'              => null,
+                'request_url'          => $url,
+                'request_header'       => json_encode(['Authorization' => Self::bearer()]),
+                'response'             => json_encode($status),
+                'response_status_code' => $status['status_code']??null,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed write log to LogMidtrans: ' . $e->getMessage());
+        }
         return $status;
     }
 

@@ -6209,11 +6209,11 @@ class ApiTransaction extends Controller
 
                         if($tran['transaction_tax']==0){
                             $new_transaction_non[$new_trans_non] = $tran;
-                            $new_transaction_non[$new_trans_non]['total_price'] = $tran['transaction_product_price_base'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount'] - $tran['transaction_discount_bill'];
+                            $new_transaction_non[$new_trans_non]['total_price'] = $tran['transaction_product_price_base'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all'];
                             $new_trans_non++;
                         }else{
                             $new_transaction[$new_trans_use] = $tran;
-                            $new_transaction[$new_trans_use]['total_price'] = $tran['transaction_product_price_base'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount'] - $tran['transaction_discount_bill'];
+                            $new_transaction[$new_trans_use]['total_price'] = $tran['transaction_product_price_base'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all'];
                             $new_trans_use++;
                         }
 
@@ -6391,11 +6391,11 @@ class ApiTransaction extends Controller
 
                         if($tran['transaction_tax']==0){
                             $new_transaction_non[$new_trans_non] = $tran;
-                            $new_transaction_non[$new_trans_non]['total_price'] = $tran['transaction_product_price_base'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount'] - $tran['transaction_discount_bill'];
+                            $new_transaction_non[$new_trans_non]['total_price'] = $tran['transaction_product_price_base'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all'];
                             $new_trans_non++;
                         }else{
                             $new_transaction[$new_trans_use] = $tran;
-                            $new_transaction[$new_trans_use]['total_price'] = $tran['transaction_product_price_base'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount'] - $tran['transaction_discount_bill'];
+                            $new_transaction[$new_trans_use]['total_price'] = $tran['transaction_product_price_base'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all'];
                             $new_trans_use++;
                         }
 

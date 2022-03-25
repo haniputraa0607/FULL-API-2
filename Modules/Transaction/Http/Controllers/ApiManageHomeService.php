@@ -226,6 +226,8 @@ class ApiManageHomeService extends Controller
 
         $trxPayment = app($this->trx_outlet_service)->transactionPayment($trx);
         $trx['payment'] = $trxPayment['payment'];
+        $settingStart = Setting::where('key', 'home_service_time_start')->first()['value']??'07:00:00';
+        $settingEnd = Setting::where('key', 'home_service_time_end')->first()['value']??'22:00:00';
 
         $trx->load('user');
         $result = [
@@ -263,6 +265,8 @@ class ApiManageHomeService extends Controller
             'timer_shopeepay'               => $trxPayment['timer_shopeepay'],
             'message_timeout_shopeepay'     => $trxPayment['message_timeout_shopeepay'],
             'reject_at'     				=> $trx['reject_at'],
+            'setting_time_start'             => $settingStart,
+            'setting_time_end'             => $settingEnd,
             'user'							=> [
                 'phone' => $trx['user']['phone'],
                 'name' 	=> $trx['user']['name'],
@@ -384,12 +388,17 @@ class ApiManageHomeService extends Controller
                     continue;
                 }
 
-                if(!empty($idHsCategory) && !empty($val['id_user_hair_stylist']) && $val['id_user_hair_stylist'] != $idHsCategory){
+                if(!empty($idHsCategory) && !empty($val['id_hairstylist_category']) && $val['id_hairstylist_category'] != $idHsCategory){
                     unset($hs[$key]);
                     continue;
                 }
 
                 if(array_search($val['id_user_hair_stylist'], $hsNotAvailable)!== false){
+                    unset($hs[$key]);
+                    continue;
+                }
+
+                if($val['home_service_status'] == 0){
                     unset($hs[$key]);
                     continue;
                 }
@@ -432,6 +441,7 @@ class ApiManageHomeService extends Controller
     		'hairstylist_not_available',
     		'transaction_products.product',
     		'transaction_home_service',
+            'user'
     	);
 
     	$trx = $trxTemp->find($request->id_transaction);
@@ -516,6 +526,25 @@ class ApiManageHomeService extends Controller
 		app($this->online_trx)->bookHS($request->id_transaction);
 
     	$newTrx = $trxTemp->find($request->id_transaction);
+
+        if($trxHome['status'] == 'Finding Hair Stylist'){
+            $createUpdateStatus = TransactionHomeServiceStatusUpdate::create(['id_transaction' => $trxHome['id_transaction'],'status' => 'Get Hair Stylist']);
+            if($createUpdateStatus){
+                TransactionHomeService::where('id_transaction', $trxHome['id_transaction'])->update(['status' => 'Get Hair Stylist']);
+
+                if(!empty($trxTemp['user']['phone'])){
+                    app($this->autocrm)->SendAutoCRM(
+                        'Home Service Update Status',
+                        $trxTemp['user']['phone'],
+                        [
+                            'id_transaction' => $trxTemp['id_transaction'],
+                            'status'=> 'Get Hair Stylist',
+                            'receipt_number' => $trxTemp['transaction_receipt_number']
+                        ]
+                    );
+                }
+            }
+        }
 
     	$logTrx = LogTransactionUpdate::create([
 			'id_user' => $request->user()->id,

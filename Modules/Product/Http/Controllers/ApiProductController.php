@@ -72,6 +72,7 @@ use Modules\Product\Entities\ProductCommissionDefault;
 use Modules\Product\Http\Requests\product\Commission;
 use App\Jobs\SyncIcountItems;
 use Modules\Product\Entities\ProductCatalogDetail;
+use Modules\Product\Entities\UnitIcountConversion;
 
 class ApiProductController extends Controller
 {
@@ -3445,5 +3446,18 @@ class ApiProductController extends Controller
         }
           $result = ['status' => 'fail', 'messages' => ['failed to delete data']];
         return response()->json($result);
+    }
+
+    public function unitDetailIcount(Request $request){
+        $post = $request->all();
+        if(isset($post['id_product_icount']) && !empty($post['id_product_icount'])){
+            $units = UnitIcountConversion::where('id_product_icount',$post['id_product_icount'])->get()->toArray();
+            return response()->json(['status' => 'success', 'result' => $units]);
+        }else{
+            return response()->json([
+				'status'   => 'fail',
+				'messages' => ['Incompleted Data']
+    		]);
+        }
     }
 }

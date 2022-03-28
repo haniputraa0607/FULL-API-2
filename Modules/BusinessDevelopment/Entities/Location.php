@@ -50,7 +50,9 @@ class Location extends Model
         "sharing_value",
         "location_notes",
         "company_type",
-        'code'
+        'code',
+        'id_branch',
+        'id_branch_ima'
 
     ];
     public function location_partner(){

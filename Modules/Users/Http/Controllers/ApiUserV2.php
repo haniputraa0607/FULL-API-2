@@ -627,4 +627,37 @@ class ApiUserV2 extends Controller
             ]
         ]);
     }
+
+    function phoneCheckEmployee(Request $request)
+    {
+        $phone = $request->json('phone');
+
+        $phoneOld = $phone;
+        $phone = preg_replace("/[^0-9]/", "", $phone);
+
+        $checkPhoneFormat = MyHelper::phoneCheckFormat($phone);
+
+        if (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'fail') {
+            return response()->json([
+                'status' => 'fail',
+                'messages' => $checkPhoneFormat['messages']
+            ]);
+        } elseif (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'success') {
+            $phone = $checkPhoneFormat['phone'];
+        }
+
+        $data = User::select('*',\DB::raw('0 as challenge_key'))->where('phone', '=', $phone)->get()->toArray();
+
+        if($data){
+            $result['challenge_key'] = $data[0]['challenge_key'];
+            return response()->json([
+                'status' => 'success',
+                'result' => $result
+            ]);
+        }else{
+            return response()->json([
+                'status' => 'fail',
+                'messages' => ['Akun tidak ditemukan']]);
+        }
+    }
 }

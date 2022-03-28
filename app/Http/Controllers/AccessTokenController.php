@@ -43,6 +43,10 @@ class AccessTokenController extends PassportAccessTokenController
                             if($request->getParsedBody()['scope'] == 'be' && strtolower($user->level) == 'customer'){
                                 return response()->json(['status' => 'fail', 'messages' => "You don't have access in this app"]);
                             }
+
+                            if($request->getParsedBody()['scope'] == 'employee-apps' && empty($user->id_job_level) && empty($user->id_department)){
+                                return response()->json(['status' => 'fail', 'messages' => "You don't have access in this app"]);
+                            }
                         }else{
                             return response()->json(['status' => 'fail', 'messages' => 'Incompleted input']);
                         }

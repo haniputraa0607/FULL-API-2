@@ -184,3 +184,11 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent', 'scope
         Route::post('delete', ['middleware' => 'feature_control:337', 'uses' => 'ApiRoleController@destroy']);
     });
 });
+
+Route::group(['middleware' => ['auth_client', 'scopes:employee-apps'], 'prefix' => 'api/employee', 'namespace' => 'Modules\Users\Http\Controllers'], function()
+{
+    Route::post('phone/check', 'ApiUserV2@phoneCheckEmployee');
+    Route::post('pin/forgot', 'ApiUserV2@forgotPin');
+    Route::post('pin/change', 'ApiUserV2@changePin')->middleware(['decrypt_pin:pin_new','decrypt_pin:pin_old']);
+    Route::post('pin/verify', 'ApiUser@verifyPin')->middleware('decrypt_pin');
+});

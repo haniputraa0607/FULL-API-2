@@ -204,6 +204,7 @@ class ApiDepartment extends Controller
                 if($setting['value'] != 'finished'){
                     return ['status' => 'fail', 'messages' => ['Cant sync now, because sync is in progress']]; 
                 }
+                $update_setting = Setting::where('key', 'Sync Department Icount')->update(['value' => 'start']);
             }else{
                 $create_setting = Setting::updateOrCreate(['key' => 'Sync Department Icount'],['value' => 'start']);
             }

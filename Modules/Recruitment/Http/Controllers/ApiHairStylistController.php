@@ -320,6 +320,9 @@ class ApiHairStylistController extends Controller
                         if($row['subject'] == 'level'){
                             $data->where('user_hair_stylist.level', $row['operator']);
                         }
+                        if($row['subject'] == 'outlet'){
+                            $data->where('user_hair_stylist.id_outlet', $row['operator']);
+                        }
                     }
                 }
             }else{
@@ -364,6 +367,9 @@ class ApiHairStylistController extends Controller
 
                             if($row['subject'] == 'level'){
                                 $subquery->orWhere('level', $row['operator']);
+                            }
+                            if($row['subject'] == 'outlet'){
+                             $subquery->orWhere('user_hair_stylist.id_outlet', $row['operator']);
                             }
                         }
                     }

@@ -3890,4 +3890,17 @@ class ApiOutletController extends Controller
 
 		return $res;
     }
+    public function outlet(Request $request)
+    {
+        $outlet = Outlet::where(array('outlet_status'=>"Active"))->select('id_outlet','outlet_name','outlet_code')->get();
+        $array = array();
+        foreach ($outlet as $value) {
+            $array[] = array(
+                'id_outlet'=>$value['id_outlet'],
+                'outlet_name'=>$value['outlet_name'].' - '.$value['outlet_code'],
+            );
+        }
+             return response()->json(MyHelper::checkGet($array));
+       
+    }
 }

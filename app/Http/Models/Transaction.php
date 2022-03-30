@@ -446,6 +446,86 @@ class Transaction extends Model
      * Called when payment completed
      * @return [type] [description]
      */
+    public function triggerPaymentCompletedFromCancelled($data = [])
+    {
+        \DB::beginTransaction();
+        // check complete allowed
+        if ($this->transaction_payment_status == 'Pending' || $this->transaction_payment_status == 'Completed') {
+            return false;
+        }
+
+        $this->update([
+            'transaction_payment_status' => 'Completed',
+            'completed_at' => date('Y-m-d H:i:s'),
+            'void_date' => null
+        ]);
+
+        // trigger payment complete -> service
+        switch ($this->transaction_from) {
+            case 'outlet-service':
+                $this->transaction_outlet_service->triggerPaymentCompleted($data);
+                break;
+
+            case 'home-service':
+                $this->transaction_home_service->triggerPaymentCompleted($data);
+                break;
+
+            case 'shop':
+                $this->transaction_shop->triggerPaymentCompleted($data);
+                break;
+
+            case 'academy':
+                $this->transaction_academy->triggerPaymentCompleted($data);
+                if ($this->transaction_academy->amount_not_completed == 0) {
+                    $this->update([
+                        'transaction_payment_status' => 'Completed',
+                        'completed_at' => date('Y-m-d H:i:s')
+                    ]);
+                }
+                break;
+        }
+
+        // check fraud
+        if ($this->user) {
+            $this->user->update([
+                'count_transaction_day' => $this->user->count_transaction_day + 1,
+                'count_transaction_week' => $this->user->count_transaction_week + 1,
+            ]);
+
+            $config_fraud_use_queue = Configs::where('config_name', 'fraud use queue')->value('is_active');
+
+            if($config_fraud_use_queue == 1){
+                FraudJob::dispatch($this->user, $this, 'transaction')->onConnection('fraudqueue');
+            }else {
+                $checkFraud = app('\Modules\SettingFraud\Http\Controllers\ApiFraud')->checkFraudTrxOnline($this->user, $this);
+            }
+        }
+
+        $trx = clone $this;
+        app('\Modules\Transaction\Http\Controllers\ApiPromoTransaction')->applyPromoNewTrx($trx);
+
+        // send notification
+        $mid = [
+            'order_id'     => $trx->transaction_receipt_number,
+            'gross_amount' => $trx->transaction_multiple_payment->where('type', '<>', 'Balance')->sum(),
+        ];
+        $trx->load('outlet');
+        $trx->load('productTransaction');
+
+        $trx->productTransaction->each(function($transaction_product,$index){
+            $transaction_product->breakdown();
+        });
+
+        app('\Modules\Transaction\Http\Controllers\ApiNotification')->notification($mid, $trx);
+
+        \DB::commit();
+        return true;
+    }
+
+    /**
+     * Called when payment completed
+     * @return [type] [description]
+     */
     public function triggerPaymentCancelled($data = [])
     {
     	\DB::beginTransaction();

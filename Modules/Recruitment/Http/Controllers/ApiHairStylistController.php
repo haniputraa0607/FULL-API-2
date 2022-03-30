@@ -10,6 +10,7 @@ use App\Lib\MyHelper;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
+use Modules\BusinessDevelopment\Entities\Location;
 use Modules\ProductService\Entities\ProductHairstylistCategory;
 use Modules\Recruitment\Entities\HairstylistCategory;
 use Modules\Recruitment\Entities\UserHairStylist;
@@ -26,6 +27,8 @@ use Modules\Recruitment\Entities\UserHairStylistExperience;
 use Modules\Transaction\Entities\TransactionHomeService;
 use Modules\Transaction\Entities\TransactionProductService;
 use App\Http\Models\Transaction;
+use File;
+use Storage;
 
 class ApiHairStylistController extends Controller
 {
@@ -320,6 +323,9 @@ class ApiHairStylistController extends Controller
                         if($row['subject'] == 'level'){
                             $data->where('user_hair_stylist.level', $row['operator']);
                         }
+                        if($row['subject'] == 'outlet'){
+                            $data->where('user_hair_stylist.id_outlet', $row['operator']);
+                        }
                     }
                 }
             }else{
@@ -365,6 +371,9 @@ class ApiHairStylistController extends Controller
                             if($row['subject'] == 'level'){
                                 $subquery->orWhere('level', $row['operator']);
                             }
+                            if($row['subject'] == 'outlet'){
+                             $subquery->orWhere('user_hair_stylist.id_outlet', $row['operator']);
+                            }
                         }
                     }
                 });
@@ -396,6 +405,7 @@ class ApiHairStylistController extends Controller
                         ->first();
 
             if ($detail) {
+                $detail['file_contract'] = (empty($detail['file_contract'])? '' : config('url.storage_url_api').$detail['file_contract']);
             	$detail['today_shift'] = app($this->mitra)->getTodayShift($detail->id_user_hair_stylist);
             	$detail['shift_box'] = app('Modules\Recruitment\Http\Controllers\ApiMitraOutletService')->shiftBox($detail->id_outlet);
                 if(isset($detail['experiences']) && !empty(isset($detail['experiences']))){
@@ -538,16 +548,59 @@ class ApiHairStylistController extends Controller
                 $data['user_hair_stylist_photo'] = $post['user_hair_stylist_photo']??null;
                 $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update($data);
 
-                $autocrm = app($this->autocrm)->SendAutoCRM(
-                    'Approve Candidate Hair Stylist',
-                    $dtHs['phone_number'],
-                    [
-                        'fullname' => $dtHs['fullname'],
-                        'phone_number' => $dtHs['phone_number'],
-                        'email' => $dtHs['email'],
-                        'pin_hair_stylist' => $pin
-                    ], null, false, false, 'hairstylist'
-                );
+                if($update){
+                    $dtHs = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->first();
+                    $outlet = Outlet::where('id_outlet', $data['id_outlet'])->with('location_outlet')->first();
+                    $outletName = $outlet['outlet_name']??'';
+                    $companyType = $outlet['location_outlet']['company_type']??'';
+                    $companyType = str_replace('PT ', '', $companyType);
+                    $number = UserHairStylist::whereYear('join_date', date('Y'))->count();
+
+                    $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor('template_contract_hs.docx');
+                    $templateProcessor->setValue('number', $number);
+                    $templateProcessor->setValue('company_type', $companyType);
+                    $templateProcessor->setValue('roman_month', MyHelper::numberToRomanRepresentation(date('n')));
+                    $templateProcessor->setValue('current_year', date('Y'));
+                    $templateProcessor->setValue('current_date', MyHelper::dateFormatInd(date('Y-m-d'), true, false));
+                    $templateProcessor->setValue('name', $dtHs['fullname']);
+                    $templateProcessor->setValue('gender', $dtHs['gender']);
+                    $templateProcessor->setValue('birthplace', $dtHs['birthplace']);
+                    $templateProcessor->setValue('birthdate', MyHelper::dateFormatInd($dtHs['birthdate'], true, false));
+                    $templateProcessor->setValue('recent_address', $dtHs['recent_address']);
+                    $templateProcessor->setValue('id_card_number', (empty($dtHs['id_card_number']) ? '':$dtHs['id_card_number']));
+                    $templateProcessor->setValue('join_date', MyHelper::dateFormatInd($dtHs['join_date'], true, false));
+                    $templateProcessor->setValue('outlet_name', $outletName);
+
+
+                    if(!File::exists(public_path().'/hs_contract')){
+                        File::makeDirectory(public_path().'/hs_contract');
+                    }
+                    $directory = 'hs_contract/hs_'.$data['user_hair_stylist_code'].'.docx';
+                    $templateProcessor->saveAs($directory);
+
+                    if(config('configs.STORAGE') != 'local'){
+                        $contents = File::get(public_path().'/'.$directory);
+                        $store = Storage::disk(config('configs.STORAGE'))->put($directory,$contents, 'public');
+                        if($store){
+                            File::delete(public_path().'/'.$directory);
+                        }
+                    }
+
+                    if($templateProcessor){
+                        UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update(['file_contract' => $directory]);
+                    }
+
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Approve Candidate Hair Stylist',
+                        $dtHs['phone_number'],
+                        [
+                            'fullname' => $dtHs['fullname'],
+                            'phone_number' => $dtHs['phone_number'],
+                            'email' => $dtHs['email'],
+                            'pin_hair_stylist' => $pin
+                        ], null, false, false, 'hairstylist'
+                    );
+                }
 
             }else{
                 $check = UserHairStylist::where('nickname', $post['nickname'])->whereNotIn('id_user_hair_stylist', [$post['id_user_hair_stylist']])->first();

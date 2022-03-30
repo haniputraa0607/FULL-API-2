@@ -1060,11 +1060,11 @@ class ApiTransactionOutletService extends Controller
 		];
 
 		$brand = [
-			'id_brand' => $detail['outlet']['brands'][0]['id_brand'],
-			'brand_code' => $detail['outlet']['brands'][0]['code_brand'],
-			'brand_name' => $detail['outlet']['brands'][0]['name_brand'],
-			'brand_logo' => $detail['outlet']['brands'][0]['logo_brand'],
-            'brand_logo_landscape' => $detail['outlet']['brands'][0]['logo_landscape_brand']
+			'id_brand' => $detail['outlet']['brands'][0]['id_brand']??null,
+			'brand_code' => $detail['outlet']['brands'][0]['code_brand']??null,
+			'brand_name' => $detail['outlet']['brands'][0]['name_brand']??null,
+			'brand_logo' => $detail['outlet']['brands'][0]['logo_brand']??null,
+            'brand_logo_landscape' => $detail['outlet']['brands'][0]['logo_landscape_brand']??null
 		];
 
 		$products = [];
@@ -1166,7 +1166,7 @@ class ApiTransactionOutletService extends Controller
 			'reject_at' => $detail['reject_at'],
 			'reject_reason' => $detail['reject_reason'],
 			'customer_name' => $detail['transaction_outlet_service']['customer_name'],
-			'color' => $detail['outlet']['brands'][0]['color_brand'],
+			'color' => $detail['outlet']['brands'][0]['color_brand']??null,
 			'status' => $status,
 			'transaction_payment_status' => $detail['transaction_payment_status'],
 			'payment_method' => $paymentMethod,

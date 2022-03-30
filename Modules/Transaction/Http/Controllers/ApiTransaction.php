@@ -6996,7 +6996,7 @@ class ApiTransaction extends Controller
             }
 
             $status = app('Modules\Xendit\Http\Controllers\XenditController')->checkStatus($dtXendit['xendit_id'], $dtXendit['type']);
-            if($status && ($status['status'] == 'COMPLETED' || $status['status'] == 'PAID')){
+            if($status && ($status['status'] == 'COMPLETED' || $status['status'] == 'PAID' || $status['status'] == 'SETTLED')){
                 $statusCompleted = true;
             }
         }

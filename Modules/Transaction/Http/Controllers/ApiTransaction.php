@@ -92,6 +92,7 @@ use Modules\BusinessDevelopment\Entities\Partner;
 use App\Lib\MyHelper;
 use App\Lib\GoSend;
 use App\Lib\Midtrans;
+use Modules\Xendit\Entities\TransactionPaymentXendit;
 use Validator;
 use Hash;
 use DB;
@@ -6940,5 +6941,71 @@ class ApiTransaction extends Controller
         }
 
         return response()->json(['status' => 'success', 'result' => $res]);
+    }
+
+    public function completePaymentFindingTrx(Request $request){
+        $post = $request->json()->all();
+
+        if(empty($post['transaction_receipt_number'])){
+            return response()->json(['status' => 'fail', 'messages' => ['Receipt number can not be empty']]);
+        }
+
+        $detail = Transaction::where('transaction_receipt_number', $post['transaction_receipt_number'])
+                    ->where('transaction_payment_status', 'Cancelled')->whereNotIn('trasaction_payment_type', ['Cash'])->first();
+
+        if($detail){
+            if($detail['trasaction_payment_type'] == 'Midtrans'){
+                $payment = TransactionPaymentMidtran::where('id_transaction', $detail['id_transaction'])->first();
+                $detail['payment_method'] = $payment['payment_type']??'';
+                $detail['id_payment'] = $detail['transaction_receipt_number']??'';
+            }elseif($detail['trasaction_payment_type'] == 'Xendit'){
+                $payment = TransactionPaymentXendit::where('id_transaction', $detail['id_transaction'])->first();
+                $detail['payment_method'] = $payment['type']??'';
+                $detail['id_payment'] = $payment['xendit_id']??'';
+            }
+            $detail['grandtotal'] = number_format($detail['transaction_grandtotal'],0,",",".");
+        }
+
+        return response()->json(MyHelper::checkGet($detail));
+    }
+
+    public function completedPayment(Request $request){
+        $post = $request->json()->all();
+
+        if(empty($post['transaction_receipt_number'])){
+            return response()->json(['status' => 'fail', 'messages' => ['Receipt number can not be empty']]);
+        }
+
+        $trx = Transaction::where('transaction_receipt_number', $post['transaction_receipt_number'])->where('transaction_payment_status', 'Cancelled')->first();
+
+        if(empty($trx)){
+            return response()->json(['status' => 'fail', 'messages' => ['Transaction '.$post['transaction_receipt_number'].' not found']]);
+        }
+
+        $statusCompleted = false;
+        if($trx['trasaction_payment_type'] == 'Midtrans'){
+            $midtransStatus = Midtrans::status($trx['id_transaction']);
+
+            if(!empty($midtransStatus['status_code']) && $midtransStatus['status_code'] == 200) {
+                $statusCompleted = true;
+            }
+        }elseif($trx['trasaction_payment_type'] == 'Xendit'){
+            $dtXendit = TransactionPaymentXendit::where('id_transaction', $trx['id_transaction'])->first();
+            if(empty($dtXendit['xendit_id'])){
+                $dtXendit['xendit_id'] = $post['id_payment'];
+            }
+
+            $status = app('Modules\Xendit\Http\Controllers\XenditController')->checkStatus($dtXendit['xendit_id'], $dtXendit['type']);
+            if($status && ($status['status'] == 'COMPLETED' || $status['status'] == 'PAID')){
+                $statusCompleted = true;
+            }
+        }
+
+        if($statusCompleted){
+            $completed = $trx->triggerPaymentCompletedFromCancelled();
+            return response()->json(MyHelper::checkUpdate($completed));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Can not update transaction '.$post['transaction_receipt_number']]]);
+        }
     }
 }

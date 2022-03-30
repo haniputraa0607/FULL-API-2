@@ -72,6 +72,8 @@ use Modules\Product\Entities\ProductCommissionDefault;
 use Modules\Product\Http\Requests\product\Commission;
 use App\Jobs\SyncIcountItems;
 use Modules\Product\Entities\ProductCatalogDetail;
+use Modules\Product\Entities\UnitIcount;
+use Modules\Product\Entities\UnitIcountConversion;
 
 class ApiProductController extends Controller
 {
@@ -3204,6 +3206,7 @@ class ApiProductController extends Controller
                 if($setting['value'] != 'finished'){
                     return ['status' => 'fail', 'messages' => ['Cant sync now, because sync is in progress']]; 
                 }
+                $update_setting = Setting::where('key', 'Sync Product Icount')->update(['value' => 'start']);
             }else{
                 $create_setting = Setting::updateOrCreate(['key' => 'Sync Product Icount'],['value' => 'start']);
             }
@@ -3445,5 +3448,93 @@ class ApiProductController extends Controller
         }
           $result = ['status' => 'fail', 'messages' => ['failed to delete data']];
         return response()->json($result);
+    }
+
+    public function unitDetailIcount(Request $request){
+        $post = $request->all();
+        if(isset($post['id_product_icount']) && !empty($post['id_product_icount'])){
+            $units = UnitIcount::with(['conversion'])->where('id_product_icount',$post['id_product_icount'])->get()->toArray();
+            return response()->json(['status' => 'success', 'result' => $units]);
+        }else{
+            return response()->json([
+				'status'   => 'fail',
+				'messages' => ['Incompleted Data']
+    		]);
+        }
+    }
+
+    public function saveUnitDetailIcount(Request $request){
+        $post = $request->all();
+        if(isset($post) && !empty($post)){
+            foreach($post['conversion'] as $unit => $value){
+                $save_unit = UnitIcount::updateOrCreate(['id_product_icount' => $post['id_product_icount'], 'unit' => $unit],[]);
+                if($save_unit){
+                    $conversion = $this->saveUnitDetailIcountConversion($save_unit['id_unit_icount'],$value);
+                    if(!$conversion){
+                        return response()->json([
+                            'status'   => 'fail',
+                            'messages' => ['Incompleted Data']
+                        ]);
+                    }
+                }
+            }
+            return response()->json([
+                'status'   => 'success',
+            ]);
+        }else{
+            return response()->json([
+				'status'   => 'fail',
+				'messages' => ['Incompleted Data']
+    		]);
+        }
+    }
+
+    public function saveNewUnit(Request $request){
+        $post = $request->all();
+        $save_unit = UnitIcount::updateOrCreate(['id_product_icount' => $post['id_product_icount'], 'unit' => $post['unit']],[]);
+        if($save_unit){
+            return response()->json([
+                'status'   => 'success',
+            ]);
+        }else{
+            return response()->json([
+				'status'   => 'fail',
+				'messages' => ['Incompleted Data']
+    		]);
+        }
+
+    }
+    
+    public function saveUnitDetailIcountConversion($id,$values){
+        $post = $values;
+        if(isset($post) && !empty($post)){
+            $table = new UnitIcountConversion;
+            $col = 'id_unit_icount';
+    
+            $delete = $table::where($col, $id)->delete();
+    
+            $data = [];
+    
+            foreach ($values as $value) {
+                if(isset($value['qty_conversion']) && isset($value['unit_conversion'])){
+                    $push =  [
+                        $col 	=> $id,
+                        'qty_conversion'  => $value['qty_conversion'],
+                        'unit_conversion'  => $value['unit_conversion'],
+                    ];
+                    array_push($data, $push);
+                }
+            }
+    
+            if (!empty($data)) {
+                $save = $table::insert($data);
+                return true;
+            } else {
+                return false;
+            }
+            return true;
+        }else{
+            return false;
+        }
     }
 }

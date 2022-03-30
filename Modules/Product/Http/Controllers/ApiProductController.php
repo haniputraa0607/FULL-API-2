@@ -3358,6 +3358,17 @@ class ApiProductController extends Controller
 
         $product = $product->toArray();
 
+        foreach($product as $key => $p){
+            if(isset($p['unit_icount'])){
+                $unit_while = [];
+                foreach($p['unit_icount'] as $unit){
+                    $unit_while[] = $unit['unit'];
+                }
+                $unit_while = implode(",",$unit_while);
+                $product[$key]['units'] = $unit_while;
+            }
+        }
+
         if(isset($post['catalog'])){
             $catalog = ProductCatalogDetail::where('id_product_catalog',$post['catalog'])->get()->toArray();
             $new_product = [];

@@ -14,7 +14,7 @@ use Modules\Product\Entities\ProductIcount;
 use App\Lib\Icount;
 use Storage;
 use DB;
-
+use Modules\Product\Entities\UnitIcount;
 
 class SyncIcountItems implements ShouldQueue
 {
@@ -63,11 +63,31 @@ class SyncIcountItems implements ShouldQueue
                         $update = ProductIcount::where('id_item','=',$item['id_item'])->where('company_type', $company)->update($item);
                         if(!$update){
                             return ['status' => 'fail', 'messages' => ['Failed to sync with ICount']];    
+                        }else{
+                            if(isset($item['unit1'])){
+                                $unit1 = UnitIcount::updateOrCreate(['id_product_icount' => $check_item['id_product_icount'], 'unit' => $item['unit1']],[]);
+                            }
+                            if(isset($item['unit2'])){
+                                $unit2 = UnitIcount::updateOrCreate(['id_product_icount' => $check_item['id_product_icount'], 'unit' => $item['unit2']],[]);
+                            }
+                            if(isset($item['unit3'])){
+                                $unit3 = UnitIcount::updateOrCreate(['id_product_icount' => $check_item['id_product_icount'], 'unit' => $item['unit3']],[]);
+                            }
                         }
                     }else{
                         $store = ProductIcount::create($item);
                         if(!$store){
                             return ['status' => 'fail', 'messages' => ['Failed to sync with ICount']];    
+                        }else{
+                            if(isset($item['unit1'])){
+                                $unit1 = UnitIcount::updateOrCreate(['id_product_icount' => $store['id_product_icount'], 'unit' => $item['unit1']],[]);
+                            }
+                            if(isset($item['unit2'])){
+                                $unit2 = UnitIcount::updateOrCreate(['id_product_icount' => $store['id_product_icount'], 'unit' => $item['unit2']],[]);
+                            }
+                            if(isset($item['unit3'])){
+                                $unit3 = UnitIcount::updateOrCreate(['id_product_icount' => $store['id_product_icount'], 'unit' => $item['unit3']],[]);
+                            }
                         }
                     }
                     $index++;

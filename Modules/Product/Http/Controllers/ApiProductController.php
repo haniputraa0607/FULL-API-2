@@ -3260,7 +3260,7 @@ class ApiProductController extends Controller
             }elseif(isset($post['product_setting_type']) && $post['product_setting_type'] == 'outlet_product_detail'){
                 $product = ProductIcount::with(['category', 'discount', 'product_detail']);
             }else{
-                $product = ProductIcount::select()->where('is_actived', 'true');
+                $product = ProductIcount::with(['unit_icount'])->where('is_actived', 'true');
             }
 		}
 
@@ -3466,11 +3466,13 @@ class ApiProductController extends Controller
     public function saveUnitDetailIcount(Request $request){
         $post = $request->all();
         if(isset($post) && !empty($post)){
+            DB::beginTransaction();
             foreach($post['conversion'] as $unit => $value){
                 $save_unit = UnitIcount::updateOrCreate(['id_product_icount' => $post['id_product_icount'], 'unit' => $unit],[]);
                 if($save_unit){
                     $conversion = $this->saveUnitDetailIcountConversion($save_unit['id_unit_icount'],$value);
                     if(!$conversion){
+                        DB::rollback();
                         return response()->json([
                             'status'   => 'fail',
                             'messages' => ['Incompleted Data']
@@ -3478,6 +3480,7 @@ class ApiProductController extends Controller
                     }
                 }
             }
+            DB::commit();
             return response()->json([
                 'status'   => 'success',
             ]);
@@ -3507,6 +3510,7 @@ class ApiProductController extends Controller
     
     public function saveUnitDetailIcountConversion($id,$values){
         $post = $values;
+        unset($post['id_product_icount']);
         if(isset($post) && !empty($post)){
             $table = new UnitIcountConversion;
             $col = 'id_unit_icount';
@@ -3514,8 +3518,7 @@ class ApiProductController extends Controller
             $delete = $table::where($col, $id)->delete();
     
             $data = [];
-    
-            foreach ($values as $value) {
+            foreach ($post as $value) {
                 if(isset($value['qty_conversion']) && isset($value['unit_conversion'])){
                     $push =  [
                         $col 	=> $id,
@@ -3532,9 +3535,7 @@ class ApiProductController extends Controller
             } else {
                 return false;
             }
-            return true;
-        }else{
-            return false;
         }
+        return true;
     }
 }

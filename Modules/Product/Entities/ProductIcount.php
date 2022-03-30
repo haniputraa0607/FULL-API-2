@@ -56,6 +56,10 @@ class ProductIcount extends Model
         return $this->hasMany(ProductIcountOutletStock::class, 'id_product_icount');
     }
 
+    function unit_icount() {
+        return $this->hasMany(UnitIcount::class, 'id_product_icount');
+    }
+
     public function addLogStockProductIcount($qty, $unit, $source, $id_refrence = null, $desctiption = null, $id_outlet = null){
 
         $id_product_icount = $this->id_product_icount;

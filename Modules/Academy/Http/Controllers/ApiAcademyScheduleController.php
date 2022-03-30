@@ -469,6 +469,7 @@ class ApiAcademyScheduleController extends Controller
             $detailSchedule = TransactionAcademySchedule::where('id_transaction_academy_schedule', $post['id_transaction_academy_schedule'])->first();
 
             if(!empty($detailSchedule)){
+                $detailSchedule['last_meeting'] = TransactionAcademySchedule::where('id_transaction_academy', $detailSchedule['id_transaction_academy'])->orderBy('meeting', 'desc')->first()['meeting']??null;
                 $trx = Transaction::join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
                     ->join('transaction_academy', 'transaction_academy.id_transaction', 'transactions.id_transaction')
                     ->where('id_transaction_academy', $detailSchedule['id_transaction_academy'])->first();

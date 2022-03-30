@@ -84,6 +84,7 @@ class ApiChartOfAccountController extends Controller
                 if($setting['value'] != 'finished'){
                     return ['status' => 'fail', 'messages' => ['Cant sync now, because sync is in progress']]; 
                 }
+                $update_setting = Setting::where('key', 'Sync Chart Icount')->update(['value' => 'start']);
             }else{
                 $create_setting = Setting::updateOrCreate(['key' => 'Sync Chart Icount'],['value' => 'start']);
             }

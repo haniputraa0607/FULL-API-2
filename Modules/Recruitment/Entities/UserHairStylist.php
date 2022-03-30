@@ -46,6 +46,7 @@ class UserHairStylist extends Authenticatable
         'email',
         'phone_number',
         'fullname',
+        'id_card_number',
         'password',
         'level',
         'gender',
@@ -77,7 +78,8 @@ class UserHairStylist extends Authenticatable
         'otp_request_status',
         'otp_valid_time',
         'otp_available_time_request',
-        'otp_increment'
+        'otp_increment',
+        'file_contract'
 	];
 
     public function getChallengeKeyAttribute()

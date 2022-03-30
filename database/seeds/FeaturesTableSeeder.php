@@ -4415,6 +4415,56 @@ class FeaturesTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00'),
                 ),
+            441 =>
+                array (
+                    'id_feature' => 442,
+                    'feature_type' => 'List',
+                    'feature_module' => 'Employee',
+                    'show_hide' => 1,
+                    'order' => 157,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            442 =>
+                array (
+                    'id_feature' => 443,
+                    'feature_type' => 'Detail',
+                    'feature_module' => 'Employee',
+                    'show_hide' => 1,
+                    'order' => 157,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            443 =>
+                array (
+                    'id_feature' => 444,
+                    'feature_type' => 'Create',
+                    'feature_module' => 'Employee',
+                    'show_hide' => 1,
+                    'order' => 157,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            444 =>
+                array (
+                    'id_feature' => 445,
+                    'feature_type' => 'Update',
+                    'feature_module' => 'Employee',
+                    'show_hide' => 1,
+                    'order' => 157,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            445 =>
+                array (
+                    'id_feature' => 446,
+                    'feature_type' => 'Delete',
+                    'feature_module' => 'Employee',
+                    'show_hide' => 1,
+                    'order' => 157,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
         );
 
         foreach ($rows as $row) {

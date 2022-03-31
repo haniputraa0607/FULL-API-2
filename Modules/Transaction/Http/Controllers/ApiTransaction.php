@@ -6957,7 +6957,7 @@ class ApiTransaction extends Controller
             if($detail['trasaction_payment_type'] == 'Midtrans'){
                 $payment = TransactionPaymentMidtran::where('id_transaction', $detail['id_transaction'])->first();
                 $detail['payment_method'] = $payment['payment_type']??'';
-                $detail['id_payment'] = $payment['vt_transaction_id']??'';
+                $detail['id_payment'] = $payment['vt_transaction_id']??$detail['transaction_receipt_number']??'';
             }elseif($detail['trasaction_payment_type'] == 'Xendit'){
                 $payment = TransactionPaymentXendit::where('id_transaction', $detail['id_transaction'])->first();
                 $detail['payment_method'] = $payment['type']??'';
@@ -6996,7 +6996,7 @@ class ApiTransaction extends Controller
             }
 
             $status = app('Modules\Xendit\Http\Controllers\XenditController')->checkStatus($dtXendit['xendit_id'], $dtXendit['type']);
-            if($status && ($status['status'] == 'COMPLETED' || $status['status'] == 'PAID')){
+            if($status && ($status['status'] == 'COMPLETED' || $status['status'] == 'PAID' || $status['status'] == 'SETTLED')){
                 $statusCompleted = true;
             }
         }

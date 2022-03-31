@@ -21,4 +21,12 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('update', 'ApiEmployeeController@officeHoursUpdate');
         Route::post('delete', 'ApiEmployeeController@officeHoursDelete');
     });
+
+    Route::group(['prefix' => 'assign-office-hours'], function(){
+        Route::get('/', 'ApiEmployeeController@assignOfficeHoursList');
+        Route::post('create', 'ApiEmployeeController@assignOfficeHoursCreate');
+        Route::post('detail', 'ApiEmployeeController@assignOfficeHoursDetail');
+        Route::post('update', 'ApiEmployeeController@assignOfficeHoursUpdate');
+        Route::post('delete', 'ApiEmployeeController@assignOfficeHoursDelete');
+    });
 });

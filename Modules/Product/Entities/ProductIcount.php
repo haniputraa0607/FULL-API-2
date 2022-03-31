@@ -115,8 +115,9 @@ class ProductIcount extends Model
 
         $id_product_icount = $this->id_product_icount;
         if (!$unit) {
-            $unit = $this->unit1;
+            $unit = $this->unit_icount[0]['unit'];
         }
+
         $product_uses = ProductProductIcount::join('product_icounts','product_icounts.id_product_icount','product_product_icounts.id_product_icount')->where('product_product_icounts.id_product_icount', $id_product_icount)->where('product_product_icounts.unit', $unit)->where('product_icounts.company_type', $this->company_type)->get()->toArray();
 
         if($product_uses){

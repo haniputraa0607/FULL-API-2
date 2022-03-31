@@ -6957,7 +6957,7 @@ class ApiTransaction extends Controller
             if($detail['trasaction_payment_type'] == 'Midtrans'){
                 $payment = TransactionPaymentMidtran::where('id_transaction', $detail['id_transaction'])->first();
                 $detail['payment_method'] = $payment['payment_type']??'';
-                $detail['id_payment'] = $payment['vt_transaction_id']??'';
+                $detail['id_payment'] = $payment['vt_transaction_id']??$detail['transaction_receipt_number']??'';
             }elseif($detail['trasaction_payment_type'] == 'Xendit'){
                 $payment = TransactionPaymentXendit::where('id_transaction', $detail['id_transaction'])->first();
                 $detail['payment_method'] = $payment['type']??'';

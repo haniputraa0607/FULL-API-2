@@ -97,6 +97,9 @@ class ApiOutletController extends Controller
         if (isset($post['outlet_code'])) {
             $data['outlet_code'] = strtoupper($post['outlet_code']);
         }
+        if (isset($post['type'])) {
+            $data['type'] = $post['type'] == 'Office' ? 'Office' : 'Outlet';
+        }
         if (isset($post['outlet_name'])) {
             $data['outlet_name'] = $post['outlet_name'];
         }
@@ -719,6 +722,12 @@ class ApiOutletController extends Controller
             $outlet->whereHas('brands',function($query){
                 $query->where('brand_active','1');
             });
+        }
+
+        if($post['office_only'] ?? false){
+            $outlet->where('type', 'Office');
+        } else {
+            $outlet->where('type', 'Outlet');
         }
 
         // qrcode
@@ -1909,6 +1918,9 @@ class ApiOutletController extends Controller
         $post = $request->json()->all();
 
         $holiday = Holiday::with(['outlets', 'date_holidays']);
+        $holiday->whereHas('outlets', function ($query) use ($request) {
+            $query->where('type', $request->office_only ? 'Office' : 'Outlet');
+        });
         if (isset($post['id_holiday'])) {
             $holiday->where('id_holiday', $post['id_holiday']);
         }
@@ -2580,8 +2592,9 @@ class ApiOutletController extends Controller
 
         $insertShift = [];
         OutletTimeShift::where('id_outlet', $post['id_outlet'])->delete();
-        foreach ($post['data_shift'] as $dt_shift){
+        foreach ($post['data_shift'] ?? [] as $dt_shift){
             foreach ($dt_shift as $shift){
+                if (!($shift['start'] ?? false) || !($shift['end'] ?? false)) continue;
                 if(date('H:i', strtotime($shift['start'])) == '00:00' ||
                     date('H:i', strtotime($shift['end'])) == '00:00' || empty($shift['id_outlet_schedule'])){
                     continue;

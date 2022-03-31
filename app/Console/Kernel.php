@@ -235,7 +235,7 @@ class Kernel extends ConsoleKernel
          * Check Hair Style Schedule
          * run every 00:10 AM
          */
-        $schedule->call('Modules\Recruitment\Http\Controllers\ApiHairStylistScheduleController@checkScheduleHS')->dailyAt('00:10');
+        $schedule->call('Modules\Recruitment\Http\Controllers\ApiHairStylistScheduleController@checkScheduleHS')->monthlyOn('1', '00:10');
         
         $schedule->call('Modules\Recruitment\Http\Controllers\ApiIncome@cron_middle')->monthlyOn(Config::get('app.income_date_middle'),'00:01');
         $schedule->call('Modules\Recruitment\Http\Controllers\ApiIncome@cron_end')->monthlyOn(Config::get('app.income_date_end'),'00:01');

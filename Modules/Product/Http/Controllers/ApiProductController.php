@@ -3522,31 +3522,30 @@ class ApiProductController extends Controller
     public function saveUnitDetailIcountConversion($id,$values){
         $post = $values;
         unset($post['id_product_icount']);
+        DB::beginTransaction();
         if(isset($post) && !empty($post)){
             $table = new UnitIcountConversion;
             $col = 'id_unit_icount';
-    
-            $delete = $table::where($col, $id)->delete();
     
             $data = [];
             foreach ($post as $value) {
                 if(isset($value['qty_conversion']) && isset($value['unit_conversion'])){
                     $push =  [
                         $col 	=> $id,
-                        'qty_conversion'  => $value['qty_conversion'],
                         'unit_conversion'  => $value['unit_conversion'],
                     ];
-                    array_push($data, $push);
+                    $val = [
+                        'qty_conversion'  => $value['qty_conversion'],
+                    ];
+                    $save = $table::updateOrCreate($push,$val);
+                    if(!$save){
+                        DB::rollback();
+                        return false;
+                    }
                 }
             }
-    
-            if (!empty($data)) {
-                $save = $table::insert($data);
-                return true;
-            } else {
-                return false;
-            }
         }
+        DB::commit();
         return true;
     }
 }

@@ -15,6 +15,7 @@ use App\Lib\Icount;
 use Storage;
 use DB;
 use Modules\Product\Entities\UnitIcount;
+use Modules\Product\Entities\UnitIcountConversion;
 
 class SyncIcountItems implements ShouldQueue
 {
@@ -69,9 +70,15 @@ class SyncIcountItems implements ShouldQueue
                             }
                             if(isset($item['unit2'])){
                                 $unit2 = UnitIcount::updateOrCreate(['id_product_icount' => $check_item['id_product_icount'], 'unit' => $item['unit2']],[]);
+                                if(isset($item['ratio2']) && $unit2){
+                                    $unit2_conv = UnitIcountConversion::updateOrCreate(['id_unit_icount'=> $unit2['id_unit_icount'], 'unit_conversion' => $item['unit1']],['qty_conversion' => $item['ratio2']]);
+                                }
                             }
                             if(isset($item['unit3'])){
                                 $unit3 = UnitIcount::updateOrCreate(['id_product_icount' => $check_item['id_product_icount'], 'unit' => $item['unit3']],[]);
+                                if(isset($item['ratio3']) && $unit3){
+                                    $unit3_conv = UnitIcountConversion::updateOrCreate(['id_unit_icount'=> $unit3['id_unit_icount'], 'unit_conversion' => $item['unit1']],['qty_conversion' => $item['ratio3']]);
+                                }
                             }
                         }
                     }else{
@@ -84,9 +91,15 @@ class SyncIcountItems implements ShouldQueue
                             }
                             if(isset($item['unit2'])){
                                 $unit2 = UnitIcount::updateOrCreate(['id_product_icount' => $store['id_product_icount'], 'unit' => $item['unit2']],[]);
+                                if(isset($item['ratio2']) && $unit2){
+                                    $unit2_conv = UnitIcountConversion::updateOrCreate(['id_unit_icount'=> $unit2['id_unit_icount'], 'unit_conversion' => $item['unit1']],['qty_conversion' => $item['ratio2']]);
+                                }
                             }
                             if(isset($item['unit3'])){
                                 $unit3 = UnitIcount::updateOrCreate(['id_product_icount' => $store['id_product_icount'], 'unit' => $item['unit3']],[]);
+                                if(isset($item['ratio3']) && $unit3){
+                                    $unit3_conv = UnitIcountConversion::updateOrCreate(['id_unit_icount'=> $unit3['id_unit_icount'], 'unit_conversion' => $item['unit1']],['qty_conversion' => $item['ratio3']]);
+                                }
                             }
                         }
                     }

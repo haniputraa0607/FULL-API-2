@@ -2620,7 +2620,7 @@ class FeaturesTableSeeder extends Seeder
                 'id_feature' => 261,
                 'feature_type' => 'List',
                 'feature_module' => 'Outlet Pin',
-                'show_hide' => 1,
+                'show_hide' => 0,
                 'order' => 8,
                 'created_at' => '2018-05-10 08:00:00',
                 'updated_at' => '2018-05-10 08:00:00',

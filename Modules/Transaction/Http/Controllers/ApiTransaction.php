@@ -6957,7 +6957,7 @@ class ApiTransaction extends Controller
             if($detail['trasaction_payment_type'] == 'Midtrans'){
                 $payment = TransactionPaymentMidtran::where('id_transaction', $detail['id_transaction'])->first();
                 $detail['payment_method'] = $payment['payment_type']??'';
-                $detail['id_payment'] = $detail['transaction_receipt_number']??'';
+                $detail['id_payment'] = $payment['vt_transaction_id']??$detail['transaction_receipt_number']??'';
             }elseif($detail['trasaction_payment_type'] == 'Xendit'){
                 $payment = TransactionPaymentXendit::where('id_transaction', $detail['id_transaction'])->first();
                 $detail['payment_method'] = $payment['type']??'';
@@ -6996,7 +6996,7 @@ class ApiTransaction extends Controller
             }
 
             $status = app('Modules\Xendit\Http\Controllers\XenditController')->checkStatus($dtXendit['xendit_id'], $dtXendit['type']);
-            if($status && ($status['status'] == 'COMPLETED' || $status['status'] == 'PAID')){
+            if($status && ($status['status'] == 'COMPLETED' || $status['status'] == 'PAID' || $status['status'] == 'SETTLED')){
                 $statusCompleted = true;
             }
         }
@@ -7005,7 +7005,7 @@ class ApiTransaction extends Controller
             $completed = $trx->triggerPaymentCompletedFromCancelled();
             return response()->json(MyHelper::checkUpdate($completed));
         }else{
-            return response()->json(['status' => 'fail', 'messages' => ['Can not update transaction '.$post['transaction_receipt_number']]]);
+            return response()->json(['status' => 'fail', 'messages' => ['Update Failed! Transactions with receipt number '.$post['transaction_receipt_number'].' are not paid by the customer']]);
         }
     }
 }

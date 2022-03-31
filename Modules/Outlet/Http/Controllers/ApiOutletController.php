@@ -721,6 +721,12 @@ class ApiOutletController extends Controller
             });
         }
 
+        if($post['office_only'] ?? false){
+            $outlet->where('type', 'Office');
+        } else {
+            $outlet->where('type', 'Outlet');
+        }
+
         // qrcode
         if (isset($post['qrcode'])){
             if(isset($post['qrcode_paginate'])){
@@ -1909,6 +1915,9 @@ class ApiOutletController extends Controller
         $post = $request->json()->all();
 
         $holiday = Holiday::with(['outlets', 'date_holidays']);
+        $holiday->whereHas('outlets', function ($query) use ($request) {
+            $query->where('type', $request->office_only ? 'Office' : 'Outlet');
+        });
         if (isset($post['id_holiday'])) {
             $holiday->where('id_holiday', $post['id_holiday']);
         }

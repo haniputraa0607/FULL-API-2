@@ -191,7 +191,7 @@ class ApiSettingTransactionV2 extends Controller
                 }
 
                 if ($outlet_tax) {
-                    $productPrice['product_tax'] = round($outlet_tax * $productPrice['product_price'] / 110);
+                    $productPrice['product_tax'] = round($outlet_tax * $productPrice['product_price'] / (100 + $outlet_tax));
                     // $productPrice['product_price'] = $productPrice['product_price'] - $productPrice['product_tax'];
                 }
 
@@ -277,7 +277,7 @@ class ApiSettingTransactionV2 extends Controller
                     }
 
                     if ($outlet_tax) {
-                        $service['product_tax'] = round($outlet_tax * $service['product_price'] / 110);
+                        $service['product_tax'] = round($outlet_tax * $service['product_price'] / (100 + $outlet_tax));
                         // $service['product_price'] = $service['product_price'] - $service['product_tax'];
                     }
 
@@ -324,7 +324,7 @@ class ApiSettingTransactionV2 extends Controller
                 }
 
                 if ($outlet_tax) {
-                    $academy['product_tax'] = round($outlet_tax * $academy['product_price'] / 110);
+                    $academy['product_tax'] = round($outlet_tax * $academy['product_price'] / (100 + $outlet_tax));
                     // $academy['product_price'] = $academy['product_price'] - $academy['product_tax'];
                 }
 
@@ -485,7 +485,7 @@ class ApiSettingTransactionV2 extends Controller
             }
 
             if ($outlet['is_tax']) {
-                $productPrice['product_tax'] = round($outlet['is_tax'] * $productPrice['product_price'] / 110);
+                $productPrice['product_tax'] = round($outlet['is_tax'] * $productPrice['product_price'] / (100 + $outlet['is_tax']));
                 // $productPrice['product_price'] = $productPrice['product_price'] - $productPrice['product_tax'];
             }
 

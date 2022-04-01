@@ -9,6 +9,8 @@ use Modules\Employee\Entities\EmployeeOfficeHour;
 use Modules\Employee\Entities\EmployeeOfficeHourAssign;
 use Modules\Employee\Entities\EmployeeOfficeHourShift;
 use App\Lib\MyHelper;
+use App\Http\Models\Setting;
+use Modules\Users\Entities\Role;
 
 class ApiEmployeeController extends Controller
 {
@@ -28,25 +30,40 @@ class ApiEmployeeController extends Controller
 
         $create = EmployeeOfficeHour::create($data);
 
-        if($create && $post['office_hour_type'] == 'Use Shift'){
-            $insertShift = [];
-            foreach ($post['shift'] as $data){
-                $insertShift[] = [
-                    'id_employee_office_hour' => $create['id_employee_office_hour'],
-                    'shift_name' => $data['name'],
-                    'shift_start' => date('H:i:s', strtotime($data['start'])),
-                    'shift_end'  => date('H:i:s', strtotime($data['end'])),
-                    'created_at' => date('Y-m-d H:i:s'),
-                    'updated_at' => date('Y-m-d H:i:s')
-                ];
+        if($create){
+            if($post['office_hour_type'] == 'Use Shift'){
+                $insertShift = [];
+                foreach ($post['shift'] as $data){
+                    $insertShift[] = [
+                        'id_employee_office_hour' => $create['id_employee_office_hour'],
+                        'shift_name' => $data['name'],
+                        'shift_start' => date('H:i:s', strtotime($data['start'])),
+                        'shift_end'  => date('H:i:s', strtotime($data['end'])),
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s')
+                    ];
+                }
+
+                if(!empty($insertShift)){
+                    EmployeeOfficeHourShift::insert($insertShift);
+                }
             }
 
-            if(!empty($insertShift)){
-                EmployeeOfficeHourShift::insert($insertShift);
+            if(!empty($post['employee_office_hour_default'])){
+                $default = $create['id_employee_office_hour'];
+            }else{
+                $default = null;
             }
+
+            $create = Setting::updateOrCreate(['key' => 'employee_office_hour_default'], ['value' => $default]);
         }
 
         return response()->json(MyHelper::checkCreate($create));
+    }
+
+    public function officeHoursDefault(){
+        $value = Setting::where('key', 'employee_office_hour_default')->first()['value']??NULL;
+        return response()->json(MyHelper::checkGet($value));
     }
 
     public function officeHoursList(){
@@ -60,6 +77,9 @@ class ApiEmployeeController extends Controller
         if(!empty($post['id_employee_office_hour'])){
             $detail = EmployeeOfficeHour::where('id_employee_office_hour', $post['id_employee_office_hour'])->with('office_hour_shift')->first();
 
+            if($detail){
+                $detail['employee_office_hour_default'] = Setting::where('key', 'employee_office_hour_default')->first()['value']??NULL;
+            }
             return response()->json(MyHelper::checkGet($detail));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
@@ -87,22 +107,33 @@ class ApiEmployeeController extends Controller
         $update = EmployeeOfficeHour::where('id_employee_office_hour', $post['id_employee_office_hour'])->update($data);
 
         EmployeeOfficeHourShift::where('id_employee_office_hour', $post['id_employee_office_hour'])->delete();
-        if($update && $post['office_hour_type'] == 'Use Shift'){
-            $insertShift = [];
-            foreach ($post['shift'] as $data){
-                $insertShift[] = [
-                    'id_employee_office_hour' => $post['id_employee_office_hour'],
-                    'shift_name' => $data['name'],
-                    'shift_start' => date('H:i:s', strtotime($data['start'])),
-                    'shift_end'  => date('H:i:s', strtotime($data['end'])),
-                    'created_at' => date('Y-m-d H:i:s'),
-                    'updated_at' => date('Y-m-d H:i:s')
-                ];
+        if($update){
+
+            if($post['office_hour_type'] == 'Use Shift'){
+                $insertShift = [];
+                foreach ($post['shift'] as $data){
+                    $insertShift[] = [
+                        'id_employee_office_hour' => $post['id_employee_office_hour'],
+                        'shift_name' => $data['name'],
+                        'shift_start' => date('H:i:s', strtotime($data['start'])),
+                        'shift_end'  => date('H:i:s', strtotime($data['end'])),
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s')
+                    ];
+                }
+
+                if(!empty($insertShift)){
+                    EmployeeOfficeHourShift::insert($insertShift);
+                }
             }
 
-            if(!empty($insertShift)){
-                EmployeeOfficeHourShift::insert($insertShift);
+            if(!empty($post['employee_office_hour_default'])){
+                $default = $post['id_employee_office_hour'];
+            }else{
+                $default = null;
             }
+
+            $update = Setting::updateOrCreate(['key' => 'employee_office_hour_default'], ['value' => $default]);
         }
 
         return response()->json(MyHelper::checkUpdate($update));
@@ -130,56 +161,21 @@ class ApiEmployeeController extends Controller
         }
     }
 
-    public function assignOfficeHoursCreate(Request $request){
+    public function officeHoursAssign(Request $request){
         $post = $request->all();
-        $post['created_by'] = $request->user()->id;
-        $create = EmployeeOfficeHourAssign::create($post);
-        return response()->json(MyHelper::checkCreate($create));
-    }
 
-    public function assignOfficeHoursList(Request $request){
-        $res = EmployeeOfficeHourAssign::join('departments', 'departments.id_department', 'employee_office_hour_assign.id_department')
-                ->join('job_levels', 'job_levels.id_job_level', 'employee_office_hour_assign.id_job_level')
-                ->join('employee_office_hours', 'employee_office_hours.id_employee_office_hour', 'employee_office_hour_assign.id_employee_office_hour')
-                ->leftJoin('users as admin_create', 'admin_create.id', 'employee_office_hour_assign.created_by')
-                ->leftJoin('users as admin_update', 'admin_update.id', 'employee_office_hour_assign.updated_by')
-                ->select('employee_office_hour_assign.*', 'departments.department_name', 'job_levels.job_level_name', 'employee_office_hours.office_hour_name', 'employee_office_hours.office_hour_type',
-                    'admin_create.name as admin_create_name', 'admin_update.name as admin_update_name')
-                ->get()->toArray();
-        return response()->json(MyHelper::checkGet($res));
-    }
+        if(empty($post)){
+            $role =  Role::select('id_role', 'role_name', 'id_employee_office_hour')->get()->toArray();
+            return response()->json(MyHelper::checkGet($role));
+        }else{
+            if(empty($post['data'])){
+                return response()->json(['status' => 'fail', 'messages' => ['Data can not be empty']]);
+            }
 
-    public function assignOfficeHoursDetail(Request $request){
-        $res = EmployeeOfficeHourAssign::join('departments', 'departments.id_department', 'employee_office_hour_assign.id_department')
-            ->join('job_levels', 'job_levels.id_job_level', 'employee_office_hour_assign.id_job_level')
-            ->join('employee_office_hours', 'employee_office_hours.id_employee_office_hour', 'employee_office_hour_assign.id_employee_office_hour')
-            ->leftJoin('users as admin_create', 'admin_create.id', 'employee_office_hour_assign.created_by')
-            ->leftJoin('users as admin_update', 'admin_update.id', 'employee_office_hour_assign.updated_by')
-            ->select('employee_office_hour_assign.*', 'departments.department_name', 'job_levels.job_level_name', 'employee_office_hours.office_hour_name', 'employee_office_hours.office_hour_type',
-                'admin_create.name as admin_create_name', 'admin_update.name as admin_update_name')
-            ->first();
-        return response()->json(MyHelper::checkGet($res));
-    }
-
-    public function assignOfficeHoursUpdate(Request $request){
-        $post = $request->all();
-        if(empty($post['id_employee_office_hour_assign'])){
-            return response()->json(['status'   => 'fail', 'messages' => ['ID can not be empty']]);
+            foreach ($post['data'] as $val){
+                Role::where('id_role', $val['id_role'])->update(['id_employee_office_hour' => ($val['id_employee_office_hour'] == 'default' ? NULL: $val['id_employee_office_hour'])]);
+            }
+            return response()->json(['status' => 'success']);
         }
-
-        $post['updated_by'] = $request->user()->id;
-        $update = EmployeeOfficeHourAssign::where('id_employee_office_hour_assign', $post['id_employee_office_hour_assign'])->update($post);
-        return response()->json(MyHelper::checkUpdate($update));
-    }
-
-
-    public function assignOfficeHoursDelete(Request $request){
-        $post = $request->all();
-        if(empty($post['id_employee_office_hour_assign'])){
-            return response()->json(['status'   => 'fail', 'messages' => ['ID can not be empty']]);
-        }
-
-        $delete = EmployeeOfficeHourAssign::where('id_employee_office_hour_assign', $post['id_employee_office_hour_assign'])->delete();
-        return response()->json(MyHelper::checkDelete($delete));
     }
 }

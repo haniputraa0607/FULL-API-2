@@ -16,6 +16,12 @@ use Modules\Users\Entities\Role;
 
 class ApiRoleController extends Controller
 {
+    public function listAll()
+    {
+        $list = Role::get()->toArray();
+        return response()->json(MyHelper::checkGet($list));
+    }
+
     /**
      * Display a listing of the resource.
      * @return Response

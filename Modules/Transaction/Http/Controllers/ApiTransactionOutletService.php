@@ -356,7 +356,7 @@ class ApiTransactionOutletService extends Controller
                 }
             }
         }
-        \Log::info($result);
+
         return MyHelper::checkGet($result);
     }
 

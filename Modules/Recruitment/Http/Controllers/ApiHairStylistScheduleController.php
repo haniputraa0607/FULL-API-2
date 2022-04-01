@@ -496,65 +496,63 @@ class ApiHairStylistScheduleController extends Controller
             $this_date = date('Y-m-d');
             $this_date = explode('-',$this_date);
 
-            if($this_date[2]=='01'){
-                $data_hs = UserHairStylist::join('outlets', 'outlets.id_outlet', 'user_hair_stylist.id_outlet')->get()->toArray();
-                if($data_hs){
-                    foreach ($data_hs as $key => $hs) {
-                        $sch = HairstylistSchedule::where('id_user_hair_stylist', $hs['id_user_hair_stylist'])->where('schedule_month', $this_date[1])->where('schedule_year', $this_date[0])->first();
+            $data_hs = UserHairStylist::join('outlets', 'outlets.id_outlet', 'user_hair_stylist.id_outlet')->get()->toArray();
+            if($data_hs){
+                foreach ($data_hs as $key => $hs) {
+                    $sch = HairstylistSchedule::where('id_user_hair_stylist', $hs['id_user_hair_stylist'])->where('schedule_month', $this_date[1])->where('schedule_year', $this_date[0])->first();
 
-                        if(!$sch){
-                            $sch_before = HairstylistSchedule::where('id_user_hair_stylist', $hs['id_user_hair_stylist'])->where('schedule_month', $this_date[1]-1)->where('schedule_year', $this_date[0])->first();
-                            if($sch_before){
-                                
-                                $check = HairstylistScheduleDate::where('id_hairstylist_schedule',$sch_before['id_hairstylist_schedule'])->whereMonth('date', $this_date[1])->get()->toArray();
+                    if(!$sch){
+                        $sch_before = HairstylistSchedule::where('id_user_hair_stylist', $hs['id_user_hair_stylist'])->where('schedule_month', $this_date[1]-1)->where('schedule_year', $this_date[0])->first();
+                        if($sch_before){
+                            
+                            $check = HairstylistScheduleDate::where('id_hairstylist_schedule',$sch_before['id_hairstylist_schedule'])->whereMonth('date', $this_date[1])->get()->toArray();
 
-                                if(!$check){
-                                    $month_before = $this_date[1]-1;
-            
-                                    $schedule_before =  HairstylistScheduleDate::where('id_hairstylist_schedule',$sch_before['id_hairstylist_schedule'])->whereMonth('date', $month_before)->get()->toArray();
+                            if(!$check){
+                                $month_before = $this_date[1]-1;
+        
+                                $schedule_before =  HairstylistScheduleDate::where('id_hairstylist_schedule',$sch_before['id_hairstylist_schedule'])->whereMonth('date', $month_before)->get()->toArray();
 
-                                    if($schedule_before){
-                                        $schedule_month = $sch_before['schedule_month'] + 1;
-                                        if($schedule_month > 12 ){
-                                            $schedule_month = $schedule_month - 12;
-                                            $schedule_year = $sch_before['schedule_year'] + 1;
-                                        }else{
-                                            $schedule_year = $sch_before['schedule_year'];
-                                        }
-            
-                                        $array_hs = [
-                                            "id_user_hair_stylist" => $hs['id_user_hair_stylist'],
-                                            "id_outlet" => $hs['id_outlet'],
-                                            "approve_by" => $sch_before['approve_by'],
-                                            "last_updated_by" => $sch_before['last_updated_by'],
-                                            "schedule_month" => $schedule_month,
-                                            "schedule_year" => $schedule_year,
-                                            "request_at" => date('Y-m-d H:i:s'), 
-                                            "approve_at" => date('Y-m-d H:i:s'),
-                                            "reject_at" => NULL
-                                        ];
-
-                                        DB::beginTransaction();
-                                        $create_schedule = HairstylistSchedule::create($array_hs);
-                                        if($create_schedule){
-                                            $new_schedule = array_map(function($new) use($this_date,$create_schedule){
-                                                $date = explode('-',$new['date']);
-                                                $date[1] = $this_date[1];
-                                                $date = implode('-',$date);
-                                                $new['date'] = $date;
-                                                $new['created_at'] = date('Y-m-d H:i:s');
-                                                $new['updated_at'] = date('Y-m-d H:i:s');
-                                                $new['id_hairstylist_schedule'] = $create_schedule['id_hairstylist_schedule'];
-                                                unset($new['id_hairstylist_schedule_date']);
-                                                return $new;
-                                            },$schedule_before);
-            
-                                            $create_schedule_date = HairstylistScheduleDate::insert($new_schedule);
-                                        }else{
-                                            DB::rollback();
-                                        }
-                                        DB::commit();
+                                if($schedule_before){
+                                    $schedule_month = $sch_before['schedule_month'] + 1;
+                                    if($schedule_month > 12 ){
+                                        $schedule_month = $schedule_month - 12;
+                                        $schedule_year = $sch_before['schedule_year'] + 1;
+                                    }else{
+                                        $schedule_year = $sch_before['schedule_year'];
                                     }
+        
+                                    $array_hs = [
+                                        "id_user_hair_stylist" => $hs['id_user_hair_stylist'],
+                                        "id_outlet" => $hs['id_outlet'],
+                                        "approve_by" => $sch_before['approve_by'],
+                                        "last_updated_by" => $sch_before['last_updated_by'],
+                                        "schedule_month" => $schedule_month,
+                                        "schedule_year" => $schedule_year,
+                                        "request_at" => date('Y-m-d H:i:s'), 
+                                        "approve_at" => date('Y-m-d H:i:s'),
+                                        "reject_at" => NULL
+                                    ];
+
+                                    DB::beginTransaction();
+                                    $create_schedule = HairstylistSchedule::create($array_hs);
+                                    if($create_schedule){
+                                        $new_schedule = array_map(function($new) use($this_date,$create_schedule){
+                                            $date = explode('-',$new['date']);
+                                            $date[1] = $this_date[1];
+                                            $date = implode('-',$date);
+                                            $new['date'] = $date;
+                                            $new['created_at'] = date('Y-m-d H:i:s');
+                                            $new['updated_at'] = date('Y-m-d H:i:s');
+                                            $new['id_hairstylist_schedule'] = $create_schedule['id_hairstylist_schedule'];
+                                            unset($new['id_hairstylist_schedule_date']);
+                                            return $new;
+                                        },$schedule_before);
+        
+                                        $create_schedule_date = HairstylistScheduleDate::insert($new_schedule);
+                                    }else{
+                                        DB::rollback();
+                                    }
+                                    DB::commit();
                                 }
                             }
                         }

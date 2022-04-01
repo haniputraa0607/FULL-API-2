@@ -115,7 +115,7 @@ class ApiReportPayment extends Controller
             ->join('transaction_academy', 'transaction_academy.id_transaction_academy', 'transaction_academy_installment.id_transaction_academy')
             ->join('transactions', 'transactions.id_transaction', 'transaction_academy.id_transaction')
             ->leftJoin('users', 'users.id', 'transactions.id_user')
-            ->selectRaw("NULL as reject_type, transaction_academy_installment.paid_status as payment_status, payment_type, transaction_academy_installment.id_transaction_academy AS id_report, 'Academy' AS trx_type, transaction_academy_installment.installment_receipt_number AS receipt_number, 'Installment' AS type, transaction_academy_installment_payment_midtrans.created_at, transaction_academy_installment.amount AS grand_total, gross_amount, users.name, users.phone, users.email");
+            ->selectRaw("NULL as reject_type, transaction_academy_installment.paid_status as payment_status, payment_type, transactions.id_transaction AS id_report, 'academy' AS trx_type, transaction_academy_installment.installment_receipt_number AS receipt_number, 'Installment' AS type, transaction_academy_installment_payment_midtrans.created_at, transaction_academy_installment.amount AS grand_total, gross_amount, users.name, users.phone, users.email");
 
         if(isset($post['date_start']) && !empty($post['date_start']) &&
             isset($post['date_end']) && !empty($post['date_end'])){

@@ -2620,7 +2620,7 @@ class FeaturesTableSeeder extends Seeder
                 'id_feature' => 261,
                 'feature_type' => 'List',
                 'feature_module' => 'Outlet Pin',
-                'show_hide' => 1,
+                'show_hide' => 0,
                 'order' => 8,
                 'created_at' => '2018-05-10 08:00:00',
                 'updated_at' => '2018-05-10 08:00:00',
@@ -4462,6 +4462,56 @@ class FeaturesTableSeeder extends Seeder
                     'feature_module' => 'Employee',
                     'show_hide' => 1,
                     'order' => 157,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            446 =>
+                array (
+                    'id_feature' => 447,
+                    'feature_type' => 'List',
+                    'feature_module' => 'Office Branch',
+                    'show_hide' => 1,
+                    'order' => 158,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            447 =>
+                array (
+                    'id_feature' => 448,
+                    'feature_type' => 'Detail',
+                    'feature_module' => 'Office Branch',
+                    'show_hide' => 1,
+                    'order' => 158,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            448 =>
+                array (
+                    'id_feature' => 449,
+                    'feature_type' => 'Create',
+                    'feature_module' => 'Office Branch',
+                    'show_hide' => 1,
+                    'order' => 158,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            449 =>
+                array (
+                    'id_feature' => 450,
+                    'feature_type' => 'Update',
+                    'feature_module' => 'Office Branch',
+                    'show_hide' => 1,
+                    'order' => 158,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            450 =>
+                array (
+                    'id_feature' => 451,
+                    'feature_type' => 'Delete',
+                    'feature_module' => 'Office Branch',
+                    'show_hide' => 1,
+                    'order' => 158,
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00')
                 ),

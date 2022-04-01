@@ -50,7 +50,7 @@ class ApiEmployeeController extends Controller
     }
 
     public function officeHoursList(){
-        $res = EmployeeOfficeHour::get()->toArray();
+        $res = EmployeeOfficeHour::with('office_hour_shift')->get()->toArray();
         return response()->json(MyHelper::checkGet($res));
     }
 

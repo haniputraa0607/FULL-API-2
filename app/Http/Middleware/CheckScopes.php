@@ -49,7 +49,7 @@ class CheckScopes extends AddCustomProvider
             $dataToken = json_decode($request->user()->token());
             $scopeUser = $dataToken->scopes[0];
 
-            if($scope == 'employee-apps' && empty($request->user()->id_job_level) && empty($request->user()->id_department)){
+            if($scope == 'employee-apps' && empty($request->user()->id_role)){
                 return response()->json(['error' => 'Unauthenticated.'], 401);
             }
         }else{

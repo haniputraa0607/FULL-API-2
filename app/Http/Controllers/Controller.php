@@ -39,8 +39,7 @@ class Controller extends BaseController
 			$checkFeature = Role::join('roles_features', 'roles_features.id_role', 'roles.id_role')
 							->join('features', 'features.id_feature', 'roles_features.id_feature')
 							->where([
-								['roles.id_department', $user['id_department']],
-								['roles.id_job_level', $user['id_job_level']],
+								['roles.id_role', $user['id_role']],
 								['features.show_hide', 1]
 							])
 							->select('features.id_feature')->get()->toArray();

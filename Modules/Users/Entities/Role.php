@@ -12,6 +12,7 @@ class Role extends Model
 		'role_name',
 		'id_department',
         'id_job_level',
+        'id_employee_office_hour',
         'created_by',
         'updated_by'
 	];

@@ -95,7 +95,7 @@ class ProductIcount extends Model
             );
 
             if($new_outlet_stock){
-                $this->refreshStock($id_outlet, $unit, $new_outlet_stock);
+                return $this->refreshStock($id_outlet, $unit, $new_outlet_stock);
             }
         }
     }
@@ -217,5 +217,6 @@ class ProductIcount extends Model
                 );
             }
         }
+        return true;
     }
 }

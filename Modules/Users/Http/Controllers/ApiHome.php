@@ -33,6 +33,7 @@ use App\Lib\MyHelper;
 use Modules\Users\Entities\OldMember;
 use Modules\Users\Http\Requests\Home;
 use Modules\Queue\Http\Controllers\ApiQueue;
+use Modules\CustomPage\Entities\CustomPage;
 
 class ApiHome extends Controller
 {
@@ -906,7 +907,8 @@ class ApiHome extends Controller
     	$getSetting = Setting::whereIn('key', ['facebook_url', 'instagram_url'])->get()->keyBy('key');
     	$result = [
     		'facebook' => $getSetting['facebook_url']['value_text'] ?? null,
-    		'instagram' => $getSetting['instagram_url']['value_text'] ?? null
+    		'instagram' => $getSetting['instagram_url']['value_text'] ?? null,
+            'custom_page' => config('url.api_url') . 'api/custom-page/webview/' . (CustomPage::getFeatured()->id),
     	];
     	return MyHelper::checkGet($result);
     }

@@ -98,7 +98,7 @@ class UserHairStylist extends Authenticatable
         if(empty($value)){
             return '';
         }
-        return config('url.storage_url_api') . $value;
+        return config('url.storage_url_api') . $value.'?'.time();
     }
 
 	public function hairstylist_schedules()

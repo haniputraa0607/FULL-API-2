@@ -49,7 +49,7 @@ class CustomPage extends Model
         return $this->hasMany(CustomPageProduct::class, 'id_custom_page', 'id_custom_page');
     }
 
-    public function getFeatured()
+    public static function getFeatured()
     {
         return optional(static::orderBy('id_custom_page')->first());
     }

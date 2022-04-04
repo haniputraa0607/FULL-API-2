@@ -50,12 +50,8 @@ class ApiEmployeeController extends Controller
             }
 
             if(!empty($post['employee_office_hour_default'])){
-                $default = $create['id_employee_office_hour'];
-            }else{
-                $default = null;
+                $create = Setting::updateOrCreate(['key' => 'employee_office_hour_default'], ['value' => $create['id_employee_office_hour']]);
             }
-
-            $create = Setting::updateOrCreate(['key' => 'employee_office_hour_default'], ['value' => $default]);
         }
 
         return response()->json(MyHelper::checkCreate($create));
@@ -127,13 +123,14 @@ class ApiEmployeeController extends Controller
                 }
             }
 
+            $checkSetting = Setting::where('key', 'employee_office_hour_default')->first()['value']??null;
             if(!empty($post['employee_office_hour_default'])){
                 $default = $post['id_employee_office_hour'];
-            }else{
+                $update = Setting::updateOrCreate(['key' => 'employee_office_hour_default'], ['value' => $default]);
+            }elseif(empty($post['employee_office_hour_default']) && $checkSetting == $post['id_employee_office_hour']){
                 $default = null;
+                $update = Setting::updateOrCreate(['key' => 'employee_office_hour_default'], ['value' => $default]);
             }
-
-            $update = Setting::updateOrCreate(['key' => 'employee_office_hour_default'], ['value' => $default]);
         }
 
         return response()->json(MyHelper::checkUpdate($update));

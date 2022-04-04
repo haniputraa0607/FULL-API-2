@@ -908,7 +908,7 @@ class ApiHome extends Controller
     	$result = [
     		'facebook' => $getSetting['facebook_url']['value_text'] ?? null,
     		'instagram' => $getSetting['instagram_url']['value_text'] ?? null,
-            'custom_page' => config('url.api_url') . 'api/custom-page/webview/' . (CustomPage::getFeatured()->id),
+            'custom_page' => config('url.api_url') . 'api/custom-page/webview/' . (CustomPage::getFeatured()->id_custom_page),
     	];
     	return MyHelper::checkGet($result);
     }

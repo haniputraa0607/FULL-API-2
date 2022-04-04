@@ -164,6 +164,8 @@ class FindingHairStylistHomeService implements ShouldQueue
                 ]);
 
                 if($updateStatus){
+                    Transaction::where('id_transaction', $data['id_transaction'])->update(['reject_at' => date('Y-m-d H:i:s')]);
+
                     app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
                         'Home Service Update Status',
                         $trx['user']['phone'],

@@ -771,7 +771,7 @@ class ApiTransactionHomeService extends Controller
         }
 
         $post['sum_time'] = array_sum($arrProccessingTime);
-        $checkHS = $this->checkAvailableHS($post, [], $user, $idHsCategory);
+        $checkHS = $this->checkAvailableHS($post, [], $user, $idHsCategory??null);
         if(!empty($checkHS['error_all'])){
             return response()->json([
                 'status'    => 'fail',

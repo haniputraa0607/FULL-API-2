@@ -3626,7 +3626,7 @@ class ApiPromoCampaign extends Controller
     }
 
 
-    public function addReport($id_promo_campaign, $id_promo_campaign_promo_code, $id_transaction, $id_outlet, $device_id, $device_type)
+    public function addReport($id_promo_campaign, $id_promo_campaign_promo_code, $id_transaction, $id_outlet, $device_id, $device_type, $userName = null, $userPhone = null, $idUser = null)
     {
     	$data = [
     		'id_promo_campaign_promo_code' 	=> $id_promo_campaign_promo_code,
@@ -3635,9 +3635,9 @@ class ApiPromoCampaign extends Controller
     		'id_outlet' 		=> $id_outlet,
     		'device_id' 		=> $device_id,
     		'device_type' 		=> $device_type,
-    		'user_name'			=> Auth()->user()->name,
-    		'user_phone'		=> Auth()->user()->phone,
-    		'id_user' 			=> Auth()->user()->id
+    		'user_name'			=> (empty($userName) ? Auth()->user()->name : $userName),
+    		'user_phone'		=> (empty($userPhone) ? Auth()->user()->phone : $userPhone),
+    		'id_user' 			=> (empty($idUser) ? Auth()->user()->id : $idUser)
     	];
 
     	$insert = PromoCampaignReport::create($data);

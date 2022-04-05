@@ -45,6 +45,9 @@ Route::group(['prefix' => 'partner'], function () {
             Route::post('before/subscription', 'ApiSubscriptionController@listSubscriptionBefore');  
             Route::post('active/subscription', 'ApiSubscriptionController@listSubscriptionActive');  
         });
+        Route::group(['prefix' => 'profit'], function() {
+            Route::post('/', 'ApiProfitController@index');
+        });
     });
      Route::group(['middleware' => ['auth:api', 'scopes:be']], function () {
         Route::group(['prefix' => 'select-list'], function() {

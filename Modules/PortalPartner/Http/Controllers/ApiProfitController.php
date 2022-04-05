@@ -209,7 +209,7 @@ class ApiProfitController extends Controller
                                 'profit_loss' => [
                                     'title' =>  $text_profit,
                                     'amount' => 'Rp. '.number_format($profit??0,0,",","."),
-                                    "tooltip" => 'Total pengeluaran untuk permintaan product',
+                                    "tooltip" => 'Hasil pendapatan outlet',
                                     "show" => 1
                                 ],
                             ];

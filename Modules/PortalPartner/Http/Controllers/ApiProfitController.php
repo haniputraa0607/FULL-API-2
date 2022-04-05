@@ -151,6 +151,11 @@ class ApiProfitController extends Controller
                                 }
                             }
                             $profit = $total_net_sales-$income['incomes']-$total_beban;
+                            if($profit>=0){
+                                $text_profit = "Total Profit";
+                            }else{
+                                $text_profit = "Total Loss";
+                            }
                             $data['month'] = $month;
                             $data['data'] = [
                                 'total_transaction' => [
@@ -202,7 +207,7 @@ class ApiProfitController extends Controller
                                     "show" => 1
                                 ],
                                 'profit_loss' => [
-                                    'title' => 'Profit & Loss',
+                                    'title' =>  $text_profit,
                                     'amount' => 'Rp. '.number_format($profit??0,0,",","."),
                                     "tooltip" => 'Total pengeluaran untuk permintaan product',
                                     "show" => 1

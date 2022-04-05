@@ -41,8 +41,8 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
             ]);
         }
 
-        if($post['year']>=date('Y')){
-            if($post['month']>=date('m')){
+        if($post['year']>=date('Y') || (isset($post['type']) && $post['type'] == 'getDetail')){
+            if($post['month']>=date('m')|| (isset($post['type']) && $post['type'] == 'getDetail')){
                 $schedule = HairstylistSchedule::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->where('schedule_month', $post['month'])->where('schedule_year', $post['year'])->first();
                 if($schedule){
                     $id_schedule = $schedule['id_hairstylist_schedule'];

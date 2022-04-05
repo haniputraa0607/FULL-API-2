@@ -4465,6 +4465,16 @@ class FeaturesTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00')
                 ),
+            446 =>
+                array (
+                    'id_feature' => 447,
+                    'feature_type' => 'Create',
+                    'feature_module' => 'Conversion Stock Logs',
+                    'show_hide' => 1,
+                    'order' => 157,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
         );
 
         foreach ($rows as $row) {

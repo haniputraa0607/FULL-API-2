@@ -33,7 +33,7 @@ use Modules\UserRating\Entities\RatingOption;
 use Modules\UserRating\Entities\UserRatingLog;
 use Modules\UserRating\Entities\UserRatingSummary;
 use App\Http\Models\Transaction;
-
+use Modules\Recruitment\Entities\HairstylistOverTime;
 use Modules\Recruitment\Http\Requests\ScheduleCreateRequest;
 use Modules\Recruitment\Entities\OutletCashAttachment;
 
@@ -512,7 +512,9 @@ class ApiMitra extends Controller
         	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal shift pada hari.";
         	return $status;
         }
-
+        $overtime = HairstylistOverTime::where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+    	->wheredate('date', date('Y-m-d'))
+    	->first();
         $outletShift = OutletTimeShift::where('id_outlet_schedule', $outletSchedule->id_outlet_schedule)
         				->where(function($q) use ($curTime) {
         					$q->where(function($q2) use ($curTime) {
@@ -530,17 +532,54 @@ class ApiMitra extends Controller
         				->where('shift', $mitraSchedule->shift)
         				->first()['shift'] ?? null;
 
-		if (!$outletShift) {
-        	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal shift pada hari dan jam ini.";
-        	return $status;
-        }
+                if($overtime){
+                    
+    		$schedule = HairstylistSchedule::join(
+    			'hairstylist_schedule_dates', 
+    			'hairstylist_schedules.id_hairstylist_schedule', 
+    			'hairstylist_schedule_dates.id_hairstylist_schedule'
+    		)
+    		->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+    		->whereDate('date', date('Y-m-d'))
+    		->first(); 
+                $outlets = Outlet::find($hs->id_outlet);
+                $timezone = $outlets->city->province->time_zone_utc;
+                $dateTime = $dateTime ?? date('Y-m-d H:i:s');
+                $curTime = date('H:i:s', strtotime($dateTime));
+                $day = MyHelper::indonesian_date_v2($dateTime, 'l');
+                $day = str_replace('Jum\'at', 'Jumat', $day);
 
-        if (!$mitraSchedule) {
+                $outletSchedule = OutletSchedule::where('id_outlet', $hs->id_outlet)->where('day', $day)->first();
+                $isHoliday = app('Modules\Outlet\Http\Controllers\ApiOutletController')->isHoliday($hs->id_outlet);
+                $outletShift = OutletTimeShift::where('id_outlet_schedule', $outletSchedule->id_outlet_schedule)->where('shift',$schedule->shift)->first();
+        	if($overtime->time == "after"){
+    			$str = explode(":",$overtime->duration);
+    			$string = "+".(int)$str[0].' hours'.' '.(int)$str[1].' minutes'.' '. (int)$str[2].' seconds';
+    			$start = date('Y-m-d',strtotime($schedule->date))." ".$outletShift->shift_time_end;
+    			$end = date('Y-m-d H:i:s', strtotime($string. $start));
+    			$now = date('Y-m-d H:i:s');
+    			if($start >= $now && $end <= $now){
+    				$status['messages'][] = "Silakan lakukan absensi terlebih dahulu untuk memulai layanan outlet. ";
+                                return $status;
+    			}
+    		}elseif($overtime->time == "before"){
+    			$str = explode(":",$overtime->duration);
+    			$string = "-".(int)$str[0].' hours'.' '.(int)$str[1].' minutes'.' '. (int)$str[2].' seconds';
+    			$end = date('Y-m-d',strtotime($schedule->date))." ".$outletShift->shift_time_start;
+    			$start = date('Y-m-d H:i:s', strtotime($string. $end));
+    			$now = date('Y-m-d H:i:s');
+    			if($start >= $now && $end <= $now){
+    				$status['messages'][] = "Silakan lakukan absensi terlebih dahulu untuk memulai layanan outlet";
+                                return $status;
+    			}
+    		}
+            }elseif (!$outletShift) {
+                $status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal shift pada hari dan jam ini.";
+                return $status;
+            }elseif (!$mitraSchedule) {
         	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal layanan outlet hari ini.";
         	return $status;
-        }
-
-        if ($mitraSchedule->shift != $outletShift) {
+            }elseif ($mitraSchedule->shift != $outletShift) {
         	$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal layanan outlet pada jam ini.";
         	return $status;
         }
@@ -568,7 +607,7 @@ class ApiMitra extends Controller
     	];
 
     	$outletService = $this->outletServiceScheduleStatus($id_user_hair_stylist, $date);
-
+        
     	if ($outletService['is_available']) {
     		$status['messages'][] = "Layanan tidak bisa diaktifkan.\n karena layanan outlet Anda sedang aktif.";
     		$status['is_active'] = 0;

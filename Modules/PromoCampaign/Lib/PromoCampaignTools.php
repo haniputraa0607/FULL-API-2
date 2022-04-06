@@ -1421,7 +1421,10 @@ class PromoCampaignTools{
     {
     	if ($rule == 'New user') 
     	{
-    		$check = Transaction::where('id_user', '=', $id_user)->first();
+    		$check = Transaction::where('id_user', '=', $id_user)
+    			->whereIn('transaction_payment_status', ['Completed', 'Pending'])
+    			->whereNull('reject_at')
+    			->first();
     		if ($check) {
     			return false;
     		}

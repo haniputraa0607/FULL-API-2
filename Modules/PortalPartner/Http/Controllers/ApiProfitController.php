@@ -201,7 +201,7 @@ class ApiProfitController extends Controller
                                     "show" => 1
                                 ],
                                 'request_product' => [
-                                    'title' => 'Pengeluaran Request Product Icount',
+                                    'title' => 'Pengeluaran Purchase Request',
                                     'amount' => 'Rp. '.number_format($total_beban??0,0,",","."),
                                     "tooltip" => 'Total pengeluaran untuk permintaan product',
                                     "show" => 1

@@ -57,6 +57,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
         	Route::post('create', 'ApiHairStylistTimeOffOvertimeController@createTimeOff');
         	Route::post('list-hs', 'ApiHairStylistTimeOffOvertimeController@listHS');
         	Route::post('list-date', 'ApiHairStylistTimeOffOvertimeController@listDate');
+        	Route::post('cek', 'ApiHairStylistTimeOffOvertimeController@checkTimeOffOvertime');
     	});
 
     	Route::group(['prefix' => 'overtime'], function () {

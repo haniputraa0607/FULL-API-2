@@ -9,7 +9,7 @@ class UnitIcountConversion extends Model
     public $table = 'unit_icount_conversions';
     public $primaryKey = 'id_unit_icount_conversion';
     protected $fillable = [
-        'id_unit_icount ',
+        'id_unit_icount',
         'qty_conversion',
         'unit_conversion'
     ];

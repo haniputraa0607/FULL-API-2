@@ -68,6 +68,13 @@ Route::group(['prefix' => 'api/outlet', 'middleware' => ['log_activities', 'auth
         Route::post('delete', ['middleware' => 'feature_control:42', 'uses' =>'ApiOutletController@deleteAdminOutlet']);
     });
 
+    // stock
+    // admin outlet
+    Route::group(['prefix' => 'stock'], function() {
+        Route::post('stock-icount', ['middleware' => 'feature_control:447', 'uses' =>'ApiOutletController@getStockIcount']);
+    });
+
+
     Route::post('import-brand', 'ApiOutletController@importBrand');
     Route::post('import-delivery', 'ApiOutletController@importDelivery');
     Route::any('delivery-outlet-ajax', 'ApiOutletController@deliveryOutletAjax');

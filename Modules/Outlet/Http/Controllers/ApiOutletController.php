@@ -77,6 +77,7 @@ use Modules\PromoCampaign\Lib\PromoCampaignTools;
 use App\Http\Models\Transaction;
 
 use App\Jobs\SendOutletJob;
+use Modules\Product\Entities\UnitIcount;
 
 class ApiOutletController extends Controller
 {
@@ -883,6 +884,30 @@ class ApiOutletController extends Controller
                     if(!$cek){
                         unset($outlet[0]['product_detail'][$key]);
                     }
+                }
+            }
+            if(isset($outlet[0]['product_icount_outlet_stocks'])){
+                foreach($outlet[0]['product_icount_outlet_stocks'] as $key => $icount_stock){
+                    $outlet[0]['product_icount_outlet_stocks'][$key]['conversion'] = [];
+                    $outlet[0]['product_icount_outlet_stocks'][$key]['info_conversion'] = [];
+                    $cek_conversion = UnitIcount::join('unit_icount_conversions', 'unit_icounts.id_unit_icount', '=', 'unit_icount_conversions.id_unit_icount')->where('unit_icounts.id_product_icount',$icount_stock['id_product_icount'])->where('unit_icounts.unit',$icount_stock['unit'])->get()->toArray();
+                    $info = [];
+                    foreach($cek_conversion ?? [] as $c => $conv){
+                        $get_conv =  'multiplication,'.$conv['qty_conversion'].','.$conv['unit_conversion'];
+                        $cek_conversion[$c] = $get_conv;
+                        $info[$c] = '1 '.$icount_stock['unit'].' = '.$conv['qty_conversion'].' '.$conv['unit_conversion'];
+                    }
+                    $cek_conversion_2 = UnitIcount::join('unit_icount_conversions', 'unit_icounts.id_unit_icount', '=', 'unit_icount_conversions.id_unit_icount')->where('unit_icounts.id_product_icount',$icount_stock['id_product_icount'])->where('unit_icount_conversions.unit_conversion',$icount_stock['unit'])->get()->toArray();
+                    $info_2 = [];
+                    foreach($cek_conversion_2 ?? [] as $c => $conv_2){
+                        $get_conv_2 = 'distribution,'.$conv_2['qty_conversion'].','.$conv_2['unit'];
+                        $cek_conversion_2[$c] = $get_conv_2;
+                        $info_2[$c] = $conv_2['qty_conversion'].' '.$icount_stock['unit'].' = 1 '.$conv_2['unit'];
+                    }
+                    $conversion = array_merge($cek_conversion,$cek_conversion_2);
+                    $info_conve = array_merge($info,$info_2);
+                    $outlet[0]['product_icount_outlet_stocks'][$key]['conversion'] = implode(';',$conversion);
+                    $outlet[0]['product_icount_outlet_stocks'][$key]['info_conversion'] = implode(';',$info_conve);
                 }
             }
         }
@@ -3915,5 +3940,47 @@ class ApiOutletController extends Controller
         }
              return response()->json(MyHelper::checkGet($array));
        
+    }
+
+    public function getStockIcount(Request $request){
+        $post = $request->all();
+        $outlet = Outlet::where('outlet_status', 'Active')->where('outlet_code', $post['outlet_code'])->first();
+        if(!empty($outlet)){
+            $stock_1 = ProductIcountOutletStock::where('id_outlet',$outlet['id_outlet'])->where('id_product_icount', $post['id_product_icount'])->where('unit', $post['unit'])->first();
+            if(!empty($stock_1)){
+                if($post['type']=='distribution'){
+                    $stock_2_qty = floor($post['qty'] / $post['conv']);
+                    $post['qty'] = $stock_2_qty * $post['conv'];
+                }else{
+                    $stock_2_qty = $post['qty'] * $post['conv'];
+                }
+                $stock_1_qty = $post['qty_original'] - $post['qty'];
+                $stock_2_add = $stock_2_qty;
+                $stock_2 = ProductIcountOutletStock::where('id_outlet',$outlet['id_outlet'])->where('id_product_icount', $post['id_product_icount'])->where('unit', $post['unit_conversion'])->first();
+                if(!empty($stock_2)){
+                    $stock_2_qty = $stock_2_qty + $stock_2['stock'];
+                }
+                // return [$stock_1_qty,$stock_2_qty,$stock_2_add];
+                DB::beginTransaction();
+                $product_icount = new ProductIcount();
+                $refresh_stock_1 = $product_icount->find($post['id_product_icount'])->addLogStockProductIcount(-$post['qty'],$post['unit'],'Product Unit Conversion',null,null,$outlet['id_outlet']);
+                if(!$refresh_stock_1){
+                    DB::rollBack();
+                    return response()->json(['status' => 'fail' , 'messages' => ['Failed to Update Stock']]);
+                }
+                //refresh stock 1
+                $refresh_stock_2 = $product_icount->find($post['id_product_icount'])->addLogStockProductIcount($stock_2_add,$post['unit_conversion'],'Product Unit Conversion',null,null,$outlet['id_outlet']);
+                if(!$refresh_stock_2){
+                    DB::rollBack();
+                    return response()->json(['status' => 'fail' , 'messages' => ['Failed to Update Stock']]);
+                }
+                DB::commit();
+                return response()->json(['status' => 'success']);
+            }else{
+                return response()->json(['status' => 'fail' , 'messages' => ['Incompleted data']]);
+            }
+        }else{
+            return response()->json(['status' => 'fail' , 'messages' => ['Incompleted data']]);
+        }
     }
 }

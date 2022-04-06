@@ -539,7 +539,7 @@ class ApiPromoTransaction extends Controller
 		$user = request()->user();
 		if ($promo->user_type == 'New user') {
     		$check = Transaction::where('id_user', '=', $user->id)
-    		->where('transaction_payment_status', 'Completed')
+    			->whereIn('transaction_payment_status', ['Completed', 'Pending'])
     			->whereNull('reject_at')
     			->first();
     		if ($check) {

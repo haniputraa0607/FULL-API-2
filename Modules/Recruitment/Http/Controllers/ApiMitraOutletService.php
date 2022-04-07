@@ -922,10 +922,11 @@ class ApiMitraOutletService extends Controller
     public function completeService(Request $request)
     {
     	$user = $request->user();
-    	$service = TransactionProductService::where('id_user_hair_stylist', $user->id_user_hair_stylist)
+    	$service = TransactionProductService::join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+        ->where('transaction_product_services.id_user_hair_stylist', $user->id_user_hair_stylist)
     	->where('id_transaction_product_service', $request->id_transaction_product_service)
     	->first();
-        
+
     	if (!$service) {
     		return [
     			'status' => 'fail',
@@ -948,6 +949,14 @@ class ApiMitraOutletService extends Controller
     			'messages' => ['Box tidak ditemukan']
     		];
     	}
+
+        $outlet = Outlet::with(['location_outlet'])->where('id_outlet', $box->id_outlet)->first();
+		if (!$outlet) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Outlet tidak ditemukan']
+			];
+		}
 
     	DB::beginTransaction();
     	try {
@@ -999,9 +1008,17 @@ class ApiMitraOutletService extends Controller
     		$trx->update(['show_rate_popup' => '1']);
 
             if($request->product_icount_use){
+                //cek 
+                $company_type = $outlet['location_outlet']['company_type'] == 'PT IMA' ? 'ima' : 'ims';
+                $product_icounts = ProductProductIcount::where('company_type', $company_type)->where('id_product', $service['id_product'])->select('id_product_product_icount','id_product_icount','unit','qty','optional')->get()->toArray();
+                $product_product = [];
+                foreach($product_icounts as $p){
+                    $product_product[$p['id_product_icount'].'_'.$p['unit']] = $p;
+                }
                 foreach($request->product_icount_use as $key => $product_use){
+                    $this_qty = $product_use['qty'] - $product_product[$product_use['id_product_icount'].'_'.$product_use['unit']]['qty'];
                     $product_icount = new ProductIcount();
-                    $update_stock = $product_icount->find($product_use['id_product_icount'])->addLogStockProductIcount(-$product_use['qty'],$product_use['unit'],'Transaction Outlet Service',$service['id_transaction_product_service']);
+                    $update_stock = $product_icount->find($product_use['id_product_icount'])->addLogStockProductIcount(-$this_qty,$product_use['unit'],'Transaction Outlet Service',$service['id_transaction_product_service']);
                     if(!$update_stock){
                         DB::rollback();
                     }

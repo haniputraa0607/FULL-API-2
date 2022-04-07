@@ -4469,9 +4469,29 @@ class FeaturesTableSeeder extends Seeder
                 array (
                     'id_feature' => 447,
                     'feature_type' => 'Create',
-                    'feature_module' => 'Conversion Stock Logs',
+                    'feature_module' => 'Conversion Stock',
                     'show_hide' => 1,
                     'order' => 157,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            447 =>
+                array (
+                    'id_feature' => 448,
+                    'feature_type' => 'List',
+                    'feature_module' => 'Report Stock',
+                    'show_hide' => 1,
+                    'order' => 158,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            448 =>
+                array (
+                    'id_feature' => 449,
+                    'feature_type' => 'Detail',
+                    'feature_module' => 'Report Stock',
+                    'show_hide' => 1,
+                    'order' => 158,
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00')
                 ),

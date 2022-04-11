@@ -47,6 +47,7 @@ Route::group(['prefix' => 'api/product','middleware' => ['log_activities','auth:
     Route::post('icount/getUnit', 'ApiProductController@unitDetailIcount');
     Route::post('icount/saveUnit', 'ApiProductController@saveUnitDetailIcount');
     Route::post('icount/saveNewUnit', 'ApiProductController@saveNewUnit');
+    Route::post('icount/report-stock', 'ApiProductController@reportStock');
     Route::post('import', 'ApiProductController@import');
     Route::get('list/price/{id_outlet}', 'ApiProductController@listProductPriceByOutlet');
     Route::get('list/product-detail/{id_outlet}', 'ApiProductController@listProductDetailByOutlet');

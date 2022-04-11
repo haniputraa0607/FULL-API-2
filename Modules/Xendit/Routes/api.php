@@ -18,6 +18,7 @@ Route::group(['prefix'=>'xendit'],function(){
 });
 
 Route::group(['prefix'=>'xendit-account', 'middleware' => ['auth:api', 'log_activities', 'user_agent', 'scopes:be']], function(){
+	Route::get('/', 'XenditAccountController@index');
 	Route::post('detail', 'XenditAccountController@show');
 	Route::post('update', 'XenditAccountController@update');
 });

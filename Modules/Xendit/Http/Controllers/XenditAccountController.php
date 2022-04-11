@@ -36,6 +36,23 @@ class XenditAccountController extends Controller
         return env('XENDIT_' . strtoupper($key));
     }
 
+    public function index(Request $request)
+    {
+        $xenditAccounts = (new XenditAccount)->newQuery();
+
+        if ($request->for_datatable) {
+            $pagination = $xenditAccounts->paginate()->toArray();
+            return [
+                'draw' => $request->draw,
+                'recordsTotal' => $pagination['total'],
+                'recordsFiltered' => $pagination['total'],
+                'data' => $pagination['data'],
+            ];
+        }
+
+        return MyHelper::checkGet($xenditAccounts->get());
+    }
+
     /**
      * Show the specified resource.
      * @param int $id

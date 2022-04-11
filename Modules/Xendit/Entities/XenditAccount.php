@@ -13,7 +13,6 @@ class XenditAccount extends Model
         'email',
         'public_profile',
         'country',
-        'type',
     ];
     protected $casts = [
         'public_profile' => 'array',

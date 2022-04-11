@@ -4468,18 +4468,18 @@ class FeaturesTableSeeder extends Seeder
             446 =>
                 array (
                     'id_feature' => 447,
-                    'feature_type' => 'List',
-                    'feature_module' => 'Office Branch',
+                    'feature_type' => 'Create',
+                    'feature_module' => 'Conversion Stock',
                     'show_hide' => 1,
-                    'order' => 158,
+                    'order' => 157,
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00')
                 ),
             447 =>
                 array (
                     'id_feature' => 448,
-                    'feature_type' => 'Detail',
-                    'feature_module' => 'Office Branch',
+                    'feature_type' => 'List',
+                    'feature_module' => 'Report Stock',
                     'show_hide' => 1,
                     'order' => 158,
                     'created_at' => date('Y-m-d H:00:00'),
@@ -4488,8 +4488,8 @@ class FeaturesTableSeeder extends Seeder
             448 =>
                 array (
                     'id_feature' => 449,
-                    'feature_type' => 'Create',
-                    'feature_module' => 'Office Branch',
+                    'feature_type' => 'Detail',
+                    'feature_module' => 'Report Stock',
                     'show_hide' => 1,
                     'order' => 158,
                     'created_at' => date('Y-m-d H:00:00'),
@@ -4498,6 +4498,56 @@ class FeaturesTableSeeder extends Seeder
             449 =>
                 array (
                     'id_feature' => 450,
+                    'feature_type' => 'List',
+                    'feature_module' => 'Xendit Account',
+                    'show_hide' => 1,
+                    'order' => 159,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            450 =>
+                array (
+                    'id_feature' => 451,
+                    'feature_type' => 'Create',
+                    'feature_module' => 'Xendit Account',
+                    'show_hide' => 1,
+                    'order' => 159,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            451 =>
+                array (
+                    'id_feature' => 452,
+                    'feature_type' => 'List',
+                    'feature_module' => 'Office Branch',
+                    'show_hide' => 1,
+                    'order' => 158,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            452 =>
+                array (
+                    'id_feature' => 453,
+                    'feature_type' => 'Detail',
+                    'feature_module' => 'Office Branch',
+                    'show_hide' => 1,
+                    'order' => 158,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            453 =>
+                array (
+                    'id_feature' => 454,
+                    'feature_type' => 'Create',
+                    'feature_module' => 'Office Branch',
+                    'show_hide' => 1,
+                    'order' => 158,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            454 =>
+                array (
+                    'id_feature' => 455,
                     'feature_type' => 'Update',
                     'feature_module' => 'Office Branch',
                     'show_hide' => 1,
@@ -4505,9 +4555,9 @@ class FeaturesTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00')
                 ),
-            450 =>
+            455 =>
                 array (
-                    'id_feature' => 451,
+                    'id_feature' => 456,
                     'feature_type' => 'Delete',
                     'feature_module' => 'Office Branch',
                     'show_hide' => 1,

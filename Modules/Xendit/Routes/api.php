@@ -16,3 +16,8 @@ use Illuminate\Http\Request;
 Route::group(['prefix'=>'xendit'],function(){
 	Route::post('notif', 'XenditController@notif')->name('notif_xendit');
 });
+
+Route::group(['prefix'=>'xendit-account', 'middleware' => ['auth:api', 'log_activities', 'user_agent', 'scopes:be']], function(){
+	Route::post('detail', 'XenditAccountController@show');
+	Route::post('update', 'XenditAccountController@update');
+});

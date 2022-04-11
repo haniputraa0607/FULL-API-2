@@ -99,6 +99,7 @@ class Outlet extends Authenticatable
         'total_current_cash',
         'total_cash_from_central',
         'type',
+        'id_xendit_account',
 	];
 
 	protected $appends  = ['call', 'url'];
@@ -256,5 +257,10 @@ class Outlet extends Authenticatable
     }
     public function location_outlet(){
         return $this->belongsTo(Location::class, 'id_location');
+    }
+
+    public function xendit_account()
+    {
+    	return $this->belongsTo(\Modules\Xendit\Entities\XenditAccount::class, 'id_xendit_account');
     }
 }

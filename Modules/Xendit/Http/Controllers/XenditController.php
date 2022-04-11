@@ -508,7 +508,7 @@ class XenditController extends Controller
         );
 
         $params = [
-            'for_user_id'  => optional($outlet->xendit_account)->xendit_id,
+            'for-user-id'  => optional($outlet->xendit_account)->xendit_id,
             'external_id'  => (string) $external_id,
             'amount'       => (int) $amount,
             'success_redirect_url' => $redirect_url,

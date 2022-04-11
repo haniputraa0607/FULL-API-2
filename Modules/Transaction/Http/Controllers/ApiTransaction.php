@@ -5468,13 +5468,16 @@ class ApiTransaction extends Controller
                 'outlet_longitude' => $val['outlet']['outlet_longitude']
             ];
 
-            $brand = [
-                'id_brand' => $val['outlet']['brands'][0]['id_brand'],
-                'brand_code' => $val['outlet']['brands'][0]['code_brand'],
-                'brand_name' => $val['outlet']['brands'][0]['name_brand'],
-                'brand_logo' => $val['outlet']['brands'][0]['logo_brand'],
-                'brand_logo_landscape' => $val['outlet']['brands'][0]['logo_landscape_brand']
-            ];
+            $brand = null;
+            if(!empty($val['outlet']['brands'][0])){
+                $brand = [
+                    'id_brand' => $val['outlet']['brands'][0]['id_brand'],
+                    'brand_code' => $val['outlet']['brands'][0]['code_brand'],
+                    'brand_name' => $val['outlet']['brands'][0]['name_brand'],
+                    'brand_logo' => $val['outlet']['brands'][0]['logo_brand'],
+                    'brand_logo_landscape' => $val['outlet']['brands'][0]['logo_landscape_brand']
+                ];
+            }
 
             $orders = [];
             foreach ($val['products'] as $product) {
@@ -5509,7 +5512,7 @@ class ApiTransaction extends Controller
                 'qrcode' => 'https://chart.googleapis.com/chart?chl=' . str_replace('#', '', $val['transaction_receipt_number']) . '&chs=250x250&cht=qr&chld=H%7C0',
                 'transaction_date' => $val['transaction_date'],
                 'customer_name' => $val['transaction_outlet_service']['customer_name'],
-                'color' => $val['outlet']['brands'][0]['color_brand'],
+                'color' => (!empty($val['outlet']['brands'][0]['color_brand']) ? $val['outlet']['brands'][0]['color_brand'] : null),
                 'status' => $status,
                 'cancel_reason' => $cancelReason,
                 'show_rate_popup' => $val['show_rate_popup'],
@@ -5831,7 +5834,7 @@ class ApiTransaction extends Controller
                 'transaction_date' => MyHelper::dateFormatInd($val['transaction_date'], true, false),
                 'transaction_time' => date('H:i', strtotime($val['transaction_date'])),
                 'customer_name' => null,
-                'color' => $val['outlet']['brands'][0]['color_brand'],
+                'color' => (!empty($val['outlet']['brands'][0]['color_brand']) ? $val['outlet']['brands'][0]['color_brand'] : null),
                 'status' => $status,
                 'cancel_reason' => $cancelReason,
                 'home_service_status' => $val['status'],

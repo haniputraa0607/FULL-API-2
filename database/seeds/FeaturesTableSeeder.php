@@ -4495,6 +4495,26 @@ class FeaturesTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00')
                 ),
+            449 =>
+                array (
+                    'id_feature' => 450,
+                    'feature_type' => 'List',
+                    'feature_module' => 'Xendit Account',
+                    'show_hide' => 1,
+                    'order' => 159,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            450 =>
+                array (
+                    'id_feature' => 451,
+                    'feature_type' => 'Create',
+                    'feature_module' => 'Xendit Account',
+                    'show_hide' => 1,
+                    'order' => 159,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
         );
 
         foreach ($rows as $row) {

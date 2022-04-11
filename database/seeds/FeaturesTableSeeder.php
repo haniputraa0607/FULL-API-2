@@ -4515,6 +4515,56 @@ class FeaturesTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:00:00'),
                     'updated_at' => date('Y-m-d H:00:00')
                 ),
+            451 =>
+                array (
+                    'id_feature' => 452,
+                    'feature_type' => 'List',
+                    'feature_module' => 'Office Branch',
+                    'show_hide' => 1,
+                    'order' => 158,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            452 =>
+                array (
+                    'id_feature' => 453,
+                    'feature_type' => 'Detail',
+                    'feature_module' => 'Office Branch',
+                    'show_hide' => 1,
+                    'order' => 158,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            453 =>
+                array (
+                    'id_feature' => 454,
+                    'feature_type' => 'Create',
+                    'feature_module' => 'Office Branch',
+                    'show_hide' => 1,
+                    'order' => 158,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            454 =>
+                array (
+                    'id_feature' => 455,
+                    'feature_type' => 'Update',
+                    'feature_module' => 'Office Branch',
+                    'show_hide' => 1,
+                    'order' => 158,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
+            455 =>
+                array (
+                    'id_feature' => 456,
+                    'feature_type' => 'Delete',
+                    'feature_module' => 'Office Branch',
+                    'show_hide' => 1,
+                    'order' => 158,
+                    'created_at' => date('Y-m-d H:00:00'),
+                    'updated_at' => date('Y-m-d H:00:00')
+                ),
         );
 
         foreach ($rows as $row) {

@@ -97,7 +97,8 @@ class Outlet extends Authenticatable
         'outlet_special_fee',
         'time_zone_utc',
         'total_current_cash',
-        'total_cash_from_central'
+        'total_cash_from_central',
+        'type',
 	];
 
 	protected $appends  = ['call', 'url'];

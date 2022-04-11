@@ -117,7 +117,8 @@ class ApiCronTrxController extends Controller
                     if(!empty($midtransStatus['status_code']) && $midtransStatus['status_code'] == 200){
                         $singleTrx->triggerPaymentCompleted();
                         continue;
-                    }elseif ((($midtransStatus['status'] ?? false) == 'fail' && ($midtransStatus['messages'][0] ?? false) == 'Midtrans payment not found') || in_array(($midtransStatus['response']['transaction_status'] ?? false), ['deny', 'cancel', 'expire', 'failure']) || ($midtransStatus['status_code'] ?? false) == '404') {
+                    }elseif ((($midtransStatus['status'] ?? false) == 'fail' && ($midtransStatus['messages'][0] ?? false) == 'Midtrans payment not found') || in_array(($midtransStatus['response']['transaction_status'] ?? false), ['deny', 'cancel', 'expire', 'failure']) || ($midtransStatus['status_code'] ?? false) == '404' ||
+                        (!empty($midtransStatus['payment_type']) && $midtransStatus['payment_type'] == 'gopay' && $midtransStatus['transaction_status'] == 'pending')) {
                         $connectMidtrans = Midtrans::expire($singleTrx->transaction_receipt_number);
 
                         if(!$connectMidtrans){

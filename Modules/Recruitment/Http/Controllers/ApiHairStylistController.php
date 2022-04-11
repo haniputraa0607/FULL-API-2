@@ -529,6 +529,7 @@ class ApiHairStylistController extends Controller
                     return response()->json(['status' => 'fail', 'messages' => ['Hs not found']]);
                 }
 
+                DB::beginTransaction();
                 //generate code
                 $count = UserHairStylist::whereNotNull('user_hair_stylist_code')->count();
                 $currentYear = substr(date('Y'), -2);
@@ -601,7 +602,7 @@ class ApiHairStylistController extends Controller
                         ], null, false, false, 'hairstylist'
                     );
                 }
-
+                DB::commit();
             }else{
                 $check = UserHairStylist::where('nickname', $post['nickname'])->whereNotIn('id_user_hair_stylist', [$post['id_user_hair_stylist']])->first();
 

@@ -178,6 +178,7 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent', 'scope
     Route::group(['prefix' => 'role'], function()
     {
         Route::any('/', ['middleware' => 'feature_control:333', 'uses' => 'ApiRoleController@index']);
+        Route::get('list-all', ['uses' => 'ApiRoleController@listAll']);
         Route::post('store', ['middleware' => 'feature_control:334', 'uses' => 'ApiRoleController@store']);
         Route::post('edit', ['middleware' => 'feature_control:335,336', 'uses' => 'ApiRoleController@edit']);
         Route::post('update', ['middleware' => 'feature_control:336', 'uses' => 'ApiRoleController@update']);

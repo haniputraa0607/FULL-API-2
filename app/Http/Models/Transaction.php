@@ -10,7 +10,10 @@ namespace App\Http\Models;
 use Illuminate\Database\Eloquent\Model;
 use App\Lib\MyHelper;
 use App\Jobs\FraudJob;
+use Modules\PromoCampaign\Entities\PromoCampaignPromoCode;
+use Modules\PromoCampaign\Entities\UserPromo;
 use Modules\Xendit\Entities\TransactionPaymentXendit;
+use Modules\PromoCampaign\Entities\TransactionPromo;
 
 /**
  * Class Transaction
@@ -502,7 +505,33 @@ class Transaction extends Model
         }
 
         $trx = clone $this;
-        app('\Modules\Transaction\Http\Controllers\ApiPromoTransaction')->applyPromoNewTrx($trx);
+        $checkPromo = TransactionPromo::where('id_transaction', $trx['id_transaction'])->get()->toArray();
+
+        foreach ($checkPromo as $val){
+            if(!empty($val['id_deals_user'])){
+                $idDeals = DealsUser::join('deals_vouchers', 'deals_vouchers.id_deals_voucher', 'deals_users.id_deals_voucher')
+                            ->where('id_deals_user', $val['id_deals_user'])->select('deals_vouchers.id_deals')->first()['id_deals']??null;
+                app('\Modules\Transaction\Http\Controllers\ApiPromoTransaction')->insertUsedVoucher($trx, [
+                   'id_deals_user' => $val['id_deals_user'],
+                   'id_deals' => $idDeals
+                ]);
+            }elseif(!empty($val['id_promo_campaign_promo_code'])){
+                $user = User::where('id', $trx['id_user'])->first();
+                $idPromoCampaignCode = PromoCampaignPromoCode::where('id_promo_campaign_promo_code', $val['id_promo_campaign_promo_code'])->first()['id_promo_campaign']??null;
+                app('\Modules\Transaction\Http\Controllers\ApiPromoTransaction')->insertUsedCode($trx, [
+                    'id_promo_campaign' => $idPromoCampaignCode,
+                    'id_promo_campaign_promo_code' => $val['id_promo_campaign_promo_code'],
+                    'id_user' => $user['id'],
+                    'user_name' => $user['name'],
+                    'user_phone' => $user['phone']
+                ], 1);
+            }
+        }
+
+        if($trx['transaction_from'] == 'outlet-service' || $trx['transaction_from'] == 'shop'){
+            app('\Modules\Transaction\Http\Controllers\ApiOnlineTransaction')->bookHS($trx['id_transaction']);
+            app('\Modules\Transaction\Http\Controllers\ApiOnlineTransaction')->bookProductStock($trx['id_transaction']);
+        }
 
         // send notification
         $mid = [
@@ -596,6 +625,10 @@ class Transaction extends Model
     			$this->transaction_academy->triggerPaymentCancelled($data);
     			break;
     	}
+
+        if($this->transaction_from == 'outlet-service' || $this->transaction_from == 'shop') {
+            app('\Modules\Transaction\Http\Controllers\ApiOnlineTransaction')->cancelBookProductStock($this->id_transaction);
+        }
 
     	// send notification
     	// TODO write notification logic here

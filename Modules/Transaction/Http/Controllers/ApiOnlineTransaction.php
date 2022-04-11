@@ -1403,7 +1403,7 @@ class ApiOnlineTransaction extends Controller
         //     }
 
         //     foreach ($result['item_service'] as $k => $itemService) {
-        //         $itemService['product_tax'] = round($outlet['is_tax'] * $itemService['product_price'] / 110);
+        //         $itemService['product_tax'] = round($outlet['is_tax'] * $itemService['product_price'] / (100 + $outlet['is_tax']));
         //         $itemService['product_price'] = $itemService['product_price'] - $itemService['product_tax'];
         //         $result['item_service'][$k] = $itemService;
         //         $result['subtotal_product_service'] += $itemService['product_price'];
@@ -1411,7 +1411,7 @@ class ApiOnlineTransaction extends Controller
 
         //     foreach ($result['item'] as $k => $item) {
         //         $item['qty'] = $item['qty']?? 1;
-        //         $item['product_tax'] = round($outlet['is_tax'] * $item['product_price'] / 110);
+        //         $item['product_tax'] = round($outlet['is_tax'] * $item['product_price'] / (100 + $outlet['is_tax']));
         //         $item['product_price'] = $item['product_price'] - $item['product_tax'];
         //         $item['product_tax_total'] = $item['product_tax'] * $item['qty'];
         //         $item['product_price_total'] = $item['product_price'] * $item['qty'];;
@@ -1972,7 +1972,7 @@ class ApiOnlineTransaction extends Controller
             }
 
             if ($outlet['is_tax']) {
-                $service['product_tax'] = round($outlet['is_tax'] * $service['product_price'] / 110);
+                $service['product_tax'] = round($outlet['is_tax'] * $service['product_price'] / (100 + $outlet['is_tax']));
                 // $service['product_price'] = $service['product_price'] - $service['product_tax'];
             }
 
@@ -2532,7 +2532,8 @@ class ApiOnlineTransaction extends Controller
                 ];
             case 'midtrans':
                 $midtransStatus = Midtrans::status($trx['id_transaction']);
-                if ((($midtransStatus['status'] ?? false) == 'fail' && ($midtransStatus['messages'][0] ?? false) == 'Midtrans payment not found') || in_array(($midtransStatus['response']['transaction_status'] ?? false), ['deny', 'cancel', 'expire', 'failure']) || ($midtransStatus['status_code'] ?? false) == '404') {
+                if ((($midtransStatus['status'] ?? false) == 'fail' && ($midtransStatus['messages'][0] ?? false) == 'Midtrans payment not found') || in_array(($midtransStatus['response']['transaction_status'] ?? false), ['deny', 'cancel', 'expire', 'failure', 'pending']) || ($midtransStatus['status_code'] ?? false) == '404' ||
+                    (!empty($midtransStatus['payment_type']) && $midtransStatus['payment_type'] == 'gopay' && $midtransStatus['transaction_status'] == 'pending')) {
                     $connectMidtrans = Midtrans::expire($trx['transaction_receipt_number']);
 
                     if($connectMidtrans){

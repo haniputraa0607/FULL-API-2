@@ -1158,6 +1158,15 @@ class ConfigsTableSeeder extends Seeder
                 'created_at' => '2021-09-29 10:57:33',
                 'updated_at' => '2021-09-29 10:57:33',
             ),
+            127 => 
+            array (
+                'id_config' => 128,
+                'config_name' => 'office branch',
+                'description' => '',
+                'is_active' => '1',
+                'created_at' => '2021-09-29 10:57:33',
+                'updated_at' => '2021-09-29 10:57:33',
+            ),
         );
 
         foreach ($rows as $row) {

@@ -42,7 +42,8 @@ class AuthServiceProvider extends ServiceProvider
                 'mitra-apps' => 'Manage mitra mobile app scope',
                 'outlet-display' => 'Manage Outlet Display',
                 'client' => 'Manage client scope',
-                'employee-apps' => 'Manage employee scope'
+                'employee-apps' => 'Manage employee scope',
+                'employees' => 'Manage customer scope',
             ]);
             Passport::routes(function ($router) {
                 return $router->forAccessTokens();

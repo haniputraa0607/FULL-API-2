@@ -72,6 +72,7 @@ Route::group(['prefix' => 'api/outlet', 'middleware' => ['log_activities', 'auth
     // admin outlet
     Route::group(['prefix' => 'stock'], function() {
         Route::post('stock-icount', ['middleware' => 'feature_control:447', 'uses' =>'ApiOutletController@getStockIcount']);
+        Route::post('report', ['middleware' => 'feature_control:447', 'uses' =>'ApiOutletController@reportStock']);
     });
 
 

@@ -72,6 +72,7 @@ use Modules\Product\Entities\ProductCommissionDefault;
 use Modules\Product\Http\Requests\product\Commission;
 use App\Jobs\SyncIcountItems;
 use Modules\Product\Entities\ProductCatalogDetail;
+use Modules\Product\Entities\ProductIcountOutletStockLog;
 use Modules\Product\Entities\UnitIcount;
 use Modules\Product\Entities\UnitIcountConversion;
 

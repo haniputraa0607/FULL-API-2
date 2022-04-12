@@ -31,6 +31,7 @@ use Modules\Outlet\Entities\OutletTimeShift;
 use Modules\Product\Entities\ProductDetail;
 use Modules\Product\Entities\ProductIcount;
 use Modules\Product\Entities\ProductIcountOutletStock;
+use Modules\Product\Entities\ProductIcountOutletStockLog;
 use Modules\Product\Entities\ProductGlobalPrice;
 use Modules\Product\Entities\ProductSpecialPrice;
 use Modules\Franchise\Entities\UserFranchise;
@@ -77,7 +78,9 @@ use Modules\PromoCampaign\Lib\PromoCampaignTools;
 use App\Http\Models\Transaction;
 
 use App\Jobs\SendOutletJob;
+use Modules\Product\Entities\DeliveryProduct;
 use Modules\Product\Entities\UnitIcount;
+use Modules\Transaction\Entities\TransactionProductService;
 
 class ApiOutletController extends Controller
 {
@@ -3979,6 +3982,87 @@ class ApiOutletController extends Controller
             }else{
                 return response()->json(['status' => 'fail' , 'messages' => ['Incompleted data']]);
             }
+        }else{
+            return response()->json(['status' => 'fail' , 'messages' => ['Incompleted data']]);
+        }
+    }
+
+    public function reportStock(Request $request){
+        $post = $request->all();
+        $outlet = Outlet::where('outlet_code',$post['outlet_code'])->first();
+        if($outlet){
+            $report = ProductIcountOutletStockLog::join('outlets', 'product_icount_outlet_stock_logs.id_outlet', '=', 'outlets.id_outlet')
+            ->join('product_icounts', 'product_icount_outlet_stock_logs.id_product_icount', '=', 'product_icounts.id_product_icount')
+            ->whereDate('product_icount_outlet_stock_logs.created_at', '>=', date('Y-m-d', strtotime($post['start_date'])))
+            ->whereDate('product_icount_outlet_stock_logs.created_at', '<=', date('Y-m-d', strtotime($post['end_date'])))
+            ->where('product_icount_outlet_stock_logs.id_outlet', $outlet['id_outlet'])
+            ->where('product_icount_outlet_stock_logs.id_product_icount', $post['id_product_icount'])
+            ->where('product_icount_outlet_stock_logs.unit', $post['unit']);
+            if(isset($post['conditions']) && !empty($post['conditions'])){
+                $rule = 'and';
+                if(isset($post['rule'])){
+                    $rule = $post['rule'];
+                }
+                if($rule == 'and'){
+                    foreach ($post['conditions'] as $condition){
+                        if(isset($condition['subject'])){                
+                            if($condition['operator'] == '='){
+                                $report = $report->where($condition['subject'], $condition['parameter']);
+                            }elseif($condition['operator'] == 'like'){
+                                $report = $report->where($condition['subject'], 'like', '%'.$condition['parameter'].'%');
+                            }else{
+                                $report = $report->where($condition['subject'], $condition['operator'], $condition['parameter']);
+                            }
+                        }
+                    }
+                }else{
+                    $report = $report->where(function ($q) use ($post){
+                        foreach ($post['conditions'] as $condition){
+                            if(isset($condition['subject'])){
+                                if($condition['operator'] == '='){
+                                    $q->orWhere($condition['subject'], $condition['parameter']);
+                                }elseif($condition['operator'] == 'like'){
+                                    $q->orWhere($condition['subject'], 'like', '%'.$condition['parameter'].'%');
+                                }else{
+                                    $q->orWhere($condition['subject'], $condition['operator'], $condition['parameter']);
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+            $report = $report->select('product_icount_outlet_stock_logs.*','product_icounts.name','outlets.outlet_name');
+            if(isset($post['order']) && isset($post['order_type'])){
+                if(isset($post['page'])){
+                    $report = $report->orderBy($post['order'], $post['order_type'])->paginate($request->length ?: 10);
+                }else{
+                    $report = $report->orderBy($post['order'], $post['order_type'])->get()->toArray();
+                }
+            }else{
+                if(isset($post['page'])){
+                    $report = $report->orderBy('created_at', 'asc')->paginate($request->length ?: 10);
+                }else{
+                    $report = $report->orderBy('created_at', 'asc')->get()->toArray();
+                }
+            }
+
+            // source
+            foreach($report as $key => $data){
+                if($data['source']=='Book Product' || $data['source']=='Cancelled Book Product'){
+                    $link = Transaction::where('id_transaction',$data['id_reference'])->first();
+                    $report[$key]['link'] = env('VIEW_URL').'transaction/outlet-service/detail/'.$link['id_transaction'];
+                    $report[$key]['id_reference'] = $link['transaction_receipt_number'];
+                }elseif($data['source']=='Transaction Outlet Service'){
+                    $link = TransactionProductService::where('id_transaction_product_service',$data['id_reference'])->first();
+                    $report[$key]['link'] = env('VIEW_URL').'transaction/outlet-service/detail/'.$link['id_transaction'];
+                    $report[$key]['id_reference'] = $link['order_id'];
+                }elseif($data['source']=='Delivery Product'){
+                    $link = DeliveryProduct::where('id_delivery_product',$data['id_reference'])->first();
+                    $report[$key]['link'] = env('VIEW_URL').'dev-product/detail/'.$link['id_delivery_product'];
+                    $report[$key]['id_reference'] = $link['code'];
+                }
+            }
+            return MyHelper::checkGet($report);
         }else{
             return response()->json(['status' => 'fail' , 'messages' => ['Incompleted data']]);
         }

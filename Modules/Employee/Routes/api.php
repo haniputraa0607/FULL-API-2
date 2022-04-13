@@ -24,4 +24,9 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::get('assign', 'ApiEmployeeController@officeHoursAssign');
         Route::post('assign', 'ApiEmployeeController@officeHoursAssign');
     });
+
+    Route::group(['prefix' => 'announcement'], function(){
+        Route::any('/', 'ApiEmployeeAnnouncementController@listAnnouncement');
+        Route::post('create', 'ApiEmployeeAnnouncementController@createAnnouncement');
+    });
 });

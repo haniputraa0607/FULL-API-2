@@ -235,7 +235,7 @@ class ApiRequestProductController extends Controller
                     'value'  => $value['qty'],
                     'filter'  => $value['filter'],
                     'status'  => $value['status'],
-                    'price'   => $price,
+                    'price' => $price,
                     'total_price' => $price*$value['qty']
                 ];
                 if(isset($data['id_request_product'])){

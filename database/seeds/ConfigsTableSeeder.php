@@ -1167,6 +1167,42 @@ class ConfigsTableSeeder extends Seeder
                 'created_at' => '2021-09-29 10:57:33',
                 'updated_at' => '2021-09-29 10:57:33',
             ),
+            128 => 
+            array (
+                'id_config' => 129,
+                'config_name' => 'subscription',
+                'description' => '',
+                'is_active' => '0',
+                'created_at' => '2021-09-29 10:57:33',
+                'updated_at' => '2021-09-29 10:57:33',
+            ),
+            129 => 
+            array (
+                'id_config' => 130,
+                'config_name' => 'product bundling',
+                'description' => '',
+                'is_active' => '0',
+                'created_at' => '2021-09-29 10:57:33',
+                'updated_at' => '2021-09-29 10:57:33',
+            ),
+            130 => 
+            array (
+                'id_config' => 131,
+                'config_name' => 'auto response pin create',
+                'description' => '',
+                'is_active' => '0',
+                'created_at' => '2021-09-29 10:57:33',
+                'updated_at' => '2021-09-29 10:57:33',
+            ),
+            131 => 
+            array (
+                'id_config' => 132,
+                'config_name' => 'inactive brand image',
+                'description' => '',
+                'is_active' => '0',
+                'created_at' => '2021-09-29 10:57:33',
+                'updated_at' => '2021-09-29 10:57:33',
+            ),
         );
 
         foreach ($rows as $row) {

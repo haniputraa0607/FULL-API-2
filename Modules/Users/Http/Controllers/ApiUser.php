@@ -134,13 +134,6 @@ class ApiUser extends Controller
         $resultApps = $queryApps->skip($skip)->take($take)->get()->toArray();
         $resultBe = $queryBe->skip($skip)->take($take)->get()->toArray();
 
-        foreach ($resultApps as $keyApps => $valApps) {
-            $resultApps[$keyApps]->id_log_activities_apps = MyHelper::encSlug($valApps->id_log_activities_apps);
-        }
-        foreach ($resultBe as $keyBe => $valBe) {
-            $resultBe[$keyBe]->id_log_activities_apps = MyHelper::encSlug($valBe->id_log_activities_be);
-        }
-
         if ($resultApps || $resultBe) {
             $response = [
                 'status'    => 'success',
@@ -1145,8 +1138,7 @@ class ApiUser extends Controller
             	$checkFeature = Role::join('roles_features', 'roles_features.id_role', 'roles.id_role')
 								->join('features', 'features.id_feature', 'roles_features.id_feature')
 								->where([
-									['roles.id_department', $user['id_department']],
-									['roles.id_job_level', $user['id_job_level']]
+									['roles.id_role', $user['id_role']]
 								])
 								->select('features.id_feature')->get()->toArray();
             }
@@ -3274,8 +3266,8 @@ class ApiUser extends Controller
                 if ($post['level'] == 'Customer') {
                 	$updateData = [
                 		'level' => $post['level'],
-                		'id_department' => null,
-                		'id_job_level' => null
+                		'id_role' => null,
+                        'id_outlet' => null
                 	];
                 }
                 

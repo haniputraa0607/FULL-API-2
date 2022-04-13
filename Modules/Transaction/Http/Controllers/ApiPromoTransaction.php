@@ -538,7 +538,10 @@ class ApiPromoTransaction extends Controller
 		$pct = new PromoCampaignTools;
 		$user = request()->user();
 		if ($promo->user_type == 'New user') {
-    		$check = Transaction::where('id_user', '=', $user->id)->first();
+    		$check = Transaction::where('id_user', '=', $user->id)
+    		->where('transaction_payment_status', 'Completed')
+    			->whereNull('reject_at')
+    			->first();
     		if ($check) {
     			return $this->failResponse('Promo hanya berlaku untuk pengguna baru');
     		}
@@ -1598,15 +1601,24 @@ class ApiPromoTransaction extends Controller
         return ['status' => 'success'];
     }
 
-    public function insertUsedCode(Transaction $trx, $dataDiscount)
+    public function insertUsedCode(Transaction $trx, $dataDiscount, $fromTriger = 0)
     {
+        $deviceId = request()->device_id ?: '';
+        $deviceType = request()->device_type ?: null;
+        if($fromTriger == 1){
+            $deviceId = '';
+            $deviceType = null;
+        }
     	$promo_campaign_report = app($this->promo_campaign)->addReport(
             $dataDiscount['id_promo_campaign'],
             $dataDiscount['id_promo_campaign_promo_code'],
             $trx['id_transaction'],
             $trx['id_outlet'],
-            request()->device_id ?: '',
-            request()->device_type ?: null
+            $deviceId,
+            $deviceType,
+            $dataDiscount['user_name']??null,
+            $dataDiscount['user_phone']??null,
+            $dataDiscount['id_user']??null
         );
 
         if (!$promo_campaign_report) {

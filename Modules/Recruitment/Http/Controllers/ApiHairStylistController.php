@@ -519,6 +519,12 @@ class ApiHairStylistController extends Controller
                     return response()->json(['status' => 'fail', 'messages' => ['Nickname already use with hairstylist : '.$check['fullname']]]);
                 }
 
+                $checkIDCard = UserHairStylist::where('id_card_number', $post['id_card_number'])->first();
+
+                if(!empty($checkIDCard)){
+                    return response()->json(['status' => 'fail', 'messages' => ['ID card already use with hairstylist : '.$checkIDCard['fullname']]]);
+                }
+
                 if(isset($post['auto_generate_pin'])){
                     $pin = MyHelper::createrandom(6, 'Angka');
                 }else{
@@ -529,6 +535,7 @@ class ApiHairStylistController extends Controller
                     return response()->json(['status' => 'fail', 'messages' => ['Hs not found']]);
                 }
 
+                DB::beginTransaction();
                 //generate code
                 $count = UserHairStylist::whereNotNull('user_hair_stylist_code')->count();
                 $currentYear = substr(date('Y'), -2);
@@ -601,12 +608,18 @@ class ApiHairStylistController extends Controller
                         ], null, false, false, 'hairstylist'
                     );
                 }
-
+                DB::commit();
             }else{
                 $check = UserHairStylist::where('nickname', $post['nickname'])->whereNotIn('id_user_hair_stylist', [$post['id_user_hair_stylist']])->first();
 
                 if(!empty($check)){
                     return response()->json(['status' => 'fail', 'messages' => ['Nickname already use with hairstylist : '.$check['fullname']]]);
+                }
+
+                $checkIDCard = UserHairStylist::where('id_card_number', $post['id_card_number'])->whereNotIn('id_user_hair_stylist', [$post['id_user_hair_stylist']])->first();
+
+                if(!empty($checkIDCard)){
+                    return response()->json(['status' => 'fail', 'messages' => ['ID card already use with hairstylist : '.$checkIDCard['fullname']]]);
                 }
 
                 unset($post['data_document']);

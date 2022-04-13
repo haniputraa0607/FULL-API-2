@@ -1597,33 +1597,37 @@ class ApiDeals extends Controller
         $deleteDealsTotal = DB::table('deals_total')->delete();//Delete all data from tabel deals total
 
         //insert data
-        $arrInsert = [];
-        $list_id = $post['list_deals_id'];
-        $list_deals_total = $post['list_deals_total'];
-        $count = count($list_id);
+        if(!empty($post['list_deals_id'])){
+            $arrInsert = [];
+            $list_id = $post['list_deals_id'];
+            $list_deals_total = $post['list_deals_total'];
+            $count = count($list_id);
 
-        for($i=0;$i<$count;$i++){
-            $data = [
-                'id_deals' => $list_id[$i],
-                'deals_total' => $list_deals_total[$i],
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s')
-            ];
-            array_push($arrInsert,$data);
+            for($i=0;$i<$count;$i++){
+                $data = [
+                    'id_deals' => $list_id[$i],
+                    'deals_total' => $list_deals_total[$i],
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s')
+                ];
+                array_push($arrInsert,$data);
+            }
+
+            $insert = DealTotal::insert($arrInsert);
+            if($insert){
+                $result = [
+                    'status' => 'success'
+                ];
+            }else{
+                $result = [
+                    'status' => 'fail'
+                ];
+            }
+
+            return response()->json($result);
         }
 
-        $insert = DealTotal::insert($arrInsert);
-        if($insert){
-            $result = [
-                'status' => 'success'
-            ];
-        }else{
-            $result = [
-                'status' => 'fail'
-            ];
-        }
-
-        return response()->json($result);
+        return response()->json(['status' => 'success']);
     }
 
     function welcomeVoucherSettingUpdateStatus(Request $request){

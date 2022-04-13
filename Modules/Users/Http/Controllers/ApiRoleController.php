@@ -16,14 +16,20 @@ use Modules\Users\Entities\Role;
 
 class ApiRoleController extends Controller
 {
+    public function listAll()
+    {
+        $list = Role::get()->toArray();
+        return response()->json(MyHelper::checkGet($list));
+    }
+
     /**
      * Display a listing of the resource.
      * @return Response
      */
     public function index(Request $request)
     {
-        $data = Role::join('departments', 'departments.id_department', 'roles.id_department')
-                ->join('job_levels', 'job_levels.id_job_level', 'roles.id_job_level')
+        $data = Role::LeftJoin('departments', 'departments.id_department', 'roles.id_department')
+                ->LeftJoin('job_levels', 'job_levels.id_job_level', 'roles.id_job_level')
                 ->select('roles.*', 'departments.department_name', 'job_levels.job_level_name');
 
         if ($keyword = ($request->search['value']??false)) {

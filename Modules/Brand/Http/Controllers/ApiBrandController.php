@@ -315,7 +315,7 @@ class ApiBrandController extends Controller
                     }
                     $create->save();
                 }else{
-                    $create = BrandProduct::created([$value]);
+                    $create = BrandProduct::create($value);
                 }
             }
             return response()->json(MyHelper::checkDelete($create));

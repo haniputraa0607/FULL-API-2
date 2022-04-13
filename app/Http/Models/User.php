@@ -60,8 +60,8 @@ class User extends Authenticatable
 		'email_verified',
         'email_verified_valid_time',
 		'level',
-        'id_job_level',
-        'id_department',
+        'id_outlet',
+        'id_role',
 		'points',
 		'balance',
 		'count_complete_profile',
@@ -241,5 +241,23 @@ class User extends Authenticatable
 
     public function quest_user_redemption() {
     	return $this->hasMany(\Modules\Quest\Entities\QuestUserRedemption::class, 'id_user', 'id');
+    }
+    public function employee() {
+    	return $this->hasOne(\Modules\Employee\Entities\Employee::class, 'id_user', 'id');
+    }
+    public function employee_family() {
+    	return $this->hasMany(\Modules\Employee\Entities\EmployeeFamily::class, 'id_user', 'id');
+    }
+    public function employee_education() {
+    	return $this->hasMany(\Modules\Employee\Entities\EmployeeEducation::class, 'id_user', 'id');
+    }
+    public function employee_education_non_formal() {
+    	return $this->hasMany(\Modules\Employee\Entities\EmployeeEducationNonFormal::class, 'id_user', 'id');
+    }
+    public function employee_job_experience() {
+    	return $this->hasMany(\Modules\Employee\Entities\EmployeeJobExperience::class, 'id_user', 'id');
+    }
+    public function employee_question() {
+    	return $this->hasMany(\Modules\Employee\Entities\EmployeeQuestions::class, 'id_user', 'id');
     }
 }

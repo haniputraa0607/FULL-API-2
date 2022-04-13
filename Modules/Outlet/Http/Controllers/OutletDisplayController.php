@@ -9,6 +9,8 @@ use App\Http\Models\Outlet;
 use App\Lib\MyHelper;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Transaction\Entities\TransactionProductService;
+use Modules\Recruitment\Entities\HairstylistAttendance;
+use Modules\Recruitment\Entities\HairstylistAttendanceLog;
 
 class OutletDisplayController extends Controller
 {
@@ -34,19 +36,31 @@ class OutletDisplayController extends Controller
             })
             ->get()
             ->pluck('shift');
-
+	
         $outlet->outlet_box->transform(function($item) use ($currentShift) {
             $hairstylist = UserHairStylist::join('hairstylist_schedules', function ($join) {
                         $join->on('hairstylist_schedules.id_user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist');
                     })
                     ->join('hairstylist_schedule_dates', function ($join) use ($currentShift, $item) {
                         $join->on('hairstylist_schedule_dates.id_hairstylist_schedule', 'hairstylist_schedules.id_hairstylist_schedule')
-                            ->whereIn('shift', $currentShift)
+                            ->whereTime('time_start', '<=' ,date('H:i:s'))
+                            ->whereTime('time_end','>=',date('H:i:s'))
                             ->whereDate('date', date('Y-m-d'))
                             ->where('id_outlet_box', $item->id_outlet_box);
                     })->first();
 
             if ($hairstylist) {
+                $attendance = HairstylistAttendance::where('id_user_hair_stylist', '=', $hairstylist->id_user_hair_stylist)
+    		->whereDate('attendance_date', date('Y-m-d'))
+    		->first();
+                if (!$attendance) {
+    			return null;
+    		}else{
+                    $log = HairstylistAttendanceLog::where(array('id_hairstylist_attendance'=>$attendance->id_hairstylist_attendance))->orderby('id_hairstylist_attendance_log','desc')->first();
+                    if($log->type != 'clock_in'){
+                        return null;
+                    }
+                }
                 $serviceInProgress = TransactionProductService::where('service_status', 'In Progress')
                     ->join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
                     ->join('users', 'users.id', 'transactions.id_user')

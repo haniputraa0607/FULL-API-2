@@ -41,8 +41,8 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
             ]);
         }
 
-        if($post['year']>=date('Y')){
-            if($post['month']>=date('m')){
+        if($post['year']>=date('Y') || (isset($post['type']) && $post['type'] == 'getDetail')){
+            if($post['month']>=date('m')|| (isset($post['type']) && $post['type'] == 'getDetail')){
                 $schedule = HairstylistSchedule::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->where('schedule_month', $post['month'])->where('schedule_year', $post['year'])->first();
                 if($schedule){
                     $id_schedule = $schedule['id_hairstylist_schedule'];
@@ -221,9 +221,10 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
 
     public function deleteTimeOff(Request $request){
         $post = $request->all();
-        $delete = HairStylistTimeOff::where('id_hairstylist_time_off', $post['id_hairstylist_time_off'])->delete();
+        $delete = HairStylistTimeOff::where('id_hairstylist_time_off', $post['id_hairstylist_time_off'])->update(['reject_at' => date('Y-m-d')]);
         if($delete){
-            return MyHelper::checkDelete($delete);
+            $delete_hs_not_avail = HairstylistNotAvailable::where('id_hairstylist_time_off', $post['id_hairstylist_time_off'])->delete();
+            return response()->json(['status' => 'success']);
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }
@@ -293,6 +294,7 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                     $data_not_avail = [
                         "id_outlet" => $data_update['id_outlet'],
                         "id_user_hair_stylist" => $data_update['id_user_hair_stylist'],
+                        "id_hairstylist_time_off" => $post['id_hairstylist_time_off'],
                         "booking_start" => date('Y-m-d', strtotime($data_update['date'])).' '.$data_update['start_time'],
                         "booking_end" => date('Y-m-d', strtotime($data_update['date'])).' '.$data_update['end_time'],
                     ];
@@ -444,9 +446,9 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
 
     public function deleteOvertime(Request $request){
         $post = $request->all();
-        $delete = HairstylistOverTime::where('id_hairstylist_overtime', $post['id_hairstylist_overtime'])->delete();
+        $delete = HairstylistOverTime::where('id_hairstylist_overtime', $post['id_hairstylist_overtime'])->update(['reject_at' => date('Y-m-d')]);
         if($delete){
-            return MyHelper::checkDelete($delete);
+            return response()->json(['status' => 'success']);
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }
@@ -561,5 +563,30 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
             }
         }
         return false;
+    }
+
+    public function checkTimeOffOvertime(){
+        $log = MyHelper::logCron('Check Request Hair Stylist Time Off and Overtime');
+        try{
+            $data_time_off = HairStylistTimeOff::whereNull('reject_at')->whereNull('approve_at')->whereDate('request_at','<',date('Y-m-d'))->get()->toArray();
+            if($data_time_off){
+                foreach($data_time_off as $time_off){
+                    $update = HairStylistTimeOff::where('id_hairstylist_time_off', $time_off['id_hairstylist_time_off'])->update(['reject_at' => date('Y-m-d')]);
+                }
+            }
+
+            $data_overtime = HairstylistOverTime::whereNull('reject_at')->whereNull('approve_at')->whereDate('request_at','<',date('Y-m-d'))->get()->toArray();
+            if($data_overtime){
+                foreach($data_overtime as $overtime){
+                    $update = HairstylistOverTime::where('id_hairstylist_overtime', $overtime['id_hairstylist_overtime'])->update(['reject_at' => date('Y-m-d')]);
+                }
+            }
+            $log->success('success');
+            return response()->json(['status' => 'success']);
+
+        }catch (\Exception $e) {
+            DB::rollBack();
+            $log->fail($e->getMessage());
+        }    
     }
 }

@@ -25,7 +25,7 @@ use Validator;
 use Modules\Product\Http\Requests\CallbackRequest;
 use App\Http\Models\Setting;
 use App\Http\Models\User;
-
+use Modules\Product\Entities\ProductIcount;
 
 class ApiRequestProductController extends Controller
 {
@@ -200,6 +200,34 @@ class ApiRequestProductController extends Controller
                         $value['status'] = 'Pending';
                     }
                 }
+                $price = 0;
+                $product_icount = ProductIcount::where('id_product_icount',$value['id_product_icount'])->first();
+               
+                if($value['unit'] == $product_icount['unit1']){
+                    if($product_icount['unit_price_1']!=0){
+                         $price = $product_icount['unit_price_1'];
+                    }elseif($product_icount['unit_price_2']!=0){
+                         $price = $product_icount['unit_price_2']/$product_icount['ratio2'];
+                    }elseif($product_icount['unit_price_3']!=0){
+                         $price = $product_icount['unit_price_3']/$product_icount['ratio3'];
+                    }
+                }elseif($value['unit'] == $product_icount['unit2']){
+                    if($product_icount['unit_price_2']!=0){
+                         $price = $product_icount['unit_price_2'];
+                    }elseif($product_icount['unit_price_1']!=0){
+                         $price = $product_icount['unit_price_1']*$product_icount['ratio2'];
+                    }elseif($product_icount['unit_price_3']!=0){
+                         $price = $product_icount['unit_price_3']*$product_icount['ratio2']/$product_icount['ratio3'];
+                    }
+                }elseif($value['unit'] == $product_icount['unit3']){
+                    if($product_icount['unit_price_3']!=0){
+                         $price = $product_icount['unit_price_3'];
+                    }elseif($product_icount['unit_price_1']!=0){
+                         $price = $product_icount['unit_price_1']*$product_icount['ratio3'];
+                    }elseif($product_icount['unit_price_2']!=0){
+                         $price = $product_icount['unit_price_3']/$product_icount['ratio2']*$product_icount['ratio3'];
+                    }
+                }
                 $push =  [
                     $col 	=> $id_req,
                     'id_product_icount'  => $value['id_product_icount'],
@@ -207,14 +235,17 @@ class ApiRequestProductController extends Controller
                     'value'  => $value['qty'],
                     'filter'  => $value['filter'],
                     'status'  => $value['status'],
+                    'price'   => $price,
+                    'total_price' => $price*$value['qty']
                 ];
                 if(isset($data['id_request_product'])){
                     $push['budget_code'] = $value['budget_code'];
+                    $push['price'] = $price;
+                    $push['total_price'] = $price*$value['qty'];
                 }
                 array_push($data_detail, $push);
             }
         }
-
         if (!empty($data_detail)) {
             $save = $table::insert($data_detail);
 

@@ -127,7 +127,8 @@ class ApiProductProductIcountController extends Controller
                     "id_product_icount"   => $product_icount['id_product_icount'],
                     "unit"   => $product_icount['unit'],
                     "qty"   => $product_icount['qty'],
-                    "company_type" => $post['company_type']
+                    "company_type" => $post['company_type'],
+                    "optional" => isset($product_icount['optional']) ? 1 : 0
                 ];
             }
             if(!empty($insert)){

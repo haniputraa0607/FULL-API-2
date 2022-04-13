@@ -17,6 +17,7 @@ class ProductProductIcount extends Model
         'id_product_icount',
         'unit',
         'qty',
+        'optional'
     ];
 
     public function products(){

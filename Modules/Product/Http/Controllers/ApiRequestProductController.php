@@ -201,7 +201,7 @@ class ApiRequestProductController extends Controller
                     }
                 }
                 $price = 0;
-               $product_icount = ProductIcount::where('id_product_icount',$value['id_product_icount'])->first();
+                $product_icount = ProductIcount::where('id_product_icount',$value['id_product_icount'])->first();
                
                 if($value['unit'] == $product_icount['unit1']){
                     if($product_icount['unit_price_1']!=0){
@@ -240,6 +240,8 @@ class ApiRequestProductController extends Controller
                 ];
                 if(isset($data['id_request_product'])){
                     $push['budget_code'] = $value['budget_code'];
+                    $push['price'] = $price;
+                    $push['total_price'] = $price*$value['qty'];
                 }
                 array_push($data_detail, $push);
             }

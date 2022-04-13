@@ -1103,6 +1103,14 @@ class ConfigsTableSeeder extends Seeder
                 'created_at'  => '2021-09-29 10:57:33',
                 'updated_at'  => '2021-09-29 10:57:33',
             ),
+            136 => array(
+                'id_config'   => 137,
+                'config_name' => 'wehelpyou',
+                'description' => '',
+                'is_active'   => '0',
+                'created_at'  => '2021-09-29 10:57:33',
+                'updated_at'  => '2021-09-29 10:57:33',
+            ),
         );
 
         foreach ($rows as $row) {

@@ -981,9 +981,6 @@ class ApiMitraOutletService extends Controller
             //remove hs from table not avilable
     		HairstylistNotAvailable::where('id_transaction_product_service', $service['id_transaction_product_service'])->delete();
 
-            //update stock
-    		app($this->trx)->bookProductStock($service->id_transaction);
-
             // log rating outlet
     		UserRatingLog::updateOrCreate([
     			'id_user' => $trx->id_user,
@@ -1016,12 +1013,14 @@ class ApiMitraOutletService extends Controller
                     $product_product[$p['id_product_icount'].'_'.$p['unit']] = $p;
                 }
                 foreach($request->product_icount_use as $key => $product_use){
-                    $this_qty = $product_use['qty'] - $product_product[$product_use['id_product_icount'].'_'.$product_use['unit']]['qty'];
-                    $product_icount = new ProductIcount();
-                    $update_stock = $product_icount->find($product_use['id_product_icount'])->addLogStockProductIcount(-$this_qty,$product_use['unit'],'Transaction Outlet Service',$service['id_transaction_product_service']);
-                    if(!$update_stock){
-                        DB::rollback();
-                    }
+					if($product_product[$product_use['id_product_icount'].'_'.$product_use['unit']]['optional'] == 1){
+						$this_qty = ($product_use['qty'] - $product_product[$product_use['id_product_icount'].'_'.$product_use['unit']]['qty'])*-1;
+						$product_icount = new ProductIcount();
+						$update_stock = $product_icount->find($product_use['id_product_icount'])->addLogStockProductIcount($this_qty,$product_use['unit'],'Transaction Outlet Service',$service['id_transaction_product_service']);
+						if(!$update_stock){
+							DB::rollback();
+						}
+					}
                 }
             }
             

@@ -42,6 +42,11 @@ use Modules\Recruitment\Entities\HairstylistAttendanceLog;
 use Modules\Recruitment\Entities\HairstylistOverTime;
 use Modules\Outlet\Entities\OutletTimeShift;
 use App\Http\Models\OutletSchedule;
+use App\Http\Models\Product;
+use Modules\Product\Entities\ProductProductIcount;
+use Modules\Product\Entities\UnitIcount;
+use Modules\Product\Entities\ProductIcount;
+use Modules\Product\Entities\ProductIcountOutletStock;
 
 class ApiMitraOutletService extends Controller
 {
@@ -166,11 +171,10 @@ class ApiMitraOutletService extends Controller
 	public function customerQueueDetail(DetailCustomerQueueRequest $request)
 	{
 		$user = $request->user();
-
+        
 		$queue = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
 		->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
 		->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
-		->join('products', 'transaction_products.id_product', 'products.id_product')
 		->where('transaction_product_services.id_user_hair_stylist', $user->id_user_hair_stylist)
 		->where('id_transaction_product_service', $request->id_transaction_product_service)
 		->where('transaction_payment_status' ,'Completed')
@@ -183,13 +187,27 @@ class ApiMitraOutletService extends Controller
 			];
 		}
 
-		$outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
-		if (!$queue) {
+		$outlet = Outlet::with(['location_outlet'])->where('id_outlet', $user->id_outlet)->first();
+		if (!$outlet) {
 			return [
 				'status' => 'fail',
 				'messages' => ['Outlet tidak ditemukan']
 			];
 		}
+
+        $product_name = Product::where('id_product',$queue['id_product'])->select('product_name')->first()['product_name'];
+        $company_type = $outlet['location_outlet']['company_type'] == 'PT IMA' ? 'ima' : 'ims';
+        $product_icounts = ProductProductIcount::with(['product_icounts' => function($pi){$pi->select('id_product_icount','name');}])->where('company_type', $company_type)->where('id_product', $queue['id_product'])->select('id_product_product_icount','id_product_icount','unit','qty','optional')->get()->toArray();
+        foreach($product_icounts as $p => $product_icount){
+            $cek_optional = false;
+            if($product_icount['optional'] == 1){
+                $product_icounts[$p]['max_qty'] = ProductIcountOutletStock::where('id_outlet',$user->id_outlet)->where('id_product_icount',$product_icount['id_product_icount'])->where('unit',$product_icount['unit'])->first()['stock'];
+            }
+
+            $product_icounts[$p]['name_product_icount'] = $product_icount['product_icounts']['name'];
+            unset($product_icounts[$p]['product_icounts']);
+        }
+
 
 		$serviceInProgress = TransactionProductService::where('service_status', 'In Progress')
 		->where('id_user_hair_stylist', $user->id_user_hair_stylist)
@@ -288,7 +306,9 @@ class ApiMitraOutletService extends Controller
     		'outlet_box_code' => $box['outlet_box_code'] ?? null,
     		'outlet_box_name' => $box['outlet_box_name'] ?? null,
     		'processing_time_service' => $timeLeft,
-    		'extend_popup_time' => $extendPopup
+    		'extend_popup_time' => $extendPopup,
+            'product_name' => $product_name,
+            'product_icount_use' => $product_icounts
     	];
 
     	return MyHelper::checkGet($res);
@@ -335,7 +355,7 @@ class ApiMitraOutletService extends Controller
     			'title' => 'QR code tidak sesuai',
     			'messages' => ['Tidak dapat memulai layanan menggunakan QR code ini.']
     		];
-    	}
+    	}   
 
     	$service = TransactionProductService::where('id_user_hair_stylist', $user->id_user_hair_stylist)
     	->where('id_transaction_product_service', $request->id_transaction_product_service)
@@ -902,7 +922,8 @@ class ApiMitraOutletService extends Controller
     public function completeService(Request $request)
     {
     	$user = $request->user();
-    	$service = TransactionProductService::where('id_user_hair_stylist', $user->id_user_hair_stylist)
+    	$service = TransactionProductService::join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+        ->where('transaction_product_services.id_user_hair_stylist', $user->id_user_hair_stylist)
     	->where('id_transaction_product_service', $request->id_transaction_product_service)
     	->first();
 
@@ -928,6 +949,14 @@ class ApiMitraOutletService extends Controller
     			'messages' => ['Box tidak ditemukan']
     		];
     	}
+
+        $outlet = Outlet::with(['location_outlet'])->where('id_outlet', $box->id_outlet)->first();
+		if (!$outlet) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Outlet tidak ditemukan']
+			];
+		}
 
     	DB::beginTransaction();
     	try {
@@ -978,6 +1007,24 @@ class ApiMitraOutletService extends Controller
 
     		$trx->update(['show_rate_popup' => '1']);
 
+            if($request->product_icount_use){
+                //cek 
+                $company_type = $outlet['location_outlet']['company_type'] == 'PT IMA' ? 'ima' : 'ims';
+                $product_icounts = ProductProductIcount::where('company_type', $company_type)->where('id_product', $service['id_product'])->select('id_product_product_icount','id_product_icount','unit','qty','optional')->get()->toArray();
+                $product_product = [];
+                foreach($product_icounts as $p){
+                    $product_product[$p['id_product_icount'].'_'.$p['unit']] = $p;
+                }
+                foreach($request->product_icount_use as $key => $product_use){
+                    $this_qty = $product_use['qty'] - $product_product[$product_use['id_product_icount'].'_'.$product_use['unit']]['qty'];
+                    $product_icount = new ProductIcount();
+                    $update_stock = $product_icount->find($product_use['id_product_icount'])->addLogStockProductIcount(-$this_qty,$product_use['unit'],'Transaction Outlet Service',$service['id_transaction_product_service']);
+                    if(!$update_stock){
+                        DB::rollback();
+                    }
+                }
+            }
+            
             // notif hairstylist
     		app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
     			'Mitra HS - Transaction Service Completed',
@@ -1186,7 +1233,7 @@ class ApiMitraOutletService extends Controller
     	)
     	->where('id_user_hair_stylist', $user->id_user_hair_stylist)
     	->whereDate('date', date('Y-m-d'))
-    	->whereIn('shift', $shift)
+    	->whereIn('shift', $shift ?? [])
     	->first();
     	$overtime = HairstylistOverTime::where('id_user_hair_stylist', $user->id_user_hair_stylist)
     	->wheredate('date', date('Y-m-d'))
@@ -1202,7 +1249,7 @@ class ApiMitraOutletService extends Controller
     			$outlet_box = null;
     		}else{
     			$log = HairstylistAttendanceLog::where(array('id_hairstylist_attendance'=>$attendance->id_hairstylist_attendance))->orderby('id_hairstylist_attendance_log','desc')->first();
-    			if($log->type == 'clock_in'){
+    			if(optional($log)->type == 'clock_in'){
     				if ($schedule->id_outlet_box) {
     					$box = OutletBox::where([
     						['id_outlet', $user->id_outlet],

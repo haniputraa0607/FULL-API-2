@@ -67,6 +67,7 @@ class ApiOutletCloseController extends Controller
                 $project = OutletManage::where('outlet_manage.id_outlet',$request->id_outlet)
                             ->join('outlets','outlets.id_outlet','outlet_manage.id_outlet')
                             ->join('cities','cities.id_city','outlets.id_city')
+                            ->select('id_outlet_manage','outlet_name','outlet_code','city_name','outlet_manage.type','status','outlet_manage.created_at')
                             ->orderby('outlet_manage.created_at','desc')->get();
             return response()->json(['status' => 'success', 'result' => $project,'id_partner'=>$partner->id_partner]);
         }

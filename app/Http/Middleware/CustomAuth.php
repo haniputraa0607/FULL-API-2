@@ -8,7 +8,7 @@ use SMartins\PassportMultiauth\Http\Middleware\AddCustomProvider;
 use App\Lib\MyHelper;
 use App\Http\Models\Outlet;
 use Modules\Recruitment\Entities\UserHairStylist;
-
+use App\Http\Models\User;
 use Illuminate\Http\Request;
 
 class CustomAuth extends AddCustomProvider
@@ -50,6 +50,12 @@ class CustomAuth extends AddCustomProvider
             $request->merge(['provider' => 'franchise']);
         }elseif($request->get('quinos')){
             $request->merge(['provider' => 'quinos']);
+        }elseif($request->get('employees')){
+    		$employee = User::where('phone', $request->get('username'))->where('level','Customer')->first();
+        	if (!$employee) {
+                        return response()->json(['error' => 'Unauthenticated.'], 401);
+                    }
+            $request->merge(['provider' => 'users']);
         }elseif($request->get('partners')){
             $request->merge(['provider' => 'partners']);
         }elseif($request->get('mitra-apps')){

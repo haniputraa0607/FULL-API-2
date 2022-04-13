@@ -538,7 +538,10 @@ class ApiPromoTransaction extends Controller
 		$pct = new PromoCampaignTools;
 		$user = request()->user();
 		if ($promo->user_type == 'New user') {
-    		$check = Transaction::where('id_user', '=', $user->id)->first();
+    		$check = Transaction::where('id_user', '=', $user->id)
+    		->where('transaction_payment_status', 'Completed')
+    			->whereNull('reject_at')
+    			->first();
     		if ($check) {
     			return $this->failResponse('Promo hanya berlaku untuk pengguna baru');
     		}

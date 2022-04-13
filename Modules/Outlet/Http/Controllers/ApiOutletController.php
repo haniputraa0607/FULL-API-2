@@ -31,6 +31,7 @@ use Modules\Outlet\Entities\OutletTimeShift;
 use Modules\Product\Entities\ProductDetail;
 use Modules\Product\Entities\ProductIcount;
 use Modules\Product\Entities\ProductIcountOutletStock;
+use Modules\Product\Entities\ProductIcountOutletStockLog;
 use Modules\Product\Entities\ProductGlobalPrice;
 use Modules\Product\Entities\ProductSpecialPrice;
 use Modules\Franchise\Entities\UserFranchise;
@@ -77,6 +78,10 @@ use Modules\PromoCampaign\Lib\PromoCampaignTools;
 use App\Http\Models\Transaction;
 
 use App\Jobs\SendOutletJob;
+use Modules\Product\Entities\DeliveryProduct;
+use Modules\Product\Entities\UnitIcount;
+use Modules\Product\Entities\UnitConversionLog;
+use Modules\Transaction\Entities\TransactionProductService;
 
 class ApiOutletController extends Controller
 {
@@ -702,7 +707,7 @@ class ApiOutletController extends Controller
         }
 
         if (isset($post['outlet_code'])) {
-            $outlet->with(['holidays', 'holidays.date_holidays','brands', 'delivery_outlet'])->where('outlet_code', $post['outlet_code']);
+            $outlet->with(['holidays', 'holidays.date_holidays','brands', 'delivery_outlet', 'xendit_account'])->where('outlet_code', $post['outlet_code']);
         }
 
         if (isset($post['id_outlet'])) {
@@ -883,6 +888,30 @@ class ApiOutletController extends Controller
                     if(!$cek){
                         unset($outlet[0]['product_detail'][$key]);
                     }
+                }
+            }
+            if(isset($outlet[0]['product_icount_outlet_stocks'])){
+                foreach($outlet[0]['product_icount_outlet_stocks'] as $key => $icount_stock){
+                    $outlet[0]['product_icount_outlet_stocks'][$key]['conversion'] = [];
+                    $outlet[0]['product_icount_outlet_stocks'][$key]['info_conversion'] = [];
+                    $cek_conversion = UnitIcount::join('unit_icount_conversions', 'unit_icounts.id_unit_icount', '=', 'unit_icount_conversions.id_unit_icount')->where('unit_icounts.id_product_icount',$icount_stock['id_product_icount'])->where('unit_icounts.unit',$icount_stock['unit'])->get()->toArray();
+                    $info = [];
+                    foreach($cek_conversion ?? [] as $c => $conv){
+                        $get_conv =  'multiplication,'.$conv['qty_conversion'].','.$conv['unit_conversion'];
+                        $cek_conversion[$c] = $get_conv;
+                        $info[$c] = '1 '.$icount_stock['unit'].' = '.$conv['qty_conversion'].' '.$conv['unit_conversion'];
+                    }
+                    $cek_conversion_2 = UnitIcount::join('unit_icount_conversions', 'unit_icounts.id_unit_icount', '=', 'unit_icount_conversions.id_unit_icount')->where('unit_icounts.id_product_icount',$icount_stock['id_product_icount'])->where('unit_icount_conversions.unit_conversion',$icount_stock['unit'])->get()->toArray();
+                    $info_2 = [];
+                    foreach($cek_conversion_2 ?? [] as $c => $conv_2){
+                        $get_conv_2 = 'distribution,'.$conv_2['qty_conversion'].','.$conv_2['unit'];
+                        $cek_conversion_2[$c] = $get_conv_2;
+                        $info_2[$c] = $conv_2['qty_conversion'].' '.$icount_stock['unit'].' = 1 '.$conv_2['unit'];
+                    }
+                    $conversion = array_merge($cek_conversion,$cek_conversion_2);
+                    $info_conve = array_merge($info,$info_2);
+                    $outlet[0]['product_icount_outlet_stocks'][$key]['conversion'] = implode(';',$conversion);
+                    $outlet[0]['product_icount_outlet_stocks'][$key]['info_conversion'] = implode(';',$info_conve);
                 }
             }
         }
@@ -3915,5 +3944,196 @@ class ApiOutletController extends Controller
         }
              return response()->json(MyHelper::checkGet($array));
        
+    }
+
+    public function codeGenerate(){
+        $date = date('ymd');
+        $random = rand(100,999);
+        $code = 'CONV-'.$date.$random;
+        $cek_code = UnitConversionLog::where('code_conversion',$code)->first();
+        if($cek_code){
+            $this->codeGenerate();
+        }
+        return $code;
+    }
+
+    public function getStockIcount(Request $request){
+        $post = $request->all();
+        $outlet = Outlet::where('outlet_status', 'Active')->where('outlet_code', $post['outlet_code'])->first();
+        if(!empty($outlet)){
+            $stock_1 = ProductIcountOutletStock::where('id_outlet',$outlet['id_outlet'])->where('id_product_icount', $post['id_product_icount'])->where('unit', $post['unit'])->first();
+            if(!empty($stock_1)){
+                if($post['type']=='distribution'){
+                    $stock_2_qty = floor($post['qty'] / $post['conv']);
+                    $post['qty'] = $stock_2_qty * $post['conv'];
+                }else{
+                    $stock_2_qty = $post['qty'] * $post['conv'];
+                }
+                $stock_1_qty = $post['qty_original'] - $post['qty'];
+                $stock_2_add = $stock_2_qty;
+                $stock_2 = ProductIcountOutletStock::where('id_outlet',$outlet['id_outlet'])->where('id_product_icount', $post['id_product_icount'])->where('unit', $post['unit_conversion'])->first();
+                if(!empty($stock_2)){
+                    $stock_2_qty = $stock_2_qty + $stock_2['stock'];
+                }
+
+                DB::beginTransaction();
+
+                //log conversion
+                $log = [
+                    'code_conversion' => $this->codeGenerate(),
+                    'id_user'   => auth()->user()->id,
+                    'id_outlet' => $outlet['id_outlet'],
+                    'id_product_icount' => $post['id_product_icount'],
+                    'unit' => $post['unit'],
+                    'qty_before_conversion' => $post['qty_original'],
+                    'qty_conversion' => $post['qty'],
+                    'unit_conversion' => $post['unit_conversion'],
+                    'conversion_type' => $post['type'],
+                    'ratio' => $post['conv'],
+                    'qty_after_conversion' =>  $stock_1_qty,
+                    'qty_unit_converion' => $stock_2_qty,
+                ];
+                $unit_log = UnitConversionLog::create($log);
+                if(!$unit_log){
+                    DB::rollBack();
+                    return response()->json(['status' => 'fail' , 'messages' => ['Failed to Update Stock']]);
+                }
+
+                // return [$stock_1_qty,$stock_2_qty,$stock_2_add];
+                $product_icount = new ProductIcount();
+                $refresh_stock_1 = $product_icount->find($post['id_product_icount'])->addLogStockProductIcount(-$post['qty'],$post['unit'],'Product Unit Conversion',$unit_log['id_unit_conversion_log'],null,$outlet['id_outlet']);
+                if(!$refresh_stock_1){
+                    DB::rollBack();
+                    return response()->json(['status' => 'fail' , 'messages' => ['Failed to Update Stock']]);
+                }
+                //refresh stock 1
+                $refresh_stock_2 = $product_icount->find($post['id_product_icount'])->addLogStockProductIcount($stock_2_add,$post['unit_conversion'],'Product Unit Conversion',$unit_log['id_unit_conversion_log'],null,$outlet['id_outlet']);
+                if(!$refresh_stock_2){
+                    DB::rollBack();
+                    return response()->json(['status' => 'fail' , 'messages' => ['Failed to Update Stock']]);
+                }
+                
+                DB::commit();
+                return response()->json(['status' => 'success']);
+            }else{
+                return response()->json(['status' => 'fail' , 'messages' => ['Incompleted data']]);
+            }
+        }else{
+            return response()->json(['status' => 'fail' , 'messages' => ['Incompleted data']]);
+        }
+    }
+
+    public function reportStock(Request $request){
+        $post = $request->all();
+        $outlet = Outlet::where('outlet_code',$post['outlet_code'])->first();
+        if($outlet){
+            $report = ProductIcountOutletStockLog::join('outlets', 'product_icount_outlet_stock_logs.id_outlet', '=', 'outlets.id_outlet')
+            ->join('product_icounts', 'product_icount_outlet_stock_logs.id_product_icount', '=', 'product_icounts.id_product_icount')
+            ->whereDate('product_icount_outlet_stock_logs.created_at', '>=', date('Y-m-d', strtotime($post['start_date'])))
+            ->whereDate('product_icount_outlet_stock_logs.created_at', '<=', date('Y-m-d', strtotime($post['end_date'])))
+            ->where('product_icount_outlet_stock_logs.id_outlet', $outlet['id_outlet'])
+            ->where('product_icount_outlet_stock_logs.id_product_icount', $post['id_product_icount'])
+            ->where('product_icount_outlet_stock_logs.unit', $post['unit']);
+            if(isset($post['conditions']) && !empty($post['conditions'])){
+                $rule = 'and';
+                if(isset($post['rule'])){
+                    $rule = $post['rule'];
+                }
+                if($rule == 'and'){
+                    foreach ($post['conditions'] as $condition){
+                        if(isset($condition['subject'])){                
+                            if($condition['operator'] == '='){
+                                $report = $report->where($condition['subject'], $condition['parameter']);
+                            }elseif($condition['operator'] == 'like'){
+                                $report = $report->where($condition['subject'], 'like', '%'.$condition['parameter'].'%');
+                            }else{
+                                $report = $report->where($condition['subject'], $condition['operator'], $condition['parameter']);
+                            }
+                        }
+                    }
+                }else{
+                    $report = $report->where(function ($q) use ($post){
+                        foreach ($post['conditions'] as $condition){
+                            if(isset($condition['subject'])){
+                                if($condition['operator'] == '='){
+                                    $q->orWhere($condition['subject'], $condition['parameter']);
+                                }elseif($condition['operator'] == 'like'){
+                                    $q->orWhere($condition['subject'], 'like', '%'.$condition['parameter'].'%');
+                                }else{
+                                    $q->orWhere($condition['subject'], $condition['operator'], $condition['parameter']);
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+            $report = $report->select('product_icount_outlet_stock_logs.*','product_icounts.name','outlets.outlet_name');
+            if(isset($post['order']) && isset($post['order_type'])){
+                if(isset($post['page'])){
+                    $report = $report->orderBy($post['order'], $post['order_type'])->paginate($request->length ?: 10);
+                }else{
+                    $report = $report->orderBy($post['order'], $post['order_type'])->get()->toArray();
+                }
+            }else{
+                if(isset($post['page'])){
+                    $report = $report->orderBy('created_at', 'asc')->paginate($request->length ?: 10);
+                }else{
+                    $report = $report->orderBy('created_at', 'asc')->get()->toArray();
+                }
+            }
+
+            // source
+            foreach($report as $key => $data){
+                if($data['source']=='Book Product' || $data['source']=='Cancelled Book Product'){
+                    $link = Transaction::where('id_transaction',$data['id_reference'])->first();
+                    $report[$key]['link'] = env('VIEW_URL').'transaction/outlet-service/detail/'.$link['id_transaction'];
+                    $report[$key]['id_reference'] = $link['transaction_receipt_number'];
+                }elseif($data['source']=='Transaction Outlet Service'){
+                    $link = TransactionProductService::where('id_transaction_product_service',$data['id_reference'])->first();
+                    $report[$key]['link'] = env('VIEW_URL').'transaction/outlet-service/detail/'.$link['id_transaction'];
+                    $report[$key]['id_reference'] = $link['order_id'];
+                }elseif($data['source']=='Delivery Product'){
+                    $link = DeliveryProduct::where('id_delivery_product',$data['id_reference'])->first();
+                    $report[$key]['link'] = env('VIEW_URL').'dev-product/detail/'.$link['id_delivery_product'];
+                    $report[$key]['id_reference'] = $link['code'];
+                }elseif($data['source']=='Product Unit Conversion'){
+                    $link = UnitConversionLog::where('id_unit_conversion_log',$data['id_reference'])->first();
+                    $report[$key]['link'] = env('VIEW_URL').'outlet/detail/'.$post['outlet_code'].'/unit-conversion/'.$link['id_unit_conversion_log'];
+                    $report[$key]['id_reference'] = $link['code_conversion'];
+                }
+            }
+            return MyHelper::checkGet($report);
+        }else{
+            return response()->json(['status' => 'fail' , 'messages' => ['Incompleted data']]);
+        }
+    }
+
+    public function detailUnitConversion(Request $request){
+        $post = $request->all();
+        $outlet = Outlet::where('outlet_code',$post['outlet_code'])->first();
+        if($outlet){
+            $unit_conversion = UnitConversionLog::join('outlets', 'unit_conversion_logs.id_outlet', '=', 'outlets.id_outlet')
+            ->join('product_icounts', 'unit_conversion_logs.id_product_icount', '=', 'product_icounts.id_product_icount')
+            ->join('users', 'unit_conversion_logs.id_user', '=', 'users.id')
+            ->where('unit_conversion_logs.id_outlet',$outlet['id_outlet'])
+            ->where('id_unit_conversion_log',$post['id_unit_conversion_log'])
+            ->select('unit_conversion_logs.*','outlets.outlet_name','users.name','product_icounts.name as product_icount_name')
+            ->first();
+
+            if($unit_conversion==null){
+                return response()->json(['status' => 'success', 'result' => [
+                    'unit_conversion' => 'Empty',
+                ]]);
+            } else {
+                $unit_conversion['ratio'] = $unit_conversion['conversion_type'] == 'distribution' ? $unit_conversion['ratio'].':1' : '1:'. $unit_conversion['ratio'];
+                return response()->json(['status' => 'success', 'result' => [
+                    'unit_conversion' => $unit_conversion,
+                ]]);
+            }
+
+        }else{
+            return response()->json(['status' => 'fail' , 'messages' => ['Incompleted data']]);
+        }
+
     }
 }

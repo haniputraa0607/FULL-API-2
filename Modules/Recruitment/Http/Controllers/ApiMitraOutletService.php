@@ -1233,7 +1233,7 @@ class ApiMitraOutletService extends Controller
     	)
     	->where('id_user_hair_stylist', $user->id_user_hair_stylist)
     	->whereDate('date', date('Y-m-d'))
-    	->whereIn('shift', $shift)
+    	->whereIn('shift', $shift ?? [])
     	->first();
     	$overtime = HairstylistOverTime::where('id_user_hair_stylist', $user->id_user_hair_stylist)
     	->wheredate('date', date('Y-m-d'))

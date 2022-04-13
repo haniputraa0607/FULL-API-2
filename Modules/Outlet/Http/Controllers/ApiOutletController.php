@@ -707,7 +707,7 @@ class ApiOutletController extends Controller
         }
 
         if (isset($post['outlet_code'])) {
-            $outlet->with(['holidays', 'holidays.date_holidays','brands', 'delivery_outlet'])->where('outlet_code', $post['outlet_code']);
+            $outlet->with(['holidays', 'holidays.date_holidays','brands', 'delivery_outlet', 'xendit_account'])->where('outlet_code', $post['outlet_code']);
         }
 
         if (isset($post['id_outlet'])) {

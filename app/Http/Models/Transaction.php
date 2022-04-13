@@ -626,6 +626,10 @@ class Transaction extends Model
     			break;
     	}
 
+        if($this->transaction_from == 'outlet-service' || $this->transaction_from == 'shop') {
+            app('\Modules\Transaction\Http\Controllers\ApiOnlineTransaction')->cancelBookProductStock($this->id_transaction);
+        }
+
     	// send notification
     	// TODO write notification logic here
     	app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
@@ -694,6 +698,10 @@ class Transaction extends Model
     		case 'academy':
     			break;
     	}
+
+        if($this->transaction_from == 'outlet-service' || $this->transaction_from == 'shop') {
+            app('\Modules\Transaction\Http\Controllers\ApiOnlineTransaction')->cancelBookProductStock($this->id_transaction);
+        }
 
     	// send notification
     	// TODO write notification logic here

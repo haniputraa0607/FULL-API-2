@@ -80,6 +80,7 @@ use App\Http\Models\Transaction;
 use App\Jobs\SendOutletJob;
 use Modules\Product\Entities\DeliveryProduct;
 use Modules\Product\Entities\UnitIcount;
+use Modules\Product\Entities\UnitConversionLog;
 use Modules\Transaction\Entities\TransactionProductService;
 
 class ApiOutletController extends Controller
@@ -3945,6 +3946,17 @@ class ApiOutletController extends Controller
        
     }
 
+    public function codeGenerate(){
+        $date = date('ymd');
+        $random = rand(100,999);
+        $code = 'CONV-'.$date.$random;
+        $cek_code = UnitConversionLog::where('code_conversion',$code)->first();
+        if($cek_code){
+            $this->codeGenerate();
+        }
+        return $code;
+    }
+
     public function getStockIcount(Request $request){
         $post = $request->all();
         $outlet = Outlet::where('outlet_status', 'Active')->where('outlet_code', $post['outlet_code'])->first();
@@ -3963,20 +3975,44 @@ class ApiOutletController extends Controller
                 if(!empty($stock_2)){
                     $stock_2_qty = $stock_2_qty + $stock_2['stock'];
                 }
-                // return [$stock_1_qty,$stock_2_qty,$stock_2_add];
+
                 DB::beginTransaction();
+
+                //log conversion
+                $log = [
+                    'code_conversion' => $this->codeGenerate(),
+                    'id_user'   => auth()->user()->id,
+                    'id_outlet' => $outlet['id_outlet'],
+                    'id_product_icount' => $post['id_product_icount'],
+                    'unit' => $post['unit'],
+                    'qty_before_conversion' => $post['qty_original'],
+                    'qty_conversion' => $post['qty'],
+                    'unit_conversion' => $post['unit_conversion'],
+                    'conversion_type' => $post['type'],
+                    'ratio' => $post['conv'],
+                    'qty_after_conversion' =>  $stock_1_qty,
+                    'qty_unit_converion' => $stock_2_qty,
+                ];
+                $unit_log = UnitConversionLog::create($log);
+                if(!$unit_log){
+                    DB::rollBack();
+                    return response()->json(['status' => 'fail' , 'messages' => ['Failed to Update Stock']]);
+                }
+
+                // return [$stock_1_qty,$stock_2_qty,$stock_2_add];
                 $product_icount = new ProductIcount();
-                $refresh_stock_1 = $product_icount->find($post['id_product_icount'])->addLogStockProductIcount(-$post['qty'],$post['unit'],'Product Unit Conversion',null,null,$outlet['id_outlet']);
+                $refresh_stock_1 = $product_icount->find($post['id_product_icount'])->addLogStockProductIcount(-$post['qty'],$post['unit'],'Product Unit Conversion',$unit_log['id_unit_conversion_log'],null,$outlet['id_outlet']);
                 if(!$refresh_stock_1){
                     DB::rollBack();
                     return response()->json(['status' => 'fail' , 'messages' => ['Failed to Update Stock']]);
                 }
                 //refresh stock 1
-                $refresh_stock_2 = $product_icount->find($post['id_product_icount'])->addLogStockProductIcount($stock_2_add,$post['unit_conversion'],'Product Unit Conversion',null,null,$outlet['id_outlet']);
+                $refresh_stock_2 = $product_icount->find($post['id_product_icount'])->addLogStockProductIcount($stock_2_add,$post['unit_conversion'],'Product Unit Conversion',$unit_log['id_unit_conversion_log'],null,$outlet['id_outlet']);
                 if(!$refresh_stock_2){
                     DB::rollBack();
                     return response()->json(['status' => 'fail' , 'messages' => ['Failed to Update Stock']]);
                 }
+                
                 DB::commit();
                 return response()->json(['status' => 'success']);
             }else{
@@ -4060,11 +4096,44 @@ class ApiOutletController extends Controller
                     $link = DeliveryProduct::where('id_delivery_product',$data['id_reference'])->first();
                     $report[$key]['link'] = env('VIEW_URL').'dev-product/detail/'.$link['id_delivery_product'];
                     $report[$key]['id_reference'] = $link['code'];
+                }elseif($data['source']=='Product Unit Conversion'){
+                    $link = UnitConversionLog::where('id_unit_conversion_log',$data['id_reference'])->first();
+                    $report[$key]['link'] = env('VIEW_URL').'outlet/detail/'.$post['outlet_code'].'/unit-conversion/'.$link['id_unit_conversion_log'];
+                    $report[$key]['id_reference'] = $link['code_conversion'];
                 }
             }
             return MyHelper::checkGet($report);
         }else{
             return response()->json(['status' => 'fail' , 'messages' => ['Incompleted data']]);
         }
+    }
+
+    public function detailUnitConversion(Request $request){
+        $post = $request->all();
+        $outlet = Outlet::where('outlet_code',$post['outlet_code'])->first();
+        if($outlet){
+            $unit_conversion = UnitConversionLog::join('outlets', 'unit_conversion_logs.id_outlet', '=', 'outlets.id_outlet')
+            ->join('product_icounts', 'unit_conversion_logs.id_product_icount', '=', 'product_icounts.id_product_icount')
+            ->join('users', 'unit_conversion_logs.id_user', '=', 'users.id')
+            ->where('unit_conversion_logs.id_outlet',$outlet['id_outlet'])
+            ->where('id_unit_conversion_log',$post['id_unit_conversion_log'])
+            ->select('unit_conversion_logs.*','outlets.outlet_name','users.name','product_icounts.name as product_icount_name')
+            ->first();
+
+            if($unit_conversion==null){
+                return response()->json(['status' => 'success', 'result' => [
+                    'unit_conversion' => 'Empty',
+                ]]);
+            } else {
+                $unit_conversion['ratio'] = $unit_conversion['conversion_type'] == 'distribution' ? $unit_conversion['ratio'].':1' : '1:'. $unit_conversion['ratio'];
+                return response()->json(['status' => 'success', 'result' => [
+                    'unit_conversion' => $unit_conversion,
+                ]]);
+            }
+
+        }else{
+            return response()->json(['status' => 'fail' , 'messages' => ['Incompleted data']]);
+        }
+
     }
 }

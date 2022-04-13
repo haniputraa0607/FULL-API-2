@@ -28,5 +28,6 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
     Route::group(['prefix' => 'announcement'], function(){
         Route::any('/', 'ApiEmployeeAnnouncementController@listAnnouncement');
         Route::post('create', 'ApiEmployeeAnnouncementController@createAnnouncement');
+        Route::post('detail', 'ApiEmployeeAnnouncementController@deailAnnouncement');
     });
 });

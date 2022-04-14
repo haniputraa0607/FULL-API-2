@@ -3042,9 +3042,15 @@ class MyHelper{
 	public static function decryptPIN($encrypted, $phone, $scope = 'apps')
 	{
         $phone = str_replace('+', '', $phone);
-        if(substr($phone, 0, 2) == 62){
-            $phone = str_replace('62', '0', $phone);
-        }
+		if(substr($phone, 0, 2) == '62'){
+			$phone = substr($phone,2);
+		}elseif(substr($phone, 0, 3) == '+62'){
+			$phone = substr($phone,3);
+		}
+
+		if(substr($phone, 0, 1) != '0'){
+			$phone = '0'.$phone;
+		}
 
         if($scope == 'mitra-apps'){
             $user = UserHairStylist::select('password',\DB::raw('0 as challenge_key'))->where('phone_number', $phone)->first();

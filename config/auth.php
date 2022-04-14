@@ -56,6 +56,10 @@ return [
             'driver' => 'passport',
             'provider' => 'franchise'
         ],
+        'employee' => [
+            'driver' => 'passport',
+            'provider' => 'employee'
+        ],
         'partners' => [
             'driver' => 'passport',
             'provider' => 'partners'
@@ -98,6 +102,10 @@ return [
             'model' => App\Http\Models\Outlet::class
         ],
 
+        'employee' => [
+            'driver' => 'eloquent',
+            'model' => App\Http\Models\User::class
+        ],
         'quinos' => [
             'driver' => 'eloquent',
             'model' => App\Http\Models\QuinosUser::class

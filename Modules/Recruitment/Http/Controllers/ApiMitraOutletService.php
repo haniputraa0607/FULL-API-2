@@ -1234,7 +1234,7 @@ class ApiMitraOutletService extends Controller
     	)
     	->where('id_user_hair_stylist', $user->id_user_hair_stylist)
     	->whereDate('date', date('Y-m-d'))
-    	->whereIn('shift', $shift)
+    	->whereIn('shift', $shift ?? [])
     	->first();
     	$overtime = HairstylistOverTime::where('id_user_hair_stylist', $user->id_user_hair_stylist)
     	->wheredate('date', date('Y-m-d'))
@@ -1250,7 +1250,7 @@ class ApiMitraOutletService extends Controller
     			$outlet_box = null;
     		}else{
     			$log = HairstylistAttendanceLog::where(array('id_hairstylist_attendance'=>$attendance->id_hairstylist_attendance))->orderby('id_hairstylist_attendance_log','desc')->first();
-    			if($log->type == 'clock_in'){
+    			if(optional($log)->type == 'clock_in'){
     				if ($schedule->id_outlet_box) {
     					$box = OutletBox::where([
     						['id_outlet', $user->id_outlet],

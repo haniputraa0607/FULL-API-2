@@ -4227,6 +4227,15 @@ class FeaturesTableSeeder extends Seeder
                 'created_at'     => '2018-05-10 08:00:00',
                 'updated_at'     => '2018-05-10 08:00:00',
             ),
+            469 => array(
+                'id_feature'     => 470,
+                'feature_type'   => 'Update',
+                'feature_module' => 'Contact CS Subject Setting',
+                'show_hide'      => 1,
+                'order'          => 160,
+                'created_at'     => '2018-05-10 08:00:00',
+                'updated_at'     => '2018-05-10 08:00:00',
+            ),
         );
 
         foreach ($rows as $row) {

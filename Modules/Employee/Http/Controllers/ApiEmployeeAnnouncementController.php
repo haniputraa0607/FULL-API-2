@@ -194,4 +194,25 @@ class ApiEmployeeAnnouncementController extends Controller
 
         return response()->json(MyHelper::checkGet($ann));
     }
+
+    public function detailAnnouncement(Request $request){
+		$post = $request->json()->all(); 
+	
+		$ann = EmployeeAnnouncement::with('employee_announcement_rule_parents.rules')
+				->where('id_employee_announcement', $post['id_employee_announcement'])
+				->first();
+		
+		if(isset($ann) && !empty($ann)) {
+			$result = [
+					'status'  => 'success',
+					'result'  => $ann
+				];
+		} else {
+			$result = [
+					'status'  => 'fail',
+					'messages'  => ['No Announcement']
+				];
+		}
+		return response()->json($result);
+	}
 }

@@ -29,6 +29,7 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::any('/', 'ApiEmployeeAnnouncementController@listAnnouncement');
         Route::post('create', 'ApiEmployeeAnnouncementController@createAnnouncement');
         Route::post('detail', 'ApiEmployeeAnnouncementController@detailAnnouncement');
+        Route::post('delete', 'ApiEmployeeAnnouncementController@deleteAnnouncement');
     });
 
 });
@@ -45,4 +46,8 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('update', 'ApiRegisterEmployeeController@update');
         Route::post('submit', 'ApiRegisterEmployeeController@submit');
     });
+});
+
+Route::group([ 'middleware' => ['auth:api','user_agent', 'scopes:employee-apps'], 'prefix' => 'employee'], function () {
+    Route::get('announcement','ApiEmployeeAnnouncementController@announcementList');
 });

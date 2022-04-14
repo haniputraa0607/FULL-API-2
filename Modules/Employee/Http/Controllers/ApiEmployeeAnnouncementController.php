@@ -215,4 +215,269 @@ class ApiEmployeeAnnouncementController extends Controller
 		}
 		return response()->json($result);
 	}
+
+    public function deleteAnnouncement(Request $request){
+        $post = $request->json()->all();
+
+		$checkAnn = EmployeeAnnouncement::where('id_employee_announcement','=',$post['id_employee_announcement'])->first();
+		if($checkAnn){
+            $checkAnnRuleParent = EmployeeAnnouncementRuleParent::where('id_employee_announcement','=',$post['id_employee_announcement'])->get()->toArray();
+            if($checkAnnRuleParent){
+                foreach($checkAnnRuleParent as $parent){
+                    $checkAnnRule = EmployeeAnnouncementRule::where('id_employee_announcement_rule_parent',$parent['id_employee_announcement_rule_parent'])->delete();
+                }
+                $checkAnnRuleParent = EmployeeAnnouncementRuleParent::where('id_employee_announcement','=',$post['id_employee_announcement'])->delete();
+            }
+			$delete = EmployeeAnnouncement::where('id_employee_announcement','=',$post['id_employee_announcement'])->delete();
+			
+			if($delete){
+				$result = ['status'	=> 'success',
+						   'result'	=> ['Announcement has been deleted']
+						  ];
+			} else {
+				$result = [
+						'status'	=> 'fail',
+						'messages'	=> ['Delete Failed']
+						];
+			}
+		} else {
+			$result = [
+						'status'	=> 'fail',
+						'messages'	=> ['Announcement Not Found']
+						];
+		}
+		return response()->json($result);
+    }
+
+    public function announcementList(Request $request){
+        $user = $request->user();
+    	$today = date('Y-m-d h:i:s');
+    	$anns = EmployeeAnnouncement::select('id_employee_announcement', 'date_start as date', 'content')
+    			->with('employee_announcement_rule_parents.rules')
+    			->whereDate('date_start','<=',$today)
+    			->whereDate('date_end','>',$today)
+				->get()
+				->toArray();
+
+		$res = [];
+		foreach ($anns as $key => $ann) {
+			$cons = array();
+			$cons['subject'] = 'phone';
+			$cons['operator'] = '=';
+			$cons['parameter'] = $user['phone'];
+
+			array_push($ann['employee_announcement_rule_parents'], ['rule' => 'and', 'rule_next' => 'and', 'rules' => [$cons]]);
+			$users = $this->employeeFilter($ann['employee_announcement_rule_parents']);
+
+			if (empty($users['status']) || $users['status'] != 'success') {
+				continue;
+			}
+
+			$res[] = [
+				'id_employee_announcement' => $ann['id_employee_announcement'],
+				'date' => $ann['date'],
+				'date_indo' => MyHelper::indonesian_date_v2($ann['date'], 'd F Y'),
+				'content' => $ann['content']
+			];
+		}
+
+    	return [
+    		'status' => 'success',
+    		'result' => $res
+    	];
+    }
+
+    function employeeFilter($conditions = null, $order_field = 'id', $order_method = 'asc', $skip = 0, $take = 99999999999, $keyword = null, $columns = null, $objOnly = false)
+    {
+    	
+        $prevResult = [];
+        $finalResult = [];
+        $status_all_user = 0;
+
+        $key = 0;
+        foreach ($conditions as $key => $cond) {
+        	$query = User::leftJoin('outlets', 'outlets.id_outlet', 'users.id_outlet')
+        			->leftJoin('brand_outlet', 'brand_outlet.id_outlet', 'outlets.id_outlet')
+            		->leftJoin('cities', 'cities.id_city', 'outlets.id_city')
+                    ->leftJoin('provinces', 'provinces.id_province', 'cities.id_province')
+                    ->where('users.level','Admin')
+                    ->whereNotNull('users.id_role')
+                    ->orderBy($order_field, $order_method);
+
+            if ($cond != null) {
+
+                $rule = $cond['rule'];
+                unset($cond['rule']);
+
+                $conRuleNext = $cond['rule_next'];
+                unset($cond['rule_next']);
+
+                if (isset($cond['rules'])) {
+                    $cond = $cond['rules'];
+                }
+
+                /*========= Check conditions related to the subject of the transaction =========*/
+                $countTrxDate = 0;
+                $arr_tmp_product = [];
+                $arr_tmp_outlet = [];
+                foreach ($cond as $i => $condition) {
+                    if($condition['subject'] == 'all_user'){
+                        $status_all_user = 1;
+                        break 2;
+                    }
+                }
+                /*================================== END check ==================================*/
+                $query = $this->queryFilter($cond, $rule, $query);
+            }
+            
+            $result = array_pluck($query->get()->toArray(), 'id');
+
+            if ($key > 0) {
+                if ($ruleNext == 'and') {
+                    $prevResult = array_intersect($result, $prevResult);
+                } else {
+                    $prevResult = array_unique(array_merge($result, $prevResult));
+                }
+                $ruleNext = $conRuleNext;
+            } else {
+                $prevResult = $result;
+                $ruleNext = $conRuleNext;
+            }
+
+            $key++;
+        }
+        /*============= Final query when condition not null =============*/
+        $finalResult = User::leftJoin('outlets', 'outlets.id_outlet', 'users.id_outlet')
+        			->leftJoin('brand_outlet', 'brand_outlet.id_outlet', 'outlets.id_outlet')
+            		->leftJoin('cities', 'cities.id_city', 'outlets.id_city')
+                    ->leftJoin('provinces', 'provinces.id_province', 'cities.id_province')
+                    ->where('users.level','Admin')
+                    ->whereNotNull('users.id_role')
+                    ->orderBy($order_field, $order_method)
+            		->whereIn('users.id', $prevResult);
+
+        $resultCount = $finalResult->count();
+        if ($columns) {
+            foreach ($columns as $in=>$c){
+                if($c == 'email' || $c == 'name' || $c == 'phone'){
+                    $columns[$in] = 'users.'.$c;
+                }
+            }
+            $finalResult->select($columns);
+        }
+
+        if ($objOnly) {
+            return $finalResult;
+        }
+
+        $result = $finalResult->skip($skip)->take($take)->get()->toArray();
+        if ($result) {
+            $response = [
+                'status'    => 'success',
+                'result'    => $result,
+                'total' => $resultCount
+            ];
+        } else {
+            $response = [
+                'status'    => 'fail',
+                'messages'    => ['Employee Not Found']
+            ];
+        }
+
+        return $response;
+    }
+
+    function queryFilter($conditions, $rule, $query)
+    {
+        foreach ($conditions as $index => $condition) {
+        	if (empty($condition['subject'])) {
+        		continue;
+        	}
+
+            if ($condition['operator'] != '=') {
+                $conditionParameter = $condition['operator'];
+            }
+
+            /*============= All query with rule 'AND' ==================*/
+            if ($rule == 'and') {
+            	if (in_array($condition['subject'], ['id_outlet','id_province','id_city','id_role'])) {
+            		switch ($condition['subject']) {
+        				case 'id_province':
+                    		$var = "provinces.id_province";
+            				break;
+
+            			case 'id_city':
+                    		$var = "cities.id_city";
+            				break;
+
+        				case 'id_role':
+                    		$var = "users.id_role";
+            				break;
+
+            			case 'id_outlet':
+                    		$var = "outlets.id_outlet";
+            				break;
+            			
+            			default:
+            				continue 2;
+            				break;
+            		}
+
+                    $query = $query->where($var, '=', $condition['parameter']);
+                } elseif (in_array($condition['subject'], ['phone'])) {
+                    $var = "users." . $condition['subject'];
+
+                    if ($condition['operator'] == 'like')
+                        $query = $query->where($var, 'like', '%' . $condition['parameter'] . '%');
+                    elseif (strtoupper($condition['operator']) == 'WHERE IN')
+                        $query = $query->whereIn($var, explode(',', $condition['parameter']));
+                    else
+                        $query = $query->where($var, '=', $condition['parameter']);
+                }
+
+            }
+            /*====================== End IF ============================*/
+
+            /*============= All query with rule 'OR' ==================*/
+            else {
+            	if (in_array($condition['subject'], ['id_outlet','id_province','id_city','id_role'])) {
+            		switch ($condition['subject']) {
+        				case 'id_province':
+                    		$var = "provinces.id_province";
+            				break;
+
+            			case 'id_city':
+                    		$var = "cities.id_city";
+            				break;
+
+        				case 'id_role':
+                    		$var = "users.id_role";
+            				break;
+
+            			case 'id_outlet':
+                    		$var = "outlets.id_outlet";
+            				break;
+            			
+            			default:
+            				continue 2;
+            				break;
+            		}
+
+                    $query = $query->orWhere($var, '=', $condition['parameter']);
+                } elseif (in_array($condition['subject'], ['phone'])) {
+	                $var = "users." . $condition['subject'];
+
+	                if ($condition['operator'] == 'like')
+	                    $query = $query->orWhere($var, 'like', '%' . $condition['parameter'] . '%');
+	                elseif (strtoupper($condition['operator']) == 'WHERE IN')
+	                    $query = $query->orWhereIn($var, explode(',', $condition['parameter']));
+	                else
+	                    $query = $query->orWhere($var, '=', $condition['parameter']);
+	            }
+            } 
+            /*====================== End ELSE ============================*/
+        }
+
+        return $query;
+    }
 }

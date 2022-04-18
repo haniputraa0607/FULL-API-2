@@ -48,6 +48,7 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
     });
 });
 
-Route::group([ 'middleware' => ['auth:api','user_agent', 'scopes:employee-apps'], 'prefix' => 'employee'], function () {
+Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_agent', 'scopes:employee-apps'], 'prefix' => 'employee'], function () {
     Route::get('announcement','ApiEmployeeAnnouncementController@announcementList');
+    Route::get('cron','ApiEmployeeController@cronEmployeeScheduleNonShit');
 });

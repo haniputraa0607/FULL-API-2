@@ -1016,9 +1016,11 @@ class ApiMitraOutletService extends Controller
 					if($product_product[$product_use['id_product_icount'].'_'.$product_use['unit']]['optional'] == 1){
 						$this_qty = ($product_use['qty'] - $product_product[$product_use['id_product_icount'].'_'.$product_use['unit']]['qty'])*-1;
 						$product_icount = new ProductIcount();
-						$update_stock = $product_icount->find($product_use['id_product_icount'])->addLogStockProductIcount($this_qty,$product_use['unit'],'Transaction Outlet Service',$service['id_transaction_product_service']);
-						if(!$update_stock){
-							DB::rollback();
+						if($this_qty != 0){
+							$update_stock = $product_icount->find($product_use['id_product_icount'])->addLogStockProductIcount($this_qty,$product_use['unit'],'Transaction Outlet Service',$service['id_transaction_product_service']);
+							if(!$update_stock){
+								DB::rollback();
+							}
 						}
 					}
                 }

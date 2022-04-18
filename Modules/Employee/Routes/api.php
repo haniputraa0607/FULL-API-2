@@ -24,16 +24,30 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::get('assign', 'ApiEmployeeController@officeHoursAssign');
         Route::post('assign', 'ApiEmployeeController@officeHoursAssign');
     });
+
+    Route::group(['prefix' => 'announcement'], function(){
+        Route::any('/', 'ApiEmployeeAnnouncementController@listAnnouncement');
+        Route::post('create', 'ApiEmployeeAnnouncementController@createAnnouncement');
+        Route::post('detail', 'ApiEmployeeAnnouncementController@detailAnnouncement');
+        Route::post('delete', 'ApiEmployeeAnnouncementController@deleteAnnouncement');
+    });
+
 });
+
 Route::group([ 'middleware' => ['log_activities', 'auth:api','auth_client','scopes:landing-page'], 'prefix' => 'employee'], function () {
     Route::group(['prefix' => 'recruitment'], function(){
         Route::post('create', 'ApiRegisterEmployeeController@create');
     });
 });
+
 Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scopes:employees'], 'prefix' => 'employee'], function () {
     Route::group(['prefix' => 'recruitment'], function(){
         Route::post('detail', 'ApiRegisterEmployeeController@detail');
         Route::post('update', 'ApiRegisterEmployeeController@update');
         Route::post('submit', 'ApiRegisterEmployeeController@submit');
     });
+});
+
+Route::group([ 'middleware' => ['auth:api','user_agent', 'scopes:employee-apps'], 'prefix' => 'employee'], function () {
+    Route::get('announcement','ApiEmployeeAnnouncementController@announcementList');
 });

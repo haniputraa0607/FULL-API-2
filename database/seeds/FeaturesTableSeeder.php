@@ -1081,7 +1081,7 @@ class FeaturesTableSeeder extends Seeder
                 'id_feature'     => 119,
                 'feature_type'   => 'List',
                 'feature_module' => 'Auto CRM',
-                'show_hide'      => 1,
+                'show_hide'      => 0,
                 'order'          => 49,
                 'created_at'     => '2018-05-10 08:00:00',
                 'updated_at'     => '2018-05-10 08:00:00',

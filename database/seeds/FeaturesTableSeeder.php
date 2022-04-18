@@ -856,7 +856,7 @@ class FeaturesTableSeeder extends Seeder
                 'id_feature'     => 94,
                 'feature_type'   => 'Update',
                 'feature_module' => 'Auto CRM Enquiry',
-                'show_hide'      => 1,
+                'show_hide'      => 0,
                 'order'          => 37,
                 'created_at'     => '2018-05-10 08:00:00',
                 'updated_at'     => '2018-05-10 08:00:00',

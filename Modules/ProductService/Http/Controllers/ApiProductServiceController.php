@@ -452,9 +452,8 @@ class ApiProductServiceController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Book time is invalid']]);
         }
 
-        $hsNotAvailable = HairstylistNotAvailable::whereRaw('((booking_start >= "'.$bookTimeStart.'" AND booking_end <= "'.$bookTimeEnd.'") 
-                            OR (booking_start <= "'.$bookTimeStart.'" AND booking_end >= "'.$bookTimeEnd.'"))')
-            ->pluck('id_user_hair_stylist')->toArray();
+        $hsNotAvailable = HairstylistNotAvailable::whereRaw('"'.$bookTimeStart.'" BETWEEN booking_start AND booking_end')
+                        ->pluck('id_user_hair_stylist')->toArray();
         $hsNotAvailable = array_unique($hsNotAvailable);
 
         $listHs = UserHairStylist::where('user_hair_stylist_status', 'Active')

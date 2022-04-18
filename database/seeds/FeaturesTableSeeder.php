@@ -2125,7 +2125,7 @@ class FeaturesTableSeeder extends Seeder
                 'id_feature'     => 235,
                 'feature_type'   => 'Update',
                 'feature_module' => 'Settings Disburse',
-                'show_hide'      => 1,
+                'show_hide'      => 0,
                 'order'          => 95,
                 'created_at'     => '2021-09-29 10:00:00',
                 'updated_at'     => '2021-09-29 10:00:00',

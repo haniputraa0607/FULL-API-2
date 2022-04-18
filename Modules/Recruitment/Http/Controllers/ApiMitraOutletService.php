@@ -171,7 +171,7 @@ class ApiMitraOutletService extends Controller
 	public function customerQueueDetail(DetailCustomerQueueRequest $request)
 	{
 		$user = $request->user();
-        
+
 		$queue = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
 		->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
 		->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
@@ -195,18 +195,18 @@ class ApiMitraOutletService extends Controller
 			];
 		}
 
-        $product_name = Product::where('id_product',$queue['id_product'])->select('product_name')->first()['product_name'];
-        $company_type = $outlet['location_outlet']['company_type'] == 'PT IMA' ? 'ima' : 'ims';
-        $product_icounts = ProductProductIcount::with(['product_icounts' => function($pi){$pi->select('id_product_icount','name');}])->where('company_type', $company_type)->where('id_product', $queue['id_product'])->select('id_product_product_icount','id_product_icount','unit','qty','optional')->get()->toArray();
-        foreach($product_icounts as $p => $product_icount){
-            $cek_optional = false;
-            if($product_icount['optional'] == 1){
-                $product_icounts[$p]['max_qty'] = ProductIcountOutletStock::where('id_outlet',$user->id_outlet)->where('id_product_icount',$product_icount['id_product_icount'])->where('unit',$product_icount['unit'])->first()['stock'];
-            }
+		$product_name = Product::where('id_product',$queue['id_product'])->select('product_name')->first()['product_name'];
+		$company_type = $outlet['location_outlet']['company_type'] == 'PT IMA' ? 'ima' : 'ims';
+		$product_icounts = ProductProductIcount::with(['product_icounts' => function($pi){$pi->select('id_product_icount','name');}])->where('company_type', $company_type)->where('id_product', $queue['id_product'])->select('id_product_product_icount','id_product_icount','unit','qty','optional')->get()->toArray();
+		foreach($product_icounts as $p => $product_icount){
+			$cek_optional = false;
+			if($product_icount['optional'] == 1){
+				$product_icounts[$p]['max_qty'] = ProductIcountOutletStock::where('id_outlet',$user->id_outlet)->where('id_product_icount',$product_icount['id_product_icount'])->where('unit',$product_icount['unit'])->first()['stock'];
+			}
 
-            $product_icounts[$p]['name_product_icount'] = $product_icount['product_icounts']['name'];
-            unset($product_icounts[$p]['product_icounts']);
-        }
+			$product_icounts[$p]['name_product_icount'] = $product_icount['product_icounts']['name'];
+			unset($product_icounts[$p]['product_icounts']);
+		}
 
 
 		$serviceInProgress = TransactionProductService::where('service_status', 'In Progress')
@@ -307,8 +307,8 @@ class ApiMitraOutletService extends Controller
     		'outlet_box_name' => $box['outlet_box_name'] ?? null,
     		'processing_time_service' => $timeLeft,
     		'extend_popup_time' => $extendPopup,
-            'product_name' => $product_name,
-            'product_icount_use' => $product_icounts
+    		'product_name' => $product_name,
+    		'product_icount_use' => $product_icounts
     	];
 
     	return MyHelper::checkGet($res);
@@ -923,7 +923,7 @@ class ApiMitraOutletService extends Controller
     {
     	$user = $request->user();
     	$service = TransactionProductService::join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
-        ->where('transaction_product_services.id_user_hair_stylist', $user->id_user_hair_stylist)
+    	->where('transaction_product_services.id_user_hair_stylist', $user->id_user_hair_stylist)
     	->where('id_transaction_product_service', $request->id_transaction_product_service)
     	->first();
 
@@ -950,13 +950,13 @@ class ApiMitraOutletService extends Controller
     		];
     	}
 
-        $outlet = Outlet::with(['location_outlet'])->where('id_outlet', $box->id_outlet)->first();
-		if (!$outlet) {
-			return [
-				'status' => 'fail',
-				'messages' => ['Outlet tidak ditemukan']
-			];
-		}
+    	$outlet = Outlet::with(['location_outlet'])->where('id_outlet', $box->id_outlet)->first();
+    	if (!$outlet) {
+    		return [
+    			'status' => 'fail',
+    			'messages' => ['Outlet tidak ditemukan']
+    		];
+    	}
 
     	DB::beginTransaction();
     	try {
@@ -981,9 +981,6 @@ class ApiMitraOutletService extends Controller
             //remove hs from table not avilable
     		HairstylistNotAvailable::where('id_transaction_product_service', $service['id_transaction_product_service'])->delete();
 
-            //update stock
-    		app($this->trx)->bookProductStock($service->id_transaction);
-
             // log rating outlet
     		UserRatingLog::updateOrCreate([
     			'id_user' => $trx->id_user,
@@ -1007,7 +1004,7 @@ class ApiMitraOutletService extends Controller
 
     		$trx->update(['show_rate_popup' => '1']);
 
-            if($request->product_icount_use){
+    		if($request->product_icount_use){
                 //cek 
                 $company_type = $outlet['location_outlet']['company_type'] == 'PT IMA' ? 'ima' : 'ims';
                 $product_icounts = ProductProductIcount::where('company_type', $company_type)->where('id_product', $service['id_product'])->select('id_product_product_icount','id_product_icount','unit','qty','optional')->get()->toArray();
@@ -1016,12 +1013,16 @@ class ApiMitraOutletService extends Controller
                     $product_product[$p['id_product_icount'].'_'.$p['unit']] = $p;
                 }
                 foreach($request->product_icount_use as $key => $product_use){
-                    $this_qty = $product_use['qty'] - $product_product[$product_use['id_product_icount'].'_'.$product_use['unit']]['qty'];
-                    $product_icount = new ProductIcount();
-                    $update_stock = $product_icount->find($product_use['id_product_icount'])->addLogStockProductIcount(-$this_qty,$product_use['unit'],'Transaction Outlet Service',$service['id_transaction_product_service']);
-                    if(!$update_stock){
-                        DB::rollback();
-                    }
+					if($product_product[$product_use['id_product_icount'].'_'.$product_use['unit']]['optional'] == 1){
+						$this_qty = ($product_use['qty'] - $product_product[$product_use['id_product_icount'].'_'.$product_use['unit']]['qty'])*-1;
+						$product_icount = new ProductIcount();
+						if($this_qty != 0){
+							$update_stock = $product_icount->find($product_use['id_product_icount'])->addLogStockProductIcount($this_qty,$product_use['unit'],'Transaction Outlet Service',$service['id_transaction_product_service']);
+							if(!$update_stock){
+								DB::rollback();
+							}
+						}
+					}
                 }
             }
             
@@ -1262,22 +1263,22 @@ class ApiMitraOutletService extends Controller
     						['id_outlet', $user->id_outlet],
     						['outlet_box_status', 'Active']
     					])->get();
-                                        $box = array();
-                                        foreach ($boxs as $value) {
-                                            $hs = HairstylistScheduleDate::whereDate('date', date('Y-m-d'))
-                                                ->whereTime('time_start', '<=' ,date('H:i:s'))
-                                                ->whereTime('time_end','>=',date('H:i:s'))
-                                                ->where('id_outlet_box',$value['id_outlet_box'])
-                                                ->join('hairstylist_attendances','hairstylist_attendances.id_hairstylist_schedule_date','hairstylist_schedule_dates.id_hairstylist_schedule_date')->first();
-                                            if(!$hs){
-                                                $box[] = $value;
-                                            }else{
-                                            $logs = HairstylistAttendanceLog::where(array('id_hairstylist_attendance'=>$hs->id_hairstylist_attendance))->orderby('id_hairstylist_attendance_log','desc')->first();
-                                            if($logs->type != 'clock_in'){
-                                                $box[] = $value;
-                                            }
-                                            }
-                                        }
+    					$box = array();
+    					foreach ($boxs as $value) {
+    						$hs = HairstylistScheduleDate::whereDate('date', date('Y-m-d'))
+    						->whereTime('time_start', '<=' ,date('H:i:s'))
+    						->whereTime('time_end','>=',date('H:i:s'))
+    						->where('id_outlet_box',$value['id_outlet_box'])
+    						->join('hairstylist_attendances','hairstylist_attendances.id_hairstylist_schedule_date','hairstylist_schedule_dates.id_hairstylist_schedule_date')->first();
+    						if(!$hs){
+    							$box[] = $value;
+    						}else{
+    							$logs = HairstylistAttendanceLog::where(array('id_hairstylist_attendance'=>$hs->id_hairstylist_attendance))->orderby('id_hairstylist_attendance_log','desc')->first();
+    							if($logs->type != 'clock_in'){
+    								$box[] = $value;
+    							}
+    						}
+    					}
     					$outlet_box = null;
     				}
     			}else{
@@ -1294,28 +1295,29 @@ class ApiMitraOutletService extends Controller
     		->where('id_user_hair_stylist', $user->id_user_hair_stylist)
     		->whereDate('date', date('Y-m-d'))
     		->first(); 
-                $outlets = Outlet::find($user->id_outlet);
-                $timezone = $outlets->city->province->time_zone_utc;
-                $dateTime = $dateTime ?? date('Y-m-d H:i:s');
-                $curTime = date('H:i:s', strtotime($dateTime));
-                $day = MyHelper::indonesian_date_v2($dateTime, 'l');
-                $day = str_replace('Jum\'at', 'Jumat', $day);
+    		$outlets = Outlet::find($user->id_outlet);
+    		$timezone = $outlets->city->province->time_zone_utc;
+    		$dateTime = $dateTime ?? date('Y-m-d H:i:s');
+    		$curTime = date('H:i:s', strtotime($dateTime));
+    		$day = MyHelper::indonesian_date_v2($dateTime, 'l');
+    		$day = str_replace('Jum\'at', 'Jumat', $day);
 
-                $outletSchedule = OutletSchedule::where('id_outlet', $user->id_outlet)->where('day', $day)->first();
-                $isHoliday = app('Modules\Outlet\Http\Controllers\ApiOutletController')->isHoliday($user->id_outlet);
-                $outletShift = OutletTimeShift::where('id_outlet_schedule', $outletSchedule->id_outlet_schedule)->where('shift',$schedule->shift)->first();
-        				
-                if (!$outletSchedule || $outletSchedule->is_closed) {
-                    $box = [];
-    		    $outlet_box = null;
-                }elseif ($isHoliday['status']) {
-                    $box = [];
-    		    $outlet_box = null;
-                }elseif($overtime->time == "after"){
+    		$outletSchedule = OutletSchedule::where('id_outlet', $user->id_outlet)->where('day', $day)->first();
+    		$isHoliday = app('Modules\Outlet\Http\Controllers\ApiOutletController')->isHoliday($user->id_outlet);
+    		$outletShift = OutletTimeShift::where('id_outlet_schedule', $outletSchedule->id_outlet_schedule)->where('shift',$schedule->shift)->first();
+
+    		if (!$outletSchedule || $outletSchedule->is_closed) {
+    			$box = [];
+    			$outlet_box = null;
+    		}elseif ($isHoliday['status']) {
+    			$box = [];
+    			$outlet_box = null;
+    		}elseif($overtime->time == "after"){
     			$str = explode(":",$overtime->duration);
     			$string = "+".(int)$str[0].' hours'.' '.(int)$str[1].' minutes'.' '. (int)$str[2].' seconds';
-    			$start = date('Y-m-d',strtotime($schedule->date))." ".$outletShift->shift_time_end;
-    			$end = date('Y-m-d H:i:s', strtotime($string. $start));
+    			$start = date('Y-m-d',strtotime($schedule->date))." ".$outletShift->shift_time_start;
+    			$end = date('Y-m-d',strtotime($schedule->date))." ".$outletShift->shift_time_end;
+    			$end = date('Y-m-d H:i:s', strtotime($string. $end));
     			$now = date('Y-m-d H:i:s');
     			if($start <= $now && $end >= $now){
     				if ($schedule->id_outlet_box) {
@@ -1330,76 +1332,77 @@ class ApiMitraOutletService extends Controller
     						['id_outlet', $user->id_outlet],
     						['outlet_box_status', 'Active']
     					])->get();
-                                        $box = array();
-                                        foreach ($boxs as $value) {
-                                            $hs = HairstylistScheduleDate::whereDate('date', date('Y-m-d'))
-                                                ->whereTime('time_start', '<=' ,date('H:i:s'))
-                                                ->whereTime('time_end','>=',date('H:i:s'))
-                                                ->where('id_outlet_box',$value['id_outlet_box'])
-                                                ->join('hairstylist_attendances','hairstylist_attendances.id_hairstylist_schedule_date','hairstylist_schedule_dates.id_hairstylist_schedule_date')->first();
-                                            if(!$hs){
-                                                $box[] = $value;
-                                            }else{
-                                            $logs = HairstylistAttendanceLog::where(array('id_hairstylist_attendance'=>$hs->id_hairstylist_attendance))->orderby('id_hairstylist_attendance_log','desc')->first();
-                                            if($logs->type != 'clock_in'){
-                                                $box[] = $value;
-                                            }
-                                            }
-                                        }
+    					$box = array();
+    					foreach ($boxs as $value) {
+    						$hs = HairstylistScheduleDate::whereDate('date', date('Y-m-d'))
+    						->whereTime('time_start', '<=' ,date('H:i:s'))
+    						->whereTime('time_end','>=',date('H:i:s'))
+    						->where('id_outlet_box',$value['id_outlet_box'])
+    						->join('hairstylist_attendances','hairstylist_attendances.id_hairstylist_schedule_date','hairstylist_schedule_dates.id_hairstylist_schedule_date')->first();
+    						if(!$hs){
+    							$box[] = $value;
+    						}else{
+    							$logs = HairstylistAttendanceLog::where(array('id_hairstylist_attendance'=>$hs->id_hairstylist_attendance))->orderby('id_hairstylist_attendance_log','desc')->first();
+    							if($logs->type != 'clock_in'){
+    								$box[] = $value;
+    							}
+    						}
+    					}
     					$outlet_box = null;
     				}
     			}
     		}elseif($overtime->time == "before"){
     			$str = explode(":",$overtime->duration);
-    			$string = "-".(int)$str[0].' hours'.' '.(int)$str[1].' minutes'.' '. (int)$str[2].' seconds';
-    			$end = date('Y-m-d',strtotime($schedule->date))." ".$outletShift->shift_time_start;
-    			$start = date('Y-m-d H:i:s', strtotime($string. $end));
+    			$string = "-".(int)$str[0].' hours'.' -'.(int)$str[1].' minutes'.' -'. (int)$str[2].' seconds';
+    			$start = date('Y-m-d',strtotime($schedule->date))." ".$outletShift->shift_time_start;
+    			$end = date('Y-m-d',strtotime($schedule->date))." ".$outletShift->shift_time_end;
+    			$start = date('Y-m-d H:i:s', strtotime($start . $string));
     			$now = date('Y-m-d H:i:s');
     			if($start <= $now && $schedule->time_end >= $now){
-    				 $attendance = HairstylistAttendance::where('id_user_hair_stylist', '=', $user->id_user_hair_stylist)
-                                ->whereDate('attendance_date', date('Y-m-d'))
-                                ->first();
-                                if (!$attendance) {
-                                        $box = [];
-                                        $outlet_box = null;
-                                }else{
-                                        $log = HairstylistAttendanceLog::where(array('id_hairstylist_attendance'=>$attendance->id_hairstylist_attendance))->orderby('id_hairstylist_attendance_log','desc')->first();
-                                        if($log->type == 'clock_in'){
-                                                if ($schedule->id_outlet_box) {
-                                                        $box = OutletBox::where([
-                                                                ['id_outlet', $user->id_outlet],
-                                                                ['id_outlet_box', $schedule->id_outlet_box],
-                                                                ['outlet_box_status', 'Active']
-                                                        ])->get();
-                                                        $outlet_box = $schedule->id_outlet_box;
-                                                } else {
-                                                        $boxs = OutletBox::where([
-                                                                ['id_outlet', $user->id_outlet],
-                                                                ['outlet_box_status', 'Active']
-                                                        ])->get();
-                                                        $box = array();
-                                                        foreach ($boxs as $value) {
-                                                            $hs = HairstylistScheduleDate::whereDate('date', date('Y-m-d'))
-                                                                ->whereTime('time_start', '<=' ,date('H:i:s'))
-                                                                ->whereTime('time_end','>=',date('H:i:s'))
-                                                                ->where('id_outlet_box',$value['id_outlet_box'])
-                                                                ->join('hairstylist_attendances','hairstylist_attendances.id_hairstylist_schedule_date','hairstylist_schedule_dates.id_hairstylist_schedule_date')->first();
-                                                            if(!$hs){
-                                                                $box[] = $value;
-                                                            }else{
-                                                            $logs = HairstylistAttendanceLog::where(array('id_hairstylist_attendance'=>$hs->id_hairstylist_attendance))->orderby('id_hairstylist_attendance_log','desc')->first();
-                                                            if($logs->type != 'clock_in'){
-                                                                $box[] = $value;
-                                                            }
-                                                            }
-                                                        }
-                                                        $outlet_box = null;
-                                                }
-                                        }else{
-                                                $box = [];
-                                                $outlet_box = null;
-                                        }       
-                                }
+    				$attendance = HairstylistAttendance::where('id_user_hair_stylist', '=', $user->id_user_hair_stylist)
+    				->whereDate('attendance_date', date('Y-m-d'))
+    				->first();
+    				if (!$attendance) {
+    					$box = [];
+    					$outlet_box = null;
+    				}else{
+    					$log = HairstylistAttendanceLog::where(array('id_hairstylist_attendance'=>$attendance->id_hairstylist_attendance))->orderby('id_hairstylist_attendance_log','desc')->first();
+    					if($log->type == 'clock_in'){
+    						if ($schedule->id_outlet_box) {
+    							$box = OutletBox::where([
+    								['id_outlet', $user->id_outlet],
+    								['id_outlet_box', $schedule->id_outlet_box],
+    								['outlet_box_status', 'Active']
+    							])->get();
+    							$outlet_box = $schedule->id_outlet_box;
+    						} else {
+    							$boxs = OutletBox::where([
+    								['id_outlet', $user->id_outlet],
+    								['outlet_box_status', 'Active']
+    							])->get();
+    							$box = array();
+    							foreach ($boxs as $value) {
+    								$hs = HairstylistScheduleDate::whereDate('date', date('Y-m-d'))
+    								->whereTime('time_start', '<=' ,date('H:i:s'))
+    								->whereTime('time_end','>=',date('H:i:s'))
+    								->where('id_outlet_box',$value['id_outlet_box'])
+    								->join('hairstylist_attendances','hairstylist_attendances.id_hairstylist_schedule_date','hairstylist_schedule_dates.id_hairstylist_schedule_date')->first();
+    								if(!$hs){
+    									$box[] = $value;
+    								}else{
+    									$logs = HairstylistAttendanceLog::where(array('id_hairstylist_attendance'=>$hs->id_hairstylist_attendance))->orderby('id_hairstylist_attendance_log','desc')->first();
+    									if($logs->type != 'clock_in'){
+    										$box[] = $value;
+    									}
+    								}
+    							}
+    							$outlet_box = null;
+    						}
+    					}else{
+    						$box = [];
+    						$outlet_box = null;
+    					}       
+    				}
     			}
     		}
     	}
@@ -1561,13 +1564,13 @@ class ApiMitraOutletService extends Controller
     	$overtime = HairstylistOverTime::where('id_user_hair_stylist', $user->id_user_hair_stylist)
     	->wheredate('date', date('Y-m-d'))
     	->first();
-        $attendance = HairstylistAttendance::where('id_user_hair_stylist', '=', $user->id_user_hair_stylist)
+    	$attendance = HairstylistAttendance::where('id_user_hair_stylist', '=', $user->id_user_hair_stylist)
     	->whereDate('attendance_date', date('Y-m-d'))
 //    	->wherenotnull('clock_in')
     	// ->wherenull('clock_out')
     	->first();
-        if($overtime){
-            
+    	if($overtime){
+
     		$schedule = HairstylistSchedule::join(
     			'hairstylist_schedule_dates', 
     			'hairstylist_schedules.id_hairstylist_schedule', 
@@ -1576,60 +1579,62 @@ class ApiMitraOutletService extends Controller
     		->where('id_user_hair_stylist', $user->id_user_hair_stylist)
     		->whereDate('date', date('Y-m-d'))
     		->first(); 
-                $outlets = Outlet::find($user->id_outlet);
-                $timezone = $outlets->city->province->time_zone_utc;
-                $dateTime = $dateTime ?? date('Y-m-d H:i:s');
-                $curTime = date('H:i:s', strtotime($dateTime));
-                $day = MyHelper::indonesian_date_v2($dateTime, 'l');
-                $day = str_replace('Jum\'at', 'Jumat', $day);
+    		$outlets = Outlet::find($user->id_outlet);
+    		$timezone = $outlets->city->province->time_zone_utc;
+    		$dateTime = $dateTime ?? date('Y-m-d H:i:s');
+    		$curTime = date('H:i:s', strtotime($dateTime));
+    		$day = MyHelper::indonesian_date_v2($dateTime, 'l');
+    		$day = str_replace('Jum\'at', 'Jumat', $day);
 
-                $outletSchedule = OutletSchedule::where('id_outlet', $user->id_outlet)->where('day', $day)->first();
-                $isHoliday = app('Modules\Outlet\Http\Controllers\ApiOutletController')->isHoliday($user->id_outlet);
-                $outletShift = OutletTimeShift::where('id_outlet_schedule', $outletSchedule->id_outlet_schedule)->where('shift',$schedule->shift)->first();
-        				
-                if (!$outletSchedule || $outletSchedule->is_closed) {
-                    return [
-                            'status' => 'fail',
-                            'messages' => ['Diluar jam kerja hairstylist']
-                    ];
-                }elseif ($isHoliday['status']) {
-                   return [
-                            'status' => 'fail',
-                            'messages' => ['Diluar jam kerja hairstylist']
-                    ];
-                }elseif($overtime->time == "after"){
+    		$outletSchedule = OutletSchedule::where('id_outlet', $user->id_outlet)->where('day', $day)->first();
+    		$isHoliday = app('Modules\Outlet\Http\Controllers\ApiOutletController')->isHoliday($user->id_outlet);
+    		$outletShift = OutletTimeShift::where('id_outlet_schedule', $outletSchedule->id_outlet_schedule)->where('shift',$schedule->shift)->first();
+
+    		if (!$outletSchedule || $outletSchedule->is_closed) {
+    			return [
+    				'status' => 'fail',
+    				'messages' => ['Diluar jam kerja hairstylist']
+    			];
+    		}elseif ($isHoliday['status']) {
+    			return [
+    				'status' => 'fail',
+    				'messages' => ['Diluar jam kerja hairstylist']
+    			];
+    		}elseif($overtime->time == "after"){
     			$str = explode(":",$overtime->duration);
     			$string = "+".(int)$str[0].' hours'.' '.(int)$str[1].' minutes'.' '. (int)$str[2].' seconds';
-    			$start = date('Y-m-d',strtotime($schedule->date))." ".$outletShift->shift_time_end;
-    			$end = date('Y-m-d H:i:s', strtotime($string. $start));
+    			$start = date('Y-m-d',strtotime($schedule->date))." ".$outletShift->shift_time_start;
+    			$end = date('Y-m-d',strtotime($schedule->date))." ".$outletShift->shift_time_end;
+    			$end = date('Y-m-d H:i:s', strtotime($string. $end));
     			$now = date('Y-m-d H:i:s');
     			if($start >= $now && $end <= $now){
     				return [
-                                        'status' => 'fail',
-                                        'messages' => ['Diluar jam kerja hairstylist']
-                                ];
+    					'status' => 'fail',
+    					'messages' => ['Diluar jam kerja hairstylist']
+    				];
     			}
     		}elseif($overtime->time == "before"){
     			$str = explode(":",$overtime->duration);
-    			$string = "-".(int)$str[0].' hours'.' '.(int)$str[1].' minutes'.' '. (int)$str[2].' seconds';
-    			$end = date('Y-m-d',strtotime($schedule->date))." ".$outletShift->shift_time_start;
-    			$start = date('Y-m-d H:i:s', strtotime($string. $end));
+    			$string = "-".(int)$str[0].' hours'.' -'.(int)$str[1].' minutes'.' -'. (int)$str[2].' seconds';
+    			$start = date('Y-m-d',strtotime($schedule->date))." ".$outletShift->shift_time_start;
+    			$end = date('Y-m-d',strtotime($schedule->date))." ".$outletShift->shift_time_end;
+    			$start = date('Y-m-d H:i:s', strtotime($start . $string));
     			$now = date('Y-m-d H:i:s');
     			if($start >= $now && $end <= $now){
     				return [
-                                        'status' => 'fail',
-                                        'messages' => ['Diluar jam kerja hairstylist']
-                                ];
+    					'status' => 'fail',
+    					'messages' => ['Diluar jam kerja hairstylist 4; ' . "$start ; $now ; $end ; $start $string"]
+    				];
     			}
     		}
-        }elseif(!$attendance) {
-            $log = HairstylistAttendanceLog::where(array('id_hairstylist_attendance'=>$attendance->id_hairstylist_attendance))->orderby('id_hairstylist_attendance_log','desc')->first();
-                    if($log->type != 'clock_in'){
-                        return [
-                                'status' => 'fail',
-                                'messages' => ['Tidak ada kehadiran dibutuhkan untuk hari ini']
-                        ];
-                    }
+    	}elseif(!$attendance) {
+    		$log = HairstylistAttendanceLog::where(array('id_hairstylist_attendance'=>$attendance->id_hairstylist_attendance))->orderby('id_hairstylist_attendance_log','desc')->first();
+    		if($log->type != 'clock_in'){
+    			return [
+    				'status' => 'fail',
+    				'messages' => ['Tidak ada kehadiran dibutuhkan untuk hari ini']
+    			];
+    		}
     	}
     	DB::beginTransaction();
     	try {

@@ -450,7 +450,10 @@ class ApiTransactionAcademy extends Controller
             ]);
         }
 
-        $countReciptNumber = Transaction::where('id_outlet', $insertTransaction['id_outlet'])->count();
+        $lastReceipt = Transaction::where('id_outlet', $insertTransaction['id_outlet'])->orderBy('transaction_receipt_number', 'desc')->first()['transaction_receipt_number']??'';
+        $lastReceipt = substr($lastReceipt, -5);
+        $lastReceipt = (int)$lastReceipt;
+        $countReciptNumber = $lastReceipt+1;
         $receipt = 'TRX'.substr($outlet['outlet_code'], -4).'-'.sprintf("%05d", $countReciptNumber);
         $updateReceiptNumber = Transaction::where('id_transaction', $insertTransaction['id_transaction'])->update([
             'transaction_receipt_number' => $receipt

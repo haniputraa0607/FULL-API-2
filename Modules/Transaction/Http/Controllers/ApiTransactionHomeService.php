@@ -882,7 +882,10 @@ class ApiTransactionHomeService extends Controller
             ]);
         }
 
-        $countReciptNumber = Transaction::where('id_outlet', $insertTransaction['id_outlet'])->count();
+        $lastReceipt = Transaction::where('id_outlet', $insertTransaction['id_outlet'])->orderBy('transaction_receipt_number', 'desc')->first()['transaction_receipt_number']??'';
+        $lastReceipt = substr($lastReceipt, -5);
+        $lastReceipt = (int)$lastReceipt;
+        $countReciptNumber = $lastReceipt+1;
         $receipt = 'TRX'.substr($outlet['outlet_code'], -4).'-'.sprintf("%05d", $countReciptNumber);
         $updateReceiptNumber = Transaction::where('id_transaction', $insertTransaction['id_transaction'])->update([
             'transaction_receipt_number' => $receipt
@@ -1070,15 +1073,18 @@ class ApiTransactionHomeService extends Controller
         $maximumRadius = (int)(Setting::where('key', 'home_service_hs_maximum_radius')->first()['value']??25);
         if($post['preference_hair_stylist'] == 'favorite'){
             $check = FavoriteUserHiarStylist::where('id_user', $user['id'])->where('id_user_hair_stylist', $post['id_user_hair_stylist']);
-            if(!empty($idHsCategory)){
-                $check = $check->where('id_hairstylist_category', $idHsCategory);
-            }
             $check = $check->first();
             if(empty($check)){
                 $errAll[] = "Hair stylist favorite tidak ditemukan";
             }
 
-            $hs = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->where('user_hair_stylist_status', 'Active')->first();
+            $hs = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->where('user_hair_stylist_status', 'Active');
+            if(!empty($idHsCategory)){
+                $hs = $hs->where('id_hairstylist_category', $idHsCategory);
+            }
+
+            $hs = $hs->first();
+
             if(empty($hs)){
                 $errAll[] = "Hair stylist tidak ditemukan";
             }

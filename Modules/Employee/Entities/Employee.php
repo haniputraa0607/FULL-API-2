@@ -1,0 +1,49 @@
+<?php
+
+namespace Modules\Employee\Entities;
+
+use Illuminate\Database\Eloquent\Model;
+
+class Employee extends Model
+{
+    protected $table = 'employees';
+
+    protected $primaryKey = 'id_employee';
+    
+    protected $fillable = [
+        'id_user',
+        'nickname',
+        'country',
+        'birthplace',
+        'religion',
+        'height',
+        'weight',
+        'age',
+        'place_of_origin',
+        'job_now',
+        'companies',
+        'blood_type',
+        'card_number',
+        'address_ktp',
+        'id_city_ktp',
+        'postcode_ktp',
+        'address_domicile',
+        'id_city_domicile',
+        'postcode_domicile',
+        'phone_number',
+        'status_address_domicile',
+        'marital_status',
+        'married_date',
+        'applied_position',
+        'other_position',
+        'vacancy_information',
+        'relatives',
+        'relative_name',
+        'relative_position',
+        'status',
+        'status_step',
+        'created_at',
+        'updated_at',
+    ];
+
+}

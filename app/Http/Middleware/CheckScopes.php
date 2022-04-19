@@ -21,7 +21,6 @@ class CheckScopes extends AddCustomProvider
      */
     public function handle($request, Closure $next, $scope = null, $scope2 = null)
     {
-        /*check status maintenance mode for apps*/
         $mtScope = ['apps', 'web-apps', 'mitra-apps', 'client', 'employee-apps'];
         if (in_array($scope,$mtScope) || in_array($scope2,$mtScope)) {
             $getMaintenance = Setting::where('key', 'maintenance_mode')->first();
@@ -64,7 +63,7 @@ class CheckScopes extends AddCustomProvider
         }
 
         $arrScope = ['pos', 'be', 'partners', 'apps', 'web-apps', 'landing-page', 'franchise-client', 'franchise-super-admin',
-            'franchise-user', 'mitra-apps', 'outlet-display', 'client', 'employee-apps'];
+            'franchise-user', 'mitra-apps', 'outlet-display', 'client','employees', 'employee-apps'];
         if((in_array($scope, $arrScope) && $scope == $scopeUser) ||
             (in_array($scope2,$arrScope) && $scope2 == $scopeUser)){
             return $next($request);

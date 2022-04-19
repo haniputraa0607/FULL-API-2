@@ -31,3 +31,15 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('detail', 'ApiEmployeeAnnouncementController@deailAnnouncement');
     });
 });
+Route::group([ 'middleware' => ['log_activities', 'auth:api','auth_client','scopes:landing-page'], 'prefix' => 'employee'], function () {
+    Route::group(['prefix' => 'recruitment'], function(){
+        Route::post('create', 'ApiRegisterEmployeeController@create');
+    });
+});
+Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scopes:employees'], 'prefix' => 'employee'], function () {
+    Route::group(['prefix' => 'recruitment'], function(){
+        Route::post('detail', 'ApiRegisterEmployeeController@detail');
+        Route::post('update', 'ApiRegisterEmployeeController@update');
+        Route::post('submit', 'ApiRegisterEmployeeController@submit');
+    });
+});

@@ -240,6 +240,8 @@ class ApiRequestProductController extends Controller
                 ];
                 if(isset($data['id_request_product'])){
                     $push['budget_code'] = $value['budget_code'];
+                    $push['price'] = $price;
+                    $push['total_price'] = $price*$value['qty'];
                 }
                 array_push($data_detail, $push);
             }

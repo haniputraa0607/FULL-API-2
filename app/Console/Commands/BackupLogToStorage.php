@@ -15,7 +15,7 @@ class BackupLogToStorage extends Command
      *
      * @var string
      */
-    protected $signature = 'backup:logdb {--truncate} {--table=} {--chunk=100000} {--maxbackup=10}';
+    protected $signature = 'backup:logdb {--truncate} {--table=*} {--chunk=100000} {--maxbackup=10}';
 
     /**
      * The console command description.

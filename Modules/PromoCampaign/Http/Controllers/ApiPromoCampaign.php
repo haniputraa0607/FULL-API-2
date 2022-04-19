@@ -4073,6 +4073,7 @@ class ApiPromoCampaign extends Controller
                     $query->where('brand_active',1);
                 })
                 ->where('promo_campaign_visibility', 'Visible')
+                ->where('step_complete', 1)
                 ->OrderBy('id_promo_campaign', 'DESC');
         
         if(isset($post['page'])){

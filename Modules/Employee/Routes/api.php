@@ -14,6 +14,8 @@ use Illuminate\Http\Request;
 */
 
 Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scopes:be'], 'prefix' => 'employee'], function () {
+    Route::post('list', 'ApiEmployeeController@employeeList');
+
     Route::group(['prefix' => 'office-hours'], function(){
         Route::get('/', 'ApiEmployeeController@officeHoursList');
         Route::post('create', 'ApiEmployeeController@officeHoursCreate');
@@ -30,6 +32,14 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('create', 'ApiEmployeeAnnouncementController@createAnnouncement');
         Route::post('detail', 'ApiEmployeeAnnouncementController@detailAnnouncement');
         Route::post('delete', 'ApiEmployeeAnnouncementController@deleteAnnouncement');
+    });
+
+    Route::group(['prefix' => 'schedule'], function(){
+        Route::any('list', 'ApiEmployeeScheduleController@list');
+        Route::post('create', 'ApiEmployeeScheduleController@create');
+        Route::post('detail', 'ApiEmployeeScheduleController@detailAnnouncement');
+        Route::post('delete', 'ApiEmployeeScheduleController@deleteAnnouncement');
+        Route::any('year-list', 'ApiEmployeeScheduleController@getScheduleYear');
     });
 });
 

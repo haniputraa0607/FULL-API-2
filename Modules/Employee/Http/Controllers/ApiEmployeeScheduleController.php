@@ -107,6 +107,7 @@ class ApiEmployeeScheduleController extends Controller
         } 
         
     }
+
     public function cronEmployeeScheduleShit(){
         $log = MyHelper::logCron('Generate Employee Schedule Date Use Shift');
         try{
@@ -138,7 +139,9 @@ class ApiEmployeeScheduleController extends Controller
                                 'id_outlet' => $employee['id_outlet'],
                                 'schedule_month' => $schedule_month,
                                 'schedule_year' =>  $schedule_year,
-                                'request_at' =>  date('Y-m-d H:i:s'), 
+                                'request_at' =>  date('Y-m-d H:i:s'),
+                                'approve_by' => $schedue_before['approve_by'],
+                                'last_updated_by' => $schedue_before['last_updated_by'] 
                             ];
 
                             $create_schedule = EmployeeSchedule::create($array_employee);
@@ -189,5 +192,242 @@ class ApiEmployeeScheduleController extends Controller
             $log->fail($e->getMessage());
         } 
 
+    }
+
+    public function create(Request $request){
+        $post = $request->all();
+        $this_year = date('Y');
+        $this_month = date('m');
+
+        if($post['year'] >= (int)$this_year){
+            if($post['month'] >= $this_month){
+                $check_schedule = EmployeeSchedule::where('id',$post['id_employee'])->where('schedule_month',$post['month'])->where('schedule_year',$post['year'])->first();
+                if(!$check_schedule){
+                    $hs = User::where('id',$post['id_employee'])->first();
+                    $array_hs = [
+                        "id" => $post['id_employee'],
+                        "id_outlet" => $hs['id_outlet'],
+                        "approve_by" => auth()->user()->id,
+                        "last_updated_by" => auth()->user()->id,
+                        "schedule_month" => $post['month'],
+                        "schedule_year" => $post['year'],
+                        "request_at" => date('Y-m-d H:i:s'), 
+                        "approve_at" => date('Y-m-d H:i:s'),
+                        "reject_at" => NULL
+                    ];
+    
+                    DB::beginTransaction();
+                    $create_schedule = EmployeeSchedule::create($array_hs);
+                    if(!$create_schedule){
+                        DB::rollback();
+                    }
+                    DB::commit();
+                    return response()->json([
+                        'status' => 'success', 
+                        'result' => $create_schedule
+                    ]);
+                }else{
+                    return response()->json([
+                        'status' => 'fail', 
+                        'messages' => 'The Schedule for the selected month already exists'
+                    ]);
+                } 
+            }else{
+                return response()->json([
+                    'status' => 'fail', 
+                    'messages' => 'The Schedule month cant be smaller than this month'
+                ]);
+            }
+        }else{
+            return response()->json([
+                'status' => 'fail', 
+                'messages' => 'The Schedule year cant be smaller than this year'
+            ]);
+        }
+    }
+
+    public function list(Request $request)
+	{
+        $post = $request->json()->all();
+        $data = EmployeeSchedule::join('users', 'users.id', 'employee_schedules.id')
+                ->join('roles', 'roles.id_role', 'users.id_role')
+                ->join('employee_office_hours', 'employee_office_hours.id_employee_office_hour', 'roles.id_employee_office_hour')
+        		->join('outlets', 'outlets.id_outlet', 'employee_schedules.id_outlet')
+                ->orderBy('request_at', 'desc');
+
+        if (!empty($post['date_start']) && !empty($post['date_end'])) {
+            $start_date = date('Y-m-d', strtotime($post['date_start']));
+            $end_date = date('Y-m-d', strtotime($post['date_end']));
+
+            $data->whereDate('request_at', '>=', $start_date)->whereDate('request_at', '<=', $end_date);
+        }
+
+        if (isset($post['conditions']) && !empty($post['conditions'])) {
+            $rule = 'and';
+            if (isset($post['rule'])) {
+                $rule = $post['rule'];
+            }
+
+            if ($rule == 'and') {
+                foreach ($post['conditions'] as $row) {
+                    if (isset($row['subject'])) {
+                        if ($row['subject'] == 'nickname') {
+                            if ($row['operator'] == '=') {
+                                $data->where('nickname', $row['parameter']);
+                            } else {
+                                $data->where('nickname', 'like', '%'.$row['parameter'].'%');
+                            }
+                        }
+
+                        if ($row['subject'] == 'phone_number') {
+                            if ($row['operator'] == '=') {
+                                $data->where('phone_number', $row['parameter']);
+                            } else {
+                                $data->where('phone_number', 'like', '%'.$row['parameter'].'%');
+                            }
+                        }
+
+                        if ($row['subject'] == 'fullname') {
+                            if ($row['operator'] == '=') {
+                                $data->where('fullname', $row['parameter']);
+                            } else {
+                                $data->where('fullname', 'like', '%'.$row['parameter'].'%');
+                            }
+                        }
+
+                        if ($row['subject'] == 'id_outlet') {
+                            $data->where(function ($q) use($row){
+                                $q->where('employee_schedules.id_outlet', $row['operator'])
+                                ->orWhereIn('employee_schedules.id', function($query) use($row){
+                                    $query->select('employee_attendances.id')
+                                        ->from('employee_attendances')
+                                        ->where('employee_attendances.id_outlet', $row['operator']);
+                                });
+                            });
+                        }
+
+                        if ($row['subject'] == 'status') {
+                        	switch ($row['operator']) {
+                        		case 'Approved':
+                        			$data->whereNotNull('approve_at');
+                        			break;
+
+                        		case 'Rejected':
+                        			$data->where(function($q) {
+                        				$q->whereNotNull('reject_at');
+                        				$q->whereNull('approve_at');
+                        			});
+                        			break;
+                        		
+                        		default:
+                        			$data->where(function($q) {
+                        				$q->whereNull('reject_at');
+                        				$q->whereNull('approve_at');
+                        			});
+                        			break;
+                        	}
+                        }
+
+                        if ($row['subject'] == 'month') {
+                            $data->where('schedule_month', $row['operator']);
+                        }
+
+                        if ($row['subject'] == 'year') {
+                            $data->where('schedule_year', $row['operator']);
+                        }
+                    }
+                }
+            } else {
+            	$data->where(function ($subquery) use ($post) {
+            		foreach ($post['conditions'] as $row) {
+            			if (isset($row['subject'])) {
+            				if ($row['subject'] == 'nickname') {
+            					if ($row['operator'] == '=') {
+            						$subquery->orWhere('nickname', $row['parameter']);
+            					} else {
+            						$subquery->orWhere('nickname', 'like', '%'.$row['parameter'].'%');
+            					}
+            				}
+
+            				if ($row['subject'] == 'phone_number') {
+            					if ($row['operator'] == '=') {
+            						$subquery->orWhere('phone_number', $row['parameter']);
+            					} else {
+            						$subquery->orWhere('phone_number', 'like', '%'.$row['parameter'].'%');
+            					}
+            				}
+
+            				if ($row['subject'] == 'fullname') {
+            					if ($row['operator'] == '=') {
+            						$subquery->orWhere('fullname', $row['parameter']);
+            					} else {
+            						$subquery->orWhere('fullname', 'like', '%'.$row['parameter'].'%');
+            					}
+            				}
+
+            				if ($row['subject'] == 'id_outlet') {
+                                $subquery->orWhere(function ($q) use($row){
+                                    $q->where('employee_schedules.id_outlet', $row['operator'])
+                                        ->orWhereIn('employee_schedules.id', function($query) use($row){
+                                            $query->select('employee_attendances.id')
+                                                ->from('employee_attendances')
+                                                ->where('employee_attendances.id_outlet', $row['operator']);
+                                        });
+                                });
+            				}
+
+            				if($row['subject'] == 'status') {
+            					switch ($row['operator']) {
+            						case 'Approved':
+            							$subquery->orWhereNotNull('approve_at');
+            							break;
+
+        							case 'Rejected':
+                                        $subquery->orWhere(function($q) {
+	                        				$q->whereNotNull('reject_at');
+	                        				$q->whereNull('approve_at');
+	                        			});
+	                        			break;
+
+            						default:
+            							$subquery->orWhere(function($q) {
+            								$q->whereNull('reject_at');
+            								$q->whereNull('approve_at');
+            							});
+            							break;
+            					}
+            				}
+
+	                        if ($row['subject'] == 'month') {
+                                $subquery->orWhere('schedule_month', $row['operator']);
+	                        }
+
+	                        if ($row['subject'] == 'year') {
+                                $subquery->orWhere('schedule_year', $row['operator']);
+	                        }
+            			}
+                    }
+                });
+            }
+        }
+
+        $data = $data->select(
+		        	'employee_schedules.*',
+		        	'users.name', 
+		        	'users.phone', 
+                    'roles.role_name',
+                    'employee_office_hours.office_hour_type',
+		        	'outlets.outlet_name', 
+		        	'outlets.outlet_code', 
+		        )->paginate(25)->toArray();
+
+        return response()->json(MyHelper::checkGet($data));
+    }
+
+    public function getScheduleYear()
+    {
+        $data = EmployeeSchedule::groupBy('schedule_year')->get()->pluck('schedule_year');
+
+        return MyHelper::checkGet($data);
     }
 }

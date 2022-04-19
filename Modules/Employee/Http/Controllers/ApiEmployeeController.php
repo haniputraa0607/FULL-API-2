@@ -16,6 +16,7 @@ use App\Http\Models\OutletSchedule;
 use App\Http\Models\Holiday;
 use Modules\Employee\Entities\EmployeeSchedule;
 use Modules\Employee\Entities\EmployeeScheduleDate;
+
 use DB;
 
 class ApiEmployeeController extends Controller
@@ -180,5 +181,117 @@ class ApiEmployeeController extends Controller
             }
             return response()->json(['status' => 'success']);
         }
+    }
+    public function employeeList(Request $request){
+        $post = $request->json()->all();
+
+        $data = User::join('roles', 'roles.id_role', 'users.id_role')->join('outlets', 'outlets.id_outlet', 'users.id_outlet')->where('outlets.type','Office')->orderBy('created_at', 'desc');
+
+        if(isset($post['conditions']) && !empty($post['conditions'])){
+            $rule = 'and';
+            if(isset($post['rule'])){
+                $rule = $post['rule'];
+            }
+
+            if($rule == 'and'){
+                foreach ($post['conditions'] as $row){
+                    if(isset($row['subject'])){
+                        if($row['subject'] == 'nickname'){
+                            if($row['operator'] == '='){
+                                $data->where('nickname', $row['parameter']);
+                            }else{
+                                $data->where('nickname', 'like', '%'.$row['parameter'].'%');
+                            }
+                        }
+
+                        if($row['subject'] == 'email'){
+                            if($row['operator'] == '='){
+                                $data->where('email', $row['parameter']);
+                            }else{
+                                $data->where('email', 'like', '%'.$row['parameter'].'%');
+                            }
+                        }
+
+                        if($row['subject'] == 'phone_number'){
+                            if($row['operator'] == '='){
+                                $data->where('phone_number', $row['parameter']);
+                            }else{
+                                $data->where('phone_number', 'like', '%'.$row['parameter'].'%');
+                            }
+                        }
+
+                        if($row['subject'] == 'fullname'){
+                            if($row['operator'] == '='){
+                                $data->where('fullname', $row['parameter']);
+                            }else{
+                                $data->where('fullname', 'like', '%'.$row['parameter'].'%');
+                            }
+                        }
+
+                        if($row['subject'] == 'gender'){
+                            $data->where('gender', $row['operator']);
+                        }
+
+                        if($row['subject'] == 'level'){
+                            $data->where('user_hair_stylist.level', $row['operator']);
+                        }
+                        if($row['subject'] == 'outlet'){
+                            $data->where('user_hair_stylist.id_outlet', $row['operator']);
+                        }
+                    }
+                }
+            }else{
+                $data->where(function ($subquery) use ($post){
+                    foreach ($post['conditions'] as $row){
+                        if(isset($row['subject'])){
+                            if($row['subject'] == 'nickname'){
+                                if($row['operator'] == '='){
+                                    $subquery->orWhere('nickname', $row['parameter']);
+                                }else{
+                                    $subquery->orWhere('nickname', 'like', '%'.$row['parameter'].'%');
+                                }
+                            }
+
+                            if($row['subject'] == 'email'){
+                                if($row['operator'] == '='){
+                                    $subquery->orWhere('email', $row['parameter']);
+                                }else{
+                                    $subquery->orWhere('email', 'like', '%'.$row['parameter'].'%');
+                                }
+                            }
+
+                            if($row['subject'] == 'phone_number'){
+                                if($row['operator'] == '='){
+                                    $subquery->orWhere('phone_number', $row['parameter']);
+                                }else{
+                                    $subquery->orWhere('phone_number', 'like', '%'.$row['parameter'].'%');
+                                }
+                            }
+
+                            if($row['subject'] == 'fullname'){
+                                if($row['operator'] == '='){
+                                    $subquery->orWhere('fullname', $row['parameter']);
+                                }else{
+                                    $subquery->orWhere('fullname', 'like', '%'.$row['parameter'].'%');
+                                }
+                            }
+
+                            if($row['subject'] == 'gender'){
+                                $subquery->orWhere('gender', $row['operator']);
+                            }
+
+                            if($row['subject'] == 'level'){
+                                $subquery->orWhere('level', $row['operator']);
+                            }
+                            if($row['subject'] == 'outlet'){
+                             $subquery->orWhere('user_hair_stylist.id_outlet', $row['operator']);
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        $data = $data->select('users.*', 'roles.role_name', 'outlets.outlet_name')->paginate(25);
+        return response()->json(MyHelper::checkGet($data));
     }
 }

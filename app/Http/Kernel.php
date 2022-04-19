@@ -67,6 +67,7 @@ class Kernel extends HttpKernel
         'log_activities_pos_transaction'    => \App\Http\Middleware\LogActivitiesPOSTransactionMiddleware::class,
         'log_activities_outlet_apps'    => \App\Http\Middleware\LogActivitiesOutletAppsMiddleware::class,
         'log_activities_mitra_apps'    => \App\Http\Middleware\LogActivitiesMitraAppsMiddleware::class,
+        'log_activities_employee_apps'    => \App\Http\Middleware\LogActivitiesEmployeeAppsMiddleware::class,
         'oauth.providers' => \SMartins\PassportMultiauth\Http\Middleware\AddCustomProvider::class,
         'custom_auth'    => \App\Http\Middleware\CustomAuth::class,
         'feature_control'   => \App\Http\Middleware\FeatureControl::class,

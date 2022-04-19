@@ -446,9 +446,45 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
 
     public function deleteOvertime(Request $request){
         $post = $request->all();
-        $delete = HairstylistOverTime::where('id_hairstylist_overtime', $post['id_hairstylist_overtime'])->update(['reject_at' => date('Y-m-d')]);
-        if($delete){
-            return response()->json(['status' => 'success']);
+        $check = HairstylistOverTime::where('id_hairstylist_overtime', $post['id_hairstylist_overtime'])->first();
+        if($check){
+            DB::beginTransaction();
+            $month_sc = date('m', strtotime($check['date']));
+            $year_sc = date('Y', strtotime($check['date']));
+            $get_schedule = HairstylistSchedule::where('id_user_hair_stylist', $check['id_user_hair_stylist'])->where('schedule_month', $month_sc)->where('schedule_year',$year_sc)->first();
+            if($get_schedule){
+                $get_schedule_date = HairstylistScheduleDate::where('id_hairstylist_schedule',$get_schedule['id_hairstylist_schedule'])->where('date',$check['date'])->first();
+                if($get_schedule_date){
+                    if($check['time'] == 'after'){
+                        $duration = strtotime($check['duration']);
+                        $start = strtotime($get_schedule_date['time_end']);
+                        $diff = $start - $duration;
+                        $hour = floor($diff / (60*60));
+                        $minute = floor(($diff - ($hour*60*60))/(60));
+                        $second = floor(($diff - ($hour*60*60))%(60));
+                        $new_time =  date('H:i:s', strtotime($hour.':'.$minute.':'.$second));
+                        $order = 'time_end';
+                    }elseif($check['time'] = 'before'){
+                        $secs = strtotime($check['duration'])-strtotime("00:00:00");
+                        $new_time = date("H:i:s",strtotime($get_schedule_date['time_start'])+$secs);
+                        $order = 'time_start';
+                    }
+                    $update_schedule = HairstylistScheduleDate::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->update([$order => $new_time,  'is_overtime' => 0]);
+                    $update_overtime = HairstylistOverTime::where('id_hairstylist_overtime', $post['id_hairstylist_overtime'])->update(['reject_at' => date('Y-m-d')]);
+                    if(!$update_overtime || !$update_schedule){
+                        DB::rollBack();
+                        return response()->json([
+                            'status' => 'fail'
+                        ]);
+                    }
+                    DB::commit();
+                    return response()->json([
+                        'status' => 'success'
+                    ]);
+
+                }
+            }
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }
@@ -507,17 +543,19 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                 if(!$update){
                     DB::rollBack();
                     return response()->json([
-                        'status' => 'success', 
+                        'status' => 'fail', 
                         'messages' => ['Failed to updated a request hair stylist overtime']
                     ]);
                 }
-                $update_schedule = $this->updatedScheduleOvertime($data_update);
-                if(!$update_schedule){
-                    DB::rollBack();
-                    return response()->json([
-                        'status' => 'success', 
-                        'messages' => ['Failed to updated a request hair stylist overtime']
-                    ]);
+                if(isset($post['approve'])){
+                    $update_schedule = $this->updatedScheduleOvertime($data_update);
+                    if(!$update_schedule){
+                        DB::rollBack();
+                        return response()->json([
+                            'status' => 'fail', 
+                            'messages' => ['Failed to updated a request hair stylist overtime']
+                        ]);
+                    }
                 }
                 DB::commit();
                 return response()->json([
@@ -556,7 +594,7 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                     return false;
                 }
 
-                $update_date = HairstylistScheduleDate::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->update([$order => $new_time]);
+                $update_date = HairstylistScheduleDate::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->update([$order => $new_time,  'is_overtime' => 1]);
                 if($update_date){
                     return true;
                 }

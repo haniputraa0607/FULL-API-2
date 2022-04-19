@@ -399,10 +399,16 @@ class ApiMitraOutletService extends Controller
     	}
 
     	if (isset($schedule->id_outlet_box) && $schedule->id_outlet_box != $request->id_outlet_box) {
-    		return [
-    			'status' => 'fail',
-    			'messages' => ['Tidak dapat menggunakan box yang berbeda']
-    		];	
+    		if (is_null($request->id_outlet_box)) {
+	    		$request->merge(['id_outlet_box' => $schedule->id_outlet_box]);
+    		}
+
+    		if ($schedule->id_outlet_box != $request->id_outlet_box) {
+	    		return [
+	    			'status' => 'fail',
+	    			'messages' => ['Tidak dapat menggunakan box yang berbeda']
+	    		];	
+    		}
     	}
 
     	$box = OutletBox::where('id_outlet_box', $request->id_outlet_box)->first();
@@ -571,10 +577,16 @@ class ApiMitraOutletService extends Controller
     	}
 
     	if (isset($schedule->id_outlet_box) && $schedule->id_outlet_box != $request->id_outlet_box) {
-    		return [
-    			'status' => 'fail',
-    			'messages' => ['Tidak dapat menggunakan box yang berbeda']
-    		];	
+    		if (is_null($request->id_outlet_box)) {
+	    		$request->merge(['id_outlet_box' => $schedule->id_outlet_box]);
+    		}
+
+    		if ($schedule->id_outlet_box != $request->id_outlet_box) {
+	    		return [
+	    			'status' => 'fail',
+	    			'messages' => ['Tidak dapat menggunakan box yang berbeda']
+	    		];	
+    		}
     	}
 
     	$box = OutletBox::where('id_outlet_box', $request->id_outlet_box)->first();

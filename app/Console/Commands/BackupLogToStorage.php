@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Process\Exception\ProcessFailedException;
 use Illuminate\Console\Command;
+use Illuminate\Http\File;
 use Storage;
 
 class BackupLogToStorage extends Command
@@ -14,7 +15,7 @@ class BackupLogToStorage extends Command
      *
      * @var string
      */
-    protected $signature = 'backup:logdb {--truncate} {--table=*}';
+    protected $signature = 'backup:logdb {--truncate} {--table=} {--chunk=100000} {--maxbackup=10}';
 
     /**
      * The console command description.
@@ -42,17 +43,25 @@ class BackupLogToStorage extends Command
     {
         $name = 'alltable';
         $tables = $this->option('table');
+        $totalRow = $this->option('chunk');
+        $maxbackup = $this->option('maxbackup');
 
         foreach ($tables as $table) {
             if ($table == '*') {
                 $table = '';
             }
+            if (!$table) {
+                continue;
+            }
+            $currentbackup = 0;
 
-            if ($table && \DB::connection('mysql2')->table($table)->count() < 1) {
-                return;
+            backupagain:
+            if ($currentbackup >= $maxbackup) continue;
+            if ($table && \DB::connection('mysql2')->table($table)->where('created_at', '<', date('Y-m-d H:i:s', strtotime('-30days')))->count() < 1) {
+                continue;
             }
 
-            $filename = date('YmdHis') . '_' . ($table ?: 'alltable') . '.sql';
+            $filename = date('YmdHi_'). $currentbackup . '_' . ($table ?: 'alltable') . '.sql';
             $backupFileUC = storage_path('app/' . $filename);
 
             $dbUser = env('DB2_USERNAME');
@@ -62,7 +71,7 @@ class BackupLogToStorage extends Command
 
             $dbPassword = $dbPassword ? '-p'.$dbPassword : '';
 
-            $mysql_dump_command= "mysqldump -v -u{$dbUser} -h{$dbHost} {$dbPassword} {$dbName} {$table} >  \"$backupFileUC\"";
+            $mysql_dump_command= "mysqldump -v -u{$dbUser} -h{$dbHost} {$dbPassword} {$dbName} {$table} --where=\"1 limit $totalRow\" >  \"$backupFileUC\"";
             $gzip_command= "gzip -9 -f \"$backupFileUC\"";
 
             $run_mysql= Process::fromShellCommandline($mysql_dump_command);
@@ -70,12 +79,14 @@ class BackupLogToStorage extends Command
             $gzip_process= Process::fromShellCommandline($gzip_command);
             $gzip_process->mustRun();
 
-            Storage::put('_backup_dblog/' . $filename . '.gz', file_get_contents($backupFileUC . '.gz') , 'private');
+            Storage::putFileAs('_backup_dblog/', new File($backupFileUC . '.gz') , $filename . '.gz', 'private');
             unlink($backupFileUC . '.gz');
 
             if ($this->option('truncate') && $table) {
-                \DB::connection('mysql2')->table($table)->truncate();
+                \DB::connection('mysql2')->table($table)->limit($totalRow)->delete();
             }
+            $currentbackup++;
+            goto backupagain;
         }
     }
 }

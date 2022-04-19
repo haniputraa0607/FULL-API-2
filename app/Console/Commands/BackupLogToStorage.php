@@ -47,6 +47,7 @@ class BackupLogToStorage extends Command
         $maxbackup = $this->option('maxbackup');
 
         foreach ($tables as $table) {
+            $this->info("Processing $table...");
             if ($table == '*') {
                 $table = '';
             }
@@ -57,10 +58,13 @@ class BackupLogToStorage extends Command
 
             backupagain:
             if ($currentbackup >= $maxbackup) continue;
-            if ($table && \DB::connection('mysql2')->table($table)->where('created_at', '<', date('Y-m-d H:i:s', strtotime('-30days')))->count() < 1) {
+            $foundRecord = \DB::connection('mysql2')->table($table)->where('created_at', '<', date('Y-m-d H:i:s', strtotime('-30days')))->count();
+            $this->line('>' . ($foundRecord ?: 'No') . ' records found');
+            if ($table && $foundRecord < 1) {
                 continue;
             }
 
+            $this->line('>> Backup #' . ($currentbackup + 1));
             $filename = date('YmdHi_'). $currentbackup . '_' . ($table ?: 'alltable') . '.sql';
             $backupFileUC = storage_path('app/' . $filename);
 

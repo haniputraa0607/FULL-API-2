@@ -251,6 +251,18 @@ class Kernel extends ConsoleKernel
         $schedule->call('Modules\Users\Http\Controllers\ApiDepartment@syncIcount')->dailyAt('00:10');
         $schedule->call('Modules\Product\Http\Controllers\ApiProductController@syncIcount')->dailyAt('00:10');
 
+        /**
+         * Check Employee Schedule Shift
+         * run every 00:15 AM
+         */
+        $schedule->call('Modules\Employee\Http\Controllers\ApiEmployeeScheduleController@cronEmployeeScheduleShit')->monthlyOn('1', '00:05');
+
+        /**
+         * Check Employee Schedule Non Shift
+         * run every 00:15 AM
+         */
+        $schedule->call('Modules\Employee\Http\Controllers\ApiEmployeeScheduleController@cronEmployeeScheduleNonShit')->dailyAt('02:00');
+
     }
 
     /**

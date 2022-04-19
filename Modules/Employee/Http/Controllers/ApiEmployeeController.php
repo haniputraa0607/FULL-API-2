@@ -12,7 +12,11 @@ use App\Lib\MyHelper;
 use App\Http\Models\Setting;
 use Modules\Users\Entities\Role;
 use App\Http\Models\User;
+use App\Http\Models\OutletSchedule;
+use App\Http\Models\Holiday;
 use Modules\Employee\Entities\EmployeeSchedule;
+use Modules\Employee\Entities\EmployeeScheduleDate;
+use DB;
 
 class ApiEmployeeController extends Controller
 {
@@ -176,31 +180,5 @@ class ApiEmployeeController extends Controller
             }
             return response()->json(['status' => 'success']);
         }
-    }
-
-    public function cronEmployeeScheduleNonShit(){
-        //get user employe with role id non shift office hours
-        $list_employees = User::join('roles', 'roles.id_role', '=', 'users.id_role')
-                                ->join('employee_office_hours', 'employee_office_hours.id_employee_office_hour', '=', 'roles.id_employee_office_hour')
-                                ->whereNotNull('users.id_role')
-                                ->where('employee_office_hours.office_hour_type', 'Without Shift')
-                                ->get()->toArray();
-        return $list_employees;
-        foreach($list_employees ?? [] as $employee){
-            //create master shedule
-            $schedule = EmployeeSchedule::where('id',$employee['id'])->where('schedule_month', date('m'))->where('schedule_year', date('Y'))->first();
-            if(!$schedule){
-                $create_schedule = EmployeeSchedule::create([
-                    'id' => $employee['id'],
-                    'id_outlet' => $employee['id_outlet'],
-                    'schedule_month' => date('m'),
-                    'schedule_year' => date('Y'),
-                    'request_at' => date('Y-m-d')
-                ]);
-            }
-            //create schedule date
-
-        }
-        
     }
 }

@@ -385,7 +385,6 @@ class ApiHairStylistScheduleController extends Controller
 	                ], null, false, false, $recipient_type = 'hairstylist', null, true
 	            );
         	}
-        	return response()->json(MyHelper::checkUpdate($update));
         }
 
         $schedule = HairstylistScheduleDate::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->get();
@@ -407,7 +406,7 @@ class ApiHairStylistScheduleController extends Controller
         		];
         	}
         }
-
+        
         $fixedSchedule = HairstylistScheduleDate::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->join('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')->select('hairstylist_schedule_dates.id_hairstylist_schedule_date', 'date')->get();
         $fixedScheduleDateId = $fixedSchedule->pluck('id_hairstylist_schedule_date');
         $fixedScheduleDate = $fixedSchedule->pluck('date')->map(function($item) {return date('Y-m-d', strtotime($item));});

@@ -37,7 +37,9 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
     Route::group(['prefix' => 'schedule'], function(){
         Route::any('list', 'ApiEmployeeScheduleController@list');
         Route::post('create', 'ApiEmployeeScheduleController@create');
-        Route::post('detail', 'ApiEmployeeScheduleController@detailAnnouncement');
+        Route::post('detail/use-shift', 'ApiEmployeeScheduleController@detailShift');
+        Route::post('detail/without-shift', 'ApiEmployeeScheduleController@detailNonShift');
+        Route::post('update', 'ApiEmployeeScheduleController@update');
         Route::post('delete', 'ApiEmployeeScheduleController@deleteAnnouncement');
         Route::any('year-list', 'ApiEmployeeScheduleController@getScheduleYear');
     });

@@ -93,10 +93,11 @@ class ApiRegisterEmployeeController extends Controller
        return MyHelper::checkGet($user);
    }
    public function detail(Request $request) {
-       $post = $request->all();
+        $post = $request->all();
        $user = [];
-       if(isset($post['phone'])){
-        $user = User::where('phone',$post['phone'])->with(['employee','employee_family','employee_main_family','employee_education','employee_education_non_formal','employee_job_experience','employee_question'])->first();
+       
+       if(isset($post['username'])){
+        $user = User::where('phone',$post['username'])->with(['employee','employee_family','employee_main_family','employee_education','employee_education_non_formal','employee_job_experience','employee_question'])->first();
        }
        return MyHelper::checkGet($user);
    }
@@ -106,7 +107,7 @@ class ApiRegisterEmployeeController extends Controller
        if(isset($post['phone'])){
        $user = User::where('phone',$post['phone'])->first();
        if($user){
-            if($post['employee']){
+            if(isset($post['employee'])){
                 $post['employee']['id_user']=$user->id;
                 $employee = Employee::where('id_user',$user->id)->first();
                 if(!empty($employee)){
@@ -121,22 +122,22 @@ class ApiRegisterEmployeeController extends Controller
                 ));
                 }
             }
-            if($post['family']){
+            if(isset($post['family'])){
                 $this->update_employe_family($post['family'],$user->id);
             }
-            if($post['main_family']){
+            if(isset($post['main_family'])){
                 $this->update_employe_main_family($post['main_family'],$user->id);
             }
-            if($post['education']){
+            if(isset($post['education'])){
                 $this->update_employe_education($post['education'],$user->id);
             }
-            if($post['education_non_formal']){
+            if(isset($post['education_non_formal'])){
                 $this->update_employe_education_non_formal($post['education_non_formal'],$user->id);
             }
-            if($post['job_experiences']){
+            if(isset($post['job_experiences'])){
                 $this->update_employe_job_experiences($post['job_experiences'],$user->id);
             }
-            if($post['questions']){
+            if(isset($post['questions'])){
                 $this->update_employe_questions($post['questions'],$user->id);
             }
             $user = User::where('id',$user->id)->with(['employee','employee_family','employee_main_family','employee_education','employee_education_non_formal','employee_job_experience','employee_question'])->first();

@@ -121,6 +121,32 @@ class ApiRegisterEmployeeController extends Controller
                     'id_city'=>$post['employee']['id_city_ktp']
                 ));
                 }
+                if(isset($post['employee']['gender'])){
+                    
+                $users = User::where('phone',$post['phone'])->update(array(
+                    'gender'=>$post['employee']['gender']
+                ));
+                }
+                if(isset($post['employee']['birthday'])){
+                    
+                $users = User::where('phone',$post['phone'])->update(array(
+                    'birthday'=>$post['employee']['birthday']
+                ));
+                }
+                if(isset($post['employee']['name'])){
+                    
+                $users = User::where('phone',$post['phone'])->update(array(
+                    'name'=>$post['employee']['name']
+                ));
+                }
+                if(isset($post['employee']['email'])){
+                    if(isset($user->email)){
+                        $users = User::where('phone',$post['phone'])->update(array(
+                            'email'=>$post['employee']['email']
+                        ));
+                
+                    }
+                }
             }
             if(isset($post['family'])){
                 $this->update_employe_family($post['family'],$user->id);

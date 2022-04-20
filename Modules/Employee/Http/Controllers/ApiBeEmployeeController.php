@@ -10,72 +10,37 @@ use App\Http\Models\Setting;
 use Modules\Users\Entities\Role;
 use Modules\Employee\Entities\Employee;
 use Modules\Employee\Entities\EmployeeFamily;
-use Modules\Employee\Entities\EmployeeMainFamily;
 use Modules\Employee\Entities\EmployeeEducation;
 use Modules\Employee\Entities\EmployeeEducationNonFormal;
 use Modules\Employee\Entities\EmployeeJobExperience;
 use Modules\Employee\Entities\EmployeeQuestions;
 use Modules\Employee\Http\Requests\users_create;
 use Modules\Employee\Http\Requests\status_approved;
+use Modules\Employee\Http\Requests\users_create_be;
 use App\Http\Models\User;
 use Session;
-use Modules\Employee\Entities\QuestionEmployee;
-class ApiRegisterEmployeeController extends Controller
+class ApiBeEmployeeController extends Controller
 {
-   public function create(users_create $request) {
+   public function create(users_create_be $request) {
        $post = $request->all();
-       if ($post['employee']['pin'] == null) {
-            $pin = MyHelper::createRandomPIN(6, 'angka');
-            $pin = '777777';
-        } else {
-            $pin = $post['employee']['pin'];
-        }
-       $post['employee']['provider'] = MyHelper::cariOperator($post['employee']['phone']);
-       $post['employee']['password'] = bcrypt($pin);
-       $post['employee']['id_city'] = $post['employee']['id_city_ktp'];
-       $post['employee']['level'] = "Admin";
-       $user = User::create($post['employee']);
+       $post['provider'] = MyHelper::cariOperator($post['phone']);
+       $post['id_city'] = $post['id_city_ktp'];
+       $post['level'] = "Customer";
+       $post['status_step'] = "Register BE";
+       $user = User::create($post);
        if($user){
-            if($post['employee']){
-                $post['employee']['id_user']=$user->id;
-                $employee = Employee::create($post['employee']);
-            }
-            if($post['family']){
-                $family = array();
-                foreach ($post['family'] as $value) {
-                    $value['id_user'] = $user->id;
-                    EmployeeFamily::create($value);
+            if($post){
+                if(isset($post['relatives'])){
+                    $post['relatives'] = 0;
+                    $post['relative_name'] = null;
+                    $post['relative_position'] = null;
                 }
-            }
-            if($post['education']){
-                $education = array();
-                foreach ($post['education'] as $value) {
-                    $value['id_user'] = $user->id;
-                    EmployeeEducation::create($value);
+                if($post['birthday']){
+                    $post['birthday'] = date('Y-m-d', strtotime($post['birthday']));
                 }
+                $post['id_user']=$user->id;
+                $employee = Employee::create($post);
             }
-            if($post['education_non_formal']){
-                $education_non_formal = array();
-                foreach ($post['education_non_formal'] as $value) {
-                    $value['id_user'] = $user->id;
-                    EmployeeEducationNonFormal::create($value);
-                }
-            }
-            if($post['job_experiences']){
-                $job_experiences = array();
-                foreach ($post['job_experiences'] as $value) {
-                    $value['id_user'] = $user->id;
-                    EmployeeJobExperience::create($value);
-                }
-            }
-            if($post['questions']){
-                $questions = array();
-                foreach ($post['questions'] as $value) {
-                    $value['id_user'] = $user->id;
-                    EmployeeQuestions::create($value);
-                }
-            }
-            
        }
        $user = User::where('id',$user->id)->with(['employee','employee_family','employee_education','employee_education_non_formal','employee_job_experience','employee_question'])->first();
        return MyHelper::checkGet($user);
@@ -96,7 +61,7 @@ class ApiRegisterEmployeeController extends Controller
        $post = $request->all();
        $user = [];
        if(isset($post['phone'])){
-        $user = User::where('phone',$post['phone'])->with(['employee','employee_family','employee_main_family','employee_education','employee_education_non_formal','employee_job_experience','employee_question'])->first();
+        $user = User::where('phone',$post['phone'])->with(['employee','employee_family','employee_education','employee_education_non_formal','employee_job_experience','employee_question'])->first();
        }
        return MyHelper::checkGet($user);
    }
@@ -124,9 +89,6 @@ class ApiRegisterEmployeeController extends Controller
             if($post['family']){
                 $this->update_employe_family($post['family'],$user->id);
             }
-            if($post['main_family']){
-                $this->update_employe_main_family($post['main_family'],$user->id);
-            }
             if($post['education']){
                 $this->update_employe_education($post['education'],$user->id);
             }
@@ -139,7 +101,7 @@ class ApiRegisterEmployeeController extends Controller
             if($post['questions']){
                 $this->update_employe_questions($post['questions'],$user->id);
             }
-            $user = User::where('id',$user->id)->with(['employee','employee_family','employee_main_family','employee_education','employee_education_non_formal','employee_job_experience','employee_question'])->first();
+            $user = User::where('id',$user->id)->with(['employee','employee_family','employee_education','employee_education_non_formal','employee_job_experience','employee_question'])->first();
         }
        }
        return MyHelper::checkGet($user);
@@ -311,83 +273,6 @@ class ApiRegisterEmployeeController extends Controller
            ));
         }
        $family = EmployeeFamily::where('id_user',$id_user)->get();
-       return $family;
-   }
-   public function update_employe_main_family($data,$id_user) {
-       $array = array();
-       foreach($data as $value){
-           if(isset($value['id_employee_main_family'])){
-              $family = EmployeeMainFamily::where('id_employee_main_family',$value['id_employee_main_family'])->first();
-              if($family){
-               if(isset($value['family_members'])){
-                    $family->family_members = $value['family_members'];
-                }
-               if(isset($value['name_family'])){
-                    $family->name_family = $value['name_family'];
-                }
-               if(isset($value['gender_family'])){
-                    $family->gender_family = $value['gender_family'];
-                }
-               if(isset($value['birthplace_family'])){
-                    $family->birthplace_family = $value['birthplace_family'];
-                }
-                if(isset($value['birthday_family'])){
-                     $family->birthday_family = $value['birthday_family'];
-                 }
-                if(isset($value['education_family'])){
-                     $family->education_family = $value['education_family'];
-                 }
-                if(isset($value['job_family'])){
-                     $family->job_family = $value['job_family'];
-                 }
-                 unset($family['id_employee_family']);
-                 unset($family['updated_at']);
-                 unset($family['created_at']);
-                $array[] = $family;
-              }
-           }else{
-               $family = array();
-               $family['id_user'] = $value['id_user']=$id_user;
-               if(isset($value['family_members'])){
-                    $family['family_members'] = $value['family_members'];
-                }else{
-                    $family['educational_level'] = null;
-                }
-               if(isset($value['name_family'])){
-                    $family['name_family'] = $value['name_family'];
-                }else{$family['name_family'] = null;}
-               if(isset($value['gender_family'])){
-                    $family['gender_family'] = $value['gender_family'];
-                }else{$family['gender_family'] = null;}
-               if(isset($value['birthplace_family'])){
-                    $family['birthplace_family'] = $value['birthplace_family'];
-                }else{$family['birthplace_family'] = null;}
-               if(isset($value['birthday_family'])){
-                    $family['birthday_family'] = $value['birthday_family'];
-                }else{$family['birthday_family'] = null;}
-               if(isset($value['education_family'])){
-                    $family['education_family'] = $value['education_family'];
-                }else{$family['education_family'] = null;}
-               if(isset($value['job_family'])){
-                    $family['job_family'] = $value['job_family'];
-                }else{$family['job_family'] = null;}
-               $array[] = $family;
-           }
-       }
-       $delete = EmployeeMainFamily::where('id_user',$id_user)->delete();
-      foreach ($array as $va) {
-           EmployeeMainFamily::create(array(
-               'id_user'=>$va['id_user'],
-               'family_members'=>$va['family_members'],
-               'name_family'=>$va['name_family'],
-               'gender_family'=>$va['gender_family'],
-               'birthplace_family'=>$va['birthplace_family'],
-               'birthday_family'=>$va['birthday_family'],
-               'education_family'=>$va['education_family'],
-               'job_family'=>$va['job_family'],
-           ));
-        }
-       $family = EmployeeMainFamily::where('id_user',$id_user)->get();
        return $family;
    }
    public function update_employe_education($data,$id_user) {
@@ -620,6 +505,12 @@ class ApiRegisterEmployeeController extends Controller
            if(isset($value['id_employee_questions'])){
               $education_questions = EmployeeQuestions::where('id_employee_questions',$value['id_employee_questions'])->first();
               if($education_questions){
+               if(isset($value['category'])){
+                    $education_questions->category = $value['category'];
+                }
+               if(isset($value['question'])){
+                    $education_questions->question = $value['question'];
+                }
                if(isset($value['answer'])){
                     $education_questions->answer = $value['answer'];
                 }
@@ -630,16 +521,19 @@ class ApiRegisterEmployeeController extends Controller
               }
            }else{
                $education_questions = array();
-               if(isset($value['id_question_employee'])){
-                   $ques = QuestionEmployee::where('id_question_employee',$value['id_question_employee'])->first();
-                   if($ques){
-                       $education_questions['id_user'] = $value['id_user']=$id_user;
-                    if(isset($value['question'])){
-                         $education_questions['question'] = $value['question'];
-                     }else{$education_questions['question'] = null;}
-                    $array[] = $education_questions;
+               $education_questions['id_user'] = $value['id_user']=$id_user;
+               if(isset($value['category'])){
+                    $education_questions['category'] = $value['category'];
+                }else{
+                    $education_questions['category'] = null;
                 }
-              }
+               if(isset($value['question'])){
+                    $education_questions['question'] = $value['question'];
+                }else{$education_questions['question'] = null;}
+               if(isset($value['answer'])){
+                    $education_questions['answer'] = $value['answer'];
+                }else{$education_questions['answer'] = null;}
+               $array[] = $education_questions;
            }
        }
        $delete = EmployeeQuestions::where('id_user',$id_user)->delete();

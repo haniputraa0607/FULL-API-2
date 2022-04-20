@@ -929,6 +929,8 @@ class ApiHome extends Controller
 	                $query->whereHas('brands',function($query){
 	                    $query->where('brand_active',1);
 	                });
+                    $query->where('promo_campaign_visibility', 'Visible');
+                    $query->where('step_complete', 1);
 	            })
 	            ->orderBy('order')
 	            ->where('date_start','<=',$now)

@@ -5,8 +5,9 @@ namespace Modules\Employee\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Modules\Employee\Entities\CategoryQuestion;
 
-class users_create extends FormRequest
+class create_question extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -26,15 +27,27 @@ class users_create extends FormRequest
 	public function rules()
 	{
 		return [
-			'employee.phone'		=> 'required|unique:users,phone|max:18',
-			'employee.name'			=> 'required|string',
-			'employee.email'		=> 'required|email|unique:users,email',
-			'employee.gender'		=> 'in:Male,Female|nullable',
-			'employee.birthday'		=> 'date_format:"Y-m-d"|nullable',
-			'employee.id_city_ktp'		=> 'integer',
+			'id_category_question' => 'required|category',
+			'type' => 'required|in:Type 1,Type 2,Type 3',
+			'question' => 'required',
         ];
     }
-
+    public function withValidator($validator)
+    {
+        $validator->addExtension('category', function ($attribute, $value, $parameters, $validator) {
+            $category = CategoryQuestion::where('id_category_question',$value)->first();
+            if($category){
+                return true;
+            }
+            return false;
+        });
+    }
+    public function messages()
+    {
+        return [
+            'category' => "Category not found",
+        ];
+    }
     protected function failedValidation(Validator $validator)
     {
         throw new HttpResponseException(response()->json(['status' => 'fail', 'messages'  => $validator->errors()->all()], 200));

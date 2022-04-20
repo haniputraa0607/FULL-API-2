@@ -253,6 +253,9 @@ class User extends Authenticatable
     public function employee_family() {
     	return $this->hasMany(\Modules\Employee\Entities\EmployeeFamily::class, 'id_user', 'id');
     }
+    public function employee_main_family() {
+    	return $this->hasMany(\Modules\Employee\Entities\EmployeeMainFamily::class, 'id_user', 'id');
+    }
     public function employee_education() {
     	return $this->hasMany(\Modules\Employee\Entities\EmployeeEducation::class, 'id_user', 'id');
     }

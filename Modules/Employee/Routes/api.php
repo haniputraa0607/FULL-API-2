@@ -43,6 +43,13 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('delete', 'ApiEmployeeScheduleController@deleteAnnouncement');
         Route::any('year-list', 'ApiEmployeeScheduleController@getScheduleYear');
     });
+    Route::group(['prefix' => 'be/recruitment'], function(){
+        Route::post('create', 'ApiBeEmployeeController@create');
+    });
+    Route::group(['prefix' => 'be/question'], function(){
+        Route::post('category', 'ApiQuestionEmployeeController@category');
+        Route::post('create', 'ApiQuestionEmployeeController@create');
+    });
 });
 
 Route::group([ 'middleware' => ['log_activities', 'auth:api','auth_client','scopes:landing-page'], 'prefix' => 'employee'], function () {
@@ -56,6 +63,8 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('detail', 'ApiRegisterEmployeeController@detail');
         Route::post('update', 'ApiRegisterEmployeeController@update');
         Route::post('submit', 'ApiRegisterEmployeeController@submit');
+        Route::post('submit', 'ApiRegisterEmployeeController@submit');
+        Route::get('question', 'ApiQuestionEmployeeController@list');
     });
 });
 

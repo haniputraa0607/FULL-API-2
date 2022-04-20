@@ -254,7 +254,10 @@ class Kernel extends ConsoleKernel
         /**
          * To backup and truncate log database
          */
-        $schedule->command('backup:logdb --table=log_activities_apps --table=log_activities_be --table=log_activities_mitra_apps --table=log_activities_outlet_apps --table=log_activities_pos --table=log_activities_pos_transaction --table=log_api_gosends --table=log_api_icount --table=log_api_wehelpyou --table=log_backend_errors --table=log_call_outlet_apps --table=log_check_promo_code --table=log_crons --table=log_ipay88s --table=log_iris --table=log_midtrans --table=log_outlet_box --table=log_ovo_deals --table=log_ovos --table=log_shopee_pays --table=log_transaction_updates --table=log_xendits --truncate')->dailyAt('00:20');
+
+        $schedule->command('backup:logdb --table=log_activities_apps --table=log_activities_be --table=log_activities_mitra_apps --table=log_activities_outlet_apps --table=log_activities_pos --table=log_activities_pos_transaction --truncate --chunk=10000')->dailyAt('00:20');
+
+        $schedule->command('backup:logdb --table=log_api_gosends --table=log_api_icount --table=log_api_wehelpyou --table=log_backend_errors --table=log_call_outlet_apps --table=log_check_promo_code --table=log_crons --table=log_ipay88s --table=log_iris --table=log_midtrans --table=log_outlet_box --table=log_ovo_deals --table=log_ovos --table=log_shopee_pays --table=log_transaction_updates --table=log_xendits --truncate')->dailyAt('00:25');
     }
 
     /**

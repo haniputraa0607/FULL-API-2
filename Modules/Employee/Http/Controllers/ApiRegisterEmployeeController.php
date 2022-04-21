@@ -96,7 +96,7 @@ class ApiRegisterEmployeeController extends Controller
         $post = $request->all();
        $user = [];
        if(isset($post['phone'])){
-        $user = User::where('phone',$post['phone'])->with(['employee','employee_family','employee_main_family','employee_education','employee_education_non_formal','employee_job_experience','employee_question'])->first();
+        $user = User::join('cities','cities.id_city','users.id_city')->where('phone',$post['phone'])->with(['employee','employee_family','employee_main_family','employee_education','employee_education_non_formal','employee_job_experience','employee_question'])->first();
        }
        return MyHelper::checkGet($user);
    }

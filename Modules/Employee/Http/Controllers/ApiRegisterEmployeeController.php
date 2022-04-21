@@ -139,7 +139,7 @@ class ApiRegisterEmployeeController extends Controller
                 ));
                 }
                 if(isset($post['employee']['email'])){
-                    if(isset($user->email)){
+                    if(isset($post['employee']['email'])){
                         $users = User::where('phone',$post['phone'])->update(array(
                             'email'=>$post['employee']['email']
                         ));

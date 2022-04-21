@@ -45,5 +45,12 @@ class Employee extends Model
         'created_at',
         'updated_at',
     ];
-
+    public function city_ktp()
+	{
+		return $this->belongsTo(\App\Http\Models\City::class, 'id_city_ktp','id_city');
+	}
+    public function city_domicile()
+	{
+		return $this->belongsTo(\App\Http\Models\City::class, 'id_city_domicile','id_city');
+	}
 }

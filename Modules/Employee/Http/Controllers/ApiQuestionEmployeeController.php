@@ -31,7 +31,9 @@ class ApiQuestionEmployeeController extends Controller
    }
    public function create(create_question $request) {
        $post = $request->all();
+       if($post['type']!="Type 1"){
        $post['question'] = json_encode($post['question']);
+       }
        $category = QuestionEmployee::create($post);
        return MyHelper::checkGet($category);
    }

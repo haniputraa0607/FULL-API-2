@@ -14,6 +14,8 @@ use Illuminate\Http\Request;
 */
 
 Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scopes:be'], 'prefix' => 'employee'], function () {
+    Route::post('list', 'ApiEmployeeController@employeeList');
+
     Route::group(['prefix' => 'office-hours'], function(){
         Route::get('/', 'ApiEmployeeController@officeHoursList');
         Route::post('create', 'ApiEmployeeController@officeHoursCreate');
@@ -30,6 +32,16 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('create', 'ApiEmployeeAnnouncementController@createAnnouncement');
         Route::post('detail', 'ApiEmployeeAnnouncementController@detailAnnouncement');
         Route::post('delete', 'ApiEmployeeAnnouncementController@deleteAnnouncement');
+    });
+
+    Route::group(['prefix' => 'schedule'], function(){
+        Route::any('list', 'ApiEmployeeScheduleController@list');
+        Route::post('create', 'ApiEmployeeScheduleController@create');
+        Route::post('detail/use-shift', 'ApiEmployeeScheduleController@detailShift');
+        Route::post('detail/without-shift', 'ApiEmployeeScheduleController@detailNonShift');
+        Route::post('update', 'ApiEmployeeScheduleController@update');
+        Route::post('delete', 'ApiEmployeeScheduleController@deleteAnnouncement');
+        Route::any('year-list', 'ApiEmployeeScheduleController@getScheduleYear');
     });
     Route::group(['prefix' => 'be/recruitment'], function(){
         Route::post('create', 'ApiBeEmployeeController@create');
@@ -58,5 +70,4 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
 
 Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_agent', 'scopes:employee-apps'], 'prefix' => 'employee'], function () {
     Route::get('announcement','ApiEmployeeAnnouncementController@announcementList');
-    Route::get('cron','ApiEmployeeController@cronEmployeeScheduleNonShit');
 });

@@ -36,7 +36,7 @@ class EmployeeSchedule extends Model
 
 	public function employee_schedule_dates()
 	{
-		return $this->hasMany(\Modules\Employee\Entities\EmployeeScheduleDate::class, 'id_hairstylist_schedule');
+		return $this->hasMany(\Modules\Employee\Entities\EmployeeScheduleDate::class, 'id_employee_schedule');
 	}
 
 	public function outlet()
@@ -47,5 +47,26 @@ class EmployeeSchedule extends Model
 	public function user_employee()
 	{
 		return $this->belongsTo(\App\Http\Models\User::class, 'id');
+	}
+
+	public function refreshTimeShift($id_employee_office_hour)
+	{
+		$timeShift = EmployeeOfficeHourShift::join('employee_office_hours','employee_office_hours.id_employee_office_hour','employee_office_hour_shift.id_employee_office_hour')->where('employee_office_hours.id_employee_office_hour', $id_employee_office_hour)->get();
+		$schedules = [];
+		$timeShift->each(function ($item) use (&$schedules) {
+			$schedules[$item->shift_name] = [
+				'time_start' => $item->shift_start,
+				'time_end' => $item->shift_end,
+			];
+		});
+		
+		$this->employee_schedule_dates->each(function ($item) use ($schedules) {
+			$item->update([
+				'time_start' => $schedules[$item->shift]['time_start'] ?? '00:00:00',
+				'time_end' => $schedules[$item->shift]['time_end'] ?? '00:00:00',
+			]);
+		});
+
+		return true;
 	}
 }

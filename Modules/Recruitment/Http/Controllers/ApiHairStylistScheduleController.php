@@ -10,6 +10,7 @@ use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Recruitment\Entities\HairstylistAttendance;
 use Modules\Recruitment\Entities\HairstylistSchedule;
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
+use App\Http\Models\OutletSchedule;
 use App\Http\Models\Holiday;
 use App\Http\Models\Outlet;
 use DB;
@@ -384,7 +385,6 @@ class ApiHairStylistScheduleController extends Controller
 	                ], null, false, false, $recipient_type = 'hairstylist', null, true
 	            );
         	}
-        	return response()->json(MyHelper::checkUpdate($update));
         }
 
         $schedule = HairstylistScheduleDate::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->get();
@@ -406,7 +406,7 @@ class ApiHairStylistScheduleController extends Controller
         		];
         	}
         }
-
+        
         $fixedSchedule = HairstylistScheduleDate::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->join('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')->select('hairstylist_schedule_dates.id_hairstylist_schedule_date', 'date')->get();
         $fixedScheduleDateId = $fixedSchedule->pluck('id_hairstylist_schedule_date');
         $fixedScheduleDate = $fixedSchedule->pluck('date')->map(function($item) {return date('Y-m-d', strtotime($item));});
@@ -493,6 +493,8 @@ class ApiHairStylistScheduleController extends Controller
 	public function checkScheduleHS(){
         $log = MyHelper::logCron('Check Schedule Hair Stylist');
         try{
+            DB::beginTransaction();
+
             $this_date = date('Y-m-d');
             $this_date = explode('-',$this_date);
 
@@ -533,32 +535,80 @@ class ApiHairStylistScheduleController extends Controller
                                         "reject_at" => NULL
                                     ];
 
-                                    DB::beginTransaction();
                                     $create_schedule = HairstylistSchedule::create($array_hs);
                                     if($create_schedule){
-                                        $new_schedule = array_map(function($new) use($this_date,$create_schedule){
+                                        foreach($schedule_before as $new){
                                             $date = explode('-',$new['date']);
-                                            $date[1] = $this_date[1];
-                                            $date = implode('-',$date);
-                                            $new['date'] = $date;
-                                            $new['created_at'] = date('Y-m-d H:i:s');
-                                            $new['updated_at'] = date('Y-m-d H:i:s');
-                                            $new['id_hairstylist_schedule'] = $create_schedule['id_hairstylist_schedule'];
-                                            unset($new['id_hairstylist_schedule_date']);
-                                            return $new;
-                                        },$schedule_before);
-        
-                                        $create_schedule_date = HairstylistScheduleDate::insert($new_schedule);
+                                            $date[1] = $schedule_month;
+                                            $date[0] = $schedule_year;
+                                            $date =  date('Y-m-d', strtotime(implode('-',$date)));
+
+                                            if($new['is_overtime'] == 1){
+                                                $day = date('D', strtotime($date));
+                                                switch($day){
+                                                    case 'Sun':
+                                                        $day = "Minggu";
+                                                    break;
+                                            
+                                                    case 'Mon':			
+                                                        $day = "Senin";
+                                                    break;
+                                            
+                                                    case 'Tue':
+                                                        $day = "Selasa";
+                                                    break;
+                                            
+                                                    case 'Wed':
+                                                        $day = "Rabu";
+                                                    break;
+                                            
+                                                    case 'Thu':
+                                                        $day = "Kamis";
+                                                    break;
+                                            
+                                                    case 'Fri':
+                                                        $day = "Jumat";
+                                                    break;
+                                            
+                                                    case 'Sat':
+                                                        $day = "Sabtu";
+                                                    break;
+                                                    
+                                                    default:
+                                                        $day = "Undefined";		
+                                                    break;
+                                                }
+
+                                                $get_original = OutletSchedule::join('outlet_time_shift','outlet_time_shift.id_outlet_schedule','=','outlet_schedules.id_outlet_schedule')
+                                                                            ->where('outlet_schedules.id_outlet', $hs['id_outlet'])
+                                                                            ->where('outlet_schedules.day', $day)
+                                                                            ->where('outlet_time_shift.shift', $new['shift'])->first();
+                                             
+                                                $new['time_start'] = $get_original['shift_time_start'];
+                                                $new['time_end'] = $get_original['shift_time_end'];
+                                            }
+
+                                            $create_schedule_date = HairstylistScheduleDate::create([
+                                                'id_hairstylist_schedule' => $create_schedule['id_hairstylist_schedule'],
+                                                'date' => $date,
+                                                'shift' => $new['shift'],
+                                                'request_by' => $new['request_by'],
+                                                'is_overtime' =>  0,
+                                                'time_start' => $new['time_start'],
+                                                'time_end' => $new['time_end'],
+                                            ]);
+                                        }
                                     }else{
                                         DB::rollback();
                                     }
-                                    DB::commit();
+                                    
                                 }
                             }
                         }
                     }
                 }
             }
+            DB::commit();
 
             $log->success('success');
             return response()->json(['status' => 'success']);

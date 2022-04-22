@@ -4146,7 +4146,7 @@ class ApiOutletController extends Controller
     }
 
     public function detailStockAdjustment(Request $request){
-        $adjustment = ProductIcountStockAdjustment::with('user', 'product_icount', 'outlet', 'unit_icount')->find($request->id_product_icount_stock_adjustment);
+        $adjustment = ProductIcountStockAdjustment::with('user', 'product_icount', 'outlet')->find($request->id_product_icount_stock_adjustment);
         return MyHelper::checkGet($adjustment);
     }
 
@@ -4154,6 +4154,7 @@ class ApiOutletController extends Controller
         $request->validate([
             'id_product_icount' => 'required|exists:product_icounts,id_product_icount',
             'id_outlet' => 'required|exists:outlets,id_outlet',
+            'unit' => 'required|exists:icount_units,id_outlet',
             'stock_adjustment' => 'required|numeric',
             'unit' => 'required|string',
         ]);
@@ -4166,16 +4167,17 @@ class ApiOutletController extends Controller
             ];
         }
         $productIcount = ProductIcount::find($request->id_product_icount);
+        $unit = UnitIcount::find($request->unit)->unit;
         $stockAdjustment = ProductIcountStockAdjustment::create([
             'id_product_icount' => $productIcount->id_product_icount,
             'id_user' => $request->user()->id,
             'id_outlet' => $request->id_outlet,
-            'unit' => $request->unit,
+            'unit' => $unit,
             'stock_adjustment' => $request->stock_adjustment,
             'notes' => $request->notes,
             'title' => $request->title ?: 'Stock Adjustment',
         ]);
-        $adjust = $productIcount->addLogStockProductIcount($request->stock_adjustment, $request->unit, 'Stock Adjustment', $stockAdjustment->id_product_icount_stock_adjustment, $request->notes, $request->id_outlet);
+        $adjust = $productIcount->addLogStockProductIcount($request->stock_adjustment, $unit, 'Stock Adjustment', $stockAdjustment->id_product_icount_stock_adjustment, $request->notes, $request->id_outlet);
         if (!$adjust) {
             return [
                 'status' => 'fail',

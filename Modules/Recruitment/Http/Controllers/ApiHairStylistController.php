@@ -463,26 +463,7 @@ class ApiHairStylistController extends Controller
                     }
                 }
 
-                if((!empty($post['data_document']['document_type']) && $post['data_document']['document_type'] != 'Training Completed') ||
-                    empty($post['data_document']['document_type'])){
-                    $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update(['user_hair_stylist_status' => $post['update_type']]);
-
-                    if($update && $post['update_type'] == 'Rejected'){
-                        UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update([
-                                'user_hair_stylist_passed_status' => $post['user_hair_stylist_passed_status'],
-                                'user_hair_stylist_score' => $post['user_hair_stylist_score']
-                                ]);
-                        $autocrm = app($this->autocrm)->SendAutoCRM(
-                            'Rejected Candidate Hair Stylist',
-                            $getData['phone_number'],
-                            [
-                                'fullname' => $getData['fullname'],
-                                'phone_number' => $getData['phone_number'],
-                                'email' => $getData['email']
-                            ], null, false, false, 'hairstylist'
-                        );
-                    }
-                }else if($post['data_document']['theory']){
+                if(!empty($post['data_document']['theory'])){
                     $insertTheory = [];
                     foreach ($post['data_document']['theory'] as $theory){
                         if($post['data_document']['id_theory_category'] == $theory['id_theory_category']){
@@ -497,6 +478,26 @@ class ApiHairStylistController extends Controller
                     if(!empty($insertTheory)){
                         $update = UserHairStylistTheory::insert($insertTheory);
                     }
+                }
+
+                if(empty($post['data_document']['theory']) || $post['update_type'] == 'Rejected'){
+                    $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update(['user_hair_stylist_status' => $post['update_type']]);
+                }
+
+                if($post['update_type'] == 'Rejected'){
+                    UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update([
+                        'user_hair_stylist_passed_status' => $post['user_hair_stylist_passed_status']??'Not Passed',
+                        'user_hair_stylist_score' => $post['user_hair_stylist_score']??0
+                    ]);
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Rejected Candidate Hair Stylist',
+                        $getData['phone_number'],
+                        [
+                            'fullname' => $getData['fullname'],
+                            'phone_number' => $getData['phone_number'],
+                            'email' => $getData['email']
+                        ], null, false, false, 'hairstylist'
+                    );
                 }
 
                 return response()->json(MyHelper::checkUpdate($update));

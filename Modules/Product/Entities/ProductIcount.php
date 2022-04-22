@@ -61,7 +61,7 @@ class ProductIcount extends Model
     }
 
     public function addLogStockProductIcount($qty, $unit, $source, $id_refrence = null, $desctiption = null, $id_outlet = null){
-
+        if (!$qty) return false;
         $id_product_icount = $this->id_product_icount;
         $id_outlet =  (empty($id_outlet) ? auth()->user()->id_outlet : $id_outlet);
         $current_stock = ProductIcountOutletStock::where('id_outlet',$id_outlet)

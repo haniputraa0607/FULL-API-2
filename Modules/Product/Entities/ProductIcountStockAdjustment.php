@@ -27,11 +27,6 @@ class ProductIcountStockAdjustment extends Model
         return $this->belongsTo(ProductIcount::class, 'id_product_icount');
     }
 
-    public function unit_icount()
-    {
-        return $this->belongsTo(UnitIcount::class, 'unit');
-    }
-
     public function outlet()
     {
         return $this->belongsTo(\App\Http\Models\Outlet::class, 'id_outlet');

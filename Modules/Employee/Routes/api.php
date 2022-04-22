@@ -70,4 +70,10 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
 
 Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_agent', 'scopes:employee-apps'], 'prefix' => 'employee'], function () {
     Route::get('announcement','ApiEmployeeAnnouncementController@announcementList');
+
+    Route::group(['prefix' => 'attendance'], function () {
+        Route::get('live','ApiEmployeeAttendanceController@liveAttendance');
+        Route::post('live','ApiEmployeeAttendanceController@storeLiveAttendance');
+        Route::any('histories','ApiEmployeeAttendanceController@histories');
+    });
 });

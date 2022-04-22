@@ -17,6 +17,7 @@ use Modules\Employee\Entities\EmployeeOfficeHourShift;
 use Modules\Users\Entities\Role;
 
 use DB;
+use Modules\Employee\Entities\EmployeeOfficeHour;
 
 class ApiEmployeeScheduleController extends Controller
 {
@@ -143,6 +144,7 @@ class ApiEmployeeScheduleController extends Controller
                                 'schedule_year' =>  $schedule_year,
                                 'request_at' =>  date('Y-m-d H:i:s'),
                                 'approve_by' => $schedue_before['approve_by'],
+                                'approve_at' => $schedue_before['approve_at'],
                                 'last_updated_by' => $schedue_before['last_updated_by'] 
                             ];
 
@@ -224,6 +226,12 @@ class ApiEmployeeScheduleController extends Controller
                         DB::rollback();
                     }
                     DB::commit();
+                    $shift = EmployeeOfficeHour::join('roles','roles.id_employee_office_hour','employee_office_hours.id_employee_office_hour')
+                                                ->join('users','users.id_role','roles.id_role')
+                                                ->where('users.id', $post['id_employee'])
+                                                ->select('employee_office_hours.*')
+                                                ->first();
+                    $create_schedule['shift'] = $shift['office_hour_type'];
                     return response()->json([
                         'status' => 'success', 
                         'result' => $create_schedule

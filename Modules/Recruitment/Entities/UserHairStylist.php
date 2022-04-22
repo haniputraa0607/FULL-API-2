@@ -182,7 +182,7 @@ class UserHairStylist extends Authenticatable
                 'clock_in_requirement' => $schedule->clock_in_requirement,
                 'clock_out_requirement' => $schedule->clock_out_requirement,
                 'clock_in_tolerance' => MyHelper::setting('clock_in_tolerance', 'value', 15),
-                'clock_out_tolerance' => MyHelper::setting('clock_in_tolerance', 'value', 0),
+                'clock_out_tolerance' => MyHelper::setting('clock_out_tolerance', 'value', 0),
             ]);
         }
         return $attendance;

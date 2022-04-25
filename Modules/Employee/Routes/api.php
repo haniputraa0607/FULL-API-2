@@ -45,6 +45,9 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
     });
     Route::group(['prefix' => 'be/recruitment'], function(){
         Route::post('create', 'ApiBeEmployeeController@create');
+        Route::post('candidate', 'ApiBeEmployeeController@candidate');
+        Route::post('detail', 'ApiBeEmployeeController@candidateDetail');
+        Route::post('update', 'ApiBeEmployeeController@update');
     });
     Route::group(['prefix' => 'be/question'], function(){
         Route::post('category', 'ApiQuestionEmployeeController@category');

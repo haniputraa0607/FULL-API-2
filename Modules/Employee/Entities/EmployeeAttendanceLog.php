@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class EmployeeAttendanceLog extends Model
 {
     protected $table = 'employee_attendance_logs';
+    protected $primaryKey = 'id_employee_attendance_log';
     protected $fillable = [
         'id_employee_attendance',
         'type',

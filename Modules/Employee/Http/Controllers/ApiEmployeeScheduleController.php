@@ -588,7 +588,7 @@ class ApiEmployeeScheduleController extends Controller
         	$y = date('Y', strtotime($date));
         	$m = date('m', strtotime($date));
         	$d = date('j', strtotime($date));
-
+            
         	$isClosed = $outletSchedule[$day]['is_closed'] ?? '1';
         	if (isset($holidays[$date]) && isset($outletSchedule[$day])) {
         		$isClosed = '1';

@@ -20,4 +20,8 @@ class Role extends Model
 	public function roles_features(){
         return $this->hasMany(RolesFeature::class, 'id_role', 'id_role');
     }
+
+	public function office_hour(){
+        return $this->belongsTo(\Modules\Employee\Entities\EmployeeOfficeHour::class, 'id_employee_office_hour', 'id_employee_office_hour');
+    }
 }

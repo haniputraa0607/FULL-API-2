@@ -463,26 +463,7 @@ class ApiHairStylistController extends Controller
                     }
                 }
 
-                if((!empty($post['data_document']['document_type']) && $post['data_document']['document_type'] != 'Training Completed') ||
-                    empty($post['data_document']['document_type'])){
-                    $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update(['user_hair_stylist_status' => $post['update_type']]);
-
-                    if($update && $post['update_type'] == 'Rejected'){
-                        UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update([
-                                'user_hair_stylist_passed_status' => $post['user_hair_stylist_passed_status'],
-                                'user_hair_stylist_score' => $post['user_hair_stylist_score']
-                                ]);
-                        $autocrm = app($this->autocrm)->SendAutoCRM(
-                            'Rejected Candidate Hair Stylist',
-                            $getData['phone_number'],
-                            [
-                                'fullname' => $getData['fullname'],
-                                'phone_number' => $getData['phone_number'],
-                                'email' => $getData['email']
-                            ], null, false, false, 'hairstylist'
-                        );
-                    }
-                }else if($post['data_document']['theory']){
+                if(!empty($post['data_document']['theory'])){
                     $insertTheory = [];
                     foreach ($post['data_document']['theory'] as $theory){
                         if($post['data_document']['id_theory_category'] == $theory['id_theory_category']){
@@ -497,6 +478,26 @@ class ApiHairStylistController extends Controller
                     if(!empty($insertTheory)){
                         $update = UserHairStylistTheory::insert($insertTheory);
                     }
+                }
+
+                if(empty($post['data_document']['theory']) || $post['update_type'] == 'Rejected'){
+                    $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update(['user_hair_stylist_status' => $post['update_type']]);
+                }
+
+                if($post['update_type'] == 'Rejected'){
+                    UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update([
+                        'user_hair_stylist_passed_status' => $post['user_hair_stylist_passed_status']??'Not Passed',
+                        'user_hair_stylist_score' => $post['user_hair_stylist_score']??0
+                    ]);
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Rejected Candidate Hair Stylist',
+                        $getData['phone_number'],
+                        [
+                            'fullname' => $getData['fullname'],
+                            'phone_number' => $getData['phone_number'],
+                            'email' => $getData['email']
+                        ], null, false, false, 'hairstylist'
+                    );
                 }
 
                 return response()->json(MyHelper::checkUpdate($update));
@@ -775,15 +776,15 @@ class ApiHairStylistController extends Controller
             }
 
             $currentDate = date('Y-m-d');
-            $outletService = TransactionProductService::where('id_user_hair_stylist', $post['id_user_hair_stylist'])
-                                ->whereDate('schedule_date', '>=', $currentDate)
+            $outletService = TransactionProductService::join('transaction_products', 'transaction_products.id_transaction_product', 'transaction_product_services.id_transaction_product')
+                                ->where('transaction_product_services.id_user_hair_stylist', $post['id_user_hair_stylist'])
+                                ->whereNull('transaction_products.reject_at')
                                 ->where(function ($q){
                                     $q->where('service_status', '<>', 'Completed')
                                         ->orWhereNull('service_status');
                                 })
-                                ->pluck('id_transaction')->toArray();
+                                ->pluck('transaction_product_services.id_transaction')->toArray();
             $homeService = TransactionHomeService::where('id_user_hair_stylist', $post['id_user_hair_stylist'])
-                                ->whereDate('schedule_date', '>=', $currentDate)
                                 ->where(function ($q){
                                     $q->whereNotIn('status', ['Completed', 'Cancelled'])
                                         ->orWhereNull('status');
@@ -792,11 +793,14 @@ class ApiHairStylistController extends Controller
 
             if(!empty($outletService)) {
                 $trxOutlet = Transaction::where('transaction_payment_status', 'Completed')->where('transaction_from', 'outlet-service')
-                    ->whereIn('id_transaction', $outletService)->where('id_outlet', $hs['id_outlet'])->with(['user', 'outlet'])->get()->toArray();
+                    ->whereIn('id_transaction', $outletService)
+                    ->whereNull('reject_at')
+                    ->where('id_outlet', $hs['id_outlet'])->with(['user', 'outlet'])->get()->toArray();
             }
 
             if(!empty($homeService)) {
                 $trxHome = Transaction::where('transaction_payment_status', 'Completed')->where('transaction_from', 'home-service')
+                    ->whereNull('reject_at')
                     ->whereIn('id_transaction', $homeService)->with(['user', 'outlet'])->get()->toArray();
             }
 
@@ -835,15 +839,15 @@ class ApiHairStylistController extends Controller
                 ];
 
                 $currentDate = date('Y-m-d');
-                $outletService = TransactionProductService::where('id_user_hair_stylist', $post['id_user_hair_stylist'])
-                    ->whereDate('schedule_date', '>=', $currentDate)
+                $outletService = TransactionProductService::join('transaction_products', 'transaction_products.id_transaction_product', 'transaction_product_services.id_transaction_product')
+                    ->where('transaction_product_services.id_user_hair_stylist', $post['id_user_hair_stylist'])
+                    ->whereNull('transaction_products.reject_at')
                     ->where(function ($q){
                         $q->where('service_status', '<>', 'Completed')
                             ->orWhereNull('service_status');
                     })
-                    ->pluck('id_transaction')->toArray();
+                    ->pluck('transaction_product_services.id_transaction')->toArray();
                 $homeService = TransactionHomeService::where('id_user_hair_stylist', $post['id_user_hair_stylist'])
-                    ->whereDate('schedule_date', '>=', $currentDate)
                     ->where(function ($q){
                         $q->whereNotIn('status', ['Completed', 'Cancelled'])
                             ->orWhereNull('status');
@@ -852,11 +856,13 @@ class ApiHairStylistController extends Controller
 
                 if(!empty($outletService)) {
                     $trxOutlet = Transaction::where('transaction_payment_status', 'Completed')->where('transaction_from', 'outlet-service')
+                        ->whereNull('reject_at')
                         ->whereIn('id_transaction', $outletService)->where('id_outlet', $hs['id_outlet'])->with(['user', 'outlet'])->get()->toArray();
                 }
 
                 if(!empty($homeService)) {
                     $trxHome = Transaction::join('transaction_home_services', 'transaction_home_services.id_transaction', 'transactions.id_transaction')
+                        ->whereNull('reject_at')
                         ->where('transaction_payment_status', 'Completed')->where('transaction_from', 'home-service')
                         ->whereIn('transactions.id_transaction', $homeService)->with(['user', 'outlet'])->get()->toArray();
                 }
@@ -900,6 +906,7 @@ class ApiHairStylistController extends Controller
                 $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update(['id_outlet' => $post['id_outlet']]);
                 if($update){
                     UpdateScheduleHSJob::dispatch(['id_user_hair_stylist' => $post['id_user_hair_stylist']])->allOnConnection('database');
+
                 }
 
                 return response()->json(MyHelper::checkUpdate($update));

@@ -24,7 +24,7 @@ class EmployeeAttendance extends Model
 
     public function logs()
     {
-        return $this->hasMany(employeeAttendanceLog::class, 'id_employee_attendance');
+        return $this->hasMany(EmployeeAttendanceLog::class, 'id_employee_attendance');
     }
 
     public function storeClock($data)

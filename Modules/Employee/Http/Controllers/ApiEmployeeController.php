@@ -294,4 +294,17 @@ class ApiEmployeeController extends Controller
         $data = $data->select('users.*', 'roles.role_name', 'outlets.outlet_name')->paginate(25);
         return response()->json(MyHelper::checkGet($data));
     }
+
+    public function shift(Request $request){
+        $post = $request->all();
+        $get_shift = EmployeeOfficeHourShift::join('employee_office_hours','employee_office_hours.id_employee_office_hour', 'employee_office_hour_shift.id_employee_office_hour')
+                                            ->join('roles', 'roles.id_employee_office_hour', 'employee_office_hours.id_employee_office_hour')
+                                            ->join('users', 'users.id_role', 'roles.id_role')
+                                            ->where('users.id', $post['id'])
+                                            ->select('employee_office_hour_shift.shift_name')
+                                            ->get()->toArray();  
+        return response()->json(MyHelper::checkGet($get_shift));
+
+                                            
+    }
 }

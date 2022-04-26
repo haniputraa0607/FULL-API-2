@@ -45,11 +45,34 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
     });
     Route::group(['prefix' => 'be/recruitment'], function(){
         Route::post('create', 'ApiBeEmployeeController@create');
+        Route::post('candidate', 'ApiBeEmployeeController@candidate');
+        Route::post('detail', 'ApiBeEmployeeController@candidateDetail');
+        Route::post('update', 'ApiBeEmployeeController@update');
     });
     Route::group(['prefix' => 'be/question'], function(){
         Route::post('category', 'ApiQuestionEmployeeController@category');
         Route::post('create', 'ApiQuestionEmployeeController@create');
     });
+
+    Route::any('attendance-setting','ApiEmployeeAttendanceController@setting');
+    Route::group(['prefix' => 'attendance'], function () {
+        Route::post('list','ApiEmployeeAttendanceController@list');
+        Route::post('detail','ApiEmployeeAttendanceController@detail');
+    });
+    Route::group(['prefix' => 'attendance-pending'], function () {
+        Route::post('list','ApiEmployeeAttendanceController@listPending');
+        Route::post('detail','ApiEmployeeAttendanceController@detailPending');
+        Route::post('update','ApiEmployeeAttendanceController@updatePending');
+    });
+    Route::group(['prefix' => 'attendance-request'], function () {
+        Route::post('list','ApiEmployeeAttendanceController@listRequest');
+        Route::post('detail','ApiEmployeeAttendanceController@detailRequest');
+        Route::post('update','ApiEmployeeAttendanceController@updateRequest');
+    });
+
+    Route::post('shift','ApiEmployeeController@shift');
+
+    
 });
 
 Route::group([ 'middleware' => ['log_activities', 'auth:api','auth_client','scopes:landing-page'], 'prefix' => 'employee'], function () {
@@ -70,4 +93,10 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
 
 Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_agent', 'scopes:employee-apps'], 'prefix' => 'employee'], function () {
     Route::get('announcement','ApiEmployeeAnnouncementController@announcementList');
+
+    Route::group(['prefix' => 'attendance'], function () {
+        Route::get('live','ApiEmployeeAttendanceController@liveAttendance');
+        Route::post('live','ApiEmployeeAttendanceController@storeLiveAttendance');
+        Route::any('histories','ApiEmployeeAttendanceController@histories');
+    });
 });

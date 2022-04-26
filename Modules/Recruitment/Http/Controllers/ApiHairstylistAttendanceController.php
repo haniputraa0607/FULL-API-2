@@ -168,7 +168,7 @@ class ApiHairstylistAttendanceController extends Controller
             ->leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
             ->get();
         $numOfDays = cal_days_in_month(CAL_GREGORIAN, $request->month, $request->year);
-
+        
         $histories = [];
         for ($i = 1; $i <= $numOfDays; $i++) { 
             $date = "{$request->year}-{$request->month}-$i";

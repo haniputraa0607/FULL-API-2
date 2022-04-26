@@ -16,7 +16,7 @@ class EmployeeEducation extends Model
         'name_school',
         'year_education',
         'study_program',
-        'id_city_school',
+        'id_city',
         'created_at',
         'updated_at',
     ];

@@ -85,6 +85,7 @@ class UpdateScheduleHSJob implements ShouldQueue
                             ->where('id_outlet_schedule', $outlet['id_outlet_schedule'])->where('shift', $shift['shift'])->first();
                         HairstylistScheduleDate::where('id_hairstylist_schedule_date', $shift['id_hairstylist_schedule_date'])
                             ->update([
+                                'id_outlet_box' => NULL,
                                 'time_start' => $shiftTime['shift_time_start'],
                                 'time_end' => $shiftTime['shift_time_end']
                             ]);

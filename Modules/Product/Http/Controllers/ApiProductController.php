@@ -3228,7 +3228,7 @@ class ApiProductController extends Controller
     function listProductIcount(Request $request) {
         $post = $request->json()->all();
 
-		if (isset($post['id_outlet'])) {
+		if (isset($post['id_outlet']) && !$request->for_select2) {
             $product = ProductIcount::join('product_detail','product_detail.id_product','=','products.id_product')
                                 ->leftJoin('product_special_price','product_special_price.id_product','=','products.id_product')
 									->where('product_detail.id_outlet','=',$post['id_outlet'])
@@ -3343,6 +3343,21 @@ class ApiProductController extends Controller
 
         if(isset($post['admin_list'])){
             $product = $product->withCount('product_detail')->withCount('product_detail_hiddens')->with(['brands']);
+        }
+
+        if ($request->q) {
+            $product->where('name', 'like', '%' . $request->q . '%');
+        }
+
+        if ($request->for_select2) {
+            if ($request->id_outlet && $outlet = Outlet::with('location_outlet')->find($request->id_outlet)) {
+                $product->with(['product_icount_outlet_stocks' => function($query) use ($request) {
+                    $query->where('id_outlet', $request->id_outlet);
+                }]);
+                $product->where('company_type', $outlet->location_outlet->company_type == 'PT IMS' ? 'ims' : 'ima');
+            }
+            $product->select('id_product_icount', 'name');
+            return MyHelper::checkGet($product->get()->toArray());
         }
 
         if(isset($post['pagination'])){

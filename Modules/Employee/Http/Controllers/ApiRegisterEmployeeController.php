@@ -434,8 +434,8 @@ class ApiRegisterEmployeeController extends Controller
                if(isset($value['study_program'])){
                     $education->study_program = $value['study_program'];
                 }
-               if(isset($value['id_city_school'])){
-                    $education->id_city_school = $value['id_city_school'];
+               if(isset($value['id_city'])){
+                    $education->id_city = $value['id_city'];
                 }
                  unset($education['id_employee_education']);
                  unset($education['updated_at']);
@@ -459,9 +459,9 @@ class ApiRegisterEmployeeController extends Controller
                if(isset($value['study_program'])){
                     $education['study_program'] = $value['study_program'];
                 }else{$education['study_program'] = null;}
-               if(isset($value['id_city_school'])){
-                    $education['id_city_school'] = $value['id_city_school'];
-                }else{$education['id_city_school'] = null;}
+               if(isset($value['id_city'])){
+                    $education['id_city'] = $value['id_city'];
+                }else{$education['id_city'] = null;}
                $array[] = $education;
            }
        }
@@ -473,7 +473,7 @@ class ApiRegisterEmployeeController extends Controller
                'name_school'=>$va['name_school'],
                'year_education'=>$va['year_education'],
                'study_program'=>$va['study_program'],
-               'id_city_school'=>$va['id_city_school'],
+               'id_city'=>$va['id_city'],
            ));
         }
        $education = EmployeeEducation::where('id_user',$id_user)->get();
@@ -649,7 +649,7 @@ class ApiRegisterEmployeeController extends Controller
                if(isset($value['answer'])){
                     $education_questions->answer = $value['answer'];
                 }
-                 unset($education_questions['id_employee_questions']);
+                 unset($education_questions['id_employee_question']);
                  unset($education_questions['updated_at']);
                  unset($education_questions['created_at']);
                 $array[] = $education_questions;

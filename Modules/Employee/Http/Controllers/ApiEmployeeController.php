@@ -309,12 +309,19 @@ class ApiEmployeeController extends Controller
                                             
     }
 
-    public function saveDeviceUser($user, $data){
+    public function saveDeviceUser(Request $request){
+        $user = $request->user();
+        $data= $request->all();
         if ($data['device_id'] && $data['device_token'] && $data['device_type']) {
             $device = $this->updateDeviceUser($user, $data['device_id'], $data['device_token'], $data['device_type']);
+            if($device){
+                return response()->json(['status' => 'success', 'messages' => ['Success to update Device User']]);
+            }else{
+                return response()->json(['status' => 'fail', 'messages' => ['Failed to update Device User']]);
+            }
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }
-        
-        return $device;
 
     }
 

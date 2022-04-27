@@ -2564,6 +2564,9 @@ class ApiOnlineTransaction extends Controller
                     'status'=>'fail',
                     'messages' => ['Transaksi tidak dapat dibatalkan karena proses pembayaran sedang berlangsung']
                 ];
+            case 'cash':
+                $trx->triggerPaymentCancelled();
+                return ['status'=>'success', 'result' => ['message' => 'Pembayaran berhasil dibatalkan']];
         }
         return ['status' => 'fail', 'messages' => ["Cancel $payment_type transaction is not supported yet"]];
     }

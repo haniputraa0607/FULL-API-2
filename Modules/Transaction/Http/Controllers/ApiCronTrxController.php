@@ -187,6 +187,33 @@ class ApiCronTrxController extends Controller
         }
     }
 
+    public function cronPaymentCash()
+    {
+        $log = MyHelper::logCron('Cancel Transaction Payment Cash');
+        try {
+            $expired   = date('Y-m-d',strtotime('-1 day', strtotime(date('Y-m-d'))));
+
+            $getTrx = Transaction::where('transaction_payment_status', 'Pending')
+                ->where('trasaction_payment_type', 'Cash')
+                ->whereDate('transaction_date', '<=', $expired)->get();
+
+            if (empty($getTrx)) {
+                $log->success('empty');
+                return response()->json(['empty']);
+            }
+
+            foreach ($getTrx as $key => $singleTrx) {
+                $singleTrx->triggerPaymentCancelled();
+            }
+
+            $log->success('success');
+            return response()->json(['success']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $log->fail($e->getMessage());
+        }
+    }
+
     public function checkSchedule()
     {
         $log = MyHelper::logCron('Check Schedule');

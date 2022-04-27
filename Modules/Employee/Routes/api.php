@@ -99,4 +99,6 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         Route::post('live','ApiEmployeeAttendanceController@storeLiveAttendance');
         Route::any('histories','ApiEmployeeAttendanceController@histories');
     });
+
+    Route::post('update-device','ApiEmployeeController@saveDeviceUser');
 });

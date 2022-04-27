@@ -71,6 +71,8 @@ class PushNotificationHelper{
 
         if ($recipient_type && $recipient_type == 'hairstylist') {
             return static::searchHairstylistDeviceToken($type, $value, $recipient_type);
+        }elseif ($recipient_type && $recipient_type == 'employee') {
+            return static::searchEmployeetDeviceToken($type, $value);
         }
         $devUser = User::leftjoin('user_devices', 'user_devices.id_user', '=', 'users.id')
             ->select('id_device_user', 'users.id', 'user_devices.device_token', 'user_devices.device_id', 'phone');
@@ -138,6 +140,33 @@ class PushNotificationHelper{
             'token' => $hs->devices->pluck('device_token')->unique()->toArray(),
             'id_user' => [$hs->id_user_hair_stylist],
             'mphone' => [$hs->phone]
+        ];
+    }
+
+    public static function searchEmployeetDeviceToken($type, $value)
+    {
+        $empolyee = User::with('employee_devices');
+
+        if (is_array($type) && is_array($value)) {
+            for ($i=0; $i < count($type) ; $i++) { 
+                $empolyee->where($type[$i], $value[$i]);
+            }
+        }
+        else {
+            if (is_array($value)) {
+                $empolyee->whereIn($type, $value);
+            }
+            else {
+                $empolyee->where($type, $value);
+            }
+        }
+
+        $empolyee = $empolyee->first();
+
+        return [
+            'token' => $empolyee->devices->pluck('device_token')->unique()->toArray(),
+            'id_user' => [$empolyee->id],
+            'mphone' => [$empolyee->phone]
         ];
     }
 

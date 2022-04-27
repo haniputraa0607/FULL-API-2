@@ -52,7 +52,8 @@ class ApiRequestProductController extends Controller
                                             'request_products.*',
                                             'outlets.outlet_name',
                                             'users.name',
-                                        );
+                                        )
+                                        ->where('from',$post['from']);
 
         if(isset($post['conditions']) && !empty($post['conditions'])){
             $rule = 'and';
@@ -116,6 +117,9 @@ class ApiRequestProductController extends Controller
             if (isset($post['type'])) {
                 $store_request['type'] = $post['type'];
             }
+            if (isset($post['from'])) {
+                $store_request['from'] = $post['from'];
+            }
             if (isset($post['requirement_date'])) {
                 $store_request['requirement_date'] = date('Y-m-d', strtotime($post['requirement_date']));
             }
@@ -142,9 +146,13 @@ class ApiRequestProductController extends Controller
             }
             DB::commit();
             if (\Module::collections()->has('Autocrm')) {
-                
+                if($post['from'] && $post['from']=='Asset'){
+                    $crm = 'Create Request Asset';
+                }else{
+                    $crm = 'Create Request Product';
+                }
                 $autocrm = app($this->autocrm)->SendAutoCRM(
-                    'Create Request Product',
+                    $crm,
                     auth()->user()->phone,
                 );
                 // return $autocrm;
@@ -347,7 +355,11 @@ class ApiRequestProductController extends Controller
                     return $val;
                 },$data_send['location_bundling']);
                 $project = Project::where('id_partner',$data_send['location']['id_partner'])->where('id_location',$data_send['location']['id_location'])->first();
-                $invoice = Icount::ApiPurchaseSPK($data_send,$data_send['location']['company_type']);
+                if(isset($post['from']) && $post['from'] == 'Asset'){
+                    $invoice = Icount::ApiPurchaseSPK($data_send,'PT IMA');
+                }elseif(isset($post['from']) && $post['from'] == 'Product'){
+                    $invoice = Icount::ApiPurchaseSPK($data_send,$data_send['location']['company_type']);
+                }
                 if($invoice['response']['Status']=='1' && $invoice['response']['Message']=='success'){
                     $data_invoice = [
                         'id_project'=>$project['id_project'],
@@ -914,7 +926,15 @@ class ApiRequestProductController extends Controller
     }
 
     public function listCatalog(Request $request){
-        $catalogs = ProductCatalog::where('status', 1)->get()->toArray();
+        $post = $request->all();
+        $catalogs = ProductCatalog::where('status', 1);
+
+        if(isset($post['company'])){
+            $catalogs = $catalogs->where('company_type', $post['company']);
+        }
+
+        $catalogs = $catalogs->get()->toArray();
         return $catalogs;
     }
+
 }

@@ -34,6 +34,8 @@ use Modules\Franchise\Entities\UserFranchise;
 use Modules\Franchise\Entities\FranchiseEmailLog;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Recruitment\Entities\HairstylistInbox;
+use Modules\Employee\Entities\EmployeeDevice;
+use Modules\Employee\Entities\EmployeeInbox;
 use Validator;
 use Hash;
 use DB;
@@ -88,7 +90,9 @@ class ApiAutoCrm extends Controller
 		                	'nickname as name', 
 		                	'user_hair_stylist.*'
 		                )->where('phone_number','=',$receipient)->get()->toArray();
-            }
+            }elseif($recipient_type = 'employee'){
+				$users = User::where('phone','=',$receipient)->whereNotNull('id_role')->get()->toArray();
+			}
 		}
 		if(empty($users)){
 			return true;
@@ -731,7 +735,13 @@ class ApiAutoCrm extends Controller
 						$inboxWherefield = null;
 
 						$inbox['id_user_hair_stylist'] = $user['id'];
-					} else {
+					} elseif($recipient_type == 'employee'){
+						$inboxTable = new EmployeeInbox;
+						$inboxRecipient = $receipient;
+						$inboxWherefield = null;
+
+						$inbox['id_employee'] = $user['id'];
+					}else {
 						$inboxTable = new UserInbox;
 						$inboxRecipient = $user['id'];
 						$inboxWherefield = 'id';

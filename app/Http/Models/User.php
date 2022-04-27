@@ -164,6 +164,11 @@ class User extends Authenticatable
 		return $this->hasMany(\App\Http\Models\UserDevice::class, 'id', 'id_user');
 	}
 
+	public function employee_devices()
+	{
+		return $this->hasMany(\Modules\Employee\Entities\EmployeeDevice::class, 'id', 'id_employee');
+	}
+
 	public function features()
 	{
 		return $this->belongsToMany(\App\Http\Models\Feature::class, 'user_features', 'id_user', 'id_feature');

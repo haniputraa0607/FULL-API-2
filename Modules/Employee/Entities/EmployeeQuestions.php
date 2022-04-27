@@ -3,6 +3,7 @@
 namespace Modules\Employee\Entities;
 
 use Illuminate\Database\Eloquent\Model;
+use Modules\Employee\Entities\QuestionEmployee;
 
 class EmployeeQuestions extends Model
 {
@@ -12,11 +13,13 @@ class EmployeeQuestions extends Model
     
     protected $fillable = [
         'id_user',
-        'category',
-        'question',
+        'id_question_employee',
         'answer',
         'created_at',
         'updated_at',
     ];
-
+    public function questions()
+	{
+		return $this->belongsTo(QuestionEmployee::class, 'id_question_employee');
+	}
 }

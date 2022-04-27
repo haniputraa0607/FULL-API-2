@@ -672,8 +672,7 @@ class ApiRegisterEmployeeController extends Controller
       foreach ($array as $va) {
            EmployeeQuestions::create(array(
                'id_user'=>$va['id_user'],
-               'category'=>$va['category'],
-               'question'=>$va['question'],
+               'id_question_employee'=>$va['id_question_employee'],
                'answer'=>$va['answer']
            ));
         }

@@ -20,5 +20,8 @@ class EmployeeEducation extends Model
         'created_at',
         'updated_at',
     ];
-
+    public function city()
+	{
+		return $this->belongsTo(\App\Http\Models\City::class, 'id_city');
+	}
 }

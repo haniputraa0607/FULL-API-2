@@ -18,6 +18,7 @@ use Modules\Employee\Entities\EmployeeSchedule;
 use Modules\Employee\Entities\EmployeeScheduleDate;
 
 use DB;
+use Modules\Employee\Entities\EmployeeDevice;
 
 class ApiEmployeeController extends Controller
 {
@@ -307,4 +308,46 @@ class ApiEmployeeController extends Controller
 
                                             
     }
+
+    public function saveDeviceUser($user, $data){
+        if ($data['device_id'] && $data['device_token'] && $data['device_type']) {
+            $device = $this->updateDeviceUser($user, $data['device_id'], $data['device_token'], $data['device_type']);
+        }
+        
+        return $device;
+
+    }
+
+    public function updateDeviceUser($user, $device_id, $device_token, $device_type) {
+        $dataUpdate = [
+            'device_id'    => $device_id,
+            'device_token' => $device_token,
+            'device_type' => $device_type
+        ];
+
+        $checkDevice = EmployeeDevice::where('id_employee', $user->id)
+								->where('device_id', $device_id)
+								->where('device_type', $device_type)
+								->count();
+
+        $update                = EmployeeDevice::updateOrCreate(['device_id' => $device_id], [
+            'id_employee'       => $user->id,
+            'device_token'		=> $device_token,
+            'device_type'		=> $device_type
+        ]);
+
+        $result = false;
+        if ($update) {
+			if($device_type == 'Android')
+            $query                 = User::where('id','=',$user->id)->update(['android_device' => $device_id]);
+
+			if($device_type == 'IOS')
+            $query                 = User::where('id','=',$user->id)->update(['ios_device' => $device_id]);
+
+            $result = true;
+        }
+
+        return $result;
+    }
+
 }

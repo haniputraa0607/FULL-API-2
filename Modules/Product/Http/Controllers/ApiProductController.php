@@ -3304,7 +3304,13 @@ class ApiProductController extends Controller
         }
 
         if (isset($post['company_type'])) {
-            $product->where('product_icounts.company_type', $post['company_type']);
+            if(isset($post['from'])){
+                $product->where(function($q) use($post){
+                    $q->where('product_icounts.company_type', $post['company_type'])->orWhere('product_icounts.item_group', '=', 'Assets');
+                });
+            }else{
+                $product->where('product_icounts.company_type', $post['company_type']);
+            }
         }
 
         if (isset($post['buyable'])) {

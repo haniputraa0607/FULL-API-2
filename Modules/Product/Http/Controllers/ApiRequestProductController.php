@@ -562,6 +562,9 @@ class ApiRequestProductController extends Controller
             if (isset($post['type'])) {
                 $store_delivery['type'] = $post['type'];
             }
+            if (isset($post['from'])) {
+                $store_delivery['from'] = $post['from'];
+            }
             if (isset($post['charged'])) {
                 $store_delivery['charged'] = $post['charged'];
             }

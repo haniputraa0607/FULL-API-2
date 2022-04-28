@@ -62,6 +62,12 @@ class Kernel extends ConsoleKernel
         $schedule->call('Modules\Transaction\Http\Controllers\ApiCronTrxController@cron')->cron('*/2 * * * *');
 
         /**
+         * cancel pending transaction payment cash
+         * run every day at 1.30 am
+         */
+        $schedule->call('Modules\Transaction\Http\Controllers\ApiCronTrxController@cronPaymentCash')->dailyAt('01:30');
+
+        /**
          * reject all transactions that outlets do not receive within a certain timeframe
          * run every minute
          */

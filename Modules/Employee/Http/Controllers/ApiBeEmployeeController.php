@@ -83,10 +83,22 @@ class ApiBeEmployeeController extends Controller
     public function detail(Request $request) {
        $post = $request->json()->all();
         if(isset($post['id_employee']) && !empty($post['id_employee'])){
-            $detail = Employee::Join('users', 'users.id', 'employees.id_user')
-                        ->where('id_employee', $post['id_employee'])
-                        ->with(['documents'])
-                        ->first();
+             $detail = User::join('cities','cities.id_city','users.id_city')
+                    ->join('employees','employees.id_user','users.id')
+                    ->where('employees.id_employee',$post['id_employee'])
+                    ->with([
+                        'employee',
+                        'employee.city_ktp',
+                        'employee.city_domicile',
+                        'employee_family',
+                        'employee_main_family',
+                        'employee_education',
+                        'employee_education.city',
+                        'employee_education_non_formal',
+                        'employee_job_experience',
+                        'employee_question',
+                        'employee_question.questions'])
+                    ->first();
             return response()->json(MyHelper::checkGet($detail));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
@@ -129,10 +141,23 @@ class ApiBeEmployeeController extends Controller
    public function candidateDetail(Request $request) {
        $post = $request->json()->all();
         if(isset($post['id_employee']) && !empty($post['id_employee'])){
-            $detail = Employee::Join('users', 'users.id', 'employees.id_user')
-                        ->where('id_employee', $post['id_employee'])
-                        ->with(['documents'])
-                        ->first();
+            $detail = User::join('cities','cities.id_city','users.id_city')
+                    ->join('employees','employees.id_user','users.id')
+                    ->where('employees.id_employee',$post['id_employee'])
+                    ->with([
+                        'employee',
+                        'employee.city_ktp',
+                        'employee.city_domicile',
+                        'employee_family',
+                        'employee_main_family',
+                        'employee_education',
+                        'employee_education.city',
+                        'employee_education_non_formal',
+                        'employee_job_experience',
+                        'employee_question',
+                        'employee_question.questions'])
+                    ->first();
+                  
             return response()->json(MyHelper::checkGet($detail));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);

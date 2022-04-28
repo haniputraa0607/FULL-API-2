@@ -46,13 +46,71 @@ class ApiBeEmployeeController extends Controller
        $user = User::where('id',$user->id)->with(['employee','employee_family','employee_education','employee_education_non_formal','employee_job_experience','employee_question'])->first();
        return MyHelper::checkGet($user);
    }
+   public function index(Request $request) {
+        $post = $request->all();
+        $employee = User::where(array(
+            "employees.status"=>"active",
+            "users.level"=>"Admin"
+            ))->join('employees','employees.id_user','users.id');
+        if(isset($post['rule']) && !empty($post['rule'])){
+            $rule = 'and';
+            if(isset($post['operator'])){
+                $rule = $post['operator'];
+            }
+            if($rule == 'and'){
+                foreach ($post['rule'] as $condition){
+                    if(isset($condition['subject'])){               
+                        $employee = $employee->where('employees.'.$condition['subject'], $condition['parameter']);
+                    }
+                }
+            }else{
+                $employee = $employee->where(function ($q) use ($post){
+                    foreach ($post['rule'] as $condition){
+                        if(isset($condition['subject'])){
+                                 if($condition['operator'] == 'like'){
+                                      $q->orWhere('employees.'.$condition['subject'], 'like', '%'.$condition['parameter'].'%');
+                                 }else{
+                                      $q->orWhere('employees.'.$condition['subject'], $condition['parameter']);
+                                 }
+                        }
+                    }
+                });
+            }
+        }
+            $employee = $employee->orderBy('employees.created_at', 'desc')->paginate($request->length ?: 10);
+        return MyHelper::checkGet($employee);
+   }
+    public function detail(Request $request) {
+       $post = $request->json()->all();
+        if(isset($post['id_employee']) && !empty($post['id_employee'])){
+             $detail = User::join('cities','cities.id_city','users.id_city')
+                    ->join('employees','employees.id_user','users.id')
+                    ->where('employees.id_employee',$post['id_employee'])
+                    ->with([
+                        'employee',
+                        'employee.documents',
+                        'employee.city_ktp',
+                        'employee.city_domicile',
+                        'employee_family',
+                        'employee_main_family',
+                        'employee_education',
+                        'employee_education.city',
+                        'employee_education_non_formal',
+                        'employee_job_experience',
+                        'employee_question',
+                        'employee_question.questions'])
+                    ->first();
+            return response()->json(MyHelper::checkGet($detail));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+   }
    public function candidate(Request $request) {
         $post = $request->all();
         $employee = User::where(array(
             "employees.status"=>"candidate",
-            "employees.status_approved"=>"Submitted",
             "users.level"=>"Customer"
-            ))->join('employees','employees.id_user','users.id');
+            ))->wherenotnull('employees.status_approved')->join('employees','employees.id_user','users.id');
         if(isset($post['rule']) && !empty($post['rule'])){
             $rule = 'and';
             if(isset($post['operator'])){
@@ -84,10 +142,24 @@ class ApiBeEmployeeController extends Controller
    public function candidateDetail(Request $request) {
        $post = $request->json()->all();
         if(isset($post['id_employee']) && !empty($post['id_employee'])){
-            $detail = Employee::Join('users', 'users.id', 'employees.id_user')
-                        ->where('id_employee', $post['id_employee'])
-                        ->with(['documents'])
-                        ->first();
+            $detail = User::join('cities','cities.id_city','users.id_city')
+                    ->join('employees','employees.id_user','users.id')
+                    ->where('employees.id_employee',$post['id_employee'])
+                    ->with([
+                        'employee',
+                        'employee.documents',
+                        'employee.city_ktp',
+                        'employee.city_domicile',
+                        'employee_family',
+                        'employee_main_family',
+                        'employee_education',
+                        'employee_education.city',
+                        'employee_education_non_formal',
+                        'employee_job_experience',
+                        'employee_question',
+                        'employee_question.questions'])
+                    ->first();
+                  
             return response()->json(MyHelper::checkGet($detail));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
@@ -160,6 +232,7 @@ class ApiBeEmployeeController extends Controller
                     return response()->json(['status' => 'fail', 'messages' => ['User not found']]);
                 }
                 $dtHs->password = bcrypt($pin);
+                $dtHs->level = "Admin";
                 $dtHs->save();
                 if(!empty($post['data_document'])){
                     $createDoc = EmployeeDocuments::create([

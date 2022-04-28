@@ -44,6 +44,8 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::any('year-list', 'ApiEmployeeScheduleController@getScheduleYear');
     });
     Route::group(['prefix' => 'be/recruitment'], function(){
+        Route::any('/', 'ApiBeEmployeeController@index');
+        Route::post('detail', 'ApiBeEmployeeController@detail');
         Route::post('create', 'ApiBeEmployeeController@create');
         Route::post('candidate', 'ApiBeEmployeeController@candidate');
         Route::post('detail', 'ApiBeEmployeeController@candidateDetail');

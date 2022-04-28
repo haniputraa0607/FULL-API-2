@@ -88,6 +88,7 @@ class ApiBeEmployeeController extends Controller
                     ->where('employees.id_employee',$post['id_employee'])
                     ->with([
                         'employee',
+                        'employee.documents',
                         'employee.city_ktp',
                         'employee.city_domicile',
                         'employee_family',
@@ -146,6 +147,7 @@ class ApiBeEmployeeController extends Controller
                     ->where('employees.id_employee',$post['id_employee'])
                     ->with([
                         'employee',
+                        'employee.documents',
                         'employee.city_ktp',
                         'employee.city_domicile',
                         'employee_family',

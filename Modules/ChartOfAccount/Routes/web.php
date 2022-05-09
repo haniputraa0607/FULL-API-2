@@ -11,6 +11,3 @@
 |
 */
 
-Route::prefix('chartofaccount')->group(function() {
-    Route::get('/', 'ChartOfAccountController@index');
-});

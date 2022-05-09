@@ -22,7 +22,9 @@ class DeliveryProduct extends Model
         'status',
         'delivery_date',
         'confirmation_date',
-        'confirmation_note'
+        'confirmation_note',
+        'from',
+        'status'
 	];
 
     public function delivery_product_detail(){

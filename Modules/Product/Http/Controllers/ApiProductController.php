@@ -3304,7 +3304,13 @@ class ApiProductController extends Controller
         }
 
         if (isset($post['company_type'])) {
-            $product->where('product_icounts.company_type', $post['company_type']);
+            if(isset($post['from'])){
+                $product->where(function($q) use($post){
+                    $q->where('product_icounts.company_type', $post['company_type'])->orWhere('product_icounts.item_group', '=', 'Assets');
+                });
+            }else{
+                $product->where('product_icounts.company_type', $post['company_type']);
+            }
         }
 
         if (isset($post['buyable'])) {
@@ -3386,7 +3392,11 @@ class ApiProductController extends Controller
         }
 
         if(isset($post['catalog'])){
-            $catalog = ProductCatalogDetail::where('id_product_catalog',$post['catalog'])->get()->toArray();
+            $catalog = ProductCatalogDetail::where('id_product_catalog',$post['catalog']);
+            if(isset($post['from'])){
+                $catalog = $catalog->where('budget_code', $post['from']);
+            }
+            $catalog = $catalog->get()->toArray();
             $new_product = [];
             foreach($product as $val){
                 $check = false;

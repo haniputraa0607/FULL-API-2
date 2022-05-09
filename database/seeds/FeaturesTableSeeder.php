@@ -4379,7 +4379,34 @@ class FeaturesTableSeeder extends Seeder
                 'order'          => 162,
                 'created_at'     => '2018-05-10 08:00:00',
                 'updated_at'     => '2018-05-10 08:00:00',
-           )
+            ),
+            487 => array(
+                'id_feature'     => 472,
+                'feature_type'   => 'List',
+                'feature_module' => 'Employee Attendace',
+                'show_hide'      => 1,
+                'order'          => 129,
+                'created_at'     => date('Y-m-d H:00:00'),
+                'updated_at'     => date('Y-m-d H:00:00'),
+            ),
+            488 => array(
+                'id_feature'     => 473,
+                'feature_type'   => 'Detail',
+                'feature_module' => 'Employee Attendace',
+                'show_hide'      => 1,
+                'order'          => 129,
+                'created_at'     => date('Y-m-d H:00:00'),
+                'updated_at'     => date('Y-m-d H:00:00'),
+            ),
+            489 => array(
+                'id_feature'     => 474,
+                'feature_type'   => 'Update',
+                'feature_module' => 'Employee Attendace',
+                'show_hide'      => 1,
+                'order'          => 129,
+                'created_at'     => date('Y-m-d H:00:00'),
+                'updated_at'     => date('Y-m-d H:00:00'),
+            )
         );
 
         foreach ($rows as $row) {

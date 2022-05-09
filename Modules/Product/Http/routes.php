@@ -203,6 +203,12 @@ Route::group(['prefix' => 'api/req-product','middleware' => ['log_activities','a
     Route::post('/', 'ApiRequestProductController@index');
     Route::any('all', 'ApiRequestProductController@all');
     Route::any('list-catalog', 'ApiRequestProductController@listCatalog');
+    Route::group(['prefix' => 'asset'], function() {
+        Route::post('delete', 'ApiRequestProductController@destroyAsset');
+        Route::post('detail', 'ApiRequestProductController@detailAsset');
+        Route::post('update', 'ApiRequestProductController@updateAsset');
+
+    });
 });
 
 Route::group(['prefix' => 'api/icount/req-product', 'namespace' => 'Modules\Product\Http\Controllers'], function() {

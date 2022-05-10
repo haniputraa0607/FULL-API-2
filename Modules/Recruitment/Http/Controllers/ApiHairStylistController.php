@@ -792,7 +792,14 @@ class ApiHairStylistController extends Controller
                                 ->pluck('id_transaction')->toArray();
 
             if(!empty($outletService)) {
-                $trxOutlet = Transaction::where('transaction_payment_status', 'Completed')->where('transaction_from', 'outlet-service')
+                $trxOutlet = Transaction::where('transaction_from', 'outlet-service')
+                    ->where(function ($q){
+                        $q->where('transaction_payment_status', 'Completed')
+                            ->orWhere(function ($sub){
+                                $sub->where('transaction_payment_status', 'Pending')
+                                    ->where('trasaction_payment_type', 'Cash');
+                            });
+                    })
                     ->whereIn('id_transaction', $outletService)
                     ->whereNull('reject_at')
                     ->where('id_outlet', $hs['id_outlet'])->with(['user', 'outlet'])->get()->toArray();
@@ -855,9 +862,17 @@ class ApiHairStylistController extends Controller
                     ->pluck('id_transaction')->toArray();
 
                 if(!empty($outletService)) {
-                    $trxOutlet = Transaction::where('transaction_payment_status', 'Completed')->where('transaction_from', 'outlet-service')
+                    $trxOutlet = Transaction::where('transaction_from', 'outlet-service')
+                        ->where(function ($q){
+                            $q->where('transaction_payment_status', 'Completed')
+                                ->orWhere(function ($sub){
+                                    $sub->where('transaction_payment_status', 'Pending')
+                                        ->where('trasaction_payment_type', 'Cash');
+                                });
+                        })
+                        ->whereIn('id_transaction', $outletService)
                         ->whereNull('reject_at')
-                        ->whereIn('id_transaction', $outletService)->where('id_outlet', $hs['id_outlet'])->with(['user', 'outlet'])->get()->toArray();
+                        ->where('id_outlet', $hs['id_outlet'])->with(['user', 'outlet'])->get()->toArray();
                 }
 
                 if(!empty($homeService)) {

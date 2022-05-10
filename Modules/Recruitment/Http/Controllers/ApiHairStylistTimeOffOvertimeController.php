@@ -11,6 +11,7 @@ use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use App\Http\Models\Outlet;
 use DB;
 use App\Lib\MyHelper;
+use Modules\Recruitment\Entities\HairstylistAttendance;
 use Modules\Recruitment\Entities\HairStylistTimeOff;
 use Modules\Recruitment\Entities\HairstylistOverTime;
 use Modules\Transaction\Entities\HairstylistNotAvailable;
@@ -464,10 +465,12 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                         $second = floor(($diff - ($hour*60*60))%(60));
                         $new_time =  date('H:i:s', strtotime($hour.':'.$minute.':'.$second));
                         $order = 'time_end';
+                        $order_att = 'clock_out_requirement';
                     }elseif($check['time'] = 'before'){
                         $secs = strtotime($check['duration'])-strtotime("00:00:00");
                         $new_time = date("H:i:s",strtotime($get_schedule_date['time_start'])+$secs);
                         $order = 'time_start';
+                        $order_att = 'clock_in_requirement';
                     }
                     $update_schedule = HairstylistScheduleDate::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->update([$order => $new_time,  'is_overtime' => 0]);
                     $update_overtime = HairstylistOverTime::where('id_hairstylist_overtime', $post['id_hairstylist_overtime'])->update(['reject_at' => date('Y-m-d')]);
@@ -477,6 +480,7 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                             'status' => 'fail'
                         ]);
                     }
+                    $attendace = HairstylistAttendance::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->where('id_user_hair_stylist', $check['id_user_hair_stylist'])->where('attendance_date',$check['date'])->update([$order_att => $new_time]);
                     DB::commit();
                     return response()->json([
                         'status' => 'success'

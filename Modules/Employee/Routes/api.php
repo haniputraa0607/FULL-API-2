@@ -80,7 +80,7 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('detail', 'ApiEmployeeTimeOffOvertimeController@detailTimeOff');
         Route::post('update', 'ApiEmployeeTimeOffOvertimeController@updateTimeOff');
         Route::post('create', 'ApiEmployeeTimeOffOvertimeController@createTimeOff');
-        Route::post('list-hs', 'ApiEmployeeTimeOffOvertimeController@listHS');
+        Route::post('list-employee', 'ApiEmployeeTimeOffOvertimeController@listEmployee');
         Route::post('list-date', 'ApiEmployeeTimeOffOvertimeController@listDate');
     });
 
@@ -120,4 +120,9 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
     });
 
     Route::post('update-device','ApiEmployeeController@saveDeviceUser');
+
+    Route::group(['prefix' => 'time-off'], function () {
+        Route::post('/','ApiEmployeeTimeOffOvertimeController@listTimeOffEmployee');
+        Route::post('create','ApiEmployeeTimeOffOvertimeController@createTimeOffEmployee');
+    });
 });

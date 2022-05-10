@@ -604,7 +604,7 @@ class ApiEmployeeScheduleController extends Controller
         		'all_employee_schedule' => $allSchedule[$y][$m][$d] ?? []
         	];
         }
-        $detail['attendance'] = EmployeeAttendance::whereIn('id_employee_schedule_date', $detail->employee_schedule_dates->pluck('id_employee_schedule_date'))->whereDate('attendance_date', date('Y-m-d'))->first();
+        $detail['attendance'] = EmployeeAttendance::whereIn('id_employee_schedule_date', $detail->employee_schedule_dates->pluck('id_employee_schedule_date'))->whereDate('attendance_date', date('Y-m-d'))->whereNotNull('clock_in')->first();
 
         
         $res = [

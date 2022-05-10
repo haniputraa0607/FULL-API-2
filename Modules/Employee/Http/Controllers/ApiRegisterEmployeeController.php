@@ -77,7 +77,27 @@ class ApiRegisterEmployeeController extends Controller
             }
             
        }
-       $user = User::where('id',$user->id)->with(['employee','employee_family','employee_education','employee_education_non_formal','employee_job_experience','employee_question'])->first();
+       $user = User::where('id',$user->id)->with(['employee','employee_family','employee_education','employee_education_non_formal','employee_job_experience'])->first();
+        $array = array();
+        if($user){
+        $question = EmployeeQuestions::where(array('id_user'=>$user->id))->get();
+         foreach ($question as $value) {
+          $que = QuestionEmployee::join('category_questions','category_questions.id_category_question','question_employees.id_category_question')->where('id_question_employee',$value['id_question_employee'])->first();
+          if($que){
+              $data['id_employee_question'] = $value['id_employee_question'];
+              $data['category'] = $que->name_category;
+              $data['type'] = $que->type;
+              $data['question'] = json_decode($que->question);
+              if($que->type != "Type 1"){
+                  $data['answer'] = json_decode($value['answer']);
+              }else{
+                  $data['answer'] = $value['answer'];
+              }
+                array_push($array,$data);    
+            }
+         }
+        }
+         $user['employee_question'] = $array;
        return MyHelper::checkGet($user);
    }
    public function submit(status_approved $request) {
@@ -185,7 +205,27 @@ class ApiRegisterEmployeeController extends Controller
             if(isset($post['questions'])){
                 $this->update_employe_questions($post['questions'],$user->id);
             }
-            $user = User::join('cities','cities.id_city','users.id_city')->where('phone',$post['phone'])->with(['employee','employee.city_ktp','employee.city_domicile','employee_family','employee_main_family','employee_education','employee_education.city','employee_education_non_formal','employee_job_experience','employee_question','employee_question.questions'])->first();
+            $user = User::join('cities','cities.id_city','users.id_city')->where('phone',$post['phone'])->with(['employee','employee.city_ktp','employee.city_domicile','employee_family','employee_main_family','employee_education','employee_education.city','employee_education_non_formal','employee_job_experience'])->first();
+            $array = array();
+        if($user){
+        $question = EmployeeQuestions::where(array('id_user'=>$user->id))->get();
+         foreach ($question as $value) {
+          $que = QuestionEmployee::join('category_questions','category_questions.id_category_question','question_employees.id_category_question')->where('id_question_employee',$value['id_question_employee'])->first();
+          if($que){
+              $data['id_employee_question'] = $value['id_employee_question'];
+              $data['category'] = $que->name_category;
+              $data['type'] = $que->type;
+              $data['question'] = json_decode($que->question);
+              if($que->type != "Type 1"){
+                  $data['answer'] = json_decode($value['answer']);
+              }else{
+                  $data['answer'] = $value['answer'];
+              }
+                array_push($array,$data);    
+            }
+         }
+        }
+         $user['employee_question'] = $array;
         }
        }
        return MyHelper::checkGet($user);

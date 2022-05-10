@@ -74,6 +74,23 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
 
     Route::post('shift','ApiEmployeeController@shift');
 
+    Route::group(['prefix' => 'timeoff'], function () {
+        Route::post('list', 'ApiEmployeeTimeOffOvertimeController@listTimeOff');
+        Route::post('delete', 'ApiEmployeeTimeOffOvertimeController@deleteTimeOff');
+        Route::post('detail', 'ApiEmployeeTimeOffOvertimeController@detailTimeOff');
+        Route::post('update', 'ApiEmployeeTimeOffOvertimeController@updateTimeOff');
+        Route::post('create', 'ApiEmployeeTimeOffOvertimeController@createTimeOff');
+        Route::post('list-hs', 'ApiEmployeeTimeOffOvertimeController@listHS');
+        Route::post('list-date', 'ApiEmployeeTimeOffOvertimeController@listDate');
+    });
+
+    Route::group(['prefix' => 'overtime'], function () {
+        Route::post('list', 'ApiEmployeeTimeOffOvertimeController@listOvertime');
+        Route::post('detail', 'ApiEmployeeTimeOffOvertimeController@detailOvertime');
+        Route::post('update', 'ApiEmployeeTimeOffOvertimeController@updateOvertime');
+        Route::post('create', 'ApiEmployeeTimeOffOvertimeController@createOvertime');
+        Route::post('delete', 'ApiEmployeeTimeOffOvertimeController@deleteOvertime');
+    });
     
 });
 

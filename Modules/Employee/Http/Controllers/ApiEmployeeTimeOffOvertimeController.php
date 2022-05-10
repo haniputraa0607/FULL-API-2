@@ -16,6 +16,7 @@ use Modules\Employee\Entities\EmployeeTimeOff;
 use Modules\Employee\Entities\EmployeeOverTime;
 use Modules\Employee\Entities\EmployeeNotAvailable;
 use App\Http\Models\Holiday;
+use App\Http\Models\Setting;
 
 class ApiEmployeeTimeOffOvertimeController extends Controller
 {
@@ -386,8 +387,14 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
     }
 
     public function createTimeOffEmployee(Request $request){
-        $post = $request->all();
-        return $post;
+        $post = $request->all(); 
+        $type = Setting::where('key','employee_time_off_type')->get('value_text')->first();
+        $type_time_off = [];
+        if($type){
+            $type_time_off = json_decode($type['value_text']??'' , true);
+        }
+        return $type_time_off;
+
     }
 
 }

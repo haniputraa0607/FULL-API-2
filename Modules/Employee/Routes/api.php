@@ -92,6 +92,11 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('delete', 'ApiEmployeeTimeOffOvertimeController@deleteOvertime');
     });
     
+    Route::group(['prefix' => 'be/reimbursement'], function () {
+        Route::post('/','ApiBeEmployeeReimbursementController@list');
+        Route::post('/detail','ApiBeEmployeeReimbursementController@detail');
+        Route::post('/approved','ApiBeEmployeeReimbursementController@approved');
+         });
 });
 
 Route::group([ 'middleware' => ['log_activities', 'auth:api','auth_client','scopes:landing-page'], 'prefix' => 'employee'], function () {
@@ -118,6 +123,14 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         Route::post('live','ApiEmployeeAttendanceController@storeLiveAttendance');
         Route::any('histories','ApiEmployeeAttendanceController@histories');
     });
-
+       Route::group(['prefix' => 'reimbursement'], function () {
+        Route::post('create','ApiEmployeeReimbursementController@create');
+        Route::post('detail','ApiEmployeeReimbursementController@detail');
+        Route::post('update','ApiEmployeeReimbursementController@update');
+        Route::get('name_reimbursement','ApiEmployeeReimbursementController@name_reimbursement');
+        Route::post('saldo_reimbursement','ApiEmployeeReimbursementController@saldo_reimbursement');
+        Route::post('pending','ApiEmployeeReimbursementController@pending');
+        Route::post('history','ApiEmployeeReimbursementController@history');
+    });
     Route::post('update-device','ApiEmployeeController@saveDeviceUser');
 });

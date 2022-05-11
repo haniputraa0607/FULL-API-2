@@ -123,6 +123,14 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
 
     Route::group(['prefix' => 'time-off'], function () {
         Route::post('/','ApiEmployeeTimeOffOvertimeController@listTimeOffEmployee');
-        Route::post('create','ApiEmployeeTimeOffOvertimeController@createTimeOffEmployee');
+        Route::get('create','ApiEmployeeTimeOffOvertimeController@createTimeOffEmployee');
+        Route::post('create','ApiEmployeeTimeOffOvertimeController@storeTimeOffEmployee');
+    });
+
+    Route::group(['prefix' => 'overtime'], function () {
+        Route::post('/','ApiEmployeeTimeOffOvertimeController@listOvertimeEmployee');
+        Route::get('create','ApiEmployeeTimeOffOvertimeController@createOvertimeEmployee');
+        Route::post('check','ApiEmployeeTimeOffOvertimeController@checkOvertimeEmployee');
+        Route::post('create','ApiEmployeeTimeOffOvertimeController@storeOvertimeEmployee');
     });
 });

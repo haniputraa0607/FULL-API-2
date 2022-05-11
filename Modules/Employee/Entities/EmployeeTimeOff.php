@@ -18,6 +18,8 @@ class EmployeeTimeOff extends Model
 	protected $fillable = [
 		'id_employee',
 		'id_outlet',
+		'type',
+		'notes',
 		'approve_by',
 		'request_by',
 		'date',

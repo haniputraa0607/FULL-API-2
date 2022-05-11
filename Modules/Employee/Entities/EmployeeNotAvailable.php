@@ -12,7 +12,7 @@ class EmployeeNotAvailable extends Model
 
     protected $fillable   = [
         'id_outlet',
-        'id_user_hair_stylist',
+        'id_employee',
         'id_transaction',
         'id_employee_time_off',
         'id_transaction_product_service',

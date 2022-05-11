@@ -233,6 +233,8 @@ class ApiBeEmployeeController extends Controller
                 }
                 $dtHs->password = bcrypt($pin);
                 $dtHs->level = "Admin";
+                $dtHs->id_outlet = $post['id_outlet']??null;
+                $dtHs->id_role = $post['id_role']??null;
                 $dtHs->save();
                 if(!empty($post['data_document'])){
                     $createDoc = EmployeeDocuments::create([

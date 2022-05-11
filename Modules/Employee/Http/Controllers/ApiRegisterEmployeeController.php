@@ -85,6 +85,7 @@ class ApiRegisterEmployeeController extends Controller
           $que = QuestionEmployee::join('category_questions','category_questions.id_category_question','question_employees.id_category_question')->where('id_question_employee',$value['id_question_employee'])->first();
           if($que){
               $data['id_employee_question'] = $value['id_employee_question'];
+              $data['id_question_employee'] = $que->id_question_employee;
               $data['category'] = $que->name_category;
               $data['type'] = $que->type;
               $data['question'] = json_decode($que->question);
@@ -214,6 +215,7 @@ class ApiRegisterEmployeeController extends Controller
           $que = QuestionEmployee::join('category_questions','category_questions.id_category_question','question_employees.id_category_question')->where('id_question_employee',$value['id_question_employee'])->first();
           if($que){
               $data['id_employee_question'] = $value['id_employee_question'];
+                   $data['id_question_employee'] = $que->id_question_employee;
               $data['category'] = $que->name_category;
               $data['type'] = $que->type;
               $data['question'] = json_decode($que->question);

@@ -732,8 +732,10 @@ class ApiOutletController extends Controller
 
         if($post['office_only'] ?? false){
             $outlet->where('type', 'Office');
+            $outlet->where('outlet_status', 'Active');
         } else {
             $outlet->where('type', 'Outlet');
+            $outlet->where('outlet_status', 'Active');
         }
 
         // qrcode

@@ -44,6 +44,16 @@ class ApiQuestionEmployeeController extends Controller
    }
    public function list() {
        $category = CategoryQuestion::with(['questions'])->get();
+       foreach ($category as $value) {
+           foreach ($value['questions'] as $va) {
+               if($va['type']=="Type 3"||$va['type']=="Type 4"){
+                $va['question'] = json_decode($va['question']); 
+               }else{
+                   $va['question'] = $va['question']; 
+               }
+               
+           }
+       }
        return MyHelper::checkGet($category);
    }
 }

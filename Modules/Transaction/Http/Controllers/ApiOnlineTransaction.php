@@ -4221,6 +4221,8 @@ class ApiOnlineTransaction extends Controller
     function bookProductStock($id_transaction){
         $data = TransactionProduct::where('transactions.id_transaction', $id_transaction)
             ->join('transactions', 'transactions.id_transaction', 'transaction_products.id_transaction')
+            ->join('outlets', 'transactions.id_outlet', 'outlets.id_outlet')
+            ->join('locations', 'outlets.id_location', 'locations.id_location')
             ->select('transaction_products.*', 'transactions.id_outlet')
             ->get()->toArray();
 
@@ -4229,6 +4231,7 @@ class ApiOnlineTransaction extends Controller
                         ->first()['company_type']??null;
             $outletType = str_replace('PT ', '', $outletType);
             $getProductUse = ProductProductIcount::join('product_detail', 'product_detail.id_product', 'product_product_icounts.id_product')
+                ->where('company_type', $dt['company_type'])
                 ->where('product_product_icounts.id_product', $dt['id_product'])
                 ->where('company_type', $outletType)
                 ->where('product_detail.id_outlet', $dt['id_outlet'])->get()->toArray();

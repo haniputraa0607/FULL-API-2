@@ -3,6 +3,7 @@
 namespace Modules\Employee\Entities;
 
 use App\Http\Models\User;
+use App\Http\Models\Outlet;
 use Illuminate\Database\Eloquent\Model;
 
 class EmployeeTimeOff extends Model
@@ -15,8 +16,10 @@ class EmployeeTimeOff extends Model
 	];
 
 	protected $fillable = [
-		'id_user_hair_stylist',
+		'id_employee',
 		'id_outlet',
+		'type',
+		'notes',
 		'approve_by',
 		'request_by',
 		'date',
@@ -29,7 +32,7 @@ class EmployeeTimeOff extends Model
 	];
 
     public function employee(){
-        return $this->belongsTo(User::class, 'id');
+        return $this->belongsTo(User::class, 'id_employee');
     }
 
     public function outlet(){

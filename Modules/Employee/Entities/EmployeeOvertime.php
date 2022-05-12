@@ -15,13 +15,16 @@ class EmployeeOvertime extends Model
 	];
 
 	protected $fillable = [
-		'id_user_hair_stylist',
+		'id_employee',
 		'id_outlet',
 		'approve_by',
 		'request_by',
 		'date',
 		'time',
 		'duration',
+		'rest_before',
+		'rest_after',
+		'notes',
 		'request_at',
 		'approve_at',
 		'reject_at',
@@ -29,7 +32,7 @@ class EmployeeOvertime extends Model
 	];
 
     public function employee(){
-        return $this->belongsTo(User::class, 'id');
+        return $this->belongsTo(User::class, 'id_employee');
     }
 
     public function outlet(){

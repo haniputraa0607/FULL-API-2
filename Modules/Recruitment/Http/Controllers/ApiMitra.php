@@ -544,7 +544,17 @@ class ApiMitra extends Controller
             $start = date('Y-m-d',strtotime($mitraSchedule->date))." ".$mitraSchedule->time_start;
             $end = date('Y-m-d',strtotime($mitraSchedule->date))." ".$mitraSchedule->time_end;
             $now = date('Y-m-d H:i:s');
+
             if($start <= $now && $end >= $now && !$clock_in){
+				if($attendace){
+					$pending = HairstylistAttendanceLog::where('id_hairstylist_attendance', $attendace['id_hairstylist_attendance'])->first();
+					if($pending){
+						if($pending['status'] == 'Pending'){
+							$status['messages'][] = "Mohon menunggu absensi disetujui terlebih dahulu. ";
+							return $status;
+						}
+					}
+				}
                 $status['messages'][] = "Silakan lakukan absensi terlebih dahulu untuk memulai layanan outlet. ";
 				return $status;
             }elseif(($start > $now || $end < $now) && !$clock_in){

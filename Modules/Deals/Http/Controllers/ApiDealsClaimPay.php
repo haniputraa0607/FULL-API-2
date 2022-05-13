@@ -96,7 +96,7 @@ class ApiDealsClaimPay extends Controller
 
                 if (!$singleTrx) {
                     DB::rollBack();
-                    continue;
+                    break;
                 }
                 // revert back deals data
                 $deals = Deal::where('id_deals', $singleTrx->id_deals)->first();
@@ -104,20 +104,20 @@ class ApiDealsClaimPay extends Controller
                     $up1 = $deals->update(['deals_total_claimed' => $deals->deals_total_claimed - 1]);
                     if (!$up1) {
                         DB::rollBack();
-                        continue;
+                        break;
                     }
                 }
                 $up2 = DealsVoucher::where('id_deals_voucher', $singleTrx->id_deals_voucher)->update(['deals_voucher_status' => 'Available']);
                 if (!$up2) {
                     DB::rollBack();
-                    continue;
+                    break;
                 }
                 //reversal balance
                 if($singleTrx->balance_nominal) {
                     $reversal = app($this->balance)->addLogBalance( $singleTrx->id_user, $singleTrx->balance_nominal, $singleTrx->id_deals_user, 'Claim Deals Failed', $singleTrx->voucher_price_point?:$singleTrx->voucher_price_cash);
                     if (!$reversal) {
                         DB::rollBack();
-                        continue;
+                        break;
                     }
                 }
                 DB::commit();

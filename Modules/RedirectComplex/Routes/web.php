@@ -11,6 +11,3 @@
 |
 */
 
-Route::prefix('redirectcomplex')->group(function() {
-    Route::get('/', 'RedirectComplexController@index');
-});

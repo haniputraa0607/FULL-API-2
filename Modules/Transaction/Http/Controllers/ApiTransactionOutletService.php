@@ -1577,15 +1577,12 @@ class ApiTransactionOutletService extends Controller
     function returnProductStock($id_transaction_product) {
         $dt = TransactionProduct::where('transaction_products.id_transaction_product', $id_transaction_product)
             ->join('transactions', 'transactions.id_transaction', 'transaction_products.id_transaction')
-            ->join('outlets', 'transactions.id_outlet', 'outlets.id_outlet')
-            ->join('locations', 'outlets.id_location', 'locations.id_location')
             ->select('transaction_products.*', 'transactions.id_outlet')
             ->where('type', 'Product')
             ->first();
 
         if ($dt) {
             $getProductUse = ProductProductIcount::join('product_detail', 'product_detail.id_product', 'product_product_icounts.id_product')
-                ->where('company_type', $dt['company_type'])
                 ->where('product_product_icounts.id_product', $dt['id_product'])
                 ->where('product_detail.id_outlet', $dt['id_outlet'])->get()->toArray();
 

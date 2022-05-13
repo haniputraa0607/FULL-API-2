@@ -87,13 +87,13 @@ class ApiSubscriptionClaimPay extends Controller
                     $up1 = $subscription->update(['subscription_bought' => $subscription->subscription_bought - 1]);
                     if (!$up1) {
                         DB::rollBack();
-                        continue;
+                        break;
                     }
                 }
                 // $up2 = SubscriptionUserVoucher::where('id_subscription_user_voucher', $singleTrx->id_subscription_user_voucher)->delete();
                 // if (!$up2) {
                 //     DB::rollBack();
-                //     continue;
+                //     break;
                 // }
                 //reversal balance
                 $logBalance = LogBalance::where('id_reference', $singleTrx->id_subscription_user)->where('source', 'Subscription Balance')->where('balance', '<', 0)->get();
@@ -101,7 +101,7 @@ class ApiSubscriptionClaimPay extends Controller
                     $reversal = app($this->balance)->addLogBalance($singleTrx->id_user, abs($logB['balance']), $singleTrx->id_subscription_user, 'Subscription Reversal', $singleTrx->subscription_price_point ?: $singleTrx->subscription_price_cash);
                     if (!$reversal) {
                         DB::rollBack();
-                        continue;
+                        break;
                     }
                     // $usere= User::where('id',$singleTrx->id_user)->first();
                     // $send = app($this->autocrm)->SendAutoCRM('Transaction Failed Point Refund', $usere->phone,

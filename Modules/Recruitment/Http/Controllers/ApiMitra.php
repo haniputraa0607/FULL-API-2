@@ -770,7 +770,7 @@ class ApiMitra extends Controller
 		$timestamp = $date ? strtotime($date) : time();
 		$arrTz = [7 => 'Asia/Jakarta', 8 => 'Asia/Ujung_Pandang', 9 => 'Asia/Jayapura'];
 
-		$utc = request()->user()->outlet->city->province->time_zone_utc;
+		$utc = request()->user()->outlet ? request()->user()->outlet->city->province->time_zone_utc : 7;
 		$tz = $arrTz[$utc] ?? 'Asia/Jakarta';
 
 		$dt = new DateTime();

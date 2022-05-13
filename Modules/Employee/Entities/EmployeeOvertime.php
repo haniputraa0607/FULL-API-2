@@ -3,6 +3,7 @@
 namespace Modules\Employee\Entities;
 
 use App\Http\Models\User;
+use App\Http\Models\Outlet;
 use Illuminate\Database\Eloquent\Model;
 
 class EmployeeOvertime extends Model

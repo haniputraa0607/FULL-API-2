@@ -2553,8 +2553,8 @@ class ApiProductController extends Controller
 
                 if($close == 0 && array_search($dayConvert, $allDay) !== false){
                     $getTime = array_search($dayConvert, array_column($outletSchedules, 'day'));
-                    $open = date('H:i', strtotime($outletSchedules[$getTime]['open']));
-                    $close = date('H:i', strtotime($outletSchedules[$getTime]['close']));
+                    $open = date('H:i', strtotime($outletSchedules[$getTime]['open'] . "+ $diffTimeZone hour"));
+                    $close = date('H:i', strtotime($outletSchedules[$getTime]['close'] . "+ $diffTimeZone hour"));
                     $times = [];
                     $tmpTime = $open;
                     if(strtotime($date.' '.$open) > strtotime($today.' '.$currentTime)) {
@@ -2587,8 +2587,8 @@ class ApiProductController extends Controller
             $dayConvert = $day[date('D', strtotime($date))];
             if(array_search($dayConvert, $allDay) !== false){
                 $getTime = array_search($dayConvert, array_column($outletSchedules, 'day'));
-                $open = date('H:i', strtotime($outletSchedules[$getTime]['open']));
-                $close = date('H:i', strtotime($outletSchedules[$getTime]['close']));
+                $open = date('H:i', strtotime($outletSchedules[$getTime]['open'] . "+ $diffTimeZone hour"));
+                $close = date('H:i', strtotime($outletSchedules[$getTime]['close'] . "+ $diffTimeZone hour"));
                 $times = [];
                 $tmpTime = $open;
                 if(strtotime($date.' '.$open) > strtotime($today.' '.$currentTime)) {
@@ -2637,15 +2637,26 @@ class ApiProductController extends Controller
         $bookTime = date('H:i:s', strtotime($post['booking_time']));
 
         if(!empty($post['outlet_code'])){
-            $outlet = Outlet::where('outlet_code', $post['outlet_code'])->first();
+            $outlet = Outlet::where('outlet_code', $post['outlet_code'])
+                ->join('cities', 'cities.id_city', 'outlets.id_city')
+                ->join('provinces', 'provinces.id_province', 'cities.id_province')
+                ->select('outlets.*', 'provinces.time_zone_utc as province_time_zone_utc')
+                ->first();
         }elseif(!empty($post['id_outlet'])){
-            $outlet = Outlet::where('id_outlet', $post['id_outlet'])->first();
+            $outlet = Outlet::where('id_outlet', $post['id_outlet'])
+                ->join('cities', 'cities.id_city', 'outlets.id_city')
+                ->join('provinces', 'provinces.id_province', 'cities.id_province')
+                ->select('outlets.*', 'provinces.time_zone_utc as province_time_zone_utc')
+                ->first();
         }
 
         if(empty($outlet)){
             return response()->json(['status' => 'fail', 'messages' => ['Outlet not found']]);
         }
 
+        $timeZone = (empty($outlet['province_time_zone_utc']) ? 7:$outlet['province_time_zone_utc']);
+        $diffTimeZone = $timeZone - 7;
+        $bookTime = date('H:i:s', strtotime($post['booking_time'] . "- $diffTimeZone hour"));
         $post['id_outlet'] = $outlet['id_outlet'];
 
         //product category hs

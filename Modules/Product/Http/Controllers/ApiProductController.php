@@ -2553,8 +2553,8 @@ class ApiProductController extends Controller
 
                 if($close == 0 && array_search($dayConvert, $allDay) !== false){
                     $getTime = array_search($dayConvert, array_column($outletSchedules, 'day'));
-                    $open = date('H:i', strtotime($outletSchedules[$getTime]['open']));
-                    $close = date('H:i', strtotime($outletSchedules[$getTime]['close']));
+                    $open = date('H:i', strtotime($outletSchedules[$getTime]['open'] . "+ $diffTimeZone hour"));
+                    $close = date('H:i', strtotime($outletSchedules[$getTime]['close'] . "+ $diffTimeZone hour"));
                     $times = [];
                     $tmpTime = $open;
                     if(strtotime($date.' '.$open) > strtotime($today.' '.$currentTime)) {
@@ -2587,8 +2587,8 @@ class ApiProductController extends Controller
             $dayConvert = $day[date('D', strtotime($date))];
             if(array_search($dayConvert, $allDay) !== false){
                 $getTime = array_search($dayConvert, array_column($outletSchedules, 'day'));
-                $open = date('H:i', strtotime($outletSchedules[$getTime]['open']));
-                $close = date('H:i', strtotime($outletSchedules[$getTime]['close']));
+                $open = date('H:i', strtotime($outletSchedules[$getTime]['open'] . "+ $diffTimeZone hour"));
+                $close = date('H:i', strtotime($outletSchedules[$getTime]['close'] . "+ $diffTimeZone hour"));
                 $times = [];
                 $tmpTime = $open;
                 if(strtotime($date.' '.$open) > strtotime($today.' '.$currentTime)) {

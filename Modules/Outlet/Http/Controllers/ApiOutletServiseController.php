@@ -219,25 +219,25 @@ class ApiOutletServiseController extends Controller
         $allDay = array_column($detail['outlet_schedules'], 'day');
         $allTimeOpen = array_unique(array_column($detail['outlet_schedules'], 'open'));
         $allTimeClose = array_unique(array_column($detail['outlet_schedules'], 'close'));
+        $timeZone = (empty($detail['province_time_zone_utc']) ? 7:$detail['province_time_zone_utc']);
+        $diffTimeZone = $timeZone - 7;
 
         $arrSchedule = [];
         if(count($allDay) == 7 && count($allTimeOpen) == 1 && count($allTimeClose) == 1){
             $arrSchedule[] = [
                 'day' => 'Buka Setiap Hari',
-                'time' => date('H:i', strtotime($allTimeOpen[0])).' - '.date('H:i', strtotime($allTimeClose[0]))
+                'time' => date('H:i', strtotime($allTimeOpen[0] . " + $diffTimeZone hour")).' - '.date('H:i', strtotime($allTimeClose[0] . " + $diffTimeZone hour"))
             ];
         }else{
             foreach ($detail['outlet_schedules'] as $val){
                 $arrSchedule[] = [
                     'day' => $val['day'],
-                    'time' => date('H:i', strtotime($val['open'])).' - '.date('H:i', strtotime($val['close']))
+                    'time' => date('H:i', strtotime($val['open'] . " + $diffTimeZone hour")).' - '.date('H:i', strtotime($val['close'] . " + $diffTimeZone hour"))
                 ];
             }
         }
 
         $isClose = false;
-        $timeZone = (empty($detail['province_time_zone_utc']) ? 7:$detail['province_time_zone_utc']);
-        $diffTimeZone = $timeZone - 7;
         $date = date('Y-m-d H:i:s');
         $date = date('Y-m-d H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($date)));
         $currentDate = date('Y-m-d', strtotime($date));

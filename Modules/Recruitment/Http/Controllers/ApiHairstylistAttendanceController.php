@@ -164,9 +164,13 @@ class ApiHairstylistAttendanceController extends Controller
             ->where('schedule_month', $request->month)
             ->first();
         // $schedules = $scheduleMonth->hairstylist_schedule_dates()->leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_attendance', 'hairstylist_schedule_dates.id_hairstylist_attendance')->orderBy('is_overtime')->get();
-        $schedules = $scheduleMonth->hairstylist_schedule_dates()
-            ->leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
-            ->get();
+        if ($scheduleMonth) {
+            $schedules = $scheduleMonth->hairstylist_schedule_dates()
+                ->leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+                ->get();
+        } else {
+            $schedules = [];
+        }
         $numOfDays = cal_days_in_month(CAL_GREGORIAN, $request->month, $request->year);
         
         $histories = [];

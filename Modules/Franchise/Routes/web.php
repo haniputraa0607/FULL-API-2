@@ -11,6 +11,3 @@
 |
 */
 
-Route::prefix('franchise')->group(function() {
-    Route::get('/', 'FranchiseController@index');
-});

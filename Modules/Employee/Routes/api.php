@@ -74,7 +74,29 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
 
     Route::post('shift','ApiEmployeeController@shift');
 
+    Route::group(['prefix' => 'timeoff'], function () {
+        Route::post('list', 'ApiEmployeeTimeOffOvertimeController@listTimeOff');
+        Route::post('delete', 'ApiEmployeeTimeOffOvertimeController@deleteTimeOff');
+        Route::post('detail', 'ApiEmployeeTimeOffOvertimeController@detailTimeOff');
+        Route::post('update', 'ApiEmployeeTimeOffOvertimeController@updateTimeOff');
+        Route::post('create', 'ApiEmployeeTimeOffOvertimeController@createTimeOff');
+        Route::post('list-employee', 'ApiEmployeeTimeOffOvertimeController@listEmployee');
+        Route::post('list-date', 'ApiEmployeeTimeOffOvertimeController@listDate');
+    });
+
+    Route::group(['prefix' => 'overtime'], function () {
+        Route::post('list', 'ApiEmployeeTimeOffOvertimeController@listOvertime');
+        Route::post('detail', 'ApiEmployeeTimeOffOvertimeController@detailOvertime');
+        Route::post('update', 'ApiEmployeeTimeOffOvertimeController@updateOvertime');
+        Route::post('create', 'ApiEmployeeTimeOffOvertimeController@createOvertime');
+        Route::post('delete', 'ApiEmployeeTimeOffOvertimeController@deleteOvertime');
+    });
     
+    Route::group(['prefix' => 'be/reimbursement'], function () {
+        Route::post('/','ApiBeEmployeeReimbursementController@list');
+        Route::post('/detail','ApiBeEmployeeReimbursementController@detail');
+        Route::post('/approved','ApiBeEmployeeReimbursementController@approved');
+         });
 });
 
 Route::group([ 'middleware' => ['log_activities', 'auth:api','auth_client','scopes:landing-page'], 'prefix' => 'employee'], function () {
@@ -101,6 +123,27 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         Route::post('live','ApiEmployeeAttendanceController@storeLiveAttendance');
         Route::any('histories','ApiEmployeeAttendanceController@histories');
     });
-
+       Route::group(['prefix' => 'reimbursement'], function () {
+        Route::post('create','ApiEmployeeReimbursementController@create');
+        Route::post('detail','ApiEmployeeReimbursementController@detail');
+        Route::post('update','ApiEmployeeReimbursementController@update');
+        Route::get('name_reimbursement','ApiEmployeeReimbursementController@name_reimbursement');
+        Route::post('saldo_reimbursement','ApiEmployeeReimbursementController@saldo_reimbursement');
+        Route::post('pending','ApiEmployeeReimbursementController@pending');
+        Route::post('history','ApiEmployeeReimbursementController@history');
+    });
     Route::post('update-device','ApiEmployeeController@saveDeviceUser');
+
+    Route::group(['prefix' => 'time-off'], function () {
+        Route::post('/','ApiEmployeeTimeOffOvertimeController@listTimeOffEmployee');
+        Route::get('create','ApiEmployeeTimeOffOvertimeController@createTimeOffEmployee');
+        Route::post('create','ApiEmployeeTimeOffOvertimeController@storeTimeOffEmployee');
+    });
+
+    Route::group(['prefix' => 'overtime'], function () {
+        Route::post('/','ApiEmployeeTimeOffOvertimeController@listOvertimeEmployee');
+        Route::get('create','ApiEmployeeTimeOffOvertimeController@createOvertimeEmployee');
+        Route::post('check','ApiEmployeeTimeOffOvertimeController@checkOvertimeEmployee');
+        Route::post('create','ApiEmployeeTimeOffOvertimeController@storeOvertimeEmployee');
+    });
 });

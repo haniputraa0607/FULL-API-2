@@ -21,6 +21,7 @@ class RequestProduct extends Model
         'id_user_approve',
         'note_approve',
         'status',
+        'from',
         'id_product_catalog',
         'id_purchase_request'
 	];

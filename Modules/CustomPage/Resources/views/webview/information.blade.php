@@ -7,6 +7,7 @@
     <link rel="preload" as="script" href="https://cdn.ampproject.org/v0.js">
     <script async src="https://cdn.ampproject.org/v0.js"></script>
     <script async custom-element="amp-carousel" src="https://cdn.ampproject.org/v0/amp-carousel-0.1.js"></script>
+    <script async custom-element="amp-iframe" src="https://cdn.ampproject.org/v0/amp-iframe-0.1.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Gothic+A1&display=swap" rel="stylesheet">
     <!-- Import other AMP Extensions here -->
     <style amp-custom>
@@ -53,9 +54,25 @@
   </head>
   <body>
         @if (isset($result['custom_page_image_header']))
+        <amp-carousel
+          width="450"
+          height="300"
+          layout="responsive"
+          type="slides"
+          role="region"
+          aria-label="Basic carousel"
+        >
         @foreach ($result['custom_page_image_header'] as $key => $value)
-        <img src="{{config('url.storage_url_api')}}{{ $value['custom_page_image'] }}" />
+            <div style="position: relative !important; width: 100vw !important;">
+                <amp-img
+                    src="{{config('url.storage_url_api')}}{{ $value['custom_page_image'] }}"
+                    width="450"
+                    height="300"
+                    layout="responsive"
+                    ></amp-img>
+            </div>
         @endforeach
+        </amp-carousel>
         @endif
         <div class="content">
             <h1 class="title">{{$result['custom_page_title']}}</h1>
@@ -93,22 +110,37 @@
                 <h3 class="label">Alamat</h3>
                 <div class="content-value">{{$result['custom_page_event_location_address']}}</div>
             @endif
-
-            @if (isset($result['custom_page_event_location_map']))
-            <iframe
-              width="100%"
-              height="250px"
-              style="border:0;margin: 15px 0;padding: 0;"
-              loading="lazy"
-              allowfullscreen
-              src="https://www.google.com/maps/embed/v1/place?key=AIzaSyDLRQ1NMLsGi7RPXvlGmEV32SbpZ1vqFsg&q={{$result['custom_page_event_latitude']}},{{$result['custom_page_event_longitude']}}">
-            </iframe>
+            @if (isset($result['custom_page_event_latitude']) && isset($result['custom_page_event_longitude']))
+                <amp-iframe
+                  width="200"
+                  height="100"
+                  sandbox="allow-scripts allow-same-origin allow-popups-to-escape-sandbox allow-popups"
+                  layout="responsive"
+                  frameborder="0"
+                  allowfullscreen
+                  src="https://www.google.com/maps/embed/v1/place?key=AIzaSyDLRQ1NMLsGi7RPXvlGmEV32SbpZ1vqFsg&q={{$result['custom_page_event_latitude']}},{{$result['custom_page_event_longitude']}}"
+                ></amp-iframe>
             @endif
 
             <div class="description">
                 {!! $result['custom_page_description'] !!}
             </div>
 
+        @if (isset($result['custom_page_video_text']) && isset($result['custom_page_video']))
+            <h3 class="label">{{ $result['custom_page_video_text'] }}</h3>
+            <amp-iframe
+              width="200"
+              height="100"
+              sandbox="allow-scripts allow-same-origin allow-popups-to-escape-sandbox allow-popups"
+              layout="responsive"
+              frameborder="0"
+              allowfullscreen
+              src="https://www.youtube.com/embed/{{ substr($result['custom_page_video'], strpos($result['custom_page_video'], "=") + 1) }}?rel=0">
+            </amp-iframe>
+        @endif
+
+        @if (isset($result['custom_page_outlet_text']) && isset($result['custom_page_outlet']))
+            <h3 class="label">{{ $result['custom_page_outlet_text'] }}</h3>
             <amp-carousel
               width="450"
               height="300"
@@ -117,22 +149,49 @@
               role="region"
               aria-label="Basic carousel"
             >
-              <amp-img
-                src="{{config('url.storage_url_api')}}{{ $value['custom_page_image'] }}"
-                width="450"
-                height="300"
-              ></amp-img>
-              <amp-img
-                src="{{config('url.storage_url_api')}}{{ $value['custom_page_image'] }}"
-                width="450"
-                height="300"
-              ></amp-img>
-              <amp-img
-                src="{{config('url.storage_url_api')}}{{ $value['custom_page_image'] }}"
-                width="450"
-                height="300"
-              ></amp-img>
+            @foreach ($result['custom_page_outlet'] as $key => $value)
+                <div style="position: relative !important; width: calc(100vw - 20px) !important;">
+                    <amp-img
+                        src="{{ isset($value['outlet']['photos'][0]['url_outlet_photo']) ? $value['outlet']['photos'][0]['url_outlet_photo'] : 'https://via.placeholder.com/450x300.png?text=No Image Available' }}"
+                        width="450"
+                        height="300"
+                        layout="responsive"
+                    ></amp-img>
+                    <span style="background-color: rgba(0, 0, 0, 0.6); position: absolute; top: 0; right:0; left: 0; padding: 10px; color: white; font-weight:600">{{$value['outlet']['outlet_name']}}</span>
+                </div>
+            @endforeach
             </amp-carousel>
+        @endif
+
+        @if (isset($result['custom_page_product_text']) && isset($result['custom_page_product']))
+            <h3 class="label">{{ $result['custom_page_product_text'] }}</h3>
+            <amp-carousel
+              width="450"
+              height="300"
+              layout="responsive"
+              type="slides"
+              role="region"
+              aria-label="Basic carousel"
+            >
+            @foreach ($result['custom_page_product'] as $key => $value)
+                <div style="position: relative !important; width: calc(100vw - 20px) !important;">
+                    <amp-img
+                        src="{{ isset($value['product']['photos'][0]['url_product_photo']) ? $value['product']['photos'][0]['url_product_photo'] : 'https://via.placeholder.com/800x500.png?text=No Image Available' }}"
+                        width="450"
+                        height="300"
+                        layout="responsive"
+                    ></amp-img>
+                    <span style="background-color: rgba(0, 0, 0, 0.6); position: absolute; top: 0; right:0; left: 0; padding: 10px; color: white; font-weight:600">{{ $value['product']['product_name'] }}</span>
+                </div>
+            @endforeach
+            </amp-carousel>
+        @endif
+
+        @if (isset($result['custom_page_button_form']))
+        <div style="text-align: center; width: 100%; padding: 10px 0;">
+            <button style="color:#ffffff; background-color: #000; width:  100%; border: 0; padding: 10px; font-size: 1.2em" id="action" type="button">{{$result['custom_page_button_form_text_button']}}</button>
+        </div>
+        @endif
 
         </div>
   </body>

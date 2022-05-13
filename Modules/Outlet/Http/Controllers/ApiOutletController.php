@@ -645,7 +645,7 @@ class ApiOutletController extends Controller
         if (isset($post['webview'])) {
             $outlet = Outlet::with(['today', 'brands']);
         }elseif(isset($post['admin']) && isset($post['type']) && $post['type'] == 'export'){
-            $outlet = Outlet::with(['user_outlets','city','today','product_prices','product_prices.product','location_outlet','location_outlet.location_partner'])->select('*');
+            $outlet = Outlet::with(['user_outlets','city.province','today','product_prices','product_prices.product','location_outlet','location_outlet.location_partner'])->select('*');
         }elseif(isset($post['admin'])){
             $outlet = Outlet::with(['user_outlets','city.province','today', 'outlet_schedules', 'outlet_schedules.time_shift', 'outlet_box','location_outlet','location_outlet.location_partner','brand_outlets'])->select('*');
 
@@ -677,9 +677,9 @@ class ApiOutletController extends Controller
         }elseif(($post['filter']??false) == 'different_price'){
             $outlet = Outlet::where('outlet_different_price','1')->select('id_outlet','outlet_name','outlet_code');
         }elseif(\Request::route()->getName() == 'outlet_be'){
-            $outlet = Outlet::with(['today', 'brands', 'city'])->select('id_outlet','status_franchise','outlet_name','outlet_code', 'outlet_status', 'id_city', 'time_zone_utc', 'type');
+            $outlet = Outlet::with(['today', 'brands', 'city.province'])->select('id_outlet','status_franchise','outlet_name','outlet_code', 'outlet_status', 'id_city', 'time_zone_utc', 'type');
         }else{
-            $outlet = Outlet::with(['city', 'outlet_photos', 'outlet_schedules', 'today', 'user_outlets','brands']);
+            $outlet = Outlet::with(['city.province', 'outlet_photos', 'outlet_schedules', 'today', 'user_outlets','brands']);
             if(!($post['id_outlet']??false)||!($post['id_outlet']??false)){
                 $outlet->select('outlets.id_outlet','outlets.outlet_name','outlets.outlet_code','outlets.outlet_status','outlets.outlet_address','outlets.id_city','outlet_latitude','outlet_longitude', 'outlets.status_franchise', 'outlets.time_zone_utc');
             }

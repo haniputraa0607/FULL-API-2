@@ -485,7 +485,7 @@ class ApiHairStylistController extends Controller
                 }
 
                 if($post['update_type'] == 'Rejected'){
-                    UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update([
+                    $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update([
                         'user_hair_stylist_passed_status' => $post['user_hair_stylist_passed_status']??'Not Passed',
                         'user_hair_stylist_score' => $post['user_hair_stylist_score']??0
                     ]);
@@ -500,7 +500,7 @@ class ApiHairStylistController extends Controller
                     );
                 }
 
-                return response()->json(MyHelper::checkUpdate($update));
+                return response()->json(MyHelper::checkUpdate($update ?? false));
             }
 
             if(!empty($post['user_hair_stylist_photo'])){

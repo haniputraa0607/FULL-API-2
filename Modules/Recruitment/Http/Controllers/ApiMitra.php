@@ -36,6 +36,7 @@ use App\Http\Models\Transaction;
 use Modules\Recruitment\Entities\HairstylistOverTime;
 use Modules\Recruitment\Http\Requests\ScheduleCreateRequest;
 use Modules\Recruitment\Entities\OutletCashAttachment;
+use Modules\Recruitment\Entities\HairstylistAttendanceLog;
 
 use App\Lib\MyHelper;
 use DB;

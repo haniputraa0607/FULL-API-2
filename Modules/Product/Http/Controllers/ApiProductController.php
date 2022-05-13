@@ -2567,7 +2567,7 @@ class ApiProductController extends Controller
                         }
 
                         $timeConvert = date('H:i', strtotime("+".$processingTime." minutes", strtotime($tmpTime)));
-                        if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime)){
+                        if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime) && $close!=$timeConvert){
                             $times[] = $timeConvert;
                         }
                         $tmpTime = $timeConvert;

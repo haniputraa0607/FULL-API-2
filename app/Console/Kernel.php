@@ -248,6 +248,7 @@ class Kernel extends ConsoleKernel
          * run every 00:11 AM
          */
         $schedule->call('Modules\Recruitment\Http\Controllers\ApiHairStylistTimeOffOvertimeController@checkTimeOffOvertime')->dailyAt('00:11');
+        $schedule->call('Modules\Employee\Http\Controllers\ApiEmployeeTimeOffOvertimeController@checkTimeOffOvertime')->dailyAt('00:12');
         
         $schedule->call('Modules\Recruitment\Http\Controllers\ApiIncome@cron_middle')->monthlyOn(Config::get('app.income_date_middle'),'00:01');
         $schedule->call('Modules\Recruitment\Http\Controllers\ApiIncome@cron_end')->monthlyOn(Config::get('app.income_date_end'),'00:01');

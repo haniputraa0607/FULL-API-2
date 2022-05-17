@@ -1111,7 +1111,7 @@ class ApiTransactionHomeService extends Controller
                         ->where('day', $bookDay)->first()['id_outlet_schedule']??null;
                 $getTimeShift = app($this->product)->getTimeShift(strtolower($shift),$hs['id_outlet'], $idOutletSchedule);
                 if(!empty($getTimeShift['end'])){
-                    $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
+                    $shiftTimeEnd = date('H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($getTimeShift['end'])));
                     if(strtotime($shiftTimeEnd) > strtotime($bookTime)){
                         $errAll[] = "Hair stylist tidak tersedia silahkan ubah tanggal pemesanan";
                     }
@@ -1147,6 +1147,14 @@ class ApiTransactionHomeService extends Controller
             $hsNotAvailable = array_unique(array_merge($hsNotAvailable, $rejectHS));
             $listHs = $listHs->whereNotIn('id_user_hair_stylist', $hsNotAvailable)->get()->toArray();
             foreach ($listHs as $val){
+                $outlet = Outlet::where('id_outlet', $val['id_outlet'])->where('outlet_status', 'Active')
+                    ->join('cities', 'cities.id_city', 'outlets.id_city')
+                    ->join('provinces', 'provinces.id_province', 'cities.id_province')
+                    ->select('outlets.*', 'cities.city_name', 'provinces.time_zone_utc as province_time_zone_utc')
+                    ->first();
+                $timeZone = $outlet['province_time_zone_utc']??7;
+                $diffTimeZone = $timeZone - 7;
+
                 if(empty($val['latitude']) && empty($val['longitude'])){
                     continue;
                 }
@@ -1170,8 +1178,8 @@ class ApiTransactionHomeService extends Controller
                             ->where('day', $bookDay)->first()['id_outlet_schedule']??null;
                     $getTimeShift = app($this->product)->getTimeShift(strtolower($shift),$val['id_outlet'], $idOutletSchedule);
                     if(!empty($getTimeShift['start']) && !empty($getTimeShift['end'])){
-                        $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
-                        $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
+                        $shiftTimeStart = date('H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($getTimeShift['start'])));
+                        $shiftTimeEnd = date('H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($getTimeShift['end'])));
                         if(($bookTime >= $shiftTimeStart) && ($bookTime <= $shiftTimeEnd)){
                             continue;
                         }

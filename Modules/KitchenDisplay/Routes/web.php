@@ -11,6 +11,3 @@
 |
 */
 
-Route::prefix('kitchendisplay')->group(function() {
-    Route::get('/', 'KitchenDisplayController@index');
-});

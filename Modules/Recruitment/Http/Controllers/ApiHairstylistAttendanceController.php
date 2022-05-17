@@ -2,6 +2,8 @@
 
 namespace Modules\Recruitment\Http\Controllers;
 
+use App\Http\Models\Outlet;
+use App\Http\Models\Province;
 use App\Http\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -21,7 +23,7 @@ class ApiHairstylistAttendanceController extends Controller
     {
         $today = date('Y-m-d');
         $hairstylist = $request->user();
-        $outlet = $hairstylist->outlet()->select('outlet_name', 'outlet_latitude', 'outlet_longitude')->first();
+        $outlet = $hairstylist->outlet()->select('outlet_name', 'outlet_latitude', 'outlet_longitude', 'id_city')->first();
         $outlet->setHidden(['call', 'url']);
         // get current schedule
         $todaySchedule = $hairstylist->hairstylist_schedules()
@@ -65,12 +67,15 @@ class ApiHairstylistAttendanceController extends Controller
             'Evening' => 'Sore',
         ];
 
+        $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+                    ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+
         $result = [
-            'clock_in_requirement' => MyHelper::adjustTimezone($todaySchedule->clock_in_requirement, null, 'H:i', true),
-            'clock_out_requirement' => MyHelper::adjustTimezone($todaySchedule->clock_out_requirement, null, 'H:i', true),
+            'clock_in_requirement' => MyHelper::adjustTimezone($todaySchedule->clock_in_requirement, $timeZone, 'H:i', true),
+            'clock_out_requirement' => MyHelper::adjustTimezone($todaySchedule->clock_out_requirement, $timeZone, 'H:i', true),
             'shift_name' => $shiftNameMap[$todaySchedule->shift] ?? $todaySchedule->shift,
             'outlet' => $outlet,
-            'logs' => $attendance->logs()->get()->transform(function($item) {
+            'logs' => $attendance->logs()->get()->transform(function($item) use($timeZone){
                 return [
                     'location_name' => $item->location_name,
                     'latitude' => $item->latitude,
@@ -78,8 +83,8 @@ class ApiHairstylistAttendanceController extends Controller
                     'longitude' => $item->longitude,
                     'type' => ucwords(str_replace('_', ' ',$item->type)),
                     'photo' => $item->photo_path ? config('url.storage_url_api') . $item->photo_path : null,
-                    'date' => MyHelper::adjustTimezone($item->datetime, null, 'l, d F Y', true),
-                    'time' => MyHelper::adjustTimezone($item->datetime, null, 'H:i'),
+                    'date' => MyHelper::adjustTimezone($item->datetime, $timeZone, 'l, d F Y', true),
+                    'time' => MyHelper::adjustTimezone($item->datetime, $timeZone, 'H:i'),
                     'notes' => $item->notes ?: '',
                 ];
             }),
@@ -506,6 +511,19 @@ class ApiHairstylistAttendanceController extends Controller
 
         if ($request->page) {
             $result = $result->paginate($request->length ?: 15)->toArray();
+            foreach ($result['data']??[] as $key=>$value){
+                $idOutlet = UserHairStylist::where('id_user_hair_stylist', $value['id_user_hair_stylist'])->first()['id_outlet']??null;
+                $timeZone = Outlet::join('cities', 'cities.id_city', 'outlets.id_city')
+                ->join('provinces', 'cities.id_province', 'provinces.id_province')
+                ->where('id_outlet', $idOutlet)->first()['time_zone_utc']??null;
+
+                $time = MyHelper::adjustTimezone($value['datetime'], $timeZone, 'H:i', true);
+                $result['data'][$key]['datetime'] =date('Y-m-d', strtotime($value['datetime'])).' '.$time;
+                $result['data'][$key]['clock_in_requirement'] = MyHelper::adjustTimezone($value['clock_in_requirement'], $timeZone, 'H:i', true);
+                $result['data'][$key]['clock_out_requirement'] = MyHelper::adjustTimezone($value['clock_out_requirement'], $timeZone, 'H:i', true);
+                $result['data'][$key]['time_start'] = MyHelper::adjustTimezone($value['time_start'], $timeZone, 'H:i', true);
+                $result['data'][$key]['time_end'] = MyHelper::adjustTimezone($value['time_end'], $timeZone, 'H:i', true);
+            }
             if (is_null($countTotal)) {
                 $countTotal = $result['total'];
             }

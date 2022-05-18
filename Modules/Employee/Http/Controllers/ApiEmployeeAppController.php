@@ -68,11 +68,12 @@ class ApiEmployeeAppController extends Controller
         $splash   = Setting::where('key', '=', 'employee_app_splash_screen')->first();
         $duration = Setting::where('key', '=', 'employee_app_splash_duration')->pluck('value')->first();
 
-        $splash = null;
-        $ext    = null;
         if (!empty($splash)) {
             $splash = config('url.storage_url_api') . $splash['value'] . '?v=' . time();
             $ext    = explode('.', $splash);
+        } else {
+            $splash = null;
+            $ext    = null;
         }
 
         $result = [

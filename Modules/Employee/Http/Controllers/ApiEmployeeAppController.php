@@ -80,7 +80,7 @@ class ApiEmployeeAppController extends Controller
             'status' => 'success',
             'result' => [
                 'splash_screen_url'      => $splash,
-                'splash_screen_duration' => $duration ?? 5,
+                'splash_screen_duration' => (int) ($duration ?? 5),
                 'splash_screen_ext'      => $ext ? '.' . end($ext) : null,
             ],
         ];

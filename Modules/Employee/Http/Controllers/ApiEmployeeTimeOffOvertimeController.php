@@ -16,6 +16,7 @@ use Modules\Employee\Entities\EmployeeTimeOff;
 use Modules\Employee\Entities\EmployeeTimeOffImage;
 use Modules\Employee\Entities\EmployeeOverTime;
 use Modules\Employee\Entities\EmployeeNotAvailable;
+use Modules\Employee\Entities\EmployeeAttendance;
 use App\Http\Models\Holiday;
 use App\Http\Models\Setting;
 use Modules\Employee\Http\Requests\EmployeeTimeOffCreate;
@@ -134,7 +135,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
 
                 $cek_employee = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$post['id_employee'])->first();
                 $schedule = EmployeeSchedule::where('id', $post['id_employee'])->where('schedule_month', $post['month'])->where('schedule_year', $post['year'])->first();
-                if($schedule){
+                if($schedule || $cek_employee['office_hour_type'] == 'Without Shift'){
                     if($cek_employee['office_hour_type'] == 'Use Shift'){
                             $id_schedule = $schedule['id_employee_schedule'];
 
@@ -751,6 +752,392 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
         }
         
         return ['status' => 'success', 'date' => $outletSchedule[$hari]];
+    }
+
+    public function listOvertime(Request $request)
+    {
+        $post = $request->all();
+        $overtime = EmployeeOvertime::join('users as employees','employees.id','=','employee_overtime.id_employee')
+                    ->join('outlets', 'outlets.id_outlet', '=', 'employee_overtime.id_outlet')
+                    ->join('users as requests', 'requests.id', '=', 'employee_overtime.request_by')
+                    ->select(
+                        'employee_overtime.*',
+                        'employees.name',
+                        'outlets.outlet_name',
+                        'requests.name as request_by'
+                    );
+        if(isset($post['conditions']) && !empty($post['conditions'])){
+            $rule = 'and';
+            if(isset($post['rule'])){
+                $rule = $post['rule'];
+            }
+            if($rule == 'and'){
+                foreach ($post['conditions'] as $condition){
+                    if(isset($condition['subject'])){
+                         
+                        if($condition['subject']=='name_employee'){
+                            $subject = 'employees.name';
+                        }elseif($condition['subject']=='outlet'){
+                            $subject = 'outlets.outlet_name';
+                        }elseif($condition['subject']=='request'){
+                            $subject = 'requests.name';
+                        }else{
+                            $subject = $condition['subject'];  
+                        }
+
+                        if($condition['operator'] == '='){
+                            $overtime = $overtime->where($subject, $condition['parameter']);
+                        }else{
+                            $overtime = $overtime->where($subject, 'like', '%'.$condition['parameter'].'%');
+                        }
+                    }
+                }
+            }else{
+                $overtime = $overtime->where(function ($q) use ($post){
+                    foreach ($post['conditions'] as $condition){
+                        if(isset($condition['subject'])){
+                            if($condition['subject']=='name_employee'){
+                                $subject = 'employees.name';
+                            }elseif($condition['subject']=='outlet'){
+                                $subject = 'outlets.outlet_name';
+                            }elseif($condition['subject']=='request'){
+                                $subject = 'requests.name';
+                            }else{
+                                $subject = $condition['subject'];  
+                            }
+
+                            if($condition['operator'] == '='){
+                                $q->orWhere($subject, $condition['parameter']);
+                            }else{
+                                $q->orWhere($subject, 'like', '%'.$condition['parameter'].'%');
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        if(isset($post['order']) && isset($post['order_type'])){
+            if($post['order']=='name_employee'){
+                $order = 'employees.name';
+            }elseif($post['order']=='outlet'){
+                $order = 'outlets.outlet_name';
+            }elseif($post['order']=='request'){
+                $order = 'requests.name';
+            }else{
+                $order = 'employee_overtime.created_at';
+            }
+            if(isset($post['page'])){
+                $overtime = $overtime->orderBy($order, $post['order_type'])->paginate($request->length ?: 10);
+            }else{
+                $overtime = $overtime->orderBy($order, $post['order_type'])->get()->toArray();
+            }
+        }else{
+            if(isset($post['page'])){
+                $overtime = $overtime->orderBy('employee_overtime.created_at', 'desc')->paginate($request->length ?: 10);
+            }else{
+                $overtime = $overtime->orderBy('employee_overtime.created_at', 'desc')->get()->toArray();
+            }
+        } 
+        return MyHelper::checkGet($overtime);
+    }
+
+    public function detailOvertime(Request $request)
+    {
+        $post = $request->all();
+        if(isset($post['id_employee_overtime']) && !empty($post['id_employee_overtime'])){
+            $time_off = EmployeeOverTime::where('id_employee_overtime', $post['id_employee_overtime'])->with(['employee','outlet','approve','request'])->first();
+            $date = date('Y-m-d', strtotime($time_off['date']));
+            $array_date = explode('-', $date);
+            //
+            $cek_employee = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$time_off['id_employee'])->first();
+            if($cek_employee['office_hour_type'] == 'Without Shift'){
+                $outletClosed = Outlet::join('users','users.id_outlet','outlets.id_outlet')->with(['outlet_schedules'])->where('users.id',$time_off['id_employee'])->first();
+                $outletSchedule = [];
+                foreach ($outletClosed['outlet_schedules'] as $s) {
+                    $outletSchedule[$s['day']] = [
+                        'schedule_in' => $s['open'],
+                        'schedule_out' => $s['close'],
+                    ];
+                }
+                
+                $day = date('l, F j Y', strtotime($date));
+                $hari = MyHelper::indonesian_date_v2($date, 'l');
+                $hari = str_replace('Jum\'at', 'Jumat', $hari);
+                $send = $outletSchedule[$hari];
+            }else{
+                $schedule_date = EmployeeScheduleDate::join('employee_schedules','employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule')
+                                                        ->join('users','users.id','employee_schedules.id')
+                                                        ->where('users.id', $time_off['id_employee'])
+                                                        ->where('employee_schedules.schedule_month', $array_date[1])
+                                                        ->where('employee_schedules.schedule_year', $array_date[0])
+                                                        ->whereDate('employee_schedule_dates.date', $date)
+                                                        ->first();
+
+                $send['schedule_in'] = date('H:i', strtotime($schedule_date['time_start']));
+                $send['schedule_out'] = date('H:i', strtotime($schedule_date['time_end']));
+            }
+            
+            $time_off['schedule_in'] = $send['schedule_in'] ?? null;
+            $time_off['schedule_out'] = $send['schedule_out'] ?? null;
+            
+            if(isset($time_off['rest_before']) && isset($time_off['rest_after'])){
+                $duration_rest = strtotime($time_off['rest_before']);
+                $start_rest = strtotime($time_off['rest_after']);
+                $diff_rest = $start_rest - $duration_rest;
+                $hour_rest = floor($diff_rest / (60*60));
+                $minute_rest = floor(($diff_rest - ($hour_rest*60*60))/(60));
+                $new_time_rest =  date('H:i', strtotime($hour_rest.':'.$minute_rest));
+                $secs = strtotime($new_time_rest)-strtotime("00:00:00");
+                $duration = date("H:i:s",strtotime($time_off['duration'])+$secs);
+            }
+
+            if($time_off['time']=='before'){
+                $duration = strtotime($duration);
+                $start = strtotime($time_off['schedule_in']);
+                $diff = $start - $duration;
+                $hour = floor($diff / (60*60));
+                $minute = floor(($diff - ($hour*60*60))/(60));
+                $second = floor(($diff - ($hour*60*60))%(60));
+                $new_time =  date('H:i', strtotime($hour.':'.$minute.':'.$second));
+                $time_off['start_overtime'] = $new_time;
+                $time_off['end_overtime'] = $time_off['schedule_in'];
+            }elseif($time_off['time']=='after'){
+                $secs = strtotime($duration)-strtotime("00:00:00");
+                $new_time = date("H:i:s",strtotime($time_off['schedule_out'])+$secs);
+                $time_off['start_overtime'] = $time_off['schedule_out'];
+                $time_off['end_overtime'] = $new_time;
+            }else{
+                return false;
+            }
+
+            if($time_off==null){
+                return response()->json(['status' => 'success', 'result' => [
+                    'time_off' => 'Empty',
+                ]]);
+            } else {
+                return response()->json(['status' => 'success', 'result' => [
+                    'time_off' => $time_off,
+                ]]);
+            }
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
+    }
+
+    public function updateOvertime(Request $request)
+    {
+        $post = $request->all();
+        if(isset($post['id_employee_overtime']) && !empty($post['id_employee_overtime'])){
+            $data_update = [];
+            if(isset($post['id_employee'])){
+                $data_update['id_employee'] = $post['id_employee'];
+            }
+            if(isset($post['id_outlet'])){
+                $data_update['id_outlet'] = $post['id_outlet'];
+            }
+            if(isset($post['date'])){
+                $data_update['date'] = $post['date'];
+            }
+            if(isset($post['time'])){
+                $data_update['time'] =$post['time'];
+                //getduration
+                if($post['time'] == 'before'){
+                    $duration = $this->getDuration($post['schedule_in'],$post['time_start_overtime']);
+                }elseif($post['time'] == 'after'){
+                    $duration = $this->getDuration($post['time_end_overtime'],$post['schedule_out']);
+                }
+            }
+
+            if(isset($post['rest_before']) && isset($post['rest_after'])){
+                $data_update['rest_before'] = date("H:i:s",strtotime($post['rest_before']));
+                $data_update['rest_after'] = date("H:i:s",strtotime($post['rest_after']));
+                $duration_rest = $this->getDuration($data_update['rest_after'],$data_update['rest_before']);
+                $duration = $this->getDuration($duration,$duration_rest);
+            }
+            
+            $data_update['duration'] = $duration;
+
+            if(isset($post['approve'])){
+                $data_update['approve_by'] = auth()->user()->id;
+                $data_update['approve_at'] = date('Y-m-d');
+            }
+            
+            if($data_update){
+                DB::beginTransaction();
+                $update = EmployeeOverTime::where('id_employee_overtime',$post['id_employee_overtime'])->update($data_update);
+                if(!$update){
+                    DB::rollBack();
+                    return response()->json([
+                        'status' => 'fail', 
+                        'messages' => ['Failed to updated a request employee overtime']
+                    ]);
+                }
+                if(isset($post['approve'])){
+                    $update_schedule = $this->updatedScheduleOvertime($data_update,$post);
+                    if(!$update_schedule){
+                        DB::rollBack();
+                        return response()->json([
+                            'status' => 'fail', 
+                            'messages' => ['Failed to updated a request employee overtime']
+                        ]);
+                    }
+                }
+                DB::commit();
+                return response()->json([
+                    'status' => 'success'
+                ]);
+            }
+            
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
+    }
+
+    public function updatedScheduleOvertime($data,$data2){
+        //get schedule
+        $month_sc = date('m', strtotime($data['date']));
+        $year_sc = date('Y', strtotime($data['date']));
+        $cek_employee = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$data['id_employee'])->first();
+        $get_schedule = EmployeeSchedule::where('id', $data['id_employee'])->where('schedule_month', $month_sc)->where('schedule_year',$year_sc)->first();
+        if($get_schedule){
+            $get_schedule_date = EmployeeScheduleDate::where('id_employee_schedule',$get_schedule['id_employee_schedule'])->where('date',$data['date'])->first();
+            if($get_schedule_date){
+                //update
+                if($data['time']=='before'){
+                    $order = 'time_start';
+                    $new_time = $data2['time_start_overtime'];
+                }elseif($data['time']=='after'){
+                    $order = 'time_end';
+                    $new_time = $data2['time_end_overtime'];
+                }else{
+                    return false;
+                }
+
+                $update_date = EmployeeScheduleDate::where('id_employee_schedule_date',$get_schedule_date['id_employee_schedule_date'])->update([$order => $new_time,  'is_overtime' => 1]);
+                if($update_date){
+                    return true;
+                }
+            }
+        }else{
+            if($cek_employee['office_hour_type'] == 'Without Shift'){
+                $schdule = EmployeeSchedule::create([
+                    'id' => $data['id_employee'],
+                    'id_outlet' => $data['id_outlet'],
+                    'schedule_month' => $month_sc,
+                    'schedule_year' => $year_sc,
+                    'request_at' => date('Y-m-d H:i:s')
+                ]);
+                if($schdule){
+                    if($data['time']=='before'){
+                        $time_start = $data2['time_start_overtime'];
+                        $time_end = $data2['schedule_out'];
+                    }elseif($data['time']=='after'){
+                        $time_start = $data2['schedule_in'];
+                        $time_end = $data2['time_end_overtime'];
+                    }else{
+                        return false;
+                    }
+                    $schdule_date = EmployeeScheduleDate::updateOrCreate([
+                        'id_employee_schedule' => $schdule['id_employee_schedule'],
+                        'date' => $data['date'],
+                    ],[
+                        'is_overtime' => 1,
+                        'time_start' => $time_start,
+                        'time_end' => $time_end,
+                    ]);
+                    if($schdule_date){
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    public function deleteOvertime(Request $request){
+        $post = $request->all();
+        $check = EmployeeOverTime::where('id_employee_overtime', $post['id_employee_overtime'])->first();
+        if($check){
+            DB::beginTransaction();
+            $month_sc = date('m', strtotime($check['date']));
+            $year_sc = date('Y', strtotime($check['date']));
+            $get_schedule = EmployeeSchedule::where('id', $check['id_employee'])->where('schedule_month', $month_sc)->where('schedule_year',$year_sc)->first();
+            if($get_schedule){
+                $get_schedule_date = EmployeeScheduleDate::where('id_employee_schedule',$get_schedule['id_employee_schedule'])->where('date',$check['date'])->first();
+                if($get_schedule_date){
+                    
+                    if(isset($check['rest_before']) && isset($check['rest_after'])){
+                        $duration_rest = strtotime($check['rest_before']);
+                        $start_rest = strtotime($check['rest_after']);
+                        $diff_rest = $start_rest - $duration_rest;
+                        $hour_rest = floor($diff_rest / (60*60));
+                        $minute_rest = floor(($diff_rest - ($hour_rest*60*60))/(60));
+                        $new_time_rest =  date('H:i', strtotime($hour_rest.':'.$minute_rest));
+                        $secs = strtotime($new_time_rest)-strtotime("00:00:00");
+                        $duration = date("H:i:s",strtotime($check['duration'])+$secs);
+                    }
+
+                    if($check['time'] == 'after'){
+                        $duration = strtotime($duration);
+                        $start = strtotime($get_schedule_date['time_end']);
+                        $diff = $start - $duration;
+                        $hour = floor($diff / (60*60));
+                        $minute = floor(($diff - ($hour*60*60))/(60));
+                        $second = floor(($diff - ($hour*60*60))%(60));
+                        $new_time =  date('H:i:s', strtotime($hour.':'.$minute.':'.$second));
+                        $order = 'time_end';
+                        $order_att = 'clock_out_requirement';
+                    }elseif($check['time'] = 'before'){
+                        $secs = strtotime($duration)-strtotime("00:00:00");
+                        $new_time = date("H:i:s",strtotime($get_schedule_date['time_start'])+$secs);
+                        $order = 'time_start';
+                        $order_att = 'clock_in_requirement';
+                    }
+                    $update_schedule = EmployeeScheduleDate::where('id_employee_schedule_date',$get_schedule_date['id_employee_schedule_date'])->update([$order => $new_time,  'is_overtime' => 0]);
+                    $update_overtime = EmployeeOverTime::where('id_employee_overtime', $post['id_employee_overtime'])->update(['reject_at' => date('Y-m-d')]);
+                    if(!$update_overtime || !$update_schedule){
+                        DB::rollBack();
+                        return response()->json([
+                            'status' => 'fail'
+                        ]);
+                    }
+                    $attendace = EmployeeAttendance::where('id_employee_schedule_date',$get_schedule_date['id_employee_schedule_date'])->where('id', $check['id'])->where('attendance_date',$check['date'])->update([$order_att => $new_time]);
+                    DB::commit();
+                    return response()->json([
+                        'status' => 'success'
+                    ]);
+
+                }
+            }
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
+    }
+
+    public function checkTimeOffOvertime(){
+        $log = MyHelper::logCron('Check Request Employee Time Off and Overtime');
+        try{
+            $data_time_off = EmployeeTimeOff::whereNull('reject_at')->whereNull('approve_at')->whereDate('request_at','<',date('Y-m-d'))->get()->toArray();
+            if($data_time_off){
+                foreach($data_time_off as $time_off){
+                    $update = EmployeeTimeOff::where('id_employee_time_off', $time_off['id_employee_time_off'])->update(['reject_at' => date('Y-m-d')]);
+                }
+            }
+
+            $data_overtime = EmployeeOverTime::whereNull('reject_at')->whereNull('approve_at')->whereDate('request_at','<',date('Y-m-d'))->get()->toArray();
+            if($data_overtime){
+                foreach($data_overtime as $overtime){
+                    $update = EmployeeOverTime::where('id_employee_overtime', $overtime['id_employee_overtime'])->update(['reject_at' => date('Y-m-d')]);
+                }
+            }
+            $log->success('success');
+            return response()->json(['status' => 'success']);
+
+        }catch (\Exception $e) {
+            DB::rollBack();
+            $log->fail($e->getMessage());
+        }    
     }
 
 }

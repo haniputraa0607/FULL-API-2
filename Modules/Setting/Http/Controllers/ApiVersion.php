@@ -194,6 +194,50 @@ class ApiVersion extends Controller
                     'button_url' => $setting['version_webstore']
                 ]);
             }
+            if ($device == 'employee_android') {
+                foreach ($setting['Device'] as $value) {
+                    if (in_array('EmployeeAndroid', $value)) {
+                        $value['app_type'] = strtolower($value['app_type']);
+                        $compare_version[] = $value;
+                    }
+                }
+                for ($i = 0; $i < count($compare_version); $i++) {
+                    if ($post['version'] == $compare_version[$i]['app_version']) {
+                        return response()->json(['status' => 'success']);
+                    }
+                }
+                $versionRec = array_shift($compare_version);
+                $setting['version_text_alert'] = str_replace('%version_app%', $versionRec['app_version'], $setting['version_text_alert_employee']);
+                return response()->json([
+                    'status' => 'fail',
+                    'image' => config('url.storage_url_api') . $setting['version_image_employee'],
+                    'text' => $setting['version_text_alert_employee'],
+                    'button_text' => $setting['version_text_button_employee'],
+                    'button_url' => $setting['version_employee_playstore']
+                ]);
+            }
+            if ($device == 'employee_ios') {
+                foreach ($setting['Device'] as $value) {
+                    if (in_array('EmployeeIOS', $value)) {
+                        $value['app_type'] = strtolower($value['app_type']);
+                        $compare_version[] = $value;
+                    }
+                }
+                for ($i = 0; $i < count($compare_version); $i++) {
+                    if ($post['version'] == $compare_version[$i]['app_version']) {
+                        return response()->json(['status' => 'success']);
+                    }
+                }
+                $versionRec = array_shift($compare_version);
+                $setting['version_text_alert'] = str_replace('%version_app%', $versionRec['app_version'], $setting['version_text_alert_employee']);
+                return response()->json([
+                    'status' => 'fail',
+                    'image' => config('url.storage_url_api') . $setting['version_image_employee'],
+                    'text' => $setting['version_text_alert_employee'],
+                    'button_text' => $setting['version_text_button_employee'],
+                    'button_url' => $setting['version_employee_appstore']
+                ]);
+            }
         } else {
             return response()->json(['status' => 'fail', 'message' => 'Device tidak teridentifikasi']);
         }

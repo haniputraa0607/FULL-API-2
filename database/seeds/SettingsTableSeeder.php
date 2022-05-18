@@ -1232,6 +1232,46 @@ class SettingsTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s'),
                 ),
+            125 =>
+                array (
+                    'key' => 'version_text_alert_employee',
+                    'value' => 'Versi baru tersedia, silakan update ke versi %version_app%',
+                    'value_text' => null,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ),
+            126 =>
+                array (
+                    'key' => 'version_image_employee',
+                    'value' => 'img/default.png',
+                    'value_text' => NULL,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ),
+            127 =>
+                array (
+                    'key' => 'version_text_button_employee',
+                    'value' => 'Update',
+                    'value_text' => NULL,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ),
+            128 =>
+                array (
+                    'key' => 'version_employee_playstore',
+                    'value' => 'https://play.google.com',
+                    'value_text' => NULL,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ),
+            129 =>
+                array (
+                    'key' => 'version_employee_appstore',
+                    'value' => 'https://www.apple.com/id/app-store/',
+                    'value_text' => NULL,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ),
         );
 
         foreach ($settings as $setting) {

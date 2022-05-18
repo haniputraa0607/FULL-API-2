@@ -8,6 +8,8 @@ use Illuminate\Routing\Controller;
 use App\Lib\MyHelper;
 
 use App\Http\Models\User;
+use App\Http\Models\Outlet;
+use App\Http\Models\Province;
 use App\Http\Models\OutletSchedule;
 use App\Http\Models\Holiday;
 use Modules\Employee\Entities\EmployeeSchedule;
@@ -28,7 +30,7 @@ class ApiEmployeeAttendanceController extends Controller
     {
         $today = date('Y-m-d');
         $employee = $request->user();
-        $outlet = $employee->outlet()->select('outlet_name', 'outlet_latitude', 'outlet_longitude')->first();
+        $outlet = $employee->outlet()->select('outlet_name', 'outlet_latitude', 'outlet_longitude', 'id_city')->first();
         $shift = false;
         $outlet->setHidden(['call', 'url']);
         // get current schedule
@@ -58,12 +60,15 @@ class ApiEmployeeAttendanceController extends Controller
         
         $attendance = $employee->getAttendanceByDate($todaySchedule, $shift);
 
+        $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+        ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+
         $result = [
-            'clock_in_requirement' => MyHelper::adjustTimezone($todaySchedule->clock_in_requirement, null, 'H:i', true),
-            'clock_out_requirement' => MyHelper::adjustTimezone($todaySchedule->clock_out_requirement, null, 'H:i', true),
+            'clock_in_requirement' => MyHelper::adjustTimezone($todaySchedule->clock_in_requirement, $timeZone, 'H:i', true),
+            'clock_out_requirement' => MyHelper::adjustTimezone($todaySchedule->clock_out_requirement, $timeZone, 'H:i', true),
             'shift_name' => $todaySchedule->shift ?? null,
             'outlet' => $outlet,
-            'logs' => $attendance->logs()->get()->transform(function($item) {
+            'logs' => $attendance->logs()->get()->transform(function($item) use($timeZone) {
                 return [
                     'location_name' => $item->location_name,
                     'latitude' => $item->latitude,
@@ -71,8 +76,8 @@ class ApiEmployeeAttendanceController extends Controller
                     'longitude' => $item->longitude,
                     'type' => ucwords(str_replace('_', ' ',$item->type)),
                     'photo' => $item->photo_path ? config('url.storage_url_api') . $item->photo_path : null,
-                    'date' => MyHelper::adjustTimezone($item->datetime, null, 'l, d F Y', true),
-                    'time' => MyHelper::adjustTimezone($item->datetime, null, 'H:i'),
+                    'date' => MyHelper::adjustTimezone($item->datetime, $timeZone, 'l, d F Y', true),
+                    'time' => MyHelper::adjustTimezone($item->datetime, $timeZone, 'H:i'),
                     'notes' => $item->notes ?: '',
                 ];
             }),
@@ -98,6 +103,10 @@ class ApiEmployeeAttendanceController extends Controller
             $shift = false;
         }
         $outlet = $employee->outlet;
+        
+        $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+        ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+        
         $attendance = $employee->getAttendanceByDate(date('Y-m-d'), $shift);
 
         if ($request->type == 'clock_out' && !$attendance->logs()->where('type', 'clock_in')->exists()) {
@@ -126,7 +135,7 @@ class ApiEmployeeAttendanceController extends Controller
 
         $attendance->storeClock([
             'type' => $request->type,
-            'datetime' => date('Y-m-d H:i:s'),
+            'datetime' => MyHelper::reverseAdjustTimezone(date('Y-m-d H:i:s'), $timeZone, 'Y-m-d H:i:s', true),
             'latitude' => $request->latitude,
             'longitude' => $request->longitude,
             'location_name' => $request->location_name ?: '',
@@ -149,14 +158,25 @@ class ApiEmployeeAttendanceController extends Controller
             'year' => 'numeric|min:2020|max:3000',
         ]);
         $employee = $request->user();
+
+        $outlet = $employee->outlet;
+        $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+        ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+        
         $scheduleMonth = $employee->employee_schedules()
             ->where('schedule_year', $request->year)
             ->where('schedule_month', $request->month)
-            ->first();
+            ->first() ?? null;
+        if(!$scheduleMonth){
+            return [
+                'status' => 'fail',
+                'messages' => ['Tidak ada riwayat absensi pada bulan ini'],
+            ];
+        }
         // $schedules = $scheduleMonth->employee_schedule_dates()->leftJoin('employee_attendances', 'employee_attendances.id_employee_attendance', 'employee_schedule_dates.id_employee_attendance')->orderBy('is_overtime')->get();
         $schedules = $scheduleMonth->employee_schedule_dates()
             ->leftJoin('employee_attendances', 'employee_attendances.id_employee_schedule_date', 'employee_schedule_dates.id_employee_schedule_date')
-            ->get();
+            ->get() ?? null;
         $numOfDays = cal_days_in_month(CAL_GREGORIAN, $request->month, $request->year);
         
         $histories = [];
@@ -171,20 +191,20 @@ class ApiEmployeeAttendanceController extends Controller
             ];
         }
 
-        foreach ($schedules as $schedule) {
+        foreach ($schedules ?? [] as $schedule) {
             $history = &$histories[(int)date('d', strtotime($schedule->date))];
-            $history['clock_in'] = $schedule->clock_in ? MyHelper::adjustTimezone($schedule->clock_in, null, 'H:i') : null;
-            $history['clock_out'] = $schedule->clock_out ? MyHelper::adjustTimezone($schedule->clock_out, null, 'H:i') : null;
+            $history['clock_in'] = $schedule->clock_in ? MyHelper::adjustTimezone($schedule->clock_in, $timeZone, 'H:i') : null;
+            $history['clock_out'] = $schedule->clock_out ? MyHelper::adjustTimezone($schedule->clock_out, $timeZone, 'H:i') : null;
             $history['is_holiday'] = false;
             if ($schedule->is_overtime) {
                 $history['breakdown'][] = [
                     'name' => 'Lembur',
-                    'time_start' => MyHelper::adjustTimezone($schedule->time_start, null, 'H:i'),
-                    'time_end' => MyHelper::adjustTimezone($schedule->time_end, null, 'H:i'),
+                    'time_start' => MyHelper::adjustTimezone($schedule->time_start, $timeZone, 'H:i'),
+                    'time_end' => MyHelper::adjustTimezone($schedule->time_end, $timeZone, 'H:i'),
                 ];
             }
         }
-
+        
         return MyHelper::checkGet([
             'histories' => array_values($histories)
         ]);
@@ -347,7 +367,15 @@ class ApiEmployeeAttendanceController extends Controller
         } else {
             $result = $result->get();
         }
-        
+        foreach($result['data'] ?? [] as $r => $data){
+            $outlet = Outlet::where('id_outlet',$data['id_outlet'])->first();
+            $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+            ->where('cities.id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+            $result['data'][$r]['clock_in'] =  $data['clock_in'] ? MyHelper::adjustTimezone($data['clock_in'], $timeZone, 'H:i:s', true) : null;
+            $result['data'][$r]['clock_out'] = $data['clock_out'] ? MyHelper::adjustTimezone($data['clock_out'], $timeZone, 'H:i:s', true) : null;
+            $result['data'][$r]['clock_in_requirement'] = $data['clock_in_requirement'] ? MyHelper::adjustTimezone($data['clock_in_requirement'], $timeZone, 'H:i:s', true) : null;
+            $result['data'][$r]['clock_out_requirement'] =  $data['clock_out_requirement'] ? MyHelper::adjustTimezone($data['clock_out_requirement'], $timeZone, 'H:i:s', true) : null;
+        }
         return MyHelper::checkGet($result);
     }
 
@@ -537,6 +565,15 @@ class ApiEmployeeAttendanceController extends Controller
             $result['recordsTotal'] = $countTotal;
         } else {
             $result = $result->get();
+        }
+
+        foreach($result['data'] ?? [] as $r => $data){
+            $outlet = Outlet::where('id_outlet',$data['id_outlet'])->first();
+            $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+            ->where('cities.id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+            $result['data'][$r]['datetime'] =  $data['datetime'] ? MyHelper::adjustTimezone($data['datetime'], $timeZone, 'Y-m-d H:i:s', true) : null;
+            $result['data'][$r]['clock_in_requirement'] = $data['clock_in_requirement'] ? MyHelper::adjustTimezone($data['clock_in_requirement'], $timeZone, 'H:i:s', true) : null;
+            $result['data'][$r]['clock_out_requirement'] =  $data['clock_out_requirement'] ? MyHelper::adjustTimezone($data['clock_out_requirement'], $timeZone, 'H:i:s', true) : null;
         }
 
         return MyHelper::checkGet($result);

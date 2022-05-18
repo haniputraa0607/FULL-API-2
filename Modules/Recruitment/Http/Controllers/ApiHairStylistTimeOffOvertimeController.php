@@ -590,16 +590,22 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                     $second = floor(($diff - ($hour*60*60))%(60));
                     $new_time =  date('H:i:s', strtotime($hour.':'.$minute.':'.$second));
                     $order = 'time_start';
+                    $order_att = 'clock_in_requirement';
                 }elseif($data['time']=='after'){
                     $secs = strtotime($data['duration'])-strtotime("00:00:00");
                     $new_time = date("H:i:s",strtotime($get_schedule_date['time_end'])+$secs);
                     $order = 'time_end';
+                    $order_att = 'clock_out_requirement';
                 }else{
                     return false;
                 }
 
                 $update_date = HairstylistScheduleDate::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->update([$order => $new_time,  'is_overtime' => 1]);
                 if($update_date){
+                    $attendance = HairstylistAttendance::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->where('id_user_hair_stylist', $get_schedule['id_user_hair_stylist'])->whereDate('attendance_date',$get_schedule_date['date'])->first();
+                    if($attendance){
+                        $update_attendance = HairstylistAttendance::where('id_hairstylist_attendance', $attendace['id_hairstylist_attendance'])->update([$order_att => $new_time]);
+                    }
                     return true;
                 }
             }

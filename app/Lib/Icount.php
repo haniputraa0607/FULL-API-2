@@ -129,8 +129,8 @@ class Icount
     }
     public static function ApiInvoiceConfirmationLetter($request, $company = null, $logType = null, $orderId = null){
         $data = [
-            "SalesOrderID" => '011',
-            "VoucherNo" => $request['partner']['voucher_no'],
+            "SalesOrderID" => $request['partner']['id_sales_order'],
+            "VoucherNo" => '[AUTO]',
             "TransDate" => $request['location']['trans_date'],
             "DueDate" => $request['location']['due_date'],
             "BusinessPartnerID" => $request['partner']['id_business_partner'],

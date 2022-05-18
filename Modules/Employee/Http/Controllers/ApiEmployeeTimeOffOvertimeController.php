@@ -398,13 +398,20 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
         $employee = $request->user()->id;
         $office = $request->user()->id_outlet;
         $array_date = explode('-',$post['date']);
-        $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$employee)->first()['office_hour_type'];
-
+        $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$employee)->first();
+       
+        if(empty($type_shift['office_hour_type'])){
+            return response()->json([
+                              'status'=>'fail',
+                              'messages'=>['Jam kantor tidak ada ']
+                          ]);
+        }
+        $type_shift = $type_shift['office_hour_type'];
         //cek date
         if(date('Y-m-d', strtotime($post['date'])) < date('Y-m-d')){
             return response()->json(['status' => 'fail', 'messages' => ['Minimal tanggal pengajuan cuti adalah hari ini']]);
         }
-
+        
         //cek_time_off
         $time_off = EmployeeTimeOff::where('id_employee',$employee)->where('id_outlet',$office)->whereDate('date', $post['date'])->get()->toArray();
         if($time_off){
@@ -421,7 +428,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                 }
             }
         }
-
+        
         //closed
         $outletClosed = Outlet::join('users','users.id_outlet','outlets.id_outlet')->with(['outlet_schedules'])->where('users.id',$employee)->first();
         $outletSchedule = [];
@@ -432,7 +439,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                 'time_end' => $s['close'],
             ];
         }
-
+        
         $day = date('l, F j Y', strtotime($post['date']));
         $hari = MyHelper::indonesian_date_v2($post['date'], 'l');
         $hari = str_replace('Jum\'at', 'Jumat', $hari);
@@ -440,7 +447,6 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
         if($outletSchedule[$hari]['is_closed'] == 1){
             return response()->json(['status' => 'fail', 'messages' => ['Kantor tutup pada tanggal ini']]);
         }
-
         //holiday
         $holidays = Holiday::leftJoin('outlet_holidays', 'holidays.id_holiday', 'outlet_holidays.id_holiday')
                             ->leftJoin('date_holidays', 'holidays.id_holiday', 'date_holidays.id_holiday')

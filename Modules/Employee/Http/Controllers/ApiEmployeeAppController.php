@@ -4,6 +4,7 @@ namespace Modules\Employee\Http\Controllers;
 
 use App\Http\Models\Setting;
 use App\Http\Models\User;
+use App\Lib\MyHelper;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
@@ -91,11 +92,11 @@ class ApiEmployeeAppController extends Controller
     {
         $user = $request->user();
         $user->load('outlet', 'role');
-        return [
+        return MyHelper::checkGet([
             'id_user' => $user->id,
             'name' => $user->name,
             'office_branch' => optional($user->outlet)->outlet_name ?: '-',
             'role' => optional($user->role)->role_name ?: '-',
-        ];
+        ]);
     }
 }

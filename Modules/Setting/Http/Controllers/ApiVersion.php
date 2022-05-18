@@ -211,7 +211,7 @@ class ApiVersion extends Controller
                 return response()->json([
                     'status' => 'fail',
                     'image' => config('url.storage_url_api') . $setting['version_image_employee'],
-                    'text' => $setting['version_text_alert_employee'],
+                    'text' => $setting['version_text_alert'],
                     'button_text' => $setting['version_text_button_employee'],
                     'button_url' => $setting['version_employee_playstore']
                 ]);
@@ -233,7 +233,7 @@ class ApiVersion extends Controller
                 return response()->json([
                     'status' => 'fail',
                     'image' => config('url.storage_url_api') . $setting['version_image_employee'],
-                    'text' => $setting['version_text_alert_employee'],
+                    'text' => $setting['version_text_alert'],
                     'button_text' => $setting['version_text_button_employee'],
                     'button_url' => $setting['version_employee_appstore']
                 ]);

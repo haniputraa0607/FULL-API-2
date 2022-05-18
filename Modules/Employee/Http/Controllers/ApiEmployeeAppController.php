@@ -9,7 +9,7 @@ use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Modules\Employee\Entities\EmployeeDevice;
 
-class APIEmployeeAppController extends Controller
+class ApiEmployeeAppController extends Controller
 {
     public function saveDeviceUser(Request $request)
     {

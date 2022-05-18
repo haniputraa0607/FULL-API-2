@@ -702,7 +702,7 @@ class ApiMitra extends Controller
 		return MyHelper::checkGet($comment);
 	}
 
-	public function getOutletShift($id_outlet, $dateTime = null, $array = false)
+	public function getOutletShift($id_outlet, $dateTime = null, $array = false, $id_user_hair_stylist = null)
 	{
 		$res = null;
 		$outlet = Outlet::find($id_outlet);
@@ -754,6 +754,22 @@ class ApiMitra extends Controller
 			return $res;
 		}
 
+		$overtime = HairStylistOvertime::where('id_user_hair_stylist',$id_user_hair_stylist)->where('id_outlet', $id_outlet)->whereNotNull('approve_by')->whereNull('reject_at')->whereDate('date', date('Y-m-d', strtotime($dateTime)))->first();
+		if($overtime){
+			$shift = HairstylistSchedule::join(
+				'hairstylist_schedule_dates', 
+				'hairstylist_schedules.id_hairstylist_schedule', 
+				'hairstylist_schedule_dates.id_hairstylist_schedule'
+			)
+			->where('id_user_hair_stylist', $id_user_hair_stylist)
+			->where('date', date('Y-m-d'))
+			->where('is_overtime', 1)
+			->first();
+
+			return $shift['shift'] ?? $res;
+
+		}
+
 		return $outletShift['shift'] ?? $res;
 	}
 
@@ -791,7 +807,7 @@ class ApiMitra extends Controller
 			return  $todayShift;
 		}
 
-		$shift = $this->getOutletShift($hs->id_outlet);
+		$shift = $this->getOutletShift($hs->id_outlet, null, null, $id_user_hair_stylist);
 
 		$todayShift = HairstylistSchedule::join(
 			'hairstylist_schedule_dates', 

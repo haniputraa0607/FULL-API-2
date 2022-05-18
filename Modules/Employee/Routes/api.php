@@ -196,6 +196,7 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
       });
     });
     Route::post('update-device','ApiEmployeeAppController@saveDeviceUser');
+    Route::get('logged-user','ApiEmployeeAppController@loggedUser');
 
     Route::group(['prefix' => 'time-off'], function () {
         Route::post('/','ApiEmployeeTimeOffOvertimeController@listTimeOffEmployee');

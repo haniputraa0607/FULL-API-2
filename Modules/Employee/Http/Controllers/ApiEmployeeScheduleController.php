@@ -15,12 +15,24 @@ use Modules\Employee\Entities\EmployeeAttendance;
 use Modules\Employee\Entities\EmployeeScheduleDate;
 use Modules\Employee\Entities\EmployeeOfficeHourShift;
 use Modules\Users\Entities\Role;
+use App\Http\Models\Province;
 
 use DB;
 use Modules\Employee\Entities\EmployeeOfficeHour;
 
 class ApiEmployeeScheduleController extends Controller
 {
+
+    function getOneTimezone($time, $time_zone_utc)
+    {
+        $default_time_zone_utc = 7;
+        $time_diff = $time_zone_utc - $default_time_zone_utc;
+
+        $data = date('H:i', strtotime('+'.$time_diff.' hour',strtotime($time)));
+
+        return $data;
+    }
+    
     public function cronEmployeeScheduleNonShit(){
         $log = MyHelper::logCron('Generate Employee Schedule Date Without Shift');
         try{
@@ -31,7 +43,7 @@ class ApiEmployeeScheduleController extends Controller
                                     ->whereNotNull('users.id_role')
                                     ->where('employee_office_hours.office_hour_type', 'Without Shift')
                                     ->get()->toArray();
-            
+            $tes = [];
             foreach($list_employees ?? [] as $employee){
                 //create master shedule
                 $schedule = EmployeeSchedule::where('id',$employee['id'])->where('schedule_month', date('m'))->where('schedule_year', date('Y'))->first();
@@ -86,15 +98,21 @@ class ApiEmployeeScheduleController extends Controller
                                     ->where('outlet_holidays.id_outlet', $employee['id_outlet'])
                                     ->where('date_holidays.date', date('Y-m-d'))
                                     ->get()->toArray();
-
+            
                 if($office_sch && !$holiday){
                 //create schedule date 
+                    $prov = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+                                    ->join('outlets', 'outlets.id_city', 'cities.id_city')
+                                    ->where('outlets.id_outlet', $employee['id_outlet'])
+                                    ->select('provinces.*')
+                                    ->first();
+                                    
                     $create_schedule_date = EmployeeScheduleDate::updateOrCreate([
                         'id_employee_schedule' => $schedule['id_employee_schedule'],
                         'date' => date('Y-m-d'),
                         'is_overtime' => 0,
-                        'time_start' => $employee['office_hour_start'],
-                        'time_end' => $employee['office_hour_end'],
+                        'time_start' => MyHelper::reverseAdjustTimezone($employee['office_hour_start'] ?? null, $prov['time_zone_utc'], 'H:i', true),
+                        'time_end' => MyHelper::reverseAdjustTimezone($employee['office_hour_end'] ?? null, $prov['time_zone_utc'], 'H:i', true),
                     ],[]);
                 }  
             }
@@ -445,7 +463,8 @@ class ApiEmployeeScheduleController extends Controller
                     ->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')
                     ->with([
                         'employee_schedule_dates', 
-                        'outlet.outlet_schedules'
+                        'outlet.outlet_schedules',
+                        'outlet.city.province'
                     ])
                     ->where('id_employee_schedule', $post['id_employee_schedule'])
                     ->select(
@@ -494,14 +513,22 @@ class ApiEmployeeScheduleController extends Controller
         	if (isset($holidays[$date]) && isset($outletSchedule[$hari])) {
         		$isClosed = '1';
         	}
+            
+            $time_zone = [
+                7 => 'WIB',
+                8 => 'WITA',
+                9 => 'WIT'
+            ];
+
 
         	$resDate[] = [
         		'date' => $day,
         		'day' => $hari,
         		'holiday' => $holidays[$date]['holiday_name'] ?? null,
         		'is_closed' => $isClosed,
-        		'time_start' => $outletSchedule[$hari]['time_start'] ?? null,
-        		'time_end' => $outletSchedule[$hari]['time_end'] ?? null,
+        		'time_start' => $this->getOneTimezone($outletSchedule[$hari]['time_start'] ?? null, $detail['outlet']['city']['province']['time_zone_utc']),
+        		'time_end' => $this->getOneTimezone($outletSchedule[$hari]['time_end'] ?? null, $detail['outlet']['city']['province']['time_zone_utc']),
+                'zone' => $time_zone[$detail['outlet']['city']['province']['time_zone_utc']],
         	];
         }
         

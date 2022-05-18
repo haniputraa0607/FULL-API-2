@@ -86,4 +86,16 @@ class ApiEmployeeAppController extends Controller
         ];
         return $result;
     }
+
+    public function loggedUser(Request $request)
+    {
+        $user = $request->user();
+        $user->load('outlet', 'role');
+        return [
+            'id_user' => $user->id,
+            'name' => $user->name,
+            'office_branch' => optional($user->outlet)->outlet_name ?: '-',
+            'role' => optional($user->role)->role_name ?: '-',
+        ];
+    }
 }

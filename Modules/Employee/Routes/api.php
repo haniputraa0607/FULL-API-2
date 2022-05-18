@@ -132,7 +132,7 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         Route::post('pending','ApiEmployeeReimbursementController@pending');
         Route::post('history','ApiEmployeeReimbursementController@history');
     });
-    Route::post('update-device','ApiEmployeeController@saveDeviceUser');
+    Route::post('update-device','APIEmployeeAppController@saveDeviceUser');
 
     Route::group(['prefix' => 'time-off'], function () {
         Route::post('/','ApiEmployeeTimeOffOvertimeController@listTimeOffEmployee');
@@ -146,4 +146,8 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         Route::post('check','ApiEmployeeTimeOffOvertimeController@checkOvertimeEmployee');
         Route::post('create','ApiEmployeeTimeOffOvertimeController@storeOvertimeEmployee');
     });
+});
+
+Route::group([ 'middleware' => ['auth_client', 'scopes:employee-apps'], 'prefix' => 'employee'], function () {
+    Route::get('splash','APIEmployeeAppController@splash');
 });

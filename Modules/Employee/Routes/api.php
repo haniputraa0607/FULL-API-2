@@ -55,7 +55,30 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('category', 'ApiQuestionEmployeeController@category');
         Route::post('create', 'ApiQuestionEmployeeController@create');
     });
-
+    Route::group(['prefix' => 'be/profile'], function(){
+     Route::group(['prefix' => 'emergency'], function(){
+        Route::post('/', 'ApiBeEmployeeProfileController@emergency_contact');
+        Route::post('/create', 'ApiBeEmployeeProfileController@create_emergency_contact');
+        Route::post('/detail', 'ApiBeEmployeeProfileController@detail_emergency_contact');
+        Route::post('/update', 'ApiBeEmployeeProfileController@update_emergency_contact');
+        Route::post('/delete', 'ApiBeEmployeeProfileController@delete_emergency_contact');
+      });
+     Route::group(['prefix' => 'perubahan-data'], function(){
+        Route::post('/', 'ApiBeEmployeeProfileController@perubahan_data');
+        Route::post('/update', 'ApiBeEmployeeProfileController@update_perubahan_data');
+      });
+     Route::group(['prefix' => 'faq'], function(){
+        Route::post('/', 'ApiBeEmployeeProfileController@faq');
+        Route::post('/create', 'ApiBeEmployeeProfileController@create_faq');
+        Route::post('/detail', 'ApiBeEmployeeProfileController@detail_faq');
+        Route::post('/update', 'ApiBeEmployeeProfileController@update_faq');
+        Route::post('/delete', 'ApiBeEmployeeProfileController@delete_faq');
+      });
+     Route::group(['prefix' => 'privacy-policy'], function(){
+        Route::post('/', 'ApiBeEmployeeProfileController@privacy_policy');
+        Route::post('/update', 'ApiBeEmployeeProfileController@privacy_policy_update');
+      });
+    });
     Route::any('attendance-setting','ApiEmployeeAttendanceController@setting');
     Route::group(['prefix' => 'attendance'], function () {
         Route::post('list','ApiEmployeeAttendanceController@list');
@@ -123,7 +146,7 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         Route::post('live','ApiEmployeeAttendanceController@storeLiveAttendance');
         Route::any('histories','ApiEmployeeAttendanceController@histories');
     });
-       Route::group(['prefix' => 'reimbursement'], function () {
+    Route::group(['prefix' => 'reimbursement'], function () {
         Route::post('create','ApiEmployeeReimbursementController@create');
         Route::post('detail','ApiEmployeeReimbursementController@detail');
         Route::post('update','ApiEmployeeReimbursementController@update');
@@ -132,7 +155,34 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         Route::post('pending','ApiEmployeeReimbursementController@pending');
         Route::post('history','ApiEmployeeReimbursementController@history');
     });
-    Route::post('update-device','ApiEmployeeController@saveDeviceUser');
+    Route::group(['prefix' => 'profile'], function () {
+        Route::get('info','ApiEmployeeProfileController@info');
+        Route::get('payroll','ApiEmployeeProfileController@payroll');
+        Route::get('ketenagakerjaan','ApiEmployeeProfileController@ketenagakerjaan');
+        Route::get('emergency-contact','ApiEmployeeProfileController@emergency_contact');
+        Route::post('update_pin','ApiEmployeeProfileController@update_pin');
+        Route::group(['prefix' => 'file'], function () {
+            Route::get('','ApiEmployeeProfileController@file');
+            Route::get('category','ApiEmployeeProfileController@category_file');
+            Route::post('create','ApiEmployeeProfileController@create_file');
+            Route::post('detail','ApiEmployeeProfileController@detail_file');
+            Route::post('update','ApiEmployeeProfileController@update_file');
+            Route::post('delete','ApiEmployeeProfileController@delete_file');
+        });
+        Route::group(['prefix' => 'perubahan-data'], function () {
+            Route::get('category','ApiEmployeeProfileController@category_perubahan_data');
+            Route::post('create','ApiEmployeeProfileController@create_perubahan_data');
+        });
+        Route::group(['prefix' => 'faq'], function(){
+            Route::post('/', 'ApiEmployeeProfileController@faq');
+            Route::post('/terpopuler', 'ApiEmployeeProfileController@faq_terpopuler');
+            Route::post('/detail', 'ApiEmployeeProfileController@detail_faq');
+        });
+        Route::group(['prefix' => 'privacy-policy'], function(){
+            Route::get('/', 'ApiEmployeeProfileController@privacy_policy');
+      });
+    });
+    Route::post('update-device','ApiEmployeeAppController@saveDeviceUser');
 
     Route::group(['prefix' => 'time-off'], function () {
         Route::post('/','ApiEmployeeTimeOffOvertimeController@listTimeOffEmployee');
@@ -146,4 +196,8 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         Route::post('check','ApiEmployeeTimeOffOvertimeController@checkOvertimeEmployee');
         Route::post('create','ApiEmployeeTimeOffOvertimeController@storeOvertimeEmployee');
     });
+});
+
+Route::group([ 'middleware' => ['auth_client', 'scopes:employee-apps'], 'prefix' => 'employee'], function () {
+    Route::get('splash','ApiEmployeeAppController@splash');
 });

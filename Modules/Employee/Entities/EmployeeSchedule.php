@@ -3,6 +3,9 @@
 namespace Modules\Employee\Entities;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Lib\MyHelper;
+use App\Http\Models\Province;
+
 
 class EmployeeSchedule extends Model
 {
@@ -51,6 +54,11 @@ class EmployeeSchedule extends Model
 
 	public function refreshTimeShift($id_employee_office_hour)
 	{
+		$prov = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+						->join('outlets', 'outlets.id_city', 'cities.id_city')
+						->where('outlets.id_outlet', $this->id_outlet)
+						->select('provinces.*')
+						->first();
 		$timeShift = EmployeeOfficeHourShift::join('employee_office_hours','employee_office_hours.id_employee_office_hour','employee_office_hour_shift.id_employee_office_hour')->where('employee_office_hours.id_employee_office_hour', $id_employee_office_hour)->get();
 		$schedules = [];
 		$timeShift->each(function ($item) use (&$schedules) {
@@ -60,10 +68,10 @@ class EmployeeSchedule extends Model
 			];
 		});
 		
-		$this->employee_schedule_dates->each(function ($item) use ($schedules) {
+		$this->employee_schedule_dates->each(function ($item) use ($schedules, $prov) {
 			$item->update([
-				'time_start' => $schedules[$item->shift]['time_start'] ?? '00:00:00',
-				'time_end' => $schedules[$item->shift]['time_end'] ?? '00:00:00',
+				'time_start' => MyHelper::reverseAdjustTimezone($schedules[$item->shift]['time_start'] ?? '00:00:00', $prov['time_zone_utc'], 'H:i', true),
+				'time_end' => MyHelper::reverseAdjustTimezone($schedules[$item->shift]['time_end'] ?? '00:00:00', $prov['time_zone_utc'], 'H:i', true),
 			]);
 		});
 

@@ -16,6 +16,7 @@ use Modules\Employee\Entities\EmployeeTimeOff;
 use Modules\Employee\Entities\EmployeeTimeOffImage;
 use Modules\Employee\Entities\EmployeeOverTime;
 use Modules\Employee\Entities\EmployeeNotAvailable;
+use App\Http\Models\Province;
 use Modules\Employee\Entities\EmployeeAttendance;
 use App\Http\Models\Holiday;
 use App\Http\Models\Setting;
@@ -134,6 +135,10 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
             if($post['month']>=date('m')|| (isset($post['type']) && $post['type'] == 'getDetail')){
 
                 $cek_employee = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$post['id_employee'])->first();
+                $data_outlet = Outlet::where('id_outlet', $cek_employee['id_outlet'])->first();
+                $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+                ->where('id_city', $data_outlet['id_city'])->first()['time_zone_utc']??null;
+
                 $schedule = EmployeeSchedule::where('id', $post['id_employee'])->where('schedule_month', $post['month'])->where('schedule_year', $post['year'])->first();
                 if($schedule || $cek_employee['office_hour_type'] == 'Without Shift'){
                     if($cek_employee['office_hour_type'] == 'Use Shift'){
@@ -155,8 +160,8 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                                         $send[$key]['id_employee_schedule'] = $schedule['id_employee_schedule'];
                                         $send[$key]['date'] = $data['date'];
                                         $send[$key]['date_format'] = date('d F Y', strtotime($data['date']));
-                                        $send[$key]['time_start'] = $data['time_start'];
-                                        $send[$key]['time_end'] = $data['time_end'];
+                                        $send[$key]['time_start'] = $data['time_start'] ? MyHelper::adjustTimezone($data['time_start'], $timeZone, 'H:i') : null;
+                                        $send[$key]['time_end'] = $data['time_end'] ? MyHelper::adjustTimezone($data['time_end'], $timeZone, 'H:i') : null;
                                     }
                                 }
                                 return response()->json([
@@ -201,8 +206,8 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                                         $send[$key]['id_employee_schedule'] = $schedule['id_employee_schedule'];
                                         $send[$key]['date'] = $list_date;
                                         $send[$key]['date_format'] = date('d F Y', strtotime($list_date));
-                                        $send[$key]['time_start'] = $outletSchedule[$hari]['time_start'];
-                                        $send[$key]['time_end'] = $outletSchedule[$hari]['time_end'];
+                                        $send[$key]['time_start'] = $outletSchedule[$hari]['time_start'] ? MyHelper::adjustTimezone($outletSchedule[$hari]['time_start'], $timeZone, 'H:i') : null;
+                                        $send[$key]['time_end'] = $outletSchedule[$hari]['time_end'] ? MyHelper::adjustTimezone($outletSchedule[$hari]['time_end'], $timeZone, 'H:i') : null;
                                     }
                                 }
                             }
@@ -398,8 +403,16 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
         $employee = $request->user()->id;
         $office = $request->user()->id_outlet;
         $array_date = explode('-',$post['date']);
-        $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$employee)->first()['office_hour_type'];
+        $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$employee)->first();
 
+        if(empty($type_shift['office_hour_type'])){
+            return response()->json([
+                'status'=>'fail',
+                'messages'=>['Jam kantor tidak ada ']
+            ]);
+        }
+        $type_shift = $type_shift['office_hour_type'];
+        
         //cek date
         if(date('Y-m-d', strtotime($post['date'])) < date('Y-m-d')){
             return response()->json(['status' => 'fail', 'messages' => ['Minimal tanggal pengajuan cuti adalah hari ini']]);
@@ -566,6 +579,9 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
         $post = $request->all(); 
         $employee = $post['id_employee'];
         $office = $request->user()->id_outlet;
+        $data_office = $request->user()->outlet;
+        $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+        ->where('id_city', $data_office['id_city'])->first()['time_zone_utc']??null;
         $array_date = explode('-',$post['date']);
         $date = date('Y-m-d', strtotime($post['date']));
 
@@ -573,10 +589,18 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
         if(isset($check['status']) && $check['status'] == 'success'){
             $send = [
                 'shift' => null,
-                'schedule_in' => $check['date']['time_start'] ?? null,
-                'schedule_out' => $check['date']['time_end'] ?? null,
+                'schedule_in' => $check['date']['time_start'] ? MyHelper::adjustTimezone($check['date']['time_start'], $timeZone, 'H:i', true) : null,
+                'schedule_out' => $check['date']['time_end'] ? MyHelper::adjustTimezone($check['date']['time_end'], $timeZone, 'H:i', true) : null,
             ];
-            $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$employee)->first()['office_hour_type'];
+            $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$employee)->first();
+
+            if(empty($type_shift['office_hour_type'])){
+                return response()->json([
+                    'status'=>'fail',
+                    'messages'=>['Jam kantor tidak ada ']
+                ]);
+            }
+            $type_shift = $type_shift['office_hour_type'];
 
             //employee with shift
             if($type_shift == 'Use Shift'){
@@ -592,8 +616,8 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                 }
 
                 $send['shift'] = $schedule_date['shift'];
-                $send['schedule_in'] = date('H:i', strtotime($schedule_date['time_start']));
-                $send['schedule_out'] = date('H:i', strtotime($schedule_date['time_end']));
+                $send['schedule_in'] = MyHelper::adjustTimezone(date('H:i', strtotime($schedule_date['time_start'])), $timeZone, 'H:i', true);
+                $send['schedule_out'] = MyHelper::adjustTimezone(date('H:i', strtotime($schedule_date['time_end'])), $timeZone, 'H:i', true);
                 
             }
 
@@ -609,12 +633,23 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
         $post = $request->all(); 
         $employee = $post['id_employee'];
         $office = $request->user()->id_outlet;
+        $data_office = $request->user()->outlet;
+        $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+        ->where('id_city', $data_office['id_city'])->first()['time_zone_utc']??null;
         $array_date = explode('-',$post['date']);
         $date = date('Y-m-d', strtotime($post['date']));
 
         $check = $this->checkDateOvertime($office, $post);
         if(isset($check['status']) && $check['status'] == 'success'){
-            $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$employee)->first()['office_hour_type'];
+            $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$employee)->first();
+
+            if(empty($type_shift['office_hour_type'])){
+                return response()->json([
+                    'status'=>'fail',
+                    'messages'=>['Jam kantor tidak ada ']
+                ]);
+            }
+            $type_shift = $type_shift['office_hour_type'];
 
             //employee with shift
             if($type_shift == 'Use Shift'){
@@ -648,8 +683,8 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                 'date'        => $date,
                 'time'        => $post['time'],
                 'duration'    => $new_time,
-                'rest_before' => date('H:i:s', strtotime($post['start_rest'])),
-                'rest_after' => date('H:i:s', strtotime($post['end_rest'])),
+                'rest_before' => MyHelper::reverseAdjustTimezone(date('H:i:s', strtotime($post['start_rest'])), $timeZone, 'Y-m-d H:i:s', true),
+                'rest_after' => MyHelper::reverseAdjustTimezone(date('H:i:s', strtotime($post['end_rest'])), $timeZone, 'Y-m-d H:i:s', true),
                 'request_at'  => date('Y-m-d'),
                 'notes'       => $post['notes']
             ];
@@ -846,6 +881,9 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
         $post = $request->all();
         if(isset($post['id_employee_overtime']) && !empty($post['id_employee_overtime'])){
             $time_off = EmployeeOverTime::where('id_employee_overtime', $post['id_employee_overtime'])->with(['employee','outlet','approve','request'])->first();
+            $data_outlet = Outlet::where('id_outlet', $time_off['id_outlet'])->first();
+            $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+            ->where('id_city', $data_outlet['id_city'])->first()['time_zone_utc']??null;
             $date = date('Y-m-d', strtotime($time_off['date']));
             $array_date = explode('-', $date);
             //
@@ -877,8 +915,10 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                 $send['schedule_out'] = date('H:i', strtotime($schedule_date['time_end']));
             }
             
-            $time_off['schedule_in'] = $send['schedule_in'] ?? null;
-            $time_off['schedule_out'] = $send['schedule_out'] ?? null;
+            $time_off['schedule_in'] = $send['schedule_in'] ? MyHelper::adjustTimezone($send['schedule_in'], $timeZone, 'H:i') : null;
+            $time_off['schedule_out'] = $send['schedule_out'] ? MyHelper::adjustTimezone($send['schedule_out'], $timeZone, 'H:i') : null;
+            $time_off['rest_before'] = $time_off['rest_before'] ? MyHelper::adjustTimezone($time_off['rest_before'], $timeZone, 'H:i') : null;
+            $time_off['rest_after'] = $time_off['rest_after'] ? MyHelper::adjustTimezone($time_off['rest_after'], $timeZone, 'H:i') : null;
             
             if(isset($time_off['rest_before']) && isset($time_off['rest_after'])){
                 $duration_rest = strtotime($time_off['rest_before']);
@@ -934,6 +974,10 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
             }
             if(isset($post['id_outlet'])){
                 $data_update['id_outlet'] = $post['id_outlet'];
+                $data_outlet = Outlet::where('id_outlet', $data_update['id_outlet'])->first();
+                $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+                ->where('id_city', $data_outlet['id_city'])->first()['time_zone_utc']??null;
+
             }
             if(isset($post['date'])){
                 $data_update['date'] = $post['date'];
@@ -949,8 +993,8 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
             }
 
             if(isset($post['rest_before']) && isset($post['rest_after'])){
-                $data_update['rest_before'] = date("H:i:s",strtotime($post['rest_before']));
-                $data_update['rest_after'] = date("H:i:s",strtotime($post['rest_after']));
+                $data_update['rest_before'] = MyHelper::reverseAdjustTimezone(date("H:i:s",strtotime($post['rest_before'])), $timeZone, 'H:i:s', true);
+                $data_update['rest_after'] = MyHelper::reverseAdjustTimezone(date("H:i:s",strtotime($post['rest_after'])), $timeZone, 'H:i:s', true);
                 $duration_rest = $this->getDuration($data_update['rest_after'],$data_update['rest_before']);
                 $duration = $this->getDuration($duration,$duration_rest);
             }
@@ -973,7 +1017,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                     ]);
                 }
                 if(isset($post['approve'])){
-                    $update_schedule = $this->updatedScheduleOvertime($data_update,$post);
+                    $update_schedule = $this->updatedScheduleOvertime($data_update,$post,$timeZone);
                     if(!$update_schedule){
                         DB::rollBack();
                         return response()->json([
@@ -993,7 +1037,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
         }
     }
 
-    public function updatedScheduleOvertime($data,$data2){
+    public function updatedScheduleOvertime($data,$data2,$timeZone){
         //get schedule
         $month_sc = date('m', strtotime($data['date']));
         $year_sc = date('Y', strtotime($data['date']));
@@ -1005,16 +1049,37 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                 //update
                 if($data['time']=='before'){
                     $order = 'time_start';
-                    $new_time = $data2['time_start_overtime'];
+                    $new_time = MyHelper::reverseAdjustTimezone($data2['time_start_overtime'], $timeZone, 'H:i:s', true);
                 }elseif($data['time']=='after'){
                     $order = 'time_end';
-                    $new_time = $data2['time_end_overtime'];
+                    $new_time = MyHelper::reverseAdjustTimezone($data2['time_end_overtime'], $timeZone, 'H:i:s', true);
                 }else{
                     return false;
                 }
 
                 $update_date = EmployeeScheduleDate::where('id_employee_schedule_date',$get_schedule_date['id_employee_schedule_date'])->update([$order => $new_time,  'is_overtime' => 1]);
                 if($update_date){
+                    return true;
+                }
+            }elseif($cek_employee['office_hour_type'] == 'Without Shift'){
+                if($data['time']=='before'){
+                    $time_start = MyHelper::reverseAdjustTimezone($data2['time_start_overtime'], $timeZone, 'H:i:s', true);
+                    $time_end = MyHelper::reverseAdjustTimezone($data2['schedule_out'], $timeZone, 'H:i:s', true);
+                }elseif($data['time']=='after'){
+                    $time_start = MyHelper::reverseAdjustTimezone($data2['schedule_in'], $timeZone, 'H:i:s', true);
+                    $time_end = MyHelper::reverseAdjustTimezone($data2['time_end_overtime'], $timeZone, 'H:i:s', true);
+                }else{
+                    return false;
+                }
+                $schdule_date = EmployeeScheduleDate::updateOrCreate([
+                    'id_employee_schedule' => $get_schedule['id_employee_schedule'],
+                    'date' => $data['date'],
+                ],[
+                    'is_overtime' => 1,
+                    'time_start' => $time_start,
+                    'time_end' => $time_end,
+                ]);
+                if($schdule_date){
                     return true;
                 }
             }
@@ -1029,11 +1094,11 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                 ]);
                 if($schdule){
                     if($data['time']=='before'){
-                        $time_start = $data2['time_start_overtime'];
-                        $time_end = $data2['schedule_out'];
+                        $time_start = MyHelper::reverseAdjustTimezone($data2['time_start_overtime'], $timeZone, 'H:i:s', true);
+                        $time_end = MyHelper::reverseAdjustTimezone($data2['schedule_out'], $timeZone, 'H:i:s', true);
                     }elseif($data['time']=='after'){
-                        $time_start = $data2['schedule_in'];
-                        $time_end = $data2['time_end_overtime'];
+                        $time_start = MyHelper::reverseAdjustTimezone($data2['schedule_in'], $timeZone, 'H:i:s', true);
+                        $time_end = MyHelper::reverseAdjustTimezone($data2['time_end_overtime'], $timeZone, 'H:i:s', true);
                     }else{
                         return false;
                     }

@@ -12,6 +12,7 @@ use App\Lib\MyHelper;
 use App\Jobs\FraudJob;
 use Modules\PromoCampaign\Entities\PromoCampaignPromoCode;
 use Modules\PromoCampaign\Entities\UserPromo;
+use Modules\Transaction\Entities\TransactionAcademy;
 use Modules\Xendit\Entities\TransactionPaymentXendit;
 use Modules\PromoCampaign\Entities\TransactionPromo;
 
@@ -401,7 +402,8 @@ class Transaction extends Model
 
     		case 'academy':
     			$this->transaction_academy->triggerPaymentCompleted($data);
-    			if ($this->transaction_academy->amount_not_completed == 0) {
+    			$academyNotCompleted = TransactionAcademy::where('id_transaction', $this->id_transaction)->first()['amount_not_completed']??null;
+    			if (!is_null($academyNotCompleted) && $academyNotCompleted == 0) {
 			    	$this->update([
 			    		'transaction_payment_status' => 'Completed', 
 			    		'completed_at' => date('Y-m-d H:i:s')

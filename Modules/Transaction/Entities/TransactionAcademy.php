@@ -57,5 +57,7 @@ class TransactionAcademy extends \App\Http\Models\Template\TransactionService
                 $trxAcademy->update(['mdr_product' => $trxAcademy['mdr_product'] + $data['mdr_payment_installment']]);
             }
         }
+
+        return true;
     }
 }

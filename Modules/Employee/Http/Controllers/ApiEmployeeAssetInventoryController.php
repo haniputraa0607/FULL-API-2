@@ -36,7 +36,7 @@ use Modules\Employee\Entities\EmployeePerubahanData;
 use Modules\Employee\Entities\EmployeeFaq;
 use Modules\Employee\Entities\EmployeeFaqLog;
 
-class ApiEmployeeProfileController extends Controller
+class ApiEmployeeAssetInventoryController extends Controller
 {
     public function __construct()
     {
@@ -44,7 +44,7 @@ class ApiEmployeeProfileController extends Controller
         if (\Module::collections()->has('Autocrm')) {
             $this->autocrm  = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
         }
-        $this->saveFile = "document/employee/file/"; 
+        $this->saveFile = "document/asset_inventory/"; 
     }
    public function info() {
        $profile = Employee::join('users','users.id','employees.id_user')

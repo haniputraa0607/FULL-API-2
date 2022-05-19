@@ -79,6 +79,13 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('/update', 'ApiBeEmployeeProfileController@privacy_policy_update');
       });
     });
+    Route::group(['prefix' => 'be/asset-inventory'], function(){
+        Route::group(['prefix' => 'category'], function(){
+        Route::get('/', 'ApiBeEmployeeAssetInventoryController@list_category');
+        Route::post('/create', 'ApiBeEmployeeAssetInventoryController@create_category');
+        Route::post('/delete', 'ApiBeEmployeeAssetInventoryController@delete_category');
+        });
+    });
     Route::any('attendance-setting','ApiEmployeeAttendanceController@setting');
     Route::group(['prefix' => 'attendance'], function () {
         Route::post('list','ApiEmployeeAttendanceController@list');
@@ -154,6 +161,12 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         Route::post('saldo_reimbursement','ApiEmployeeReimbursementController@saldo_reimbursement');
         Route::post('pending','ApiEmployeeReimbursementController@pending');
         Route::post('history','ApiEmployeeReimbursementController@history');
+    });
+    Route::group(['prefix' => 'office'], function () {
+        Route::get('/total-employee','ApiEmployeeProfileController@total_employee');
+        Route::get('/list-employee','ApiEmployeeProfileController@list_employee');
+        Route::get('/cuti-employee','ApiEmployeeProfileController@cuti_employee');
+        Route::post('/detail-employee','ApiEmployeeProfileController@detail_employee');
     });
     Route::group(['prefix' => 'profile'], function () {
         Route::get('info','ApiEmployeeProfileController@info');

@@ -210,6 +210,9 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         Route::post('check','ApiEmployeeTimeOffOvertimeController@checkOvertimeEmployee');
         Route::post('create','ApiEmployeeTimeOffOvertimeController@storeOvertimeEmployee');
     });
+
+    Route::post('calender','ApiEmployeeController@calender');
+
 });
 
 Route::group([ 'middleware' => ['auth_client', 'scopes:employee-apps'], 'prefix' => 'employee'], function () {

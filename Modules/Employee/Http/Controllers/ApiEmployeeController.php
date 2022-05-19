@@ -309,4 +309,9 @@ class ApiEmployeeController extends Controller
                                             
     }
 
+    public function calender(Request $request){
+        $post = $request->all();
+        return $post;
+    }
+
 }

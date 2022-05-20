@@ -4406,7 +4406,34 @@ class FeaturesTableSeeder extends Seeder
                 'order'          => 163,
                 'created_at'     => date('Y-m-d H:00:00'),
                 'updated_at'     => date('Y-m-d H:00:00'),
-            )
+            ),
+            490 => array(
+                'id_feature'     => 492,
+                'feature_type'   => 'List',
+                'feature_module' => 'Employee Outlet Attendace',
+                'show_hide'      => 1,
+                'order'          => 164,
+                'created_at'     => date('Y-m-d H:00:00'),
+                'updated_at'     => date('Y-m-d H:00:00'),
+            ),
+            491 => array(
+                'id_feature'     => 493,
+                'feature_type'   => 'Detail',
+                'feature_module' => 'Employee Outlet Attendace',
+                'show_hide'      => 1,
+                'order'          => 164,
+                'created_at'     => date('Y-m-d H:00:00'),
+                'updated_at'     => date('Y-m-d H:00:00'),
+            ),
+            492 => array(
+                'id_feature'     => 494,
+                'feature_type'   => 'Update',
+                'feature_module' => 'Employee Outlet Attendace',
+                'show_hide'      => 1,
+                'order'          => 164,
+                'created_at'     => date('Y-m-d H:00:00'),
+                'updated_at'     => date('Y-m-d H:00:00'),
+            ),
         );
 
         foreach ($rows as $row) {

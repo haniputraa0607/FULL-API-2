@@ -318,6 +318,11 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                 $data_update['approve_by'] = auth()->user()->id;
                 $data_update['approve_at'] = date('Y-m-d');
             }
+            if(isset($post['use_quota_time_off'])){
+                $data_update['use_quota_time_off'] = 1;
+            }else{
+                $data_update['use_quota_time_off'] = 0;
+            }
 
             if($data_update){
                 DB::beginTransaction();

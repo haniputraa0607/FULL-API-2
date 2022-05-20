@@ -212,6 +212,12 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
     });
 
     Route::post('calender','ApiEmployeeController@calender');
+    Route::group(['prefix' => 'attendance-outlet'], function () {
+        Route::post('list-outlet','ApiEmployeeAttendaceOutletController@listOutlet');
+        Route::post('live_1','ApiEmployeeAttendaceOutletController@liveAttendance');
+        Route::post('live_2','ApiEmployeeAttendaceOutletController@storeLiveAttendance');
+        Route::any('histories','ApiEmployeeAttendaceOutletController@histories');
+    });
 
 });
 

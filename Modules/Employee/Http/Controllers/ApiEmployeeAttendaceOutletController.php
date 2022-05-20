@@ -241,4 +241,95 @@ class ApiEmployeeAttendaceOutletController extends Controller
             'histories' => array_values($histories)
         ]);
     }
+
+    public function list(Request $request)
+    {
+        $result = User::join('employee_schedules', 'employee_schedules.id', 'users.id')
+            ->join('roles', 'roles.id_role', 'users.id_role')
+            ->join('employee_schedule_dates', 'employee_schedule_dates.id_employee_schedule', 'employee_schedules.id_employee_schedule')
+            ->join('outlets','outlets.id_outlet','users.id_outlet')
+            ->leftJoin('employee_outlet_attendances', 'employee_outlet_attendances.id_employee_schedule_date', 'employee_schedule_dates.id_employee_schedule_date');
+        $countTotal = null;
+        $result->groupBy('users.id');
+
+        if ($request->rule) {
+            $countTotal = $result->count();
+            $this->filterList($result, $request->rule, $request->operator ?: 'and');
+        }
+
+        if (is_array($orders = $request->order)) {
+            $columns = [
+                'name',
+                'role_name',
+                'outlet_name',
+                'total_attendance',
+            ];
+
+            foreach ($orders as $column) {
+                if ($colname = ($columns[$column['column']] ?? false)) {
+                    $result->orderBy($colname, $column['dir']);
+                }
+            }
+        }
+
+        $result->selectRaw('users.id, users.name, role_name, outlets.outlet_name, SUM(CASE WHEN employee_outlet_attendances.id_employee_outlet_attendance IS NOT NULL THEN 1 ELSE 0 END) as total_attendance');
+        $result->orderBy('users.id');
+
+        if ($request->page) {
+            $result = $result->paginate($request->length ?: 15)->toArray();
+            if (is_null($countTotal)) {
+                $countTotal = $result['total'];
+            }
+            // needed by datatables
+            $result['recordsTotal'] = $countTotal;
+        } else {
+            $result = $result->get();
+        }
+
+        return MyHelper::checkGet($result);
+    }
+
+    public function filterList($query,$rules,$operator='and'){
+        $newRule=[];
+        foreach ($rules as $var) {
+            if (!($var['operator']?? false) && !($var['parameter']?? false)) continue;
+            $rule=[$var['operator']??'=',$var['parameter']];
+            if($rule[0]=='like'){
+                $rule[1]='%'.$rule[1].'%';
+            }
+            $newRule[$var['subject']][]=$rule;
+        }
+
+        $query->where(function($query2) use ($operator, $newRule) {
+            $where=$operator=='and'?'where':'orWhere';
+            $subjects=['name'];
+            foreach ($subjects as $subject) {
+                if($rules2=$newRule[$subject]??false){
+                    foreach ($rules2 as $rule) {
+                        $query2->$where($subject,$rule[0],$rule[1]);
+                    }
+                }
+            }
+
+            $subject = 'id_office';
+            if($rules2=$newRule[$subject]??false){
+                foreach ($rules2 as $rule) {
+                    $query2->{$where . 'In'}('users.id_outlet', $rule[1]);
+                }
+            }
+
+            $subject = 'id_role';
+            if($rules2=$newRule[$subject]??false){
+                foreach ($rules2 as $rule) {
+                    $query2->$where('users.id_role', $rule[1]);
+                }
+            }
+        });
+
+        if ($rules = $newRule['transaction_date'] ?? false) {
+            foreach ($rules as $rul) {
+                $query->whereDate('employee_schedule_dates.date', $rul[0], $rul[1]);
+            }
+        }
+    }
 }

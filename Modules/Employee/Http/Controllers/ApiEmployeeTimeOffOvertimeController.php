@@ -1166,7 +1166,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                             'status' => 'fail'
                         ]);
                     }
-                    $attendace = EmployeeAttendance::where('id_employee_schedule_date',$get_schedule_date['id_employee_schedule_date'])->where('id', $check['id'])->where('attendance_date',$check['date'])->update([$order_att => $new_time]);
+                    $attendance = EmployeeAttendance::where('id_employee_schedule_date',$get_schedule_date['id_employee_schedule_date'])->where('id', $check['id'])->where('attendance_date',$check['date'])->update([$order_att => $new_time]);
                     DB::commit();
                     return response()->json([
                         'status' => 'success'

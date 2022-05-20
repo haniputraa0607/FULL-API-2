@@ -775,6 +775,9 @@ class ApiMitra extends Controller
 
 	public function setTimezone()
 	{
+		if (!request()->user()->outlet) {
+			return MyHelper::setTimezone(7);
+		}
 		if (!request()->user()->outlet->city) {
 			throw new \Exception('Incomplete Outlet Data. Contact CS');
 		}

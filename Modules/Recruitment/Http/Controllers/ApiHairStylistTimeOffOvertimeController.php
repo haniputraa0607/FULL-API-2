@@ -480,7 +480,7 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                             'status' => 'fail'
                         ]);
                     }
-                    $attendace = HairstylistAttendance::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->where('id_user_hair_stylist', $check['id_user_hair_stylist'])->where('attendance_date',$check['date'])->update([$order_att => $new_time]);
+                    $attendance = HairstylistAttendance::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->where('id_user_hair_stylist', $check['id_user_hair_stylist'])->where('attendance_date',$check['date'])->update([$order_att => $new_time]);
                     DB::commit();
                     return response()->json([
                         'status' => 'success'
@@ -604,7 +604,7 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                 if($update_date){
                     $attendance = HairstylistAttendance::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->where('id_user_hair_stylist', $get_schedule['id_user_hair_stylist'])->whereDate('attendance_date',$get_schedule_date['date'])->first();
                     if($attendance){
-                        $update_attendance = HairstylistAttendance::where('id_hairstylist_attendance', $attendace['id_hairstylist_attendance'])->update([$order_att => $new_time]);
+                        $update_attendance = HairstylistAttendance::where('id_hairstylist_attendance', $attendance['id_hairstylist_attendance'])->update([$order_att => $new_time]);
                     }
                     return true;
                 }

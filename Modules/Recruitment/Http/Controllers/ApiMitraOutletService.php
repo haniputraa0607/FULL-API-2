@@ -1021,7 +1021,7 @@ class ApiMitraOutletService extends Controller
     			'id_user' => $trx->id_user,
     			'id_transaction' => $trx->id_transaction,
     			'id_transaction_product_service' => $request->id_transaction_product_service,
-    			'id_user_hair_stylist' => $service->id_user_hair_stylist
+    			'id_user_hair_stylist' => $user->id_user_hair_stylist
     		],[
     			'refuse_count' => 0,
     			'last_popup' => date('Y-m-d H:i:s', time() - MyHelper::setting('popup_min_interval', 'value', 900))

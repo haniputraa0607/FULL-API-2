@@ -14,7 +14,7 @@ use App\Lib\MyHelper;
 use Modules\Employee\Entities\EmployeetAttendance;
 use Modules\Employee\Entities\EmployeeTimeOff;
 use Modules\Employee\Entities\EmployeeTimeOffImage;
-use Modules\Employee\Entities\EmployeeOverTime;
+use Modules\Employee\Entities\EmployeeOvertime;
 use Modules\Employee\Entities\EmployeeNotAvailable;
 use App\Http\Models\Province;
 use Modules\Employee\Entities\EmployeeAttendance;
@@ -885,7 +885,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
     {
         $post = $request->all();
         if(isset($post['id_employee_overtime']) && !empty($post['id_employee_overtime'])){
-            $time_off = EmployeeOverTime::where('id_employee_overtime', $post['id_employee_overtime'])->with(['employee','outlet','approve','request'])->first();
+            $time_off = EmployeeOvertime::where('id_employee_overtime', $post['id_employee_overtime'])->with(['employee','outlet','approve','request'])->first();
             $data_outlet = Outlet::where('id_outlet', $time_off['id_outlet'])->first();
             $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
             ->where('id_city', $data_outlet['id_city'])->first()['time_zone_utc']??null;
@@ -1013,7 +1013,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
             
             if($data_update){
                 DB::beginTransaction();
-                $update = EmployeeOverTime::where('id_employee_overtime',$post['id_employee_overtime'])->update($data_update);
+                $update = EmployeeOvertime::where('id_employee_overtime',$post['id_employee_overtime'])->update($data_update);
                 if(!$update){
                     DB::rollBack();
                     return response()->json([
@@ -1126,7 +1126,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
 
     public function deleteOvertime(Request $request){
         $post = $request->all();
-        $check = EmployeeOverTime::where('id_employee_overtime', $post['id_employee_overtime'])->first();
+        $check = EmployeeOvertime::where('id_employee_overtime', $post['id_employee_overtime'])->first();
         if($check){
             DB::beginTransaction();
             $month_sc = date('m', strtotime($check['date']));
@@ -1164,7 +1164,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                         $order_att = 'clock_in_requirement';
                     }
                     $update_schedule = EmployeeScheduleDate::where('id_employee_schedule_date',$get_schedule_date['id_employee_schedule_date'])->update([$order => $new_time,  'is_overtime' => 0]);
-                    $update_overtime = EmployeeOverTime::where('id_employee_overtime', $post['id_employee_overtime'])->update(['reject_at' => date('Y-m-d')]);
+                    $update_overtime = EmployeeOvertime::where('id_employee_overtime', $post['id_employee_overtime'])->update(['reject_at' => date('Y-m-d')]);
                     if(!$update_overtime || !$update_schedule){
                         DB::rollBack();
                         return response()->json([
@@ -1188,6 +1188,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
     public function checkTimeOffOvertime(){
         $log = MyHelper::logCron('Check Request Employee Time Off and Overtime');
         try{
+            DB::beginTransaction();
             $data_time_off = EmployeeTimeOff::whereNull('reject_at')->whereNull('approve_at')->whereDate('request_at','<',date('Y-m-d'))->get()->toArray();
             if($data_time_off){
                 foreach($data_time_off as $time_off){
@@ -1195,12 +1196,13 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                 }
             }
 
-            $data_overtime = EmployeeOverTime::whereNull('reject_at')->whereNull('approve_at')->whereDate('request_at','<',date('Y-m-d'))->get()->toArray();
+            $data_overtime = EmployeeOvertime::whereNull('reject_at')->whereNull('approve_at')->whereDate('request_at','<',date('Y-m-d'))->get()->toArray();
             if($data_overtime){
                 foreach($data_overtime as $overtime){
-                    $update = EmployeeOverTime::where('id_employee_overtime', $overtime['id_employee_overtime'])->update(['reject_at' => date('Y-m-d')]);
+                    $update = EmployeeOvertime::where('id_employee_overtime', $overtime['id_employee_overtime'])->update(['reject_at' => date('Y-m-d')]);
                 }
             }
+            DB::commit();
             $log->success('success');
             return response()->json(['status' => 'success']);
 

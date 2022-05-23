@@ -28,6 +28,7 @@ class EmployeeTimeOff extends Model
 		'request_at',
 		'approve_at',
 		'reject_at',
+		'use_quota_time_off'
 
 	];
 

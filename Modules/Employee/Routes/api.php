@@ -102,6 +102,16 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('update','ApiEmployeeAttendanceController@updateRequest');
     });
 
+    Route::group(['prefix' => 'attendance-outlet'], function () {
+        Route::post('list','ApiEmployeeAttendaceOutletController@list');
+        Route::post('detail','ApiEmployeeAttendaceOutletController@detail');
+    });
+    Route::group(['prefix' => 'attendance-outlet-pending'], function () {
+        Route::post('list','ApiEmployeeAttendaceOutletController@listPending');
+        Route::post('detail','ApiEmployeeAttendaceOutletController@detailPending');
+        Route::post('update','ApiEmployeeAttendaceOutletController@updatePending');
+    });
+
     Route::post('shift','ApiEmployeeController@shift');
 
     Route::group(['prefix' => 'timeoff'], function () {
@@ -210,6 +220,15 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         Route::post('check','ApiEmployeeTimeOffOvertimeController@checkOvertimeEmployee');
         Route::post('create','ApiEmployeeTimeOffOvertimeController@storeOvertimeEmployee');
     });
+
+    Route::post('calender','ApiEmployeeController@calender');
+    Route::group(['prefix' => 'attendance-outlet'], function () {
+        Route::post('list-outlet','ApiEmployeeAttendaceOutletController@listOutlet');
+        Route::post('live_1','ApiEmployeeAttendaceOutletController@liveAttendance');
+        Route::post('live_2','ApiEmployeeAttendaceOutletController@storeLiveAttendance');
+        Route::any('histories','ApiEmployeeAttendaceOutletController@histories');
+    });
+
 });
 
 Route::group([ 'middleware' => ['auth_client', 'scopes:employee-apps'], 'prefix' => 'employee'], function () {

@@ -933,11 +933,30 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                 $minute_rest = floor(($diff_rest - ($hour_rest*60*60))/(60));
                 $new_time_rest =  date('H:i', strtotime($hour_rest.':'.$minute_rest));
                 $secs = strtotime($new_time_rest)-strtotime("00:00:00");
-                $duration = date("H:i:s",strtotime($time_off['duration'])+$secs);
+                $duration_time = date("H:i:s",strtotime($time_off['duration'])+$secs);
+            }
+
+            if(isset($time_off['approve_by']) or isset($time_off['reject_at'])){
+                if($time_off['time']=='after'){
+                    $duration = strtotime($duration_time);
+                    $start = strtotime($time_off['schedule_out']);
+                    $diff = $start - $duration;
+                    $hour = floor($diff / (60*60));
+                    $minute = floor(($diff - ($hour*60*60))/(60));
+                    $second = floor(($diff - ($hour*60*60))%(60));
+                    $new_time =  date('H:i', strtotime($hour.':'.$minute.':'.$second));
+                    $time_off['schedule_out'] = $new_time;
+                }elseif($time_off['time']=='before'){
+                    $secs = strtotime($duration_time)-strtotime("00:00:00");
+                    $new_time = date("H:i:s",strtotime($time_off['schedule_in'])+$secs);
+                    $time_off['schedule_in'] = $new_time;
+                }else{
+                    return false;
+                }
             }
 
             if($time_off['time']=='before'){
-                $duration = strtotime($duration);
+                $duration = strtotime($duration_time);
                 $start = strtotime($time_off['schedule_in']);
                 $diff = $start - $duration;
                 $hour = floor($diff / (60*60));
@@ -947,7 +966,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                 $time_off['start_overtime'] = $new_time;
                 $time_off['end_overtime'] = $time_off['schedule_in'];
             }elseif($time_off['time']=='after'){
-                $secs = strtotime($duration)-strtotime("00:00:00");
+                $secs = strtotime($duration_time)-strtotime("00:00:00");
                 $new_time = date("H:i:s",strtotime($time_off['schedule_out'])+$secs);
                 $time_off['start_overtime'] = $time_off['schedule_out'];
                 $time_off['end_overtime'] = $new_time;

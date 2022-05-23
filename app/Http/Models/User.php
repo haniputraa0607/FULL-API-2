@@ -270,6 +270,11 @@ class User extends Authenticatable
         return $this->hasMany(\Modules\Employee\Entities\EmployeeAttendance::class, 'id');
     }
 
+    public function employee_outlet_attendances()
+    {
+        return $this->hasMany(\Modules\Employee\Entities\EmployeeOutletAttendance::class, 'id');
+    }
+
     public function getAttendanceByDate($schedule, $shift = false)
     {
         if (is_string($schedule)) {
@@ -317,6 +322,54 @@ class User extends Authenticatable
                 'clock_out_requirement' => $schedule->clock_out_requirement,
                 'clock_in_tolerance' => MyHelper::setting('employee_clock_in_tolerance', 'value', 15),
                 'clock_out_tolerance' => MyHelper::setting('employee_clock_out_tolerance', 'value', 0),
+            ]);
+        }
+        return $attendance;
+    }
+
+    public function getAttendanceByDateOutlet($id_outlet, $schedule, $shift = false)
+    {
+        if (is_string($schedule)) {
+            $data_schedule = $this->employee_schedules()
+                ->selectRaw('id_employee_attendance, date, min(time_start) as start_shift, max(time_end) as end_shift')
+                ->join('employee_schedule_dates', 'employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule');
+            if($shift){
+                $data_schedule = $data_schedule->whereNotNull('approve_at');
+            }
+            $data_schedule = $data_schedule->where([
+                    'schedule_month' => date('m', strtotime($schedule)),
+                    'schedule_year' => date('Y', strtotime($schedule))
+                ])
+                ->whereDate('date', $schedule)
+                ->first();
+            if (!$data_schedule || !$data_schedule->date) {
+                throw new \Exception('Tidak ada kehadiran dibutuhkan untuk hari ini');
+            }
+            $schedule = $data_schedule;
+        }
+        $attendance = $this->employee_outlet_attendances()->where('attendance_date', $schedule->date)->where('id_outlet', $id_outlet)->first();
+        if (!$attendance) {
+            $id_employee_schedule_date = $this->employee_schedules()
+                    ->join('employee_schedule_dates', 'employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule');
+                    if($shift){
+                        $id_employee_schedule_date= $id_employee_schedule_date->whereNotNull('approve_at');
+                    }
+                    $id_employee_schedule_date= $id_employee_schedule_date->where([
+                        'schedule_month' => date('m', strtotime($schedule->date)),
+                        'schedule_year' => date('Y', strtotime($schedule->date))
+                    ])
+                    ->whereDate('date', $schedule->date)
+                    ->orderBy('is_overtime')
+                    ->first()
+                    ->id_employee_schedule_date;
+            if (!$id_employee_schedule_date) {
+                throw new \Exception('Tidak ada kehadiran dibutuhkan untuk hari ini');
+            }
+            $attendance = $this->employee_outlet_attendances()->create([
+                'id_employee_schedule_date' => $id_employee_schedule_date,
+                'id_outlet' => $id_outlet,
+                'attendance_date' => $schedule->date,
+                'id' => $this->id,
             ]);
         }
         return $attendance;

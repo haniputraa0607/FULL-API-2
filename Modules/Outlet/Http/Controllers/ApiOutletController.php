@@ -737,6 +737,12 @@ class ApiOutletController extends Controller
             $outlet->where('type', 'Outlet');
         }
 
+        if($post['outlet_status'] ?? false){
+            $outlet->where('outlet_status', 'Active');
+        }
+
+
+
         // qrcode
         if (isset($post['qrcode'])){
             if(isset($post['qrcode_paginate'])){

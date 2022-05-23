@@ -10,6 +10,7 @@ use Modules\Employee\Entities\EmployeeOfficeHourAssign;
 use Modules\Employee\Entities\EmployeeOfficeHourShift;
 use App\Lib\MyHelper;
 use App\Http\Models\Setting;
+use Modules\Employee\Entities\EmployeeOverTime;
 use Modules\Users\Entities\Role;
 use App\Http\Models\User;
 use App\Http\Models\OutletSchedule;
@@ -18,7 +19,9 @@ use Modules\Employee\Entities\EmployeeSchedule;
 use Modules\Employee\Entities\EmployeeScheduleDate;
 
 use DB;
+use Modules\Employee\Entities\Employee;
 use Modules\Employee\Entities\EmployeeDevice;
+use Modules\Employee\Entities\EmployeeTimeOff;
 
 class ApiEmployeeController extends Controller
 {
@@ -307,6 +310,160 @@ class ApiEmployeeController extends Controller
         return response()->json(MyHelper::checkGet($get_shift));
 
                                             
+    }
+
+    public function calender(Request $request){
+        $post = $request->all();
+        $employee = $request->user()->id;
+        $office = $request->user()->id_outlet;
+        $time_off_quota = Setting::where('key','quota_employee_time_off')->get('value')->first();
+        if(!$time_off_quota){
+            return response()->json(['status'   => 'fail', 'messages' => ['Jatah cuti karyawan belum diatur']]); 
+        }
+        $time_off_quota = $time_off_quota['value'];
+
+        $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$employee)->first();
+
+        if(empty($type_shift['office_hour_type'])){
+            return response()->json([
+                'status'=>'fail',
+                'messages'=>['Jam kantor tidak ada ']
+            ]);
+        }
+
+        //holiday
+        $holidays = Holiday::leftJoin('outlet_holidays', 'holidays.id_holiday', 'outlet_holidays.id_holiday')
+                            ->leftJoin('date_holidays', 'holidays.id_holiday', 'date_holidays.id_holiday')
+                            ->where('id_outlet', $office)
+                            ->where(function($p1) use($post) {
+                                $p1->whereYear('date_holidays.date', $post['year'])
+                                    ->whereMonth('date_holidays.date', $post['month'])
+                                    ->orWhere(function($p2) use($post){
+                                        $p2->where('holidays.yearly', '1')
+                                            ->whereMonth('date_holidays.date', $post['month']);
+                                    });
+                            })
+                            ->select(
+                                'holidays.holiday_name',
+                                'date_holidays.date'
+                            )
+                            ->orderBy('date_holidays.date')
+                            ->get()->toArray();
+        $data_holidays = [];
+        foreach($holidays as $h){
+            if(isset($data_holidays[$h['holiday_name']])){
+                $data_holidays[$h['holiday_name']]['date'][] = MyHelper::dateFormatInd($h['date'], true, false, true);
+            }else{
+                $h_holidays[$h['holiday_name']]['holiday_name'] = $h['holiday_name'];
+                $data_holidays[$h['holiday_name']]['date'][] = MyHelper::dateFormatInd($h['date'], true, false, true);
+            }
+        }   
+        $send_holidays = [];
+        $i = 0;
+        foreach($data_holidays as $key => $dh){
+            $send_holidays[$i]['event_name'] = $key;
+            $send_holidays[$i]['date'] = $dh['date'];
+            $i++;
+        }
+
+        //overtime
+        $overtimes = EmployeeOvertime::join('users','users.id','employee_overtime.id_employee')->where('employee_overtime.id_employee', $employee)->whereMonth('date', $post['month'])->whereYear('date', $post['year'])->whereNotNull('approve_by')->whereNull('reject_at')->select('users.name','employee_overtime.*')->orderBy('employee_overtime.date')->get()->toArray();
+        $data_overtimes = [];
+        foreach($overtimes as $o){
+            $array_duration = explode(':',$o['duration']);
+            $duration = '';
+            if($array_duration[0]>0){       
+                $duration = (int)$array_duration[0]. ' Jam'; 
+            }
+
+            if($array_duration[1]>0){     
+                if($duration!=''){
+                    $duration = $duration.' '.(int)$array_duration[1]. ' Menit'; 
+                }else{
+                    $duration = (int)$array_duration[1]. ' Menit'; 
+                }  
+            }
+
+            if($type_shift['office_hour_type'] == 'Without Shift'){
+                $office_hour_start = date('H:i', strtotime($type_shift['office_hour_start']));
+                $office_hour_end = date('H:i', strtotime($type_shift['office_hour_end']));
+            }else{
+                $schedule_date = EmployeeScheduleDate::join('employee_schedules','employee_schedules.id_employee_schedule','employee_schedule_dates.id_employee_schedule')->where('employee_schedules.id',$employee)->whereDate('employee_schedule_dates.date', $o['date'])->first();
+                if(empty($schedule_date)){
+                    return response()->json([
+                        'status'=>'fail',
+                        'messages'=>['Jadwal belum dibuat']
+                    ]);
+                }
+                $shift = EmployeeOfficeHourShift::where('id_employee_office_hour', $type_shift['id_employee_office_hour'])->where('shift_name',$schedule_date['shift'])->first();
+                $office_hour_start = date('H:i', strtotime($shift['shift_start']));
+                $office_hour_end = date('H:i', strtotime($shift['shift_end']));
+            }
+
+            if($o['time']=='before'){
+                $duration_ovt = strtotime($o['duration']);
+                $start = strtotime($office_hour_start);
+                $diff = $start - $duration_ovt;
+                $hour = floor($diff / (60*60));
+                $minute = floor(($diff - ($hour*60*60))/(60));
+                $second = floor(($diff - ($hour*60*60))%(60));
+                $new_time =  date('H:i', strtotime($hour.':'.$minute.':'.$second));
+                $start_ovt = $new_time;
+                $end_ovt = $office_hour_start;
+            }elseif($o['time']=='after'){
+                $secs = strtotime($o['duration'])-strtotime("00:00:00");
+                $new_time = date("H:i",strtotime($office_hour_end)+$secs);
+                $start_ovt = $office_hour_end;
+                $end_ovt = $new_time;
+            }else{
+                return false;
+            }
+
+            $data_overtimes[] = [
+                'name' => $o['name'],
+                'duration' => $duration,
+                'date' => MyHelper::dateFormatInd($o['date'], true, false, true).' '.$start_ovt.' - '.$end_ovt,
+                'note' => $o['notes'] ? $o['notes'] : 'Lembur',
+            ];
+        }
+
+        //timee off quota
+        $time_off_this_employee = EmployeeTimeOff::where('id_employee', $employee)->whereNotNull('approve_by')->whereNull('reject_at')->whereYear('date',$post['year'])->where('use_quota_time_off', 1)->count();
+        $time_off_quota = $time_off_quota - $time_off_this_employee;
+
+
+        $time_off = EmployeeTimeOff::join('users','users.id','employee_time_off.id_employee')->where('employee_time_off.id_outlet',$office)->whereNotNull('employee_time_off.approve_by')->whereNull('employee_time_off.reject_at')->whereMonth('employee_time_off.date',$post['month'])->whereYear('employee_time_off.date',$post['year'])->select('users.name','employee_time_off.*')->orderBy('employee_time_off.date')->get()->toArray();
+        $data_time_off = [];
+        foreach($time_off as $to){
+            if(isset($data_time_off[$to['name'].'_'.$to['type']])){
+                $data_time_off[$to['name'].'_'.$to['type']]['name_employee'] = $to['name'];
+                $data_time_off[$to['name'].'_'.$to['type']]['date'][] = MyHelper::dateFormatInd($to['date'], true, false, true);
+                $data_time_off[$to['name'].'_'.$to['type']]['total'] = $data_time_off[$to['name'].'_'.$to['type']]['total'] + 1;
+            }else{
+                $data_time_off[$to['name'].'_'.$to['type']]['name_employee'] = $to['name'];
+                $data_time_off[$to['name'].'_'.$to['type']]['type'] = $to['type'];
+                $data_time_off[$to['name'].'_'.$to['type']]['date'][] = MyHelper::dateFormatInd($to['date'], true, false, true);
+                $data_time_off[$to['name'].'_'.$to['type']]['total'] = 1; 
+            }
+        }
+
+        $send_time_off = [];
+        $i = 0;
+        foreach($data_time_off as $key => $dt){
+            $send_time_off[$i] = $dt;
+            $i++;
+        }
+
+        $data = [
+            'quota_time_off' => $time_off_quota,
+            'event'          => $send_holidays,
+            'time_off'       => $send_time_off,
+            'overtime'       => $data_overtimes,
+        ];
+
+        return response()->json(MyHelper::checkGet($data));
+ 
+
     }
 
 }

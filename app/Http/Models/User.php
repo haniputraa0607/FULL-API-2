@@ -379,6 +379,10 @@ class User extends Authenticatable
     {
         return $this->hasMany(\Modules\Employee\Entities\EmployeeAttendanceLog::class, 'id_employee_attendance', 'id_employee_attendance');
     }
+    public function outlet_attendance_logs()
+    {
+        return $this->hasMany(\Modules\Employee\Entities\EmployeeOutletAttendanceLog::class, 'id_employee_outlet_attendance', 'id_employee_outlet_attendance');
+    }
 
     public function quest_user_redemption() {
     	return $this->hasMany(\Modules\Quest\Entities\QuestUserRedemption::class, 'id_user', 'id');

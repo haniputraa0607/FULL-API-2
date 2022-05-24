@@ -499,7 +499,14 @@ class XenditController extends Controller
         CustomHttpClient::setIdReference($external_id);
         $method = strtoupper($method);
 
-        $outlet = Outlet::join('transactions', 'transactions.id_outlet', 'outlets.id_outlet')->with('xendit_account')->where('transaction_receipt_number', $external_id)->first();
+        if(substr_count($external_id,"-") >= 2){
+            $trxReceiptnumber = TransactionAcademyInstallment::where('installment_receipt_number', $external_id)
+                        ->join('transaction_academy', 'transaction_academy.id_transaction_academy', 'transaction_academy_installment.id_transaction_academy')
+                        ->join('transactions', 'transactions.id_transaction', 'transaction_academy.id_transaction')->first()['transaction_receipt_number']??null;
+            $outlet = Outlet::join('transactions', 'transactions.id_outlet', 'outlets.id_outlet')->with('xendit_account')->where('transaction_receipt_number', $trxReceiptnumber)->first();
+        }else{
+            $outlet = Outlet::join('transactions', 'transactions.id_outlet', 'outlets.id_outlet')->with('xendit_account')->where('transaction_receipt_number', $external_id)->first();
+        }
         $outlet_code = $outlet->outlet_code??null;
         $redirect_url = str_replace(
             ['%order_id%', '%type%', '%outlet_code%', '%transaction_from%'],

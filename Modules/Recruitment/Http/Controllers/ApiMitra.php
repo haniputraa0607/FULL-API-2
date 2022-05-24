@@ -810,7 +810,7 @@ class ApiMitra extends Controller
 			return  $todayShift;
 		}
 
-		$shift = $this->getOutletShift($hs->id_outlet, null, null, $id_user_hair_stylist);
+		$shift = $this->getOutletShift($hs->id_outlet, null, true, $id_user_hair_stylist);
 
 		$todayShift = HairstylistSchedule::join(
 			'hairstylist_schedule_dates', 
@@ -819,7 +819,7 @@ class ApiMitra extends Controller
 		)
 		->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
 		->where('date', date('Y-m-d'))
-		->where('shift', $shift)
+		->whereIn('shift', $shift)
 		->first();
 
 		return $todayShift;

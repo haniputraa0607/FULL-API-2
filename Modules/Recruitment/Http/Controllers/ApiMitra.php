@@ -534,12 +534,12 @@ class ApiMitra extends Controller
 		->where('shift', $mitraSchedule->shift)
 		->first()['shift'] ?? null;
        
-        $attendace = HairstylistAttendance::where('id_hairstylist_schedule_date', $mitraSchedule->id_hairstylist_schedule_date)
+        $attendance = HairstylistAttendance::where('id_hairstylist_schedule_date', $mitraSchedule->id_hairstylist_schedule_date)
         ->where('id_user_hair_stylist', $id_user_hair_stylist)
         ->whereDate('attendance_date', date('Y-m-d', strtotime($today)))
         ->first();
-        $clock_in = $attendace->clock_in ?? null;
-        $clock_out = $attendace->clock_out ?? null;
+        $clock_in = $attendance->clock_in ?? null;
+        $clock_out = $attendance->clock_out ?? null;
 		
         if($mitraSchedule){
             $start = date('Y-m-d',strtotime($mitraSchedule->date))." ".$mitraSchedule->time_start;
@@ -547,8 +547,8 @@ class ApiMitra extends Controller
             $now = date('Y-m-d H:i:s');
 
             if($start <= $now && $end >= $now && !$clock_in){
-				if($attendace){
-					$pending = HairstylistAttendanceLog::where('id_hairstylist_attendance', $attendace['id_hairstylist_attendance'])->first();
+				if($attendance){
+					$pending = HairstylistAttendanceLog::where('id_hairstylist_attendance', $attendance['id_hairstylist_attendance'])->first();
 					if($pending){
 						if($pending['status'] == 'Pending'){
 							$status['messages'][] = "Mohon menunggu absensi disetujui terlebih dahulu. ";
@@ -775,6 +775,9 @@ class ApiMitra extends Controller
 
 	public function setTimezone()
 	{
+		if (!request()->user()->outlet) {
+			return MyHelper::setTimezone(7);
+		}
 		if (!request()->user()->outlet->city) {
 			throw new \Exception('Incomplete Outlet Data. Contact CS');
 		}

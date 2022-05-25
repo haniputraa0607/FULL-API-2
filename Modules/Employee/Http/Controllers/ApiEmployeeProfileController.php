@@ -237,22 +237,9 @@ class ApiEmployeeProfileController extends Controller
        return MyHelper::checkGet($data);
    }
    public function faq_terpopuler(Request $request) {
-       $data = EmployeeFaq::leftjoin('employee_faq_logs','employee_faq_logs.id_employee_faq','employee_faqs.id_employee_faq')->select(
-               'employee_faqs.*',DB::raw('
-                                        count(
-                                        employee_faq_logs.id_employee_faq
-                                        ) as jumlah
-                                    ')
-       )->groupby('employee_faqs.id_employee_faq')->orderby('jumlah','desc')->orderby('created_at','asc')->take(6)->get();
-       return MyHelper::checkGet($data);
-   }
-   public function detail_faq(Request $request) {
-       $data = EmployeeFaq::where('id_employee_faq',$request->id_employee_faq)->first();
-       if($data){
-           $logs = EmployeeFaqLog::create([
-               'id_employee_faq'=>$request->id_employee_faq
-           ]);
-       }
+       $data = EmployeeFaqLog::join(
+               'employee_faqs','employee_faqs.id_employee_faq','employee_faq_logs.id_employee_faq'
+       )->take(6)->get();
        return MyHelper::checkGet($data);
    }
    //privasi

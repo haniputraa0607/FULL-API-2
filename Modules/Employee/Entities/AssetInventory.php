@@ -8,7 +8,7 @@ class AssetInventory extends Model
 {
     protected $table = 'asset_inventorys';
 
-    protected $primaryKey = 'id_asset_inventory';
+    protected $primaryKey = 'id_asset_inventory_log';
     
     protected $fillable = [
         'id_asset_inventory_category',

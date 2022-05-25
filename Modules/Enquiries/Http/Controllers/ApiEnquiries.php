@@ -804,25 +804,30 @@ class ApiEnquiries extends Controller
         $categoryId = (array)$parentCategory['child'];
         $categoryId = $categoryId[$data['enquiry_category']];
 
-        $data['enquiry_email'] = $request->user()->email;
+        $dataUser = $request->user();
+        $data['enquiry_email'] = $dataUser->email;
         $data['enquiry_name'] = (!empty($request->user()->name) ? $request->user()->name:$request->user()->fullname);
         $idUser = (!empty($request->user()->id) ? $request->user()->id:$request->user()->id_user_hair_stylist);
         $phone = (!empty($request->user()->phone) ? $request->user()->phone:$request->user()->phone_number);
         if(!empty(env('TICKETING_BASE_URL')) && !empty(env('TICKETING_API_KEY')) && !empty(env('TICKETING_API_SECRET'))){
             $fileCount = count($data['file']??[]);
             $content = 'Name: '.$data['enquiry_name'].'<br>';
+            if(!empty($dataUser)){
+                $content .= 'Phone: '.$dataUser->phone.'<br>';
+                $content .= 'Email: '.$dataUser->email.'<br>';
+            }
 
             if(!empty($data['transaction_receipt_number'])){
                 $content .= 'Receipt Number: '.$data['transaction_receipt_number'].'<br><br>';
             }elseif (!empty($data['id_outlet'])){
                 $outlet = Outlet::where('id_outlet', $data['id_outlet'])->first();
                 $content .= 'Outlet code: '.$outlet['outlet_code'].'<br>';
-                $content .= 'Outlet name: '.$outlet['outlet_name'].'<br><br>';
+                $content .= 'Outlet name: '.$outlet['outlet_name'].'<br>';
             }
-            $content .= $data['enquiry_content'];
+            $content .= '<br>'.$data['enquiry_content'];
 
             $dataSend = [
-                'title' => $data['enquiry_subject']??'Global',
+                'title' => ($data['enquiry_subject']??'Global').(!empty($data['transaction_receipt_number'])? ' ['.$data['transaction_receipt_number'].']':''),
                 'guest_email' => $data['enquiry_email'],
                 'priority' => 1,
                 'catid' => $parentCategoryID,

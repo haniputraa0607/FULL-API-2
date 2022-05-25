@@ -46,6 +46,8 @@ class Employee extends Model
         'end_date',
         'bank_account_name',
         'bank_account_number',
+        'id_bank_name',
+        'status_employee',
         'created_at',
         'updated_at',
     ];

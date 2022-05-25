@@ -24,17 +24,16 @@ use Modules\Employee\Http\Requests\Reimbursement\history;
 use Modules\Employee\Http\Requests\InputFile\CreateFile;
 use Modules\Employee\Http\Requests\InputFile\UpdateFile;
 use Modules\Employee\Http\Requests\update_pin;
-use Modules\Employee\Http\Requests\CreatePerubahanData;
+use Modules\Employee\Http\Requests\AssetInventory\CreateLoan;
+use Modules\Employee\Http\Requests\AssetInventory\CreateReturn;
 use App\Http\Models\User;
 use Session;
 use DB;
-use Modules\Employee\Entities\QuestionEmployee;
-use Modules\Employee\Entities\EmployeeReimbursement;
-use Modules\Employee\Entities\EmployeeFile;
-use Modules\Employee\Entities\EmployeeEmergencyContact;
-use Modules\Employee\Entities\EmployeePerubahanData;
-use Modules\Employee\Entities\EmployeeFaq;
-use Modules\Employee\Entities\EmployeeFaqLog;
+use Modules\Employee\Entities\CategoryAssetInventory;
+use Modules\Employee\Entities\AssetInventory;
+use Modules\Employee\Entities\AssetInventoryLoan;
+use Modules\Employee\Entities\AssetInventoryLog;
+use Modules\Employee\Entities\AssetInventoryReturn;
 
 class ApiEmployeeAssetInventoryController extends Controller
 {
@@ -44,99 +43,69 @@ class ApiEmployeeAssetInventoryController extends Controller
         if (\Module::collections()->has('Autocrm')) {
             $this->autocrm  = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
         }
-        $this->saveFile = "document/asset_inventory/"; 
+        $this->saveFile = "document/asset_inventory/log/"; 
+        $this->saveFileLoan = "document/asset_inventory/loan/"; 
+        $this->saveFileReturn = "document/asset_inventory/return/"; 
     }
-   public function info() {
-       $profile = Employee::join('users','users.id','employees.id_user')
-               ->where(array('users.id'=>Auth::user()->id))
+   public function history() {
+       $user = AssetInventoryLog::join('asset_inventorys','asset_inventorys.id_asset_inventory','asset_inventory_logs.id_asset_inventory')
                ->select([
-                   'name',
-                   'email',
-                   'gender',
-                   'birthplace',
-                   'birthday',
-                   'phone',
-                   'marital_status',
-                   'religion',
-                   'card_number',
-                   'address_ktp',
-                   'address_domicile',
-                   'blood_type'
+                   'id_asset_inventory_log',
+                   'name_asset_inventory as name',
+                   'code',
+                   'status_asset_inventory as status',
+                   'type_asset_inventory as type',
+                   'asset_inventory_logs.created_at as date_create'
                ])
-               ->first();
-       if($profile){
-           $profile->validity_period = 'Permanen';
-           $profile->id_card_type = "KTP";
+               ->orderby('asset_inventory_logs.created_at','desc')
+               ->get();
+       
+        return MyHelper::checkGet($user);   
+   }
+   public function category_asset() {
+       $user = CategoryAssetInventory::select([
+            'id_asset_inventory_category',
+            'name_category_asset_inventory'
+        ])->get();
+        return MyHelper::checkGet($user);   
+   }
+   public function available_asset(Request $request) {
+        $user = AssetInventory::leftjoin('asset_inventory_loans','asset_inventory_loans.id_asset_inventory','asset_inventorys.id_asset_inventory')
+                ->leftjoin('asset_inventory_logs','asset_inventory_logs.id_asset_inventory','asset_inventorys.id_asset_inventory')
+                ->where([
+                    'id_asset_inventory_category'=>$request->id_asset_inventory_category
+                ])->select([
+                    'asset_inventorys.id_asset_inventory',
+                    'asset_inventorys.name_asset_inventory',
+                    'asset_inventorys.code',
+                    'asset_inventorys.id_asset_inventory_category',
+                    'asset_inventorys.qty',
+                    DB::raw('
+                        sum(
+                            CASE WHEN
+                            asset_inventory_loans.status_loan = "Active" or asset_inventory_logs.status_asset_inventory != "Rejected" THEN 1 ELSE 0
+                            END
+                        ) as jumlah
+                    ')
+                ])
+                ->groupby('id_asset_inventory')
+                ->get();
+        $available = array();
+        foreach ($user as $value) {
+            if($value['qty'] > $value['jumlah']){
+                $available[]=$value;
+            }
         }
-       return MyHelper::checkGet($profile);
+        return MyHelper::checkGet($available);   
    }
-   public function payroll() {
-       $profile = Employee::join('users','users.id','employees.id_user')
-               ->where(array('users.id'=>Auth::user()->id))
-               ->select([
-                   'bpjs_ketenagakerjaan',
-                   'bpjs_kesehatan',
-                   'npwp',
-                   'bank_name',
-                   'bank_account_number',
-                   'bank_account_name',
-               ])
-               ->first();
-       return MyHelper::checkGet($profile);
-   }
-   public function ketenagakerjaan() {
-       $profile = Employee::join('users','users.id','employees.id_user')
-               ->leftjoin('outlets','outlets.id_outlet','users.id_outlet')
-               ->leftjoin('roles','roles.id_role','users.id_role')
-               ->leftjoin('departments','departments.id_department','roles.id_department')
-               ->where(array('users.id'=>Auth::user()->id))
-               ->first();
-       $validity_period = '';
-       if(isset($profile->start_date)&&$profile->start_date < date('Y-m-d')){
-          $awal  = date_create($profile->start_date);
-          $akhir = date_create();
-          $diff = date_diff( $awal, $akhir );
-          $validity_period = $diff->y.' Tahun '.$diff->m.' Bulan '.$diff->d.' Hari';
-       }
-       $response = array(
-           'id' => $profile->id,
-           'barcode'=>$profile->id_employee,
-           'companies'=>$profile->outlet_name,
-           'branch'=>'Pusat',
-           'departement'=>$profile->department_name,
-           'position'=>$profile->role_name,
-           'status_employee'=>"Karyawan Kontrak",
-           'start_date'=>$profile->start_date,
-           'end_date'=>$profile->end_date,
-           'validity_period'=>$validity_period
-       );
-       return MyHelper::checkGet($response);
-   }
-   public function emergency_contact() {
-       $data = EmployeeEmergencyContact::where(array('id_user'=>Auth::user()->id))->paginate(10);
-       return MyHelper::checkGet($data);
-   }
-   
-   //files
-   public function category_file() {
-       $data = Setting::where('key','file_employee')->first();
-       if($data){
-           $data = json_decode($data['value_text']);
-       }
-       return MyHelper::checkGet($data);
-   }
-   public function file() {
-       $data = EmployeeFile::where('id_user',Auth::user()->id)->paginate(10);
-       return MyHelper::checkGet($data);
-   }
-   public function create_file(CreateFile $request) {
+   //loan
+   public function create_loan(CreateLoan $request) {
        $post = $request->all();
-       $post['id_user'] = Auth::user()->id;
        if(!empty($post['attachment'])){
            $file = $request->file('attachment');
             $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, $file->getClientOriginalExtension());
             if (isset($upload['status']) && $upload['status'] == "success") {
-                    $post['attachment'] = $upload['path'];
+                    $attachment = $upload['path'];
                 } else {
                     $result = [
                         'status'   => 'fail',
@@ -145,26 +114,88 @@ class ApiEmployeeAssetInventoryController extends Controller
                     return $result;
                 }
             }
-       $profile = EmployeeFile::create($post);
-       return MyHelper::checkGet($profile);
+        $logs = AssetInventoryLog::create([
+            'id_user'=>Auth::user()->id,
+            'id_asset_inventory'=>$request->id_asset_inventory,
+        ]);
+        $loan = AssetInventoryLoan::create([
+            'id_asset_inventory_log'=>$logs->id_asset_inventory_log,
+            'id_asset_inventory'=>$request->id_asset_inventory,
+            'long'=>$request->long,
+            'long_loan'=>$request->long_loan,
+            'notes'=>$request->notes,
+            'attachment'=>$attachment
+        ]);
+        $available = AssetInventoryLog::leftjoin('asset_inventory_loans','asset_inventory_loans.id_asset_inventory_log','asset_inventory_logs.id_asset_inventory_log')
+                ->where(array('asset_inventory_logs.id_asset_inventory_log'=>$logs->id_asset_inventory_log))
+                ->first();
+        return MyHelper::checkGet($available);   
    }
-   public function detail_file(Request $request) {
-       $post = $request->all();
-       $profile = EmployeeFile::where(array(
-               'id_employee_file'=>$request->id_employee_file,
-               'id_user'=>Auth::user()->id
-               )
-       )->first();
-       return MyHelper::checkGet($profile);
+   public function loan_asset(Request $request) {
+        $available = AssetInventoryLoan::join('asset_inventory_logs','asset_inventory_logs.id_asset_inventory_log','asset_inventory_loans.id_asset_inventory_log')
+                ->join('asset_inventorys','asset_inventorys.id_asset_inventory','asset_inventory_loans.id_asset_inventory')
+                ->where([
+                'status_loan'=>"Active",
+                'id_user'=>Auth::user()->id
+                ])
+                ->select([
+                    'id_asset_inventory_loan',
+                    'asset_inventorys.name_asset_inventory',
+                    'asset_inventorys.code',
+                    'qty_logs as qty'
+                ])
+                ->paginate(10);
+        return MyHelper::checkGet($available);   
    }
-   public function update_file(UpdateFile $request) {
+   public function detail_loan(Request $request) {
+        $available = AssetInventoryLoan::join('asset_inventory_logs','asset_inventory_logs.id_asset_inventory_log','asset_inventory_loans.id_asset_inventory_log')
+                ->join('asset_inventorys','asset_inventorys.id_asset_inventory','asset_inventory_loans.id_asset_inventory')
+                ->where([
+                'status_loan'=>"Active",
+                'id_asset_inventory_loan'=>$request->id_asset_inventory_loan,
+                'id_user'=>Auth::user()->id
+                ])
+                ->select([
+                    'asset_inventory_loans.*',
+                    'asset_inventorys.*',
+                    'asset_inventory_logs.attachment as attachment_foto',
+                ])
+                ->first();
+        $response = [
+            'code' => $available->code,
+            'name' => $available->name_asset_inventory,
+            'start_date' => date('d/m/Y', strtotime($available->start_date_loan)),
+            'end_date' => date('d/m/Y', strtotime($available->end_date_loan)),
+            'long_loan' => $available->long.' '.$available->long_loan,
+            'notes' => $available->notes,
+            'attachment' => $available->attachment_foto,
+        ];
+        return MyHelper::checkGet($response);   
+   }
+   public function loan_list_return(Request $request) {
+        $available = AssetInventoryLoan::join('asset_inventory_logs','asset_inventory_logs.id_asset_inventory_log','asset_inventory_loans.id_asset_inventory_log')
+                ->join('asset_inventorys','asset_inventorys.id_asset_inventory','asset_inventory_loans.id_asset_inventory')
+                ->where([
+                'status_loan'=>"Active",
+                'id_user'=>Auth::user()->id
+                ])
+                ->select([
+                    'id_asset_inventory_loan',
+                    'asset_inventorys.name_asset_inventory',
+                    'asset_inventorys.code'
+                ])
+                ->get();
+        return MyHelper::checkGet($available);   
+   }
+   
+   //return 
+   public function create_return(CreateReturn $request) {
        $post = $request->all();
-       $profile = EmployeeFile::where(array('id_employee_file'=>$request->id_employee_file))->first();
        if(!empty($post['attachment'])){
            $file = $request->file('attachment');
             $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, $file->getClientOriginalExtension());
             if (isset($upload['status']) && $upload['status'] == "success") {
-                    $profile['attachment'] = $upload['path'];
+                    $attachment = $upload['path'];
                 } else {
                     $result = [
                         'status'   => 'fail',
@@ -173,158 +204,30 @@ class ApiEmployeeAssetInventoryController extends Controller
                     return $result;
                 }
             }
-       if(!empty($post['category'])){
-           $profile['category'] = $post['category'];
-            }
-       if(!empty($post['notes'])){
-           $profile['notes'] = $post['notes'];
-            }
-         $profile->save();
-       return MyHelper::checkGet($profile);
+        $loan = AssetInventoryLoan::where('id_asset_inventory_loan',$request->id_asset_inventory_loan)->first();
+        if(empty($loan)){
+            $result = [
+                        'status'   => 'fail',
+                        'messages' => ['Loan not found']
+                    ];
+                    return $result;
+        }
+        $logs = AssetInventoryLog::create([
+            'id_user'=>Auth::user()->id,
+            'id_asset_inventory'=>$loan->id_asset_inventory,
+            'type_asset_inventory'=>"Return"
+        ]);
+        $return = AssetInventoryReturn::create([
+            'id_asset_inventory_log'=>$logs->id_asset_inventory_log,
+            'id_asset_inventory'=>$loan->id_asset_inventory,
+            'id_asset_inventory_loan'=>$request->id_asset_inventory_loan,
+            'date_return'=>date('Y-m-d'),
+            'notes'=>$request->notes,
+            'attachment'=>$attachment
+        ]);
+        $available = AssetInventoryLog::leftjoin('asset_inventory_returns','asset_inventory_returns.id_asset_inventory_log','asset_inventory_logs.id_asset_inventory_log')
+                ->where(array('asset_inventory_logs.id_asset_inventory_log'=>$logs->id_asset_inventory_log))
+                ->first();
+        return MyHelper::checkGet($available);   
    }
-   public function delete_file(Request $request)
-    {
-        $deletefile = EmployeeFile::where(array(
-               'id_employee_file'=>$request->id_employee_file,
-               'id_user'=>Auth::user()->id
-                )
-               )->delete();
-            if ($deletefile == 1) {
-                $result = [
-                    'status'    => 'success',
-                    'result'    => ['File has been deleted']
-                ];
-            } else {
-                $result = [
-                    'status'    => 'fail',
-                    'messages'    => ['File Not Found']
-                ];
-            }
-        return $result;
-    }
-    
-    //update pin
-    public function update_pin(update_pin $request) {
-       $post = $request->all();
-       $profile = User::where(array('id'=>Auth::user()->id))->update([
-           'password'=> bcrypt($request->new_password)
-       ]);
-       return MyHelper::checkGet($profile);
-   }
-   
-   //perubahan data
-   public function category_perubahan_data() {
-       $data = Setting::where('key','request-perubahan-data-employee')->first();
-       if($data){
-           $data = json_decode($data['value_text']);
-       }
-       return MyHelper::checkGet($data);
-   }
-   public function create_perubahan_data(CreatePerubahanData $request) {
-       $post = $request->all();
-       $post['id_user'] = Auth::user()->id;
-       $profile = EmployeePerubahanData::create($post);
-       return MyHelper::checkGet($profile);
-   }
-   //faq
-   public function faq(Request $request) {
-       $data = EmployeeFaq::orderby('faq_question','asc')
-               ->where(function ($query) use ($request) {
-                   if($request->search != ''){
-                    $query->where('faq_question', 'like', "%".$request->search."%");   
-                   }
-                })->get();
-       return MyHelper::checkGet($data);
-   }
-   public function faq_terpopuler(Request $request) {
-       $data = EmployeeFaq::leftjoin('employee_faq_logs','employee_faq_logs.id_employee_faq','employee_faqs.id_employee_faq')->select(
-               'employee_faqs.*',DB::raw('
-                                        count(
-                                        employee_faq_logs.id_employee_faq
-                                        ) as jumlah
-                                    ')
-       )->groupby('employee_faqs.id_employee_faq')->orderby('jumlah','desc')->orderby('created_at','asc')->take(6)->get();
-       return MyHelper::checkGet($data);
-   }
-   public function detail_faq(Request $request) {
-       $data = EmployeeFaq::where('id_employee_faq',$request->id_employee_faq)->first();
-       if($data){
-           $logs = EmployeeFaqLog::create([
-               'id_employee_faq'=>$request->id_employee_faq
-           ]);
-       }
-       return MyHelper::checkGet($data);
-   }
-   //privasi
-   public function privacy_policy(){
-        $data = Setting::where('key','privacy_policy_employee')->first();
-         return MyHelper::checkGet($data);
-    }
-  
-    //Office Employee
-    public function total_employee(){
-      $profile = Employee::join('users','users.id','employees.id_user')
-               ->leftjoin('outlets','outlets.id_outlet','users.id_outlet')
-               ->leftjoin('roles','roles.id_role','users.id_role')
-               ->leftjoin('departments','departments.id_department','roles.id_department')
-               ->where(array('users.id_outlet'=>Auth::user()->id_outlet))
-               ->count();
-         return MyHelper::checkGet($profile);
-    }
-    public function list_employee(){
-      $profile = Employee::join('users','users.id','employees.id_user')
-               ->leftjoin('outlets','outlets.id_outlet','users.id_outlet')
-               ->leftjoin('roles','roles.id_role','users.id_role')
-               ->leftjoin('departments','departments.id_department','roles.id_department')
-               ->where(array('users.id_outlet'=>Auth::user()->id_outlet))
-               ->select([
-                   'id',
-                   'name',
-                   'phone',
-                   'department_name',
-               ])
-               ->get();
-         return MyHelper::checkGet($profile);
-    }
-    public function cuti_employee(){
-      $profile = Employee::join('users','users.id','employees.id_user')
-               ->leftjoin('outlets','outlets.id_outlet','users.id_outlet')
-               ->leftjoin('roles','roles.id_role','users.id_role')
-               ->leftjoin('departments','departments.id_department','roles.id_department')
-               ->join('employee_time_off','employee_time_off.id_employee','users.id')
-               ->where(array(
-                   'users.id_outlet'=>Auth::user()->id_outlet
-                   ))
-               ->whereNotNull('employee_time_off.approve_at')
-               ->WhereNull('employee_time_off.reject_at')
-               ->wheredate('employee_time_off.date',date('Y-m-d'))
-               ->select([
-                   'id',
-                   'name',
-                   'phone',
-                   'department_name'
-               ])
-               ->get();
-         return MyHelper::checkGet($profile);
-    }
-    public function detail_employee(Request $request){  
-      $profile = Employee::join('users','users.id','employees.id_user')
-               ->leftjoin('outlets','outlets.id_outlet','users.id_outlet')
-               ->leftjoin('roles','roles.id_role','users.id_role')
-               ->leftjoin('departments','departments.id_department','roles.id_department')
-               ->where(array(
-                   'users.id'=>$request->id_user
-                   ))
-               ->select([
-                   'id',
-                   'name',
-                   'email',
-                   'employees.id_employee',
-                   'phone',
-                   'role_name',
-                   'department_name'
-               ])
-               ->get();
-         return MyHelper::checkGet($profile);
-    }
 }

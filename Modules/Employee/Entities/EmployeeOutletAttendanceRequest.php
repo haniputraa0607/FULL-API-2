@@ -4,10 +4,10 @@ namespace Modules\Employee\Entities;
 
 use Illuminate\Database\Eloquent\Model;
 
-class EmployeeAttendanceRequest extends Model
+class EmployeeOutletAttendanceRequest extends Model
 {
-    protected $table = 'employee_attendance_requests';
-    protected $primaryKey = 'id_employee_attendance_request';
+    protected $table = 'employee_outlet_attendance_requests';
+    protected $primaryKey = 'id_employee_outlet_attendance_request';
     protected $fillable = [
         'id',
         'attendance_date',

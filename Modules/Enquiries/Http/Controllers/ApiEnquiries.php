@@ -813,7 +813,8 @@ class ApiEnquiries extends Controller
             $fileCount = count($data['file']??[]);
             $content = 'Name: '.$data['enquiry_name'].'<br>';
             if(!empty($dataUser)){
-                $content .= 'Phone: '.$dataUser->phone.'<br>';
+                $phone = '62'.substr($dataUser->phone,1);
+                $content .= 'Phone: <a target="_blank" href="https://wa.me/'.$phone.'">'.$dataUser->phone.'</a><br>';
                 $content .= 'Email: '.$dataUser->email.'<br>';
             }
 

@@ -379,7 +379,12 @@ class ApiHairStylistController extends Controller
                 });
             }
         }
-        $data = $data->select('user_hair_stylist.*', 'approver.name as approve_by_name')->paginate(25);
+        $data = $data->select('user_hair_stylist.*', 'approver.name as approve_by_name');
+        if(isset($post['without_paginate'])){
+            $data = $data->get()->toArray();
+        }else{
+            $data = $data->paginate(25);
+        }
         return response()->json(MyHelper::checkGet($data));
     }
 

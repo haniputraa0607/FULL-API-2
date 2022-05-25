@@ -258,6 +258,17 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         });
     });
 
+    Route::group(['prefix' => 'attendance-request'], function () {
+        Route::post('check','ApiEmployeeAttendanceController@checkDateRequest');
+        Route::post('request','ApiEmployeeAttendanceController@storeRequest');
+        Route::any('histories','ApiEmployeeAttendanceController@historiesRequest');
+    });
+    Route::group(['prefix' => 'attendance-outlet-request'], function () {
+        Route::post('check','ApiEmployeeAttendaceOutletController@checkDateRequest');
+        Route::post('request','ApiEmployeeAttendaceOutletController@storeRequest');
+        Route::any('histories','ApiEmployeeAttendaceOutletController@historiesRequest');
+    });
+
 });
 
 Route::group([ 'middleware' => ['auth_client', 'scopes:employee-apps'], 'prefix' => 'employee'], function () {

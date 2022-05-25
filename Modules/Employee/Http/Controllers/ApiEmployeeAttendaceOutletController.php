@@ -24,6 +24,7 @@ use App\Http\Models\Setting;
 use DB;
 use Modules\Employee\Entities\EmployeeOfficeHour;
 use Modules\Employee\Entities\EmployeeOutletAttendance;
+use Modules\Employee\Entities\EmployeeOutletAttendanceRequest;
 use Modules\Employee\Entities\EmployeeOutletAttendanceLog;
 
 class ApiEmployeeAttendaceOutletController extends Controller
@@ -660,4 +661,94 @@ class ApiEmployeeAttendaceOutletController extends Controller
             ],
         ];
     }
+
+    public function checkDateRequest(Request $request){
+        $post = $request->all();
+        $employee = $request->user();
+        $outlet = Outlet::where('id_outlet', $post['id_outlet'])->select('id_outlet','outlet_name', 'id_city')->first();
+        $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+        ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+
+        $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$employee['id'])->first();
+
+        if(empty($type_shift['office_hour_type'])){
+            return response()->json([
+                'status'=>'fail',
+                'messages'=>['Jam kantor tidak ada ']
+            ]);
+        }
+        $data = [
+           'shift' => null,
+           'schedule_in' => $type_shift['office_hour_start'] ?? null,
+           'schedule_out' => $type_shift['office_hour_end'] ?? null,
+        ];
+
+        if($type_shift['office_hour_type'] == 'Use Shift'){
+            $schedule_date = EmployeeScheduleDate::join('employee_schedules','employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule')
+                                                        ->join('users','users.id','employee_schedules.id')
+                                                        ->where('users.id', $employee['id'])
+                                                        ->whereDate('employee_schedule_dates.date', $post['date'])
+                                                        ->first();
+            if(!$schedule_date){
+                return response()->json(['status' => 'fail', 'messages' => ['Jadwal karyawan pada tanggal ini belum dibuat']]);
+            }
+
+            $data['shift'] = $schedule_date['shift'] ?? null;
+            $data['schedule_in'] = $schedule_date['time_start'] ? MyHelper::adjustTimezone(date('H:i', strtotime($schedule_date['time_start'])), $timeZone, 'H:i', true) : null;
+            $data['schedule_out'] = $schedule_date['time_end'] ? MyHelper::adjustTimezone(date('H:i', strtotime($schedule_date['time_end'])), $timeZone, 'H:i', true) : null;
+
+        }
+
+        return MyHelper::checkGet($data);
+    }
+
+    public function storeRequest(Request $request){
+        $post = $request->all();
+        $employee = $request->user();
+        $outlet = Outlet::where('id_outlet', $post['id_outlet'])->select('id_outlet','outlet_name', 'id_city')->first();
+        $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+        ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+
+        $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$employee['id'])->first();
+
+        if(empty($type_shift['office_hour_type'])){
+            return response()->json([
+                'status'=>'fail',
+                'messages'=>['Jam kantor tidak ada ']
+            ]);
+        }
+
+        if($type_shift['office_hour_type'] == 'Use Shift'){
+            $schedule_date = EmployeeScheduleDate::join('employee_schedules','employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule')
+                                                        ->join('users','users.id','employee_schedules.id')
+                                                        ->where('users.id', $employee['id'])
+                                                        ->whereDate('employee_schedule_dates.date', $post['date'])
+                                                        ->first();
+            if(!$schedule_date){
+                return response()->json(['status' => 'fail', 'messages' => ['Jadwal karyawan pada tanggal ini belum dibuat']]);
+            }
+        }
+
+        DB::beginTransaction();
+
+        $store = EmployeeOutletAttendanceRequest::create([
+            'id' => $employee['id'],
+            'id_outlet' => $outlet['id_outlet'],
+            'attendance_date' => $post['date'],
+            'clock_in' => $post['clock_in'] ? MyHelper::reverseAdjustTimezone(date('H:i:s', strtotime($post['clock_in'])), $timeZone, 'Y-m-d H:i:s', true) : null,
+            'clock_out' => $post['clock_out'] ? MyHelper::reverseAdjustTimezone(date('H:i:s', strtotime($post['clock_out'])), $timeZone, 'Y-m-d H:i:s', true) : null,
+            'notes' => $post['notes'],
+        ]);
+        if(!$store){
+            DB::rollBack();
+            return response()->json([
+                'status' => 'fail', 
+                'messages' => ['Gagal mengajukan permintaan presensi outlet']
+            ]);
+        }
+
+        DB::commit();
+        return response()->json(['status' => 'success', 'messages' => ['Berhasil mengajukan permintaan presensi outlet, silahkan menunggu persetujuan']]);
+    }
+
 }

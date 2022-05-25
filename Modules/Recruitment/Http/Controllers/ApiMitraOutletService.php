@@ -1327,7 +1327,13 @@ class ApiMitraOutletService extends Controller
     		$curTime = date('H:i:s', strtotime($dateTime));
     		$day = MyHelper::indonesian_date_v2($dateTime, 'l');
     		$day = str_replace('Jum\'at', 'Jumat', $day);
-
+			
+			$time_start = MyHelper::adjustTimezone($schedule['time_start'], $timezone, 'H:i', true);
+			$time_end = MyHelper::adjustTimezone($schedule['time_end'], $timezone, 'H:i', true);
+			$approve_ovt = false;
+			if($schedule['is_overtime'] == 1 && date('H:i') >= $time_start && date('H:i') <= $time_end){
+				$approve_ovt = true;
+			}
     		$outletSchedule = OutletSchedule::where('id_outlet', $user->id_outlet)->where('day', $day)->first();
     		$isHoliday = app('Modules\Outlet\Http\Controllers\ApiOutletController')->isHoliday($user->id_outlet);
     		$outletShift = OutletTimeShift::where('id_outlet_schedule', $outletSchedule->id_outlet_schedule)->where('shift',$schedule->shift)->first();
@@ -1336,6 +1342,9 @@ class ApiMitraOutletService extends Controller
     			$box = [];
     			$outlet_box = null;
     		}elseif ($isHoliday['status']) {
+    			$box = [];
+    			$outlet_box = null;
+    		}elseif (!$approve_ovt) {
     			$box = [];
     			$outlet_box = null;
     		}elseif($overtime->time == "after"){
@@ -1696,17 +1705,19 @@ class ApiMitraOutletService extends Controller
 		$shift_2 = HairStylistScheduleDate::join('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
 					->whereDate('hairstylist_schedule_dates.date',date('Y-m-d'))
 					->where('hairstylist_schedule_dates.is_overtime', 1)
-					->first();
+					->get()->toArray();
     	$box = OutletBox::where('id_outlet', $id_outlet)->with([
     		'hairstylist_schedule_dates.hairstylist_schedule.user_hair_stylist',
     		'hairstylist_schedule_dates' => function($q) use ($shift, $shift_2) {
     			$q->where('date', date('Y-m-d'))->where(function($q2) use($shift, $shift_2){
 					$q2->where('shift', $shift);
 					if($shift_2){
-						$q2->orWhere(function($q3) use($shift_2){
-							$q3->where('shift',$shift_2['shift']);
-							$q3->where('is_overtime', 1);
-						});
+						foreach($shift_2 as $s2){
+							$q2->orWhere(function($q3) use($s2){
+								$q3->where('shift',$s2['shift']);
+								$q3->where('is_overtime', 1);
+							});
+						}
 					}
 				});
     		}

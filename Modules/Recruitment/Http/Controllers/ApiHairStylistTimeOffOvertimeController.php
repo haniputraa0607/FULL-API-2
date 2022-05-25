@@ -472,7 +472,7 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                         $order = 'time_start';
                         $order_att = 'clock_in_requirement';
                     }
-                    $update_schedule = HairstylistScheduleDate::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->update([$order => $new_time,  'is_overtime' => 0]);
+                    $update_schedule = HairstylistScheduleDate::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->update([$order => $new_time,  'is_overtime' => 0, 'id_outlet_box' => null]);
                     $update_overtime = HairstylistOverTime::where('id_hairstylist_overtime', $post['id_hairstylist_overtime'])->update(['reject_at' => date('Y-m-d')]);
                     if(!$update_overtime || !$update_schedule){
                         DB::rollBack();

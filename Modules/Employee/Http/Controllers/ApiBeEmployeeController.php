@@ -20,6 +20,8 @@ use Modules\Employee\Http\Requests\status_approved;
 use Modules\Employee\Http\Requests\users_create_be;
 use App\Http\Models\User;
 use Session;
+use Modules\Disburse\Entities\BankName;
+
 class ApiBeEmployeeController extends Controller
 {
    public function create(users_create_be $request) {
@@ -178,6 +180,7 @@ class ApiBeEmployeeController extends Controller
                         return response()->json(['status' => 'fail', 'messages' => ['Failed upload document']]);
                     }
                 }
+                $update = array();
                 if((!empty($post['data_document']['document_type']) && $post['data_document']['document_type'] != 'Contract' ) ||
                     empty($post['data_document']['document_type'])){
                       
@@ -190,12 +193,13 @@ class ApiBeEmployeeController extends Controller
                              ]);
                      }
                     if($update && $post['update_type'] == 'Rejected'){
-                        Employee::where('id_employee', $post['id_employee'])->update(['user_hair_stylist_passed_status' => $post['user_hair_stylist_passed_status']]);
+                       $update = Employee::where('id_employee', $post['id_employee'])->update(['user_hair_stylist_passed_status' => $post['user_hair_stylist_passed_status']]);
                     }
                 }else{
-                    if(isset($post['start_date'])&&isset($post['start_date'])){
+                    if(isset($post['status_employee'])){
                      $update = Employee::where('id_employee', $post['id_employee'])->update([
                          'status_approved' => $post['update_type'],
+                         'status_employee' => $post['status_employee'],
                          'start_date'=>$post['start_date'],
                          'end_date'=>$post['end_date'],
                              ]);
@@ -260,4 +264,20 @@ class ApiBeEmployeeController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
         }
     }
+    public function reject(Request $request) {
+       $post = $request->json()->all();
+        if(isset($post['id_employee']) && !empty($post['id_employee'])){
+             $detail = Employee::where('id_employee',$post['id_employee'])
+                        ->update([
+                            'status'=>'rejected'
+                        ]);
+            return response()->json(MyHelper::checkGet($detail));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+   }
+    public function bank() {
+        $bank = BankName::get();
+       return response()->json(['status' => 'success', 'result' => $bank]);
+   }
 }

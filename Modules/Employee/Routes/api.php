@@ -45,6 +45,8 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
     });
     Route::group(['prefix' => 'be/recruitment'], function(){
         Route::any('/', 'ApiBeEmployeeController@index');
+        Route::get('bank', 'ApiBeEmployeeController@bank');
+        Route::post('reject', 'ApiBeEmployeeController@reject');
         Route::post('detail', 'ApiBeEmployeeController@detail');
         Route::post('create', 'ApiBeEmployeeController@create');
         Route::post('candidate', 'ApiBeEmployeeController@candidate');
@@ -73,6 +75,7 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('/detail', 'ApiBeEmployeeProfileController@detail_faq');
         Route::post('/update', 'ApiBeEmployeeProfileController@update_faq');
         Route::post('/delete', 'ApiBeEmployeeProfileController@delete_faq');
+        Route::post('/popular', 'ApiBeEmployeeProfileController@create_faq_popular');
       });
      Route::group(['prefix' => 'privacy-policy'], function(){
         Route::post('/', 'ApiBeEmployeeProfileController@privacy_policy');
@@ -81,10 +84,23 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
     });
     Route::group(['prefix' => 'be/asset-inventory'], function(){
         Route::group(['prefix' => 'category'], function(){
-        Route::get('/', 'ApiBeEmployeeAssetInventoryController@list_category');
-        Route::post('/create', 'ApiBeEmployeeAssetInventoryController@create_category');
-        Route::post('/delete', 'ApiBeEmployeeAssetInventoryController@delete_category');
+            Route::get('/', 'ApiBeEmployeeAssetInventoryController@list_category');
+            Route::post('/create', 'ApiBeEmployeeAssetInventoryController@create_category');
+            Route::post('/delete', 'ApiBeEmployeeAssetInventoryController@delete_category');
         });
+        Route::group(['prefix' => 'loan'], function(){
+            Route::get('/pending', 'ApiBeEmployeeAssetInventoryController@list_loan_pending');
+            Route::get('/list', 'ApiBeEmployeeAssetInventoryController@list_loan');
+            Route::post('/approve', 'ApiBeEmployeeAssetInventoryController@approve_loan');
+        });
+        Route::group(['prefix' => 'return'], function(){
+            Route::get('/pending', 'ApiBeEmployeeAssetInventoryController@list_return_pending');
+            Route::get('/list', 'ApiBeEmployeeAssetInventoryController@list_return');
+            Route::post('/approve', 'ApiBeEmployeeAssetInventoryController@approve_return');
+        });
+       
+        Route::post('/create', 'ApiBeEmployeeAssetInventoryController@create');
+        Route::post('/list', 'ApiBeEmployeeAssetInventoryController@list');
     });
     Route::any('attendance-setting','ApiEmployeeAttendanceController@setting');
     Route::group(['prefix' => 'attendance'], function () {
@@ -199,7 +215,6 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         Route::group(['prefix' => 'faq'], function(){
             Route::post('/', 'ApiEmployeeProfileController@faq');
             Route::post('/terpopuler', 'ApiEmployeeProfileController@faq_terpopuler');
-            Route::post('/detail', 'ApiEmployeeProfileController@detail_faq');
         });
         Route::group(['prefix' => 'privacy-policy'], function(){
             Route::get('/', 'ApiEmployeeProfileController@privacy_policy');
@@ -227,6 +242,20 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         Route::post('live_1','ApiEmployeeAttendaceOutletController@liveAttendance');
         Route::post('live_2','ApiEmployeeAttendaceOutletController@storeLiveAttendance');
         Route::any('histories','ApiEmployeeAttendaceOutletController@histories');
+    });
+    Route::group(['prefix' => 'asset-inventory'], function () {
+        Route::post('category','ApiEmployeeAssetInventoryController@category_asset');
+        Route::post('available','ApiEmployeeAssetInventoryController@available_asset');
+        Route::post('history','ApiEmployeeAssetInventoryController@history');
+        Route::group(['prefix' => 'loan'], function () {
+            Route::post('create','ApiEmployeeAssetInventoryController@create_loan');
+            Route::post('list','ApiEmployeeAssetInventoryController@loan_asset');
+            Route::post('detail','ApiEmployeeAssetInventoryController@detail_loan');
+        });
+        Route::group(['prefix' => 'return'], function () {
+            Route::post('loan','ApiEmployeeAssetInventoryController@loan_list_return');
+            Route::post('create','ApiEmployeeAssetInventoryController@create_return');
+        });
     });
 
     Route::group(['prefix' => 'attendance-request'], function () {

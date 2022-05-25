@@ -37,6 +37,7 @@ use Modules\Employee\Entities\EmployeeFile;
 use Modules\Employee\Entities\EmployeeEmergencyContact;
 use Modules\Employee\Entities\EmployeePerubahanData;
 use Modules\Employee\Entities\EmployeeFaq;
+use Modules\Employee\Entities\EmployeeFaqLog;
 
 class ApiBeEmployeeProfileController extends Controller
 {
@@ -171,7 +172,25 @@ class ApiBeEmployeeProfileController extends Controller
             }
         return $result;
     }
-    
+    public function create_faq_popular(Request $request) {
+       $post = $request->all();
+       if(isset($post['id_employee_faq'])){
+            $employee = EmployeeFaqLog::where('id_employee_faq',$post['id_employee_faq'])->count();
+            if($employee == 0){
+                EmployeeFaqLog::create($post);
+            }
+                $result = [
+                    'status'    => 'success',
+                    'result'    => ['Faq fas been updated']
+                ];
+            } else {
+                $result = [
+                    'status'    => 'fail',
+                    'messages'    => ['Id Employee Faq not found']
+                ];
+            }
+        return $result;
+   }
     //privacy_policy
     public function privacy_policy(){
         $data = Setting::where('key','privacy_policy_employee')->first();

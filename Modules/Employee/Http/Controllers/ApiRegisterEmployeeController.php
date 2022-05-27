@@ -32,7 +32,7 @@ class ApiRegisterEmployeeController extends Controller
         }
        $post['employee']['provider'] = MyHelper::cariOperator($post['employee']['phone']);
        $post['employee']['password'] = bcrypt($pin);
-       $post['employee']['id_city'] = $post['employee']['id_city_ktp'];
+       $post['employee']['id_city'] = $post['employee']['id_city_domicile'];
        $post['employee']['level'] = "Admin";
        $user = User::create($post['employee']);
        if($user){
@@ -156,10 +156,10 @@ class ApiRegisterEmployeeController extends Controller
                 }else{
                     Employee::create($post['employee']);
                 }
-                if(isset($post['employee']['id_city_ktp'])){
+                if(isset($post['employee']['id_city_domicile'])){
                     
                 $users = User::where('phone',$post['phone'])->update(array(
-                    'id_city'=>$post['employee']['id_city_ktp']
+                    'id_city'=>$post['employee']['id_city_domicile']
                 ));
                 }
                 if(isset($post['employee']['gender'])){

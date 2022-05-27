@@ -811,7 +811,9 @@ class ApiMitra extends Controller
 		}
 
 		$shift = $this->getOutletShift($hs->id_outlet, null, true, $id_user_hair_stylist);
-
+        if(empty($shift)){
+            $shift = [];
+        }
 		$todayShift = HairstylistSchedule::join(
 			'hairstylist_schedule_dates', 
 			'hairstylist_schedules.id_hairstylist_schedule', 

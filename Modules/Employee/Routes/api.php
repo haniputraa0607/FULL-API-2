@@ -127,6 +127,11 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('detail','ApiEmployeeAttendaceOutletController@detailPending');
         Route::post('update','ApiEmployeeAttendaceOutletController@updatePending');
     });
+    Route::group(['prefix' => 'attendance-outlet-request'], function () {
+        Route::post('list','ApiEmployeeAttendaceOutletController@listRequest');
+        Route::post('detail','ApiEmployeeAttendaceOutletController@detailRequest');
+        Route::post('update','ApiEmployeeAttendaceOutletController@updateRequest');
+    });
 
     Route::post('shift','ApiEmployeeController@shift');
 

@@ -967,9 +967,10 @@ class ApiEmployeeAttendanceController extends Controller
         if (!$log_req) {
             return [
                 'status' => 'fail',
-                'messages' => ['Selected pending attendance not found']
+                'messages' => ['Selected request attendance not found']
             ];
         }
+        DB::beginTransaction();
         $log_req->update(['status' => $request->status]);
         $final = true;
         if($request->status == 'Approved'){
@@ -982,6 +983,7 @@ class ApiEmployeeAttendanceController extends Controller
             $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$log_req['id'])->first();
 
             if(empty($type_shift['office_hour_type'])){
+                DB::rollBack();
                 return response()->json([
                     'status'=>'fail',
                     'messages'=>['Shift schedule has not been created']
@@ -993,6 +995,7 @@ class ApiEmployeeAttendanceController extends Controller
             $array_date = explode('-',$log_req['attendance_date']);
             $schedule = EmployeeSchedule::where('id', $log_req['id'])->where('id_outlet', $log_req['id_outlet'])->where('schedule_month', $array_date[1])->where('schedule_year', $array_date[0])->first();
             if(!$schedule && $type_shift['office_hour_type'] == 'Use Shift'){
+                DB::rollBack();
                 return response()->json([
                     'status'=>'fail',
                     'messages'=>['Schedule has not been created']
@@ -1008,6 +1011,7 @@ class ApiEmployeeAttendanceController extends Controller
             }
             $schedule_date = EmployeeScheduleDate::where('id_employee_schedule', $schedule['id_employee_schedule'])->whereDate('date', $log_req['attendance_date'])->first();
             if(!$schedule_date && $type_shift['office_hour_type'] == 'Use Shift'){
+                DB::rollBack();
                 return response()->json([
                     'status'=>'fail',
                     'messages'=>['Schedule date has not been created']
@@ -1037,6 +1041,7 @@ class ApiEmployeeAttendanceController extends Controller
             }
             
             if (isset($log_req['clock_out']) && !isset($log_req['clock_in'])) {
+                DB::rollBack();
                 return [
                     'status' => 'fail',
                     'messages' => ['Cant create Clock Out before create Clock In'],
@@ -1075,18 +1080,17 @@ class ApiEmployeeAttendanceController extends Controller
             }
         }
         if($final){
+            DB::commit();
             return [
                 'status' => 'success',
                 'messages' => ['Success to approve request attendance'],
             ];
         }else{
+            DB::rollBack();
             return [
                 'status' => 'fail',
                 'messages' => ['Failed to approve reequest attendance'],
             ];
         }
-
-
-        
     }
 }

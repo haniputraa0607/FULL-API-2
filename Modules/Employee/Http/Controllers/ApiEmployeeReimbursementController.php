@@ -26,6 +26,7 @@ use Session;
 use DB;
 use Modules\Employee\Entities\QuestionEmployee;
 use Modules\Employee\Entities\EmployeeReimbursement;
+use Modules\Product\Entities\ProductIcount;
 class ApiEmployeeReimbursementController extends Controller
 {
     public function __construct()
@@ -80,10 +81,16 @@ class ApiEmployeeReimbursementController extends Controller
        return MyHelper::checkGet($reimbursement);
    }
    public function name_reimbursement() {
-       $data = Setting::where('key','name_reimbursement_employee')->first();
-       if($data){
-           $data = json_decode($data['value_text']);
-       }
+       $data = ProductIcount::where([
+           'is_buyable'=>'true',
+           'is_sellable'=>'true',
+           'is_deleted'=>'false',
+           'is_suspended'=>'false',
+       ])->select([
+           'id_product_icount',
+           'name',
+           'code'
+       ])->get();
        return MyHelper::checkGet($data);
    }
    public function saldo_reimbursement(history $request){

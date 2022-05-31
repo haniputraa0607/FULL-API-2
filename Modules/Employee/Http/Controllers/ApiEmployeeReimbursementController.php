@@ -41,6 +41,7 @@ class ApiEmployeeReimbursementController extends Controller
        $post = $request->all();
        $post['id_user'] = Auth::user()->id;
        $post['date_reimbursement'] = date('Y-m-d H:i:s');
+       $post['due_date'] = date('Y-m-d H:i:s',strtotime('+1 months'));
        if(!empty($post['attachment'])){
            $file = $request->file('attachment');
             $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, $file->getClientOriginalExtension());
@@ -99,7 +100,7 @@ class ApiEmployeeReimbursementController extends Controller
            'status'=>"Approved"
        ))->select(DB::raw('
                         sum(CASE WHEN
-                   status = "Approved"  THEN price ELSE 0
+                   status = "Approved"  THEN price*qty ELSE 0
                    END) as saldo
                 ')
             )->first();

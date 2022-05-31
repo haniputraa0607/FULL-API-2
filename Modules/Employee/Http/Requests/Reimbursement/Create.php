@@ -20,9 +20,10 @@ class Create extends FormRequest
     public function rules()
 	{
 		return [
-			'name_reimbursement'		=> 'required',
+			'id_product_icount'		=> 'required',
 			'date_reimbursement'		=> 'required|date_format:"Y-m-d"',
 			'price'                         => 'required|integer',
+                        'qty'                         => 'required|integer',
 			'notes'                         => 'required',
 			'attachment'                    => 'required|max:5000',
         ];

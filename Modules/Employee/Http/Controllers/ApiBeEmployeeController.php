@@ -27,6 +27,13 @@ use App\Http\Models\Outlet;
 
 class ApiBeEmployeeController extends Controller
 {
+    public function __construct()
+    {
+        date_default_timezone_set('Asia/Jakarta');
+        if (\Module::collections()->has('Autocrm')) {
+            $this->autocrm  = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
+        }
+    }
    public function create(users_create_be $request) {
        $post = $request->all();
        $post['provider'] = MyHelper::cariOperator($post['phone']);
@@ -219,6 +226,24 @@ class ApiBeEmployeeController extends Controller
                         'process_notes' => $post['data_document']['process_notes'],
                         'attachment' => $path??null
                     ]);
+                    if($post['data_document']['document_type']=='Interview Invitation'){
+                        if (\Module::collections()->has('Autocrm')) {
+                        $autocrm = app($this->autocrm)->SendAutoCRM(
+                            'Interview Invitation Employee',
+                            date('Y-m-d H:i:s', strtotime($post['data_document']['process_date']??date('Y-m-d H:i:s'))),
+                            [
+                                'date' => date('Y-m-d H:i:s', strtotime($post['data_document']['process_date']??date('Y-m-d H:i:s'))),
+                            ], null, null, null, null, null, null, null, 1,
+                        );
+                        // return $autocrm;
+                        if (!$autocrm) {
+                            return response()->json([
+                                'status'    => 'fail',
+                                'messages'  => ['Failed to send']
+                            ]);
+                        }
+                    }
+                    }
                     if(!$createDoc){
                         return response()->json(MyHelper::checkCreate($createDoc));
                     }

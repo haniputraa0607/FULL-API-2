@@ -1528,6 +1528,87 @@ class MyHelper{
 			}
 		}
 	}
+       public static function putWithTimeout($url, $bearer=null, $post, $form_type=0, $header=null, $timeout = 65, &$fullResponse = null) {
+		$client = new Client;
+
+		$content = array(
+			'headers' => [
+				'Accept'        => 'application/json',
+				'Content-Type'  => 'application/json',
+			]
+		);
+
+		// if form_type = 0
+		if ($form_type == 0) {
+			$content['json'] = (array)$post;
+		}
+        elseif ($form_type == 2) {
+			foreach($post as $key => $value){
+                if($key!='Detail'){
+                    $content['multipart'][] = [
+                        'name' => $key,
+                        'contents' => $value,
+                    ];   
+                }else{
+                    foreach($value as $index => $array_detail){
+                        foreach($array_detail as $key_detail => $detail){
+                            $content['multipart'][] = [
+                                'name' => $key.'['.$index.']'.'['.$key_detail.']',
+                                'contents' => $detail,
+                            ];  
+                        }
+                    }
+                }
+            }
+		}
+		else {
+			$content['form_params'] = $post;
+		}
+
+		// if null bearer
+		if (!is_null($bearer)) {
+			$content['headers']['Authorization'] = $bearer;
+		}
+
+		if(!is_null($header)){
+			if(is_array($header)){
+				foreach($header as $key => $dataHeader){
+					$content['headers'][$key] = $dataHeader;
+				}
+			}
+		}
+        if ($form_type == 2) {
+            unset($content['headers']['Content-Type']);
+		}
+		$content['timeout'] = $timeout;
+
+		try {
+			$response = $client->put($url, $content);
+			$fullResponse = $response;
+			// return plain response if json_decode fail because response is plain text
+			$return = json_decode($response->getBody()->getContents(), true)?:$response->getBody()->__toString();
+			return [
+				'status_code' => $response->getStatusCode(),
+				'response' => $return
+			];
+		}catch (\GuzzleHttp\Exception\RequestException $e) {
+			try{
+				if($e->getResponse()){
+					$response = $e->getResponse()->getBody()->getContents();
+					$fullResponse = $e->getResponse();
+					$return = json_decode($response, true);
+					return [
+						'status_code' => $e->getResponse()->getStatusCode(),
+						'response' => $return
+					];
+				}
+				else  return ['status' => 'fail', 'messages' => [0 => 'Check your internet connection.']];
+			}
+			catch(Exception $e){
+				return ['status' => 'fail', 'messages' => [0 => 'Check your internet connection.']];
+			}
+		}
+	}
 
 	public static function postWithTimeout($url, $bearer=null, $post, $form_type=0, $header=null, $timeout = 65, &$fullResponse = null) {
 		$client = new Client;

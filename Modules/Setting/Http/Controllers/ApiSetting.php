@@ -1817,10 +1817,11 @@ class ApiSetting extends Controller
         $post = $request->json()->all();
 
         if(empty($post)){
-        	$getSetting = Setting::whereIn('key', ['facebook_url', 'instagram_url'])->get()->keyBy('key');
+        	$getSetting = Setting::whereIn('key', ['facebook_url', 'instagram_url', 'youtube_url'])->get()->keyBy('key');
 	    	$res = [
 	    		'facebook' => $getSetting['facebook_url']['value_text'] ?? null,
-	    		'instagram' => $getSetting['instagram_url']['value_text'] ?? null
+	    		'instagram' => $getSetting['instagram_url']['value_text'] ?? null,
+                'youtube' => $getSetting['youtube_url']['value_text'] ?? null,
 	    	];
 
             return response()->json(MyHelper::checkGet($res));
@@ -1828,15 +1829,24 @@ class ApiSetting extends Controller
 
         	DB::beginTransaction();
         	try {
-	        	$facebook = Setting::updateOrCreate(
-				    ['key' => 'facebook_url'],
-				    ['value_text' => $post['facebook_url'] ?? null]
-				);
+                if ($post['facebook_url'] ?? false) {
+    	        	$facebook = Setting::updateOrCreate(
+    				    ['key' => 'facebook_url'],
+    				    ['value_text' => $post['facebook_url'] ?? null],
+    				);
+                }
 
 				$instagram = Setting::updateOrCreate(
 				    ['key' => 'instagram_url'],
 				    ['value_text' => $post['instagram_url'] ?? null]
 				);
+
+                if ($post['youtube_url'] ?? false) {
+                    $instagram = Setting::updateOrCreate(
+                        ['key' => 'youtube_url'],
+                        ['value_text' => $post['youtube_url'] ?? null]
+                    );
+                }
 
 				$update = true;
 				DB::commit();

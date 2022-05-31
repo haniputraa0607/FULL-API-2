@@ -349,9 +349,10 @@ class ApiBeEmployeeController extends Controller
              $detail = Employee::where('id_employee',$post['id_employee'])
                         ->first();
              if($detail){
-                $this->update_employe($post, $detail->id_user);
-                 $this->update_icount($detail->id_user);
+                $update_employee = $this->update_employe($post, $detail->id_user);
+                $update_icount = $this->update_icount($detail->id_user);
              }
+             
             return response()->json(MyHelper::checkGet($detail));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
@@ -360,6 +361,7 @@ class ApiBeEmployeeController extends Controller
    public function update_employe($data,$id_user) {
        $employee = Employee::where('id_user',$id_user)->first();
        $user = User::where('id',$id_user)->first();
+       
        if(isset($data['name'])){
             $user->name = $data['name'];
         }
@@ -373,12 +375,11 @@ class ApiBeEmployeeController extends Controller
             $user->address = $data['address'];
         }
         if(isset($data['birthday'])){
-            $user->birthday = $data['birthday'];
+            $user->birthday = date('Y-m-d', strtotime($data['birthday']));
         }
         if(isset($data['gender'])){
             $user->gender = $data['gender'];
         }
-        $user->save();
         if(isset($data['nickname'])){
             $employee->nickname = $data['nickname'];
         }
@@ -394,6 +395,7 @@ class ApiBeEmployeeController extends Controller
         if(isset($data['nickname'])){
             $employee->nickname = $data['nickname'];
         }
+        
         if(isset($employee->status_approved)&&$employee->status_approved!='Success'){
             $employee->status_approved = "Success";
         }
@@ -423,6 +425,7 @@ class ApiBeEmployeeController extends Controller
         }
         if(isset($data['id_city_domicile'])){
             $employee->id_city_domicile = $data['id_city_domicile'];
+            $user->id_city = $data['id_city_domicile'];
         }
         if(isset($data['postcode_domicile'])){
             $employee->postcode_domicile = $data['postcode_domicile'];
@@ -469,6 +472,9 @@ class ApiBeEmployeeController extends Controller
         if(isset($data['is_tax'])){
             $employee->is_tax = $data['is_tax'];
         }
+        
+        $user->save();
+        
         $employee->save();
         return $employee;
    }

@@ -207,7 +207,7 @@ class ProductIcount extends Model
                 $product_detail = ProductDetail::updateOrCreate(
                     ["id_product" => $product_use['id_product'],"id_outlet" => $id_outlet],
                     [
-                        "product_detail_visibility" => 'Visible',
+                        "product_detail_visibility" => '',
                         "product_detail_status" => 'Active',
                         "product_detail_stock_status" => $stock_status,
                         "product_detail_stock_item" => $value,

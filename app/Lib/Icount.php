@@ -568,4 +568,35 @@ class Icount
         }
         return self::sendRequest('PUT', '/business_partner/employee_update/'.$data['BusinessPartnerID'], $data, $company, $logType, $orderId);
     }
+    public static function EmployeeReimbursement($request, $company = null, $logType = null, $orderId = null){
+        $data = [
+            "VoucherNo" => "[AUTO]",
+            "TransDate" => $request['reimbursement']['date_reimbursement'],
+            "DueDate" =>  $request['reimbursement']['due_date'],
+            "BranchID" => $request['outlet']['id_branch'],
+            "TermOfPaymentID" => $request['employee']['id_term_payment']??'011',
+            "ReferenceNo" => '',
+            'TaxNo'=>'',
+            "Notes" => $request['reimbursement']['notes'],
+            "Detail" => [
+                [
+                    "Name" => $request['item']['name'],
+                    "ItemID" =>$request['item']['id_item'],
+                    "Unit"=>"PCS",
+                    "Qty" => $request['reimbursement']['qty'],
+                    'Price'=>$request['reimbursement']['price']*$request['reimbursement']['qty'],
+                    "Description" => ""
+                ],
+            ]
+        ];
+        if($company=='PT IMA'){
+                if(isset($request['location']['id_business_partner_ima']) && !empty($request['location']['id_business_partner_ima'])){
+                    $data['BusinessPartnerID'] = $request['location']['id_business_partner_ima'];
+                }
+                if(isset($request['location']['id_branch_ima']) && !empty($request['location']['id_branch_ima'])){
+                    $data['BranchID'] = $request['location']['id_branch_ima']; 
+                }
+            }
+        return self::sendRequest('POST', '/purchase/create_reimbursement', $data, $company, $logType, $orderId);
+    }
 }

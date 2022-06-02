@@ -751,4 +751,374 @@ class ApiEmployeeAttendaceOutletController extends Controller
         return response()->json(['status' => 'success', 'messages' => ['Berhasil mengajukan permintaan presensi outlet, silahkan menunggu persetujuan']]);
     }
 
+    public function historiesRequest(Request $request)
+    {
+        $employee = $request->user();
+        $outlet = $employee->outlet;
+        $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+        ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+        
+        $histories = EmployeeOutletAttendanceRequest::join('outlets','outlets.id_outlet', 'employee_outlet_attendance_requests.id_outlet')->where('id', $employee['id'])->select('outlet_name','attendance_date', 'clock_in', 'clock_out', 'status', 'notes')->paginate(10)->toArray();
+        $data = [];
+        foreach($histories['data'] ?? [] as $val){
+            if(isset($val['clock_in'])){
+                $data[] = [
+                    'outlet_name' => $val['outlet_name'],
+                    'date' => MyHelper::dateFormatInd($val['attendance_date'], true, false, false),
+                    'request' => 'In '.MyHelper::adjustTimezone($val['clock_in'], $timeZone, 'H:i'),
+                    'status' => $val['status'],
+                    'notes' => $val['notes']   
+                ];
+            }
+            if(isset($val['clock_out'])){
+                $data[] = [
+                    'outlet_name' => $val['outlet_name'],
+                    'date' => MyHelper::dateFormatInd($val['attendance_date'], true, false, false),
+                    'request' => 'Out '.MyHelper::adjustTimezone($val['clock_out'], $timeZone, 'H:i'),
+                    'status' => $val['status'],
+                    'notes' => $val['notes']   
+                ];
+            }
+        }
+        $histories['data'] = $data;
+        return MyHelper::checkGet($histories);
+    }
+
+    public function listRequest(Request $request)
+    {
+        $result = EmployeeOutletAttendanceRequest::join('users','users.id', 'employee_outlet_attendance_requests.id')
+                ->join('roles', 'roles.id_role', 'users.id_role')
+                ->join('outlets', 'outlets.id_outlet', 'users.id_outlet')
+                ->where('employee_outlet_attendance_requests.status', 'Pending');
+        $countTotal = null;
+        $result->groupBy('employee_outlet_attendance_requests.id');
+            
+        if ($request->rule) {
+            $countTotal = $result->count();
+            $this->filterlistRequest($result, $request->rule, $request->operator ?: 'and');
+        }
+
+        if (is_array($orders = $request->order)) {
+            $columns = [
+                'name',
+                'outlet_name',
+                'role_name',
+                'total_pending',
+            ];
+
+            foreach ($orders as $column) {
+                if ($colname = ($columns[$column['column']] ?? false)) {
+                    $result->orderBy($colname, $column['dir']);
+                }
+            }
+        }
+        
+        $result->selectRaw('users.id, name, outlet_name, role_name, count(*) as total_pending');
+        $result->orderBy('users.id');
+
+        if ($request->page) {
+            $result = $result->paginate($request->length ?: 15)->toArray();
+            if (is_null($countTotal)) {
+                $countTotal = $result['total'];
+            }
+            // needed by datatables
+            $result['recordsTotal'] = $countTotal;
+        } else {
+            $result = $result->get();
+        }
+
+        return MyHelper::checkGet($result);
+    }
+
+    public function filterlistRequest($query,$rules,$operator='and'){
+        $newRule=[];
+        foreach ($rules as $var) {
+            if (!($var['operator']?? false) && !($var['parameter']?? false)) continue;
+            $rule=[$var['operator']??'=',$var['parameter']];
+            if($rule[0]=='like'){
+                $rule[1]='%'.$rule[1].'%';
+            }
+            $newRule[$var['subject']][]=$rule;
+        }
+
+        $query->where(function($query2) use ($operator, $newRule) {
+            $where=$operator=='and'?'where':'orWhere';
+            $subjects=['name'];
+            foreach ($subjects as $subject) {
+                if($rules2=$newRule[$subject]??false){
+                    foreach ($rules2 as $rule) {
+                        $query2->$where($subject,$rule[0],$rule[1]);
+                    }
+                }
+            }
+
+            $subject = 'id_outlets';
+            if($rules2=$newRule[$subject]??false){
+                foreach ($rules2 as $rule) {
+                    $query2->{$where . 'In'}('users.id_outlet', $rule[1]);
+                }
+            }
+
+            $subject = 'id_role';
+            if($rules2=$newRule[$subject]??false){
+                foreach ($rules2 as $rule) {
+                    $query2->$where('users.id_role',  $rule[1]);
+                }
+            }
+        });
+
+        if ($rules = $newRule['transaction_date'] ?? false) {
+            foreach ($rules as $rul) {
+                $query->whereDate('employee_outlet_attendance_requests.attendance_date', $rul[0], $rul[1]);
+            }
+        }
+    }
+
+    public function detailRequest(Request $request)
+    {
+        $result = EmployeeOutletAttendanceRequest::join('outlets','outlets.id_outlet', 'employee_outlet_attendance_requests.id_outlet')
+            ->selectRaw('*, null as photo_url, outlet_name')
+            ->where('employee_outlet_attendance_requests.status', 'Pending');
+        $countTotal = null;
+
+        if ($request->rule) {
+            $countTotal = $result->count();
+            $this->filterListDetailRequest($result, $request->rule, $request->operator ?: 'and');
+        }
+
+        if (is_array($orders = $request->order)) {
+            $columns = [
+                'attendance_date',
+                'clock_in',
+                'clock_out',
+            ];
+
+            foreach ($orders as $column) {
+                if ($colname = ($columns[$column['column']] ?? false)) {
+                    $result->orderBy($colname, $column['dir']);
+                }
+            }
+        }
+
+        // $result->selectRaw('*, ');
+        $result->orderBy('employee_outlet_attendance_requests.id_employee_outlet_attendance_request');
+
+        if ($request->page) {
+            $result = $result->paginate($request->length ?: 15)->toArray();
+            if (is_null($countTotal)) {
+                $countTotal = $result['total'];
+            }
+            // needed by datatables
+            $result['recordsTotal'] = $countTotal;
+        } else {
+            $result = $result->get();
+        }
+
+        foreach($result['data'] ?? [] as $r => $data){
+            $outlet = Outlet::where('id_outlet',$data['id_outlet'])->first();
+            $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+            ->where('cities.id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+            $result['data'][$r]['clock_in'] =  $data['clock_in'] ? MyHelper::adjustTimezone($data['clock_in'], $timeZone, 'H:i', true) : null;
+            $result['data'][$r]['clock_out'] = $data['clock_out'] ? MyHelper::adjustTimezone($data['clock_out'], $timeZone, 'H:i', true) : null;
+            $result['data'][$r]['attendance_date'] =  $data['attendance_date'] ? MyHelper::adjustTimezone($data['attendance_date'], $timeZone, 'Y-m-d', true) : null;
+            $result['data'][$r]['shift'] =  null;
+
+            $clock_in_requirement = null;
+            $clock_out_requirement =  null;
+            $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$data['id'])->first();
+            if(isset($type_shift['office_hour_type'])){
+                $clock_in_requirement = $type_shift['office_hour_start'];
+                $clock_out_requirement = $type_shift['office_hour_end'];
+                if($type_shift['office_hour_type']=='Use Shift'){
+                    $schedule_date = EmployeeScheduleDate::join('employee_schedules','employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule')
+                                        ->join('users','users.id','employee_schedules.id')
+                                        ->where('users.id', $data['id'])
+                                        ->whereDate('employee_schedule_dates.date', $data['attendance_date'])
+                                        ->first();
+                    if(isset($schedule_date)){
+                        $result['data'][$r]['shift'] = $schedule_date['shift'] ?? null;
+                        $clock_in_requirement = $schedule_date['time_start'] ? MyHelper::adjustTimezone(date('H:i', strtotime($schedule_date['time_start'])), $timeZone, 'H:i', true) : null;
+                        $clock_out_requirement = $schedule_date['time_end'] ? MyHelper::adjustTimezone(date('H:i', strtotime($schedule_date['time_end'])), $timeZone, 'H:i', true) : null;
+                    }
+                }
+            }
+            $result['data'][$r]['clock_in_requirement'] = $clock_in_requirement;
+            $result['data'][$r]['clock_out_requirement'] = $clock_out_requirement;
+
+        }
+
+        return MyHelper::checkGet($result);
+    }
+
+    public function filterListDetailRequest($query,$rules,$operator='and'){
+        $newRule=[];
+        foreach ($rules as $var) {
+            if (!($var['operator']?? false) && !($var['parameter']?? false)) continue;
+            $rule=[$var['operator']??'=',$var['parameter']];
+            if($rule[0]=='like'){
+                $rule[1]='%'.$rule[1].'%';
+            }
+            $newRule[$var['subject']][]=$rule;
+        }
+
+        $query->where(function($query2) use ($operator, $newRule) {
+            $where=$operator=='and'?'where':'orWhere';
+            $subjects=['shift', 'type'];
+            foreach ($subjects as $subject) {
+                if($rules2=$newRule[$subject]??false){
+                    foreach ($rules2 as $rule) {
+                        $query2->$where($subject,$rule[0],$rule[1]);
+                    }
+                }
+            }
+
+        });
+
+        if ($rules = $newRule['transaction_date'] ?? false) {
+            foreach ($rules as $rul) {
+                $query->whereDate('employee_outlet_attendance_requests.attendance_date', $rul[0], $rul[1]);
+            }
+        }
+        if ($rules = $newRule['id'] ?? false) {
+            foreach ($rules as $rul) {
+                $query->where('employee_outlet_attendance_requests.id', $rul[0], $rul[1]);
+            }
+        }
+    }
+
+    public function updateRequest(Request $request){
+        $request->validate([
+            'status' => 'string|in:Accepted,Rejected',
+        ]);
+        $log_req = EmployeeOutletAttendanceRequest::find($request->id_employee_outlet_attendance_request);
+        if (!$log_req) {
+            return [
+                'status' => 'fail',
+                'messages' => ['Selected reqeust attendance outlet not found']
+            ];
+        }
+        DB::beginTransaction();
+        $log_req->update(['status' => $request->status]);
+        $final = true;
+        if($request->status == 'Accepted'){
+
+            $outlet = Outlet::where('id_outlet', $log_req['id_outlet'])->first();
+
+            $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+            ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+            $employee = User::where('id', $log_req['id'])->first();
+            $type_shift = User::join('roles','roles.id_role','users.id_role')->leftJoin('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$log_req['id'])->first();
+
+            if(empty($type_shift['office_hour_type'])){
+                DB::rollBack();
+                return response()->json([
+                    'status'=>'fail',
+                    'messages'=>['Shift schedule has not been created']
+                ]);
+            }
+
+
+            //schedule_date
+            $array_date = explode('-',$log_req['attendance_date']);
+            $schedule = EmployeeSchedule::where('id', $log_req['id'])->where('id_outlet', $employee['id_outlet'])->where('schedule_month', $array_date[1])->where('schedule_year', $array_date[0])->first();
+            if(!$schedule && $type_shift['office_hour_type'] == 'Use Shift'){
+                DB::rollBack();
+                return response()->json([
+                    'status'=>'fail',
+                    'messages'=>['Schedule has not been created']
+                ]);
+            }elseif(!$schedule && $type_shift['office_hour_type'] == 'Without Shift'){
+                $schedule = EmployeeSchedule::create([
+                    'id' => $log_req['id'],
+                    'id_outlet' => $employee['id_outlet'],
+                    'schedule_month' => $array_date[1],
+                    'schedule_year' => $array_date[0],
+                    'request_at' => date('Y-m-d H:i:s')
+                ]);
+            }
+            $schedule_date = EmployeeScheduleDate::where('id_employee_schedule', $schedule['id_employee_schedule'])->whereDate('date', $log_req['attendance_date'])->first();
+            if(!$schedule_date && $type_shift['office_hour_type'] == 'Use Shift'){
+                DB::rollBack();
+                return response()->json([
+                    'status'=>'fail',
+                    'messages'=>['Schedule date has not been created']
+                ]);
+            }elseif(!$schedule_date && $type_shift['office_hour_type'] == 'Without Shift'){
+                $schedule_date = EmployeeScheduleDate::create([
+                    'id_employee_schedule' => $schedule['id_employee_schedule'],
+                    'date' => $log_req['attendance_date'],
+                    'is_overtime' => 0,
+                    'time_start' => MyHelper::reverseAdjustTimezone($type_shift['office_hour_start'] ?? null, $timeZone, 'H:i:s', true),
+                    'time_end' => MyHelper::reverseAdjustTimezone($type_shift['office_hour_end'] ?? null, $timeZone, 'H:i:s', true),
+                ]);
+            }
+
+            $attendance = EmployeeOutletAttendance::where('id', $log_req['id'])->where('id_outlet', $log_req['id_outlet'])->where('id_employee_schedule_date', $schedule_date['id_employee_schedule_date'])->whereDate('attendance_date', $log_req['attendance_date'])->first();
+            if(!$attendance){
+                $attendance = EmployeeOutletAttendance::create([
+                    'id_employee_schedule_date' => $schedule_date['id_employee_schedule_date'],
+                    'id_outlet' => $log_req['id_outlet'],
+                    'attendance_date' => $log_req['attendance_date'],
+                    'id' => $log_req['id'],
+                    'clock_in_requirement' => $schedule_date->time_start,
+                    'clock_out_requirement' => $schedule_date->time_end,
+                    'clock_in_tolerance' => MyHelper::setting('employee_clock_in_tolerance', 'value', 15),
+                    'clock_out_tolerance' => MyHelper::setting('employee_clock_out_tolerance', 'value', 0),
+                ]);
+            }
+            
+            if (isset($log_req['clock_out']) && !isset($log_req['clock_in'])) {
+                DB::rollBack();
+                return [
+                    'status' => 'fail',
+                    'messages' => ['Cant create Clock Out before create Clock In'],
+                ];
+            } 
+            if(isset($log_req['clock_in'])){
+                $clock_in = EmployeeOutletAttendance::find($attendance['id_employee_outlet_attendance']);
+                $clock_in->storeClock([
+                    'type' => 'clock_in',
+                    'datetime' => MyHelper::reverseAdjustTimezone(date('Y-m-d H:i:s', strtotime($log_req['attendance_date'].' '.$log_req['clock_in'])), $timeZone, 'Y-m-d H:i:s', true),
+                    'latitude' => 0,
+                    'longitude' => 0,
+                    'status' => 'Approved',
+                    'approved_by' =>  $request->user()->id,
+                    'notes' => $log_req['notes'],
+                ]);
+                if(!$clock_in){
+                    $final = false;
+                }
+            }
+
+            if(isset($log_req['clock_out'])){
+                $clock_out = EmployeeOutletAttendance::find($attendance['id_employee_outlet_attendance']);
+                $clock_out->storeClock([
+                    'type' => 'clock_out',
+                    'datetime' => MyHelper::reverseAdjustTimezone(date('Y-m-d H:i:s', strtotime($log_req['attendance_date'].' '.$log_req['clock_out'])), $timeZone, 'Y-m-d H:i:s', true),
+                    'latitude' => 0,
+                    'longitude' => 0,
+                    'status' => 'Approved',
+                    'approved_by' =>  $request->user()->id,
+                    'notes' => $log_req['notes'],
+                ]);
+                if(!$clock_out){
+                    $final = false;
+                }
+            }
+        }
+        if($final){
+            DB::commit();
+            return [
+                'status' => 'success',
+                'messages' => ['Success to approve request attendance'],
+            ];
+        }else{
+            DB::rollBack();
+            return [
+                'status' => 'fail',
+                'messages' => ['Failed to approve reequest attendance'],
+            ];
+        }
+    }
+
 }

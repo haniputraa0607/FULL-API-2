@@ -833,7 +833,10 @@ class ApiAutoCrm extends Controller
                             break;
                         case 'employee_inbox' :
                             if (isset($variables['clickto'])) {
-                                $inbox['autocrm_inbox_clickto'] = $variables['clickto'];
+                                $inbox['inboxes_clickto'] = $variables['clickto'];
+                            }
+							if (isset($variables['category'])) {
+                                $inbox['inboxes_category'] = $variables['category'];
                             }
                             
                             if (isset($variables['id_employee_reference'])) {
@@ -855,7 +858,7 @@ class ApiAutoCrm extends Controller
 					$inbox['inboxes_send_at'] = date("Y-m-d H:i:s");
 					$inbox['created_at'] = date("Y-m-d H:i:s");
 					$inbox['updated_at'] = date("Y-m-d H:i:s");
-
+					
 					$inboxTable::insert($inbox);
 				}
 			}

@@ -38,6 +38,9 @@ use Modules\Employee\Entities\EmployeePerubahanData;
 use Modules\Employee\Entities\EmployeeFaq;
 use Modules\Employee\Entities\EmployeeFaqLog;
 use Modules\Users\Entities\SettingUser;
+use Modules\Employee\Entities\EmployeeNotAvailable;
+use Modules\Employee\Entities\EmployeeTimeOff;
+use App\Jobs\ReminderEmployeeAttendance;
 
 class ApiEmployeeProfileController extends Controller
 {
@@ -354,8 +357,8 @@ class ApiEmployeeProfileController extends Controller
     }
     
     public function cronReminder(){
-        // $log = MyHelper::logCron('Reminder Employee Clock In and Clock Out');
-        // try{
+        $log = MyHelper::logCron('Reminder Employee Clock In and Clock Out');
+        try{
             $time_reminder = Setting::where('key', 'time_rimender_employee_attendance')->first()['value']??5;
             $reminder = SettingUser::where(function($q){
                 $q->where('key', 'reminder_clock_in');
@@ -363,43 +366,19 @@ class ApiEmployeeProfileController extends Controller
             })->where('value','on')->get()->toArray();
 
             foreach($reminder ?? [] as $key => $rem){
-                $employee = User::join('employee_schedules', 'employee_schedules.id', 'users.id')->join('employee_schedule_dates', 'employee_schedule_dates.id_employee_schedule', 'employee_schedules.id_employee_schedule')->where('users.id',$rem['id'])->where('employee_schedules.schedule_month', date('m'))->where('employee_schedules.schedule_year', date('Y'))->whereDate('employee_schedule_dates.date', date('Y-m-d'))->first();
-                if($employee){
-                    $outlet = Outlet::where('id_outlet',$employee['id_outlet'])->first();
-                    $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
-                    ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
-                    $time_zone = [
-                        7 => 'WIB',
-                        8 => 'WITA',
-                        9 => 'WIT'
-                    ];
-                    
-                    if($rem['key']=='reminder_clock_in'){
-                        $time = (strtotime($employee['time_start'])) - ($time_reminder * 60);
-                        $content_time = MyHelper::adjustTimezone($employee['time_start'], $timeZone, 'H:i', true);
-                        
-                    }elseif($rem['key']=='reminder_clock_out'){
-                        $time = (strtotime($employee['time_end'])) - ($time_reminder * 60);
-                        $content_time = MyHelper::adjustTimezone($employee['time_end'], $timeZone, 'H:i', true);
-                    }
-
-                    $time = date('H:i', $time);
-                    $content_time = $content_time.' '.$time_zone[$timeZone];
-
-                    if(date('H:i') == $time){
-                       
-                    }else{
-                       
-                    }
-                }
+                $send = [
+                    'time_reminder' => $time_reminder,
+                    'value' => $rem
+                ];
+                $queue = ReminderEmployeeAttendance::dispatch($send);
             }
 
             $log->success('success');
             return response()->json(['status' => 'success']);
 
-        // }catch (\Exception $e) {
-        //     $log->fail($e->getMessage());
-        // }    
+        }catch (\Exception $e) {
+            $log->fail($e->getMessage());
+        }    
     }
 
 }

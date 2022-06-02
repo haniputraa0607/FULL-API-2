@@ -275,6 +275,11 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         Route::any('histories','ApiEmployeeAttendaceOutletController@historiesRequest');
     });
 
+    Route::group(['prefix' => 'inbox'], function () {
+        Route::post('/', 'ApiEmployeeInboxController@listInbox');
+        Route::post('approval', 'ApiEmployeeInboxController@listReqApproval');
+    });
+
 });
 
 Route::group([ 'middleware' => ['auth_client', 'scopes:employee-apps'], 'prefix' => 'employee'], function () {

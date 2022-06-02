@@ -1250,6 +1250,15 @@ class SettingsTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s'),
                 ),
+            127 =>
+                array (
+                    'id_setting' => 132,
+                    'key' => 'time_rimender_employee_attendance',
+                    'value' => 5,
+                    'value_text' => NULL,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ),
         );
 
         foreach ($settings as $setting) {

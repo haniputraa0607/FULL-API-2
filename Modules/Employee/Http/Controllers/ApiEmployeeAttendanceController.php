@@ -107,7 +107,7 @@ class ApiEmployeeAttendanceController extends Controller
         
         $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
-        
+        $date_time_now = MyHelper::adjustTimezone(date('Y-m-d H:i:s'), $timeZone, 'Y-m-d H:i:s', true);
         $attendance = $employee->getAttendanceByDate(date('Y-m-d'), $shift);
 
         if ($request->type == 'clock_out' && !$attendance->logs()->where('type', 'clock_in')->exists()) {
@@ -136,7 +136,7 @@ class ApiEmployeeAttendanceController extends Controller
 
         $attendance->storeClock([
             'type' => $request->type,
-            'datetime' => MyHelper::reverseAdjustTimezone(date('Y-m-d H:i:s'), $timeZone, 'Y-m-d H:i:s', true),
+            'datetime' => MyHelper::reverseAdjustTimezone($date_time_now, $timeZone, 'Y-m-d H:i:s', true),
             'latitude' => $request->latitude,
             'longitude' => $request->longitude,
             'location_name' => $request->location_name ?: '',

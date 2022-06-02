@@ -110,7 +110,7 @@ class ApiHairstylistAttendanceController extends Controller
         $outlet = $hairstylist->outlet;
         $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
-
+        $date_time_now = MyHelper::adjustTimezone(date('Y-m-d H:i:s'), $timeZone, 'Y-m-d H:i:s', true);
         $attendance = $hairstylist->getAttendanceByDate(date('Y-m-d'));
 
         if ($request->type == 'clock_out' && !$attendance->logs()->where('type', 'clock_in')->exists()) {
@@ -139,7 +139,7 @@ class ApiHairstylistAttendanceController extends Controller
 
         $attendance->storeClock([
             'type' => $request->type,
-            'datetime' => MyHelper::reverseAdjustTimezone(date('Y-m-d H:i:s'), $timeZone, 'Y-m-d H:i:s', true),
+            'datetime' => MyHelper::reverseAdjustTimezone($date_time_now, $timeZone, 'Y-m-d H:i:s', true),
             'latitude' => $request->latitude,
             'longitude' => $request->longitude,
             'location_name' => $request->location_name ?: '',
@@ -355,6 +355,8 @@ class ApiHairstylistAttendanceController extends Controller
             }
             $result['data'][$r]['clock_in'] =  $data['clock_in'] ? MyHelper::adjustTimezone($data['clock_in'], $timeZone, 'H:i:s', true).' '. $time_zone : null;
             $result['data'][$r]['clock_out'] = $data['clock_out'] ? MyHelper::adjustTimezone($data['clock_out'], $timeZone, 'H:i:s', true).' '. $time_zone : null;
+            $result['data'][$r]['time_start'] =  $data['time_start'] ? MyHelper::adjustTimezone($data['time_start'], $timeZone, 'H:i:s', true).' '. $time_zone : null;
+            $result['data'][$r]['time_end'] = $data['time_end'] ? MyHelper::adjustTimezone($data['time_end'], $timeZone, 'H:i:s', true).' '. $time_zone : null;
             $result['data'][$r]['clock_in_requirement'] = $data['clock_in_requirement'] ? MyHelper::adjustTimezone($data['clock_in_requirement'], $timeZone, 'H:i:s', true).' '. $time_zone : null;
             $result['data'][$r]['clock_out_requirement'] =  $data['clock_out_requirement'] ? MyHelper::adjustTimezone($data['clock_out_requirement'], $timeZone, 'H:i:s', true).' '. $time_zone : null;
 
@@ -544,13 +546,20 @@ class ApiHairstylistAttendanceController extends Controller
                 $timeZone = Outlet::join('cities', 'cities.id_city', 'outlets.id_city')
                 ->join('provinces', 'cities.id_province', 'provinces.id_province')
                 ->where('id_outlet', $idOutlet)->first()['time_zone_utc']??null;
-
+                if($timeZone == 7){
+                    $time_zone = 'WIB';
+                }elseif($timeZone == 8){
+                    $time_zone = 'WITA';
+                }elseif($timeZone == 9){
+                    $time_zone = 'WIT';
+                }
                 $time = MyHelper::adjustTimezone($value['datetime'], $timeZone, 'H:i', true);
                 $result['data'][$key]['datetime'] =date('Y-m-d', strtotime($value['datetime'])).' '.$time;
                 $result['data'][$key]['clock_in_requirement'] = MyHelper::adjustTimezone($value['clock_in_requirement'], $timeZone, 'H:i', true);
                 $result['data'][$key]['clock_out_requirement'] = MyHelper::adjustTimezone($value['clock_out_requirement'], $timeZone, 'H:i', true);
                 $result['data'][$key]['time_start'] = MyHelper::adjustTimezone($value['time_start'], $timeZone, 'H:i', true);
                 $result['data'][$key]['time_end'] = MyHelper::adjustTimezone($value['time_end'], $timeZone, 'H:i', true);
+                $result['data'][$key]['timezone'] = $time_zone ?? null;
             }
             if (is_null($countTotal)) {
                 $countTotal = $result['total'];

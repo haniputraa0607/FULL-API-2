@@ -9,6 +9,8 @@ use Illuminate\Routing\Controller;
 use App\Lib\MyHelper;
 use App\Http\Models\Setting;
 use Modules\Users\Entities\Role;
+use App\Http\Models\Province;
+use App\Http\Models\Outlet;
 use Modules\Employee\Entities\Employee;
 use Modules\Employee\Entities\EmployeeFamily;
 use Modules\Employee\Entities\EmployeeMainFamily;
@@ -35,6 +37,7 @@ use Modules\Employee\Entities\EmployeeEmergencyContact;
 use Modules\Employee\Entities\EmployeePerubahanData;
 use Modules\Employee\Entities\EmployeeFaq;
 use Modules\Employee\Entities\EmployeeFaqLog;
+use Modules\Users\Entities\SettingUser;
 
 class ApiEmployeeProfileController extends Controller
 {
@@ -314,4 +317,89 @@ class ApiEmployeeProfileController extends Controller
                ->get();
          return MyHelper::checkGet($profile);
     }
+
+    public function reminderAttendance(Request $request){
+        $post = $request->all();
+        $employee = $request->user();
+        $outlet = $employee->outlet()->select('id_outlet','outlet_name', 'id_city')->first();
+
+        $send = [
+            'id' => $employee['id'],
+            'value' => $post['value'] ?? 'off'
+        ];
+
+        if($post['type'] == 'clock_in'){
+            $send['key'] = 'reminder_clock_in';
+            
+        }elseif($post['type'] == 'clock_out'){
+            $send['key'] = 'reminder_clock_out';
+        }else{
+            return response()->json([
+                'status'=>'fail',
+                'messages'=>['Tipe reminder salah']
+            ]);
+        }
+        DB::beginTransaction();
+        $store = SettingUser::updateOrCreate(['id'=>$send['id'],'key'=>$send['key']],['value'=>$send['value']]);
+        if(!$store){
+            DB::rollBack();
+            return response()->json([
+                'status' => 'fail', 
+                'messages' => ['Gagal menyimpan pengingat clock in/clock out']
+            ]);
+        }
+
+        DB::commit();
+        return response()->json(['status' => 'success', 'messages' => ['Berhasil menyimpan pengingat clock in/clock out']]);
+    }
+    
+    public function cronReminder(){
+        // $log = MyHelper::logCron('Reminder Employee Clock In and Clock Out');
+        // try{
+            $time_reminder = Setting::where('key', 'time_rimender_employee_attendance')->first()['value']??5;
+            $reminder = SettingUser::where(function($q){
+                $q->where('key', 'reminder_clock_in');
+                $q->orWhere('key', 'reminder_clock_out');
+            })->where('value','on')->get()->toArray();
+
+            foreach($reminder ?? [] as $key => $rem){
+                $employee = User::join('employee_schedules', 'employee_schedules.id', 'users.id')->join('employee_schedule_dates', 'employee_schedule_dates.id_employee_schedule', 'employee_schedules.id_employee_schedule')->where('users.id',$rem['id'])->where('employee_schedules.schedule_month', date('m'))->where('employee_schedules.schedule_year', date('Y'))->whereDate('employee_schedule_dates.date', date('Y-m-d'))->first();
+                if($employee){
+                    $outlet = Outlet::where('id_outlet',$employee['id_outlet'])->first();
+                    $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+                    ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+                    $time_zone = [
+                        7 => 'WIB',
+                        8 => 'WITA',
+                        9 => 'WIT'
+                    ];
+                    
+                    if($rem['key']=='reminder_clock_in'){
+                        $time = (strtotime($employee['time_start'])) - ($time_reminder * 60);
+                        $content_time = MyHelper::adjustTimezone($employee['time_start'], $timeZone, 'H:i', true);
+                        
+                    }elseif($rem['key']=='reminder_clock_out'){
+                        $time = (strtotime($employee['time_end'])) - ($time_reminder * 60);
+                        $content_time = MyHelper::adjustTimezone($employee['time_end'], $timeZone, 'H:i', true);
+                    }
+
+                    $time = date('H:i', $time);
+                    $content_time = $content_time.' '.$time_zone[$timeZone];
+
+                    if(date('H:i') == $time){
+                       
+                    }else{
+                       
+                    }
+                }
+            }
+
+            $log->success('success');
+            return response()->json(['status' => 'success']);
+
+        // }catch (\Exception $e) {
+        //     $log->fail($e->getMessage());
+        // }    
+    }
+
 }

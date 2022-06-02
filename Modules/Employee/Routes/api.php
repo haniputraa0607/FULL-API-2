@@ -224,7 +224,9 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         });
         Route::group(['prefix' => 'privacy-policy'], function(){
             Route::get('/', 'ApiEmployeeProfileController@privacy_policy');
-      });
+        });
+        Route::post('reminder','ApiEmployeeProfileController@reminderAttendance');
+        Route::get('reminder-cron','ApiEmployeeProfileController@cronReminder');
     });
     Route::post('update-device','ApiEmployeeAppController@saveDeviceUser');
     Route::get('logged-user','ApiEmployeeAppController@loggedUser');

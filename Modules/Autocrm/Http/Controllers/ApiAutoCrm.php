@@ -831,6 +831,20 @@ class ApiAutoCrm extends Controller
                         case 'home_service_history' :
                             $inbox['inboxes_clickto'] = $variables['mitra_get_order_clickto']??'home_service_history';
                             break;
+                        case 'employee_inbox' :
+                            if (isset($variables['clickto'])) {
+                                $inbox['inboxes_clickto'] = $variables['clickto'];
+                            }
+							if (isset($variables['category'])) {
+                                $inbox['inboxes_category'] = $variables['category'];
+                            }
+                            
+                            if (isset($variables['id_employee_reference'])) {
+                                $inbox['inboxes_id_reference'] = $variables['id_employee_reference'];
+                            }else{
+                                $inbox['inboxes_id_reference'] = 0;
+                            }
+                            break;
                         default :
                             $inbox['inboxes_clickto'] = 'Default';
                             $inbox['inboxes_id_reference'] = 0;
@@ -844,7 +858,7 @@ class ApiAutoCrm extends Controller
 					$inbox['inboxes_send_at'] = date("Y-m-d H:i:s");
 					$inbox['created_at'] = date("Y-m-d H:i:s");
 					$inbox['updated_at'] = date("Y-m-d H:i:s");
-
+					
 					$inboxTable::insert($inbox);
 				}
 			}

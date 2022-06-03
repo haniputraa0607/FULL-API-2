@@ -128,6 +128,11 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('detail','ApiEmployeeAttendaceOutletController@detailPending');
         Route::post('update','ApiEmployeeAttendaceOutletController@updatePending');
     });
+    Route::group(['prefix' => 'attendance-outlet-request'], function () {
+        Route::post('list','ApiEmployeeAttendaceOutletController@listRequest');
+        Route::post('detail','ApiEmployeeAttendaceOutletController@detailRequest');
+        Route::post('update','ApiEmployeeAttendaceOutletController@updateRequest');
+    });
 
     Route::post('shift','ApiEmployeeController@shift');
 
@@ -219,7 +224,8 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         });
         Route::group(['prefix' => 'privacy-policy'], function(){
             Route::get('/', 'ApiEmployeeProfileController@privacy_policy');
-      });
+        });
+        Route::post('reminder','ApiEmployeeProfileController@reminderAttendance');
     });
     Route::post('update-device','ApiEmployeeAppController@saveDeviceUser');
     Route::get('logged-user','ApiEmployeeAppController@loggedUser');
@@ -268,6 +274,11 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         Route::post('check','ApiEmployeeAttendaceOutletController@checkDateRequest');
         Route::post('request','ApiEmployeeAttendaceOutletController@storeRequest');
         Route::any('histories','ApiEmployeeAttendaceOutletController@historiesRequest');
+    });
+
+    Route::group(['prefix' => 'inbox'], function () {
+        Route::post('/', 'ApiEmployeeInboxController@listInbox');
+        Route::post('approval', 'ApiEmployeeInboxController@listReqApproval');
     });
 
 });

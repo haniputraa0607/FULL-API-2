@@ -9,6 +9,8 @@ use Illuminate\Routing\Controller;
 use App\Lib\MyHelper;
 use App\Http\Models\Setting;
 use Modules\Users\Entities\Role;
+use App\Http\Models\Province;
+use App\Http\Models\Outlet;
 use Modules\Employee\Entities\Employee;
 use Modules\Employee\Entities\EmployeeFamily;
 use Modules\Employee\Entities\EmployeeMainFamily;
@@ -35,6 +37,10 @@ use Modules\Employee\Entities\EmployeeEmergencyContact;
 use Modules\Employee\Entities\EmployeePerubahanData;
 use Modules\Employee\Entities\EmployeeFaq;
 use Modules\Employee\Entities\EmployeeFaqLog;
+use Modules\Users\Entities\SettingUser;
+use Modules\Employee\Entities\EmployeeNotAvailable;
+use Modules\Employee\Entities\EmployeeTimeOff;
+use App\Jobs\ReminderEmployeeAttendance;
 
 class ApiEmployeeProfileController extends Controller
 {
@@ -314,4 +320,65 @@ class ApiEmployeeProfileController extends Controller
                ->get();
          return MyHelper::checkGet($profile);
     }
+
+    public function reminderAttendance(Request $request){
+        $post = $request->all();
+        $employee = $request->user();
+        $outlet = $employee->outlet()->select('id_outlet','outlet_name', 'id_city')->first();
+
+        $send = [
+            'id' => $employee['id'],
+            'value' => $post['value'] ?? 'off'
+        ];
+
+        if($post['type'] == 'clock_in'){
+            $send['key'] = 'reminder_clock_in';
+            
+        }elseif($post['type'] == 'clock_out'){
+            $send['key'] = 'reminder_clock_out';
+        }else{
+            return response()->json([
+                'status'=>'fail',
+                'messages'=>['Tipe reminder salah']
+            ]);
+        }
+        DB::beginTransaction();
+        $store = SettingUser::updateOrCreate(['id'=>$send['id'],'key'=>$send['key']],['value'=>$send['value']]);
+        if(!$store){
+            DB::rollBack();
+            return response()->json([
+                'status' => 'fail', 
+                'messages' => ['Gagal menyimpan pengingat clock in/clock out']
+            ]);
+        }
+
+        DB::commit();
+        return response()->json(['status' => 'success', 'messages' => ['Berhasil menyimpan pengingat clock in/clock out']]);
+    }
+    
+    public function cronReminder(){
+        $log = MyHelper::logCron('Reminder Employee Clock In and Clock Out');
+        try{
+            $time_reminder = Setting::where('key', 'time_rimender_employee_attendance')->first()['value']??5;
+            $reminder = SettingUser::where(function($q){
+                $q->where('key', 'reminder_clock_in');
+                $q->orWhere('key', 'reminder_clock_out');
+            })->where('value','on')->get()->toArray();
+
+            foreach($reminder ?? [] as $key => $rem){
+                $send = [
+                    'time_reminder' => $time_reminder,
+                    'value' => $rem
+                ];
+                $queue = ReminderEmployeeAttendance::dispatch($send);
+            }
+
+            $log->success('success');
+            return response()->json(['status' => 'success']);
+
+        }catch (\Exception $e) {
+            $log->fail($e->getMessage());
+        }    
+    }
+
 }

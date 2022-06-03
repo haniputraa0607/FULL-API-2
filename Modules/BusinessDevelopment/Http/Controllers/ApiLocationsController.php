@@ -449,6 +449,12 @@ class ApiLocationsController extends Controller
                 }
                 $no_spk = $yearMonth.$no_spk;
                 $data_update['no_spk'] = $no_spk;
+                if (empty($post['start_date'])) {
+                    $data_update['start_date'] = Partner::where('id_partner', $post['id_partner'])->first()['start_date'];
+                }
+                if (empty($post['end_date'])) {
+                    $data_update['end_date'] = Partner::where('id_partner', $post['id_partner'])->first()['end_date'];
+                }
             }
             $old_status = Location::where('id_location', $post['id_location'])->get('status')[0]['status'];
             $update = Location::where('id_location', $post['id_location'])->update($data_update);

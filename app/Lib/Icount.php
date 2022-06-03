@@ -42,6 +42,8 @@ class Icount
         }
         if ($method == 'get') {
             $response = MyHelper::getWithTimeout(self::getBaseUrl($company) . $url, null, $request, $header, 65, $fullResponse);
+        }elseif($method == 'put'){
+            $response = MyHelper::putWithTimeout(self::getBaseUrl($company) . $url, null, $request, $time_out, $header, 65, $fullResponse);
         }else{
             $response = MyHelper::postWithTimeout(self::getBaseUrl($company) . $url, null, $request, $time_out, $header, 65, $fullResponse);
         }   
@@ -508,5 +510,93 @@ class Icount
     }
     public static function ChartOfAccount($page = 1, $request = null, $company = null, $logType = null, $orderId = null){
         return self::sendRequest('GET', '/chart_of_account/list?Limit=20&Page='.$page , $request, $logType, $orderId);
+    }
+    
+    public static function ApiCreateEmployee($request, $company = null, $logType = null, $orderId = null){
+        $data = [
+            "Name" => $request['employee']['name'],
+            "Code" => $request['employee']['code'],
+            "TermOfPaymentID" => $request['employee']['id_term_payment'],
+            "Email" => $request['employee']['email'],
+            "ClusterID" => $request['employee']['id_cluster'],
+            "JoinDate" => $request['employee']['start_date']??date('Y-m-d'),
+        ];
+        if($company=='PT IMS'){
+            if(isset($request['employee']['id_business_partner_ima']) && !empty($request['employee']['id_business_partner_ima']) && isset($request['employee']['id_business_partner']) && !empty($request['employee']['id_business_partner']) ){
+                $data['BusinessPartnerID'] = $request['employee']['id_business_partner'];
+            }
+        }else{
+            if(isset($request['employee']['id_business_partner_ima']) && !empty($request['employee']['id_business_partner_ima'])){
+                $data['BusinessPartnerID'] = $request['employee']['id_business_partner_ima'];
+            }elseif(isset($request['employee']['id_business_partner']) && !empty($request['employee']['id_business_partner'])){
+                $data['BusinessPartnerID'] = $request['employee']['id_business_partner'];
+            }
+        }
+
+        return self::sendRequest('POST', '/business_partner/employee_create', $data, $company, $logType, $orderId);
+    }
+    public static function ApiUpdateEmployee($request, $company = null, $logType = null, $orderId = null){
+        
+        $data = [
+            "Code" => $request['employee']['code'],
+            "ClusterID" => $request['employee']['id_cluster'],
+            "Email" => $request['employee']['email'],
+            "Type" => $request['employee']['type'],
+            "NPWP" => $request['employee']['npwp'],
+            "Name" => $request['employee']['name'],
+            "JoinDate" => $request['employee']['start_date']??date('Y-m-d'),
+            "TermOfPaymentID" => $request['employee']['id_term_payment'],
+            "AddressDelivery" => $request['employee']['address_domicile'],
+            "AddressInvoice" => $request['employee']['address_ktp'],
+            "Notes" => $request['employee']['notes'],
+            "NPWPName" => $request['employee']['npwp_name'],
+            "PhoneNo" => $request['employee']['phone_number'],
+            "ContactPerson" => $request['employee']['contact_person'],
+            "MobileNo" => $request['employee']['phone'],
+            "IsTax" => $request['employee']['IsTax']
+        ];
+        if($company=='PT IMS'){
+            if(isset($request['employee']['id_business_partner_ima']) && !empty($request['employee']['id_business_partner_ima']) && isset($request['employee']['id_business_partner']) && !empty($request['employee']['id_business_partner']) ){
+                $data['BusinessPartnerID'] = $request['employee']['id_business_partner'];
+            }
+        }else{
+            if(isset($request['employee']['id_business_partner_ima']) && !empty($request['employee']['id_business_partner_ima'])){
+                $data['BusinessPartnerID'] = $request['employee']['id_business_partner_ima'];
+            }elseif(isset($request['employee']['id_business_partner']) && !empty($request['employee']['id_business_partner'])){
+                $data['BusinessPartnerID'] = $request['employee']['id_business_partner'];
+            }
+        }
+        return self::sendRequest('PUT', '/business_partner/employee_update/'.$data['BusinessPartnerID'], $data, $company, $logType, $orderId);
+    }
+    public static function EmployeeReimbursement($request, $company = null, $logType = null, $orderId = null){
+        $data = [
+            "VoucherNo" => "[AUTO]",
+            "TransDate" => $request['reimbursement']['date_reimbursement'],
+            "DueDate" =>  $request['reimbursement']['due_date'],
+            "BranchID" => $request['outlet']['id_branch'],
+            "TermOfPaymentID" => $request['employee']['id_term_payment']??'011',
+            "ReferenceNo" => '',
+            'TaxNo'=>'',
+            "Notes" => $request['reimbursement']['notes'],
+            "Detail" => [
+                [
+                    "Name" => $request['item']['name'],
+                    "ItemID" =>$request['item']['id_item'],
+                    "Unit"=>"PCS",
+                    "Qty" => $request['reimbursement']['qty'],
+                    'Price'=>$request['reimbursement']['price']*$request['reimbursement']['qty'],
+                    "Description" => ""
+                ],
+            ]
+        ];
+        if($company=='PT IMA'){
+                if(isset($request['location']['id_business_partner_ima']) && !empty($request['location']['id_business_partner_ima'])){
+                    $data['BusinessPartnerID'] = $request['location']['id_business_partner_ima'];
+                }
+                if(isset($request['location']['id_branch_ima']) && !empty($request['location']['id_branch_ima'])){
+                    $data['BranchID'] = $request['location']['id_branch_ima']; 
+                }
+            }
+        return self::sendRequest('POST', '/purchase/create_reimbursement', $data, $company, $logType, $orderId);
     }
 }

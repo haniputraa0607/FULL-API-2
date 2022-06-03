@@ -118,6 +118,8 @@ class ApiBeEmployeeProfileController extends Controller
                ->update([
                    $data->key => $data->change_data,
                ]);
+           
+           $update_icount = app('\Modules\Employee\Http\Controllers\ApiBeEmployeeController')->update_icount($data->id_user);
        }
        
        return MyHelper::checkGet($data);

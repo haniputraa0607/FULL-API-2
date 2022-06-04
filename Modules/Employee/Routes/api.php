@@ -286,3 +286,7 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
 Route::group([ 'middleware' => ['auth_client', 'scopes:employee-apps'], 'prefix' => 'employee'], function () {
     Route::get('splash','ApiEmployeeAppController@splash');
 });
+
+Route::group(['prefix' => '/icount/reimbursement'], function() {
+    Route::post('/callback','ApiBeEmployeeReimbursementController@callbackreimbursement');
+});

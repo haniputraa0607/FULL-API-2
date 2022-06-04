@@ -28,6 +28,9 @@ use Modules\Employee\Entities\EmployeeReimbursement;
 use App\Lib\Icount;
 use App\Http\Models\Outlet;
 use Modules\Product\Entities\ProductIcount;
+use Modules\Employee\Http\Requests\Reimbursement\BE\CallbackIcountReimbursement;
+use Validator;
+use Modules\Employee\Entities\EmployeeReimbursementIcount;
 
 class ApiBeEmployeeReimbursementController extends Controller
 {
@@ -78,4 +81,51 @@ class ApiBeEmployeeReimbursementController extends Controller
        }
        return MyHelper::checkGet($reimbursement);
    }
+   public function callbackreimbursement(CallbackIcountReimbursement $request){
+        $pesan = [
+                    'cek' => 'Invalid PurchaseInvoiceID or PurchaseInvoiceID status has been Rejected',
+                    'status' => "Invalid status, status must be Success or Failed",
+                ];
+                    Validator::extend('status', function ($attribute, $value, $parameters, $validator) {
+                    if($value == 'Success'||$value=="Failed"){
+                      return true; 
+                  } return false;
+                 }); 
+                    Validator::extend('cek', function ($attribute, $value, $parameters, $validator) {
+                    $share = EmployeeReimbursement::where(array('id_purchase_invoice'=>$value))->where('status','!=','Rejected')->first();
+                    if($share){
+                        return true;
+                    }
+                    return false;
+                 }); 
+                   
+                  $validator = Validator::make($request->all(), [
+                    'PurchaseInvoiceID'    => 'required|cek',
+                    'status'               => 'required|status',
+                    'date_disburse'        => 'required|date_format:Y-m-d H:i:s',
+        ],$pesan);  
+                  
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => false,
+                'message' =>  $validator->errors()
+            ], 400);
+        }
+        if($request->status == "Success"){
+            $request->status = "Successed";
+        }else{
+            $request->status = "Rejected";
+        }
+        $data = EmployeeReimbursement::where(array('id_purchase_invoice'=>$request->PurchaseInvoiceID))->where('status','!=','Rejected')->update([
+            'status'=>$request->status,
+            'date_disburse'=>$request->date_disburse,
+            'date_send_reimbursement'=>date('Y-m-d H:i:s')
+        ]);
+        EmployeeReimbursementIcount::create([
+            'status'=>$request->status,
+            'value_detail'=>json_encode($request->all()),
+            'id_purchase_invoice'=>$request->PurchaseInvoiceID
+        ]);
+        return response()->json(['status' => 'success','code'=>$data]); 
+    }
 }

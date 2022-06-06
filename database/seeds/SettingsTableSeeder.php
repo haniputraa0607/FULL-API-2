@@ -1259,6 +1259,15 @@ class SettingsTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s'),
                 ),
+            128 =>
+                array (
+                    'id_setting' => 133,
+                    'key' => 'category_contact_us',
+                    'value' => NULL,
+                    'value_text' => '{ "customer_app": { "id": null, "child": { "outlet-service": null, "home-service": null, "shop": null, "academy": null, "lain-lain": null } }, "mitra": { "id": null, "child": { "outlet-service": null, "home-service": null, "shop": null, "lain-lain": null } }, "cms": { "id": null, "child": { "lain-lain": null } }, "employee": { "id": null, "child": { "attendance": null, "time-off": null, "overtime": null, "lain-lain": null } } }',
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ),
         );
 
         foreach ($settings as $setting) {

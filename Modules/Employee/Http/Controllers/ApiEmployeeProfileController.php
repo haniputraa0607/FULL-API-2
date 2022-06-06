@@ -274,9 +274,13 @@ class ApiEmployeeProfileController extends Controller
                    'id',
                    'name',
                    'phone',
+                   'users.email',
                    'department_name',
                ])
                ->get();
+       foreach ($profile as $value) {
+           $value['wa'] = "https://wa.me/".$value['phone'];
+       }
          return MyHelper::checkGet($profile);
     }
     public function cuti_employee(){
@@ -317,7 +321,8 @@ class ApiEmployeeProfileController extends Controller
                    'role_name',
                    'department_name'
                ])
-               ->get();
+               ->first();
+      $profile['wa'] = "https://wa.me/".$profile['phone'];
          return MyHelper::checkGet($profile);
     }
 

@@ -66,6 +66,11 @@ class ApiEmployeeInboxController extends Controller
 
     public function listReqApproval(Request $request){
         $post = $request->all();
+        $user = $request->user();
+        $id_employee = $user['id'];
+        $id_outlet = $user['id_outlet'];
+
+        
         
     }
 }

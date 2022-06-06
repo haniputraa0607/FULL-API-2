@@ -42,3 +42,4 @@ Route::group(['middleware' => ['auth:api','user_agent','log_activities_employee_
     Route::post('list-transaction', 'ApiEnquiries@listTransactionMitra');
     Route::post('detail', 'ApiEnquiries@detail');
 });
+

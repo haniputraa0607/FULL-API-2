@@ -24,6 +24,8 @@ use Modules\Disburse\Entities\BankName;
 use App\Lib\Icount;
 use DB;
 use App\Http\Models\Outlet;
+use File;
+use Storage;
 
 class ApiBeEmployeeController extends Controller
 {
@@ -283,7 +285,7 @@ class ApiBeEmployeeController extends Controller
                         return response()->json(MyHelper::checkCreate($createDoc));
                     }
                 }
-                $updater = Employee::where('id_employee', $post['id_employee'])->update([
+                $update = Employee::where('id_employee', $post['id_employee'])->update([
                     'status_approved' => $post['update_type'],
                     'status' => 'active',
                     "id_cluster"=>"013",
@@ -291,6 +293,58 @@ class ApiBeEmployeeController extends Controller
                     "number"=>$number['number'],
                     "code"=>$number['code']
                         ]);
+                if($update){
+                    $employee = Employee::where('id_employee', $post['id_employee'])
+                                ->join('users','users.id','employees.id_user')
+                                ->join('roles','roles.id_role','users.id_role')
+                                ->first();
+                    $outlet = Outlet::where('id_outlet', $employee['id_outlet'])->with('location_outlet')->first();
+                    $outletName = $outlet['outlet_name']??'';
+                    $companyType = $outlet['location_outlet']['company_type']??'';
+                    $companyType = str_replace('PT ', '', $companyType);
+                    $number = $employee['number'];
+                    if($employee['status_employee']==1){
+                     $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor('template_contract_employee_tetap.docx');   
+                    }else{
+                     $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor('template_contract_employee_kontrak.docx');
+                     $templateProcessor->setValue('end_date', MyHelper::dateFormatInd($employee['end_date'], true, false));
+                    }
+                    $templateProcessor->setValue('number', $number);
+                    $templateProcessor->setValue('company_type', $companyType);
+                    $templateProcessor->setValue('roman_month', MyHelper::numberToRomanRepresentation(date('n')));
+                    $templateProcessor->setValue('current_year', date('Y'));
+                    $templateProcessor->setValue('current_date', MyHelper::dateFormatInd(date('Y-m-d'), true, false));
+                    $templateProcessor->setValue('name', $employee['name']);
+                    $templateProcessor->setValue('gender', $employee['gender']);
+                    $templateProcessor->setValue('birthplace', $employee['birthplace']);
+                    $templateProcessor->setValue('birthdate', MyHelper::dateFormatInd($employee['birthday'], true, false));
+                    $templateProcessor->setValue('recent_address', $employee['address_domicile']);
+                    $templateProcessor->setValue('id_card_number', (empty($employee['card_number']) ? '':$employee['card_number']));
+                    $templateProcessor->setValue('start_date', MyHelper::dateFormatInd($employee['start_date'], true, false));
+                    $templateProcessor->setValue('outlet_name', $outletName);
+                    $templateProcessor->setValue('role', $employee['role_name']);
+
+
+                    if(!File::exists(public_path().'/employee_contract')){
+                        File::makeDirectory(public_path().'/employee_contract');
+                    }
+                    $directory = 'employee_contract/employee_'.$employee['code'].'.docx';
+                    $templateProcessor->saveAs($directory);
+
+                    if(config('configs.STORAGE') != 'local'){
+                        $contents = File::get(public_path().'/'.$directory);
+                        $store = Storage::disk(config('configs.STORAGE'))->put($directory,$contents, 'public');
+                        if($store){
+                            File::delete(public_path().'/'.$directory);
+                        }
+                    }
+
+                    if($templateProcessor){
+                        Employee::where('id_employee', $post['id_employee'])->update(['surat_perjanjian' => $directory]);
+                    }
+
+                   
+                }
                 $data_send = [
                     "employee" => Employee::join('users','users.id','employees.id_user')->where('id_employee',$post["id_employee"])->first(),
                     "location" => Outlet::leftjoin('locations','locations.id_location','outlets.id_location')->where('id_outlet',$post["id_outlet"])->first(),

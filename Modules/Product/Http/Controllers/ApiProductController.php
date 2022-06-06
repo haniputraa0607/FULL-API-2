@@ -105,8 +105,11 @@ class ApiProductController extends Controller
                 'service' => 'SVC',
                 'academy' => 'CRS'
             ];
-            $count = Product::where('product_type', $post['product_type'])->count();
-            $data['product_code'] = ($code[$post['product_type']]??'P').sprintf("%04d", ($count+1));
+            $count = Product::where('product_type', $post['product_type'])->orderBy('product_code', 'desc')->first()['product_code']??'';
+            $lastCode = substr($count, -4);
+            $lastCode = (int)$lastCode;
+            $countCode = $lastCode+1;
+            $data['product_code'] = ($code[$post['product_type']]??'P').sprintf("%04d", $countCode);
         }
 
         if(isset($post['product_photo_detail'])){

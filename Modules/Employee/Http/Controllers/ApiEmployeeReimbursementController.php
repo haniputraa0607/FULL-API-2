@@ -40,7 +40,6 @@ class ApiEmployeeReimbursementController extends Controller
    public function create(Create $request) {
        $post = $request->all();
        $post['id_user'] = Auth::user()->id;
-       $post['date_reimbursement'] = date('Y-m-d H:i:s');
        $post['due_date'] = date('Y-m-d H:i:s',strtotime('+1 months'));
        if(!empty($post['attachment'])){
            $file = $request->file('attachment');

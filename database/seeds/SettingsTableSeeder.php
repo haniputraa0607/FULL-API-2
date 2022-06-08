@@ -1272,6 +1272,42 @@ class SettingsTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s'),
                 ),
+            130 =>
+                array (
+                    'id_setting' => 130,
+                    'key' => 'employee_time_off_type',
+                    'value' => NULL,
+                    'value_text' => '["Cuti Hamil","Cuti Bulanan","Cuti Sakit","Cuti Tahunan"]',
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ),
+            131 =>
+                array (
+                    'id_setting' => 131,
+                    'key' => 'quota_employee_time_off',
+                    'value' => 14,
+                    'value_text' => NULL,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ),
+            132 =>
+                array (
+                    'id_setting' => 132,
+                    'key' => 'time_rimender_employee_attendance',
+                    'value' => 5,
+                    'value_text' => NULL,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ),
+            133 =>
+                array (
+                    'id_setting' => 133,
+                    'key' => 'category_contact_us',
+                    'value' => NULL,
+                    'value_text' => '{ "customer_app": { "id": null, "child": { "outlet-service": null, "home-service": null, "shop": null, "academy": null, "lain-lain": null } }, "mitra": { "id": null, "child": { "outlet-service": null, "home-service": null, "shop": null, "lain-lain": null } }, "cms": { "id": null, "child": { "lain-lain": null } }, "employee": { "id": null, "child": { "attendance": null, "time-off": null, "overtime": null, "lain-lain": null } } }',
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ),
         );
 
         foreach ($settings as $setting) {

@@ -332,7 +332,8 @@ class ApiIncome extends Controller
                 ->get();
         foreach ($hairstyllist as $value) {
             $hs = UserHairStylist::where('id_user_hair_stylist',$value->id_user_hair_stylist)->first();
-            $diff = date_diff(date_create(date('Y-m-d')), date_create(date('Y-m-d',strtotime($hs->join_date))));
+            $location = Outlet::where('id_outlet',$value->id_outlet)->join('locations','locations.id_location','outlets.id_location')->first();
+            $diff = date_diff(date_create(date('Y-m-d')), date_create(date('Y-m-d',strtotime($location->start_date))));
            
             if($diff->m >= 3){
                 $keterangan = "Non Proteksi";

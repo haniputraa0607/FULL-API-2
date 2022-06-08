@@ -27,7 +27,7 @@ class ApproveLoan extends FormRequest
                     DB::raw('
                         sum(
                             CASE WHEN
-                            asset_inventory_logs.type_loan = "Loan" AND asset_inventory_loans.status_loan = "Active" THEN 1 ELSE 0
+                            asset_inventory_logs.type_asset_inventory = "Loan" AND asset_inventory_loans.status_loan = "Active" THEN 1 ELSE 0
                             END
                         ) as jumlah
                     ')

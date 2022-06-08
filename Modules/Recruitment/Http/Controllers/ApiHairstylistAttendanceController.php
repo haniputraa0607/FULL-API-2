@@ -369,6 +369,12 @@ class ApiHairstylistAttendanceController extends Controller
         return MyHelper::checkGet($result);
     }
 
+    public function delete(Request $request)
+    {
+        $delete = HairstylistAttendance::where('id_hairstylist_attendance', $request->id_hairstylist_attendance)->delete();
+        return MyHelper::checkDelete($delete);
+    }
+
     public function filterListDetail($query,$rules,$operator='and'){
         $newRule=[];
         foreach ($rules as $var) {

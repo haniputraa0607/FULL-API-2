@@ -18,6 +18,7 @@ Route::group(['middleware' => ['auth:api', 'scopes:be'], 'prefix' => 'hairstylis
     Route::any('category', 'ApiHairStylistController@listCategory');
     Route::post('category/update', 'ApiHairStylistController@updateCategory');
     Route::post('category/delete', 'ApiHairStylistController@deleteCategory');
+    Route::post('export-payroll', 'ApiIncome@export_income');
 });
 
 Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'recruitment'], function () {
@@ -142,6 +143,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
             Route::post('detail','ApiHairstylistAttendanceController@detailRequest');
             Route::post('update','ApiHairstylistAttendanceController@updateRequest');
         });
+        
     });
 });
 

@@ -45,6 +45,8 @@ use Auth;
 use Modules\Recruitment\Http\Requests\Income;
 use Modules\Recruitment\Entities\HairstylistIncome;
 use Config;
+use Modules\Recruitment\Http\Requests\Export_Outlet;
+
 class ApiIncome extends Controller
 {
 
@@ -318,5 +320,53 @@ class ApiIncome extends Controller
         array_push($data_schedule_outlet,$data_outlet);
     }
     return $data_schedule_outlet;
+    }
+    public function export_income(Export_Outlet $request) {
+        $array = array();
+        $b = new HairstylistIncome();
+        $hairstyllist = UserHairStylist::join('outlets','outlets.id_outlet','user_hair_stylist.id_outlet')
+                ->leftjoin('bank_accounts','bank_accounts.id_bank_account','user_hair_stylist.id_bank_account')
+                ->leftjoin('bank_name','bank_name.id_bank_name','bank_accounts.id_bank_name')
+                ->leftjoin('hairstylist_groups','hairstylist_groups.id_hairstylist_group','user_hair_stylist.id_hairstylist_group')
+                ->wherein('user_hair_stylist.id_outlet',$request->id_outlet)
+                ->get();
+        foreach ($hairstyllist as $value) {
+            $hs = UserHairStylist::where('id_user_hair_stylist',$value->id_user_hair_stylist)->first();
+            $diff = date_diff(date_create(date('Y-m-d')), date_create(date('Y-m-d',strtotime($hs->join_date))));
+           
+            if($diff->m >= 3){
+                $keterangan = "Non Proteksi";
+            }else{
+                $keterangan = "Proteksi";
+            }
+            $data = array(
+                'NIK'=>$hs->user_hair_stylist_code??'',
+                'Nama Lengkap'=>$hs->fullname??'',
+                'Email'=>$hs->email??'',
+                'Jabatan'=>$hs->level??'',
+                'Tanggal_bergabung'=>date('d-M-Y',strtotime($hs->join_date))??'',
+                'Outlet'=>$value->outlet_name??'',
+                'Bank'=>$value->bank_name??'',
+                'Bank_account'=>$value->beneficiary_name??'',
+                'Keterangan'=>$keterangan??'',
+                'Grup'=>$value->hair_stylist_group_name??'',
+            );
+            $response = $b->calculateIncomeExport($hs, $request->start_date,$request->end_date);
+            foreach ($response as $value) {
+                $data[ucfirst($value['name'])]=$value['value'];
+            }
+            array_push($array,$data);
+        }
+        $b = array();
+        foreach ($array as $key => $value) {
+            $b = array_merge($b,array_keys($value));
+        }
+        $response = array(
+            'start_date'=>$request->start_date,
+            'end_date'=>$request->end_date,
+            'head'=> array_unique($b),
+            'body'=> $array,
+        );
+        return MyHelper::checkGet($response);
     }
 }

@@ -342,20 +342,28 @@ class ApiIncome extends Controller
             }
             $data = array(
                 'NIK'=>$hs->user_hair_stylist_code??'',
-                'Nama Lengkap'=>$hs->fullname??'',
-                'Email'=>$hs->email??'',
+                'NAMA LENGKAP'=>$hs->fullname??'',
+                'Nama Panggilan'=>$hs->nickname??'',
                 'Jabatan'=>$hs->level??'',
-                'Tanggal_bergabung'=>date('d-M-Y',strtotime($hs->join_date))??'',
+                'Join Date'=>date('d-M-Y',strtotime($hs->join_date))??'',
                 'Outlet'=>$value->outlet_name??'',
-                'Bank'=>$value->bank_name??'',
-                'Bank_account'=>$value->beneficiary_name??'',
-                'Keterangan'=>$keterangan??'',
-                'Grup'=>$value->hair_stylist_group_name??'',
             );
-            $response = $b->calculateIncomeExport($hs, $request->start_date,$request->end_date);
-            foreach ($response as $value) {
-                $data[ucfirst($value['name'])]=$value['value'];
+            $response = $b->calculateIncomeGross($hs, $request->start_date,$request->end_date);
+            foreach ($response as $valu) {
+                $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
             }
+            $response = $b->calculateIncomeTotal($hs, $request->start_date,$request->end_date);
+            foreach ($response as $valu) {
+                $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
+            }
+            $response = $b->calculateIncomeExport($hs, $request->start_date,$request->end_date);
+            foreach ($response as $values) {
+                $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
+            }
+            $data['Keterangan'] = $keterangan??'';
+            $data['Bank'] = $value->bank_name??'';
+            $data['Bank account'] = $value->beneficiary_name??'';
+            $data['Email'] = $value->email??'';
             array_push($array,$data);
         }
         $b = array();

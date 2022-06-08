@@ -1277,7 +1277,7 @@ class SettingsTableSeeder extends Seeder
                     'id_setting' => 130,
                     'key' => 'employee_time_off_type',
                     'value' => NULL,
-                    'value_text' => '["Cuti Hamil","Cuti Bulanan","Cuti Sakit","Cuti Tahunan"]',
+                    'value_text' => '{"Cuti Hamil":{"cut_quota_time_off":1,"cut_salary":0,},"Cuti Bulanan":{"cut_quota_time_off":1,"cut_salary":0,},"Cuti Sakit":{"cut_quota_time_off":0,"cut_salary":0,},"Cuti Tahunan":{"cut_quota_time_off":1,"cut_salary":0,},}',
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s'),
                 ),

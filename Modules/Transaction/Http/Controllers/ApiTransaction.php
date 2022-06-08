@@ -6765,6 +6765,7 @@ class ApiTransaction extends Controller
             ->whereIn('transactions.id_outlet', $idOutlets)
             ->whereIn('transaction_from', ['outlet-service', 'home-service'])
             ->where('transaction_products.type', 'service')
+            ->whereNull('transaction_products.reject_at')
             ->groupBy(DB::raw('DATE(transaction_date)'), 'transactions.id_outlet', 'transaction_products.id_product')
             ->select(DB::raw('DATE(transaction_date) as transaction_date'), 'transactions.id_outlet', 'transaction_products.id_product', 'outlet_name', 'product_name',
                 DB::raw('SUM(transaction_products.transaction_product_discount_all) as discount'),
@@ -6782,6 +6783,7 @@ class ApiTransaction extends Controller
             ->whereIn('transactions.id_outlet', $idOutlets)
             ->whereIn('transaction_from', ['outlet-service', 'home-service'])
             ->where('transaction_products.type', 'service')
+            ->whereNull('transaction_products.reject_at')
             ->groupBy(DB::raw('DATE(transaction_date)'), 'transactions.id_outlet')
             ->select(DB::raw('DATE(transaction_date) as transaction_date'), 'transactions.id_outlet', DB::raw('COUNT(Distinct transactions.id_transaction) as total'), DB::raw("group_concat(transaction_products.id_transaction_product separator ',') as trx_product_id"))
             ->get()->toArray();

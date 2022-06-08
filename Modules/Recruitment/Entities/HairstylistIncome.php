@@ -84,6 +84,77 @@ class HairstylistIncome extends Model
         if (!$hsIncome) {
             throw new \Exception('Failed create hs income data');
         }
+        $id_outlets = HairstylistAttendance::where('id_user_hair_stylist', $hs->id_user_hair_stylist)->groupby('id_outlet')->distinct()->get()->pluck('id_outlet');
+        foreach ($id_outlets as $id_outlet) {
+                    $total_attend = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) use ($hs,$id_outlet){
+                            $join->on('hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+                                ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+                                ->where('id_outlet', $id_outlet);
+                        })
+                        ->whereNotNull('clock_in')
+                        ->whereBetween('hairstylist_attendances.attendance_date',[$startDate,$endDate])
+                        ->count();
+                    $total_late = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) use ($hs,$id_outlet){
+                            $join->on('hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+                                ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+                                ->where('id_outlet', $id_outlet);
+                        })
+                        ->whereNotNull('clock_in')
+                        ->where('is_on_time', 0)
+                        ->whereBetween('hairstylist_attendances.attendance_date',[$startDate,$endDate])
+                        ->count();
+                    $total_absen = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) use ($hs,$id_outlet){
+                            $join->on('hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+                                ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+                                ->where('id_outlet', $id_outlet);
+                        })
+                        ->whereNull('clock_in')
+                        ->whereBetween('hairstylist_attendances.attendance_date',[$startDate,$endDate])
+                        ->count();
+                    $total_overtimes = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) use ($hs,$id_outlet){
+                            $join->on('hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+                                ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+                                ->where('id_outlet', $id_outlet);
+                        })
+                        ->whereNotNull('clock_in')
+                        ->whereBetween('hairstylist_attendances.attendance_date',[$startDate,$endDate])
+                        ->select('date')
+                        ->get();
+                    foreach ($total_overtimes as $value) {
+                        array_push($overtime,$value);
+                    }
+                  
+                }
+                $over = 0;
+                $ove = array();
+                foreach (array_unique($overtime) as $value) {
+                    $overtimess = HairstylistOverTime::where('id_user_hair_stylist',$hs->id_user_hair_stylist)
+                            ->wherenotnull('approve_at')
+                            ->wherenull('reject_at')
+                            ->wheredate('date',$value['date'])
+                            ->get();
+                    foreach ($overtimess as $va) {
+                        array_push($ove,$va['duration']);
+                    }
+                }
+                $h = 0;
+                $m = 0;
+                $d = 0;
+                foreach ($ove as $value) {
+                    $va = explode(":", $value);
+                    $h += $va[0];
+                    $m += $va[1];
+                    $d += $va[2];
+                }
+                if($d>60){
+                  $s = floor($d / 60);
+                  $m = $s + $m;
+                }
+                if($m>60){
+                  $s = floor($m / 60);
+                  $h = $s + $h;
+                }
+             $total_overtime = $h;
         foreach  ($calculations as $calculation) {
             if ($calculation == 'product_commission') {
                 $trxs = TransactionProduct::select('transaction_products.id_transaction', 'transaction_products.id_transaction_product', 'transaction_breakdowns.*')
@@ -132,29 +203,12 @@ class HairstylistIncome extends Model
                 $id_outlets = HairstylistAttendance::where('id_user_hair_stylist', $hs->id_user_hair_stylist)->get()->pluck('id_outlet');
                 $amount = 0;
                 foreach ($id_outlets as $id_outlet) {
-                    $total_attend = HairstylistAttendance::where('id_user_hair_stylist', $hs->id_user_hair_stylist)
-                        ->where('id_outlet', $id_outlet)
-                        ->whereBetween('attendance_date',[$startDate,$endDate])
-                        ->count();
-                    $total_late = HairstylistAttendance::where('id_user_hair_stylist', $hs->id_user_hair_stylist)
-                        ->where('id_outlet', $id_outlet)
-                        ->where('is_on_time', 0)
-                        ->whereBetween('attendance_date',[$startDate,$endDate])
-                        ->count();
-                    $total_absen = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) use ($hs,$id_outlet){
-                            $join->on('hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
-                                ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
-                                ->where('id_outlet', $id_outlet);
-                        })
-                        ->whereNotNull('clock_in')
-                        
-                        ->whereBetween('hairstylist_attendances.attendance_date',[$startDate,$endDate])
-                        ->count();
                     try {
                         $amount = MyHelper::calculator($formula, [
                             'total_attend' => $total_attend,
                             'total_late' => $total_late,
                             'total_absen' => $total_absen,
+                            'total_overtime' => $total_overtime,
                         ]);
                     } catch (\Exception $e) {
                         $amount = 0;
@@ -197,30 +251,12 @@ class HairstylistIncome extends Model
                 $amount = 0;
                 $id_outlets = HairstylistAttendance::where('id_user_hair_stylist', $hs->id_user_hair_stylist)->get()->pluck('id_outlet');
                 foreach ($id_outlets as $id_outlet) {
-                    $total_attend = HairstylistAttendance::where('id_user_hair_stylist', $hs->id_user_hair_stylist)
-                        ->where('id_outlet', $id_outlet)
-                        ->whereBetween('attendance_date',[$startDate,$endDate])
-                        ->count();
-                    $total_late = HairstylistAttendance::where('id_user_hair_stylist', $hs->id_user_hair_stylist)
-                        ->where('id_outlet', $id_outlet)
-                        ->where('is_on_time', 0)
-                        ->whereBetween('attendance_date',[$startDate,$endDate])
-                        ->count();
-                    $total_absen = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) use ($hs,$id_outlet){
-                            $join->on('hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
-                                ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
-                                ->where('id_outlet', $id_outlet);
-                        })
-                        ->whereNotNull('clock_in')
-                        
-                        ->whereBetween('hairstylist_attendances.attendance_date',[$startDate,$endDate])
-                        ->count();
-                        
                     try {
                         $amount = MyHelper::calculator($formula, [
                             'total_attend' => $total_attend,
                             'total_late' => $total_late,
                             'total_absen' => $total_absen,
+                            'total_overtime' => $total_overtime,
                         ]);
                     } catch (\Exception $e) {
                         $amount = 0;
@@ -333,24 +369,7 @@ class HairstylistIncome extends Model
                   $h = $s + $h;
                 }
              $total_overtime = $h;
-             $array = array(
-                 array(
-                    "name"=>"hari_masuk",
-                    "value"=>$total_attend
-                 ),
-                 array(
-                    "name"=>"hari_absen",
-                    "value"=>$total_absen
-                 ),
-                 array(
-                    "name"=>"hari_terlambat",
-                    "value"=>$total_late
-                 ),
-                 array(
-                    "name"=>"tambahan_jam",
-                    "value"=>$total_overtime
-                 ),
-             );
+            
         foreach  ($calculations as $calculation) {
             if ($calculation == 'product_commission') {
                 $trxs = TransactionProduct::select('transaction_products.id_transaction', 'transaction_products.id_transaction_product', 'transaction_breakdowns.*')
@@ -368,7 +387,7 @@ class HairstylistIncome extends Model
                      $total = $total+$item->value;
                 });
                 $array[] = array(
-                    "name"=> "product_commission",
+                    "name"=> "total product commission",
                     "value"=> $total_product_commission
                 );
             } elseif (strpos($calculation, 'incentive_') === 0) { // start_with_calculation
@@ -409,7 +428,7 @@ class HairstylistIncome extends Model
                 }
                 $total = $total+$amount;
                $array[] = array(
-                    "name"=> 'tambahan_'.$code,
+                    "name"=> 'total tambahan '.str_replace("_"," ",$code),
                     "value"=> $amount,
                 );
             } elseif (strpos($calculation, 'salary_cut_') === 0) { // start_with_calculation
@@ -453,13 +472,359 @@ class HairstylistIncome extends Model
                 }
                 $total = $total-$amount;
                   $array[] = array(
-                    "name"=> 'potongan_'.$code,
+                    "name"=> 'total potongan '.str_replace("_"," ",$code),
                     "value"=> $amount,
                 );
             }
         }
+        return $array;
+    }
+    public static function calculateIncomeTotal(UserHairStylist $hs, $startDate,$endDate)
+    {
+        $total = 0;
+        $calculation_mid = json_decode(MyHelper::setting('hs_income_calculation_mid', 'value_text', '[]'), true) ?? [];
+        $calculation_end = json_decode(MyHelper::setting('hs_income_calculation_end', 'value_text', '[]'), true) ?? [];
+        $calculations    = array_unique(array_merge($calculation_mid,$calculation_end));
+        if (!$calculations) {
+            throw new \Exception('No calculation for income. Check setting!');
+        }
+        $total_attend = 0;
+        $total_late = 0;
+        $total_absen = 0;
+        $total_overtime = 0;
+        $overtime = array();
+        $id_outlets = HairstylistAttendance::where('id_user_hair_stylist', $hs->id_user_hair_stylist)->groupby('id_outlet')->distinct()->get()->pluck('id_outlet');
+        foreach ($id_outlets as $id_outlet) {
+                    $total_attend = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) use ($hs,$id_outlet){
+                            $join->on('hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+                                ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+                                ->where('id_outlet', $id_outlet);
+                        })
+                        ->whereNotNull('clock_in')
+                        ->whereBetween('hairstylist_attendances.attendance_date',[$startDate,$endDate])
+                        ->count();
+                    $total_late = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) use ($hs,$id_outlet){
+                            $join->on('hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+                                ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+                                ->where('id_outlet', $id_outlet);
+                        })
+                        ->whereNotNull('clock_in')
+                        ->where('is_on_time', 0)
+                        ->whereBetween('hairstylist_attendances.attendance_date',[$startDate,$endDate])
+                        ->count();
+                    $total_absen = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) use ($hs,$id_outlet){
+                            $join->on('hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+                                ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+                                ->where('id_outlet', $id_outlet);
+                        })
+                        ->whereNull('clock_in')
+                        ->whereBetween('hairstylist_attendances.attendance_date',[$startDate,$endDate])
+                        ->count();
+                    $total_overtimes = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) use ($hs,$id_outlet){
+                            $join->on('hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+                                ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+                                ->where('id_outlet', $id_outlet);
+                        })
+                        ->whereNotNull('clock_in')
+                        ->whereBetween('hairstylist_attendances.attendance_date',[$startDate,$endDate])
+                        ->select('date')
+                        ->get();
+                    foreach ($total_overtimes as $value) {
+                        array_push($overtime,$value);
+                    }
+                  
+                }
+                $over = 0;
+                $ove = array();
+                foreach (array_unique($overtime) as $value) {
+                    $overtimess = HairstylistOverTime::where('id_user_hair_stylist',$hs->id_user_hair_stylist)
+                            ->wherenotnull('approve_at')
+                            ->wherenull('reject_at')
+                            ->wheredate('date',$value['date'])
+                            ->get();
+                    foreach ($overtimess as $va) {
+                        array_push($ove,$va['duration']);
+                    }
+                }
+                $h = 0;
+                $m = 0;
+                $d = 0;
+                foreach ($ove as $value) {
+                    $va = explode(":", $value);
+                    $h += $va[0];
+                    $m += $va[1];
+                    $d += $va[2];
+                }
+                if($d>60){
+                  $s = floor($d / 60);
+                  $m = $s + $m;
+                }
+                if($m>60){
+                  $s = floor($m / 60);
+                  $h = $s + $h;
+                }
+             $total_overtime = $h;
+              $array = array(
+                 array(
+                    "name"=>"hari masuk",
+                    "value"=>$total_attend
+                 ), 
+                 array(
+                    "name"=>"potongan telat",
+                    "value"=>$total_late
+                 ),
+                 array(
+                    "name"=>"tambahan jam",
+                    "value"=>$total_overtime
+                 ),
+             );
+        foreach  ($calculations as $calculation) {
+            if ($calculation == 'product_commission') {
+                $trxs = TransactionProduct::select('transaction_products.id_transaction', 'transaction_products.id_transaction_product', 'transaction_breakdowns.*')
+                    ->join('transaction_breakdowns', function($join) use ($startDate, $endDate) {
+                        $join->on('transaction_breakdowns.id_transaction_product', 'transaction_products.id_transaction_product')
+                            ->whereNotNull('transaction_products.transaction_product_completed_at')
+                            ->whereBetween('transaction_product_completed_at',[$startDate,$endDate]);
+                    })
+                    ->where('transaction_breakdowns.type', 'fee_hs')
+                    ->with('transaction')
+                    ->get();
+                $total_product_commission = 0;
+                $trxs->each(function ($item) use ($total_product_commission,$total) {
+                     $total = $total+$item->value;
+                });
+              
+            } elseif (strpos($calculation, 'incentive_') === 0) { // start_with_calculation
+                $code = str_replace('incentive_', '', $calculation);
+                $incentive = HairstylistGroupInsentifDefault::leftJoin('hairstylist_group_insentifs', function($join) use ($hs) {
+                                $join->on('hairstylist_group_insentifs.id_hairstylist_group_default_insentifs', 'hairstylist_group_default_insentifs.id_hairstylist_group_default_insentifs')
+                                ->where('id_hairstylist_group', $hs->id_hairstylist_groups);
+                            })->where('hairstylist_group_default_insentifs.code', $code)
+                            ->select('hairstylist_group_default_insentifs.id_hairstylist_group_default_insentifs','hairstylist_group_default_insentifs.code',
+                                DB::raw('
+                                       CASE WHEN
+                                       hairstylist_group_insentifs.value IS NOT NULL THEN hairstylist_group_insentifs.value ELSE hairstylist_group_default_insentifs.value
+                                       END as value
+                                    '),
+                                DB::raw('
+                                       CASE WHEN
+                                       hairstylist_group_insentifs.formula IS NOT NULL THEN hairstylist_group_insentifs.formula ELSE hairstylist_group_default_insentifs.formula
+                                       END as formula
+                                    ')
+                                )->first();
+                if (!$incentive) {
+                    continue;
+                }
+                $formula = str_replace('value', $incentive->value, $incentive->formula);
+                $id_outlets = HairstylistAttendance::where('id_user_hair_stylist', $hs->id_user_hair_stylist)->get()->pluck('id_outlet');
+                $amount = 0;
+                foreach ($id_outlets as $id_outlet) {
+                    try {
+                        $amount = MyHelper::calculator($formula, [
+                            'total_attend' => $total_attend,
+                            'total_late' => $total_late,
+                            'total_absen' => $total_absen,
+                            'total_overtime' => $total_overtime,
+                        ]);
+                    } catch (\Exception $e) {
+                        $amount = 0;
+                    }
+                }
+                $total = $total+$amount;
+               
+            } elseif (strpos($calculation, 'salary_cut_') === 0) { // start_with_calculation
+                $code = str_replace('salary_cut_', '', $calculation);
+                $salary_cut = HairstylistGroupPotonganDefault::leftJoin('hairstylist_group_potongans', function($join) use ($hs) {
+                    $join->on('hairstylist_group_potongans.id_hairstylist_group_default_potongans', 'hairstylist_group_default_potongans.id_hairstylist_group_default_potongans')
+                        ->where('id_hairstylist_group', $hs->id_hairstylist_groups);
+                })->where('hairstylist_group_default_potongans.code', $code)
+                         ->select('hairstylist_group_default_potongans.id_hairstylist_group_default_potongans','hairstylist_group_default_potongans.code',
+                                DB::raw('
+                                       CASE WHEN
+                                       hairstylist_group_potongans.value IS NOT NULL THEN hairstylist_group_potongans.value ELSE hairstylist_group_default_potongans.value
+                                       END as value
+                                    '),
+                                DB::raw('
+                                       CASE WHEN
+                                       hairstylist_group_potongans.formula IS NOT NULL THEN hairstylist_group_potongans.formula ELSE hairstylist_group_default_potongans.formula
+                                       END as formula
+                                    '))
+                        ->first();
+                if (!$salary_cut) {
+                    continue;
+                }
+                
+                $formula = str_replace('value', $salary_cut->value, $salary_cut->formula);
+                $amount = 0;
+                $id_outlets = HairstylistAttendance::where('id_user_hair_stylist', $hs->id_user_hair_stylist)->get()->pluck('id_outlet');
+                foreach ($id_outlets as $id_outlet) {
+                   
+                    try {
+                        $amount = MyHelper::calculator($formula, [
+                            'total_attend' => $total_attend,
+                            'total_late' => $total_late,
+                            'total_absen' => $total_absen,
+                            '$total_overtime' => $total_overtime,
+                        ]);
+                    } catch (\Exception $e) {
+                        $amount = 0;
+                    }
+                  
+                }
+                $total = $total-$amount;
+                
+            }
+        }
         $array[] = array(
-                    "name"=> "total_commission",
+                    "name"=> "total commission",
+                    "value"=> $total
+                    
+                );
+        return $array;
+    }
+    public static function calculateIncomeGross(UserHairStylist $hs, $startDate,$endDate)
+    {
+        $total = 0;
+        $calculation_mid = json_decode(MyHelper::setting('hs_income_calculation_mid', 'value_text', '[]'), true) ?? [];
+        $calculation_end = json_decode(MyHelper::setting('hs_income_calculation_end', 'value_text', '[]'), true) ?? [];
+        $calculations    = array_unique(array_merge($calculation_mid,$calculation_end));
+        if (!$calculations) {
+            throw new \Exception('No calculation for income. Check setting!');
+        }
+        $total_attend = 0;
+        $total_late = 0;
+        $total_absen = 0;
+        $total_overtime = 0;
+        $overtime = array();
+        $id_outlets = HairstylistAttendance::where('id_user_hair_stylist', $hs->id_user_hair_stylist)->groupby('id_outlet')->distinct()->get()->pluck('id_outlet');
+        foreach ($id_outlets as $id_outlet) {
+                    $total_attend = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) use ($hs,$id_outlet){
+                            $join->on('hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+                                ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+                                ->where('id_outlet', $id_outlet);
+                        })
+                        ->whereNotNull('clock_in')
+                        ->whereBetween('hairstylist_attendances.attendance_date',[$startDate,$endDate])
+                        ->count();
+                    $total_late = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) use ($hs,$id_outlet){
+                            $join->on('hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+                                ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+                                ->where('id_outlet', $id_outlet);
+                        })
+                        ->whereNotNull('clock_in')
+                        ->where('is_on_time', 0)
+                        ->whereBetween('hairstylist_attendances.attendance_date',[$startDate,$endDate])
+                        ->count();
+                    $total_absen = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) use ($hs,$id_outlet){
+                            $join->on('hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+                                ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+                                ->where('id_outlet', $id_outlet);
+                        })
+                        ->whereNull('clock_in')
+                        ->whereBetween('hairstylist_attendances.attendance_date',[$startDate,$endDate])
+                        ->count();
+                    $total_overtimes = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) use ($hs,$id_outlet){
+                            $join->on('hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+                                ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+                                ->where('id_outlet', $id_outlet);
+                        })
+                        ->whereNotNull('clock_in')
+                        ->whereBetween('hairstylist_attendances.attendance_date',[$startDate,$endDate])
+                        ->select('date')
+                        ->get();
+                    foreach ($total_overtimes as $value) {
+                        array_push($overtime,$value);
+                    }
+                  
+                }
+                $over = 0;
+                $ove = array();
+                foreach (array_unique($overtime) as $value) {
+                    $overtimess = HairstylistOverTime::where('id_user_hair_stylist',$hs->id_user_hair_stylist)
+                            ->wherenotnull('approve_at')
+                            ->wherenull('reject_at')
+                            ->wheredate('date',$value['date'])
+                            ->get();
+                    foreach ($overtimess as $va) {
+                        array_push($ove,$va['duration']);
+                    }
+                }
+                $h = 0;
+                $m = 0;
+                $d = 0;
+                foreach ($ove as $value) {
+                    $va = explode(":", $value);
+                    $h += $va[0];
+                    $m += $va[1];
+                    $d += $va[2];
+                }
+                if($d>60){
+                  $s = floor($d / 60);
+                  $m = $s + $m;
+                }
+                if($m>60){
+                  $s = floor($m / 60);
+                  $h = $s + $h;
+                }
+             $total_overtime = $h;
+        foreach  ($calculations as $calculation) {
+            if ($calculation == 'product_commission') {
+                $trxs = TransactionProduct::select('transaction_products.id_transaction', 'transaction_products.id_transaction_product', 'transaction_breakdowns.*')
+                    ->join('transaction_breakdowns', function($join) use ($startDate, $endDate) {
+                        $join->on('transaction_breakdowns.id_transaction_product', 'transaction_products.id_transaction_product')
+                            ->whereNotNull('transaction_products.transaction_product_completed_at')
+                            ->whereBetween('transaction_product_completed_at',[$startDate,$endDate]);
+                    })
+                    ->where('transaction_breakdowns.type', 'fee_hs')
+                    ->with('transaction')
+                    ->get();
+                $total_product_commission = 0;
+                $trxs->each(function ($item) use ($total_product_commission,$total) {
+                     $total = $total+$item->value;
+                });
+              
+            } elseif (strpos($calculation, 'incentive_') === 0) { // start_with_calculation
+                $code = str_replace('incentive_', '', $calculation);
+                $incentive = HairstylistGroupInsentifDefault::leftJoin('hairstylist_group_insentifs', function($join) use ($hs) {
+                                $join->on('hairstylist_group_insentifs.id_hairstylist_group_default_insentifs', 'hairstylist_group_default_insentifs.id_hairstylist_group_default_insentifs')
+                                ->where('id_hairstylist_group', $hs->id_hairstylist_groups);
+                            })->where('hairstylist_group_default_insentifs.code', $code)
+                            ->select('hairstylist_group_default_insentifs.id_hairstylist_group_default_insentifs','hairstylist_group_default_insentifs.code',
+                                DB::raw('
+                                       CASE WHEN
+                                       hairstylist_group_insentifs.value IS NOT NULL THEN hairstylist_group_insentifs.value ELSE hairstylist_group_default_insentifs.value
+                                       END as value
+                                    '),
+                                DB::raw('
+                                       CASE WHEN
+                                       hairstylist_group_insentifs.formula IS NOT NULL THEN hairstylist_group_insentifs.formula ELSE hairstylist_group_default_insentifs.formula
+                                       END as formula
+                                    ')
+                                )->first();
+                if (!$incentive) {
+                    continue;
+                }
+                $formula = str_replace('value', $incentive->value, $incentive->formula);
+                $id_outlets = HairstylistAttendance::where('id_user_hair_stylist', $hs->id_user_hair_stylist)->get()->pluck('id_outlet');
+                $amount = 0;
+                foreach ($id_outlets as $id_outlet) {
+                    try {
+                        $amount = MyHelper::calculator($formula, [
+                            'total_attend' => $total_attend,
+                            'total_late' => $total_late,
+                            'total_absen' => $total_absen,
+                            'total_overtime' => $total_overtime,
+                        ]);
+                    } catch (\Exception $e) {
+                        $amount = 0;
+                    }
+                }
+                $total = $total+$amount;
+               
+            }
+        }
+        $array[] = array(
+                    "name"=> "total gross income",
                     "value"=> $total
                     
                 );

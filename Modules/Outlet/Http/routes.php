@@ -73,8 +73,10 @@ Route::group(['prefix' => 'api/outlet', 'middleware' => ['log_activities', 'auth
     Route::group(['prefix' => 'stock'], function() {
         Route::post('stock-icount', ['middleware' => 'feature_control:447', 'uses' =>'ApiOutletController@getStockIcount']);
         Route::post('report', ['middleware' => 'feature_control:447', 'uses' =>'ApiOutletController@reportStock']);
+        Route::post('adjust', ['middleware' => 'feature_control:447', 'uses' =>'ApiOutletController@adjustStock']);
     });
     Route::post('unit-conversion/detail', ['middleware' => 'feature_control:447', 'uses' =>'ApiOutletController@detailUnitConversion']);
+    Route::post('stock-adjustment/detail', ['middleware' => 'feature_control:447', 'uses' =>'ApiOutletController@detailStockAdjustment']);
 
     Route::post('import-brand', 'ApiOutletController@importBrand');
     Route::post('import-delivery', 'ApiOutletController@importDelivery');

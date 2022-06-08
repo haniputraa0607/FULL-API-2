@@ -317,12 +317,25 @@ class ApiMitraOutletService extends Controller
     public function availableBox(Request $request)
     {
     	$user = $request->user();
-    	$box = OutletBox::where([
-    		['id_outlet', $user->id_outlet],
-    		['outlet_box_status', 'Active']
-    	])->get();
+		$attendance = $this->checkAttendance($user);
+		$box = [];
+		if($attendance){
+			$box = OutletBox::where([
+				['id_outlet', $user->id_outlet],
+				['outlet_box_status', 'Active']
+			])->get();
+		}
     	return MyHelper::checkGet($box);
     }
+
+	public function checkAttendance($user){
+		$date =  MyHelper::adjustTimezone(date('Y-m-d'), 7, 'Y-m-d', true);
+		$attendance = HairstylistAttendance::where('id_user_hair_stylist', $user->id_user_hair_stylist)->where('id_outlet', $user->id_outlet)->whereDate('attendance_date', $date)->whereNotNull('clock_in')->first();
+		if($attendance){
+			return true;
+		}
+		return false;
+	}
 
     public function startService(StartOutletServiceRequest $request)
     {
@@ -399,10 +412,16 @@ class ApiMitraOutletService extends Controller
     	}
 
     	if (isset($schedule->id_outlet_box) && $schedule->id_outlet_box != $request->id_outlet_box) {
-    		return [
-    			'status' => 'fail',
-    			'messages' => ['Tidak dapat menggunakan box yang berbeda']
-    		];	
+    		if (is_null($request->id_outlet_box)) {
+	    		$request->merge(['id_outlet_box' => $schedule->id_outlet_box]);
+    		}
+
+    		if ($schedule->id_outlet_box != $request->id_outlet_box) {
+	    		return [
+	    			'status' => 'fail',
+	    			'messages' => ['Tidak dapat menggunakan box yang berbeda']
+	    		];	
+    		}
     	}
 
     	$box = OutletBox::where('id_outlet_box', $request->id_outlet_box)->first();
@@ -571,10 +590,16 @@ class ApiMitraOutletService extends Controller
     	}
 
     	if (isset($schedule->id_outlet_box) && $schedule->id_outlet_box != $request->id_outlet_box) {
-    		return [
-    			'status' => 'fail',
-    			'messages' => ['Tidak dapat menggunakan box yang berbeda']
-    		];	
+    		if (is_null($request->id_outlet_box)) {
+	    		$request->merge(['id_outlet_box' => $schedule->id_outlet_box]);
+    		}
+
+    		if ($schedule->id_outlet_box != $request->id_outlet_box) {
+	    		return [
+	    			'status' => 'fail',
+	    			'messages' => ['Tidak dapat menggunakan box yang berbeda']
+	    		];	
+    		}
     	}
 
     	$box = OutletBox::where('id_outlet_box', $request->id_outlet_box)->first();
@@ -996,7 +1021,7 @@ class ApiMitraOutletService extends Controller
     			'id_user' => $trx->id_user,
     			'id_transaction' => $trx->id_transaction,
     			'id_transaction_product_service' => $request->id_transaction_product_service,
-    			'id_user_hair_stylist' => $service->id_user_hair_stylist
+    			'id_user_hair_stylist' => $user->id_user_hair_stylist
     		],[
     			'refuse_count' => 0,
     			'last_popup' => date('Y-m-d H:i:s', time() - MyHelper::setting('popup_min_interval', 'value', 900))
@@ -1244,6 +1269,7 @@ class ApiMitraOutletService extends Controller
     		$shift = $schedule->shift;
     		$attendance = HairstylistAttendance::where('id_user_hair_stylist', '=', $user->id_user_hair_stylist)
     		->whereDate('attendance_date', date('Y-m-d'))
+			->whereNotNull('clock_in')
     		->first();
     		if (!$attendance) {
     			$box = [];
@@ -1301,7 +1327,13 @@ class ApiMitraOutletService extends Controller
     		$curTime = date('H:i:s', strtotime($dateTime));
     		$day = MyHelper::indonesian_date_v2($dateTime, 'l');
     		$day = str_replace('Jum\'at', 'Jumat', $day);
-
+			
+			$time_start = MyHelper::adjustTimezone($schedule['time_start'], $timezone, 'H:i', true);
+			$time_end = MyHelper::adjustTimezone($schedule['time_end'], $timezone, 'H:i', true);
+			$approve_ovt = false;
+			if($schedule['is_overtime'] == 1 && date('H:i') >= $time_start && date('H:i') <= $time_end){
+				$approve_ovt = true;
+			}
     		$outletSchedule = OutletSchedule::where('id_outlet', $user->id_outlet)->where('day', $day)->first();
     		$isHoliday = app('Modules\Outlet\Http\Controllers\ApiOutletController')->isHoliday($user->id_outlet);
     		$outletShift = OutletTimeShift::where('id_outlet_schedule', $outletSchedule->id_outlet_schedule)->where('shift',$schedule->shift)->first();
@@ -1310,6 +1342,9 @@ class ApiMitraOutletService extends Controller
     			$box = [];
     			$outlet_box = null;
     		}elseif ($isHoliday['status']) {
+    			$box = [];
+    			$outlet_box = null;
+    		}elseif (!$approve_ovt) {
     			$box = [];
     			$outlet_box = null;
     		}elseif($overtime->time == "after"){
@@ -1666,11 +1701,25 @@ class ApiMitraOutletService extends Controller
 
     public function shiftBox($id_outlet)
     {
-    	$shift = app($this->mitra)->getOutletShift($id_outlet);
+		$shift = app($this->mitra)->getOutletShift($id_outlet);
+		$shift_2 = HairStylistScheduleDate::join('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
+					->whereDate('hairstylist_schedule_dates.date',date('Y-m-d'))
+					->where('hairstylist_schedule_dates.is_overtime', 1)
+					->get()->toArray();
     	$box = OutletBox::where('id_outlet', $id_outlet)->with([
     		'hairstylist_schedule_dates.hairstylist_schedule.user_hair_stylist',
-    		'hairstylist_schedule_dates' => function($q) use ($shift) {
-    			$q->where('date', date('Y-m-d'))->where('shift', $shift);
+    		'hairstylist_schedule_dates' => function($q) use ($shift, $shift_2) {
+    			$q->where('date', date('Y-m-d'))->where(function($q2) use($shift, $shift_2){
+					$q2->where('shift', $shift);
+					if($shift_2){
+						foreach($shift_2 as $s2){
+							$q2->orWhere(function($q3) use($s2){
+								$q3->where('shift',$s2['shift']);
+								$q3->where('is_overtime', 1);
+							});
+						}
+					}
+				});
     		}
     	])->get();
     	return $box;

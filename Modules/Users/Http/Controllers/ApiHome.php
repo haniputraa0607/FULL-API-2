@@ -904,10 +904,11 @@ class ApiHome extends Controller
 
     public function socialMedia(Request $request)
     {
-    	$getSetting = Setting::whereIn('key', ['facebook_url', 'instagram_url'])->get()->keyBy('key');
+    	$getSetting = Setting::whereIn('key', ['facebook_url', 'instagram_url', 'youtube_url'])->get()->keyBy('key');
     	$result = [
     		'facebook' => $getSetting['facebook_url']['value_text'] ?? null,
     		'instagram' => $getSetting['instagram_url']['value_text'] ?? null,
+            'youtube' => $getSetting['youtube_url']['value_text'] ?? null,
             'custom_page' => config('url.api_url') . 'api/custom-page/webview/' . (CustomPage::getFeatured()->id_custom_page),
     	];
     	return MyHelper::checkGet($result);
@@ -929,6 +930,8 @@ class ApiHome extends Controller
 	                $query->whereHas('brands',function($query){
 	                    $query->where('brand_active',1);
 	                });
+                    $query->where('promo_campaign_visibility', 'Visible');
+                    $query->where('step_complete', 1);
 	            })
 	            ->orderBy('order')
 	            ->where('date_start','<=',$now)

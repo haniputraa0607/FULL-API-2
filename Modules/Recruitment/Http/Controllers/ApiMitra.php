@@ -36,6 +36,7 @@ use App\Http\Models\Transaction;
 use Modules\Recruitment\Entities\HairstylistOverTime;
 use Modules\Recruitment\Http\Requests\ScheduleCreateRequest;
 use Modules\Recruitment\Entities\OutletCashAttachment;
+use Modules\Recruitment\Entities\HairstylistAttendanceLog;
 
 use App\Lib\MyHelper;
 use DB;
@@ -484,7 +485,7 @@ class ApiMitra extends Controller
 			'is_active' => 0,
 			'messages' => []
 		];
-
+        
 		$hs = UserHairStylist::find($id_user_hair_stylist);
 		$outletSchedule = OutletSchedule::where('id_outlet', $hs->id_outlet)->where('day', $day)->first();
 		if (!$outletSchedule) {
@@ -514,6 +515,7 @@ class ApiMitra extends Controller
 		}
 		$overtime = HairstylistOverTime::where('id_user_hair_stylist', $hs->id_user_hair_stylist)
 		->wheredate('date', date('Y-m-d'))
+        ->whereNotNull('reject_at')
 		->first();
 		$outletShift = OutletTimeShift::where('id_outlet_schedule', $outletSchedule->id_outlet_schedule)
 		->where(function($q) use ($curTime) {
@@ -531,53 +533,38 @@ class ApiMitra extends Controller
 		})
 		->where('shift', $mitraSchedule->shift)
 		->first()['shift'] ?? null;
+       
+        $attendance = HairstylistAttendance::where('id_hairstylist_schedule_date', $mitraSchedule->id_hairstylist_schedule_date)
+        ->where('id_user_hair_stylist', $id_user_hair_stylist)
+        ->whereDate('attendance_date', date('Y-m-d', strtotime($today)))
+        ->first();
+        $clock_in = $attendance->clock_in ?? null;
+        $clock_out = $attendance->clock_out ?? null;
+		
+        if($mitraSchedule){
+            $start = date('Y-m-d',strtotime($mitraSchedule->date))." ".$mitraSchedule->time_start;
+            $end = date('Y-m-d',strtotime($mitraSchedule->date))." ".$mitraSchedule->time_end;
+            $now = date('Y-m-d H:i:s');
 
-		if($overtime){
-			
-			$schedule = HairstylistSchedule::join(
-				'hairstylist_schedule_dates', 
-				'hairstylist_schedules.id_hairstylist_schedule', 
-				'hairstylist_schedule_dates.id_hairstylist_schedule'
-			)
-			->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
-			->whereDate('date', date('Y-m-d'))
-			->first(); 
-			$outlets = Outlet::find($hs->id_outlet);
-			$timezone = $outlets->city->province->time_zone_utc;
-			$dateTime = $dateTime ?? date('Y-m-d H:i:s');
-			$curTime = date('H:i:s', strtotime($dateTime));
-			$day = MyHelper::indonesian_date_v2($dateTime, 'l');
-			$day = str_replace('Jum\'at', 'Jumat', $day);
-
-			$outletSchedule = OutletSchedule::where('id_outlet', $hs->id_outlet)->where('day', $day)->first();
-			$isHoliday = app('Modules\Outlet\Http\Controllers\ApiOutletController')->isHoliday($hs->id_outlet);
-			$outletShift = OutletTimeShift::where('id_outlet_schedule', $outletSchedule->id_outlet_schedule)->where('shift',$schedule->shift)->first();
-			if($overtime->time == "after"){
-				$str = explode(":",$overtime->duration);
-    			$string = "+".(int)$str[0].' hours'.' '.(int)$str[1].' minutes'.' '. (int)$str[2].' seconds';
-    			$start = date('Y-m-d',strtotime($schedule->date))." ".$outletShift->shift_time_start;
-    			$end = date('Y-m-d',strtotime($schedule->date))." ".$outletShift->shift_time_end;
-    			$end = date('Y-m-d H:i:s', strtotime($string. $end));
-				$now = date('Y-m-d H:i:s');
-				if($start >= $now && $end <= $now){
-					$status['messages'][] = "Silakan lakukan absensi terlebih dahulu untuk memulai layanan outlet. ";
-					return $status;
+            if($start <= $now && $end >= $now && !$clock_in){
+				if($attendance){
+					$pending = HairstylistAttendanceLog::where('id_hairstylist_attendance', $attendance['id_hairstylist_attendance'])->first();
+					if($pending){
+						if($pending['status'] == 'Pending'){
+							$status['messages'][] = "Mohon menunggu absensi disetujui terlebih dahulu. ";
+							return $status;
+						}
+					}
 				}
-			}elseif($overtime->time == "before"){
-				$str = explode(":",$overtime->duration);
-    			$string = "-".(int)$str[0].' hours'.' -'.(int)$str[1].' minutes'.' -'. (int)$str[2].' seconds';
-    			$start = date('Y-m-d',strtotime($schedule->date))." ".$outletShift->shift_time_start;
-    			$end = date('Y-m-d',strtotime($schedule->date))." ".$outletShift->shift_time_end;
-    			$start = date('Y-m-d H:i:s', strtotime($start . $string));
-				$now = date('Y-m-d H:i:s');
-				if($start >= $now && $end <= $now){
-					$status['messages'][] = "Silakan lakukan absensi terlebih dahulu untuk memulai layanan outlet";
-					return $status;
-				}
-			}
-		}elseif (!$outletShift) {
-			$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal shift pada hari dan jam ini.";
-			return $status;
+                $status['messages'][] = "Silakan lakukan absensi terlebih dahulu untuk memulai layanan outlet. ";
+				return $status;
+            }elseif(($start > $now || $end < $now) && !$clock_in){
+                $status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal shift pada hari dan jam ini.";
+                return $status;
+            }elseif(($start > $now || $end < $now) && $clock_in && $overtime){
+                $status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal shift pada hari dan jam ini.";
+				return $status;
+            }
 		}elseif (!$mitraSchedule) {
 			$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal layanan outlet hari ini.";
 			return $status;
@@ -715,7 +702,7 @@ class ApiMitra extends Controller
 		return MyHelper::checkGet($comment);
 	}
 
-	public function getOutletShift($id_outlet, $dateTime = null, $array = false)
+	public function getOutletShift($id_outlet, $dateTime = null, $array = false, $id_user_hair_stylist = null)
 	{
 		$res = null;
 		$outlet = Outlet::find($id_outlet);
@@ -767,11 +754,30 @@ class ApiMitra extends Controller
 			return $res;
 		}
 
+		$overtime = HairStylistOvertime::where('id_user_hair_stylist',$id_user_hair_stylist)->where('id_outlet', $id_outlet)->whereNotNull('approve_by')->whereNull('reject_at')->whereDate('date', date('Y-m-d', strtotime($dateTime)))->first();
+		if($overtime){
+			$shift = HairstylistSchedule::join(
+				'hairstylist_schedule_dates', 
+				'hairstylist_schedules.id_hairstylist_schedule', 
+				'hairstylist_schedule_dates.id_hairstylist_schedule'
+			)
+			->where('id_user_hair_stylist', $id_user_hair_stylist)
+			->where('date', date('Y-m-d'))
+			->where('is_overtime', 1)
+			->first();
+
+			return $shift['shift'] ?? $res;
+
+		}
+
 		return $outletShift['shift'] ?? $res;
 	}
 
 	public function setTimezone()
 	{
+		if (!request()->user()->outlet) {
+			return MyHelper::setTimezone(7);
+		}
 		if (!request()->user()->outlet->city) {
 			throw new \Exception('Incomplete Outlet Data. Contact CS');
 		}
@@ -784,7 +790,7 @@ class ApiMitra extends Controller
 		$timestamp = $date ? strtotime($date) : time();
 		$arrTz = [7 => 'Asia/Jakarta', 8 => 'Asia/Ujung_Pandang', 9 => 'Asia/Jayapura'];
 
-		$utc = request()->user()->outlet->city->province->time_zone_utc;
+		$utc = request()->user()->outlet ? request()->user()->outlet->city->province->time_zone_utc : 7;
 		$tz = $arrTz[$utc] ?? 'Asia/Jakarta';
 
 		$dt = new DateTime();
@@ -804,8 +810,10 @@ class ApiMitra extends Controller
 			return  $todayShift;
 		}
 
-		$shift = $this->getOutletShift($hs->id_outlet);
-
+		$shift = $this->getOutletShift($hs->id_outlet, null, true, $id_user_hair_stylist);
+        if(empty($shift)){
+            $shift = [];
+        }
 		$todayShift = HairstylistSchedule::join(
 			'hairstylist_schedule_dates', 
 			'hairstylist_schedules.id_hairstylist_schedule', 
@@ -813,7 +821,7 @@ class ApiMitra extends Controller
 		)
 		->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
 		->where('date', date('Y-m-d'))
-		->where('shift', $shift)
+		->whereIn('shift', $shift)
 		->first();
 
 		return $todayShift;

@@ -10,6 +10,7 @@ use App\Http\Models\Setting;
 use Modules\Users\Entities\Role;
 use Modules\Employee\Entities\Employee;
 use Modules\Employee\Entities\EmployeeFamily;
+use Modules\Employee\Entities\EmployeeMainFamily;
 use Modules\Employee\Entities\EmployeeEducation;
 use Modules\Employee\Entities\EmployeeEducationNonFormal;
 use Modules\Employee\Entities\EmployeeJobExperience;
@@ -18,6 +19,7 @@ use Modules\Employee\Http\Requests\users_create;
 use Modules\Employee\Http\Requests\status_approved;
 use App\Http\Models\User;
 use Session;
+use Modules\Employee\Entities\QuestionEmployee;
 class ApiRegisterEmployeeController extends Controller
 {
    public function create(users_create $request) {
@@ -30,7 +32,7 @@ class ApiRegisterEmployeeController extends Controller
         }
        $post['employee']['provider'] = MyHelper::cariOperator($post['employee']['phone']);
        $post['employee']['password'] = bcrypt($pin);
-       $post['employee']['id_city'] = $post['employee']['id_city_ktp'];
+       $post['employee']['id_city'] = $post['employee']['id_city_domicile'];
        $post['employee']['level'] = "Admin";
        $user = User::create($post['employee']);
        if($user){
@@ -75,7 +77,28 @@ class ApiRegisterEmployeeController extends Controller
             }
             
        }
-       $user = User::where('id',$user->id)->with(['employee','employee_family','employee_education','employee_education_non_formal','employee_job_experience','employee_question'])->first();
+       $user = User::where('id',$user->id)->with(['employee','employee_family','employee_education','employee_education_non_formal','employee_job_experience'])->first();
+        $array = array();
+        if($user){
+        $question = EmployeeQuestions::where(array('id_user'=>$user->id))->get();
+         foreach ($question as $value) {
+          $que = QuestionEmployee::join('category_questions','category_questions.id_category_question','question_employees.id_category_question')->where('id_question_employee',$value['id_question_employee'])->first();
+          if($que){
+              $data['id_employee_question'] = $value['id_employee_question'];
+              $data['id_question_employee'] = $que->id_question_employee;
+              $data['category'] = $que->name_category;
+              $data['type'] = $que->type;
+              $data['question'] = json_decode($que->question);
+              if($que->type != "Type 1"){
+                  $data['answer'] = json_decode($value['answer']);
+              }else{
+                  $data['answer'] = $value['answer'];
+              }
+                array_push($array,$data);    
+            }
+         }
+        }
+         $user['employee_question'] = $array;
        return MyHelper::checkGet($user);
    }
    public function submit(status_approved $request) {
@@ -91,11 +114,32 @@ class ApiRegisterEmployeeController extends Controller
        return MyHelper::checkGet($user);
    }
    public function detail(Request $request) {
-       $post = $request->all();
+        $post = $request->all();
        $user = [];
        if(isset($post['phone'])){
-        $user = User::where('phone',$post['phone'])->with(['employee','employee_family','employee_education','employee_education_non_formal','employee_job_experience','employee_question'])->first();
+        $user = User::join('cities','cities.id_city','users.id_city')->where('phone',$post['phone'])->with(['employee','employee.city_ktp','employee.city_domicile','employee_family','employee_main_family','employee_education','employee_education.city','employee_education_non_formal','employee_job_experience'])->first();
+        $array = array();
+        if($user){
+        $question = EmployeeQuestions::where(array('id_user'=>$user->id))->get();
+         foreach ($question as $value) {
+          $que = QuestionEmployee::join('category_questions','category_questions.id_category_question','question_employees.id_category_question')->where('id_question_employee',$value['id_question_employee'])->first();
+          if($que){
+              $data['id_employee_question'] = $value['id_employee_question'];
+              $data['id_question_employee'] = $que->id_question_employee;
+              $data['category'] = $que->name_category;
+              $data['type'] = $que->type;
+              $data['question'] = json_decode($que->question);
+              if($que->type != "Type 1"){
+                  $data['answer'] = json_decode($value['answer']);
+              }else{
+                  $data['answer'] = $value['answer'];
+              }
+                array_push($array,$data);    
+            }
+         }
+        }
        }
+        $user['employee_question'] = $array;
        return MyHelper::checkGet($user);
    }
    public function update(Request $request) {
@@ -104,7 +148,7 @@ class ApiRegisterEmployeeController extends Controller
        if(isset($post['phone'])){
        $user = User::where('phone',$post['phone'])->first();
        if($user){
-            if($post['employee']){
+            if(isset($post['employee'])){
                 $post['employee']['id_user']=$user->id;
                 $employee = Employee::where('id_user',$user->id)->first();
                 if(!empty($employee)){
@@ -112,29 +156,79 @@ class ApiRegisterEmployeeController extends Controller
                 }else{
                     Employee::create($post['employee']);
                 }
-                if(isset($post['employee']['id_city_ktp'])){
+                if(isset($post['employee']['id_city_domicile'])){
                     
                 $users = User::where('phone',$post['phone'])->update(array(
-                    'id_city'=>$post['employee']['id_city_ktp']
+                    'id_city'=>$post['employee']['id_city_domicile']
                 ));
                 }
+                if(isset($post['employee']['gender'])){
+                    
+                $users = User::where('phone',$post['phone'])->update(array(
+                    'gender'=>$post['employee']['gender']
+                ));
+                }
+                if(isset($post['employee']['birthday'])){
+                    
+                $users = User::where('phone',$post['phone'])->update(array(
+                    'birthday'=>$post['employee']['birthday']
+                ));
+                }
+                if(isset($post['employee']['name'])){
+                    
+                $users = User::where('phone',$post['phone'])->update(array(
+                    'name'=>$post['employee']['name']
+                ));
+                }
+                if(isset($post['employee']['email'])){
+                    if(isset($post['employee']['email'])){
+                        $users = User::where('phone',$post['phone'])->update(array(
+                            'email'=>$post['employee']['email']
+                        ));
+                
+                    }
+                }
             }
-            if($post['family']){
+            if(isset($post['family'])){
                 $this->update_employe_family($post['family'],$user->id);
             }
-            if($post['education']){
+            if(isset($post['main_family'])){
+                $this->update_employe_main_family($post['main_family'],$user->id);
+            }
+            if(isset($post['education'])){
                 $this->update_employe_education($post['education'],$user->id);
             }
-            if($post['education_non_formal']){
+            if(isset($post['education_non_formal'])){
                 $this->update_employe_education_non_formal($post['education_non_formal'],$user->id);
             }
-            if($post['job_experiences']){
+            if(isset($post['job_experiences'])){
                 $this->update_employe_job_experiences($post['job_experiences'],$user->id);
             }
-            if($post['questions']){
+            if(isset($post['questions'])){
                 $this->update_employe_questions($post['questions'],$user->id);
             }
-            $user = User::where('id',$user->id)->with(['employee','employee_family','employee_education','employee_education_non_formal','employee_job_experience','employee_question'])->first();
+            $user = User::join('cities','cities.id_city','users.id_city')->where('phone',$post['phone'])->with(['employee','employee.city_ktp','employee.city_domicile','employee_family','employee_main_family','employee_education','employee_education.city','employee_education_non_formal','employee_job_experience'])->first();
+            $array = array();
+        if($user){
+        $question = EmployeeQuestions::where(array('id_user'=>$user->id))->get();
+         foreach ($question as $value) {
+          $que = QuestionEmployee::join('category_questions','category_questions.id_category_question','question_employees.id_category_question')->where('id_question_employee',$value['id_question_employee'])->first();
+          if($que){
+              $data['id_employee_question'] = $value['id_employee_question'];
+                   $data['id_question_employee'] = $que->id_question_employee;
+              $data['category'] = $que->name_category;
+              $data['type'] = $que->type;
+              $data['question'] = json_decode($que->question);
+              if($que->type != "Type 1"){
+                  $data['answer'] = json_decode($value['answer']);
+              }else{
+                  $data['answer'] = $value['answer'];
+              }
+                array_push($array,$data);    
+            }
+         }
+        }
+         $user['employee_question'] = $array;
         }
        }
        return MyHelper::checkGet($user);
@@ -308,6 +402,83 @@ class ApiRegisterEmployeeController extends Controller
        $family = EmployeeFamily::where('id_user',$id_user)->get();
        return $family;
    }
+   public function update_employe_main_family($data,$id_user) {
+       $array = array();
+       foreach($data as $value){
+           if(isset($value['id_employee_main_family'])){
+              $family = EmployeeMainFamily::where('id_employee_main_family',$value['id_employee_main_family'])->first();
+              if($family){
+               if(isset($value['family_members'])){
+                    $family->family_members = $value['family_members'];
+                }
+               if(isset($value['name_family'])){
+                    $family->name_family = $value['name_family'];
+                }
+               if(isset($value['gender_family'])){
+                    $family->gender_family = $value['gender_family'];
+                }
+               if(isset($value['birthplace_family'])){
+                    $family->birthplace_family = $value['birthplace_family'];
+                }
+                if(isset($value['birthday_family'])){
+                     $family->birthday_family = $value['birthday_family'];
+                 }
+                if(isset($value['education_family'])){
+                     $family->education_family = $value['education_family'];
+                 }
+                if(isset($value['job_family'])){
+                     $family->job_family = $value['job_family'];
+                 }
+                 unset($family['id_employee_family']);
+                 unset($family['updated_at']);
+                 unset($family['created_at']);
+                $array[] = $family;
+              }
+           }else{
+               $family = array();
+               $family['id_user'] = $value['id_user']=$id_user;
+               if(isset($value['family_members'])){
+                    $family['family_members'] = $value['family_members'];
+                }else{
+                    $family['educational_level'] = null;
+                }
+               if(isset($value['name_family'])){
+                    $family['name_family'] = $value['name_family'];
+                }else{$family['name_family'] = null;}
+               if(isset($value['gender_family'])){
+                    $family['gender_family'] = $value['gender_family'];
+                }else{$family['gender_family'] = null;}
+               if(isset($value['birthplace_family'])){
+                    $family['birthplace_family'] = $value['birthplace_family'];
+                }else{$family['birthplace_family'] = null;}
+               if(isset($value['birthday_family'])){
+                    $family['birthday_family'] = $value['birthday_family'];
+                }else{$family['birthday_family'] = null;}
+               if(isset($value['education_family'])){
+                    $family['education_family'] = $value['education_family'];
+                }else{$family['education_family'] = null;}
+               if(isset($value['job_family'])){
+                    $family['job_family'] = $value['job_family'];
+                }else{$family['job_family'] = null;}
+               $array[] = $family;
+           }
+       }
+       $delete = EmployeeMainFamily::where('id_user',$id_user)->delete();
+      foreach ($array as $va) {
+           EmployeeMainFamily::create(array(
+               'id_user'=>$va['id_user'],
+               'family_members'=>$va['family_members'],
+               'name_family'=>$va['name_family'],
+               'gender_family'=>$va['gender_family'],
+               'birthplace_family'=>$va['birthplace_family'],
+               'birthday_family'=>$va['birthday_family'],
+               'education_family'=>$va['education_family'],
+               'job_family'=>$va['job_family'],
+           ));
+        }
+       $family = EmployeeMainFamily::where('id_user',$id_user)->get();
+       return $family;
+   }
    public function update_employe_education($data,$id_user) {
        $array = array();
        foreach($data as $value){
@@ -326,8 +497,8 @@ class ApiRegisterEmployeeController extends Controller
                if(isset($value['study_program'])){
                     $education->study_program = $value['study_program'];
                 }
-               if(isset($value['id_city_school'])){
-                    $education->id_city_school = $value['id_city_school'];
+               if(isset($value['id_city'])){
+                    $education->id_city = $value['id_city'];
                 }
                  unset($education['id_employee_education']);
                  unset($education['updated_at']);
@@ -351,9 +522,9 @@ class ApiRegisterEmployeeController extends Controller
                if(isset($value['study_program'])){
                     $education['study_program'] = $value['study_program'];
                 }else{$education['study_program'] = null;}
-               if(isset($value['id_city_school'])){
-                    $education['id_city_school'] = $value['id_city_school'];
-                }else{$education['id_city_school'] = null;}
+               if(isset($value['id_city'])){
+                    $education['id_city'] = $value['id_city'];
+                }else{$education['id_city'] = null;}
                $array[] = $education;
            }
        }
@@ -365,7 +536,7 @@ class ApiRegisterEmployeeController extends Controller
                'name_school'=>$va['name_school'],
                'year_education'=>$va['year_education'],
                'study_program'=>$va['study_program'],
-               'id_city_school'=>$va['id_city_school'],
+               'id_city'=>$va['id_city'],
            ));
         }
        $education = EmployeeEducation::where('id_user',$id_user)->get();
@@ -538,43 +709,43 @@ class ApiRegisterEmployeeController extends Controller
            if(isset($value['id_employee_questions'])){
               $education_questions = EmployeeQuestions::where('id_employee_questions',$value['id_employee_questions'])->first();
               if($education_questions){
-               if(isset($value['category'])){
-                    $education_questions->category = $value['category'];
-                }
-               if(isset($value['question'])){
-                    $education_questions->question = $value['question'];
-                }
                if(isset($value['answer'])){
-                    $education_questions->answer = $value['answer'];
+                   if($education_questions->type == "Type 1"){
+                         $education_questions->answer = $value['answer'];
+                        }else{
+                          $education_questions->answer = json_encode($value['answer']);
+                        }
                 }
-                 unset($education_questions['id_employee_questions']);
+                 unset($education_questions['id_employee_question']);
                  unset($education_questions['updated_at']);
                  unset($education_questions['created_at']);
+                   $education_questions['id_question_employee'] = $value['id_question_employee'];
                 $array[] = $education_questions;
               }
            }else{
                $education_questions = array();
-               $education_questions['id_user'] = $value['id_user']=$id_user;
-               if(isset($value['category'])){
-                    $education_questions['category'] = $value['category'];
-                }else{
-                    $education_questions['category'] = null;
+               if(isset($value['id_question_employee'])){
+                   $ques = QuestionEmployee::where('id_question_employee',$value['id_question_employee'])->first();
+                   if($ques){
+                       $education_questions['id_user'] = $value['id_user']=$id_user;
+                       $education_questions['id_question_employee'] = $value['id_question_employee'];
+                    if(isset($value['answer'])){
+                        if($ques->type == "Type 1"){
+                         $education_questions['answer'] = $value['answer'];
+                        }else{
+                            $education_questions['answer'] = json_encode($value['answer']);
+                        }
+                     }else{$education_questions['question'] = null;}
+                    $array[] = $education_questions;
                 }
-               if(isset($value['question'])){
-                    $education_questions['question'] = $value['question'];
-                }else{$education_questions['question'] = null;}
-               if(isset($value['answer'])){
-                    $education_questions['answer'] = $value['answer'];
-                }else{$education_questions['answer'] = null;}
-               $array[] = $education_questions;
+              }
            }
        }
        $delete = EmployeeQuestions::where('id_user',$id_user)->delete();
       foreach ($array as $va) {
            EmployeeQuestions::create(array(
                'id_user'=>$va['id_user'],
-               'category'=>$va['category'],
-               'question'=>$va['question'],
+               'id_question_employee'=>$va['id_question_employee'],
                'answer'=>$va['answer']
            ));
         }

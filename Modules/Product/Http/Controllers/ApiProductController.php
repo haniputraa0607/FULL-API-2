@@ -105,8 +105,11 @@ class ApiProductController extends Controller
                 'service' => 'SVC',
                 'academy' => 'CRS'
             ];
-            $count = Product::where('product_type', $post['product_type'])->count();
-            $data['product_code'] = ($code[$post['product_type']]??'P').sprintf("%04d", ($count+1));
+            $count = Product::where('product_type', $post['product_type'])->orderBy('product_code', 'desc')->first()['product_code']??'';
+            $lastCode = substr($count, -4);
+            $lastCode = (int)$lastCode;
+            $countCode = $lastCode+1;
+            $data['product_code'] = ($code[$post['product_type']]??'P').sprintf("%04d", $countCode);
         }
 
         if(isset($post['product_photo_detail'])){
@@ -2553,8 +2556,8 @@ class ApiProductController extends Controller
 
                 if($close == 0 && array_search($dayConvert, $allDay) !== false){
                     $getTime = array_search($dayConvert, array_column($outletSchedules, 'day'));
-                    $open = date('H:i', strtotime($outletSchedules[$getTime]['open']));
-                    $close = date('H:i', strtotime($outletSchedules[$getTime]['close']));
+                    $open = date('H:i', strtotime($outletSchedules[$getTime]['open'] . "+ $diffTimeZone hour"));
+                    $close = date('H:i', strtotime($outletSchedules[$getTime]['close'] . "+ $diffTimeZone hour"));
                     $times = [];
                     $tmpTime = $open;
                     if(strtotime($date.' '.$open) > strtotime($today.' '.$currentTime)) {
@@ -2567,7 +2570,7 @@ class ApiProductController extends Controller
                         }
 
                         $timeConvert = date('H:i', strtotime("+".$processingTime." minutes", strtotime($tmpTime)));
-                        if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime)){
+                        if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime) && $close!=$timeConvert){
                             $times[] = $timeConvert;
                         }
                         $tmpTime = $timeConvert;
@@ -2587,8 +2590,8 @@ class ApiProductController extends Controller
             $dayConvert = $day[date('D', strtotime($date))];
             if(array_search($dayConvert, $allDay) !== false){
                 $getTime = array_search($dayConvert, array_column($outletSchedules, 'day'));
-                $open = date('H:i', strtotime($outletSchedules[$getTime]['open']));
-                $close = date('H:i', strtotime($outletSchedules[$getTime]['close']));
+                $open = date('H:i', strtotime($outletSchedules[$getTime]['open'] . "+ $diffTimeZone hour"));
+                $close = date('H:i', strtotime($outletSchedules[$getTime]['close'] . "+ $diffTimeZone hour"));
                 $times = [];
                 $tmpTime = $open;
                 if(strtotime($date.' '.$open) > strtotime($today.' '.$currentTime)) {
@@ -2637,15 +2640,26 @@ class ApiProductController extends Controller
         $bookTime = date('H:i:s', strtotime($post['booking_time']));
 
         if(!empty($post['outlet_code'])){
-            $outlet = Outlet::where('outlet_code', $post['outlet_code'])->first();
+            $outlet = Outlet::where('outlet_code', $post['outlet_code'])
+                ->join('cities', 'cities.id_city', 'outlets.id_city')
+                ->join('provinces', 'provinces.id_province', 'cities.id_province')
+                ->select('outlets.*', 'provinces.time_zone_utc as province_time_zone_utc')
+                ->first();
         }elseif(!empty($post['id_outlet'])){
-            $outlet = Outlet::where('id_outlet', $post['id_outlet'])->first();
+            $outlet = Outlet::where('id_outlet', $post['id_outlet'])
+                ->join('cities', 'cities.id_city', 'outlets.id_city')
+                ->join('provinces', 'provinces.id_province', 'cities.id_province')
+                ->select('outlets.*', 'provinces.time_zone_utc as province_time_zone_utc')
+                ->first();
         }
 
         if(empty($outlet)){
             return response()->json(['status' => 'fail', 'messages' => ['Outlet not found']]);
         }
 
+        $timeZone = (empty($outlet['province_time_zone_utc']) ? 7:$outlet['province_time_zone_utc']);
+        $diffTimeZone = $timeZone - 7;
+        $bookTime = date('H:i:s', strtotime($post['booking_time'] . "- $diffTimeZone hour"));
         $post['id_outlet'] = $outlet['id_outlet'];
 
         //product category hs
@@ -3228,7 +3242,7 @@ class ApiProductController extends Controller
     function listProductIcount(Request $request) {
         $post = $request->json()->all();
 
-		if (isset($post['id_outlet'])) {
+		if (isset($post['id_outlet']) && !$request->for_select2) {
             $product = ProductIcount::join('product_detail','product_detail.id_product','=','products.id_product')
                                 ->leftJoin('product_special_price','product_special_price.id_product','=','products.id_product')
 									->where('product_detail.id_outlet','=',$post['id_outlet'])
@@ -3304,7 +3318,13 @@ class ApiProductController extends Controller
         }
 
         if (isset($post['company_type'])) {
-            $product->where('product_icounts.company_type', $post['company_type']);
+            if(isset($post['from'])){
+                $product->where(function($q) use($post){
+                    $q->where('product_icounts.company_type', $post['company_type'])->orWhere('product_icounts.item_group', '=', 'Assets');
+                });
+            }else{
+                $product->where('product_icounts.company_type', $post['company_type']);
+            }
         }
 
         if (isset($post['buyable'])) {
@@ -3345,6 +3365,21 @@ class ApiProductController extends Controller
             $product = $product->withCount('product_detail')->withCount('product_detail_hiddens')->with(['brands']);
         }
 
+        if ($request->q) {
+            $product->where('name', 'like', '%' . $request->q . '%');
+        }
+
+        if ($request->for_select2) {
+            if ($request->id_outlet && $outlet = Outlet::with('location_outlet')->find($request->id_outlet)) {
+                $product->with(['product_icount_outlet_stocks' => function($query) use ($request) {
+                    $query->where('id_outlet', $request->id_outlet);
+                }]);
+                $product->where('company_type', $outlet->location_outlet->company_type == 'PT IMS' ? 'ims' : 'ima');
+            }
+            $product->select('id_product_icount', 'name');
+            return MyHelper::checkGet($product->get()->toArray());
+        }
+
         if(isset($post['pagination'])){
             $product = $product->paginate(10);
         }else{
@@ -3371,7 +3406,11 @@ class ApiProductController extends Controller
         }
 
         if(isset($post['catalog'])){
-            $catalog = ProductCatalogDetail::where('id_product_catalog',$post['catalog'])->get()->toArray();
+            $catalog = ProductCatalogDetail::where('id_product_catalog',$post['catalog']);
+            if(isset($post['from'])){
+                $catalog = $catalog->where('budget_code', $post['from']);
+            }
+            $catalog = $catalog->get()->toArray();
             $new_product = [];
             foreach($product as $val){
                 $check = false;

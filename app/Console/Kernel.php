@@ -62,6 +62,12 @@ class Kernel extends ConsoleKernel
         $schedule->call('Modules\Transaction\Http\Controllers\ApiCronTrxController@cron')->cron('*/2 * * * *');
 
         /**
+         * cancel pending transaction payment cash
+         * run every day at 1.30 am
+         */
+        $schedule->call('Modules\Transaction\Http\Controllers\ApiCronTrxController@cronPaymentCash')->dailyAt('01:30');
+
+        /**
          * reject all transactions that outlets do not receive within a certain timeframe
          * run every minute
          */
@@ -242,6 +248,7 @@ class Kernel extends ConsoleKernel
          * run every 00:11 AM
          */
         $schedule->call('Modules\Recruitment\Http\Controllers\ApiHairStylistTimeOffOvertimeController@checkTimeOffOvertime')->dailyAt('00:11');
+        $schedule->call('Modules\Employee\Http\Controllers\ApiEmployeeTimeOffOvertimeController@checkTimeOffOvertime')->dailyAt('00:12');
         
         $schedule->call('Modules\Recruitment\Http\Controllers\ApiIncome@cron_middle')->monthlyOn(Config::get('app.income_date_middle'),'00:01');
         $schedule->call('Modules\Recruitment\Http\Controllers\ApiIncome@cron_end')->monthlyOn(Config::get('app.income_date_end'),'00:01');
@@ -250,6 +257,26 @@ class Kernel extends ConsoleKernel
         $schedule->call('Modules\ChartOfAccount\Http\Controllers\ApiChartOfAccountController@sync')->dailyAt('00:10');
         $schedule->call('Modules\Users\Http\Controllers\ApiDepartment@syncIcount')->dailyAt('00:10');
         $schedule->call('Modules\Product\Http\Controllers\ApiProductController@syncIcount')->dailyAt('00:10');
+
+        /**
+         * Check Employee Schedule Shift
+         * run every 00:15 AM
+         */
+        $schedule->call('Modules\Employee\Http\Controllers\ApiEmployeeScheduleController@cronEmployeeScheduleShit')->monthlyOn('1', '00:05');
+
+        /**
+         * Check Employee Schedule Non Shift
+         * run every 00:15 AM
+         */
+        $schedule->call('Modules\Employee\Http\Controllers\ApiEmployeeScheduleController@cronEmployeeScheduleNonShit')->dailyAt('02:00');
+
+        /**
+         * To backup and truncate log database
+         */
+
+        $schedule->command('backup:logdb --table=log_activities_apps --table=log_activities_be --table=log_activities_mitra_apps --table=log_activities_outlet_apps --table=log_activities_pos --table=log_activities_pos_transaction --truncate --chunk=10000')->dailyAt('00:20');
+
+        $schedule->command('backup:logdb --table=log_api_gosends --table=log_api_icount --table=log_api_wehelpyou --table=log_backend_errors --table=log_call_outlet_apps --table=log_check_promo_code --table=log_crons --table=log_ipay88s --table=log_iris --table=log_midtrans --table=log_outlet_box --table=log_ovo_deals --table=log_ovos --table=log_shopee_pays --table=log_transaction_updates --table=log_xendits --truncate')->dailyAt('00:25');
 
     }
 

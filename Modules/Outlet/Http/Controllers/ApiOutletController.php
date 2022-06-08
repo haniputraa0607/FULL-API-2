@@ -81,6 +81,7 @@ use App\Jobs\SendOutletJob;
 use Modules\Product\Entities\DeliveryProduct;
 use Modules\Product\Entities\UnitIcount;
 use Modules\Product\Entities\UnitConversionLog;
+use Modules\Product\Entities\ProductIcountStockAdjustment;
 use Modules\Transaction\Entities\TransactionProductService;
 
 class ApiOutletController extends Controller
@@ -644,7 +645,7 @@ class ApiOutletController extends Controller
         if (isset($post['webview'])) {
             $outlet = Outlet::with(['today', 'brands']);
         }elseif(isset($post['admin']) && isset($post['type']) && $post['type'] == 'export'){
-            $outlet = Outlet::with(['user_outlets','city','today','product_prices','product_prices.product','location_outlet','location_outlet.location_partner'])->select('*');
+            $outlet = Outlet::with(['user_outlets','city.province','today','product_prices','product_prices.product','location_outlet','location_outlet.location_partner'])->select('*');
         }elseif(isset($post['admin'])){
             $outlet = Outlet::with(['user_outlets','city.province','today', 'outlet_schedules', 'outlet_schedules.time_shift', 'outlet_box','location_outlet','location_outlet.location_partner','brand_outlets'])->select('*');
 
@@ -676,9 +677,9 @@ class ApiOutletController extends Controller
         }elseif(($post['filter']??false) == 'different_price'){
             $outlet = Outlet::where('outlet_different_price','1')->select('id_outlet','outlet_name','outlet_code');
         }elseif(\Request::route()->getName() == 'outlet_be'){
-            $outlet = Outlet::with(['today', 'brands', 'city'])->select('id_outlet','status_franchise','outlet_name','outlet_code', 'outlet_status', 'id_city', 'time_zone_utc', 'type');
+            $outlet = Outlet::with(['today', 'brands', 'city.province'])->select('id_outlet','status_franchise','outlet_name','outlet_code', 'outlet_status', 'id_city', 'time_zone_utc', 'type');
         }else{
-            $outlet = Outlet::with(['city', 'outlet_photos', 'outlet_schedules', 'today', 'user_outlets','brands']);
+            $outlet = Outlet::with(['city.province', 'outlet_photos', 'outlet_schedules', 'today', 'user_outlets','brands']);
             if(!($post['id_outlet']??false)||!($post['id_outlet']??false)){
                 $outlet->select('outlets.id_outlet','outlets.outlet_name','outlets.outlet_code','outlets.outlet_status','outlets.outlet_address','outlets.id_city','outlet_latitude','outlet_longitude', 'outlets.status_franchise', 'outlets.time_zone_utc');
             }
@@ -731,9 +732,16 @@ class ApiOutletController extends Controller
 
         if($post['office_only'] ?? false){
             $outlet->where('type', 'Office');
+            $outlet->where('outlet_status', 'Active');
         } else {
             $outlet->where('type', 'Outlet');
         }
+
+        if($post['outlet_status'] ?? false){
+            $outlet->where('outlet_status', 'Active');
+        }
+
+
 
         // qrcode
         if (isset($post['qrcode'])){
@@ -4100,6 +4108,13 @@ class ApiOutletController extends Controller
                     $link = UnitConversionLog::where('id_unit_conversion_log',$data['id_reference'])->first();
                     $report[$key]['link'] = env('VIEW_URL').'outlet/detail/'.$post['outlet_code'].'/unit-conversion/'.$link['id_unit_conversion_log'];
                     $report[$key]['id_reference'] = $link['code_conversion'];
+                }elseif($data['source']=='Stock Adjustment'){
+                    $link = ProductIcountStockAdjustment::where('id_product_icount_stock_adjustment',$data['id_reference'])->first();
+                    if ($link) {
+                        $report[$key]['source'] = '';
+                        $report[$key]['link'] = env('VIEW_URL').'outlet/detail/'.$post['outlet_code'].'/stock-adjustment/'.$link['id_product_icount_stock_adjustment'];
+                        $report[$key]['id_reference'] = $link['title'];
+                    }
                 }
             }
             return MyHelper::checkGet($report);
@@ -4135,5 +4150,47 @@ class ApiOutletController extends Controller
             return response()->json(['status' => 'fail' , 'messages' => ['Incompleted data']]);
         }
 
+    }
+
+    public function detailStockAdjustment(Request $request){
+        $adjustment = ProductIcountStockAdjustment::with('user', 'product_icount', 'outlet')->find($request->id_product_icount_stock_adjustment);
+        return MyHelper::checkGet($adjustment);
+    }
+
+    public function adjustStock(Request $request) {
+        $request->validate([
+            'id_product_icount' => 'required|exists:product_icounts,id_product_icount',
+            'id_outlet' => 'required|exists:outlets,id_outlet',
+            'unit' => 'required|exists:icount_units,id_outlet',
+            'stock_adjustment' => 'required|numeric',
+            'unit' => 'required|string',
+        ]);
+        if (!$request->stock_adjustment) {
+            return [
+                'status' => 'fail',
+                'messages' => [
+                    'No need adjustment'
+                ]
+            ];
+        }
+        $productIcount = ProductIcount::find($request->id_product_icount);
+        $unit = UnitIcount::find($request->unit)->unit;
+        $stockAdjustment = ProductIcountStockAdjustment::create([
+            'id_product_icount' => $productIcount->id_product_icount,
+            'id_user' => $request->user()->id,
+            'id_outlet' => $request->id_outlet,
+            'unit' => $unit,
+            'stock_adjustment' => $request->stock_adjustment,
+            'notes' => $request->notes,
+            'title' => $request->title ?: 'Stock Adjustment',
+        ]);
+        $adjust = $productIcount->addLogStockProductIcount($request->stock_adjustment, $unit, 'Stock Adjustment', $stockAdjustment->id_product_icount_stock_adjustment, $request->notes, $request->id_outlet);
+        if (!$adjust) {
+            return [
+                'status' => 'fail',
+                'messages' => ['Failed adjust outlet stock']
+            ];
+        }
+        return ['status' => 'success'];
     }
 }

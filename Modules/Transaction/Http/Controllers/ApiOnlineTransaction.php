@@ -2013,6 +2013,7 @@ class ApiOnlineTransaction extends Controller
                 continue;
             }
 
+            $item['time_zone'] = $outlet['province_time_zone_utc']??7;
             $checkShift = $this->getCheckAvailableShift($item);
             if($checkShift === false){
                 $errorHsNotAvailable[] = $item['user_hair_stylist_name']." (".MyHelper::dateFormatInd($bookTime).')';
@@ -2564,6 +2565,9 @@ class ApiOnlineTransaction extends Controller
                     'status'=>'fail',
                     'messages' => ['Transaksi tidak dapat dibatalkan karena proses pembayaran sedang berlangsung']
                 ];
+            case 'cash':
+                $trx->triggerPaymentCancelled();
+                return ['status'=>'success', 'result' => ['message' => 'Pembayaran berhasil dibatalkan']];
         }
         return ['status' => 'fail', 'messages' => ["Cancel $payment_type transaction is not supported yet"]];
     }
@@ -4020,6 +4024,7 @@ class ApiOnlineTransaction extends Controller
         foreach ($post['item_service']??[] as $key=>$item){
             $err = [];
             $outletSchedule = OutletSchedule::where('id_outlet', $outlet['id_outlet'])->where('day', $day[date('D', strtotime($item['booking_date']))])->first();
+            $outletSchedule = app($this->outlet)->getTimezone($outletSchedule, ($outlet['province_time_zone_utc']??7));
             $open = date('H:i:s', strtotime($outletSchedule['open']));
             $close = date('H:i:s', strtotime($outletSchedule['close']));
             $currentHour = date('H:i:s', strtotime($item['booking_time']));
@@ -4099,6 +4104,7 @@ class ApiOnlineTransaction extends Controller
                 $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
             }
 
+            $item['time_zone'] = $outlet['province_time_zone_utc']??7;
             $checkShift = $this->getCheckAvailableShift($item);
             if($checkShift === false){
                 $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
@@ -4253,26 +4259,32 @@ class ApiOnlineTransaction extends Controller
 
     public function getCheckAvailableShift($data){
         $availableStatus = false;
+        $diffTimeZone = ($data['time_zone']??7) - 7;
 
         //check schedule hs
         $shift = HairstylistScheduleDate::leftJoin('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
             ->whereNotNull('approve_at')->where('id_user_hair_stylist', $data['id_user_hair_stylist'])
             ->whereDate('date', $data['booking_date'])
             ->first();
-        if($data['booking_date'] == date('Y-m-d') && strtotime($data['booking_time']) >= strtotime($shift['time_start']) && strtotime($data['booking_time']) < strtotime($shift['time_end'])){
+        $shiftStart = date('H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($shift['time_start'])));
+        $shiftEnd = date('H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($shift['time_end'])));
+
+        if($data['booking_date'] == date('Y-m-d') && strtotime($data['booking_time']) >= strtotime($shiftStart) && strtotime($data['booking_time']) < strtotime($shiftEnd)){
             $clockInOut = HairstylistAttendance::where('id_user_hair_stylist', $data['id_user_hair_stylist'])
                 ->where('id_hairstylist_schedule_date', $shift['id_hairstylist_schedule_date'])->orderBy('updated_at', 'desc')->first();
 
-            if(!empty($clockInOut) && !empty($clockInOut['clock_in']) && strtotime($data['booking_time']) >= strtotime($clockInOut['clock_in'])){
+            $in = date('H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($clockInOut['clock_in'])));
+            $out = date('H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($clockInOut['clock_out'])));
+            if(!empty($clockInOut) && !empty($in) && strtotime($data['booking_time']) >= strtotime($in)){
                 $availableStatus = true;
                 $lastAction = HairstylistAttendanceLog::where('id_hairstylist_attendance', $clockInOut['id_hairstylist_attendance'])->orderBy('datetime', 'desc')->first();
-                if(!empty($clockInOut['clock_out']) && $lastAction['type'] == 'clock_out' && strtotime($data['booking_time']) > strtotime($clockInOut['clock_out'])){
+                if(!empty($out) && $lastAction['type'] == 'clock_out' && strtotime($data['booking_time']) > strtotime($out)){
                     $availableStatus = false;
                 }
             }
         }else{
-            $shiftTimeStart = date('H:i:s', strtotime($shift['time_start']));
-            $shiftTimeEnd = date('H:i:s', strtotime($shift['time_end']));
+            $shiftTimeStart = date('H:i:s', strtotime($shiftStart));
+            $shiftTimeEnd = date('H:i:s', strtotime($shiftEnd));
             if(strtotime($data['booking_time']) >= strtotime($shiftTimeStart) && strtotime($data['booking_time']) < strtotime($shiftTimeEnd)){
                 $availableStatus = true;
             }

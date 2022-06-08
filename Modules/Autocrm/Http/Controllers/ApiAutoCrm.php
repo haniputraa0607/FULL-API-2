@@ -34,6 +34,8 @@ use Modules\Franchise\Entities\UserFranchise;
 use Modules\Franchise\Entities\FranchiseEmailLog;
 use Modules\Recruitment\Entities\UserHairStylist;
 use Modules\Recruitment\Entities\HairstylistInbox;
+use Modules\Employee\Entities\EmployeeDevice;
+use Modules\Employee\Entities\EmployeeInbox;
 use Validator;
 use Hash;
 use DB;
@@ -88,7 +90,9 @@ class ApiAutoCrm extends Controller
 		                	'nickname as name', 
 		                	'user_hair_stylist.*'
 		                )->where('phone_number','=',$receipient)->get()->toArray();
-            }
+            }elseif($recipient_type = 'employee'){
+				$users = User::where('phone','=',$receipient)->whereNotNull('id_role')->get()->toArray();
+			}
 		}
 		if(empty($users)){
 			return true;
@@ -731,7 +735,13 @@ class ApiAutoCrm extends Controller
 						$inboxWherefield = null;
 
 						$inbox['id_user_hair_stylist'] = $user['id'];
-					} else {
+					} elseif($recipient_type == 'employee'){
+						$inboxTable = new EmployeeInbox;
+						$inboxRecipient = $receipient;
+						$inboxWherefield = null;
+
+						$inbox['id_employee'] = $user['id'];
+					}else {
 						$inboxTable = new UserInbox;
 						$inboxRecipient = $user['id'];
 						$inboxWherefield = 'id';
@@ -821,6 +831,20 @@ class ApiAutoCrm extends Controller
                         case 'home_service_history' :
                             $inbox['inboxes_clickto'] = $variables['mitra_get_order_clickto']??'home_service_history';
                             break;
+                        case 'employee_inbox' :
+                            if (isset($variables['clickto'])) {
+                                $inbox['inboxes_clickto'] = $variables['clickto'];
+                            }
+							if (isset($variables['category'])) {
+                                $inbox['inboxes_category'] = $variables['category'];
+                            }
+                            
+                            if (isset($variables['id_employee_reference'])) {
+                                $inbox['inboxes_id_reference'] = $variables['id_employee_reference'];
+                            }else{
+                                $inbox['inboxes_id_reference'] = 0;
+                            }
+                            break;
                         default :
                             $inbox['inboxes_clickto'] = 'Default';
                             $inbox['inboxes_id_reference'] = 0;
@@ -834,7 +858,7 @@ class ApiAutoCrm extends Controller
 					$inbox['inboxes_send_at'] = date("Y-m-d H:i:s");
 					$inbox['created_at'] = date("Y-m-d H:i:s");
 					$inbox['updated_at'] = date("Y-m-d H:i:s");
-
+					
 					$inboxTable::insert($inbox);
 				}
 			}

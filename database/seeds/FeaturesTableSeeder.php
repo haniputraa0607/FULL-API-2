@@ -4704,6 +4704,15 @@ class FeaturesTableSeeder extends Seeder
                 'created_at'     => date('Y-m-d H:00:00'),
                 'updated_at'     => date('Y-m-d H:00:00'),
             ),
+            523 => array(
+                'id_feature'     => 525,
+                'feature_type'   => 'Delete',
+                'feature_module' => 'Delete Hairstylist Attendance',
+                'show_hide'      => 1,
+                'order'          => 153,
+                'created_at'     => date('Y-m-d H:00:00'),
+                'updated_at'     => date('Y-m-d H:00:00'),
+            ),
             
         );
 

@@ -25,6 +25,10 @@ use Modules\Employee\Entities\AssetInventoryLog;
 use Modules\Employee\Entities\EmployeeTimeOffImage;
 use Modules\Product\Entities\RequestProduct;
 use Modules\Product\Entities\RequestProductDetail;
+use App\Http\Models\Province;
+use App\Http\Models\Outlet;
+use App\Http\Models\User;
+use Modules\Employee\Entities\EmployeeScheduleDate;
 
 
 class ApiEmployeeInboxController extends Controller
@@ -521,6 +525,15 @@ class ApiEmployeeInboxController extends Controller
                             ],
                         ]
                 ];
+                
+                if(isset($id_detail)){
+                    $shift = $this->getShiftForOvertime($val);
+                    $data['data'][] = [
+                        'label' => 'Jam Lembur',
+                        'value' => $shift['schedule_in'].' - '.$shift['schedule_out']
+                    ];
+                }
+
                 $send[] = $data;
             }
         }
@@ -830,7 +843,51 @@ class ApiEmployeeInboxController extends Controller
         return MyHelper::checkGet($send);
     }
 
+    public function getShiftForOvertime($data){
+        $data_outlet = Outlet::where('id_outlet', $data['id_outlet'])->first();
+        $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+        ->where('id_city', $data_outlet['id_city'])->first()['time_zone_utc']??null;
+        $date = date('Y-m-d', strtotime($data['date']));
+        $array_date = explode('-', $date);
+
+        $cek_employee = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$data['id_employee'])->first();
+        if($cek_employee['office_hour_type'] == 'Without Shift'){
+            $schedule_date_without = EmployeeScheduleDate::join('employee_schedules','employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule')
+                                ->join('users','users.id','employee_schedules.id')
+                                ->where('users.id', $data['id_employee'])
+                                ->where('employee_schedules.schedule_month', $array_date[1])
+                                ->where('employee_schedules.schedule_year', $array_date[0])
+                                ->whereDate('employee_schedule_dates.date', $date)
+                                ->first();
+            if($schedule_date_without){ 
+                $send['schedule_in'] = date('H:i', strtotime($schedule_date_without['time_start']));
+                $send['schedule_out'] = date('H:i', strtotime($schedule_date_without['time_end']));
+            }else{
+                $send['schedule_in'] = MyHelper::reverseAdjustTimezone(date('H:i', strtotime($cek_employee['office_hour_start'])), $timeZone, 'H:i');
+                $send['schedule_out'] = MyHelper::reverseAdjustTimezone(date('H:i', strtotime($cek_employee['office_hour_end'])), $timeZone, 'H:i');
+            }
+        }else{
+            $schedule_date = EmployeeScheduleDate::join('employee_schedules','employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule')
+                                                    ->join('users','users.id','employee_schedules.id')
+                                                    ->where('users.id', $data['id_employee'])
+                                                    ->where('employee_schedules.schedule_month', $array_date[1])
+                                                    ->where('employee_schedules.schedule_year', $array_date[0])
+                                                    ->whereDate('employee_schedule_dates.date', $date)
+                                                    ->first();
+
+            $send['schedule_in'] = date('H:i', strtotime($schedule_date['time_start']));
+            $send['schedule_out'] = date('H:i', strtotime($schedule_date['time_end']));
+        }
+
+        $time_off['schedule_in'] = $send['schedule_in'] ? MyHelper::adjustTimezone($send['schedule_in'], $timeZone, 'H:i') : null;
+        $time_off['schedule_out'] = $send['schedule_out'] ? MyHelper::adjustTimezone($send['schedule_out'], $timeZone, 'H:i') : null;
+        return $time_off;
+    }
+
     public function approveReqApproval(Request $request){
+        $request->validate([
+            'status' => 'string|in:Approve,Reject',
+        ]);
         $post = $request->all();
         $user = $request->user();
         $id_employee = $user['id'];
@@ -884,11 +941,51 @@ class ApiEmployeeInboxController extends Controller
 
         if($key_id == 'time_off'){
             $data_update = [
-                'id_employee_outlet_attendance_log' => $id_detail,
+                'id_employee_time_off' => $id_detail,
                 'approve_notes' => $post['approve_notes'],
-                'status' => $post['status']
+                'approve' => true,
+                'id_approve' => $id_employee
             ];
-            $update = app('\Modules\Employee\Http\Controllers\ApiEmployeeAttendaceOutletController')->updatePending(New Request($data_update));
+            if($post['status']=='Approve'){
+                $update = app('\Modules\Employee\Http\Controllers\ApiEmployeeTimeOffOvertimeController')->updateTimeOff(New Request($data_update));
+            }elseif($post['status']=='Reject'){
+                $update = app('\Modules\Employee\Http\Controllers\ApiEmployeeTimeOffOvertimeController')->deleteTimeOff(New Request($data_update));
+            }
+        }
+
+        if($key_id == 'overtime'){
+            $overtime = EmployeeOvertime::where('id_employee_overtime',$id_detail)->first();
+            $shift = $this->getShiftForOvertime($overtime);
+            $data_update = [
+                'id_employee_overtime' => $id_detail,
+                'approve_notes' => $post['approve_notes'],
+                'approve' => true,
+                'id_approve' => $id_employee,
+                'schedule_in' => $shift['schedule_in'],
+                'schedule_out' => $shift['schedule_out'],
+            ];
+            if($post['status']=='Approve'){
+                $update = app('\Modules\Employee\Http\Controllers\ApiEmployeeTimeOffOvertimeController')->updateOvertime(New Request($data_update));
+            }elseif($post['status']=='Reject'){
+                $update = app('\Modules\Employee\Http\Controllers\ApiEmployeeTimeOffOvertimeController')->deleteOvertime(New Request($data_update));
+            }
+        }
+
+        if($key_id == 'reimbursement'){
+            if($post['status']=='Approve'){
+                $status = 'Approved';
+            }elseif($post['status']=='Reject'){
+                $status = 'Rejected';
+            }
+            $data_update = [
+                'id_employee_reimbursement' => $id_detail,
+                'approve_notes' => $post['approve_notes'],
+                'status' => $status,
+                'id_user_approved' => $id_employee,
+                'validator_reimbursement' => $user['name']
+            ];
+            $update = app('\Modules\Employee\Http\Controllers\ApiBeEmployeeReimbursementController')->approved(New Request($data_update));
+           
         }
 
         return $update;

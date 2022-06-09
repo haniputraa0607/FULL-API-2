@@ -377,7 +377,7 @@ class HairstylistIncome extends Model
                                 $join->on('hairstylist_group_insentifs.id_hairstylist_group_default_insentifs', 'hairstylist_group_default_insentifs.id_hairstylist_group_default_insentifs')
                                 ->where('id_hairstylist_group', $hs->id_hairstylist_groups);
                             })->where('hairstylist_group_default_insentifs.code', $code)
-                            ->select('hairstylist_group_default_insentifs.id_hairstylist_group_default_insentifs','hairstylist_group_default_insentifs.code',
+                            ->select('hairstylist_group_default_insentifs.id_hairstylist_group_default_insentifs','hairstylist_group_default_insentifs.name','hairstylist_group_default_insentifs.code',
                                 DB::raw('
                                        CASE WHEN
                                        hairstylist_group_insentifs.value IS NOT NULL THEN hairstylist_group_insentifs.value ELSE hairstylist_group_default_insentifs.value
@@ -409,7 +409,7 @@ class HairstylistIncome extends Model
                 }
                 $total = $total+$amount;
                $array[] = array(
-                    "name"=> 'total tambahan '.str_replace("_"," ",$code),
+                    "name"=> $incentive->name,
                     "value"=> $amount,
                 );
             } elseif (strpos($calculation, 'salary_cut_') === 0) { // start_with_calculation
@@ -418,7 +418,7 @@ class HairstylistIncome extends Model
                     $join->on('hairstylist_group_potongans.id_hairstylist_group_default_potongans', 'hairstylist_group_default_potongans.id_hairstylist_group_default_potongans')
                         ->where('id_hairstylist_group', $hs->id_hairstylist_groups);
                 })->where('hairstylist_group_default_potongans.code', $code)
-                         ->select('hairstylist_group_default_potongans.id_hairstylist_group_default_potongans','hairstylist_group_default_potongans.code',
+                         ->select('hairstylist_group_default_potongans.id_hairstylist_group_default_potongans','hairstylist_group_default_potongans.name','hairstylist_group_default_potongans.code',
                                 DB::raw('
                                        CASE WHEN
                                        hairstylist_group_potongans.value IS NOT NULL THEN hairstylist_group_potongans.value ELSE hairstylist_group_default_potongans.value
@@ -453,7 +453,7 @@ class HairstylistIncome extends Model
                 }
                 $total = $total-$amount;
                   $array[] = array(
-                    "name"=> 'total potongan '.str_replace("_"," ",$code),
+                    "name"=> $salary_cut->name,
                     "value"=> $amount,
                 );
             }

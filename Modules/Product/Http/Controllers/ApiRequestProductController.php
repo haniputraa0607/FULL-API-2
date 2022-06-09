@@ -324,6 +324,8 @@ class ApiRequestProductController extends Controller
             $old_data = RequestProduct::where('id_request_product',$post['id_request_product'])->first();
             $cek_input = $this->checkInputUpdate($post);
             $store_request = $cek_input['store_request'];
+            $store_request['id_outlet'] = $old_data['id_outlet'] ?? $store_request['id_outlet'];
+            $store_request['code'] = $old_data['code'] ?? $store_request['code'];
             $cek_outlet = Outlet::where(['id_outlet'=>$store_request['id_outlet']])->first();
             if ($cek_outlet) {
                 DB::beginTransaction();
@@ -461,7 +463,7 @@ class ApiRequestProductController extends Controller
             $store_request['note_request'] = $data['note_request'];
         }
         
-        $store_request['id_user_approve'] = auth()->user()->id;
+        $store_request['id_user_approve'] = $data['id_user_approve'] ?? auth()->user()->id;
 
         if (isset($data['note_approve'])) {
             $store_request['note_approve'] = $data['note_approve'];

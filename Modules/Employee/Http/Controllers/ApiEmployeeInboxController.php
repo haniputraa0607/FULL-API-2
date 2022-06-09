@@ -29,6 +29,8 @@ use App\Http\Models\Province;
 use App\Http\Models\Outlet;
 use App\Http\Models\User;
 use Modules\Employee\Entities\EmployeeScheduleDate;
+use Modules\Employee\Http\Requests\AssetInventory\ApproveLoan;
+use Modules\Employee\Http\Requests\AssetInventory\ApproveReturn;
 
 
 class ApiEmployeeInboxController extends Controller
@@ -779,7 +781,7 @@ class ApiEmployeeInboxController extends Controller
             $req_product = RequestProduct::join('users','users.id','request_products.id_user_request')
                         ->leftJoin('request_product_details', 'request_product_details.id_request_product', 'request_products.id_request_product')
                         ->where('request_products.id_outlet',$id_outlet)
-                        ->where('request_products.status','Draft');
+                        ->where('request_products.status','Pending');
             if($key_id == 'request_product'){
                 $req_product = $req_product->where('request_products.id_request_product', $id_detail);
             }
@@ -985,6 +987,64 @@ class ApiEmployeeInboxController extends Controller
                 'validator_reimbursement' => $user['name']
             ];
             $update = app('\Modules\Employee\Http\Controllers\ApiBeEmployeeReimbursementController')->approved(New Request($data_update));
+        }
+
+        if($key_id == 'loan_assets'){
+            if($post['status']=='Approve'){
+                $status = 'Approved';
+            }elseif($post['status']=='Reject'){
+                $status = 'Rejected';
+            }
+            $data_update = [
+                'id_asset_inventory_log' => $id_detail,
+                'notes' => $post['approve_notes'],
+                'status_asset_inventory' => $status,
+                'id_user_approved' => $id_employee,
+                'validator_reimbursement' => $user['name']
+            ];
+            $update = app('\Modules\Employee\Http\Controllers\ApiBeEmployeeAssetInventoryController')->approve_loan(New ApproveLoan($data_update));
+           
+        }
+
+        if($key_id == 'return_assets'){
+            if($post['status']=='Approve'){
+                $status = 'Approved';
+            }elseif($post['status']=='Reject'){
+                $status = 'Rejected';
+            }
+            $data_update = [
+                'id_asset_inventory_log' => $id_detail,
+                'notes' => $post['approve_notes'],
+                'status_asset_inventory' => $status,
+                'id_user_approved' => $id_employee,
+                'validator_reimbursement' => $user['name']
+            ];
+            $update = app('\Modules\Employee\Http\Controllers\ApiBeEmployeeAssetInventoryController')->approve_return(New ApproveReturn($data_update));
+           
+        }
+
+        if($key_id == 'request_product'){
+            $product_icount = [];
+            $products = RequestProductDetail::where('id_request_product', $id_detail)->get()->toArray();
+            foreach($products ?? [] as $no => $product){
+                $product_icount[] = [
+                    'filter' => $product['filter'],
+                    'id_product_icount' => $product['id_product_icount'],
+                    'unit' => $product['unit'],
+                    'qty' => $product['value'],
+                    'budget_code' =>$product['budget_code'],
+                    'status' => $post['status']=='Approve' ? 'Approved' : 'Rejected'
+                ];
+            }
+            
+            $data_update = [
+                'id_request_product' => $id_detail,
+                'note_approve' => $post['approve_notes'],
+                'id_user_approved' => $id_employee,
+                'product_icount' => $product_icount,
+                'from' => 'Product'
+            ];
+            $update = app('\Modules\Product\Http\Controllers\ApiRequestProductController')->update(New ApproveReturn($data_update));
            
         }
 

@@ -57,7 +57,7 @@ class ApproveLoan extends FormRequest
 			'id_asset_inventory_log' => 'required|cek',
 			'status_asset_inventory' => 'required|in:Approved,Rejected',
 			'notes' => 'required',
-			'attachment' => 'required|max:5000',
+			'attachment' => "mimes:jpeg,jpg,bmp,png|max:2000",
         ];
     }
 

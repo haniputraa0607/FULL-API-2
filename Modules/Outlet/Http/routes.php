@@ -77,6 +77,7 @@ Route::group(['prefix' => 'api/outlet', 'middleware' => ['log_activities', 'auth
     });
     Route::post('unit-conversion/detail', ['middleware' => 'feature_control:447', 'uses' =>'ApiOutletController@detailUnitConversion']);
     Route::post('stock-adjustment/detail', ['middleware' => 'feature_control:447', 'uses' =>'ApiOutletController@detailStockAdjustment']);
+    Route::post('export-product-icount-log', ['middleware' => 'feature_control:447', 'uses' =>'ApiOutletController@exportProductIcount']);
 
     Route::post('import-brand', 'ApiOutletController@importBrand');
     Route::post('import-delivery', 'ApiOutletController@importDelivery');

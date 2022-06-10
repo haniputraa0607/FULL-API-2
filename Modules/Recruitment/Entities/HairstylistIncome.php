@@ -181,7 +181,7 @@ class HairstylistIncome extends Model
                 $code = str_replace('incentive_', '', $calculation);
                 $incentive = HairstylistGroupInsentifDefault::leftJoin('hairstylist_group_insentifs', function($join) use ($hs) {
                                 $join->on('hairstylist_group_insentifs.id_hairstylist_group_default_insentifs', 'hairstylist_group_default_insentifs.id_hairstylist_group_default_insentifs')
-                                ->where('id_hairstylist_group', $hs->id_hairstylist_groups);
+                                ->where('id_hairstylist_group', $hs->id_hairstylist_group);
                             })->where('hairstylist_group_default_insentifs.code', $code)
                             ->select('hairstylist_group_default_insentifs.id_hairstylist_group_default_insentifs','hairstylist_group_default_insentifs.code',
                                 DB::raw('
@@ -229,7 +229,7 @@ class HairstylistIncome extends Model
                 $code = str_replace('salary_cut_', '', $calculation);
                 $salary_cut = HairstylistGroupPotonganDefault::leftJoin('hairstylist_group_potongans', function($join) use ($hs) {
                     $join->on('hairstylist_group_potongans.id_hairstylist_group_default_potongans', 'hairstylist_group_default_potongans.id_hairstylist_group_default_potongans')
-                        ->where('id_hairstylist_group', $hs->id_hairstylist_groups);
+                        ->where('id_hairstylist_group', $hs->id_hairstylist_group);
                 })->where('hairstylist_group_default_potongans.code', $code)
                          ->select('hairstylist_group_default_potongans.id_hairstylist_group_default_potongans','hairstylist_group_default_potongans.code',
                                 DB::raw('
@@ -375,7 +375,7 @@ class HairstylistIncome extends Model
                 $code = str_replace('incentive_', '', $calculation);
                 $incentive = HairstylistGroupInsentifDefault::leftJoin('hairstylist_group_insentifs', function($join) use ($hs) {
                                 $join->on('hairstylist_group_insentifs.id_hairstylist_group_default_insentifs', 'hairstylist_group_default_insentifs.id_hairstylist_group_default_insentifs')
-                                ->where('id_hairstylist_group', $hs->id_hairstylist_groups);
+                                ->where('id_hairstylist_group', $hs->id_hairstylist_group);
                             })->where('hairstylist_group_default_insentifs.code', $code)
                             ->select('hairstylist_group_default_insentifs.id_hairstylist_group_default_insentifs','hairstylist_group_default_insentifs.name','hairstylist_group_default_insentifs.code',
                                 DB::raw('
@@ -416,7 +416,7 @@ class HairstylistIncome extends Model
                 $code = str_replace('salary_cut_', '', $calculation);
                 $salary_cut = HairstylistGroupPotonganDefault::leftJoin('hairstylist_group_potongans', function($join) use ($hs) {
                     $join->on('hairstylist_group_potongans.id_hairstylist_group_default_potongans', 'hairstylist_group_default_potongans.id_hairstylist_group_default_potongans')
-                        ->where('id_hairstylist_group', $hs->id_hairstylist_groups);
+                        ->where('id_hairstylist_group', $hs->id_hairstylist_group);
                 })->where('hairstylist_group_default_potongans.code', $code)
                          ->select('hairstylist_group_default_potongans.id_hairstylist_group_default_potongans','hairstylist_group_default_potongans.name','hairstylist_group_default_potongans.code',
                                 DB::raw('
@@ -676,7 +676,7 @@ class HairstylistIncome extends Model
                 $code = str_replace('incentive_', '', $calculation);
                 $incentive = HairstylistGroupInsentifDefault::leftJoin('hairstylist_group_insentifs', function($join) use ($hs) {
                                 $join->on('hairstylist_group_insentifs.id_hairstylist_group_default_insentifs', 'hairstylist_group_default_insentifs.id_hairstylist_group_default_insentifs')
-                                ->where('id_hairstylist_group', $hs->id_hairstylist_groups);
+                                ->where('id_hairstylist_group', $hs->id_hairstylist_group);
                             })->where('hairstylist_group_default_insentifs.code', $code)
                             ->select('hairstylist_group_default_insentifs.id_hairstylist_group_default_insentifs','hairstylist_group_default_insentifs.code',
                                 DB::raw('
@@ -714,7 +714,7 @@ class HairstylistIncome extends Model
                 $code = str_replace('salary_cut_', '', $calculation);
                 $salary_cut = HairstylistGroupPotonganDefault::leftJoin('hairstylist_group_potongans', function($join) use ($hs) {
                     $join->on('hairstylist_group_potongans.id_hairstylist_group_default_potongans', 'hairstylist_group_default_potongans.id_hairstylist_group_default_potongans')
-                        ->where('id_hairstylist_group', $hs->id_hairstylist_groups);
+                        ->where('id_hairstylist_group', $hs->id_hairstylist_group);
                 })->where('hairstylist_group_default_potongans.code', $code)
                          ->select('hairstylist_group_default_potongans.id_hairstylist_group_default_potongans','hairstylist_group_default_potongans.code',
                                 DB::raw('
@@ -882,7 +882,7 @@ class HairstylistIncome extends Model
                 $code = str_replace('incentive_', '', $calculation);
                 $incentive = HairstylistGroupInsentifDefault::leftJoin('hairstylist_group_insentifs', function($join) use ($hs) {
                                 $join->on('hairstylist_group_insentifs.id_hairstylist_group_default_insentifs', 'hairstylist_group_default_insentifs.id_hairstylist_group_default_insentifs')
-                                ->where('id_hairstylist_group', $hs->id_hairstylist_groups);
+                                ->where('id_hairstylist_group', $hs->id_hairstylist_group);
                             })->where('hairstylist_group_default_insentifs.code', $code)
                             ->select('hairstylist_group_default_insentifs.id_hairstylist_group_default_insentifs','hairstylist_group_default_insentifs.code',
                                 DB::raw('
@@ -920,6 +920,72 @@ class HairstylistIncome extends Model
         }
         $array[] = array(
                     "name"=> "total gross income",
+                    "value"=> $total
+                    
+                );
+        return $array;
+    }
+    public static function calculateIncomeOvertime(UserHairStylist $hs, $startDate,$endDate)
+    {
+        $total = 0;
+        $total_attend = 0;
+        $total_late = 0;
+        $total_absen = 0;
+        $total_overtime = 0;
+        $overtime = array();
+        $id_outlets = HairstylistAttendance::where('id_user_hair_stylist', $hs->id_user_hair_stylist)->groupby('id_outlet')->distinct()->get()->pluck('id_outlet');
+        foreach ($id_outlets as $id_outlet) {
+                    $total_overtimes = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) use ($hs,$id_outlet){
+                            $join->on('hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+                                ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+                                ->where('id_outlet', $id_outlet);
+                        })
+                        ->whereNotNull('clock_in')
+                        ->whereBetween('hairstylist_attendances.attendance_date',[$startDate,$endDate])
+                        ->select('date')
+                        ->get();
+                    foreach ($total_overtimes as $value) {
+                        array_push($overtime,$value);
+                    }
+                  
+                }
+                $over = 0;
+                $ove = array();
+                foreach (array_unique($overtime) as $value) {
+                    $overtimess = HairstylistOverTime::where('id_user_hair_stylist',$hs->id_user_hair_stylist)
+                            ->wherenotnull('approve_at')
+                            ->wherenull('reject_at')
+                            ->wheredate('date',$value['date'])
+                            ->get();
+                    foreach ($overtimess as $va) {
+                        array_push($ove,$va['duration']);
+                    }
+                }
+                foreach ($ove as $value) {
+                    $va = explode(":", $value);
+                    $nominal = 0;
+                    $h = $va[0];
+                    $incentive = HairstylistGroupOvertimeDefault::leftJoin('hairstylist_group_overtimes', function($join) use ($hs) {
+                                $join->on('hairstylist_group_overtimes.id_hairstylist_group_default_overtimes', 'hairstylist_group_default_overtimes.id_hairstylist_group_default_overtimes')
+                                ->where('id_hairstylist_group', $hs->id_hairstylist_group);
+                            })
+                            ->select('hairstylist_group_default_overtimes.hours',
+                                DB::raw('
+                                       CASE WHEN
+                                       hairstylist_group_overtimes.value IS NOT NULL THEN hairstylist_group_overtimes.value ELSE hairstylist_group_default_overtimes.value
+                                       END as value
+                                    '),
+                                )->orderby('hours','DESC')->get();
+                    foreach ($incentive as $valu) {
+                        if($valu['hours']<=(int)$h){
+                            $nominal = $valu['value'];
+                            break;
+                        }
+                    }
+                    $total = $total+$nominal;
+                }
+        $array[] = array(
+                    "name"=> "Overtime",
                     "value"=> $total
                     
                 );

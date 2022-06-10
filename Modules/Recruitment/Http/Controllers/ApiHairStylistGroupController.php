@@ -19,8 +19,10 @@ use Modules\Recruitment\Entities\HairstylistGroup;
 use Modules\Recruitment\Entities\HairstylistGroupCommission;
 use App\Http\Models\Product;
 use Modules\Recruitment\Entities\HairstylistGroupInsentifDefault;
+use Modules\Recruitment\Entities\HairstylistGroupOvertimeDefault;
 use Modules\Recruitment\Entities\HairstylistGroupPotonganDefault;
 use Modules\Recruitment\Entities\HairstylistGroupInsentif;
+use Modules\Recruitment\Entities\HairstylistGroupOvertime;
 use Modules\Recruitment\Entities\HairstylistGroupPotongan;
 
 
@@ -265,6 +267,19 @@ class ApiHairStylistGroupController extends Controller
          $query = HairstylistGroupPotonganDefault::get();
          foreach ($query as $value) {
              $cek = HairstylistGroupPotongan::where(array('id_hairstylist_group'=>$request->id_hairstylist_group,'id_hairstylist_group_default_potongans'=>$value['id_hairstylist_group_default_potongans']))->first();
+             if(!$cek){
+                 array_push($data,$value);
+             }
+         }
+        }
+         return response()->json($data);
+    }
+    public function list_default_overtime(Request $request) {
+        $data = array();
+         if($request->id_hairstylist_group){
+         $query = HairstylistGroupOvertimeDefault::get();
+         foreach ($query as $value) {
+             $cek = HairstylistGroupOvertime::where(array('id_hairstylist_group'=>$request->id_hairstylist_group,'id_hairstylist_group_default_overtimes'=>$value['id_hairstylist_group_default_overtimes']))->first();
              if(!$cek){
                  array_push($data,$value);
              }

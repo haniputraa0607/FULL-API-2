@@ -56,7 +56,7 @@ class CreateLoan extends FormRequest
 			'long'                        => 'required|integer',
 			'long_loan'                   => 'required|in:Day,Month,Year',
 			'notes'                       => 'required',
-			'attachment'                  => 'required|max:5000',
+			'attachment'                  => 'mimes:jpeg,jpg,bmp,png|max:2000',
         ];
     }
 

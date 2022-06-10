@@ -4193,4 +4193,70 @@ class ApiOutletController extends Controller
         }
         return ['status' => 'success'];
     }
+
+    public function exportProductIcount(Request $request){
+        $post = $request->all();
+        $start_date = date('Y-m-d 00:00:00',strtotime($post['start_date']));
+        $end_date = date('Y-m-d 00:00:00',strtotime($post['end_date']));
+        $outlets = Outlet::leftJoin('product_icount_outlet_stock_logs', 'product_icount_outlet_stock_logs.id_outlet', 'outlets.id_outlet')
+                        ->join('product_icounts', 'product_icounts.id_product_icount', 'product_icount_outlet_stock_logs.id_product_icount')
+                        ->where('outlets.outlet_code', $post['outlet_code'])
+                        ->whereDate('product_icount_outlet_stock_logs.created_at', '>=', $start_date)
+                        ->whereDate('product_icount_outlet_stock_logs.created_at', '<=', $end_date)
+                        ->select('product_icounts.name','product_icount_outlet_stock_logs.*')
+                        ->orderBy('product_icount_outlet_stock_logs.id_product_icount_outlet_stock_log')
+                        ->orderBy('product_icount_outlet_stock_logs.created_at', 'asc')
+                        ->get()->toArray();
+        $outlet = [];
+        foreach($outlets ?? [] as $val){
+            if(isset($outlet[$val['name']])){
+                if(isset($outlet[$val['name']][$val['unit']])){
+                    $outlet[$val['name']][$val['unit']][] = $val;
+                }else{
+                    $outlet[$val['name']][$val['unit']][] = $val;
+                }
+            }else{
+                $outlet[$val['name']][$val['unit']][] = $val;
+            }
+        }
+        $data_export = [];
+        foreach($outlet ?? []  as $key => $out){
+            foreach($out ?? [] as $key_2 => $out_2){
+                foreach($out_2 ?? [] as $key_3 => $out_3){
+                    if($key_3 == 0){
+                        $data_export[$key][$key_2][] = [
+                            'Date' => null,
+                            'Product Name' => $out_3['name'],
+                            'Source' => 'INITIAL STOCK',
+                            'Unit' => $out_3['unit'],
+                            'Stock In' => null,
+                            'Stock Out' => null,
+                            'Current Stock' => $out_3['stock_before']
+                        ];
+                    }
+                    $data_export[$key][$key_2][] = [
+                        'Date' => date('d F Y', strtotime($out_3['created_at'])),
+                        'Product Name' => $out_3['name'],
+                        'Source' => $out_3['source'],
+                        'Unit' => $out_3['unit'],
+                        'Stock In' => $out_3['stock_before'] < $out_3['stock_after'] ? $out_3['qty'] : null,
+                        'Stock Out' => $out_3['stock_before'] > $out_3['stock_after'] ? $out_3['qty'] : null,
+                        'Current Stock' => $out_3['stock_after']
+                    ];
+                    if($key_3 == count($out_2)-1){
+                        $data_export[$key][$key_2][] = [
+                            'Date' => null,
+                            'Product Name' => $out_3['name'],
+                            'Source' => 'END STOCK',
+                            'Unit' => $out_3['unit'],
+                            'Stock In' => null,
+                            'Stock Out' => null,
+                            'Current Stock' => $out_3['stock_after']
+                        ];
+                    }
+                }
+            }
+        }
+        return $data_export;
+    }
 }

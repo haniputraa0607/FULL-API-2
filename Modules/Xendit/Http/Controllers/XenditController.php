@@ -573,4 +573,76 @@ class XenditController extends Controller
             return false;
         }
     }
+
+    public function refund($reference, $type = 'trx', &$errors = null, &$refund_reference_id = null)
+    {
+        switch ($type) {
+            case 'trx':
+                if (is_numeric($reference)) {
+                    $reference = Transaction::where('id_transaction', $reference)->first();
+                    if (!$reference) {
+                        $errors = ['Transaction not found'];
+                        return false;
+                    }
+                } else {
+                    if (!($reference['transaction_receipt_number'] ?? false)) {
+                        $errors = ['Invalid reference'];
+                        return false;
+                    }
+                }
+                $payment = optional(TransactionPaymentXendit::where('id_transaction', $reference['id_transaction'])->first());
+                if (!in_array(strtolower($payment->type), ['ovo', 'dana', 'shopeepay', 'linkaja'])) {
+                    $errors = ['Refund not supported dor this payment type'];
+                    return false;
+                }
+                $data['payment_reference_id'] = $reference['transaction_receipt_number'];
+                break;
+
+            case 'deals':
+                if (is_numeric($reference)) {
+                    $reference = DealsPaymentShopeePay::where('id_deals_user', $reference)->first();
+                    if (!$reference) {
+                        $errors = ['Transaction not found'];
+                        return false;
+                    }
+                } else {
+                    if (!($reference['order_id'] ?? false)) {
+                        $errors = ['Invalid reference'];
+                        return false;
+                    }
+                }
+                $payment_builder = DealsPaymentShopeePay::where('order_id', $reference['order_id']);
+                if (time() <= strtotime($minimal_refund_time)) {
+                    DealsPaymentShopeePay::where('order_id', $reference['order_id'])->update(['manual_refund' => '1']);
+                    return true;
+                }
+                $data['payment_reference_id'] = $reference['order_id'];
+                break;
+
+            case 'subscription':
+                if (is_numeric($reference)) {
+                    $reference = SubscriptionPaymentShopeePay::where('id_subscription_user', $reference)->first();
+                    if (!$reference) {
+                        $errors = ['Subscription not found'];
+                        return false;
+                    }
+                } else {
+                    if (!($reference['order_id'] ?? false)) {
+                        $errors = ['Invalid reference'];
+                        return false;
+                    }
+                }
+                $payment_builder = SubscriptionPaymentShopeePay::where('order_id', $reference['order_id']);
+                if (time() <= strtotime($minimal_refund_time)) {
+                    SubscriptionPaymentShopeePay::where('order_id', $reference['order_id'])->update(['manual_refund' => '1']);
+                    return true;
+                }
+                $data['payment_reference_id'] = $reference['order_id'];
+                break;
+
+            default:
+                # code...
+                break;
+        }
+    }
 }

@@ -14,6 +14,7 @@ class EmployeeAttendanceRequest extends Model
         'clock_in',
         'clock_out',
         'notes',
+        'approve_notes',
         'status',
         'id_outlet',
     ];

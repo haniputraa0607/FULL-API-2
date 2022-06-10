@@ -2692,7 +2692,7 @@ class FeaturesTableSeeder extends Seeder
                 'id_feature'     => 299,
                 'feature_type'   => 'List',
                 'feature_module' => 'Failed Void Payment',
-                'show_hide'      => 0,
+                'show_hide'      => 1,
                 'order'          => 116,
                 'created_at'     => '2021-09-29 10:00:00',
                 'updated_at'     => '2021-09-29 10:00:00',

@@ -122,11 +122,11 @@ class ApiBeEmployeeAssetInventoryController extends Controller
                     ])
                     ->with('loan')
                     ->first();
-        $available['id_approved'] = Auth::user()->id;
+        $available['id_approved'] = $post['id_user_approved'] ?? Auth::user()->id;
         $available['date_action'] = date('Y-m-d H:i:s');
         $available['status_asset_inventory'] = $request->status_asset_inventory;
         $available['notes'] = $request->notes;
-        $available['attachment'] = $attachment;
+        $available['attachment'] = $attachment ?? null;
         if($request->status_asset_inventory == "Approved"){
             $loan = AssetInventoryLoan::where([
                 'id_asset_inventory_log'=>$request->id_asset_inventory_log
@@ -194,11 +194,11 @@ class ApiBeEmployeeAssetInventoryController extends Controller
                       'asset_inventory_logs.*'
                     ])
                     ->first();
-        $available['id_approved'] = Auth::user()->id;
+        $available['id_approved'] = $post['id_user_approved'] ?? Auth::user()->id;
         $available['date_action'] = date('Y-m-d H:i:s');
         $available['status_asset_inventory'] = $request->status_asset_inventory;
         $available['notes'] = $request->notes;
-        $available['attachment'] = $attachment;
+        $available['attachment'] = $attachment ?? null;
         $return = AssetInventoryReturn::where('id_asset_inventory_log',$request->id_asset_inventory_log)->first();
         if($request->status_asset_inventory == "Approved"){
             $loan = AssetInventoryLoan::where([

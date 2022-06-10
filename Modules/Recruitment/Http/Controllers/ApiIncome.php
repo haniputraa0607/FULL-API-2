@@ -360,6 +360,10 @@ class ApiIncome extends Controller
             foreach ($response as $values) {
                 $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
             }
+            $response = $b->calculateIncomeOvertime($hs, $request->start_date,$request->end_date);
+            foreach ($response as $values) {
+                $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
+            }
             $response = $b->calculateIncomeProductCode($hs, $request->start_date,$request->end_date);
             foreach ($response as $values) {
                 $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];

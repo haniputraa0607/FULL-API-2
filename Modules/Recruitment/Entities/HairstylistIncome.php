@@ -287,6 +287,7 @@ class HairstylistIncome extends Model
     public static function calculateIncomeExport(UserHairStylist $hs, $startDate,$endDate)
     {
         $total = 0;
+        $array = array();
         $calculation_mid = json_decode(MyHelper::setting('hs_income_calculation_mid', 'value_text', '[]'), true) ?? [];
         $calculation_end = json_decode(MyHelper::setting('hs_income_calculation_end', 'value_text', '[]'), true) ?? [];
         $calculations    = array_unique(array_merge($calculation_mid,$calculation_end));
@@ -463,6 +464,7 @@ class HairstylistIncome extends Model
     public static function calculateIncomeProductCode(UserHairStylist $hs, $startDate,$endDate)
     {
         $total = 0;
+        $array = array();
         $calculation_mid = json_decode(MyHelper::setting('hs_income_calculation_mid', 'value_text', '[]'), true) ?? [];
         $calculation_end = json_decode(MyHelper::setting('hs_income_calculation_end', 'value_text', '[]'), true) ?? [];
         $calculations    = array_unique(array_merge($calculation_mid,$calculation_end));
@@ -573,6 +575,7 @@ class HairstylistIncome extends Model
     public static function calculateIncomeTotal(UserHairStylist $hs, $startDate,$endDate)
     {
         $total = 0;
+        $array = array();
         $calculation_mid = json_decode(MyHelper::setting('hs_income_calculation_mid', 'value_text', '[]'), true) ?? [];
         $calculation_end = json_decode(MyHelper::setting('hs_income_calculation_end', 'value_text', '[]'), true) ?? [];
         $calculations    = array_unique(array_merge($calculation_mid,$calculation_end));
@@ -774,6 +777,7 @@ class HairstylistIncome extends Model
     public static function calculateIncomeGross(UserHairStylist $hs, $startDate,$endDate)
     {
         $total = 0;
+        $array = array();
         $calculation_mid = json_decode(MyHelper::setting('hs_income_calculation_mid', 'value_text', '[]'), true) ?? [];
         $calculation_end = json_decode(MyHelper::setting('hs_income_calculation_end', 'value_text', '[]'), true) ?? [];
         $calculations    = array_unique(array_merge($calculation_mid,$calculation_end));
@@ -928,6 +932,7 @@ class HairstylistIncome extends Model
     public static function calculateIncomeOvertime(UserHairStylist $hs, $startDate,$endDate)
     {
         $total = 0;
+        $array = array();
         $total_attend = 0;
         $total_late = 0;
         $total_absen = 0;

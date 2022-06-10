@@ -37,18 +37,29 @@ class ApiHairStylistGroupOvertimeController extends Controller
                     "id_hairstylist_group_default_overtimes"   =>  $request->id_hairstylist_group_default_overtimes,
                 ])->first();
         if($data){
-            $store = HairstylistGroupOvertime::where([
+            if(isset($request->value)){
+                $store = HairstylistGroupOvertime::where([
                     "id_hairstylist_group"   =>  $request->id_hairstylist_group,
                     "id_hairstylist_group_default_overtimes"   =>  $request->id_hairstylist_group_default_overtimes,
                 ])->update([
                     "value"   =>  $request->value,
                 ]);
+            }else{
+                $store = HairstylistGroupOvertime::where([
+                    "id_hairstylist_group"   =>  $request->id_hairstylist_group,
+                    "id_hairstylist_group_default_overtimes"   =>  $request->id_hairstylist_group_default_overtimes,
+                ])->delete();
+            }
         }else{
-        $store = HairstylistGroupOvertime::create([
+            if(isset($request->value)){
+                $store = HairstylistGroupOvertime::create([
                     "id_hairstylist_group"   =>  $request->id_hairstylist_group,
                     "id_hairstylist_group_default_overtimes"   =>  $request->id_hairstylist_group_default_overtimes,
                     "value"   =>  $request->value,
                 ]);
+            }else{
+                $store = [];
+            }
         }
         return response()->json(MyHelper::checkCreate($store));
     }

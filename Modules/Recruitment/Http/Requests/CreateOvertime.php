@@ -13,8 +13,7 @@ class CreateOvertime extends FormRequest
         return [
             'id_hairstylist_group'                      => 'required|unik',
             'id_hairstylist_group_default_overtimes'    => 'required',
-            'value'                                      => 'required',
-           ]; 
+            ]; 
     }
     public function withValidator($validator)
     {

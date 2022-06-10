@@ -20,13 +20,13 @@ class ApiManualRefundController extends Controller
             ->join('transaction_pickups', 'transaction_pickups.id_transaction', 'transactions.id_transaction')
             ->join('transaction_multiple_payments', function($query) {
                 $query->on('transaction_multiple_payments.id_transaction', 'transactions.id_transaction')
-                    ->where('type', '<>', 'Balance');
+                    ->where('transaction_multiple_payments.type', '<>', 'Balance');
             })
             ->leftJoin('transaction_payment_balances', 'transaction_payment_balances.id_transaction', 'transactions.id_transaction')
             ->leftJoin('manual_refunds', 'manual_refunds.id_transaction', 'transactions.id_transaction')
             ->leftJoin('users as validator', 'validator.id', 'manual_refunds.created_by')
             ->where('need_manual_void', '<>', '0')
-            ->with('transaction_payment_midtrans', 'transaction_payment_ipay88', 'transaction_payment_shopee_pay');
+            ->with('transaction_payment_midtrans', 'transaction_payment_ipay88', 'transaction_payment_shopee_pay', 'transaction_payment_xendit');
 
         $countTotal = null;
 

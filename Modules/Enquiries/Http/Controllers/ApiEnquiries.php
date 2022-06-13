@@ -840,7 +840,7 @@ class ApiEnquiries extends Controller
             //insert data to ticketing third party
             $ticketing = new Ticketing();
             $ticketing->setData(['body' => $dataSend, 'url' => 'api/tickets/add_ticket']);
-            $addTicket = $ticketing->sendToTicketing();
+            return $addTicket = $ticketing->sendToTicketing();
 
             if(isset($addTicket['status']) && $addTicket['status'] == 'success' &&
                 isset($addTicket['response']['ticket_id'])){

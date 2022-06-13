@@ -1274,13 +1274,49 @@ class SettingsTableSeeder extends Seeder
                 ),
             130 =>
                 array (
+                    'id_setting' => 130,
+                    'key' => 'employee_time_off_type',
+                    'value' => NULL,
+                    'value_text' => '{"Cuti Hamil":{"use_quota_time_off":1,"salary_cut":0},"Cuti Bulanan":{"use_quota_time_off":1,"salary_cut":0},"Cuti Sakit":{"use_quota_time_off":1,"salary_cut":0},"Cuti Tahunan":{"use_quota_time_off":1,"salary_cut":0}}',
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ),
+            131 =>
+                array (
+                    'id_setting' => 131,
+                    'key' => 'quota_employee_time_off',
+                    'value' => 14,
+                    'value_text' => NULL,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ),
+            132 =>
+                array (
+                    'id_setting' => 132,
+                    'key' => 'time_rimender_employee_attendance',
+                    'value' => 5,
+                    'value_text' => NULL,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ),
+            133 =>
+                array (
+                    'id_setting' => 133,
+                    'key' => 'category_contact_us',
+                    'value' => NULL,
+                    'value_text' => '{"customer_app":{"id":null,"child":{"outlet-service":null,"home-service":null,"shop":null,"academy":null,"lain-lain":null}},"mitra":{"id":null,"child":{"outlet-service":null,"home-service":null,"shop":null,"lain-lain":null}},"cms":{"id":null,"child":{"lain-lain":null}},"employee":{"id":null,"child":{"attendance":null,"time-off":null,"overtime":null,"lain-lain":null,"beri_masukan":null}}}',
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ),
+            134 =>
+                array (
                     'key' => 'refund_xendit',
                     'value' => '1',
                     'value_text' => NULL,
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s'),
                 ),
-            131 =>
+            135 =>
                 array (
                     'key' => 'refund_midtrans',
                     'value' => '1',
@@ -1288,7 +1324,7 @@ class SettingsTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s'),
                 ),
-            131 =>
+            136 =>
                 array (
                     'key' => 'refund_failed_process_balance',
                     'value' => '0',

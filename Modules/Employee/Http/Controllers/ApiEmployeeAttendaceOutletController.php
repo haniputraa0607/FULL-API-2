@@ -643,8 +643,16 @@ class ApiEmployeeAttendaceOutletController extends Controller
     public function updatePending(Request $request)
     {
         $request->validate([
-            'status' => 'string|in:Approved,Rejected',
+            'status' => 'string|in:Approved,Rejected,Approve,Reject',
         ]);
+
+        if($request->status=='Approve'){
+            $request->status = 'Approved';
+        }
+        if($request->status=='Reject'){
+            $request->status = 'Rejected';
+        }
+
         $log = EmployeeOutletAttendanceLog::find($request->id_employee_outlet_attendance_log);
         if (!$log) {
             return [
@@ -652,12 +660,18 @@ class ApiEmployeeAttendaceOutletController extends Controller
                 'messages' => ['Selected pending attendance outlet not found']
             ];
         }
-        $log->update(['status' => $request->status]);
+        $update = [
+            'status' => $request->status
+        ];
+        if(isset($request->approve_notes) && !empty($request->approve_notes)){
+            $update['approve_notes'] = $request->approve_notes;
+        }
+        $log->update($update);
         $log->employee_outlet_attendance->recalculate();
         return [
             'status' => 'success',
             'result' => [
-                'message' => 'Success ' . ($request->status == 'Approved' ? 'approve' : 'reject') . ' pending attendance'
+                'message' => 'Success ' . ($request->status == 'Approved' ? 'approve' : 'reject') . ' pending outlet attendance'
             ],
         ];
     }
@@ -869,7 +883,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
 
         if ($rules = $newRule['transaction_date'] ?? false) {
             foreach ($rules as $rul) {
-                $query->whereDate('employee_outlet_attendance_requests.attendance_date', $rul[0], $rul[1]);
+                $query->whereDate('employee_outlet_attendance_requests.created_at', $rul[0], $rul[1]);
             }
         }
     }
@@ -976,7 +990,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
 
         if ($rules = $newRule['transaction_date'] ?? false) {
             foreach ($rules as $rul) {
-                $query->whereDate('employee_outlet_attendance_requests.attendance_date', $rul[0], $rul[1]);
+                $query->whereDate('employee_outlet_attendance_requests.created_at', $rul[0], $rul[1]);
             }
         }
         if ($rules = $newRule['id'] ?? false) {
@@ -988,8 +1002,15 @@ class ApiEmployeeAttendaceOutletController extends Controller
 
     public function updateRequest(Request $request){
         $request->validate([
-            'status' => 'string|in:Accepted,Rejected',
+            'status' => 'string|in:Accepted,Rejected,Approve,Reject',
         ]);
+        if($request->status=='Approve'){
+            $request->status = 'Accepted';
+        }
+        if($request->status=='Reject'){
+            $request->status = 'Rejected';
+        }
+
         $log_req = EmployeeOutletAttendanceRequest::find($request->id_employee_outlet_attendance_request);
         if (!$log_req) {
             return [
@@ -998,7 +1019,13 @@ class ApiEmployeeAttendaceOutletController extends Controller
             ];
         }
         DB::beginTransaction();
-        $log_req->update(['status' => $request->status]);
+        $update = [
+            'status' => $request->status
+        ];
+        if(isset($request->approve_notes) && !empty($request->approve_notes)){
+            $update['approve_notes'] = $request->approve_notes;
+        }
+        $log_req->update($update);
         $final = true;
         if($request->status == 'Accepted'){
 
@@ -1082,7 +1109,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
                     'latitude' => 0,
                     'longitude' => 0,
                     'status' => 'Approved',
-                    'approved_by' =>  $request->user()->id,
+                    'approved_by' => $request->id ?? $request->user()->id,
                     'notes' => $log_req['notes'],
                 ]);
                 if(!$clock_in){
@@ -1098,25 +1125,31 @@ class ApiEmployeeAttendaceOutletController extends Controller
                     'latitude' => 0,
                     'longitude' => 0,
                     'status' => 'Approved',
-                    'approved_by' =>  $request->user()->id,
+                    'approved_by' => $request->id ?? $request->user()->id,
                     'notes' => $log_req['notes'],
                 ]);
                 if(!$clock_out){
                     $final = false;
                 }
             }
+        }elseif($request->status == 'Rejected'){
+            DB::commit();
+            return [
+                'status' => 'success',
+                'messages' => ['Success to reject request outlet attendance'],
+            ];
         }
         if($final){
             DB::commit();
             return [
                 'status' => 'success',
-                'messages' => ['Success to approve request attendance'],
+                'messages' => ['Success to approve request outlet attendance'],
             ];
         }else{
             DB::rollBack();
             return [
                 'status' => 'fail',
-                'messages' => ['Failed to approve reequest attendance'],
+                'messages' => ['Failed to approve reequest outlet attendance'],
             ];
         }
     }

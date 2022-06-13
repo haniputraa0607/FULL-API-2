@@ -97,6 +97,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
             Route::any('list_group', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@list_group']);
             Route::any('list_default_insentif', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@list_default_insentif']);
             Route::any('list_default_potongan', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@list_default_potongan']);
+            Route::any('list_default_overtime', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@list_default_overtime']);
             Route::any('setting_insentif', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@setting_insentif']);
             Route::any('setting_potongan', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@setting_potongan']);
             Route::group(['prefix' => 'insentif'], function () {
@@ -126,6 +127,20 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
                 Route::post('default/update', ['middleware' => 'feature_control:426','uses' =>'ApiHairStylistGroupPotonganController@update_default']);
                 Route::post('default/detail', ['middleware' => 'feature_control:426','uses' =>'ApiHairStylistGroupPotonganController@detail_default']);
                 Route::post('default/delete', ['middleware' => 'feature_control:426','uses' =>'ApiHairStylistGroupPotonganController@delete_default']);
+            });
+            Route::group(['prefix' => 'overtime'], function () {
+                Route::post('create', ['middleware' => 'feature_control:394','uses' =>'ApiHairStylistGroupOvertimeController@create']);
+                Route::post('update', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupOvertimeController@update']);
+                Route::post('detail', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupOvertimeController@detail']);
+                Route::post('delete', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupOvertimeController@delete']);
+               
+                Route::post('/', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupOvertimeController@index']);
+                
+                Route::post('default/', ['middleware' => 'feature_control:426','uses' =>'ApiHairStylistGroupOvertimeController@index_default']);
+                Route::post('default/create', ['middleware' => 'feature_control:426','uses' =>'ApiHairStylistGroupOvertimeController@create_default']);
+                Route::post('default/update', ['middleware' => 'feature_control:426','uses' =>'ApiHairStylistGroupOvertimeController@update_default']);
+                Route::post('default/detail', ['middleware' => 'feature_control:426','uses' =>'ApiHairStylistGroupOvertimeController@detail_default']);
+                Route::post('default/delete', ['middleware' => 'feature_control:426','uses' =>'ApiHairStylistGroupOvertimeController@delete_default']);
             });
     	});
         Route::any('attendance-setting','ApiHairstylistAttendanceController@setting');

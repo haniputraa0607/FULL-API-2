@@ -87,8 +87,8 @@ class Ticketing {
             'form_params' => $this->data['body']
         ];
 
-return         $output = $client->request('POST', $urlApi, $req);
         try {
+            $output = $client->request('POST', $urlApi, $req);
             $output = json_decode($output->getBody(), true);
             return ['status' => 'success', 'response' => $output['result']??[]];
         }catch (\GuzzleHttp\Exception\RequestException $e) {

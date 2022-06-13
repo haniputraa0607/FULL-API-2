@@ -36,6 +36,7 @@ Route::group(['middleware' => ['auth:mitra','user_agent','log_activities', 'scop
 Route::group(['middleware' => ['auth:api','user_agent','log_activities_employee_apps', 'scopes:employee-apps'], 'prefix' => 'api/employee/enquiries', 'namespace' => 'Modules\Enquiries\Http\Controllers'], function()
 {
     Route::post('create', 'ApiEnquiries@createV2');
+    Route::post('create-suggest', 'ApiEnquiries@createSuggest');
     Route::post('list-subject', 'ApiEnquiries@listEnquirySubject');
     Route::post('list-category', 'ApiEnquiries@listEnquiryCategory');
 });

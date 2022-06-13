@@ -38,8 +38,5 @@ Route::group(['middleware' => ['auth:api','user_agent','log_activities_employee_
     Route::post('create', 'ApiEnquiries@createV2');
     Route::post('list-subject', 'ApiEnquiries@listEnquirySubject');
     Route::post('list-category', 'ApiEnquiries@listEnquiryCategory');
-    Route::get('list-outlet', 'ApiEnquiries@ListOutlet');
-    Route::post('list-transaction', 'ApiEnquiries@listTransactionMitra');
-    Route::post('detail', 'ApiEnquiries@detail');
 });
 

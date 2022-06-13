@@ -4226,9 +4226,7 @@ class ApiOutletController extends Controller
                     if($key_3 == 0){
                         $data_export[$key][$key_2][] = [
                             'Date' => null,
-                            'Product Name' => $out_3['name'],
                             'Source' => 'INITIAL STOCK',
-                            'Unit' => $out_3['unit'],
                             'Stock In' => null,
                             'Stock Out' => null,
                             'Current Stock' => $out_3['stock_before']
@@ -4236,9 +4234,7 @@ class ApiOutletController extends Controller
                     }
                     $data_export[$key][$key_2][] = [
                         'Date' => date('d F Y', strtotime($out_3['created_at'])),
-                        'Product Name' => $out_3['name'],
                         'Source' => $out_3['source'],
-                        'Unit' => $out_3['unit'],
                         'Stock In' => $out_3['stock_before'] < $out_3['stock_after'] ? $out_3['qty'] : null,
                         'Stock Out' => $out_3['stock_before'] > $out_3['stock_after'] ? $out_3['qty'] : null,
                         'Current Stock' => $out_3['stock_after']
@@ -4246,9 +4242,7 @@ class ApiOutletController extends Controller
                     if($key_3 == count($out_2)-1){
                         $data_export[$key][$key_2][] = [
                             'Date' => null,
-                            'Product Name' => $out_3['name'],
                             'Source' => 'END STOCK',
-                            'Unit' => $out_3['unit'],
                             'Stock In' => null,
                             'Stock Out' => null,
                             'Current Stock' => $out_3['stock_after']
@@ -4257,6 +4251,7 @@ class ApiOutletController extends Controller
                 }
             }
         }
-        return $data_export;
+        return MyHelper::checkGet($data_export);
+
     }
 }

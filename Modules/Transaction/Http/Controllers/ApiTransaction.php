@@ -117,7 +117,7 @@ class ApiTransaction extends Controller
     function __construct() {
         date_default_timezone_set('Asia/Jakarta');
         $this->shopeepay      = 'Modules\ShopeePay\Http\Controllers\ShopeePayController';
-        $this->xendit         = 'Modules\Modules\Xendit\Http\Controllers\XenditController';
+        $this->xendit         = 'Modules\Xendit\Http\Controllers\XenditController';
         $this->trx_outlet_service = "Modules\Transaction\Http\Controllers\ApiTransactionOutletService";
         $this->trx = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
         $this->home_service_status = [
@@ -5350,7 +5350,7 @@ class ApiTransaction extends Controller
     {
         $trx = Transaction::where('transactions.id_transaction', $id_transaction)->join('transaction_multiple_payments', function($join) {
             $join->on('transaction_multiple_payments.id_transaction', 'transactions.id_transaction')
-                ->whereIn('type', ['Midtrans', 'Shopeepay']);
+                ->whereIn('type', ['Midtrans', 'Shopeepay', 'Xendit']);
         })->first();
         if (!$trx) {
             $errors[] = 'Transaction Not Found';

@@ -117,6 +117,7 @@ class ApiTransaction extends Controller
     function __construct() {
         date_default_timezone_set('Asia/Jakarta');
         $this->shopeepay      = 'Modules\ShopeePay\Http\Controllers\ShopeePayController';
+        $this->xendit         = 'Modules\Modules\Xendit\Http\Controllers\XenditController';
         $this->trx_outlet_service = "Modules\Transaction\Http\Controllers\ApiTransactionOutletService";
         $this->trx = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
         $this->home_service_status = [
@@ -5387,6 +5388,23 @@ class ApiTransaction extends Controller
                     Transaction::where('id_transaction', $id_transaction)->update(['need_manual_void' => 0]);
                 }
                 break;
+
+            case 'Xendit':
+                $payXendit = TransactionPaymentXendit::where('id_transaction', $id_transaction)->first();
+                if (!$payXendit) {
+                    $errors[] = 'Model TransactionPaymentXendit not found';
+                    return false;
+                }
+                $refund = app($this->xendit)->refund($id_transaction, 'trx', $errors2);
+                if (!$refund) {
+                    Transaction::where('id_transaction', $id_transaction)->update(['failed_void_reason' => implode(', ', $errors2 ?: [])]);
+                    $errors = $errors2;
+                    $result = false;
+                } else {
+                    Transaction::where('id_transaction', $id_transaction)->update(['need_manual_void' => 0]);
+                }
+                break;
+
             default:
                 $errors[] = 'Unkown payment type '.$trx->type;
                 return false;

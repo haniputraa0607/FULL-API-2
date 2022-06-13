@@ -4223,40 +4223,54 @@ class ApiOutletController extends Controller
         foreach($outlet ?? []  as $key => $out){
             foreach($out ?? [] as $key_2 => $out_2){
                 foreach($out_2 ?? [] as $key_3 => $out_3){
+
+                    if($out_3['source']=='Book Product' || $out_3['source']=='Cancelled Book Product'){
+                        $link = Transaction::where('id_transaction',$out_3['id_reference'])->first();
+                        $code_link= $link['transaction_receipt_number'] ?? null;
+                    }elseif($out_3['source']=='Transaction Outlet Service'){
+                        $link = TransactionProductService::where('id_transaction_product_service',$out_3['id_reference'])->first();
+                        $code_link = $link['order_id'] ?? null;
+                    }elseif($out_3['source']=='Delivery Product'){
+                        $link = DeliveryProduct::where('id_delivery_product',$out_3['id_reference'])->first();
+                        $code_link = $link['code'] ?? null;
+                    }elseif($out_3['source']=='Product Unit Conversion'){
+                        $link = UnitConversionLog::where('id_unit_conversion_log',$out_3['id_reference'])->first();
+                        $code_link = $link['code_conversion'] ?? null;
+                    }elseif($out_3['source']=='Stock Adjustment'){
+                        $link = ProductIcountStockAdjustment::where('id_product_icount_stock_adjustment',$out_3['id_reference'])->first();
+                        if ($link) {
+                            $code_link = $link['title'] ?? null;
+                        }
+                    }
                     if($key_3 == 0){
                         $data_export[$key][$key_2][] = [
                             'Date' => null,
-                            'Product Name' => $out_3['name'],
                             'Source' => 'INITIAL STOCK',
-                            'Unit' => $out_3['unit'],
                             'Stock In' => null,
                             'Stock Out' => null,
-                            'Current Stock' => $out_3['stock_before']
+                            'Current Stock' => $out_3['stock_before'] == 0 ? '0' : $out_3['stock_before'],
                         ];
                     }
                     $data_export[$key][$key_2][] = [
-                        'Date' => date('d F Y', strtotime($out_3['created_at'])),
-                        'Product Name' => $out_3['name'],
-                        'Source' => $out_3['source'],
-                        'Unit' => $out_3['unit'],
-                        'Stock In' => $out_3['stock_before'] < $out_3['stock_after'] ? $out_3['qty'] : null,
-                        'Stock Out' => $out_3['stock_before'] > $out_3['stock_after'] ? $out_3['qty'] : null,
+                        'Date' =>  date('d F Y', strtotime($out_2[$key_3]['created_at'])) == date('d F Y', strtotime($out_2[$key_3-1]['created_at'] ?? null )) ? null : date('d F Y', strtotime($out_3['created_at'])),
+                        'Source' => $out_3['source'] == 'Stock Adjustment' ? $code_link : $out_3['source'].' '.$code_link,
+                        'Stock In' => $out_3['stock_before'] < ($out_3['stock_after'] == 0 ? '0' : $out_3['stock_after']) ? $out_3['qty'] : null,
+                        'Stock Out' => $out_3['stock_before'] > ($out_3['stock_after'] == 0 ? '0' : $out_3['stock_after']) ? $out_3['qty'] : null,
                         'Current Stock' => $out_3['stock_after']
                     ];
                     if($key_3 == count($out_2)-1){
                         $data_export[$key][$key_2][] = [
                             'Date' => null,
-                            'Product Name' => $out_3['name'],
                             'Source' => 'END STOCK',
-                            'Unit' => $out_3['unit'],
                             'Stock In' => null,
                             'Stock Out' => null,
-                            'Current Stock' => $out_3['stock_after']
+                            'Current Stock' => $out_3['stock_after'] == 0 ? '0' : $out_3['stock_after'],
                         ];
                     }
                 }
             }
         }
-        return $data_export;
+        return MyHelper::checkGet($data_export);
+
     }
 }

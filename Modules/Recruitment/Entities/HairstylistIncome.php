@@ -721,7 +721,7 @@ class HairstylistIncome extends Model
                        )
                        ->first();
         $array[] = array(
-                    "name"=> "total gross income",
+                    "name"=> "total gross sale",
                     "value"=> $outlet_services->revenue??0,
                 );
         return $array;

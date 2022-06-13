@@ -146,6 +146,7 @@ class XenditController extends Controller
             $installment_payment->update([
                 'status'         => $universalStatus,
                 'xendit_id'      => $post['id'] ?? null,
+                'payment_id'     => $post['payment_id'] ?? null,
                 'expiration_date'=> $post['expiration_date'] ?? null,
                 'failure_code'   => $post['failure_code'] ?? null,
             ]);
@@ -194,6 +195,7 @@ class XenditController extends Controller
             TransactionPaymentXendit::where('id_transaction', $trx->id_transaction)->update([
                 'status'         => $universalStatus,
                 'xendit_id'      => $post['id'] ?? null,
+                'payment_id'     => $post['payment_id'] ?? null,
                 'expiration_date'=> $post['expiration_date'] ?? null,
                 'failure_code'   => $post['failure_code'] ?? null,
             ]);
@@ -236,6 +238,7 @@ class XenditController extends Controller
             $subs_payment->update([
                 'status'         => $universalStatus,
                 'xendit_id'      => $post['id'] ?? null,
+                'payment_id'     => $post['payment_id'] ?? null,
                 'expiration_date'=> $post['expiration_date'] ?? null,
                 'failure_code'   => $post['failure_code'] ?? null,
             ]);
@@ -286,6 +289,7 @@ class XenditController extends Controller
             $deals_payment->update([
                 'status'         => $universalStatus,
                 'xendit_id'      => $post['id'] ?? null,
+                'payment_id'     => $post['payment_id'] ?? null,
                 'expiration_date'=> $post['expiration_date'] ?? null,
                 'failure_code'   => $post['failure_code'] ?? null,
             ]);

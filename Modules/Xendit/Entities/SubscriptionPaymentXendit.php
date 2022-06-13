@@ -12,6 +12,7 @@ class SubscriptionPaymentXendit extends Model
         'id_subscription_user',
         'order_id',
         'xendit_id',
+        'payment_id',
         'external_id',
         'business_id',
         'phone',

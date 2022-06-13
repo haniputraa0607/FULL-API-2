@@ -576,10 +576,16 @@ class XenditController extends Controller
 
     public function refund($reference, $type = 'trx', &$errors = null, &$refund_reference_id = null)
     {
+        $data = [
+            'payment_reference_id' => '',
+        ];
+        $params = [
+            'for-user-id'  => null,
+        ];
         switch ($type) {
             case 'trx':
                 if (is_numeric($reference)) {
-                    $reference = Transaction::where('id_transaction', $reference)->first();
+                    $reference = Transaction::where('id_transaction', $reference)->with('outlet')->first();
                     if (!$reference) {
                         $errors = ['Transaction not found'];
                         return false;
@@ -590,17 +596,19 @@ class XenditController extends Controller
                         return false;
                     }
                 }
-                $payment = optional(TransactionPaymentXendit::where('id_transaction', $reference['id_transaction'])->first());
+                $params['for-user-id'] = optional($reference->outlet->xendit_account)->xendit_id;
+                $payment = TransactionPaymentXendit::where('id_transaction', $reference['id_transaction'])->first();
                 if (!in_array(strtolower($payment->type), ['ovo', 'dana', 'shopeepay', 'linkaja'])) {
                     $errors = ['Refund not supported dor this payment type'];
                     return false;
                 }
                 $data['payment_reference_id'] = $reference['transaction_receipt_number'];
+                $data['payment_id'] = $payment['payment_id'];
                 break;
 
             case 'deals':
                 if (is_numeric($reference)) {
-                    $reference = DealsPaymentShopeePay::where('id_deals_user', $reference)->first();
+                    $reference = DealsPaymentXendit::where('id_deals_user', $reference)->first();
                     if (!$reference) {
                         $errors = ['Transaction not found'];
                         return false;
@@ -611,17 +619,13 @@ class XenditController extends Controller
                         return false;
                     }
                 }
-                $payment_builder = DealsPaymentShopeePay::where('order_id', $reference['order_id']);
-                if (time() <= strtotime($minimal_refund_time)) {
-                    DealsPaymentShopeePay::where('order_id', $reference['order_id'])->update(['manual_refund' => '1']);
-                    return true;
-                }
                 $data['payment_reference_id'] = $reference['order_id'];
+                $data['payment_id'] = $reference['payment_id'];
                 break;
 
             case 'subscription':
                 if (is_numeric($reference)) {
-                    $reference = SubscriptionPaymentShopeePay::where('id_subscription_user', $reference)->first();
+                    $reference = SubscriptionPaymentXendit::where('id_subscription_user', $reference)->first();
                     if (!$reference) {
                         $errors = ['Subscription not found'];
                         return false;
@@ -632,17 +636,22 @@ class XenditController extends Controller
                         return false;
                     }
                 }
-                $payment_builder = SubscriptionPaymentShopeePay::where('order_id', $reference['order_id']);
-                if (time() <= strtotime($minimal_refund_time)) {
-                    SubscriptionPaymentShopeePay::where('order_id', $reference['order_id'])->update(['manual_refund' => '1']);
-                    return true;
-                }
                 $data['payment_reference_id'] = $reference['order_id'];
+                $data['payment_id'] = $reference['payment_id'];
                 break;
 
             default:
                 # code...
                 break;
+        }
+        try {
+            CustomHttpClient::setLogType('refund');
+            CustomHttpClient::setIdReference($data['payment_reference_id']);
+            \Xendit\EWallets::refundEwalletCharge($data['payment_id'], $params);
+            return true;
+        } catch (\Exception $e) {
+            $errors[] = $e->getMessage();
+            return false;
         }
     }
 }

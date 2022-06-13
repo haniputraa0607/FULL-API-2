@@ -1272,6 +1272,22 @@ class SettingsTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s'),
                 ),
+            130 =>
+                array (
+                    'key' => 'refund_xendit',
+                    'value' => '1',
+                    'value_text' => NULL,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ),
+            131 =>
+                array (
+                    'key' => 'refund_midtrans',
+                    'value' => '1',
+                    'value_text' => NULL,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ),
         );
 
         foreach ($settings as $setting) {

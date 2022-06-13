@@ -79,6 +79,7 @@ use App\Http\Models\TransactionPickupGoSendUpdate;
 use Modules\OutletApp\Entities\ProductModifierGroupInventoryBrand;
 use App\Http\Models\Autocrm;
 use Modules\Autocrm\Entities\AutoresponseCodeList;
+use Modules\Xendit\Entities\TransactionPaymentXendit;
 
 class ApiOutletApp extends Controller
 {
@@ -6644,7 +6645,7 @@ class ApiOutletApp extends Controller
                     $payXendit = TransactionPaymentXendit::find($pay['id_payment']);
                     if ($payXendit) {
                         $doRefundPayment = MyHelper::setting('refund_xendit');
-                        if($doRefundXendit){
+                        if($doRefundPayment){
                             $refund = app($this->xendit)->refund($payXendit['id_transaction'], 'trx', $errors);
                             $order->update([
                                 'reject_type'   => 'refund',

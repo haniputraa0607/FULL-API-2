@@ -98,6 +98,7 @@ class ApiOutletApp extends Controller
         $this->shopeepay      = "Modules\ShopeePay\Http\Controllers\ShopeePayController";
         $this->outlet      		= "Modules\Outlet\Http\Controllers\ApiOutletController";
         $this->autoresponse_code = "Modules\Autocrm\Http\Controllers\ApiAutoresponseWithCode";
+        $this->xendit         = 'Modules\Xendit\Http\Controllers\XenditController';
     }
 
     public function deleteToken(DeleteToken $request)

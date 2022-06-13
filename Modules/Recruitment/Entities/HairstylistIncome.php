@@ -158,15 +158,19 @@ class HairstylistIncome extends Model
              $total_overtime = $h;
         foreach  ($calculations as $calculation) {
             if ($calculation == 'product_commission') {
-                $trxs = TransactionProduct::select('transaction_products.id_transaction', 'transaction_products.id_transaction_product', 'transaction_breakdowns.*')
-                    ->join('transaction_breakdowns', function($join) use ($startDate, $endDate) {
-                        $join->on('transaction_breakdowns.id_transaction_product', 'transaction_products.id_transaction_product')
-                            ->whereNotNull('transaction_products.transaction_product_completed_at')
-                            ->whereBetween('transaction_product_completed_at',[$startDate,$endDate]);
-                    })
-                    ->where('transaction_breakdowns.type', 'fee_hs')
-                    ->with('transaction')
-                    ->get();
+                $trxs = TransactionProduct::where(array('transaction_product_services.id_user_hair_stylist'=>$hs->id_user_hair_stylist))
+                        ->join('transactions','transactions.id_transaction','transaction_products.id_transaction')   
+                        ->join('transaction_product_services', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
+                        ->join('transaction_breakdowns', function($join) use ($startDate, $endDate) {
+                            $join->on('transaction_breakdowns.id_transaction_product', 'transaction_products.id_transaction_product')
+                                ->whereNotNull('transaction_products.transaction_product_completed_at')
+                                ->whereBetween('transaction_product_completed_at',[$startDate,$endDate]);
+                        })
+                        ->where('transaction_product_services.service_status', 'Completed')
+                        ->wherenotnull('transaction_product_services.completed_at')
+                        ->where('transaction_breakdowns.type', 'fee_hs')
+                        ->select('transaction_products.id_transaction', 'transaction_products.id_transaction_product', 'transaction_breakdowns.*')
+                        ->get();
                 $trxs->each(function ($item) use ($hsIncome, $calculation) {
                     $hsIncome->hairstylist_income_details()->updateOrCreate([
                         'source' => $calculation,

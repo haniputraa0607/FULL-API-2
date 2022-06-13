@@ -348,7 +348,7 @@ class ApiIncome extends Controller
                 'Join Date'=>date('d-M-Y',strtotime($hs->join_date))??'',
                 'Outlet'=>$value->outlet_name??'',
             );
-            $response = $b->calculateIncomeGross($hs, $request->start_date,$request->end_date);
+           $response = $b->calculateIncomeGross($hs, $request->start_date,$request->end_date);
             foreach ($response as $valu) {
                 $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
             }
@@ -364,7 +364,7 @@ class ApiIncome extends Controller
             foreach ($response as $values) {
                 $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
             }
-            $response = $b->calculateIncomeProductCode($hs, $request->start_date,$request->end_date);
+           $response = $b->calculateIncomeProductCode($hs, $request->start_date,$request->end_date);
             foreach ($response as $values) {
                 $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
             }

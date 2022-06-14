@@ -14,6 +14,7 @@ use Illuminate\Routing\Controller;
 
 use App\Lib\MyHelper;
 use Modules\Enquiries\Entities\Ticket;
+use Modules\Enquiries\Entities\TicketDocument;
 use Modules\Transaction\Entities\TransactionHomeService;
 use Modules\Transaction\Entities\TransactionProductService;
 use Modules\Transaction\Entities\TransactionShop;
@@ -54,7 +55,7 @@ class ApiEnquiries extends Controller
     function cekInputan($post = []) {
     	// print_r($post); exit();
         $data = [];
-
+        
 		if (isset($post['id_brand'])) {
             $data['id_brand'] = $post['id_brand'];
 		}
@@ -133,7 +134,7 @@ class ApiEnquiries extends Controller
         }else{
             $data['id_outlet'] = null;
         }
-
+        
 		if (isset($post['enquiry_file'])) {
         	$dataUploadFile = [];
 
@@ -183,6 +184,27 @@ class ApiEnquiries extends Controller
 
         if (isset($post['enquiry_status'])) {
             $data['enquiry_status'] = $post['enquiry_status'];
+        }
+
+        if(isset($post['attachment'])){
+            $files = [];
+                foreach ($post['attachment'] ?? [] as $i => $attachment){
+                    if(!empty($attachment)){
+                        try{
+                            $encode = base64_encode(fread(fopen($attachment, "r"), filesize($attachment)));
+                        }catch(\Exception $e) {
+                            return response()->json(['status' => 'fail', 'messages' => ['The Attachment File may not be greater than 2 MB']]);
+                        }
+                        
+                        $originalName = $attachment->getClientOriginalName();
+                        $name = pathinfo($originalName, PATHINFO_FILENAME);
+                        $ext = pathinfo($originalName, PATHINFO_EXTENSION);
+                        $upload = MyHelper::uploadFile($encode, $this->saveFile, $ext, date('YmdHis').'_'.$name);
+                        if (isset($upload['status']) && $upload['status'] == "success") {
+                            $data['attachment'][] = $upload['path'];
+                        }
+                    }
+                }
         }
 
         return $data;
@@ -634,19 +656,22 @@ class ApiEnquiries extends Controller
 
         $category = (array)json_decode($getCategory);
         $parent = (array)$category[$data['enquiry_from']??''];
+        $enquiry_from = $data['enquiry_from'];
         $data = (array)$parent['child'];
 
         $result = [];
         foreach ($data as $key=>$dt){
-            $text = ucfirst(str_replace('-', ' ', $key));
-            if($key == 'lain-lain'){
-                $text = ucfirst($key);
+            if($enquiry_from != 'employee' || $enquiry_from == 'employee' && $key != 'beri_masukan'){
+                $text = ucfirst(str_replace('-', ' ', $key));
+                if($key == 'lain-lain'){
+                    $text = ucfirst($key);
+                }
+                $result[] = [
+                    'id' => $dt,
+                    'key' => $key,
+                    'text' => $text
+                ];
             }
-            $result[] = [
-                'id' => $dt,
-                'key' => $key,
-                'text' => $text
-            ];
         }
         return MyHelper::checkGet($result);
     }
@@ -787,7 +812,15 @@ class ApiEnquiries extends Controller
     }
 
     function createV2(Request $request){
-        $data = $this->cekInputan($request->json()->all());
+        if($request['enquiry_from'] == 'employee_suggest'){
+            $request['enquiry_from'] = 'employee';
+            $check = $request->all();
+            $user_date = $check['user_data'];
+            unset($check['user_data']);
+        }else{
+            $check = $request->json()->all();
+        }
+        $data = $this->cekInputan($check);
         if (isset($data['error'])) {
             unset($data['error']);
             return response()->json($data);
@@ -804,11 +837,11 @@ class ApiEnquiries extends Controller
         $categoryId = (array)$parentCategory['child'];
         $categoryId = $categoryId[$data['enquiry_category']];
 
-        $dataUser = $request->user();
+        $dataUser = $user_date ?? $request->user();
         $data['enquiry_email'] = $dataUser->email;
-        $data['enquiry_name'] = (!empty($request->user()->name) ? $request->user()->name:$request->user()->fullname);
-        $idUser = (!empty($request->user()->id) ? $request->user()->id:$request->user()->id_user_hair_stylist);
-        $phone = (!empty($request->user()->phone) ? $request->user()->phone:$request->user()->phone_number);
+        $data['enquiry_name'] =  $user_date['name'] ?? ((!empty($request->user()->name) ? $request->user()->name:$request->user()->fullname));
+        $idUser =  $user_date['id'] ?? ((!empty($request->user()->id) ? $request->user()->id:$request->user()->id_user_hair_stylist));
+        $phone =  $user_date['phone'] ?? ((!empty($request->user()->phone) ? $request->user()->phone:$request->user()->phone_number));
         if(!empty(env('TICKETING_BASE_URL')) && !empty(env('TICKETING_API_KEY')) && !empty(env('TICKETING_API_SECRET'))){
             $fileCount = count($data['file']??[]);
             $content = 'Name: '.$data['enquiry_name'].'<br>';
@@ -819,12 +852,21 @@ class ApiEnquiries extends Controller
             }
 
             if(!empty($data['transaction_receipt_number'])){
-                $content .= 'Receipt Number: '.$data['transaction_receipt_number'].'<br><br>';
+                $content .= 'Receipt Number: '.$data['transaction_receipt_number'];
             }elseif (!empty($data['id_outlet'])){
                 $outlet = Outlet::where('id_outlet', $data['id_outlet'])->first();
                 $content .= 'Outlet code: '.$outlet['outlet_code'].'<br>';
                 $content .= 'Outlet name: '.$outlet['outlet_name'].'<br>';
             }
+            if(isset($data['attachment'])){
+                foreach($data['attachment'] ?? [] as $index => $attachment){
+                    $content .= '<br>'.'<a target="_blank" href="'. env('STORAGE_URL_API').$attachment.'">Attachment '.($index+1).'</a>'; 
+                }
+                $content .= '<br><br>';
+            }else{
+                $content .= '<br><br>';
+            }
+
             $content .= '<br>'.$data['enquiry_content'];
 
             $dataSend = [
@@ -840,13 +882,24 @@ class ApiEnquiries extends Controller
             //insert data to ticketing third party
             $ticketing = new Ticketing();
             $ticketing->setData(['body' => $dataSend, 'url' => 'api/tickets/add_ticket']);
-            return $addTicket = $ticketing->sendToTicketing();
+            $addTicket = $ticketing->sendToTicketing();
 
             if(isset($addTicket['status']) && $addTicket['status'] == 'success' &&
                 isset($addTicket['response']['ticket_id'])){
                 $create = Ticket::create(['phone' => $phone, 'id_user' => $idUser, 'id_ticket_third_party' => $addTicket['response']['ticket_id']]);
 
                 if($create){
+                    if($data['enquiry_from'] == 'employee' && $data['enquiry_category'] == 'beri_masukan'){
+                        if(isset($data['attachment'])){
+                            foreach($data['attachment'] ?? [] as $index => $attachment){
+                                $ticketdocument = TicketDocument::create([
+                                    'id_ticket' => $create['id_ticket'],
+                                    'attachment' => $attachment,
+                                ]);
+                                $data['attachment'][$index] = env('STORAGE_URL_API').$attachment;
+                            }
+                        }
+                    }
                     unset($data['file']);
                     unset($data['enquiry_phone']);
                     unset($data['enquiry_device_token']);
@@ -880,18 +933,20 @@ class ApiEnquiries extends Controller
 
                 $resChild = [];
                 foreach ($child as $keyChild=>$value){
-                    $text = ucfirst(str_replace('-', ' ', $keyChild));
-                    if($keyChild == 'lain-lain'){
-                        $text = ucfirst($keyChild);
+                    if($dt!='employee' && $keyChild!='beri_masukan'){
+                        $text = ucfirst(str_replace('-', ' ', $keyChild));
+                        if($keyChild == 'lain-lain'){
+                            $text = ucfirst($keyChild);
+                        }
+                        $subject = [];
+                        if(!empty($allSubject[$key])){
+                            $subject = (array)$allSubject[$key];
+                            $subject = $subject[$keyChild]??[];
+                        }
+    
+                        $resChild[$keyChild]['name'] = $text;
+                        $resChild[$keyChild]['subject'] = $subject;
                     }
-                    $subject = [];
-                    if(!empty($allSubject[$key])){
-                        $subject = (array)$allSubject[$key];
-                        $subject = $subject[$keyChild]??[];
-                    }
-
-                    $resChild[$keyChild]['name'] = $text;
-                    $resChild[$keyChild]['subject'] = $subject;
                 }
                 $result[$key] = $resChild;
             }
@@ -906,5 +961,39 @@ class ApiEnquiries extends Controller
             $update = Setting::updateOrCreate(['key' => 'enquiries_subject_list'], ['key' => 'enquiries_subject_list', 'value_text' => json_encode($allSubject)]);
             return response()->json(MyHelper::checkUpdate($update));
         }
+    }
+
+    public function createSuggest(Request $request){
+        $request->validate([
+            "attachment.*"  => "mimes:jpeg,jpg,bmp,png,pdf|max:2000"
+        ]);
+        $post = $request->all();
+        $data = [
+            'enquiry_from' => 'employee_suggest',
+            'enquiry_category' => 'beri_masukan',
+            'transaction_receipt_number' => 1,
+        ];
+        
+        if(isset($post['title'])){
+            $allSubject = json_decode(Setting::where('key', 'enquiries_subject_list')->first()['value_text']??'',true);
+
+            if(in_array($post['title'],$allSubject['employee']['beri_masukan']??[])){
+                $update = true;
+            }else{
+                $allSubject['employee']['beri_masukan'][] = $post['title'];
+                $update = Setting::updateOrCreate(['key' => 'enquiries_subject_list'], ['key' => 'enquiries_subject_list', 'value_text' => json_encode($allSubject)]);
+            }
+            if($update){
+                if(isset($post['attachment'])){
+                    $data['attachment'] = $post['attachment'];
+                }
+                $data['enquiry_subject'] = $post['title'];
+                $data['enquiry_content'] = $post['description'];
+                $data['user_data'] = $request->user();
+                return $create = $this->createV2(New Request ($data));
+            }
+
+        }
+        return response()->json(['status' => 'fail', 'messages' => ['Gagal memberi masukan']]);
     }
 }

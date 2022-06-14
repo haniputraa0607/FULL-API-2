@@ -14,6 +14,7 @@ use App\Http\Models\TransactionPaymentMidtran;
 use Modules\Xendit\Entities\TransactionPaymentXendit;
 use App\Lib\MyHelper;
 use Modules\Disburse\Entities\MDR;
+use Modules\Product\Entities\ProductCommissionDefault;
 
 /**
  * Class TransactionProduct
@@ -35,39 +36,39 @@ use Modules\Disburse\Entities\MDR;
  */
 class TransactionProduct extends Model
 {
-	protected $primaryKey = 'id_transaction_product';
+    protected $primaryKey = 'id_transaction_product';
 
-	protected $casts = [
-		'id_transaction' => 'int',
-		'id_product' => 'int',
-		'transaction_product_qty' => 'int',
-// 		'transaction_product_price' => 'int',
-		'transaction_product_subtotal' => 'int',
-		'transaction_variant_subtotal' => 'double'
-	];
+    protected $casts = [
+        'id_transaction' => 'int',
+        'id_product' => 'int',
+        'transaction_product_qty' => 'int',
+//      'transaction_product_price' => 'int',
+        'transaction_product_subtotal' => 'int',
+        'transaction_variant_subtotal' => 'double'
+    ];
 
-	protected $fillable = [
-		'id_transaction',
-		'id_product',
-		'id_product_variant_group',
-		'type',
-		'id_outlet',
-		'id_brand',
-		'id_user',
-		'id_user_hair_stylist',
-		'transaction_product_qty',
+    protected $fillable = [
+        'id_transaction',
+        'id_product',
+        'id_product_variant_group',
+        'type',
+        'id_outlet',
+        'id_brand',
+        'id_user',
+        'id_user_hair_stylist',
+        'transaction_product_qty',
         'transaction_product_bundling_qty',
-		'transaction_product_price',
-		'transaction_product_price_base',
-		'transaction_product_price_tax',
-		'transaction_product_subtotal',
+        'transaction_product_price',
+        'transaction_product_price_base',
+        'transaction_product_price_tax',
+        'transaction_product_subtotal',
         'transaction_product_net',
-		'transaction_product_note',
-		'transaction_product_discount',
+        'transaction_product_note',
+        'transaction_product_discount',
         'transaction_product_discount_all',
-		'transaction_product_base_discount',
-		'transaction_product_qty_discount',
-		'transaction_variant_subtotal',
+        'transaction_product_base_discount',
+        'transaction_product_qty_discount',
+        'transaction_variant_subtotal',
         'id_transaction_bundling_product',
         'id_bundling_product',
         'transaction_product_bundling_price',
@@ -78,40 +79,40 @@ class TransactionProduct extends Model
         'reject_at',
         'reject_reason',
         'mdr_product'
-	];
-	
-	public function modifiers()
-	{
-		return $this->hasMany(\App\Http\Models\TransactionProductModifier::class, 'id_transaction_product');
-	}
-	
-	public function variants()
-	{
-		return $this->hasMany(\Modules\ProductVariant\Entities\TransactionProductVariant::class, 'id_transaction_product');
-	}
-	
-	public function product()
-	{
-		return $this->belongsTo(\App\Http\Models\Product::class, 'id_product')
-		->orWhere('products.is_inactive', '1');
-	}
+    ];
+    
+    public function modifiers()
+    {
+        return $this->hasMany(\App\Http\Models\TransactionProductModifier::class, 'id_transaction_product');
+    }
+    
+    public function variants()
+    {
+        return $this->hasMany(\Modules\ProductVariant\Entities\TransactionProductVariant::class, 'id_transaction_product');
+    }
+    
+    public function product()
+    {
+        return $this->belongsTo(\App\Http\Models\Product::class, 'id_product')
+        ->orWhere('products.is_inactive', '1');
+    }
 
-	public function product_variant_group()
-	{
-		return $this->belongsTo(\Modules\ProductVariant\Entities\ProductVariantGroup::class, 'id_product_variant_group');
-	}
+    public function product_variant_group()
+    {
+        return $this->belongsTo(\Modules\ProductVariant\Entities\ProductVariantGroup::class, 'id_product_variant_group');
+    }
 
-	public function transaction()
-	{
-		return $this->belongsTo(\App\Http\Models\Transaction::class, 'id_transaction');
-	}
+    public function transaction()
+    {
+        return $this->belongsTo(\App\Http\Models\Transaction::class, 'id_transaction');
+    }
 
-	public function hairstylist()
-	{
-		return $this->belongsTo(\Modules\Recruitment\Entities\UserHairStylist::class, 'id_user_hair_stylist');
-	}
-	
-	 public function getUserAttribute() {
+    public function hairstylist()
+    {
+        return $this->belongsTo(\Modules\Recruitment\Entities\UserHairStylist::class, 'id_user_hair_stylist');
+    }
+    
+     public function getUserAttribute() {
         $user = $this->transaction->user;
         return $user;
     }
@@ -137,14 +138,14 @@ class TransactionProduct extends Model
     }
 
     public function transaction_product_service()
-	{
-		return $this->hasOne(\Modules\Transaction\Entities\TransactionProductService::class, 'id_transaction_product');
-	}
+    {
+        return $this->hasOne(\Modules\Transaction\Entities\TransactionProductService::class, 'id_transaction_product');
+    }
 
-	public function transaction_product_promos()
-	{
-		return $this->hasMany(\Modules\Transaction\Entities\TransactionProductPromo::class, 'id_transaction_product');
-	}
+    public function transaction_product_promos()
+    {
+        return $this->hasMany(\Modules\Transaction\Entities\TransactionProductPromo::class, 'id_transaction_product');
+    }
 
     public function transaction_breakdown()
     {
@@ -156,7 +157,7 @@ class TransactionProduct extends Model
         $id_transaction = $this->id_transaction;
         $trx_product_subtotal = $this->transaction_product_subtotal;
         $trans_grandtotal = $this->transaction->transaction_grandtotal;
-        $subtotal_grandtotal = $trx_product_subtotal/$trans_grandtotal;
+        $subtotal_grandtotal = $trans_grandtotal ? $trx_product_subtotal/$trans_grandtotal : 0;
         $product_uses = $this->product->product_icount_use;
         $total_material = 0;
         foreach($product_uses ?? [] as $key => $product_use){
@@ -195,7 +196,25 @@ class TransactionProduct extends Model
                 }
                 
             }else{
-                $fee_hs['value'] = '';
+                $defaultCommission = ProductCommissionDefault::where('id_product', $id_product)->first();
+                if ($defaultCommission) {
+                    if($defaultCommission['percent']==0){
+                        $fee_hs['value'] = $defaultCommission['commission'];
+                    }else{
+                        $fee_hs['value'] = ($defaultCommission['commission']/100) * $sub_total;
+                    }
+                } else {
+                    $defaultGlobal = Setting::where('key','global_commission_product')->first();
+                    if (!$defaultGlobal) {
+                        $fee_hs['value'] = '';
+                    } else {
+                        if($defaultGlobal['value']==0){
+                            $fee_hs['value'] = $defaultGlobal['value_text'];
+                        }else{
+                            $fee_hs['value'] = ($defaultGlobal['value_text']/100) * $sub_total;
+                        }
+                    }
+                }
             }
             $send = $this->transaction_breakdown()->updateOrCreate(["type" => $fee_hs['type']],["value"=> $fee_hs['value']]);
             if($send){

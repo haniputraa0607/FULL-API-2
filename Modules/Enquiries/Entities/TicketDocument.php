@@ -8,10 +8,10 @@ class TicketDocument extends Model
 {
     protected $primaryKey = 'id_ticket_document';
 
-	protected $table = 'id_ticket ';
+	protected $table = 'tickets_documents';
 
 	protected $fillable = [
-		'id_ticket ',
+		'id_ticket',
         'attachment',
 	];
 }

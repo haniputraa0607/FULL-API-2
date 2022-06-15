@@ -356,6 +356,10 @@ class ApiIncome extends Controller
             foreach ($response as $valu) {
                 $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
             }
+            $response = $b->calculateFixedIncentive($hs, $request->start_date,$request->end_date);
+            foreach ($response as $valu) {
+                $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
+            }
             $response = $b->calculateIncomeExport($hs, $request->start_date,$request->end_date);
             foreach ($response as $values) {
                 $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];

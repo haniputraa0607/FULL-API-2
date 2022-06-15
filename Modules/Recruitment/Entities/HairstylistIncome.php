@@ -704,6 +704,19 @@ class HairstylistIncome extends Model
         if (!$calculations) {
             throw new \Exception('No calculation for income. Check setting!');
         }
+        $total_attend = 0;
+        $overtime = array();
+        $id_outlets = HairstylistAttendance::where('id_user_hair_stylist', $hs->id_user_hair_stylist)->groupby('id_outlet')->distinct()->get()->pluck('id_outlet');
+        foreach ($id_outlets as $id_outlet) {
+                    $total_attend = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) use ($hs,$id_outlet){
+                            $join->on('hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+                                ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+                                ->where('id_outlet', $id_outlet);
+                        })
+                        ->whereNotNull('clock_in')
+                        ->whereBetween('hairstylist_attendances.attendance_date',[$startDate,$endDate])
+                        ->count();
+                }
        $outlet_services = Transaction::where(array('transaction_product_services.id_user_hair_stylist'=>$hs->id_user_hair_stylist))
                        ->whereBetween('transactions.transaction_date',[$startDate,$endDate])
                        ->where('transactions.transaction_payment_status', 'Completed')
@@ -720,6 +733,10 @@ class HairstylistIncome extends Model
                                  ')
                        )
                        ->first();
+        $array[] = array(
+                    "name"=> "hari masuk",
+                    "value"=> $total_attend,
+                );
         $array[] = array(
                     "name"=> "total gross sale",
                     "value"=> $outlet_services->revenue??0,

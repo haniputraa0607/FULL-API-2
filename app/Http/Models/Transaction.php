@@ -119,7 +119,8 @@ class Transaction extends Model
         'scope',
         'reject_at',
         'reject_type',
-        'reject_reason'
+        'reject_reason',
+        'refund_requirement',
 	];
 
 	public $manual_refund = 0;
@@ -659,7 +660,8 @@ class Transaction extends Model
 
     	$this->update([
     		'reject_at' => date('Y-m-d H:i:s'),
-    		'reject_reason' => $data['reject_reason'] ?? null
+    		'reject_reason' => $data['reject_reason'] ?? null,
+	    	'refund_requirement' => $this->transaction_grandtotal,// update refund_requirement
     	]);
 
     	$refundPayment = app('\Modules\OutletApp\Http\Controllers\ApiOutletApp')->refundPayment($this);

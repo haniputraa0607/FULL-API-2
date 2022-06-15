@@ -6949,7 +6949,7 @@ class ApiTransaction extends Controller
             }
             foreach ($dt as $key=>$value){
                 if(is_array($value)){
-                    $dt[$key] = number_format(count(array_unique($value)));
+                    $dt[$key] = count(array_unique($value));
                 }
 
                 if(is_float($value)){
@@ -6957,7 +6957,11 @@ class ApiTransaction extends Controller
                 }
 
                 if(is_int($value)){
-                    $dt[$key] = number_format($value);
+                    $dt[$key] = $value;
+                }
+
+                if($value == 0){
+                    $dt[$key] = (string)$value;
                 }
             }
             $res[] = $dt;

@@ -107,6 +107,7 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
     Route::group(['prefix' => 'attendance'], function () {
         Route::post('list','ApiEmployeeAttendanceController@list');
         Route::post('detail','ApiEmployeeAttendanceController@detail');
+        Route::post('delete','ApiEmployeeAttendanceController@delete');
     });
     Route::group(['prefix' => 'attendance-pending'], function () {
         Route::post('list','ApiEmployeeAttendanceController@listPending');
@@ -122,6 +123,7 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
     Route::group(['prefix' => 'attendance-outlet'], function () {
         Route::post('list','ApiEmployeeAttendaceOutletController@list');
         Route::post('detail','ApiEmployeeAttendaceOutletController@detail');
+        Route::post('delete','ApiEmployeeAttendaceOutletController@delete');
     });
     Route::group(['prefix' => 'attendance-outlet-pending'], function () {
         Route::post('list','ApiEmployeeAttendaceOutletController@listPending');

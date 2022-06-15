@@ -380,6 +380,9 @@ class ApiOutletController extends Controller
         $save = Outlet::where('id_outlet', $request->json('id_outlet'))->update($post);
         // return Outlet::where('id_outlet', $request->json('id_outlet'))->first();
         if($save){
+            if(isset($post['outlet_status']) && $post['outlet_status'] == 'Active'){
+                $refresh = $this->refreshProduct(New Request(['id_outlet' =>  $request->json('id_outlet')]));
+            }
             DB::commit();
             SyncronPlasticTypeOutlet::dispatch([])->onQueue('high')->allOnConnection('database');
         }else{
@@ -392,7 +395,9 @@ class ApiOutletController extends Controller
         $post = $request->json()->all();
         $save = Outlet::where('id_outlet', $request->json('id_outlet'))->update(['outlet_status' => $post['outlet_status']??'Inactive']);
         // return Outlet::where('id_outlet', $request->json('id_outlet'))->first();
-
+        if(isset($post['outlet_status']) && $post['outlet_status'] == 'Active'){
+            $refresh = $this->refreshProduct(New Request(['id_outlet' =>  $request->json('id_outlet')]));
+        }
         return response()->json(MyHelper::checkUpdate($save));
     }
 
@@ -4254,8 +4259,8 @@ class ApiOutletController extends Controller
                     $data_export[$key][$key_2][] = [
                         'Date' =>  date('d F Y', strtotime($out_2[$key_3]['created_at'])) == date('d F Y', strtotime($out_2[$key_3-1]['created_at'] ?? null )) ? null : date('d F Y', strtotime($out_3['created_at'])),
                         'Source' => $out_3['source'] == 'Stock Adjustment' ? $code_link : $out_3['source'].' '.$code_link,
-                        'Stock In' => $out_3['stock_before'] < ($out_3['stock_after'] == 0 ? '0' : $out_3['stock_after']) ? $out_3['qty'] : null,
-                        'Stock Out' => $out_3['stock_before'] > ($out_3['stock_after'] == 0 ? '0' : $out_3['stock_after']) ? $out_3['qty'] : null,
+                        'Stock In' => $out_3['stock_before'] <  $out_3['stock_after'] ? ($out_3['qty'] == 0 ? '0' : ($out_3['qty'] < 0 ? ($out_3['qty']*-1) : $out_3['qty'])) : null,
+                        'Stock Out' => $out_3['stock_before'] >  $out_3['stock_after'] ? ($out_3['qty'] == 0 ? '0' : ($out_3['qty'] < 0 ? ($out_3['qty']*-1) : $out_3['qty'])) : null,
                         'Current Stock' => $out_3['stock_after']
                     ];
                     if($key_3 == count($out_2)-1){
@@ -4272,5 +4277,41 @@ class ApiOutletController extends Controller
         }
         return MyHelper::checkGet($data_export);
 
+    }
+
+    public function refreshProduct(Request $request){
+        $post = $request->all();
+        
+        $column = '';
+        $this_key = '';
+        if(isset($post['outlet_code'])){
+            $column = 'outlet_code';
+            $this_key = $post['outlet_code'];
+        }elseif(isset($post['id_outlet'])){
+            $column = 'id_outlet';
+            $this_key = $post['id_outlet'];
+        }
+        $outlet = Outlet::where($column, $this_key)->first();
+        if(!$outlet){
+            return [
+                'status' => 'fail',
+                'messages' => ['Outlet doesnt exist']
+            ];
+        }
+
+        $product_icounts = ProductIcountOutletStock::where('id_outlet', $outlet['id_outlet'])->get()->toArray();
+        DB::beginTransaction();
+        $update_product = ProductDetail::where('id_outlet',$outlet['id_outlet'])->update(['product_detail_stock_status' => 'Sold Out', 'product_detail_stock_item' => 0]);
+        
+        if($product_icounts){
+            foreach($product_icounts ?? [] as $product_icount){
+                $icount = New ProductIcount();
+                $refresh_stock = $icount->find($product_icount['id_product_icount'])->refreshStock($outlet['id_outlet'],$product_icount['unit']);
+            }
+        }
+        
+        
+        DB::commit();
+        return ['status' => 'success'];
     }
 }

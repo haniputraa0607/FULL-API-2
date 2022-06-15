@@ -1126,4 +1126,22 @@ class ApiEmployeeAttendanceController extends Controller
             ];
         }
     }
+
+    public function delete(Request $request){
+        $post = $request->all();
+        $employee = EmployeeAttendance::find($post['id_employee_attendance']);
+        if(!$employee){
+            return [
+                'status' => 'fail',
+                'messages' => ['Failed to delete attendance'],
+            ];
+        }
+        $request_att = EmployeeAttendanceRequest::where('id',$employee['id'])->where('id_outlet', $employee['id_outlet'])->whereDate('attendance_date', $employee['attendance_date'])->where('status', 'Accepted')->first();
+        if($request_att){
+            $delete_req = EmployeeAttendanceRequest::where('id_employee_attendance_request', $request_att['id_employee_attendance_request'])->delete();
+        }
+        $employee->delete();
+
+        return MyHelper::checkDelete($employee);
+    }
 }

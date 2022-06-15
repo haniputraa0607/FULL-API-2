@@ -2741,7 +2741,7 @@ class ApiProductController extends Controller
 
             $res[] = [
                 'id_user_hair_stylist' => $val['id_user_hair_stylist'],
-                'name' => $val['fullname'],
+                'name' => "$val[fullname] ($val[nickname])",
                 'nickname' => $val['nickname'],
                 'photo' => (empty($val['user_hair_stylist_photo']) ? config('url.storage_url_api').'img/product/item/default.png':$val['user_hair_stylist_photo']),
                 'rating' => $val['total_rating'],

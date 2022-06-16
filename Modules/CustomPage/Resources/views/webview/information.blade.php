@@ -23,6 +23,10 @@
         font-family: 'Gothic A1', sans-serif;
     }
 
+    body {
+        padding-bottom: 20px;
+    }
+    
     img {
         width: 100%;
     }
@@ -188,8 +192,8 @@
         @endif
 
         @if (isset($result['custom_page_button_form']))
-        <div style="text-align: center; width: 100%; padding: 10px 0;">
-            <button style="color:#ffffff; background-color: #000; width:  100%; border: 0; padding: 10px; font-size: 1.2em" id="action" type="button">{{$result['custom_page_button_form_text_button']}}</button>
+        <div style="text-align: center; width: 100%; margin-top:10px">
+            <a style="color:#ffffff; background-color: #000; width:  100% !important; border: 0; padding: 10px 0; font-size: 1.2em; display: block; text-decoration:none" id="action" href="{{$result['custom_page_button_form_text_value']}}">{{$result['custom_page_button_form_text_button']}}</a>
         </div>
         @endif
 

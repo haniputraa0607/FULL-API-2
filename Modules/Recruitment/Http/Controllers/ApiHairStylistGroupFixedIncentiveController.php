@@ -43,7 +43,15 @@ class ApiHairStylistGroupFixedIncentiveController extends Controller
                 $store = HairstylistGroupFixedIncentive::where([
                     "id_hairstylist_group"   =>  $request->id_hairstylist_group,
                     "id_hairstylist_group_default_fixed_incentive_detail"   =>  $request->id_hairstylist_group_default_fixed_incentive_detail,
-                ])->delete();
+                ])->first();
+                if($store){
+                  $store = HairstylistGroupFixedIncentive::where([
+                    "id_hairstylist_group"   =>  $request->id_hairstylist_group,
+                    "id_hairstylist_group_default_fixed_incentive_detail"   =>  $request->id_hairstylist_group_default_fixed_incentive_detail,
+                ])->delete();  
+                }else{
+                  $store = 1;  
+                }
             }
         }else{
             if(isset($request->value)){
@@ -53,7 +61,7 @@ class ApiHairStylistGroupFixedIncentiveController extends Controller
                     "value"   =>  $request->value,
                 ]);
             }else{
-                $store = [];
+                $store = 1;
             }
         }
         return response()->json(MyHelper::checkCreate($store));

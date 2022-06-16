@@ -218,4 +218,8 @@ class ApiDepartment extends Controller
             $log->fail($e->getMessage());
         }    
     }
+
+    public function getBalance(Request $request){
+        return $setting = Setting::where('key' , 'reset_department_budget')->first();
+    }
 }

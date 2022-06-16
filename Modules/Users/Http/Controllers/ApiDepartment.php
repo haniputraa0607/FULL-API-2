@@ -219,7 +219,17 @@ class ApiDepartment extends Controller
         }    
     }
 
-    public function getBalance(Request $request){
-        return $setting = Setting::where('key' , 'reset_department_budget')->first();
+    public function resetBalance(){
+        $log = MyHelper::logCron('Sync Department Icount');
+        try{
+            $setting = Setting::where('key' , 'department_balance_reset')->get()->toArray();
+            if($setting){
+
+            }
+            $log->success('success');
+            return response()->json(['status' => 'success']);
+        } catch (\Exception $e) {
+            $log->fail($e->getMessage());
+        } 
     }
 }

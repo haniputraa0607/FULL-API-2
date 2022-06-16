@@ -105,7 +105,8 @@ class classMaskingJson {
 	}
 
     public function sendSMS() {
-	    if(env('OTP_TYPE') == 'MISSCALL'){
+
+	    if(strtoupper($this->data['otp_type']) == 'MISSCALL'){
             ob_start();
 
             $phone = null;
@@ -130,6 +131,63 @@ class classMaskingJson {
                 'callbackurl' => $callbackurl,
                 'number' => $number,
                 'message' => $message
+            );
+
+            // sending
+            $data=json_encode($senddata);
+            $curlHandle = curl_init($urlendpoint);
+            curl_setopt($curlHandle, CURLOPT_CUSTOMREQUEST, "POST");
+            curl_setopt($curlHandle, CURLOPT_POSTFIELDS, $data);
+            curl_setopt($curlHandle, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($curlHandle, CURLOPT_HTTPHEADER, array(
+                    'Content-Type: application/json',
+                    'Content-Length: ' . strlen($data))
+            );
+            curl_setopt($curlHandle, CURLOPT_TIMEOUT, 30);
+            curl_setopt($curlHandle, CURLOPT_CONNECTTIMEOUT, 30);
+            $respon = curl_exec($curlHandle);
+            curl_close($curlHandle);
+            header('Content-Type: application/json');
+
+            $log=[
+                'request_body'=>$data,
+                'request_url'=>$urlendpoint,
+                'response'=>$respon,
+                'phone'=>$phone
+            ];
+            MyHelper::logApiSMS($log);
+            return $respon;
+        }elseif(strtoupper($this->data['otp_type']) == 'WHATSAPP'){
+            ob_start();
+
+            $phone = null;
+            if(isset($this->data['datapacket'][0]['number'])){
+                if(substr($this->data['datapacket'][0]['number'], 0, 2) == '62'){
+                    $phone = '0'.substr($this->data['datapacket'][0]['number'],2);
+                }else{
+                    $phone = $this->data['datapacket'][0]['number'];
+                }
+            }
+
+            $phone = substr_replace($phone, '62', 0, 1);
+
+            // setting
+            $urlendpoint = 'http://sms114.xyz/sms/api_whatsapp_otp_send_json.php'; // url endpoint api
+            $apikey      = env('WHATSAPP_API_KEY'); // api key
+            $callbackurl = env('WHATSAPP_URL_CALLBACK'); // url callback get status sms
+            $number      = $phone; // destinationnumber
+            $message     = $this->data['datapacket'][0]['message']; // misscall number code otp
+
+            // sending
+            $senddata = array(
+                'apikey' => $apikey,
+                'callbackurl' => $callbackurl,
+                'datapacket' => [
+                    [
+                        'number' => $number,
+                        'message' => $message
+                    ]
+                ]
             );
 
             // sending

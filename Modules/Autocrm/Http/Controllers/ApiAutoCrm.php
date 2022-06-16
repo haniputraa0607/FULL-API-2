@@ -348,7 +348,9 @@ class ApiAutoCrm extends Controller
 
 					if($otp_type == 'misscall'){
 						$gateway = env('MISSCALL_GATEWAY');
-					}else{
+					}elseif($otp_type == 'whatsapp'){
+                        $gateway = env('WHATSAPP_GATEWAY');
+                    }else{
 						if (in_array($autocrm_title, ['Pin Sent', 'Pin Forgot'])) {
                   			// if user not 0 and even, send using alternative
 							if ($user['sms_increment'] % 2) {
@@ -427,7 +429,8 @@ class ApiAutoCrm extends Controller
                             $senddata = array(
                                 'apikey' => env('SMS114_API_KEY'),
                                 'callbackurl' => env('SMS114_URL_CALLBACK'),
-                                'datapacket'=>array()
+                                'datapacket'=>array(),
+                                'otp_type' => $otp_type
                             );
 
                             //add <#> and Hash Key in pin sms content

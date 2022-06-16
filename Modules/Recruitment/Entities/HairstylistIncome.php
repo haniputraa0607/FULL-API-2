@@ -7,6 +7,7 @@ use App\Lib\MyHelper;
 use App\Http\Models\TransactionProduct;
 use DB;
 use App\Http\Models\Transaction;
+use App\Http\Models\Outlet;
 class HairstylistIncome extends Model
 {
     public $primaryKey = 'id_hairstylist_income';
@@ -676,6 +677,14 @@ class HairstylistIncome extends Model
                 
             }
         }
+        $lembur = self::calculateIncomeOvertime($hs, $startDate, $endDate);
+        foreach ($lembur as $value) {
+            $total += $value['value'];
+        }
+        $fixed = self::calculateFixedIncentive($hs, $startDate, $endDate);
+        foreach ($fixed as $value) {
+            $total += $value['value'];
+        }
           $array = array(
               array(
                     "name"=> "total commission",
@@ -800,6 +809,7 @@ class HairstylistIncome extends Model
                             $nominal = $valu['value'];
                             break;
                         }
+                        $nominal = $valu['value'];
                     }
                     $total = $total+$nominal;
                 }
@@ -808,6 +818,95 @@ class HairstylistIncome extends Model
                     "value"=> $total
                     
                 );
+        return $array;
+    }
+    public static function calculateFixedIncentive(UserHairStylist $hs, $startDate,$endDate)
+    {
+        $total = 0;
+        $array = array();
+        if($startDate < $hs->join_date){
+            $startDate = $hs->join_date;
+        }
+        $start = date('Y-m-01', strtotime($startDate));
+        $end = date('Y-m-t', strtotime($endDate));
+        $date_now = date('Y-m-d');
+        $date1=date_create($start);
+        $date2=date_create($end);
+        $diff=date_diff($date1,$date2);
+        $total_date = $diff->y*12+$diff->m;
+        $date = (int) MyHelper::setting('hs_income_cut_off_end_date', 'value')??25;
+        if(date('Y-m-d', strtotime($startDate)) > $date){
+            $total_date = $total_date - 1;
+        }
+        if(date('Y-m-d', strtotime($endDate)) < $date){
+            $total_date = $total_date - 1;
+        }
+        $years_of_service = 0;
+        $date3=date_create(date('Y-m-d', strtotime($hs->join_date)));
+        $date4=date_create($date_now);
+        $diff=date_diff($date3,$date4);
+        $years_of_service = $diff->y*12+$diff->m;
+        $outlet = Outlet::join('locations','locations.id_location','outlets.id_location')->where(array('id_outlet'=>$hs->id_outlet))->first();
+        $outlet_age = 0;
+        $date3=date_create(date('Y-m-d', strtotime($outlet->start_date)));
+        $date4=date_create($date_now);
+        $diff=date_diff($date3,$date4);
+        $outlet_age = $diff->y*12+$diff->m;
+        $overtime = HairstylistGroupFixedIncentiveDefault::with(['detail'])->get();
+         foreach ($overtime as $value) {
+             foreach ($value['detail'] as $va) {
+               $insen = HairstylistGroupFixedIncentive::where(array('id_hairstylist_group_default_fixed_incentive_detail'=>$va['id_hairstylist_group_default_fixed_incentive_detail'],'id_hairstylist_group'=>$hs->id_hairstylist_group))->first();
+                 $va['default_value'] = $va['value'];
+                 $va['default']    = 0;
+                 if($insen){
+                    $va['value']      = $insen->value; 
+                    $va['default']    = 1;
+                 }
+
+             }
+         }
+         foreach ($overtime as $va) {
+             $harga = 0;
+             if(isset($va['detail'])){
+                 if($va['type']=="Type 2"){
+                     if($va['formula']=='outlet_age'){
+                         $h = $outlet_age;
+                     }elseif($va['formula']=='years_of_service'){
+                         $h = $years_of_service;
+                     }else{
+                         break;
+                     }
+                     foreach ($va['detail'] as $valu) {
+                        if($valu['range']<=(int)$h){
+                            if($valu['default'] == 1){
+                            $harga = $valu['value']*$total_date;
+                            }else{
+                            $harga = $valu['default_value']*$total_date;
+                            }
+                            break;
+                        }
+                        if($valu['default'] == 1){
+                            $harga = $valu['value']*$total_date;
+                            }else{
+                            $harga = $valu['default_value']*$total_date;
+                        }
+                    }
+                 }else{
+                     
+                     if($va['detail']['0']['default']== 1){
+                         $harga = $va['detail']['0']['value']*$total_date;
+                     }else{
+                         $harga = $va['detail']['0']['default_value']*$total_date;
+                     }
+                 }
+             }
+             $array[] = array(
+                    "name"=> $va['name_fixed_incentive'],
+                    "value"=> $harga
+                    
+                );
+         }
+        
         return $array;
     }
 }

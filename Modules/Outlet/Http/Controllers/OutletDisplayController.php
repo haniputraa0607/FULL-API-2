@@ -97,9 +97,8 @@ class OutletDisplayController extends Controller
 
             return [
                 'box_name' => $item['outlet_box_name'],
-                'hairstylist_name' => $hairstylist['fullname'] ?? null,
                 'hairstylist_photo' => $hairstylist['user_hair_stylist_photo'] ?? null,
-                'hairstylist_name' => $hairstylist['fullname'] ?? null,
+                'hairstylist_name' => ($hairstylist['fullname'] ?? null) . ' (' . ($hairstylist['nickname'] ?? null) . ')',
                 'current_customer' => $serviceInProgress['name'] ?? null,
                 'queue' => $queue
             ];

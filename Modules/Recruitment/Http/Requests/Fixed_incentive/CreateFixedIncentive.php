@@ -13,8 +13,7 @@ class CreateFixedIncentive extends FormRequest
     {
         return [
             'id_hairstylist_group'                                   => 'required|unik',
-            'id_hairstylist_group_default_fixed_incentive_detail'    => 'required|cek',
-            'value'                                                  => 'required',
+            'id_hairstylist_group_default_fixed_incentive_detail'    => 'required|cek'
            ]; 
     }
     public function withValidator($validator)

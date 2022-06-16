@@ -824,6 +824,9 @@ class HairstylistIncome extends Model
     {
         $total = 0;
         $array = array();
+        if($startDate < $hs->join_date){
+            $startDate = $hs->join_date;
+        }
         $start = date('Y-m-01', strtotime($startDate));
         $end = date('Y-m-t', strtotime($endDate));
         $date_now = date('Y-m-d');

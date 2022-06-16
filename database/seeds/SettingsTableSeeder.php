@@ -1332,14 +1332,6 @@ class SettingsTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s'),
                 ),
-            137 =>
-                array (
-                    'key' => 'reset_department_budget',
-                    'value' => date('Y-m-d'),
-                    'value_text' => NULL,
-                    'created_at' => date('Y-m-d H:i:s'),
-                    'updated_at' => date('Y-m-d H:i:s'),
-                ),
         );
 
         foreach ($settings as $setting) {

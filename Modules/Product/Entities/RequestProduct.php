@@ -23,7 +23,8 @@ class RequestProduct extends Model
         'status',
         'from',
         'id_product_catalog',
-        'id_purchase_request'
+        'id_purchase_request',
+        'use_department_budget'
 	];
 
     public function request_product_detail(){

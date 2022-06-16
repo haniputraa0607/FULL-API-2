@@ -147,7 +147,7 @@
             <h3 class="label">{{ $result['custom_page_outlet_text'] }}</h3>
             <amp-carousel
               width="450"
-              height="300"
+              height="200"
               layout="responsive"
               type="slides"
               role="region"
@@ -156,9 +156,9 @@
             @foreach ($result['custom_page_outlet'] as $key => $value)
                 <div style="position: relative !important; width: calc(100vw - 20px) !important;">
                     <amp-img
-                        src="{{ isset($value['outlet']['photos'][0]['url_outlet_photo']) ? $value['outlet']['photos'][0]['url_outlet_photo'] : 'https://via.placeholder.com/450x300.png?text=No Image Available' }}"
+                        src="{{ isset($value['outlet']['outlet_image']) ? $value['outlet']['outlet_image'] : 'https://via.placeholder.com/450x300.png?text=No Image Available' }}"
                         width="450"
-                        height="300"
+                        height="200"
                         layout="responsive"
                     ></amp-img>
                     <span style="background-color: rgba(0, 0, 0, 0.6); position: absolute; top: 0; right:0; left: 0; padding: 10px; color: white; font-weight:600">{{$value['outlet']['outlet_name']}}</span>
@@ -171,7 +171,7 @@
             <h3 class="label">{{ $result['custom_page_product_text'] }}</h3>
             <amp-carousel
               width="450"
-              height="300"
+              height="450"
               layout="responsive"
               type="slides"
               role="region"
@@ -182,7 +182,7 @@
                     <amp-img
                         src="{{ isset($value['product']['photos'][0]['url_product_photo']) ? $value['product']['photos'][0]['url_product_photo'] : 'https://via.placeholder.com/800x500.png?text=No Image Available' }}"
                         width="450"
-                        height="300"
+                        height="450"
                         layout="responsive"
                     ></amp-img>
                     <span style="background-color: rgba(0, 0, 0, 0.6); position: absolute; top: 0; right:0; left: 0; padding: 10px; color: white; font-weight:600">{{ $value['product']['product_name'] }}</span>

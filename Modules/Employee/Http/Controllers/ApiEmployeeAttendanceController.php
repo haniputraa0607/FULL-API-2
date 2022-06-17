@@ -619,8 +619,16 @@ class ApiEmployeeAttendanceController extends Controller
     public function updatePending(Request $request)
     {
         $request->validate([
-            'status' => 'string|in:Approved,Rejected',
+            'status' => 'string|in:Approved,Rejected,Approve,Reject',
         ]);
+
+        if($request->status=='Approve'){
+            $request->status = 'Approved';
+        }
+        if($request->status=='Reject'){
+            $request->status = 'Rejected';
+        }
+        
         $log = EmployeeAttendanceLog::find($request->id_employee_attendance_log);
         if (!$log) {
             return [
@@ -628,7 +636,13 @@ class ApiEmployeeAttendanceController extends Controller
                 'messages' => ['Selected pending attendance not found']
             ];
         }
-        $log->update(['status' => $request->status]);
+        $update = [
+            'status' => $request->status
+        ];
+        if(isset($request->approve_notes) && !empty($request->approve_notes)){
+            $update['approve_notes'] = $request->approve_notes;
+        }
+        $log->update($update);
         $log->employee_attendance->recalculate();
         return [
             'status' => 'success',
@@ -961,8 +975,15 @@ class ApiEmployeeAttendanceController extends Controller
 
     public function updateRequest(Request $request){
         $request->validate([
-            'status' => 'string|in:Approved,Rejected',
+            'status' => 'string|in:Accepted,Rejected,Approve,Reject',
         ]);
+        if($request->status=='Approve'){
+            $request->status = 'Accepted';
+        }
+        if($request->status=='Reject'){
+            $request->status = 'Rejected';
+        }
+
         $log_req = EmployeeAttendanceRequest::find($request->id_employee_attendance_request);
         if (!$log_req) {
             return [
@@ -971,9 +992,15 @@ class ApiEmployeeAttendanceController extends Controller
             ];
         }
         DB::beginTransaction();
-        $log_req->update(['status' => $request->status]);
+        $update = [
+            'status' => $request->status
+        ];
+        if(isset($request->approve_notes) && !empty($request->approve_notes)){
+            $update['approve_notes'] = $request->approve_notes;
+        }
+        $log_req->update($update);
         $final = true;
-        if($request->status == 'Approved'){
+        if($request->status == 'Accepted'){
 
             $outlet = Outlet::where('id_outlet', $log_req['id_outlet'])->first();
 
@@ -1055,7 +1082,7 @@ class ApiEmployeeAttendanceController extends Controller
                     'latitude' => 0,
                     'longitude' => 0,
                     'status' => 'Approved',
-                    'approved_by' =>  $request->user()->id,
+                    'approved_by' =>  $request->id ?? $request->user()->id,
                     'notes' => $log_req['notes'],
                 ]);
                 if(!$clock_in){
@@ -1071,13 +1098,19 @@ class ApiEmployeeAttendanceController extends Controller
                     'latitude' => 0,
                     'longitude' => 0,
                     'status' => 'Approved',
-                    'approved_by' =>  $request->user()->id,
+                    'approved_by' =>  $request->id ?? $request->user()->id,
                     'notes' => $log_req['notes'],
                 ]);
                 if(!$clock_out){
                     $final = false;
                 }
             }
+        }elseif($request->status == 'Rejected'){
+            DB::commit();
+            return [
+                'status' => 'success',
+                'messages' => ['Success to reject request attendance'],
+            ];
         }
         if($final){
             DB::commit();
@@ -1092,5 +1125,23 @@ class ApiEmployeeAttendanceController extends Controller
                 'messages' => ['Failed to approve reequest attendance'],
             ];
         }
+    }
+
+    public function delete(Request $request){
+        $post = $request->all();
+        $employee = EmployeeAttendance::find($post['id_employee_attendance']);
+        if(!$employee){
+            return [
+                'status' => 'fail',
+                'messages' => ['Failed to delete attendance'],
+            ];
+        }
+        $request_att = EmployeeAttendanceRequest::where('id',$employee['id'])->where('id_outlet', $employee['id_outlet'])->whereDate('attendance_date', $employee['attendance_date'])->where('status', 'Accepted')->first();
+        if($request_att){
+            $delete_req = EmployeeAttendanceRequest::where('id_employee_attendance_request', $request_att['id_employee_attendance_request'])->delete();
+        }
+        $employee->delete();
+
+        return MyHelper::checkDelete($employee);
     }
 }

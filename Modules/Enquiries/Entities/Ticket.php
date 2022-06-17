@@ -13,6 +13,6 @@ class Ticket extends Model
 	protected $fillable = [
 		'phone',
         'id_user',
-		'id_ticket_third_party'
+		'id_ticket_third_party',
 	];
 }

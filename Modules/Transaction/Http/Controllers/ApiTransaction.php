@@ -117,6 +117,7 @@ class ApiTransaction extends Controller
     function __construct() {
         date_default_timezone_set('Asia/Jakarta');
         $this->shopeepay      = 'Modules\ShopeePay\Http\Controllers\ShopeePayController';
+        $this->xendit         = 'Modules\Xendit\Http\Controllers\XenditController';
         $this->trx_outlet_service = "Modules\Transaction\Http\Controllers\ApiTransactionOutletService";
         $this->trx = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
         $this->home_service_status = [
@@ -5349,7 +5350,7 @@ class ApiTransaction extends Controller
     {
         $trx = Transaction::where('transactions.id_transaction', $id_transaction)->join('transaction_multiple_payments', function($join) {
             $join->on('transaction_multiple_payments.id_transaction', 'transactions.id_transaction')
-                ->whereIn('type', ['Midtrans', 'Shopeepay']);
+                ->whereIn('type', ['Midtrans', 'Shopeepay', 'Xendit']);
         })->first();
         if (!$trx) {
             $errors[] = 'Transaction Not Found';
@@ -5387,6 +5388,23 @@ class ApiTransaction extends Controller
                     Transaction::where('id_transaction', $id_transaction)->update(['need_manual_void' => 0]);
                 }
                 break;
+
+            case 'Xendit':
+                $payXendit = TransactionPaymentXendit::where('id_transaction', $id_transaction)->first();
+                if (!$payXendit) {
+                    $errors[] = 'Model TransactionPaymentXendit not found';
+                    return false;
+                }
+                $refund = app($this->xendit)->refund($id_transaction, 'trx', $errors2);
+                if (!$refund) {
+                    Transaction::where('id_transaction', $id_transaction)->update(['failed_void_reason' => implode(', ', $errors2 ?: [])]);
+                    $errors = $errors2;
+                    $result = false;
+                } else {
+                    Transaction::where('id_transaction', $id_transaction)->update(['need_manual_void' => 0]);
+                }
+                break;
+
             default:
                 $errors[] = 'Unkown payment type '.$trx->type;
                 return false;
@@ -6765,6 +6783,7 @@ class ApiTransaction extends Controller
             ->whereIn('transactions.id_outlet', $idOutlets)
             ->whereIn('transaction_from', ['outlet-service', 'home-service'])
             ->where('transaction_products.type', 'service')
+            ->whereNull('transaction_products.reject_at')
             ->groupBy(DB::raw('DATE(transaction_date)'), 'transactions.id_outlet', 'transaction_products.id_product')
             ->select(DB::raw('DATE(transaction_date) as transaction_date'), 'transactions.id_outlet', 'transaction_products.id_product', 'outlet_name', 'product_name',
                 DB::raw('SUM(transaction_products.transaction_product_discount_all) as discount'),
@@ -6782,6 +6801,7 @@ class ApiTransaction extends Controller
             ->whereIn('transactions.id_outlet', $idOutlets)
             ->whereIn('transaction_from', ['outlet-service', 'home-service'])
             ->where('transaction_products.type', 'service')
+            ->whereNull('transaction_products.reject_at')
             ->groupBy(DB::raw('DATE(transaction_date)'), 'transactions.id_outlet')
             ->select(DB::raw('DATE(transaction_date) as transaction_date'), 'transactions.id_outlet', DB::raw('COUNT(Distinct transactions.id_transaction) as total'), DB::raw("group_concat(transaction_products.id_transaction_product separator ',') as trx_product_id"))
             ->get()->toArray();
@@ -6929,7 +6949,7 @@ class ApiTransaction extends Controller
             }
             foreach ($dt as $key=>$value){
                 if(is_array($value)){
-                    $dt[$key] = number_format(count(array_unique($value)));
+                    $dt[$key] = count(array_unique($value));
                 }
 
                 if(is_float($value)){
@@ -6937,7 +6957,11 @@ class ApiTransaction extends Controller
                 }
 
                 if(is_int($value)){
-                    $dt[$key] = number_format($value);
+                    $dt[$key] = $value;
+                }
+
+                if($value == 0){
+                    $dt[$key] = (string)$value;
                 }
             }
             $res[] = $dt;

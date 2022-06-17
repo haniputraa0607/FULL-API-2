@@ -107,6 +107,7 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
     Route::group(['prefix' => 'attendance'], function () {
         Route::post('list','ApiEmployeeAttendanceController@list');
         Route::post('detail','ApiEmployeeAttendanceController@detail');
+        Route::post('delete','ApiEmployeeAttendanceController@delete');
     });
     Route::group(['prefix' => 'attendance-pending'], function () {
         Route::post('list','ApiEmployeeAttendanceController@listPending');
@@ -122,6 +123,7 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
     Route::group(['prefix' => 'attendance-outlet'], function () {
         Route::post('list','ApiEmployeeAttendaceOutletController@list');
         Route::post('detail','ApiEmployeeAttendaceOutletController@detail');
+        Route::post('delete','ApiEmployeeAttendaceOutletController@delete');
     });
     Route::group(['prefix' => 'attendance-outlet-pending'], function () {
         Route::post('list','ApiEmployeeAttendaceOutletController@listPending');
@@ -278,9 +280,18 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
 
     Route::group(['prefix' => 'inbox'], function () {
         Route::post('/', 'ApiEmployeeInboxController@listInbox');
+        Route::get('approval', 'ApiEmployeeInboxController@getListReqApproval');
         Route::post('approval', 'ApiEmployeeInboxController@listReqApproval');
+        Route::post('approval-detail', 'ApiEmployeeInboxController@listReqApproval');
+        Route::post('approval-approve', 'ApiEmployeeInboxController@approveReqApproval');
     });
 
+    Route::group(['prefix' => 'req-product'], function () {
+        Route::get('/','ApiEmployeeRequestProductController@createRequest');    
+        Route::post('list-catalog','ApiEmployeeRequestProductController@listCatalog');    
+        Route::post('list-product','ApiEmployeeRequestProductController@listProduct');    
+        Route::post('/','ApiEmployeeRequestProductController@storeRequest');    
+    });
 });
 
 Route::group([ 'middleware' => ['auth_client', 'scopes:employee-apps'], 'prefix' => 'employee'], function () {
@@ -289,4 +300,8 @@ Route::group([ 'middleware' => ['auth_client', 'scopes:employee-apps'], 'prefix'
 
 Route::group(['prefix' => '/icount/reimbursement'], function() {
     Route::post('/callback','ApiBeEmployeeReimbursementController@callbackreimbursement');
+});
+
+Route::group(['prefix' => '/icount/budgeting'], function() {
+    Route::post('/store','ApiEmployeeRequestProductController@storeBudgeting');
 });

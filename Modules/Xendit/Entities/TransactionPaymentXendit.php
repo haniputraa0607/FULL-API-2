@@ -11,6 +11,7 @@ class TransactionPaymentXendit extends Model
     protected $fillable = [
         'id_transaction',
         'xendit_id',
+        'payment_id',
         'external_id',
         'business_id',
         'phone',

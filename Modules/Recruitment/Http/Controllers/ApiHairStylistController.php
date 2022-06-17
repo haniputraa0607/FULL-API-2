@@ -1036,7 +1036,11 @@ class ApiHairStylistController extends Controller
         foreach ($tmpData as $dt){
             foreach ($dt as $key=>$value){
                 if(is_int($value)){
-                    $dt[$key] = number_format($value);
+                    $dt[$key] = (int)$value;
+                }
+
+                if($value == 0){
+                    $dt[$key] = (string)$value;
                 }
             }
 

@@ -2637,6 +2637,7 @@ class ApiProductController extends Controller
     public function outletServiceAvailableHs(AvailableHs $request){
         $post = $request->json()->all();
         $bookDate = date('Y-m-d', strtotime($post['booking_date']));
+        $bookTimeOrigin = date('H:i:s', strtotime($post['booking_time']));
         $bookTime = date('H:i:s', strtotime($post['booking_time']));
 
         if(!empty($post['outlet_code'])){
@@ -2659,7 +2660,7 @@ class ApiProductController extends Controller
 
         $timeZone = (empty($outlet['province_time_zone_utc']) ? 7:$outlet['province_time_zone_utc']);
         $diffTimeZone = $timeZone - 7;
-        $bookTime = date('H:i:s', strtotime($post['booking_time'] . "- $diffTimeZone hour"));
+        $bookTime = date('H:i:s', strtotime($bookTime . "- $diffTimeZone hour"));
         $post['id_outlet'] = $outlet['id_outlet'];
 
         //product category hs
@@ -2683,7 +2684,7 @@ class ApiProductController extends Controller
                           ->where('day', $bookDay)->first()['id_outlet_schedule']??null;
 
         $hsNotAvailable = HairstylistNotAvailable::where('id_outlet', $post['id_outlet'])
-                            ->where('booking_start', $bookDate.' '.$bookTime)
+                            ->where('booking_start', $bookDate.' '.$bookTimeOrigin)
                             ->pluck('id_user_hair_stylist')->toArray();
 
         $listHs = UserHairStylist::where('id_outlet', $post['id_outlet'])
@@ -2726,8 +2727,9 @@ class ApiProductController extends Controller
                 }
             }
 
+            $bookTimeOrigin = date('H:i:s', strtotime($bookTimeOrigin . "+ 1 minutes"));
             $notAvailable = HairstylistNotAvailable::where('id_outlet', $post['id_outlet'])
-                ->whereRaw('"'.$bookDate.' '.$bookTime. '" BETWEEN booking_start AND booking_end')
+                ->whereRaw('"'.$bookDate.' '.$bookTimeOrigin. '" BETWEEN booking_start AND booking_end')
                 ->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
                 ->first();
 

@@ -218,4 +218,18 @@ class ApiDepartment extends Controller
             $log->fail($e->getMessage());
         }    
     }
+
+    public function resetBalance(){
+        $log = MyHelper::logCron('Sync Department Icount');
+        try{
+            $setting = Setting::where('key' , 'department_balance_reset')->get()->toArray();
+            if($setting){
+
+            }
+            $log->success('success');
+            return response()->json(['status' => 'success']);
+        } catch (\Exception $e) {
+            $log->fail($e->getMessage());
+        } 
+    }
 }

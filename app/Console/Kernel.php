@@ -282,6 +282,13 @@ class Kernel extends ConsoleKernel
          * To delete expired user voucher in user promo
          */
         $schedule->command('user-promo:reset')->dailyAt('00:26');
+
+        /**
+         * Reminder Clock In Clock Out
+         * run every minute
+         */
+        $schedule->call('Modules\Employee\Http\Controllers\ApiEmployeeProfileController@cronReminder')->everyMinute();
+
     }
 
     /**

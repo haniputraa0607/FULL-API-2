@@ -1655,7 +1655,7 @@ class ApiPartnersController extends Controller
     public function listLocationAvailable(Request $request){
         $post = $request->all();
         $location = Location::where('status','Active')->whereNull('id_partner')->get()->toArray();
-        $starter = OutletStarterBundling::with('bundling_products')->where('status',1)->get()->toArray();
+        $starter = OutletStarterBundling::whereHas('bundling_products')->with('bundling_products')->where('status',1)->get()->toArray();
         return response()->json(['status' => 'success', 'result' => [
             'locations' => $location,
             'starters' => $starter

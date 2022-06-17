@@ -20,6 +20,7 @@ class EmployeeTimeOff extends Model
 		'id_outlet',
 		'type',
 		'notes',
+        'approve_notes',
 		'approve_by',
 		'request_by',
 		'date',

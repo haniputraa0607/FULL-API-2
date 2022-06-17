@@ -12,6 +12,7 @@ class TransactionAcademyInstallmentPaymentXendit extends Model
         'id_transaction_academy_installment',
         'order_id',
         'xendit_id',
+        'payment_id',
         'external_id',
         'business_id',
         'phone',

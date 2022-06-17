@@ -26,6 +26,8 @@ use Modules\Product\Http\Requests\CallbackRequest;
 use App\Http\Models\Setting;
 use App\Http\Models\User;
 use Modules\Product\Entities\ProductIcount;
+use Modules\Employee\Entities\DepartmentBudget;
+use Modules\Employee\Entities\DepartmentBudgetLog;
 
 class ApiRequestProductController extends Controller
 {
@@ -324,9 +326,65 @@ class ApiRequestProductController extends Controller
             $old_data = RequestProduct::where('id_request_product',$post['id_request_product'])->first();
             $cek_input = $this->checkInputUpdate($post);
             $store_request = $cek_input['store_request'];
+            $store_request['id_outlet'] = $old_data['id_outlet'] ?? $store_request['id_outlet'];
+            $store_request['code'] = $old_data['code'] ?? $store_request['code'];
             $cek_outlet = Outlet::where(['id_outlet'=>$store_request['id_outlet']])->first();
             if ($cek_outlet) {
                 DB::beginTransaction();
+                if($old_data['use_department_budget']==1){
+                    //check
+                    $total_cost = 0;
+                    $cost = 0;
+                    foreach($post['product_icount'] ?? [] as $key_p => $pro){
+                        if($pro['status']=='Approved'){
+                            $this_product = ProductIcount::where('id_product_icount', $pro['id_product_icount'])->first();
+                            if($pro['unit']==$this_product['unit1']){
+                                $cost = $this_product['unit_price_1'] * $pro['qty'];
+                            }
+                            if($pro['unit']==$this_product['unit2'] && $this_product['unit2'] && $this_product['ratio2']>0){
+                                $cost = $this_product['unit_price_1'] * $this_product['ratio2'] * $pro['qty'];
+                            }
+                            if($pro['unit']==$this_product['unit3'] && $this_product['unit3'] && $this_product['ratio3']>0){
+                                $cost = $this_product['unit_price_1'] * $this_product['ratio3'] * $pro['qty'];
+                            }
+                            $total_cost = $total_cost + $cost;
+                        }
+                    }
+
+                    $department = DepartmentBudget::join('departments', 'departments.id_department', 'department_budgets.id_department')->join('roles', 'roles.id_department', 'departments.id_department')->join('users', 'users.id_role', 'roles.id_role')->where('users.id',$old_data['id_user_request'])->first();
+                    if(!$department){
+                        DB::rollback();
+                        return response()->json(['status' => 'fail', 'messages' => ['Failed update request product']]);
+                    }
+                    $balance = $department['budget_balance'] - $total_cost;
+                    if($balance<0){
+                        DB::rollback();
+                        return response()->json(['status' => 'fail', 'messages' => ['Department Balance not enough']]);
+                    }
+                    $store_department = DepartmentBudget::updateOrCreate(['id_department'=>$department['id_department']],['budget_balance'=>$balance]);
+                    if(!$store_department){
+                        DB::rollback();
+                        return response()->json(['status' => 'fail', 'messages' => ['Failed to updaate department balance']]);
+                    }
+        
+                    $log = DepartmentBudgetLog::create([
+                        'id_department_budget' => $store_department['id_department_budget'],
+                        'date_budgeting' => date('Y-m-d'),
+                        'source' => 'Approve Request Product',
+                        'balance' => $total_cost == 0 ? 0 : -$total_cost,
+                        'balance_before' => $department['budget_balance'],
+                        'balance_after' => $balance,
+                        'balance_total' => $balance,
+                        'notes' => $post['note_approve'] ?? null
+                    ]);
+        
+                    if(!$log){
+                        DB::rollback();
+                        return response()->json(['status' => 'fail', 'messages' => ['Failed to update department balance']]);
+                    }
+
+                }
+
                 $update = RequestProduct::where('id_request_product',$post['id_request_product'])->update($store_request);
                 if($update) {
                     if (isset($post['product_icount'])) {
@@ -461,7 +519,7 @@ class ApiRequestProductController extends Controller
             $store_request['note_request'] = $data['note_request'];
         }
         
-        $store_request['id_user_approve'] = auth()->user()->id;
+        $store_request['id_user_approve'] = $data['id_user_approve'] ?? auth()->user()->id;
 
         if (isset($data['note_approve'])) {
             $store_request['note_approve'] = $data['note_approve'];
@@ -470,29 +528,29 @@ class ApiRequestProductController extends Controller
             $store_request['status'] = $data['status'];
         }
         if (isset($data['product_icount'])) {
-            $v_status = true;
+            $v_status = false;
             $reject = false;
             foreach($data['product_icount'] as $key => $product){
                 if($product['status'] == 'Approved'){
                     $status = 'Completed By User';
-                    $reject = false;
+                    $v_status = true;
                 }else if($product['status'] == 'Rejected'){
                     $reject = true;
-                }else{
-                    $v_status = false;
                 }
 
             }
             if($v_status){
                 $status = 'Completed By User';
             }else{
+                if($reject){
+                    $status = 'Rejected';
+                }
+
                 if (isset($data['status'])) {
                     $status = $data['status'];
                 }
             }
-            if($reject){
-                $status = 'Rejected';
-            }
+            
             $store_request['status'] = $status;
         }
         return [

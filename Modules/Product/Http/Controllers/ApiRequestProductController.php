@@ -129,7 +129,13 @@ class ApiRequestProductController extends Controller
                 $store_request['note_request'] = $post['note_request'];
             }
             $store_request['id_user_request'] = auth()->user()->id;
+            $department_badget = DepartmentBudget::join('departments', 'departments.id_department', 'department_budgets.id_department')->join('roles', 'roles.id_department', 'departments.id_department')->join('users','users.id_role','roles.id_role')->where('users.id',$store_request['id_user_request'])->first();
+            if(!$department_badget){
+                return response()->json(['status' => 'fail', 'messages' => ['Department Balance is not enough']]);
+            }
+
             $store_request['code'] = $this->codeGenerate();
+            $store_request['use_department_budget'] = 1;
             $cek_outlet = Outlet::where(['id_outlet'=>$store_request['id_outlet']])->first();
             if ($cek_outlet) {
                 DB::beginTransaction();
@@ -336,7 +342,7 @@ class ApiRequestProductController extends Controller
                     $total_cost = 0;
                     $cost = 0;
                     foreach($post['product_icount'] ?? [] as $key_p => $pro){
-                        if($pro['status']=='Approved'){
+                        if($pro['status']=='Approved' || $store_request['status']=='Draft' || $store_request['status']=='Pending'){
                             $this_product = ProductIcount::where('id_product_icount', $pro['id_product_icount'])->first();
                             if($pro['unit']==$this_product['unit1']){
                                 $cost = $this_product['unit_price_1'] * $pro['qty'];
@@ -354,35 +360,39 @@ class ApiRequestProductController extends Controller
                     $department = DepartmentBudget::join('departments', 'departments.id_department', 'department_budgets.id_department')->join('roles', 'roles.id_department', 'departments.id_department')->join('users', 'users.id_role', 'roles.id_role')->where('users.id',$old_data['id_user_request'])->first();
                     if(!$department){
                         DB::rollback();
-                        return response()->json(['status' => 'fail', 'messages' => ['Failed update request product']]);
+                        return response()->json(['status' => 'fail_balance', 'messages' => ['Department Balance is not enough']]);
                     }
-                    $balance = $department['budget_balance'] - $total_cost;
-                    if($balance<0){
+                    $balance_now = DepartmentBudgetLog::where('id_department_budget',$department['id_department_budget'])->orderBy('created_at', 'desc')->first(); 
+
+                    if($balance_now['balance_total']<$total_cost){
                         DB::rollback();
-                        return response()->json(['status' => 'fail', 'messages' => ['Department Balance not enough']]);
-                    }
-                    $store_department = DepartmentBudget::updateOrCreate(['id_department'=>$department['id_department']],['budget_balance'=>$balance]);
-                    if(!$store_department){
-                        DB::rollback();
-                        return response()->json(['status' => 'fail', 'messages' => ['Failed to updaate department balance']]);
-                    }
-        
-                    $log = DepartmentBudgetLog::create([
-                        'id_department_budget' => $store_department['id_department_budget'],
-                        'date_budgeting' => date('Y-m-d'),
-                        'source' => 'Approve Request Product',
-                        'balance' => $total_cost == 0 ? 0 : -$total_cost,
-                        'balance_before' => $department['budget_balance'],
-                        'balance_after' => $balance,
-                        'balance_total' => $balance,
-                        'notes' => $post['note_approve'] ?? null
-                    ]);
-        
-                    if(!$log){
-                        DB::rollback();
-                        return response()->json(['status' => 'fail', 'messages' => ['Failed to update department balance']]);
+                        return response()->json(['status' => 'fail_balance', 'messages' => ['Department Balance is not enough']]);
                     }
 
+                    if($store_request['status']=='Completed By User'){
+                        $balance = $balance_now['balance_total'] - $total_cost;
+                        if($balance<0){
+                            DB::rollback();
+                            return response()->json(['status' => 'fail_balance', 'messages' => ['Department Balance not enough']]);
+                        }
+            
+                        $log = DepartmentBudgetLog::create([
+                            'id_department_budget' => $department['id_department_budget'],
+                            'date_budgeting' => date('Y-m-d'),
+                            'source' => 'Approve Request Product',
+                            'balance' => $total_cost == 0 ? 0 : -$total_cost,
+                            'balance_before' => $balance_now['balance_total'],
+                            'balance_after' => $balance,
+                            'balance_total' => $balance,
+                            'notes' => $post['note_approve'] ?? null
+                        ]);
+            
+                        if(!$log){
+                            DB::rollback();
+                            return response()->json(['status' => 'fail', 'messages' => ['Failed to update department balance']]);
+                        }
+
+                    }
                 }
 
                 $update = RequestProduct::where('id_request_product',$post['id_request_product'])->update($store_request);
@@ -397,6 +407,7 @@ class ApiRequestProductController extends Controller
                         RequestProductDetail::where('product_icount', $post['product_icount'])->delete();
                     }
                 }   
+                
             } else {
                 return response()->json(['status' => 'fail', 'messages' => ['Id Outlet not found']]);
             }

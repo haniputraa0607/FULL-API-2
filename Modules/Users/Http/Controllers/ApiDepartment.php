@@ -13,6 +13,8 @@ use App\Http\Models\Setting;
 use App\Lib\Icount;
 use App\Lib\MyHelper;
 use DB;
+use Modules\Employee\Entities\DepartmentBudget;
+use Modules\Employee\Entities\DepartmentBudgetLog;
 
 class ApiDepartment extends Controller
 {
@@ -220,15 +222,45 @@ class ApiDepartment extends Controller
     }
 
     public function resetBalance(){
-        $log = MyHelper::logCron('Sync Department Icount');
+        $log = MyHelper::logCron('Reset Department Balance');
         try{
             $setting = Setting::where('key' , 'department_balance_reset')->get()->toArray();
-            if($setting){
-
+            $date_now = date('d F');
+            DB::beginTransaction();
+            foreach($setting ?? [] as $key => $set){
+                if($set['value'] == $date_now){
+                    $department_badget = DepartmentBudget::with(['logs' => function($q){$q->orderBy('created_at', 'desc')->first(); }])->orderBy('id_department_budget', 'asc')->get()->toArray();
+                    foreach($department_badget ?? [] as $key_2 => $department){
+                        $logs = [];
+                        $logs[] = [
+                            'id_department_budget' => $department['logs'][0]['id_department_budget'],
+                            'date_budgeting' => date('Y-m-d'),
+                            'source' => 'Reset Department Balance',
+                            'balance' => -$department['logs'][0]['balance_total'],
+                            'balance_before' => $department['logs'][0]['balance_total'],
+                            'balance_after' => 0,
+                            'balance_total' => 0,
+                            'notes' => null
+                        ];
+                        $logs[] = [
+                            'id_department_budget' => $department['id_department_budget'],
+                            'date_budgeting' => date('Y-m-d'),
+                            'source' => 'Reset Department Balance',
+                            'balance' => $department['budget_balance'],
+                            'balance_before' => 0,
+                            'balance_after' => $department['budget_balance'],
+                            'balance_total' => $department['budget_balance'],
+                            'notes' => null
+                        ];
+                        $store = DepartmentBudgetLog::insert($logs);
+                    }
+                }
             }
+            DB::commit();
             $log->success('success');
             return response()->json(['status' => 'success']);
         } catch (\Exception $e) {
+            DB::rollback();
             $log->fail($e->getMessage());
         } 
     }

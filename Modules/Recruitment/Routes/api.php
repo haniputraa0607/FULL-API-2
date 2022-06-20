@@ -80,6 +80,14 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
         	Route::post('detail', ['middleware' => 'feature_control:429', 'uses' => 'ApiMitraUpdateData@detail']);
         	Route::post('update', ['middleware' => 'feature_control:430', 'uses' => 'ApiMitraUpdateData@update']);
     	});
+    	Route::group(['prefix' => 'loan'], function () {
+        	Route::post('category/create', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiHairStylistLoanController@createCategory']);
+        	Route::post('category/list', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiHairStylistLoanController@listCategory']);
+        	Route::post('category/delete', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiHairStylistLoanController@deleteCategory']);
+        	Route::post('hs', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiHairStylistLoanController@hs']);
+        	Route::post('create', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiHairStylistLoanController@create']);
+        	Route::post('/', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiHairStylistLoanController@index']);
+    	});
 
     	Route::group(['prefix' => 'group'], function () {
             Route::any('/', ['middleware' => 'feature_control:393','uses' =>'ApiHairStylistGroupController@index']);

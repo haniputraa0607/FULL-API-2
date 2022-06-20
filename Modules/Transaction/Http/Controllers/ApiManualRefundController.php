@@ -14,7 +14,7 @@ class ApiManualRefundController extends Controller
 
     public function listFailedVoidPayment(Request $request)
     {
-        $result = Transaction::select('transactions.id_transaction', 'transaction_date', 'transaction_receipt_number','transactions.transaction_from', 'users.name', 'users.phone', 'transaction_multiple_payments.type as trasaction_payment_type', 'transaction_grandtotal', 'need_manual_void', 'outlets.outlet_name', 'outlet_code', 'manual_refunds.refund_date', 'manual_refunds.note', 'manual_refunds.images', 'validator.name as validator_name', 'validator.phone as validator_phone', 'failed_void_reason', 'trasaction_type', 'manual_refunds.created_at as confirm_at', \DB::raw('transaction_grandtotal - coalesce(transaction_payment_balances.balance_nominal, 0) as manual_refund_nominal'))
+        $result = Transaction::select('transactions.id_transaction', 'transaction_date', 'transaction_receipt_number','transactions.transaction_from', 'users.name', 'users.phone', 'transaction_multiple_payments.type as trasaction_payment_type', 'transaction_grandtotal', 'need_manual_void', 'outlets.outlet_name', 'outlet_code', 'manual_refunds.refund_date', 'manual_refunds.note', 'manual_refunds.images', 'validator.name as validator_name', 'validator.phone as validator_phone', 'failed_void_reason', 'trasaction_type', 'manual_refunds.created_at as confirm_at', \DB::raw('transactions.refund_requirement as manual_refund_nominal'))
             ->join('users', 'users.id', 'transactions.id_user')
             ->join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')
             ->join('transaction_multiple_payments', function($query) {

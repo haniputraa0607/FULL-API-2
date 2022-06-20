@@ -8,6 +8,10 @@ use App\Http\Models\TransactionProduct;
 use DB;
 use App\Http\Models\Transaction;
 use App\Http\Models\Outlet;
+use DatePeriod;
+use DateInterval;
+use DateTime;
+
 class HairstylistIncome extends Model
 {
     public $primaryKey = 'id_hairstylist_income';
@@ -827,25 +831,25 @@ class HairstylistIncome extends Model
     }
     public static function calculateFixedIncentive(UserHairStylist $hs, $startDate,$endDate)
     {
-        $total = 0;
-        $array = array();
-        if($startDate < $hs->join_date){
-            $startDate = $hs->join_date;
+      $array = array();
+      $tanggal = (int) MyHelper::setting('hs_income_cut_off_end_date', 'value')??25;
+        // Variable that store the date interval
+        // of period 1 day
+        $interval = new DateInterval('P1D');
+
+        $realEnd = new DateTime($endDate);
+        $realEnd->add($interval);
+
+        $period = new DatePeriod(new DateTime($startDate), $interval, $realEnd);
+        $total_date = 0;
+        // Use loop to store date into array
+        foreach($period as $date) {                 
+            $angka = $date->format('d'); 
+            if($angka == $tanggal){
+                $total_date++;
+            }
         }
-        $start = date('Y-m-01', strtotime($startDate));
-        $end = date('Y-m-t', strtotime($endDate));
         $date_now = date('Y-m-d');
-        $date1=date_create($start);
-        $date2=date_create($end);
-        $diff=date_diff($date1,$date2);
-        $total_date = $diff->y*12+$diff->m;
-        $date = (int) MyHelper::setting('hs_income_cut_off_end_date', 'value')??25;
-        if(date('Y-m-d', strtotime($startDate)) < $date){
-            $total_date = $total_date - 1;
-        }
-        if(date('Y-m-d', strtotime($endDate)) > $date){
-            $total_date = $total_date - 1;
-        }
         $years_of_service = 0;
         $date3=date_create(date('Y-m-d', strtotime($hs->join_date)));
         $date4=date_create($date_now);
@@ -911,6 +915,36 @@ class HairstylistIncome extends Model
                     'status'=>$va['status']
                 );
          }
+        
+        return $array;
+    }
+    public static function calculateSalaryCuts(UserHairStylist $hs, $startDate,$endDate)
+    {
+        $array = array();
+        $loan = HairstylistLoan::where('id_user_hair_stylist',$hs->id_user_hair_stylist)
+                ->join('hairstylist_category_loans','hairstylist_category_loans.id_hairstylist_category_loan','hairstylist_loans.id_hairstylist_category_loan')
+                ->join('hairstylist_loan_returns', function($join) use ($startDate,$endDate) {
+                            $join->on('hairstylist_loan_returns.id_hairstylist_loan','hairstylist_loans.id_hairstylist_loan')
+                                ->whereBetween('hairstylist_loan_returns.date_pay',[$startDate,$endDate])
+                                ->where('hairstylist_loan_returns.status_return','Success');    
+                            })
+                ->select('hairstylist_category_loans.name_category_loan',
+                        DB::raw('
+                               SUM(
+                                 CASE WHEN hairstylist_loan_returns.status_return = "Success" AND hairstylist_loan_returns.date_pay IS NOT NULL THEN hairstylist_loan_returns.amount_return 
+                                         ELSE 0 END
+                                 ) as value
+                            '),
+                        )
+                ->groupby('hairstylist_category_loans.id_hairstylist_category_loan')
+                ->get();
+        foreach ($loan as $value) {
+           $array[] = array(
+                    "name"=> $value['name_category_loan'],
+                    "value"=> $value['value']
+                    
+                );
+        }
         
         return $array;
     }

@@ -289,6 +289,12 @@ class Kernel extends ConsoleKernel
          */
         $schedule->call('Modules\Employee\Http\Controllers\ApiEmployeeProfileController@cronReminder')->everyMinute();
 
+        /**
+         * Reset Department Balance
+         * run every minute
+         */
+        $schedule->call('Modules\Users\Http\Controllers\ApiDepartment@resetBalance')->dailyAt('00:15');
+
     }
 
     /**

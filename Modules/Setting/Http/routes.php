@@ -194,6 +194,13 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::get('global_commission_product', 'ApiSetting@global_commission_product_setting');
     Route::post('global_commission_product_create', 'ApiSetting@global_commission_product_create');
     
+    //delivery income
+    Route::get('setting-delivery-income', 'ApiSetting@delivery_income');
+    Route::post('setting-delivery-income-create', 'ApiSetting@delivery_income_create');
+    //delivery basic-salary
+    Route::get('setting-basic-salary', 'ApiSetting@basic_salary_employee');
+    Route::post('setting-basic-salary-create', 'ApiSetting@basic_salary_employee_create');
+    
     //salary formula
     Route::get('salary_formula', 'ApiSetting@salary_formula');
     Route::post('salary_formula_create', 'ApiSetting@salary_formula_create');

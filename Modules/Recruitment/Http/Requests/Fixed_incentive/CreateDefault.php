@@ -12,6 +12,7 @@ class CreateDefault extends FormRequest
     {
         return [
             'name_fixed_incentive'       => 'required',
+            'status'                     => 'required|in:incentive,salary_cut',
             'type'                       => 'required',
             'formula'                    => 'required',
            ]; 

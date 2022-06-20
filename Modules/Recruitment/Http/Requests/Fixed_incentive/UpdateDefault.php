@@ -15,6 +15,7 @@ class UpdateDefault extends FormRequest
         return [
             'id_hairstylist_group_default_fixed_incentive'  => 'required',
             'name_fixed_incentive'       => 'required',
+            'status'                     => 'required|in:incentive,salary_cut',
             'type'                       => 'required',
             'formula'                    => 'required',
            ]; 

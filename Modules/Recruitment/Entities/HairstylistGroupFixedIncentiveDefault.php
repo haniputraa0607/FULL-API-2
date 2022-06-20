@@ -17,6 +17,7 @@ class HairstylistGroupFixedIncentiveDefault extends Model
 
 	protected $fillable = [
         'name_fixed_incentive',
+        'status',
         'type',
         'formula',
         'created_at',   

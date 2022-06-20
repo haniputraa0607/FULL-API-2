@@ -683,7 +683,12 @@ class HairstylistIncome extends Model
         }
         $fixed = self::calculateFixedIncentive($hs, $startDate, $endDate);
         foreach ($fixed as $value) {
-            $total += $value['value'];
+            if($value['status']=='incentive'){
+                $total += $value['value'];
+            }else{
+                $total -= $value['value'];
+            }
+            
         }
           $array = array(
               array(
@@ -827,18 +832,20 @@ class HairstylistIncome extends Model
         if($startDate < $hs->join_date){
             $startDate = $hs->join_date;
         }
+        
         $start = date('Y-m-01', strtotime($startDate));
         $end = date('Y-m-t', strtotime($endDate));
+        dd($start);
         $date_now = date('Y-m-d');
         $date1=date_create($start);
         $date2=date_create($end);
         $diff=date_diff($date1,$date2);
         $total_date = $diff->y*12+$diff->m;
         $date = (int) MyHelper::setting('hs_income_cut_off_end_date', 'value')??25;
-        if(date('Y-m-d', strtotime($startDate)) > $date){
+        if(date('Y-m-d', strtotime($startDate)) < $date){
             $total_date = $total_date - 1;
         }
-        if(date('Y-m-d', strtotime($endDate)) < $date){
+        if(date('Y-m-d', strtotime($endDate)) > $date){
             $total_date = $total_date - 1;
         }
         $years_of_service = 0;
@@ -902,8 +909,8 @@ class HairstylistIncome extends Model
              }
              $array[] = array(
                     "name"=> $va['name_fixed_incentive'],
-                    "value"=> $harga
-                    
+                    "value"=> $harga,
+                    'status'=>$va['status']
                 );
          }
         

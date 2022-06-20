@@ -2154,4 +2154,52 @@ class ApiSetting extends Controller
         }
         return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
     }
+    public function delivery_income(){
+        $data = Setting::where('key','delivery_income')->first();
+         return response()->json($data);
+    }
+  
+    public function delivery_income_create(Request $request){
+        if(isset($request->value)){
+             $salary_formula = Setting::where('key','delivery_income')->first();
+             if($salary_formula){
+                 $data = Setting::where('key','delivery_income')->update([
+                  'value'=>$request->value,
+                 
+             ]);
+             }else{
+                 $data = Setting::create([
+                 'key'=>'delivery_income',
+                 'value'=> $request->value
+                    
+             ]);
+             }
+              return response()->json(MyHelper::checkCreate($data));
+        }
+        return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
+    }
+    public function basic_salary_employee(){
+        $data = Setting::where('key','basic_salary_employee')->first();
+         return response()->json($data);
+    }
+  
+    public function basic_salary_employee_create(Request $request){
+        if(isset($request->value)){
+             $salary_formula = Setting::where('key','basic_salary_employee')->first();
+             if($salary_formula){
+                 $data = Setting::where('key','basic_salary_employee')->update([
+                  'value'=>$request->value,
+                 
+             ]);
+             }else{
+                 $data = Setting::create([
+                 'key'=>'basic_salary_employee',
+                 'value'=> $request->value
+                    
+             ]);
+             }
+              return response()->json(MyHelper::checkCreate($data));
+        }
+        return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
+    }
 }

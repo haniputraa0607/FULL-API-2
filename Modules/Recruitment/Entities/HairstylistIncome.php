@@ -694,6 +694,10 @@ class HairstylistIncome extends Model
             }
             
         }
+        $loan = self::calculateSalaryCuts($hs, $startDate, $endDate);
+        foreach ($loan as $va) {
+                $total -= $va['value'];
+        }
           $array = array(
               array(
                     "name"=> "total commission",

@@ -394,7 +394,7 @@ class ApiIncome extends Controller
             if (in_array($v, $in_array)){
                 $not = '';
                 }else{
-                $not = 0;
+                $not = "0";
                 }
                 $isi[$v] = $vab[$v]??$not;
             }

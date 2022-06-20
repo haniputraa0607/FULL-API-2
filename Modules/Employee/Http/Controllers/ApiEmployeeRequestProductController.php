@@ -94,7 +94,10 @@ class ApiEmployeeRequestProductController extends Controller
         $send = [];
 
         $department = DepartmentBudget::join('departments', 'departments.id_department', 'department_budgets.id_department')->join('roles', 'roles.id_department', 'departments.id_department')->where('roles.id_role',$user['id_role'])->first();
-
+        if(!$department){
+            $department = Department::join('roles', 'roles.id_department', 'departments.id_department')->where('roles.id_role',$user['id_role'])->first();
+        }
+        
         $list_outlet = [];
         if(in_array('410',$roles) ){
             $list_outlet= Outlet::where('outlets.outlet_status', 'Active')->select('id_outlet', 'outlet_name')->orderBy('outlet_name', 'asc')->get()->toArray();
@@ -114,7 +117,7 @@ class ApiEmployeeRequestProductController extends Controller
         $send = [
             'id_department'  => $department['id_department'],   
             'name_department' => $department['department_name'],
-            'budget_department' => $department['budget_balance'],
+            'budget_department' => $department['budget_balance'] ?? 0,
             'list_outlet' => $list_outlet,
             'type_request' => [
                 [
@@ -147,7 +150,7 @@ class ApiEmployeeRequestProductController extends Controller
         $products = ProductCatalogDetail::join('product_icounts', 'product_icounts.id_product_icount', 'product_catalog_details.id_product_icount')
                                         ->join('product_catalogs', 'product_catalogs.id_product_catalog', 'product_catalog_details.id_product_catalog')
                                         ->where('product_catalogs.id_product_catalog', $post['id_product_catalog'])
-                                        ->select('product_catalog_details.id_product_icount','product_catalog_details.filter as category','product_icounts.name','product_icounts.unit1','product_icounts.unit3','product_icounts.unit3','product_icounts.ratio3','product_icounts.ratio3')
+                                        ->select('product_catalog_details.id_product_icount','product_catalog_details.filter as category','product_icounts.name','product_icounts.unit1','product_icounts.unit2','product_icounts.unit3','product_icounts.ratio2','product_icounts.ratio3')
                                         ->get()->toArray();
 
         $products = array_map(function($value){
@@ -186,6 +189,12 @@ class ApiEmployeeRequestProductController extends Controller
         $id_employee = $user['id'];
 
         $department = DepartmentBudget::join('departments', 'departments.id_department', 'department_budgets.id_department')->join('roles', 'roles.id_department', 'departments.id_department')->where('roles.id_role',$user['id_role'])->first();
+        if(!$department){
+            DB::rollback();
+            return response()->json(['status' => 'fail', 'messages' => ['Balance Department tidak mencukupi untuk melakukan permintaan barang']]);
+        }
+        $balance_now = DepartmentBudgetLog::where('id_department_budget',$department['id_department_budget'])->orderBy('created_at', 'desc')->first(); 
+        
         $total_cost = 0;
 
         DB::beginTransaction();
@@ -241,7 +250,7 @@ class ApiEmployeeRequestProductController extends Controller
                 'budget_code' => $product_icount['budget_code']
             ];
         }
-        if($department['budget_balance']<$total_cost){
+        if($balance_now['balance_total']<$total_cost){
             DB::rollback();
             return response()->json(['status' => 'fail', 'messages' => ['Balance Department tidak mencukupi untuk melakukan permintaan barang']]);
         }

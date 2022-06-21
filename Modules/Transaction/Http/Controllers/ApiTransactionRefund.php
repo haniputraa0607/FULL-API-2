@@ -247,6 +247,6 @@ class ApiTransactionRefund extends Controller
             }
         }
 
-        return $refund;
+        return $refund??['status' => 'success'];
     }
 }

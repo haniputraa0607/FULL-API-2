@@ -142,15 +142,39 @@ class ApiTransactionRefund extends Controller
             } else {
                 $point = 0;
                 $payMidtrans = TransactionPaymentMidtran::find($pay['id_payment']);
-
                 if ($payMidtrans) {
                     $doRefundPayment = MyHelper::setting('refund_midtrans');
                     if ($doRefundPayment) {
+                        if(!empty($trx['refundnominal'])){
+                            $refund = Midtrans::refundPartial($payMidtrans['vt_transaction_id'],['reason' => $order['reject_reason']??'', 'amount' => $trx['refundnominal']]);
+                        }else{
+                            $refund = Midtrans::refund($payMidtrans['vt_transaction_id'],['reason' => $order['reject_reason']??'']);
+                        }
+
                         $order->update([
-                            'refund_requirement' => $trx['refundnominal']??$payMidtrans['gross_amount'],
-                            'reject_type' => 'refund',
-                            'need_manual_void' => 1
+                            'reject_type'   => 'refund',
                         ]);
+                        if ($refund['status'] != 'success') {
+                            $order->update(['failed_void_reason' => implode(', ', $refund['messages'] ?? [])]);
+                            if ($refund_failed_process_balance) {
+                                $doRefundPayment = false;
+                            } else {
+                                $order->update(['need_manual_void' => 1]);
+                                $order2 = clone $order;
+                                $order2->payment_method = 'Midtrans';
+                                $order2->payment_detail = $payMidtrans['payment_type'];
+                                $order2->manual_refund = $payMidtrans['gross_amount'];
+                                $order2->payment_reference_number = $payMidtrans['vt_transaction_id'];
+                                if ($shared['reject_batch'] ?? false) {
+                                    $shared['void_failed'][] = $order2;
+                                } else {
+                                    $variables = [
+                                        'detail' => view('emails.failed_refund', ['transaction' => $order2])->render()
+                                    ];
+                                    app("Modules\Autocrm\Http\Controllers\ApiAutoCrm")->SendAutoCRM('Payment Void Failed', $order->phone, $variables, null, true);
+                                }
+                            }
+                        }
                     }
 
                     // don't use elseif / else because in the if block there are conditions that should be included in this process too
@@ -219,10 +243,10 @@ class ApiTransactionRefund extends Controller
 
             if($nominalRefund > 0){
                 $transaction['refundnominal'] = $nominalRefund;
-                $this->refundPayment($transaction);
+                $refund = $this->refundPayment($transaction);
             }
         }
 
-        return ['status' => 'success'];
+        return $refund;
     }
 }

@@ -2389,7 +2389,7 @@ class ApiUser extends Controller
                 //cek complete profile ?
                 if ($datauser[0]['complete_profile'] != "1") {
                     if ($datauser[0]['name'] != "" 
-                    	&& $datauser[0]['email'] != "" 
+                    	// && $datauser[0]['email'] != "" 
                     	&& $datauser[0]['gender'] != "" 
                     	&& $datauser[0]['birthday'] != "" 
                     	// && $datauser[0]['id_city'] != "" 

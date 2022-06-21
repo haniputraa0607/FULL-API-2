@@ -120,6 +120,7 @@ class ApiTransaction extends Controller
         $this->xendit         = 'Modules\Xendit\Http\Controllers\XenditController';
         $this->trx_outlet_service = "Modules\Transaction\Http\Controllers\ApiTransactionOutletService";
         $this->trx = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
+        $this->refund = "Modules\Transaction\Http\Controllers\ApiTransactionRefund";
         $this->home_service_status = [
             'Finding Hair Stylist' => ['code' => 1, 'text' => 'Mencari hair stylist'],
             'Get Hair Stylist' => ['code' => 2, 'text' => 'Dapat hair stylist'],
@@ -5364,7 +5365,12 @@ class ApiTransaction extends Controller
                     $errors[] = 'Model TransactionPaymentMidtran not found';
                     return false;
                 }
-                $refund = Midtrans::refund($payMidtrans['vt_transaction_id'],['reason' => 'refund transaksi']);
+                if($trx['refund_requirement'] > 0){
+                    $refund = Midtrans::refundPartial($payMidtrans['vt_transaction_id'],['reason' => 'refund transaksi', 'amount' => (int)$trx['refund_requirement']]);
+                }else{
+                    $refund = Midtrans::refund($payMidtrans['vt_transaction_id'],['reason' => 'refund transaksi']);
+                }
+
                 if ($refund['status'] != 'success') {
                     Transaction::where('id_transaction', $id_transaction)->update(['failed_void_reason' => implode(', ', $refund['messages'] ?? [])]);
                     $errors = $refund['messages'] ?? [];
@@ -5395,7 +5401,15 @@ class ApiTransaction extends Controller
                     $errors[] = 'Model TransactionPaymentXendit not found';
                     return false;
                 }
-                $refund = app($this->xendit)->refund($id_transaction, 'trx', [], $errors2);
+                if($trx['refund_requirement'] > 0){
+                    $refund = app($this->xendit)->refund($id_transaction, 'trx', [
+                        'amount' => (int) $trx['refund_requirement'],
+                        'reason' => 'Refund partial'
+                    ], $errors2);
+                }else{
+                    $refund = app($this->xendit)->refund($id_transaction, 'trx', [], $errors2);
+                }
+
                 if (!$refund) {
                     Transaction::where('id_transaction', $id_transaction)->update(['failed_void_reason' => implode(', ', $errors2 ?: [])]);
                     $errors = $errors2;

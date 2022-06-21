@@ -5395,7 +5395,7 @@ class ApiTransaction extends Controller
                     $errors[] = 'Model TransactionPaymentXendit not found';
                     return false;
                 }
-                $refund = app($this->xendit)->refund($id_transaction, 'trx', $errors2);
+                $refund = app($this->xendit)->refund($id_transaction, 'trx', [], $errors2);
                 if (!$refund) {
                     Transaction::where('id_transaction', $id_transaction)->update(['failed_void_reason' => implode(', ', $errors2 ?: [])]);
                     $errors = $errors2;

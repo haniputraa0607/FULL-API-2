@@ -578,7 +578,7 @@ class XenditController extends Controller
         }
     }
 
-    public function refund($reference, $type = 'trx', &$errors = null, &$refund_reference_id = null)
+    public function refund($reference, $type = 'trx', $partial = [], &$errors = null, &$refund_reference_id = null)
     {
         $data = [
             'payment_reference_id' => '',
@@ -586,6 +586,12 @@ class XenditController extends Controller
         $params = [
             'for-user-id'  => null,
         ];
+
+        if(!empty($partial)){
+            $params['amount'] = $partial['amount'];
+            $params['reason'] = $partial['reason'];
+        }
+
         switch ($type) {
             case 'trx':
                 if (is_numeric($reference)) {

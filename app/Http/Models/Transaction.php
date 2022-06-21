@@ -660,11 +660,10 @@ class Transaction extends Model
 
     	$this->update([
     		'reject_at' => date('Y-m-d H:i:s'),
-    		'reject_reason' => $data['reject_reason'] ?? null,
-	    	'refund_requirement' => $this->transaction_grandtotal,// update refund_requirement
+    		'reject_reason' => $data['reject_reason'] ?? null
     	]);
 
-    	$refundPayment = app('\Modules\OutletApp\Http\Controllers\ApiOutletApp')->refundPayment($this);
+    	$refundPayment = app('\Modules\Transaction\Http\Controllers\ApiTransactionRefund')->refundPayment($this);
     	if (empty($refundPayment['status']) || $refundPayment['status'] != 'success') {
         	\DB::rollBack();
         	return false;

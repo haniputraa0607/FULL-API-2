@@ -2378,7 +2378,7 @@ class ApiUser extends Controller
                 $datauser = User::where('id', '=', $data[0]['id'])->with(['city','city.province'])->get()->toArray();
 
                 if ($request->id_user_address) {
-                    $user = User::find($data[0]);
+                    $user = User::find($data[0]['id']);
                     $user_address = $user->addresses()->where('id_user_address', $request->id_user_address)->first();
                     if ($user_address) {
                         $user->addresses()->update(['favorite' => 0]);

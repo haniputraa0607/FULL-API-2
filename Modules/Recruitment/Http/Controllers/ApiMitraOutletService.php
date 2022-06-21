@@ -55,6 +55,7 @@ class ApiMitraOutletService extends Controller
 		$this->trx = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
 		$this->trx_outlet_service = "Modules\Transaction\Http\Controllers\ApiTransactionOutletService";
 		$this->mitra_log_balance = "Modules\Recruitment\Http\Controllers\MitraLogBalance";
+        $this->refund = "Modules\Transaction\Http\Controllers\ApiTransactionRefund";
 	}
 
 	public function customerQueue(Request $request)

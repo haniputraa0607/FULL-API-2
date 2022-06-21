@@ -6647,7 +6647,7 @@ class ApiOutletApp extends Controller
                     if ($payXendit) {
                         $doRefundPayment = MyHelper::setting('refund_xendit');
                         if($doRefundPayment){
-                            $refund = app($this->xendit)->refund($payXendit['id_transaction'], 'trx', $errors);
+                            $refund = app($this->xendit)->refund($payXendit['id_transaction'], 'trx', [], $errors);
                             $order->update([
                                 'reject_type'   => 'refund',
                             ]);

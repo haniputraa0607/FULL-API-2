@@ -1092,6 +1092,9 @@ class ApiMitraOutletService extends Controller
 
     	$box_url = str_replace(['%box_code%', '%command%', '%status%', '%time%'], [$box->outlet_box_code, 0, 0, 0], $box->outlet_box_url ?: MyHelper::setting('outlet_box_default_url'));
 
+        //check if anyone is rejected
+        app($this->refund)->refundNotFullPayment($service->id_transaction);
+
     	return [
     		'status' => 'success',
     		'result' => [

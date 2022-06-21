@@ -91,6 +91,7 @@ class ApiTransactionOutletService extends Controller
         $this->outlet = "Modules\Outlet\Http\Controllers\ApiOutletController";
         $this->product = "Modules\Product\Http\Controllers\ApiProductController";
         $this->trx = "Modules\Transaction\Http\Controllers\ApiTransaction";
+        $this->refund = "Modules\Transaction\Http\Controllers\ApiTransactionRefund";
     }
 
     public function listOutletService(Request $request)
@@ -1570,6 +1571,8 @@ class ApiTransactionOutletService extends Controller
 		]);
 
 		DB::commit();
+        //check if anyone is rejected
+        app($this->refund)->refundNotFullPayment($trx->id_transaction);
 
 		return MyHelper::checkCreate($logTrx);
     }

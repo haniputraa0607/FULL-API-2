@@ -164,7 +164,8 @@ class FindingHairStylistHomeService implements ShouldQueue
                 ]);
 
                 if($updateStatus){
-                    Transaction::where('id_transaction', $data['id_transaction'])->update(['reject_at' => date('Y-m-d H:i:s')]);
+                    $transactions = Transaction::where('id_transaction', $data['id_transaction'])->first();
+                    $transactions->triggerReject(['reject_reason' => 'Home service reject']);
 
                     app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
                         'Home Service Update Status',
@@ -182,8 +183,6 @@ class FindingHairStylistHomeService implements ShouldQueue
                     ]);
 
                     TransactionHomeServiceHairStylistFinding::where('id_transaction', $data['id_transaction'])->delete();
-                    //refund payment
-                    app('Modules\Transaction\Http\Controllers\ApiTransactionHomeService')->rejectOrder($data['id_transaction']);
                 }
             }
         }

@@ -37,6 +37,7 @@ use Modules\Recruitment\Entities\HairstylistOverTime;
 use Modules\Recruitment\Http\Requests\ScheduleCreateRequest;
 use Modules\Recruitment\Entities\OutletCashAttachment;
 use Modules\Recruitment\Entities\HairstylistAttendanceLog;
+use Modules\Transaction\Entities\HairstylistNotAvailable;
 
 use App\Lib\MyHelper;
 use DB;
@@ -424,7 +425,7 @@ class ApiMitra extends Controller
 
 		$level = $user['level'];
 		$level = ($level == 'Hairstylist') ? 'Mitra' : (($level == 'Supervisor') ? 'SPV' : null);
-
+		
 		$res = [
 			'id_user_hair_stylist' => $user['id_user_hair_stylist'],
 			'user_hair_stylist_code' => $user['user_hair_stylist_code'],
@@ -517,6 +518,10 @@ class ApiMitra extends Controller
 		->wheredate('date', date('Y-m-d'))
         ->whereNotNull('reject_at')
 		->first();
+		$not_avail = HairstylistNotAvailable::join('hairstylist_time_off', 'hairstylist_time_off.id_hairstylist_time_off', 'hairstylist_not_available.id_hairstylist_time_off')
+		->where('hairstylist_not_available.id_outlet', $hs->id_outlet)->where('hairstylist_not_available.id_user_hair_stylist', $id_user_hair_stylist)
+		->whereDate('hairstylist_time_off.date', date('Y-m-d'))->whereTime('hairstylist_time_off.start_time', '<=', date('H:i:s'))->whereTime('hairstylist_time_off.end_time', '>=', date('H:i:s'))
+		->first();
 		$outletShift = OutletTimeShift::where('id_outlet_schedule', $outletSchedule->id_outlet_schedule)
 		->where(function($q) use ($curTime) {
 			$q->where(function($q2) use ($curTime) {
@@ -564,7 +569,10 @@ class ApiMitra extends Controller
             }elseif(($start > $now || $end < $now) && $clock_in && $overtime){
                 $status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal shift pada hari dan jam ini.";
 				return $status;
-            }
+            }elseif($not_avail){
+				$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda sedang dalam cuti.";
+                return $status;
+			}
 		}elseif (!$mitraSchedule) {
 			$status['messages'][] = "Layanan tidak bisa diaktifkan.\n Anda tidak memiliki jadwal layanan outlet hari ini.";
 			return $status;
@@ -821,7 +829,10 @@ class ApiMitra extends Controller
 		)
 		->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
 		->where('date', date('Y-m-d'))
-		->whereIn('shift', $shift)
+		->where(function($q)use($shift){
+			$q->whereIn('shift', $shift)->orWhere('is_overtime', '1');
+
+		})
 		->first();
 
 		return $todayShift;

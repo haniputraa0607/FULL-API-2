@@ -312,7 +312,7 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                 $data_update['approve_by'] = auth()->user()->id;
                 $data_update['approve_at'] = date('Y-m-d');
             }
-
+            
             if($data_update){
                 DB::beginTransaction();
                 $update = HairStylistTimeOff::where('id_hairstylist_time_off',$post['id_hairstylist_time_off'])->update($data_update);
@@ -331,8 +331,14 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                         "booking_start" => date('Y-m-d', strtotime($data_update['date'])).' '.$data_update['start_time'],
                         "booking_end" => date('Y-m-d', strtotime($data_update['date'])).' '.$data_update['end_time'],
                     ];
+                    
                     $store_not_avail = HairstylistNotAvailable::create($data_not_avail);
-                    if(!$store_not_avail){
+
+                    $schedule_date = HairstylistScheduleDate::join('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
+                    ->where('id_user_hair_stylist', $data_update['id_user_hair_stylist'])->where('id_outlet', $data_update['id_outlet'])
+                    ->whereDate('date', $data_update['date'])
+                    ->update(['id_outlet_box' => null]);
+                    if(!$store_not_avail || !$schedule_date){
                         DB::rollBack();
                         return response()->json([
                             'status' => 'success', 

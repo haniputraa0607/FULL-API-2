@@ -772,7 +772,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
         $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
         
-        $histories = EmployeeOutletAttendanceRequest::join('outlets','outlets.id_outlet', 'employee_outlet_attendance_requests.id_outlet')->where('id', $employee['id'])->select('outlet_name','attendance_date', 'clock_in', 'clock_out', 'status', 'notes')->paginate(10)->toArray();
+        $histories = EmployeeOutletAttendanceRequest::join('outlets','outlets.id_outlet', 'employee_outlet_attendance_requests.id_outlet')->where('id', $employee['id'])->select('outlet_name','attendance_date', 'clock_in', 'clock_out', 'status', 'notes')->orderBy('attendance_date','asc')->paginate(10)->toArray();
         $data = [];
         foreach($histories['data'] ?? [] as $val){
             if(isset($val['clock_in'])){

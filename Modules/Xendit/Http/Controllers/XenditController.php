@@ -55,6 +55,7 @@ class XenditController extends Controller
         $universalStatus = [
             'FAILED' => 'FAILED', // OVO & LINKAJA
             'COMPLETED' => 'COMPLETED', // OVO
+            'SETTLED' => 'COMPLETED', // BANK TRANSFER
             'EXPIRED' => 'FAILED', // DANA
             'PAID' => 'COMPLETED', // DANA
             'SUCCESS_COMPLETED' => 'COMPLETED', // LINKAJA

@@ -106,7 +106,7 @@ class ApiEmployeeProfileController extends Controller
        }
        $response = array(
            'id' => $profile->id,
-           'barcode'=>$profile->id_employee,
+           'barcode'=>$profile->code,
            'companies'=>$profile->outlet_name,
            'branch'=>'Pusat',
            'departement'=>$profile->department_name,

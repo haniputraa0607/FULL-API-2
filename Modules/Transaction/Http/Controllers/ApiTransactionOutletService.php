@@ -94,14 +94,14 @@ class ApiTransactionOutletService extends Controller
         $this->refund = "Modules\Transaction\Http\Controllers\ApiTransactionRefund";
     }
 
-    public function getTimezone($time = null, $time_zone_utc = 7){
+    public function getTimezone($time = null, $time_zone_utc = 7, $format = 'Y-m-d H:i'){
         $data['time_zone_id'] = 'WIB';
         $default_time_zone_utc = 7;
         $time_diff = $time_zone_utc - $default_time_zone_utc;
         if(isset($time)){
-        $data['time'] = date('Y-m-d H:i', strtotime('+'.$time_diff.' hour',strtotime($time)));
+        $data['time'] = date($format, strtotime('+'.$time_diff.' hour',strtotime($time)));
         }else{
-        $data['time'] = date('Y-m-d H:i', strtotime('+'.$time_diff.' hour'));
+        $data['time'] = date($format, strtotime('+'.$time_diff.' hour'));
         }
         switch ($time_zone_utc) {
             case 8:
@@ -1001,8 +1001,8 @@ class ApiTransactionOutletService extends Controller
                 ->leftJoin('transaction_payment_xendits', 'transactions.id_transaction', '=', 'transaction_payment_xendits.id_transaction')
 	            ->with('user')
 	            ->where('transaction_payment_status', 'Completed')
-	            ->whereNull('transaction_outlet_services.completed_at')
-	            ->whereNull('transaction_outlet_services.reject_at')
+	            ->whereNull('transaction_products.transaction_product_completed_at')
+	            ->whereNull('transaction_products.reject_at')
 	            ->whereNull('transactions.reject_at')
 	            ->select(
 	            	'transaction_product_services.*',
@@ -1011,7 +1011,7 @@ class ApiTransactionOutletService extends Controller
 	            	'transaction_products.*',
 	            	'outlets.*',
 	            	'users.*',
-	            	'transactions.*',
+	            	'transactions.*'
 	            )
 	            ->groupBy('transactions.id_transaction');
 
@@ -1056,8 +1056,24 @@ class ApiTransactionOutletService extends Controller
             // needed by datatables
             $list['recordsTotal'] = $countTotal;
             $list['recordsFiltered'] = $list['total'];
+            $list['data'] = array_map(function($val){
+                $outlet = Outlet::where('id_outlet',$val['id_outlet'])->first();
+                $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+                ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+                $date_time = $this->getTimezone($val['transaction_date'], $timeZone);
+                $val['transaction_date'] = $date_time['time'].' '.$date_time['time_zone_id'];
+                return $val;
+            },$list['data']);
         } else {
             $list = $list->get();
+            $list = array_map(function($val){
+                $outlet = Outlet::where('id_outlet',$val['id_outlet'])->first();
+                $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+                ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+                $date_time = $this->getTimezone($val['transaction_date'], $timeZone);
+                $val['transaction_date'] = $date_time['time'].' '.$date_time['time_zone_id'];
+                return $val;
+            },$list->toArray());
         }
         return MyHelper::checkGet($list);
     }
@@ -1117,11 +1133,13 @@ class ApiTransactionOutletService extends Controller
 		foreach ($detail['transaction_products'] as $product) {
 			$productPhoto = config('url.storage_url_api') . ($product['product']['photos'][0]['product_photo'] ?? 'img/product/item/default.png');
 			if ($product['type'] == 'Service') {
+                $schedule_time = $this->getTimezone($product['transaction_product_service']['schedule_time'],$timezone,'H:i');
 				$services[] = [
 					'id_user_hair_stylist' => $product['transaction_product_service']['id_user_hair_stylist'],
 					'hairstylist_name' => $product['transaction_product_service']['user_hair_stylist']['nickname'],
 					'schedule_date' => MyHelper::dateFormatInd($product['transaction_product_service']['schedule_date'], true, false),
-					'schedule_time' => MyHelper::adjustTimezone($product['transaction_product_service']['schedule_time'], $timezone, 'H:i'),
+					'schedule_time' => $schedule_time['time'],
+					'schedule_time_zone' => $schedule_time['time_zone_id'],
                     'id_product' => $product['product']['id_product'],
 					'product_name' => $product['product']['product_name'],
 					'subtotal' => 'IDR '.number_format(($product['transaction_product_subtotal']),0,',','.'),
@@ -1516,8 +1534,6 @@ class ApiTransactionOutletService extends Controller
 			'reject_at' => date('Y-m-d H:i:s'),
 			'reject_reason' => $request->note		
 		]);
-
-		$trx->update(['need_manual_void' => 1]);
 
 		// return stok for product and remove book for service
 		if (isset($trxProduct['transaction_product_service']['id_transaction_product_service'])) {

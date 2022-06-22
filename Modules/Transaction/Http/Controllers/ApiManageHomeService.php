@@ -5,6 +5,7 @@ namespace Modules\Transaction\Http\Controllers;
 use App\Http\Models\Configs;
 use App\Http\Models\LogBalance;
 use App\Http\Models\Outlet;
+use App\Http\Models\Province;
 use App\Http\Models\OutletSchedule;
 use App\Http\Models\Setting;
 use App\Http\Models\Transaction;
@@ -68,6 +69,26 @@ class ApiManageHomeService extends Controller
         $this->trx_outlet_service = "Modules\Transaction\Http\Controllers\ApiTransactionOutletService";
         $this->mitra = "Modules\Recruitment\Http\Controllers\ApiMitra";
     }
+    
+    public function getTimezone($time = null, $time_zone_utc = 7, $format = 'Y-m-d H:i'){
+        $data['time_zone_id'] = 'WIB';
+        $default_time_zone_utc = 7;
+        $time_diff = $time_zone_utc - $default_time_zone_utc;
+        if(isset($time)){
+        $data['time'] = date($format, strtotime('+'.$time_diff.' hour',strtotime($time)));
+        }else{
+        $data['time'] = date($format, strtotime('+'.$time_diff.' hour'));
+        }
+        switch ($time_zone_utc) {
+            case 8:
+                $data['time_zone_id'] = 'WITA';
+            break;
+            case 9:
+                $data['time_zone_id'] = 'WIT';
+            break;
+        }
+        return $data;
+    }
 
     public function manageList(Request $request)
     {
@@ -78,11 +99,11 @@ class ApiManageHomeService extends Controller
             ->leftJoin('transaction_payment_xendits', 'transactions.id_transaction', '=', 'transaction_payment_xendits.id_transaction')
             ->with('user')
             ->where('transaction_payment_status', 'Completed')
-            ->where(function($q) {
-            	$q->whereNotIn('transaction_home_services.status', ['Cancelled', 'Completed'])
-            	->orWhereNull('transaction_home_services.status');
-            })
-            ->whereNull('transactions.reject_at')
+            // ->where(function($q) {
+            // 	$q->whereNotIn('transaction_home_services.status', ['Cancelled', 'Completed'])
+            // 	->orWhereNull('transaction_home_services.status');
+            // })
+            // ->whereNull('transactions.reject_at')
             ->select(
                 'transaction_home_services.*',	
                 'users.*',
@@ -115,7 +136,7 @@ class ApiManageHomeService extends Controller
             }
         }
         $list->orderBy('transactions.id_transaction', $column['dir'] ?? 'DESC');
-
+        
         if ($request->page) {
             $list = $list->paginate($request->length ?: 15);
             $list->each(function($item) {
@@ -130,8 +151,24 @@ class ApiManageHomeService extends Controller
             // needed by datatables
             $list['recordsTotal'] = $countTotal;
             $list['recordsFiltered'] = $list['total'];
+            $list['data'] = array_map(function($val){
+                $outlet = Outlet::where('id_outlet',$val['id_outlet'])->first();
+                $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+                ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+                $date_time = $this->getTimezone($val['transaction_date'], $timeZone);
+                $val['transaction_date'] = $date_time['time'].' '.$date_time['time_zone_id'];
+                return $val;
+            },$list['data']);
         } else {
             $list = $list->get();
+            $list = array_map(function($val){
+                $outlet = Outlet::where('id_outlet',$val['id_outlet'])->first();
+                $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+                ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+                $date_time = $this->getTimezone($val['transaction_date'], $timeZone);
+                $val['transaction_date'] = $date_time['time'].' '.$date_time['time_zone_id'];
+                return $val;
+            },$list->toArray());
         }
         return MyHelper::checkGet($list);
     }
@@ -229,7 +266,15 @@ class ApiManageHomeService extends Controller
         $settingStart = Setting::where('key', 'home_service_time_start')->first()['value']??'07:00:00';
         $settingEnd = Setting::where('key', 'home_service_time_end')->first()['value']??'22:00:00';
 
-        $trx->load('user');
+        $trx->load('user','outlet');
+        if(!$trx['outlet']){
+            $transaction_outlet = Transaction::where(['transactions.id_transaction' => $id])->first();
+            $outlet_transaction = Outlet::where('id_outlet',$transaction_outlet['id_outlet'])->first();
+        }
+        $city_transaction = $trx['outlet']['id_city'] ?? $outlet_transaction['id_city'];
+        $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+        ->where('id_city', $city_transaction)->first()['time_zone_utc']??null;
+        $date_time = $this->getTimezone($trx['schedule_time'], $timeZone, 'H:i');
         $result = [
             'id_transaction'                => $trx['id_transaction'],
             'transaction_receipt_number'    => $trx['transaction_receipt_number'],
@@ -243,7 +288,8 @@ class ApiManageHomeService extends Controller
             'trasaction_type'               => $trx['trasaction_type'],
             'transaction_payment_status'    => $trx['transaction_payment_status'],
             'booking_date'                  => $trx['schedule_date'],
-            'booking_time'                  => $trx['schedule_time'],
+            'booking_time'                  => $date_time['time'],
+            'booking_time_zone'             => $date_time['time_zone_id'],
             'destination_name'              => $trx['destination_name'],
             'destination_phone'             => $trx['destination_phone'],
             'destination_address'           => $trx['destination_address'],
@@ -281,6 +327,11 @@ class ApiManageHomeService extends Controller
         foreach ($trxServices as $ts){
             $totalItem += $ts['transaction_product_qty'];
         }
+        if(!$trx['outlet']){
+            $transaction_outlet = Transaction::where(['transactions.id_transaction' => $id])->first();
+            $outlet_transaction = Outlet::where('id_outlet',$transaction_outlet['id_outlet'])->first();
+        }
+
         $result['product_service'] = $trxServices;
         $trx['transaction_item_service_total'] = $totalItem;
 
@@ -467,7 +518,7 @@ class ApiManageHomeService extends Controller
 				'messages' => ['Transaction not found']
 			];
 		}
-
+        
     	\DB::beginTransaction();
 
 		HairstylistNotAvailable::where('id_transaction', $request->id_transaction)->delete();

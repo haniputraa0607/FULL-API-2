@@ -2202,4 +2202,52 @@ class ApiSetting extends Controller
         }
         return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
     }
+    public function hs_income_calculation_mid(){
+        $data = Setting::where('key','hs_income_calculation_mid')->first();
+         return response()->json($data);
+    }
+  
+    public function hs_income_calculation_mid_create(Request $request){
+        if(isset($request->code)){
+             $salary_formula = Setting::where('key','hs_income_calculation_mid')->first();
+             if($salary_formula){
+                 $data = Setting::where('key','hs_income_calculation_mid')->update([
+                  'value_text'=>json_encode($request->code)
+                 
+             ]);
+             }else{
+                 $data = Setting::create([
+                 'key'=>'hs_income_calculation_mid',
+                 'value_text'=>json_encode($request->code)
+                    
+             ]);
+             }
+              return response()->json(MyHelper::checkCreate($data));
+        }
+        return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
+    }
+    public function hs_income_calculation_end(){
+        $data = Setting::where('key','hs_income_calculation_end')->first();
+         return response()->json($data);
+    }
+  
+    public function hs_income_calculation_end_create(Request $request){
+        if(isset($request->code)){
+             $salary_formula = Setting::where('key','hs_income_calculation_end')->first();
+             if($salary_formula){
+                 $data = Setting::where('key','hs_income_calculation_end')->update([
+                  'value_text'=>json_encode($request->code),
+                 
+             ]);
+             }else{
+                 $data = Setting::create([
+                 'key'=>'hs_income_calculation_end',
+                 'value_text'=>json_encode($request->code)
+                    
+             ]);
+             }
+              return response()->json(MyHelper::checkCreate($data));
+        }
+        return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
+    }
 }

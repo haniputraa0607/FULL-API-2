@@ -94,6 +94,26 @@ class ApiTransactionOutletService extends Controller
         $this->refund = "Modules\Transaction\Http\Controllers\ApiTransactionRefund";
     }
 
+    public function getTimezone($time = null, $time_zone_utc = 7){
+        $data['time_zone_id'] = 'WIB';
+        $default_time_zone_utc = 7;
+        $time_diff = $time_zone_utc - $default_time_zone_utc;
+        if(isset($time)){
+        $data['time'] = date('Y-m-d H:i', strtotime('+'.$time_diff.' hour',strtotime($time)));
+        }else{
+        $data['time'] = date('Y-m-d H:i', strtotime('+'.$time_diff.' hour'));
+        }
+        switch ($time_zone_utc) {
+            case 8:
+                $data['time_zone_id'] = 'WITA';
+            break;
+            case 9:
+                $data['time_zone_id'] = 'WIT';
+            break;
+        }
+        return $data;
+    }
+
     public function listOutletService(Request $request)
     {	
     	$list = Transaction::where('transaction_from', 'outlet-service')
@@ -143,7 +163,7 @@ class ApiTransactionOutletService extends Controller
             }
         }
         $list->orderBy('transactions.id_transaction', $column['dir'] ?? 'DESC');
-
+        
         if ($request->page) {
             $list = $list->paginate($request->length ?: 15);
             $list->each(function($item) {
@@ -158,8 +178,24 @@ class ApiTransactionOutletService extends Controller
             // needed by datatables
             $list['recordsTotal'] = $countTotal;
             $list['recordsFiltered'] = $list['total'];
+            $list['data'] = array_map(function($val){
+                $outlet = Outlet::where('id_outlet',$val['id_outlet'])->first();
+                $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+                ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+                $date_time = $this->getTimezone($val['transaction_date'], $timeZone);
+                $val['transaction_date'] = $date_time['time'].' '.$date_time['time_zone_id'];
+                return $val;
+            },$list['data']);
         } else {
             $list = $list->get();
+            $list = array_map(function($val){
+                $outlet = Outlet::where('id_outlet',$val['id_outlet'])->first();
+                $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+                ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+                $date_time = $this->getTimezone($val['transaction_date'], $timeZone);
+                $val['transaction_date'] = $date_time['time'].' '.$date_time['time_zone_id'];
+                return $val;
+            },$list->toArray());
         }
         return MyHelper::checkGet($list);
     }
@@ -276,11 +312,15 @@ class ApiTransactionOutletService extends Controller
         $trx['payment'] = $trxPayment['payment'];
        
         $trx->load('user','outlet');
+        $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+        ->where('id_city', $trx['outlet']['id_city'])->first()['time_zone_utc']??null;
+        $date_time = $this->getTimezone($trx['transaction_date'], $timeZone);
         $result = [
             'id_transaction'                => $trx['id_transaction'],
             'transaction_receipt_number'    => $trx['transaction_receipt_number'],
-            'receipt_qrcode' 						=> 'https://chart.googleapis.com/chart?chl=' . $trx['transaction_receipt_number'] . '&chs=250x250&cht=qr&chld=H%7C0',
-            'transaction_date'              => date('d M Y H:i', strtotime($trx['transaction_date'])),
+            'receipt_qrcode' 				=> 'https://chart.googleapis.com/chart?chl=' . $trx['transaction_receipt_number'] . '&chs=250x250&cht=qr&chld=H%7C0',
+            'transaction_date'              => date('d M Y H:i', strtotime($date_time['time'])),
+            'transaction_date_timezone'     => $date_time['time_zone_id'],
             'trasaction_type'               => $trx['trasaction_type'],
             'transaction_grandtotal'        => MyHelper::requestNumber($trx['transaction_grandtotal'],'_CURRENCY'),
             'transaction_subtotal'          => MyHelper::requestNumber($trx['transaction_subtotal'],'_CURRENCY'),
@@ -1474,8 +1514,7 @@ class ApiTransactionOutletService extends Controller
 		DB::beginTransaction();
 		$trxProduct->update([
 			'reject_at' => date('Y-m-d H:i:s'),
-			'reject_reason' => $request->note,
-			'need_manual_void' => 1
+			'reject_reason' => $request->note		
 		]);
 
 		$trx->update(['need_manual_void' => 1]);

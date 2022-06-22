@@ -1001,8 +1001,8 @@ class ApiTransactionOutletService extends Controller
                 ->leftJoin('transaction_payment_xendits', 'transactions.id_transaction', '=', 'transaction_payment_xendits.id_transaction')
 	            ->with('user')
 	            ->where('transaction_payment_status', 'Completed')
-	            ->whereNull('transaction_outlet_services.completed_at')
-	            ->whereNull('transaction_outlet_services.reject_at')
+	            ->whereNull('transaction_products.transaction_product_completed_at')
+	            ->whereNull('transaction_products.reject_at')
 	            ->whereNull('transactions.reject_at')
 	            ->select(
 	            	'transaction_product_services.*',
@@ -1011,7 +1011,7 @@ class ApiTransactionOutletService extends Controller
 	            	'transaction_products.*',
 	            	'outlets.*',
 	            	'users.*',
-	            	'transactions.*',
+	            	'transactions.*'
 	            )
 	            ->groupBy('transactions.id_transaction');
 
@@ -1516,8 +1516,6 @@ class ApiTransactionOutletService extends Controller
 			'reject_at' => date('Y-m-d H:i:s'),
 			'reject_reason' => $request->note		
 		]);
-
-		$trx->update(['need_manual_void' => 1]);
 
 		// return stok for product and remove book for service
 		if (isset($trxProduct['transaction_product_service']['id_transaction_product_service'])) {

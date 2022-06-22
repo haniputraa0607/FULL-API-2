@@ -139,4 +139,11 @@ return [
         'logo'            => env('STORAGE_URL_API').'default_image/payment_method/ic_creditcard.png',
         'text'            => 'Credit Card'
     ],
+    'xendit_virtual_account'      => [
+        'payment_gateway' => 'Xendit',
+        'payment_method'  => 'VIRTUAL_ACCOUNT',
+        'status'          => 1,
+        'logo'            => env('STORAGE_URL_API').'default_image/payment_method/ic_banktransfer.png',
+        'text'            => 'Virtual Account'
+    ],
 ];

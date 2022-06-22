@@ -3326,12 +3326,12 @@ class MyHelper{
     	if (is_null($timezone)) {
     		$user = request()->user();
     		if ($user) {
-    			$timezone = $user->user_time_zone_utc ?? 7;
+    			$timezone = $user->user_time_zone_utc ? ($user->user_time_zone_utc == 0 ? 7 : $user->user_time_zone_utc) : 7;
     		} else {
     			$timezone = 7;
     		}
     	}
-
+		
     	if (!is_numeric($timeserver)) {
     		$timeserver = strtotime($timeserver);
     	}

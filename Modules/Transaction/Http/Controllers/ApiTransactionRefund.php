@@ -144,6 +144,7 @@ class ApiTransactionRefund extends Controller
                 $payMidtrans = TransactionPaymentMidtran::find($pay['id_payment']);
                 if ($payMidtrans) {
                     $doRefundPayment = MyHelper::setting('refund_midtrans');
+                    $amountMidtrans = $trx['refundnominal']??$payMidtrans['gross_amount'];
                     if ($doRefundPayment) {
                         if(!empty($trx['refundnominal'])){
                             $refund = Midtrans::refundPartial($payMidtrans['vt_transaction_id'],['reason' => $order['reject_reason']??'', 'amount' => $trx['refundnominal']]);
@@ -159,7 +160,7 @@ class ApiTransactionRefund extends Controller
                             if ($refund_failed_process_balance) {
                                 $doRefundPayment = false;
                             } else {
-                                $order->update(['need_manual_void' => 1]);
+                                $order->update(['need_manual_void' => 1, 'refund_requirement' => $amountMidtrans]);
                                 $order2 = clone $order;
                                 $order2->payment_method = 'Midtrans';
                                 $order2->payment_detail = $payMidtrans['payment_type'];
@@ -227,13 +228,14 @@ class ApiTransactionRefund extends Controller
     {
         $transaction = Transaction::where('id_transaction', $id_transaction)->first();
         $nominalRefund = 0;
+        $notCompleted = 0;
 
         if($transaction['transaction_from'] == 'outlet-service'){
             $products = TransactionProduct::where('id_transaction', $id_transaction)->get()->toArray();
 
             foreach ($products as $product){
                 if(empty($product['transaction_product_completed_at']) && empty($product['reject_at'])){
-                    break;
+                    $notCompleted = 1;
                 }
 
                 if(!empty($product['reject_at'])){
@@ -241,7 +243,7 @@ class ApiTransactionRefund extends Controller
                 }
             }
 
-            if($nominalRefund > 0){
+            if($notCompleted == 0 && $nominalRefund > 0){
                 $transaction['refundnominal'] = $nominalRefund;
                 $refund = $this->refundPayment($transaction);
             }

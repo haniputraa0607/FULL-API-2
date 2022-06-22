@@ -155,7 +155,7 @@ class UserHairStylist extends Authenticatable
                 ->whereDate('date', $schedule)
                 ->first();
             if (!$schedule || !$schedule->date) {
-                throw new \Exception('Tidak ada kehadiran dibutuhkan untuk hari ini');
+                throw new \App\Exceptions\SilentException('Tidak ada kehadiran dibutuhkan untuk hari ini');
             }
         }
         $attendance = $this->attendances()->where('attendance_date', $schedule->date)->first();
@@ -172,7 +172,7 @@ class UserHairStylist extends Authenticatable
                     ->first()
                     ->id_hairstylist_schedule_date;
             if (!$id_hairstylist_schedule_date) {
-                throw new \Exception('Tidak ada kehadiran dibutuhkan untuk hari ini');
+                throw new \App\Exceptions\SilentException('Tidak ada kehadiran dibutuhkan untuk hari ini');
             }
             $attendance = $this->attendances()->create([
                 'id_hairstylist_schedule_date' => $id_hairstylist_schedule_date,

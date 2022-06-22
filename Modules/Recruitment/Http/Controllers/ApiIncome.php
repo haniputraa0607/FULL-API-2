@@ -84,13 +84,14 @@ class ApiIncome extends Controller
         $hs = UserHairStylist::get();
         $type = 'end';
         foreach ($hs as $value) {
-            $income = $this->schedule_income($value['id_user_hair_stylist'], $type);
+           $income = $this->schedule_income($value['id_user_hair_stylist'], $type);
         }
         $log->success('success');
             return response()->json(['success']);
         } catch (\Exception $e) {
             DB::rollBack();
             $log->fail($e->getMessage());
+             return response()->json($e->getMessage());
         }
     }
     public function schedule_income($id,$type = 'end') {
@@ -360,6 +361,10 @@ class ApiIncome extends Controller
             foreach ($response as $valu) {
                 $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
             }
+            $response = $b->calculateSalaryCuts($hs, $request->start_date,$request->end_date);
+            foreach ($response as $valu) {
+                $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
+            }
             $response = $b->calculateIncomeExport($hs, $request->start_date,$request->end_date);
             foreach ($response as $values) {
                 $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
@@ -382,11 +387,25 @@ class ApiIncome extends Controller
         foreach ($array as $key => $value) {
             $b = array_merge($b,array_keys($value));
         }
+        $head = array_unique($b);
+        $body = array();
+        $in_array = ["NIK","NAMA LENGKAP","Nama Panggilan","Jabatan","Join Date","Outlet","Keterangan","Bank","Bank account","Email"];
+        foreach ($array as $vab) {
+            foreach($head as $v){
+            if (in_array($v, $in_array)){
+                $not = '';
+                }else{
+                $not = "0";
+                }
+                $isi[$v] = $vab[$v]??$not;
+            }
+            array_push($body,$isi);
+        }
         $response = array(
             'start_date'=>$request->start_date,
             'end_date'=>$request->end_date,
-            'head'=> array_unique($b),
-            'body'=> $array,
+            'head'=> $head,
+            'body'=> $body,
         );
         return MyHelper::checkGet($response);
     }

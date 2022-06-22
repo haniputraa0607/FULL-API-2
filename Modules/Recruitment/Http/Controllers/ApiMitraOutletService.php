@@ -55,6 +55,7 @@ class ApiMitraOutletService extends Controller
 		$this->trx = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
 		$this->trx_outlet_service = "Modules\Transaction\Http\Controllers\ApiTransactionOutletService";
 		$this->mitra_log_balance = "Modules\Recruitment\Http\Controllers\MitraLogBalance";
+        $this->refund = "Modules\Transaction\Http\Controllers\ApiTransactionRefund";
 	}
 
 	public function customerQueue(Request $request)
@@ -1091,6 +1092,9 @@ class ApiMitraOutletService extends Controller
     	}
 
     	$box_url = str_replace(['%box_code%', '%command%', '%status%', '%time%'], [$box->outlet_box_code, 0, 0, 0], $box->outlet_box_url ?: MyHelper::setting('outlet_box_default_url'));
+
+        //check if anyone is rejected
+        app($this->refund)->refundNotFullPayment($service->id_transaction);
 
     	return [
     		'status' => 'success',

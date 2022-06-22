@@ -719,7 +719,7 @@ class ApiMitra extends Controller
 		}
 
 		if (!$outlet->city) {
-			throw new \Exception('Incomplete Outlet Data. Contact CS');
+			throw new \App\Exceptions\SilentException('Incomplete Outlet Data. Contact CS');
 		}
 
 		$timezone = $outlet->city->province->time_zone_utc;
@@ -787,7 +787,7 @@ class ApiMitra extends Controller
 			return MyHelper::setTimezone(7);
 		}
 		if (!request()->user()->outlet->city) {
-			throw new \Exception('Incomplete Outlet Data. Contact CS');
+			throw new \App\Exceptions\SilentException('Incomplete Outlet Data. Contact CS');
 		}
 
 		return MyHelper::setTimezone(request()->user()->outlet->city->province->time_zone_utc);

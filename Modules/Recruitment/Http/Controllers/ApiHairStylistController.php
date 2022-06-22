@@ -964,7 +964,7 @@ class ApiHairStylistController extends Controller
         }
     }
 
-    public function exportCommision(Request $request){
+    public function exportCommission(Request $request){
         $post = $request->json()->all();
 
         $dateStart = date('Y-m-d', strtotime($post['date_start']));

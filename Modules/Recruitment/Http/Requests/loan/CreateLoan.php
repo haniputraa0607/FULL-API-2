@@ -1,20 +1,22 @@
 <?php
 
-namespace Modules\Recruitment\Http\Requests\Fixed_incentive;
+namespace Modules\Recruitment\Http\Requests\loan;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Modules\Recruitment\Entities\HairstylistGroup;
-class CreateDefault extends FormRequest
+class CreateLoan extends FormRequest
 {
     public function rules()
     {
         return [
-            'name_fixed_incentive'       => 'required',
-            'status'                     => 'required|in:incentive,salary_cut',
-            'type'                       => 'required',
-            'formula'                    => 'required',
+            'id_user_hair_stylist'          => 'required',
+            'id_hairstylist_category_loan'  => 'required',
+            'amount'                        => 'required',
+            'installment'                   => 'required',
+            'effective_date'                => 'required',
+            'type'                          => 'required',
            ]; 
     }
     public function withValidator($validator)

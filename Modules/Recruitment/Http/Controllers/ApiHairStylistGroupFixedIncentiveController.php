@@ -145,6 +145,7 @@ class ApiHairStylistGroupFixedIncentiveController extends Controller
     {
         $store = HairstylistGroupFixedIncentiveDefault::create([
                     'name_fixed_incentive' => $request->name_fixed_incentive,
+                    'status' => $request->status,
                     'type' => $request->type,
                     'formula'=> $request->formula,
                 ]);
@@ -154,6 +155,7 @@ class ApiHairStylistGroupFixedIncentiveController extends Controller
     {
         $store = HairstylistGroupFixedIncentiveDefault::where(array('id_hairstylist_group_default_fixed_incentive'=>$request->id_hairstylist_group_default_fixed_incentive))->update([
                     'name_fixed_incentive' => $request->name_fixed_incentive,
+                    'status' => $request->status,
                     'type' => $request->type,
                     'formula'=> $request->formula,
                 ]);

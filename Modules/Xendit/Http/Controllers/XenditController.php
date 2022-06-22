@@ -528,7 +528,7 @@ class XenditController extends Controller
             'items'        => $options['items'] ?? [],
         ];
 
-        if ($method == 'VIRTUAL_ACCOUNT') {
+        if ($method == 'BANK_TRANSFER') {
             $params['payment_methods'] = ["BCA", "BNI", "BSS", "BSI", "BRI", "MANDIRI", "PERMATA"];
         }
 

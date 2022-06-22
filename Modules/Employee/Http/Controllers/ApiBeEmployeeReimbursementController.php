@@ -116,18 +116,16 @@ class ApiBeEmployeeReimbursementController extends Controller
         }else{
             $request->status = "Rejected";
         }
-       $data = EmployeeReimbursement::where(array('id_purchase_invoice'=>$request->PurchaseInvoiceID))->where('status','!=','Rejected')->first();
-        if($data){
-            $data->status = $request->status;
-	   $data->date_disburse = $request->date_disburse;
-	   $data->date_send_reimbursement =date('Y-m-d H:i:s');
-	   $data->save();
+        $data = EmployeeReimbursement::where(array('id_purchase_invoice'=>$request->PurchaseInvoiceID))->where('status','!=','Rejected')->update([
+            'status'=>$request->status,
+            'date_disburse'=>$request->date_disburse,
+            'date_send_reimbursement'=>date('Y-m-d H:i:s')
+        ]);
         EmployeeReimbursementIcount::create([
             'status'=>$request->status,
             'value_detail'=>json_encode($request->all()),
             'id_purchase_invoice'=>$request->PurchaseInvoiceID
         ]);
-        }   
         return response()->json(['status' => 'success','code'=>$data]); 
     }
 }

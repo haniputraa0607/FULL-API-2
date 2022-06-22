@@ -327,6 +327,7 @@ class ApiIncome extends Controller
         $b = new HairstylistIncome();
         $hairstyllist = UserHairStylist::join('outlets','outlets.id_outlet','user_hair_stylist.id_outlet')
                 ->leftjoin('bank_accounts','bank_accounts.id_bank_account','user_hair_stylist.id_bank_account')
+                ->leftjoin('hairstylist_categories','hairstylist_categories.id_hairstylist_category','user_hair_stylist.id_hairstylist_category')
                 ->leftjoin('bank_name','bank_name.id_bank_name','bank_accounts.id_bank_name')
                 ->leftjoin('hairstylist_groups','hairstylist_groups.id_hairstylist_group','user_hair_stylist.id_hairstylist_group')
                 ->wherein('user_hair_stylist.id_outlet',$request->id_outlet)
@@ -345,7 +346,7 @@ class ApiIncome extends Controller
                 'NIK'=>$hs->user_hair_stylist_code??'',
                 'NAMA LENGKAP'=>$hs->fullname??'',
                 'Nama Panggilan'=>$hs->nickname??'',
-                'Jabatan'=>$hs->level??'',
+                'Jabatan'=>$value['hairstylist_category_name']??'',
                 'Join Date'=>date('d-M-Y',strtotime($hs->join_date))??'',
                 'Outlet'=>$value->outlet_name??'',
             );
@@ -353,9 +354,13 @@ class ApiIncome extends Controller
             foreach ($response as $valu) {
                 $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
             }
-            $response = $b->calculateIncomeTotal($hs, $request->start_date,$request->end_date);
-            foreach ($response as $valu) {
-                $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
+            $response = $b->calculateIncomeProductCode($hs, $request->start_date,$request->end_date);
+            foreach ($response as $values) {
+                $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
+            }
+            $response = $b->calculateTambahanJam($hs, $request->start_date,$request->end_date);
+            foreach ($response as $values) {
+                $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
             }
             $response = $b->calculateFixedIncentive($hs, $request->start_date,$request->end_date);
             foreach ($response as $valu) {
@@ -373,9 +378,9 @@ class ApiIncome extends Controller
             foreach ($response as $values) {
                 $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
             }
-           $response = $b->calculateIncomeProductCode($hs, $request->start_date,$request->end_date);
-            foreach ($response as $values) {
-                $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
+           $response = $b->calculateIncomeTotal($hs, $request->start_date,$request->end_date);
+            foreach ($response as $valu) {
+                $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
             }
             $data['Keterangan'] = $keterangan??'';
             $data['Bank'] = $value->bank_name??'';

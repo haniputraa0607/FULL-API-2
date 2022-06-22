@@ -2250,4 +2250,28 @@ class ApiSetting extends Controller
         }
         return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
     }
+    public function overtime_hs(){
+        $data = Setting::where('key','overtime_hs')->first();
+         return response()->json($data);
+    }
+  
+    public function overtime_hs_create(Request $request){
+        if(isset($request->value)){
+             $salary_formula = Setting::where('key','overtime_hs')->first();
+             if($salary_formula){
+                 $data = Setting::where('key','overtime_hs')->update([
+                  'value'=>$request->value,
+                 
+             ]);
+             }else{
+                 $data = Setting::create([
+                 'key'=>'overtime_hs',
+                 'value_text'=>$request->value
+                    
+             ]);
+             }
+              return response()->json(MyHelper::checkCreate($data));
+        }
+        return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
+    }
 }

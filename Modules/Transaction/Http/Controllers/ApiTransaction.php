@@ -2719,7 +2719,7 @@ class ApiTransaction extends Controller
                     ];
                 } else {
                     $result['transaction_payment'][$key] = [
-                        'name'      => $value['name'],
+                        'name'      => str_replace('_', ' ', $value['name']),
                         'amount'    => MyHelper::requestNumber($value['amount'],'_CURRENCY')
                     ];
                 }

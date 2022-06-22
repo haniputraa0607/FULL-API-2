@@ -55,6 +55,7 @@ class XenditController extends Controller
         $universalStatus = [
             'FAILED' => 'FAILED', // OVO & LINKAJA
             'COMPLETED' => 'COMPLETED', // OVO
+            'SETTLED' => 'COMPLETED', // BANK TRANSFER
             'EXPIRED' => 'FAILED', // DANA
             'PAID' => 'COMPLETED', // DANA
             'SUCCESS_COMPLETED' => 'COMPLETED', // LINKAJA
@@ -526,6 +527,10 @@ class XenditController extends Controller
             'payment_methods' => [$method],
             'items'        => $options['items'] ?? [],
         ];
+
+        if ($method == 'BANK_TRANSFER') {
+            $params['payment_methods'] = ["BCA", "BNI", "BSS", "BSI", "BRI", "MANDIRI", "PERMATA"];
+        }
 
         try {
             // switch ($method) {

@@ -137,11 +137,16 @@ class ApiHairStylistGroupController extends Controller
          $query = UserHairStylist::where(array('user_hair_stylist_status'=>'Active'))->get();
          foreach ($query as $value) {
              if($value['id_hairstylist_group']!=$request->id_hairstylist_group){
+                 $val = array(
+                     'id_user_hair_stylist'=>$value['id_user_hair_stylist'],
+                     'user_hair_stylist_code'=>$value['user_hair_stylist_code'],
+                     'fullname'=>$value['fullname'],
+                 );
                  array_push($data,$value);
              }
          }
         }
-         return response()->json($data);
+         return response()->json(MyHelper::checkGet($data));
     }
     public function invite_hs(InviteHS $request)
     {

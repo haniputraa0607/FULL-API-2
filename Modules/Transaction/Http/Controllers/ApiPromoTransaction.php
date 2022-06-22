@@ -1556,6 +1556,17 @@ class ApiPromoTransaction extends Controller
 	    	'transaction_grandtotal' => $grandtotal
 		]);
 
+        if($totalDiscountBill > 0){
+            $totalSubProduct = TransactionProduct::where('id_transaction', $trx->id_transaction)->sum('transaction_product_subtotal');
+            $products = TransactionProduct::where('id_transaction', $trx->id_transaction)->get()->toArray();
+            foreach ($products as $product){
+                $disc = $product['transaction_product_subtotal'] / $totalSubProduct * $totalDiscountBill;
+                TransactionProduct::where('id_transaction_product', $product['id_transaction_product'])->update([
+                    'transaction_product_discount_all' => $disc
+                ]);
+            }
+        }
+
 		TransactionPromo::create([
 			'id_transaction' => $trxQuery->id_transaction,
 			'promo_name' => $dataDiscount['title'],

@@ -57,7 +57,7 @@
     <title>{{$result['custom_page_title']}}</title>
   </head>
   <body>
-        @if (isset($result['custom_page_image_header']))
+        @if (isset($result['custom_page_image_header']) && count($result['custom_page_image_header']))
         <amp-carousel
           width="450"
           height="300"
@@ -79,7 +79,9 @@
         </amp-carousel>
         @endif
         <div class="content">
+        @if($result['id_custom_page'] != 1)
             <h1 class="title">{{$result['custom_page_title']}}</h1>
+            @endif
             @if(isset($result['custom_page_event_date_start']))
                 <h3 class="label">Periode</h3>
                 @if (isset($result['custom_page_event_date_start']))
@@ -114,7 +116,7 @@
                 <h3 class="label">Alamat</h3>
                 <div class="content-value">{{$result['custom_page_event_location_address']}}</div>
             @endif
-            @if (isset($result['custom_page_event_latitude']) && isset($result['custom_page_event_longitude']))
+            @if (isset($result['custom_page_event_latitude']) && isset($result['custom_page_event_longitude']) && false)
                 <amp-iframe
                   width="200"
                   height="100"

@@ -596,6 +596,8 @@ class HairstylistIncome extends Model
             })
             ->where('transaction_product_services.service_status', 'Completed')
             ->wherenotnull('transaction_product_services.completed_at')
+            ->wherenull('transaction_products.reject_at')
+            ->wherenotnull('transaction_products.transaction_product_completed_at')
             ->where('transaction_breakdowns.type', 'fee_hs')
             ->select('transaction_products.id_transaction', 'transaction_products.id_transaction_product', 'transaction_breakdowns.*')
             ->get();

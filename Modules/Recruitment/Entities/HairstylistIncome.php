@@ -892,6 +892,10 @@ class HairstylistIncome extends Model
                 
             }
         }
+        $lembur = self::calculateIncomeProductCode($hs, $startDate, $endDate);
+        foreach ($lembur as $value) {
+            $total += $value['value'];
+        }
         $lembur = self::calculateIncomeOvertime($hs, $startDate, $endDate);
         foreach ($lembur as $value) {
             $total += $value['value'];

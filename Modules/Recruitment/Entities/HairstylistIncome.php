@@ -915,21 +915,32 @@ class HairstylistIncome extends Model
         foreach ($loan as $va) {
                 $total = $total-$value['value'];
         }
+        $location = Outlet::where('id_outlet',$hs->id_outlet)->join('locations','locations.id_location','outlets.id_location')->first();
+        $diff = date_diff(date_create(date('Y-m-d')), date_create(date('Y-m-d',strtotime($location->start_date))));
+        $proteksi = Setting::where('key','proteksi_hs')->first()['value_text']??[];
+            $overtime = json_decode($proteksi,true);
+            $group = HairstylistGroupProteksi::where(array('id_hairstylist_group'=>$hs->id_hairstylist_group))->first();
+            $overtime['default_value']    = 0;
+            if(isset($group['value'])){
+                $overtime['value'] = $group['value'];
+            }
+        if($diff->m >= $overtime['range']){
+                $keterangan = "Non Proteksi";
+            }else{
+                $keterangan = "Proteksi";
+                $total = $overtime['value'];
+            }
           $array = array(
               array(
                     "name"=> "Total imbal jasa",
                     "value"=> $total
                     
                 ),
-                 array(
-                    "name"=>"tambahan jam",
-                    "value"=>$total_overtime
-                 ),
-              
-                 array(
-                    "name"=>"potongan telat",
-                    "value"=>$total_late
-                 ),
+              array(
+                    "name"=> "Keterangan",
+                    "value"=> $keterangan
+                    
+                ),
              );
         return $array;
     }
@@ -1106,7 +1117,7 @@ class HairstylistIncome extends Model
          foreach ($overtime as $va) {
              $harga = 0;
              if(isset($va['detail'])){
-                 if($va['type']=="Type 2"){
+                 if($va['type']=="Multiple"){
                      if($va['formula']=='outlet_age'){
                          $h = $outlet_age;
                      }elseif($va['formula']=='years_of_service'){
@@ -1122,11 +1133,6 @@ class HairstylistIncome extends Model
                             $harga = $valu['default_value']*$total_date;
                             }
                             break;
-                        }
-                        if($valu['default'] == 1){
-                            $harga = $valu['value']*$total_date;
-                            }else{
-                            $harga = $valu['default_value']*$total_date;
                         }
                     }
                  }else{

@@ -2294,28 +2294,28 @@ class ApiUser extends Controller
              * ixobox customer tidak punya email
              */
 
-            // if ($request->json('email') != "") {
-            //     $domain = substr($request->json('email'), strpos($request->json('email'), "@") + 1);
-            //     if (!filter_var($request->json('email'), FILTER_VALIDATE_EMAIL) ||  checkdnsrr($domain, 'MX') === false) {
-            //         $result = [
-            //             'status'    => 'fail',
-            //             'messages'    => ['The email must be a valid email address.']
-            //         ];
-            //         return response()->json($result);
-            //     }
-            //     $checkEmail = User::where('email', '=', $request->json('email'))
-            //         ->get()
-            //         ->first();
-            //     if ($checkEmail) {
-            //         if ($checkEmail['phone'] != $phone) {
-            //             $result = [
-            //                 'status'    => 'fail',
-            //                 'messages'    => ['This email has already been registered to another account. Please choose other email.']
-            //             ];
-            //             return response()->json($result);
-            //         }
-            //     }
-            // }
+            if ($request->json('email') != "") {
+                $domain = substr($request->json('email'), strpos($request->json('email'), "@") + 1);
+                if (!filter_var($request->json('email'), FILTER_VALIDATE_EMAIL) ||  checkdnsrr($domain, 'MX') === false) {
+                    $result = [
+                        'status'    => 'fail',
+                        'messages'    => ['The email must be a valid email address.']
+                    ];
+                    return response()->json($result);
+                }
+                $checkEmail = User::where('email', '=', $request->json('email'))
+                    ->get()
+                    ->first();
+                if ($checkEmail) {
+                    if ($checkEmail['phone'] != $phone) {
+                        $result = [
+                            'status'    => 'fail',
+                            'messages'    => ['This email has already been registered to another account. Please choose other email.']
+                        ];
+                        return response()->json($result);
+                    }
+                }
+            }
 
             if ($data[0]['phone_verified'] == 1) {
                 // if(Auth::attempt(['phone' => $request->json('phone'), 'password' => $request->json('pin')])){

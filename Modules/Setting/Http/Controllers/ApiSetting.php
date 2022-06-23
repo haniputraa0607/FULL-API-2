@@ -2274,4 +2274,29 @@ class ApiSetting extends Controller
         }
         return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
     }
+    public function proteksi_hs(){
+        $data = Setting::where('key','proteksi_hs')->first();
+         return response()->json($data);
+    }
+  
+    public function proteksi_hs_create(Request $request){
+        $post = $request->json()->all();
+        if(isset($post)){
+             $salary_formula = Setting::where('key','proteksi_hs')->first();
+             if($salary_formula){
+                 $data = Setting::where('key','proteksi_hs')->update([
+                  'value_text'=>json_encode($post),
+                 
+             ]);
+             }else{
+                 $data = Setting::create([
+                 'key'=>'proteksi_hs',
+                 'value_text'=>json_encode($post)
+                    
+             ]);
+             }
+              return response()->json(MyHelper::checkCreate($data));
+        }
+        return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
+    }
 }

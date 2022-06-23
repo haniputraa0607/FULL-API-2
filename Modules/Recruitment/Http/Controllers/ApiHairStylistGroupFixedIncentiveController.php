@@ -107,6 +107,9 @@ class ApiHairStylistGroupFixedIncentiveController extends Controller
             $data = array();
             $overtime = HairstylistGroupFixedIncentiveDefault::with(['detail'])->get();
             foreach ($overtime as $value) {
+                $last = count($value['detail']);
+                $x = 0;
+                $i = 0;
                 foreach ($value['detail'] as $va) {
                   $insen = HairstylistGroupFixedIncentive::where(array('id_hairstylist_group_default_fixed_incentive_detail'=>$va['id_hairstylist_group_default_fixed_incentive_detail'],'id_hairstylist_group'=>$request->id_hairstylist_group))->first();
                     $va['default_value'] = $va['value'];
@@ -115,8 +118,24 @@ class ApiHairStylistGroupFixedIncentiveController extends Controller
                        $va['value']      = $insen->value; 
                        $va['default']    = 1;
                     }
-                    
+                if($value['type']=="Multiple"){
+                      $i+1;
+                   if(++$i === $last) {
+                       $x--;
+                    $va['ranges'] = $va['range'].' - '.$x;
+                  }else{
+                      if($i == 1){
+                          $x = $va['range'];
+                          $va['ranges'] = $va['range']." <= ";
+                      }else{
+                     $b = $va['range'];
+                     $x--;
+                     $va['ranges'] = $va['range'].' - '.$x;
+                      $x = $b;
+                      }
+                  }
                 }
+              }
             }
            return response()->json(MyHelper::checkGet($overtime));
         }
@@ -192,15 +211,40 @@ class ApiHairStylistGroupFixedIncentiveController extends Controller
     	$post = $request->json()->all();
         $store = HairstylistGroupFixedIncentiveDefault::where(array('id_hairstylist_group_default_fixed_incentive'=>$post['id_hairstylist_group_default_fixed_incentive']))->with(['detail'])->first();
         if($store){
-            if($store->type == 'Type 1'){
+            if($store->type == 'Single'){
                 $data = HairstylistGroupFixedIncentiveDetailDefault::where('id_hairstylist_group_default_fixed_incentive',$post['id_hairstylist_group_default_fixed_incentive'])->first();
             }else{
                 $data = HairstylistGroupFixedIncentiveDetailDefault::where('id_hairstylist_group_default_fixed_incentive',$post['id_hairstylist_group_default_fixed_incentive'])->orderby('range','desc')->get();
+                $last = count($data);
+                $x = 0;
+                $i = 0;
+                foreach ($data as $key => $value) {
+                    $i+1;
+                   if(++$i === $last) {
+                       $x--;
+                    $value['ranges'] = $value['range'].' - '.$x;
+                  }else{
+                      if($i == 1){
+                          $x = $value['range'];
+                          $value['ranges'] = $value['range']." <= ";
+                      }else{
+                     $b = $value['range'];
+                     $x--;
+                     $value['ranges'] = $value['range'].' - '.$x;
+                      $x = $b;
+                      }
+                  }
+                }
             }
             return response()->json(MyHelper::checkGet($data));
         }
          return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
        
+    }
+    public function sortDate($a, $b) 
+    {
+        if ($a['range'] == $b['range']) return 0;
+        return $a['range'] > $b['range'] ?-1:1;
     }
     function type1(Request $request) {
         $store = HairstylistGroupFixedIncentiveDetailDefault::where([

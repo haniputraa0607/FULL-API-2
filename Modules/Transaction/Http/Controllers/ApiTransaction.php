@@ -6762,6 +6762,12 @@ class ApiTransaction extends Controller
         return $randomString;
     } 
     function signature(Signature $request) {
+        if (config('app.env') != 'local') {
+            return [
+                'status' => 'fail',
+                'messages' => ['Jangan regenerate secret key server']
+            ];
+        }
         $data = hash_hmac('sha256',$request->PurchaseInvoiceID.$request->status.$request->date_disburse,$request->api_secret);
         return $data;
     }

@@ -24,6 +24,12 @@ class ApiHairstylistAttendanceController extends Controller
         $today = date('Y-m-d');
         $hairstylist = $request->user();
         $outlet = $hairstylist->outlet()->select('outlet_name', 'outlet_latitude', 'outlet_longitude', 'id_city')->first();
+        if (!$outlet) {
+            return [
+                'status' => 'fail',
+                'messages' => ['Belum ada penugasan Outlet'],
+            ];
+        }
         $outlet->setHidden(['call', 'url']);
         // get current schedule
         $todaySchedule = $hairstylist->hairstylist_schedules()

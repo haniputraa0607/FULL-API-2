@@ -218,9 +218,13 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::get('hs-income-calculation-end', 'ApiSetting@hs_income_calculation_end');
     Route::post('hs-income-calculation-end-create', 'ApiSetting@hs_income_calculation_end_create');
     
-    //hs_income_calculation_mid
+    //hs_overtime
     Route::get('overtime-hs', 'ApiSetting@overtime_hs');
     Route::post('overtime-hs-create', 'ApiSetting@overtime_hs_create');
+    
+    //hs_proteksi
+    Route::get('proteksi-hs', 'ApiSetting@proteksi_hs');
+    Route::post('proteksi-hs-create', 'ApiSetting@proteksi_hs_create');
 });
 
 Route::group(['prefix' => 'api/timesetting', 'namespace' => 'Modules\Setting\Http\Controllers'], function()

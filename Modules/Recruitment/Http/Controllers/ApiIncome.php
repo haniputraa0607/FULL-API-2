@@ -335,13 +335,7 @@ class ApiIncome extends Controller
         foreach ($hairstyllist as $value) {
             $hs = UserHairStylist::where('id_user_hair_stylist',$value->id_user_hair_stylist)->first();
             $location = Outlet::where('id_outlet',$value->id_outlet)->join('locations','locations.id_location','outlets.id_location')->first();
-            $diff = date_diff(date_create(date('Y-m-d')), date_create(date('Y-m-d',strtotime($location->start_date))));
-           
-            if($diff->m >= 3){
-                $keterangan = "Non Proteksi";
-            }else{
-                $keterangan = "Proteksi";
-            }
+            
             $data = array(
                 'NIK'=>$hs->user_hair_stylist_code??'',
                 'NAMA LENGKAP'=>$hs->fullname??'',
@@ -382,7 +376,6 @@ class ApiIncome extends Controller
             foreach ($response as $valu) {
                 $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
             }
-            $data['Keterangan'] = $keterangan??'';
             $data['Bank'] = $value->bank_name??'';
             $data['Bank account'] = $value->beneficiary_name??'';
             $data['Email'] = $value->email??'';

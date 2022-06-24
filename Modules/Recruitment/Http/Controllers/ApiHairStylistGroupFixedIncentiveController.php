@@ -123,14 +123,26 @@ class ApiHairStylistGroupFixedIncentiveController extends Controller
                    if(++$i === $last) {
                        $x--;
                     $va['ranges'] = $va['range'].' - '.$x;
+                    $va['range'] = $va['range'] - 1;
+                    if($va['range']>=0){
+                    $value['detail'][] = array(
+                      'id_hairstylist_group_default_fixed_incentive_detail'=>null,
+                      'id_hairstylist_group_default_fixed_incentive'=>null,
+                      'value'=>0,  
+                      'default_value'=>0,  
+                      'default'=>0,  
+                      'range'=>0,  
+                      'ranges'=>$va['range'].' - 0',  
+                    );
+                    }
                   }else{
                       if($i == 1){
                           $x = $va['range'];
-                          $va['ranges'] = $va['range']." <= ";
+                          $va['ranges'] = ">= ".$va['range'];
                       }else{
                      $b = $va['range'];
                      $x--;
-                     $va['ranges'] = $va['range'].' - '.$x;
+                     $va['ranges'] = $x.' - '.$va['range'];
                       $x = $b;
                       }
                   }
@@ -223,14 +235,25 @@ class ApiHairStylistGroupFixedIncentiveController extends Controller
                    if(++$i === $last) {
                        $x--;
                     $value['ranges'] = $value['range'].' - '.$x;
+                    $value['range'] = $value['range'] - 1;
+                    if($value['range']>=0){
+                    $data[] = array(
+                      'id_hairstylist_group_default_fixed_incentive_detail'=>null,
+                      'id_hairstylist_group_default_fixed_incentive'=>null,
+                      'value'=>0,  
+                      'range'=>0,  
+                      'ranges'=>$value['range'].' - 0',  
+                      'default'=>1
+                    );
+                    }
                   }else{
                       if($i == 1){
                           $x = $value['range'];
-                          $value['ranges'] = $value['range']." <= ";
+                          $value['ranges'] = " >= ".$value['range'];
                       }else{
                      $b = $value['range'];
                      $x--;
-                     $value['ranges'] = $value['range'].' - '.$x;
+                     $value['ranges'] = $x.' - '.$value['range'];
                       $x = $b;
                       }
                   }

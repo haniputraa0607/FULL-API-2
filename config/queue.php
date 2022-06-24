@@ -75,6 +75,12 @@ return [
             'queue' => 'disbursequeue',
             'retry_after' => 90,
         ],
+        'refreshcommissionqueue' => [
+            'driver' => 'database',
+            'table' => 'refresh_commission_queue',
+            'queue' => 'refreshcommissionqueue',
+            'retry_after' => 90,
+        ],
 
         'outletqueue' => [
             'driver' => 'database',

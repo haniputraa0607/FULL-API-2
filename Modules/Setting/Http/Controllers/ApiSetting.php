@@ -44,6 +44,8 @@ use Modules\Setting\Http\Requests\SettingUpdate;
 use Modules\Setting\Http\Requests\DatePost;
 
 use App\Exports\DefaultExport;
+use App\Http\Models\Transaction;
+use App\Jobs\RefreshTransactionCommission;
 use Maatwebsite\Excel\Facades\Excel;
 
 use App\Lib\MyHelper;
@@ -1976,6 +1978,30 @@ class ApiSetting extends Controller
         }
         return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
     }
+
+    public function global_commission_product_refresh(Request $request){
+        $post = $request->all();
+        $start_date = date('Y-m-d 00:00:00',strtotime($post['start_date']));
+        $end_date = date('Y-m-d 00:00:00',strtotime($post['end_date']));
+        $setting = Setting::where('key' , 'Refresh Commission Transaction')->first();
+        if($setting){
+            if($setting['value'] != 'finished'){
+                return ['status' => 'fail', 'messages' => ['Cant refresh now, because refresh is in progress']]; 
+            }
+            $update_setting = Setting::where('key', 'Refresh Commission Transaction')->update(['value' => 'start']);
+        }else{
+            $create_setting = Setting::updateOrCreate(['key' => 'Refresh Commission Transaction'],['value' => 'start']);
+        }
+        $transaction = Transaction::whereNotNull('id_outlet')->whereNotNull('id_user')->whereDate('transaction_date', '>=', $start_date)->whereDate('transaction_date', '<=', $end_date)->get()->toArray();
+        foreach($transaction ?? [] as $key => $val){
+            // $send = [
+                
+            // ];
+            $refresh = RefreshTransactionCommission::dispatch($val['id_transaction']);
+        }
+        return ['status' => 'success', 'messages' => ['Success to Refresh Commission Transaction']]; 
+    }
+    
     public function salary_formula(){
         $data = Setting::where('key','salary_formula')->first();
          return response()->json($data);

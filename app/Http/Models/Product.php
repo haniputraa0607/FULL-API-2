@@ -250,10 +250,10 @@ class Product extends Model
     }
 
     public function product_icount_use_ima() {
-        return $this->hasMany(\Modules\Product\Entities\ProductProductIcount::class, 'id_product', 'id_product');
+        return $this->hasMany(\Modules\Product\Entities\ProductProductIcount::class, 'id_product', 'id_product')->where('company_type','ima');
     }
     public function product_icount_use_ims() {
-        return $this->hasMany(\Modules\Product\Entities\ProductProductIcount::class, 'id_product', 'id_product');
+        return $this->hasMany(\Modules\Product\Entities\ProductProductIcount::class, 'id_product', 'id_product')->where('company_type','ims');
     }
 
     public function getUseDetailAttribute(){

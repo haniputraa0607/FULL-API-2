@@ -160,7 +160,7 @@ class ApiEmployeeAttendanceController extends Controller
         ]);
         $employee = $request->user();
 
-        $outlet = $employee->outlet;
+        $outlet = Outlet::where('id_outlet', $request['id_outlet'])->first();
         $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
         
@@ -168,16 +168,14 @@ class ApiEmployeeAttendanceController extends Controller
             ->where('schedule_year', $request->year)
             ->where('schedule_month', $request->month)
             ->first() ?? null;
-        if(!$scheduleMonth){
-            return [
-                'status' => 'fail',
-                'messages' => ['Tidak ada riwayat absensi pada bulan ini'],
-            ];
-        }
-        // $schedules = $scheduleMonth->employee_schedule_dates()->leftJoin('employee_attendances', 'employee_attendances.id_employee_attendance', 'employee_schedule_dates.id_employee_attendance')->orderBy('is_overtime')->get();
-        $schedules = $scheduleMonth->employee_schedule_dates()
-            ->leftJoin('employee_attendances', 'employee_attendances.id_employee_schedule_date', 'employee_schedule_dates.id_employee_schedule_date')
+        
+        $schedules = [];
+        if($scheduleMonth){
+            $schedules = $scheduleMonth->employee_schedule_dates()
+            ->leftJoin('employee_outlet_attendances', 'employee_outlet_attendances.id_employee_schedule_date', 'employee_schedule_dates.id_employee_schedule_date')
             ->get() ?? null;
+        }
+       
         $numOfDays = cal_days_in_month(CAL_GREGORIAN, $request->month, $request->year);
         
         $histories = [];

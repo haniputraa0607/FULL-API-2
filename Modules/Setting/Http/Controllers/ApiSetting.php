@@ -1994,10 +1994,12 @@ class ApiSetting extends Controller
         }
         $transaction = Transaction::whereNotNull('id_outlet')->whereNotNull('id_user')->whereDate('transaction_date', '>=', $start_date)->whereDate('transaction_date', '<=', $end_date)->get()->toArray();
         foreach($transaction ?? [] as $key => $val){
-            // $send = [
-                
-            // ];
-            $refresh = RefreshTransactionCommission::dispatch($val['id_transaction']);
+            $send = [
+                'id_transaction' => $val['id_transaction'],
+                'key' => $key+1,
+                'total' => count($transaction),
+            ];
+            $refresh = RefreshTransactionCommission::dispatch($send);
         }
         return ['status' => 'success', 'messages' => ['Success to Refresh Commission Transaction']]; 
     }

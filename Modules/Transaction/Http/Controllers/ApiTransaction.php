@@ -5587,6 +5587,11 @@ class ApiTransaction extends Controller
                 )
                 ->first();
 
+        $outletZone = Outlet::join('cities', 'cities.id_city', 'outlets.id_city')
+            ->join('provinces', 'provinces.id_province', 'cities.id_province')
+            ->where('id_outlet', $detail['id_outlet'])
+            ->select('outlets.*', 'cities.city_name', 'provinces.time_zone_utc as province_time_zone_utc')->first();
+
         if (!$detail) {
             return [
                 'status' => 'fail',
@@ -5632,11 +5637,14 @@ class ApiTransaction extends Controller
                     }
                 }
 
+                $timeZone = $outletZone['province_time_zone_utc'] - 7;
+                $time = date('H:i', strtotime('+'.$timeZone.' hours', strtotime($product['transaction_product_service']['schedule_time'])));
+
                 $services[] = [
                     'id_user_hair_stylist' => $product['transaction_product_service']['id_user_hair_stylist'],
                     'hairstylist_name' => $product['transaction_product_service']['user_hair_stylist']['nickname'],
                     'schedule_date' => MyHelper::dateFormatInd($product['transaction_product_service']['schedule_date'], true, false),
-                    'schedule_time' => date('H:i', strtotime($product['transaction_product_service']['schedule_time'])),
+                    'schedule_time' => $time,
                     'product_name' => $product['product']['product_name'],
                     'subtotal' => $product['transaction_product_subtotal'],
                     'show_rate_popup' => $show_rate_popup

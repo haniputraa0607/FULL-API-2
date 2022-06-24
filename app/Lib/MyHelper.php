@@ -3041,10 +3041,16 @@ class MyHelper{
 	public static function getDistance($latitudeFrom, $longitudeFrom, $latitudeTo, $longitudeTo, $earthRadius = 6371000)
 	{
 		// convert from degrees to radians
-		$latFrom = deg2rad($latitudeFrom);
-		$lonFrom = deg2rad($longitudeFrom);
-		$latTo = deg2rad($latitudeTo);
-		$lonTo = deg2rad($longitudeTo);
+		try {
+			$latFrom = deg2rad((float) $latitudeFrom);
+			$lonFrom = deg2rad((float) $longitudeFrom);
+			$latTo = deg2rad((float) $latitudeTo);
+			$lonTo = deg2rad((float) $longitudeTo);
+		} catch (\Exception $e) {
+			\Log::error($e);
+			\Log::debug($request->all());
+			throw new \App\Exceptions\SilentException('Koordinat lokasi tidak valid');
+		}
 	
 		$lonDelta = $lonTo - $lonFrom;
 		$a = pow(cos($latTo) * sin($lonDelta), 2) +

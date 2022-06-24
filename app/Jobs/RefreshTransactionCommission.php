@@ -33,9 +33,9 @@ class RefreshTransactionCommission implements ShouldQueue
     public function handle()
     {
         $id_transaction = $this->data['id_transaction'];
-        $key = $this->data['key'];
+        $key_data = $this->data['key'];
         $total = $this->data['total'];
-        if($key == 1 && $total != 1){
+        if($key_data == 1 && $total != 1){
             Setting::where('key','Refresh Commission Transaction')->update(['value' => 'process']);
         }
         $transaction_products = TransactionProduct::where('id_transaction',$id_transaction)->get()->toArray();
@@ -43,7 +43,7 @@ class RefreshTransactionCommission implements ShouldQueue
             $trx = New TransactionProduct();
             $trx = $trx->find($transaction['id_transaction_product'])->breakdown();
         }
-        if($key == $total){
+        if($key_data == $total){
             Setting::where('key','Refresh Commission Transaction')->update(['value' => 'finished']);
         }
     }

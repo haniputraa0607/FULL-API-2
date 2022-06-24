@@ -1999,7 +1999,7 @@ class ApiSetting extends Controller
                 'key' => $key+1,
                 'total' => count($transaction),
             ];
-            $refresh = RefreshTransactionCommission::dispatch($send)->onConnection('refreshcommissionqueue');;
+            $refresh = RefreshTransactionCommission::dispatch($send)->onConnection('refreshcommissionqueue');
         }
         if(!$transaction){
             $create_setting = Setting::updateOrCreate(['key' => 'Refresh Commission Transaction'],['value' => 'finished']);

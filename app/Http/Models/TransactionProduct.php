@@ -15,6 +15,8 @@ use Modules\Xendit\Entities\TransactionPaymentXendit;
 use App\Lib\MyHelper;
 use Modules\Disburse\Entities\MDR;
 use Modules\Product\Entities\ProductCommissionDefault;
+use Modules\Product\Entities\UnitIcount;
+use Modules\Product\Entities\UnitIcountConversion;
 
 /**
  * Class TransactionProduct
@@ -152,31 +154,51 @@ class TransactionProduct extends Model
         return $this->hasMany(\Modules\Transaction\Entities\TransactionBreakdown::class, 'id_transaction_product');
     }
 
+    public function whileUnit($unit_conv,$detail_product_use,$product_use,$conversion, $data = null){
+        foreach($unit_conv ?? [] as $key => $unit_c){
+            if($detail_product_use['unit1']==$unit_c['unit_conversion']){
+                $this_conv = $unit_c;
+                $conversion = $conversion * $unit_c['qty_conversion'];
+                return $total_use = $product_use['qty']*$detail_product_use['unit_price_1']*$conversion;
+            }else{
+                $new_units = UnitIcountConversion::join('unit_icounts','unit_icounts.id_unit_icount','unit_icount_conversions.id_unit_icount')->where('id_product_icount', $product_use['id_product_icount'])->where('unit',$unit_c['unit_conversion'])->orderBy('id_unit_icount_conversion','asc')->get()->toArray();
+                $conversion = $conversion*$unit_c['qty_conversion'];
+                $data = $this->whileUnit($new_units,$detail_product_use,$product_use,$conversion);  
+            }
+        }
+        if($data){
+            return $data;
+        }else{
+            return 0;
+        }
+    }
+
     public function breakdown(){
         $id_product = $this->id_product;
         $id_transaction = $this->id_transaction;
+        $company_type = $this->transaction->outlet->location_outlet->company_type;
         $trx_product_subtotal = $this->transaction_product_subtotal;
         $trans_grandtotal = $this->transaction->transaction_grandtotal;
         $subtotal_grandtotal = $trans_grandtotal ? $trx_product_subtotal/$trans_grandtotal : 0;
-        $product_uses = $this->product->product_icount_use;
+        if($company_type == 'PT IMS'){
+            $product_uses = $this->product->product_icount_use_ims;
+        }else{
+            $product_uses = $this->product->product_icount_use_ima;
+        }
         $total_material = 0;
         foreach($product_uses ?? [] as $key => $product_use){
-            $detail_product_use[$key] = ProductIcount::where('id_product_icount',$product_use['id_product_icount'])->first();
-            if($product_use['unit']==$detail_product_use[$key]['unit1']){
-                $total_use[$key] = $product_use['qty']*$detail_product_use[$key]['unit_price_1'];
-            }
-            if($product_use['unit']==$detail_product_use[$key]['unit2']){
-                $total_use[$key] = $product_use['qty']*$detail_product_use[$key]['unit_price_2'];
-            }
-            if($product_use['unit']==$detail_product_use[$key]['unit3']){
-                $total_use[$key] = $product_use['qty']*$detail_product_use[$key]['unit_price_3'];
-            }
-            $total_material = $total_use[$key] + $total_material;
+            $detail_product_use = ProductIcount::where('id_product_icount',$product_use['id_product_icount'])->first();
+            $unit_conv = UnitIcountConversion::join('unit_icounts','unit_icounts.id_unit_icount','unit_icount_conversions.id_unit_icount')->where('id_product_icount', $product_use['id_product_icount'])->where('unit',$product_use['unit'])->orderBy('id_unit_icount_conversion','asc')->get()->toArray();
+            $found_unit = false;
+            $conversion = 1;
+            $this_conv = [];
+            $total_use = $this->whileUnit($unit_conv,$detail_product_use,$product_use,$conversion);  
+            $total_material = $total_use + $total_material;
         }
         $material = [
             "id_transaction_product" => $this->id_transaction_product,
             "type"                   => 'material',
-            "value"                  => $total_material
+            "value"                  => $total_material*$this->transaction_product_qty
         ];
         $send = $this->transaction_breakdown()->updateOrCreate(["type" => $material['type']],["value"=> $material['value']]);
         if($send){

@@ -79,7 +79,7 @@ class ApiTransactionRefund extends Controller
                 $payXendit = TransactionPaymentXendit::find($pay['id_payment']);
                 if ($payXendit) {
                     $doRefundPayment = MyHelper::setting('refund_xendit');
-                    $amountXendit = $trx['refundnominal']??($payXendit['amount']/100);
+                    $amountXendit = $trx['refundnominal']??$payXendit['amount'];
                     if($doRefundPayment){
                         $ewallets = ["OVO","DANA","LINKAJA","SHOPEEPAY","SAKUKU"];
                         if(in_array(strtoupper($payXendit['type']), $ewallets)){
@@ -129,7 +129,7 @@ class ApiTransactionRefund extends Controller
                         $order->update([
                             'reject_type'   => 'point',
                         ]);
-                        $refund = app($this->balance)->addLogBalance($order['id_user'], $point = ($payXendit['amount']/100), $order['id_transaction'], 'Rejected Order', $order['transaction_grandtotal']);
+                        $refund = app($this->balance)->addLogBalance($order['id_user'], $point = $payXendit['amount'], $order['id_transaction'], 'Rejected Order', $order['transaction_grandtotal']);
                         if ($refund == false) {
                             return [
                                 'status'   => 'fail',

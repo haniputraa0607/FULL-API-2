@@ -6684,7 +6684,7 @@ class ApiTransaction extends Controller
                   } return false;
                  }); 
                     Validator::extend('cek', function ($attribute, $value, $parameters, $validator) {
-                    $share = SharingManagementFee::where(array('PurchaseInvoiceID'=>$value))->where('status','!=','Success')->first();
+                    $share = SharingManagementFee::where(array('PurchaseInvoiceID'=>$value))->first();
                     if($share){
                         return true;
                     }

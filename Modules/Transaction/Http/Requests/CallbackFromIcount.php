@@ -20,7 +20,7 @@ class CallbackFromIcount extends FormRequest
     public function withValidator($validator)
     {
         $validator->addExtension('cek', function ($attribute, $value, $parameters, $validator) {
-         $share = SharingManagementFee::where(array('PurchaseInvoiceID'=>$value,'status'=>'Proccess'))->first();
+         $share = SharingManagementFee::where(array('PurchaseInvoiceID'=>$value))->first();
          if($share){
              return true;
          }

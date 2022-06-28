@@ -10,7 +10,7 @@ use Modules\Employee\Entities\EmployeeOfficeHourAssign;
 use Modules\Employee\Entities\EmployeeOfficeHourShift;
 use App\Lib\MyHelper;
 use App\Http\Models\Setting;
-use Modules\Employee\Entities\EmployeeOverTime;
+use Modules\Employee\Entities\EmployeeOvertime;
 use Modules\Users\Entities\Role;
 use App\Http\Models\User;
 use App\Http\Models\OutletSchedule;

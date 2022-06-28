@@ -20,6 +20,7 @@ use Modules\Employee\Http\Requests\status_approved;
 use App\Http\Models\User;
 use Session;
 use Modules\Employee\Entities\QuestionEmployee;
+use Auth;
 class ApiRegisterEmployeeController extends Controller
 {
    public function create(users_create $request) {
@@ -104,7 +105,7 @@ class ApiRegisterEmployeeController extends Controller
    public function submit(status_approved $request) {
        $post = $request->all();
        $user = Employee::join('users','users.id','employees.id_user')->where(array(
-             'users.phone'=>$post['phone'],
+             'users.id'=>Auth::id(),
              'employees.status'=>"Candidate",
              "employees.status_approved"=>null
          ))->update(array(
@@ -114,10 +115,8 @@ class ApiRegisterEmployeeController extends Controller
        return MyHelper::checkGet($user);
    }
    public function detail(Request $request) {
-        $post = $request->all();
-       $user = [];
-       if(isset($post['phone'])){
-        $user = User::join('cities','cities.id_city','users.id_city')->where('phone',$post['phone'])->with(['employee','employee.city_ktp','employee.city_domicile','employee_family','employee_main_family','employee_education','employee_education.city','employee_education_non_formal','employee_job_experience'])->first();
+       $post = $request->all();
+        $user = User::leftjoin('cities','cities.id_city','users.id_city')->where('id',Auth::id())->with(['employee','employee.city_ktp','employee.city_domicile','employee_family','employee_main_family','employee_education','employee_education.city','employee_education_non_formal','employee_job_experience'])->first();
         $array = array();
         if($user){
         $question = EmployeeQuestions::where(array('id_user'=>$user->id))->get();
@@ -137,16 +136,14 @@ class ApiRegisterEmployeeController extends Controller
                 array_push($array,$data);    
             }
          }
-        }
-       }
+		 
         $user['employee_question'] = $array;
+        }
        return MyHelper::checkGet($user);
    }
    public function update(Request $request) {
        $post = $request->all();
-       $user = [];
-       if(isset($post['phone'])){
-       $user = User::where('phone',$post['phone'])->first();
+       $user = User::where('id',Auth::id())->first();
        if($user){
             if(isset($post['employee'])){
                 $post['employee']['id_user']=$user->id;
@@ -158,31 +155,31 @@ class ApiRegisterEmployeeController extends Controller
                 }
                 if(isset($post['employee']['id_city_domicile'])){
                     
-                $users = User::where('phone',$post['phone'])->update(array(
+                $users = User::where('id',Auth::id())->update(array(
                     'id_city'=>$post['employee']['id_city_domicile']
                 ));
                 }
                 if(isset($post['employee']['gender'])){
                     
-                $users = User::where('phone',$post['phone'])->update(array(
+                $users = User::where('id',Auth::id())->update(array(
                     'gender'=>$post['employee']['gender']
                 ));
                 }
                 if(isset($post['employee']['birthday'])){
                     
-                $users = User::where('phone',$post['phone'])->update(array(
+                $users = User::where('id',Auth::id())->update(array(
                     'birthday'=>$post['employee']['birthday']
                 ));
                 }
                 if(isset($post['employee']['name'])){
                     
-                $users = User::where('phone',$post['phone'])->update(array(
+                $users = User::where('id',Auth::id())->update(array(
                     'name'=>$post['employee']['name']
                 ));
                 }
                 if(isset($post['employee']['email'])){
                     if(isset($post['employee']['email'])){
-                        $users = User::where('phone',$post['phone'])->update(array(
+                        $users = User::where('id',Auth::id())->update(array(
                             'email'=>$post['employee']['email']
                         ));
                 
@@ -207,7 +204,7 @@ class ApiRegisterEmployeeController extends Controller
             if(isset($post['questions'])){
                 $this->update_employe_questions($post['questions'],$user->id);
             }
-            $user = User::join('cities','cities.id_city','users.id_city')->where('phone',$post['phone'])->with(['employee','employee.city_ktp','employee.city_domicile','employee_family','employee_main_family','employee_education','employee_education.city','employee_education_non_formal','employee_job_experience'])->first();
+            $user = User::leftjoin('cities','cities.id_city','users.id_city')->where('id',Auth::id())->with(['employee','employee.city_ktp','employee.city_domicile','employee_family','employee_main_family','employee_education','employee_education.city','employee_education_non_formal','employee_job_experience'])->first();
             $array = array();
         if($user){
         $question = EmployeeQuestions::where(array('id_user'=>$user->id))->get();
@@ -230,7 +227,6 @@ class ApiRegisterEmployeeController extends Controller
         }
          $user['employee_question'] = $array;
         }
-       }
        return MyHelper::checkGet($user);
    }
    public function update_employe($data,$id_user) {

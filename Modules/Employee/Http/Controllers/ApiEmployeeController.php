@@ -353,9 +353,11 @@ class ApiEmployeeController extends Controller
         foreach($holidays as $h){
             if(isset($data_holidays[$h['holiday_name']])){
                 $data_holidays[$h['holiday_name']]['date'][] = MyHelper::dateFormatInd($h['date'], true, false, true);
+                $data_holidays[$h['holiday_name']]['total'] =  $data_holidays[$h['holiday_name']]['total'] + 1;
             }else{
                 $h_holidays[$h['holiday_name']]['holiday_name'] = $h['holiday_name'];
                 $data_holidays[$h['holiday_name']]['date'][] = MyHelper::dateFormatInd($h['date'], true, false, true);
+                $data_holidays[$h['holiday_name']]['total'] =  1;
             }
         }   
         $send_holidays = [];
@@ -363,6 +365,7 @@ class ApiEmployeeController extends Controller
         foreach($data_holidays as $key => $dh){
             $send_holidays[$i]['event_name'] = $key;
             $send_holidays[$i]['date'] = $dh['date'];
+            $send_holidays[$i]['total'] = $dh['total'];
             $i++;
         }
 

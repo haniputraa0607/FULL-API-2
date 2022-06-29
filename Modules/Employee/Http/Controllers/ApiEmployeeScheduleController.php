@@ -16,6 +16,7 @@ use Modules\Employee\Entities\EmployeeScheduleDate;
 use Modules\Employee\Entities\EmployeeOfficeHourShift;
 use Modules\Users\Entities\Role;
 use App\Http\Models\Province;
+use App\Http\Models\Setting;
 
 use DB;
 use Modules\Employee\Entities\EmployeeOfficeHour;
@@ -41,9 +42,25 @@ class ApiEmployeeScheduleController extends Controller
             $list_employees = User::join('roles', 'roles.id_role', '=', 'users.id_role')
                                     ->join('employee_office_hours', 'employee_office_hours.id_employee_office_hour', '=', 'roles.id_employee_office_hour')
                                     ->whereNotNull('users.id_role')
+                                    ->whereNotNull('users.id_outlet')
                                     ->where('employee_office_hours.office_hour_type', 'Without Shift')
                                     ->get()->toArray();
-            $tes = [];
+
+            $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
+            if($setting_default){
+                $default_office = EmployeeOfficeHour::where('id_employee_office_hour',$setting_default['value'])->first();
+                if($default_office['office_hour_type']=='Without Shift'){
+                    $sec_list =  User::join('roles', 'roles.id_role', '=', 'users.id_role')
+                                    ->whereNotNull('users.id_role')
+                                    ->whereNotNull('users.id_outlet')
+                                    ->whereNull('id_employee_office_hour')
+                                    ->get()->toArray();
+                    if($sec_list){
+                        $list_employees = array_merge($list_employees,$sec_list);
+                    }
+                }
+            }
+            
             foreach($list_employees ?? [] as $employee){
                 //create master shedule
                 $schedule = EmployeeSchedule::where('id',$employee['id'])->where('schedule_month', date('m'))->where('schedule_year', date('Y'))->first();
@@ -98,7 +115,7 @@ class ApiEmployeeScheduleController extends Controller
                                     ->where('outlet_holidays.id_outlet', $employee['id_outlet'])
                                     ->where('date_holidays.date', date('Y-m-d'))
                                     ->get()->toArray();
-            
+                
                 if($office_sch && !$holiday){
                 //create schedule date 
                     $prov = Province::join('cities', 'cities.id_province', 'provinces.id_province')
@@ -107,20 +124,26 @@ class ApiEmployeeScheduleController extends Controller
                                     ->select('provinces.*')
                                     ->first();
                                     
-                    $create_schedule_date = EmployeeScheduleDate::updateOrCreate([
-                        'id_employee_schedule' => $schedule['id_employee_schedule'],
-                        'date' => date('Y-m-d'),
-                        'is_overtime' => 0,
-                        'time_start' => MyHelper::reverseAdjustTimezone($employee['office_hour_start'] ?? null, $prov['time_zone_utc'], 'H:i', true),
-                        'time_end' => MyHelper::reverseAdjustTimezone($employee['office_hour_end'] ?? null, $prov['time_zone_utc'], 'H:i', true),
-                    ],[]);
+                    if(!isset($employee['id_employee_office_hour']) && empty($employee['id_employee_office_hour'])){
+                        $employee['office_hour_start'] = $default_office['office_hour_start'];
+                        $employee['office_hour_end'] = $default_office['office_hour_end'];
+                    }   
+                    $get_sch_date = EmployeeScheduleDate::where('id_employee_schedule', $schedule['id_employee_schedule'])->whereDate('date', date('Y-m-d'))->first(); 
+                    if(!$get_sch_date){
+                        $create_schedule_date = EmployeeScheduleDate::create([
+                            'id_employee_schedule' => $schedule['id_employee_schedule'],
+                            'date' => date('Y-m-d'),
+                            'is_overtime' => 0,
+                            'time_start' => MyHelper::reverseAdjustTimezone($employee['office_hour_start'] ?? null, $prov['time_zone_utc'], 'H:i', true),
+                            'time_end' => MyHelper::reverseAdjustTimezone($employee['office_hour_end'] ?? null, $prov['time_zone_utc'], 'H:i', true),
+                        ]);
+                    }             
                 }  
             }
             DB::commit();
 
             $log->success('success');
             return response()->json(['status' => 'success']);
-
 
         }catch (\Exception $e) {
             DB::rollBack();
@@ -136,69 +159,78 @@ class ApiEmployeeScheduleController extends Controller
             $list_employees = User::join('roles', 'roles.id_role', '=', 'users.id_role')
                                     ->join('employee_office_hours', 'employee_office_hours.id_employee_office_hour', '=', 'roles.id_employee_office_hour')
                                     ->whereNotNull('users.id_role')
+                                    ->whereNotNull('users.id_outlet')
                                     ->where('employee_office_hours.office_hour_type', 'Use Shift')
                                     ->get()->toArray();
-                                    
+            $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
+            if($setting_default){
+                $default_office = EmployeeOfficeHour::with(['office_hour_shift'])->where('employee_office_hours.id_employee_office_hour',$setting_default['value'])->first();
+                if($default_office['office_hour_type']=='Use Shift'){
+                    $sec_list =  User::join('roles', 'roles.id_role', '=', 'users.id_role')
+                                    ->whereNotNull('users.id_role')
+                                    ->whereNotNull('users.id_outlet')
+                                    ->whereNull('id_employee_office_hour')
+                                    ->get()->toArray();
+                    if($sec_list){
+                        $list_employees = array_merge($list_employees,$sec_list);
+                    }
+                }
+            }    
+                       
             foreach($list_employees ?? [] as $employee){
-                $schedue_now = EmployeeSchedule::where('id', $employee['id'])->where('schedule_month', date('m'))->where('schedule_year', date('Y'))->first();
-                if(!$schedue_now){
-                    $schedue_before = EmployeeSchedule::where('id', $employee['id'])->where('schedule_month', date('m', strtotime('-1 months')))->where('schedule_year', date('Y'))->first();
-                    if($schedue_before){
-                        $schedule_date_before = EmployeeScheduleDate::where('id_employee_schedule',$schedue_before['id_employee_schedule'])->get()->toArray();
+                $schedue_before = EmployeeSchedule::where('id', $employee['id'])->where('schedule_month', date('m', strtotime('-1 months')))->where('schedule_year', date('Y'))->first();
+                if($schedue_before){
+                    $schedue_now = EmployeeSchedule::where('id', $employee['id'])->where('schedule_month', date('m'))->where('schedule_year', date('Y'))->first();
+                    if(!$schedue_now){
+                        $schedue_now = EmployeeSchedule::create([
+                            'id' => $employee['id'],
+                            'id_outlet' => $employee['id_outlet'],
+                            "approve_by" => $schedue_before['approve_by'],
+                            "last_updated_by" => $schedue_before['last_updated_by'],
+                            'schedule_month' => date('m'),
+                            'schedule_year' => date('Y'),
+                            'request_at' => date('Y-m-d H:i:s'),
+                            "approve_at" => date('Y-m-d H:i:s'),
 
-                        if($schedule_date_before){
-                            $schedule_month = $schedue_before['schedule_month'] + 1;
-                            if($schedule_month > 12 ){
-                                $schedule_month = $schedule_month - 12;
-                                $schedule_year = $schedue_before['schedule_year'] + 1;
-                            }else{
-                                $schedule_year = $schedue_before['schedule_year'];
-                            }
+                        ]);
+                    }
 
-                            $array_employee = [
-                                'id' => $employee['id'],
-                                'id_outlet' => $employee['id_outlet'],
-                                'schedule_month' => $schedule_month,
-                                'schedule_year' =>  $schedule_year,
-                                'request_at' =>  date('Y-m-d H:i:s'),
-                                'approve_by' => $schedue_before['approve_by'],
-                                'approve_at' => $schedue_before['approve_at'],
-                                'last_updated_by' => $schedue_before['last_updated_by'] 
-                            ];
+                    $schedule_date_before = EmployeeScheduleDate::where('id_employee_schedule',$schedue_before['id_employee_schedule'])->get()->toArray();
+                    
+                    if($schedule_date_before){
+                        foreach($schedule_date_before as $sch){
+                            $date = explode('-',$sch['date']);
+                            $date[1] = $schedue_now['schedule_month'];
+                            $date[0] = $schedue_now['schedule_year'];
+                            $date =  date('Y-m-d', strtotime(implode('-',$date)));
 
-                            $create_schedule = EmployeeSchedule::create($array_employee);
-                            if($create_schedule){
-                                foreach($schedule_date_before as $sch){
-                                    $date = explode('-',$sch['date']);
-                                    $date[1] = $schedule_month;
-                                    $date[0] = $schedule_year;
-                                    $date =  date('Y-m-d', strtotime(implode('-',$date)));
-
-                                    $holiday = Holiday::join('outlet_holidays', 'outlet_holidays.id_holiday', '=', 'holidays.id_holiday')
-                                                        ->join('date_holidays', 'date_holidays.id_holiday', '=', 'holidays.id_holiday')
-                                                        ->where('outlet_holidays.id_outlet', $employee['id_outlet'])
-                                                        ->whereDate('date_holidays.date', $date)
-                                                        ->get()->toArray();
-                                    if(!$holiday){
-                                    //create schedule date 
-                                        if($sch['is_overtime'] == 1){
-                                            $get_original = EmployeeOfficeHourShift::where('id_employee_office_hour', $employee['id_employee_office_hour'])->where('shift_name', $sch['shift'])->first();
-                                            $sch['time_start'] = $get_original['shift_start'];
-                                            $sch['time_end'] = $get_original['shift_end'];
-                                        }
-                                        $create_schedule_date = EmployeeScheduleDate::create([
-                                            'id_employee_schedule' => $create_schedule['id_employee_schedule'],
-                                            'date' => $date,
-                                            'shift' => $sch['shift'],
-                                            'is_overtime' =>  0,
-                                            'time_start' => $sch['time_start'],
-                                            'time_end' => $sch['time_end'],
-                                        ]);
-                                    }  
+                            $holiday = Holiday::join('outlet_holidays', 'outlet_holidays.id_holiday', '=', 'holidays.id_holiday')
+                                                ->join('date_holidays', 'date_holidays.id_holiday', '=', 'holidays.id_holiday')
+                                                ->where('outlet_holidays.id_outlet', $employee['id_outlet'])
+                                                ->whereDate('date_holidays.date', $date)
+                                                ->get()->toArray();
+                            if(!$holiday){
+                            //create schedule date 
+                                if($sch['is_overtime'] == 1){
+                                    if(!isset($employee['id_employee_office_hour']) && empty($employee['id_employee_office_hour'])){
+                                        $employee['id_employee_office_hour'] = $default_office['id_employee_office_hour'];
+                                    }   
+                                    $get_original = EmployeeOfficeHourShift::where('id_employee_office_hour', $employee['id_employee_office_hour'])->where('shift_name', $sch['shift'])->first();
+                                    $sch['time_start'] = $get_original['shift_start'];
+                                    $sch['time_end'] = $get_original['shift_end'];
                                 }
-                            }else{
-                                DB::rollback();
-                            }
+                                $create_schedule_date = EmployeeScheduleDate::create([
+                                    'id_employee_schedule' => $schedue_now['id_employee_schedule'],
+                                    'date' => $date,
+                                    'shift' => $sch['shift'],
+                                    'is_overtime' =>  0,
+                                    'time_start' => $sch['time_start'],
+                                    'time_end' => $sch['time_end'],
+                                ]);
+                                if(!$create_schedule_date){
+                                    DB::rollback();
+                                }
+                            }  
                         }
                     }
                 }
@@ -222,10 +254,10 @@ class ApiEmployeeScheduleController extends Controller
         $this_month = date('m');
 
         if($post['year'] >= (int)$this_year){
-            if($post['month'] >= $this_month){
+            if($post['month'] >= $this_month || ($post['month'] < $this_month && $post['year'] > (int)$this_year)){
                 $check_schedule = EmployeeSchedule::where('id',$post['id_employee'])->where('schedule_month',$post['month'])->where('schedule_year',$post['year'])->first();
                 if(!$check_schedule){
-                    $hs = User::where('id',$post['id_employee'])->first();
+                    $hs = User::join('roles','roles.id_role','users.id_role')->where('id',$post['id_employee'])->first();
                     $array_hs = [
                         "id" => $post['id_employee'],
                         "id_outlet" => $hs['id_outlet'],
@@ -244,12 +276,19 @@ class ApiEmployeeScheduleController extends Controller
                         DB::rollback();
                     }
                     DB::commit();
-                    $shift = EmployeeOfficeHour::join('roles','roles.id_employee_office_hour','employee_office_hours.id_employee_office_hour')
-                                                ->join('users','users.id_role','roles.id_role')
-                                                ->where('users.id', $post['id_employee'])
-                                                ->select('employee_office_hours.*')
-                                                ->first();
-                    $create_schedule['shift'] = $shift['office_hour_type'];
+                    if(isset($hs['id_employee_office_hour']) && !empty($hs['id_employee_office_hour'])){
+                        $shift = EmployeeOfficeHour::join('roles','roles.id_employee_office_hour','employee_office_hours.id_employee_office_hour')
+                                                    ->join('users','users.id_role','roles.id_role')
+                                                    ->where('users.id', $post['id_employee'])
+                                                    ->select('employee_office_hours.*')
+                                                    ->first();
+                    }else{
+                        $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
+                        if($setting_default){
+                            $default_office = EmployeeOfficeHour::where('id_employee_office_hour',$setting_default['value'])->first();
+                        }
+                    }
+                    $create_schedule['shift'] = $shift['office_hour_type'] ?? $default_office['office_hour_type'];
                     return response()->json([
                         'status' => 'success', 
                         'result' => $create_schedule
@@ -279,10 +318,10 @@ class ApiEmployeeScheduleController extends Controller
         $post = $request->json()->all();
         $data = EmployeeSchedule::join('users', 'users.id', 'employee_schedules.id')
                 ->join('roles', 'roles.id_role', 'users.id_role')
-                ->join('employee_office_hours', 'employee_office_hours.id_employee_office_hour', 'roles.id_employee_office_hour')
+                ->leftJoin('employee_office_hours', 'employee_office_hours.id_employee_office_hour', 'roles.id_employee_office_hour')
         		->join('outlets', 'outlets.id_outlet', 'employee_schedules.id_outlet')
                 ->orderBy('request_at', 'desc');
-
+        
         if (!empty($post['date_start']) && !empty($post['date_end'])) {
             $start_date = date('Y-m-d', strtotime($post['date_start']));
             $end_date = date('Y-m-d', strtotime($post['date_end']));
@@ -436,7 +475,15 @@ class ApiEmployeeScheduleController extends Controller
 		        	'outlets.outlet_name', 
 		        	'outlets.outlet_code', 
 		        )->paginate(25)->toArray();
-
+        
+        $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
+        if($setting_default){
+            $default_office = EmployeeOfficeHour::where('id_employee_office_hour',$setting_default['value'])->first();
+        }
+        $data['data'] = array_map(function($val)use($default_office){
+            $val['office_hour_type'] = $val['office_hour_type'] ?? $default_office['office_hour_type'];
+            return $val;
+        },$data['data']);
         return response()->json(MyHelper::checkGet($data));
     }
 
@@ -479,7 +526,37 @@ class ApiEmployeeScheduleController extends Controller
                     ->first();
 
         if (!$detail) {
-            return MyHelper::checkGet($detail);
+            $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
+            if($setting_default){
+                $default_office = EmployeeOfficeHour::where('id_employee_office_hour',$setting_default['value'])->first();
+                if($default_office['office_hour_type']=='Without Shift'){
+                    $detail = EmployeeSchedule::join('outlets', 'outlets.id_outlet', 'employee_schedules.id_outlet')
+                            ->join('users', 'users.id', 'employee_schedules.id')
+                            ->join('roles', 'roles.id_role', 'users.id_role')
+                            ->with([
+                                'employee_schedule_dates', 
+                                'outlet.outlet_schedules',
+                                'outlet.city.province'
+                            ])
+                            ->where('id_employee_schedule', $post['id_employee_schedule'])
+                            ->select(
+                                'employee_schedules.*',
+                                'users.*', 
+                                'outlets.outlet_name', 
+                                'outlets.outlet_code', 
+                                'roles.*',
+                            )
+                            ->first();
+                    if($detail){
+                        $detail['office_hour_start'] = $default_office['office_hour_start'];
+                        $detail['office_hour_end'] = $default_office['office_hour_end'];
+                    }else{
+                        return MyHelper::checkGet($detail);
+                    }
+                }
+            }else{
+                return MyHelper::checkGet($detail);
+            }
         }
                     
         $listDate = MyHelper::getListDate($detail->schedule_month, $detail->schedule_year);
@@ -526,8 +603,8 @@ class ApiEmployeeScheduleController extends Controller
         		'day' => $hari,
         		'holiday' => $holidays[$date]['holiday_name'] ?? null,
         		'is_closed' => $isClosed,
-        		'time_start' => $this->getOneTimezone($outletSchedule[$hari]['time_start'] ?? null, $detail['outlet']['city']['province']['time_zone_utc']),
-        		'time_end' => $this->getOneTimezone($outletSchedule[$hari]['time_end'] ?? null, $detail['outlet']['city']['province']['time_zone_utc']),
+        		'time_start' => $this->getOneTimezone($detail['office_hour_start'] ?? null, $detail['outlet']['city']['province']['time_zone_utc']),
+        		'time_end' => $this->getOneTimezone($detail['office_hour_end'] ?? null, $detail['outlet']['city']['province']['time_zone_utc']),
                 'zone' => $time_zone[$detail['outlet']['city']['province']['time_zone_utc']],
         	];
         }
@@ -574,7 +651,16 @@ class ApiEmployeeScheduleController extends Controller
             return MyHelper::checkGet($detail);
         }
 
-        $shift = EmployeeOfficeHourShift::join('employee_office_hours','employee_office_hours.id_employee_office_hour','employee_office_hour_shift.id_employee_office_hour')->where('employee_office_hours.id_employee_office_hour', $detail->id_employee_office_hour)->get();
+        if(isset($detail['id_employee_office_hour']) && !empty($detail['id_employee_office_hour'])){
+            $shift = EmployeeOfficeHourShift::join('employee_office_hours','employee_office_hours.id_employee_office_hour','employee_office_hour_shift.id_employee_office_hour')->where('employee_office_hours.id_employee_office_hour', $detail->id_employee_office_hour)->get();
+        }else{
+            $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
+            $detail['id_employee_office_hour'] = $setting_default['value'];
+            if($setting_default){
+                $shift = EmployeeOfficeHourShift::join('employee_office_hours','employee_office_hours.id_employee_office_hour','employee_office_hour_shift.id_employee_office_hour')->where('employee_office_hours.id_employee_office_hour', $setting_default['value'])->get();
+            }
+
+        }
 
         $listDate = MyHelper::getListDate($detail->schedule_month, $detail->schedule_year);
         $outletSchedule = [];

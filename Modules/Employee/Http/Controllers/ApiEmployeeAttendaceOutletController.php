@@ -100,7 +100,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
         $result = [
             'start_shift' => MyHelper::adjustTimezone($todaySchedule->start_shift, $timeZone, 'H:i', true),
             'end_shift' => MyHelper::adjustTimezone($todaySchedule->end_shift, $timeZone, 'H:i', true),
-            'shift_name' => $todaySchedule->shift ?? null,
+            'shift_name' => $todaySchedule->shift ? $todaySchedule->shift.' ('.$employee->role->office_hour['office_hour_name'].')' : $employee->role->office_hour['office_hour_name'],
             'outlet' => $outlet,
             'logs' => $attendance->logs()->get()->transform(function($item) use($timeZone) {
                 return [
@@ -208,7 +208,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
                 'messages' => ['Tidak ada riwayat absensi pada bulan ini'],
             ];
         }
-        // $schedules = $scheduleMonth->employee_schedule_dates()->leftJoin('employee_outlet_attendances', 'employee_outlet_attendances.id_employee_attendance', 'employee_schedule_dates.id_employee_attendance')->orderBy('is_overtime')->get();
+        
         $schedules = $scheduleMonth->employee_schedule_dates()
             ->leftJoin('employee_outlet_attendances', 'employee_outlet_attendances.id_employee_schedule_date', 'employee_schedule_dates.id_employee_schedule_date')
             ->get() ?? null;
@@ -340,7 +340,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
     {
         $result = User::join('employee_schedules', 'employee_schedules.id', 'users.id')
             ->join('employee_schedule_dates', 'employee_schedule_dates.id_employee_schedule', 'employee_schedules.id_employee_schedule')
-            ->leftJoin('employee_outlet_attendances', 'employee_outlet_attendances.id_employee_schedule_date', 'employee_schedule_dates.id_employee_schedule_date')
+            ->join('employee_outlet_attendances', 'employee_outlet_attendances.id_employee_schedule_date', 'employee_schedule_dates.id_employee_schedule_date')
             ->leftJoin('outlets as outlet_att','outlet_att.id_outlet','employee_outlet_attendances.id_outlet')
             ->leftJoin('outlets as office','office.id_outlet','users.id_outlet')
             ->with(['outlet_attendance_logs' => function ($query) { $query->where('status', 'Approved')->selectRaw('*, null as photo_url');}]);
@@ -686,10 +686,16 @@ class ApiEmployeeAttendaceOutletController extends Controller
         $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$employee['id'])->first();
 
         if(empty($type_shift['office_hour_type'])){
-            return response()->json([
-                'status'=>'fail',
-                'messages'=>['Jam kantor tidak ada ']
-            ]);
+            $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
+            if($setting_default){
+                $type_shift = EmployeeOfficeHour::where('id_employee_office_hour',$setting_default['value'])->first();
+                if(empty($type_shift)){
+                    return response()->json([
+                        'status'=>'fail',
+                        'messages'=>['Jam kantor tidak ada ']
+                    ]);
+                }
+            }
         }
         $data = [
            'shift' => null,
@@ -726,10 +732,16 @@ class ApiEmployeeAttendaceOutletController extends Controller
         $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$employee['id'])->first();
 
         if(empty($type_shift['office_hour_type'])){
-            return response()->json([
-                'status'=>'fail',
-                'messages'=>['Jam kantor tidak ada ']
-            ]);
+            $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
+            if($setting_default){
+                $type_shift = EmployeeOfficeHour::where('id_employee_office_hour',$setting_default['value'])->first();
+                if(empty($type_shift)){
+                    return response()->json([
+                        'status'=>'fail',
+                        'messages'=>['Jam kantor tidak ada ']
+                    ]);
+                }
+            }
         }
 
         if($type_shift['office_hour_type'] == 'Use Shift'){
@@ -1037,11 +1049,17 @@ class ApiEmployeeAttendaceOutletController extends Controller
             $type_shift = User::join('roles','roles.id_role','users.id_role')->leftJoin('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$log_req['id'])->first();
 
             if(empty($type_shift['office_hour_type'])){
-                DB::rollBack();
-                return response()->json([
-                    'status'=>'fail',
-                    'messages'=>['Shift schedule has not been created']
-                ]);
+                $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
+                if($setting_default){
+                    $type_shift = EmployeeOfficeHour::where('id_employee_office_hour',$setting_default['value'])->first();
+                    if(empty($type_shift)){
+                        DB::rollBack();
+                        return response()->json([
+                            'status'=>'fail',
+                            'messages'=>['Shift schedule has not been created']
+                        ]);
+                    }
+                }
             }
 
 

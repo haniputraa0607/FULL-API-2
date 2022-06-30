@@ -181,6 +181,9 @@ class TransactionProduct extends Model
         $send = $this->transaction_breakdown()->updateOrCreate(["type" => $material['type']],["value"=> $material['value']]);
         if($send){
             $hair_stylist = $this->hairstylist;
+            if (!$hair_stylist) {
+                $hair_stylist = optional($this->transaction_product_service)->user_hair_stylist;
+            }
             $id_group_hs =  $hair_stylist['id_hairstylist_group'];
             $sub_total = $this->transaction_product_subtotal;
             $group = HairstylistGroupCommission::where('id_hairstylist_group',$id_group_hs)->where('id_product',$id_product)->first() ?? [];

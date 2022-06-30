@@ -918,12 +918,19 @@ class HairstylistIncome extends Model
         $location = Outlet::where('id_outlet',$hs->id_outlet)->join('locations','locations.id_location','outlets.id_location')->first();
         $diff = date_diff(date_create(date('Y-m-d')), date_create(date('Y-m-d',strtotime($location->start_date))));
         $proteksi = Setting::where('key','proteksi_hs')->first()['value_text']??[];
+        if($proteksi){
             $overtime = json_decode($proteksi,true);
-            $group = HairstylistGroupProteksi::where(array('id_hairstylist_group'=>$hs->id_hairstylist_group))->first();
-            $overtime['default_value']    = 0;
-            if(isset($group['value'])){
-                $overtime['value'] = $group['value'];
-            }
+        }else{
+            $overtime = array(
+                    'range'=>0,
+                    'value'=>0
+                );    
+        }
+        $group = HairstylistGroupProteksi::where(array('id_hairstylist_group'=>$hs->id_hairstylist_group))->first();
+        $overtime['default_value']    = 0;
+        if(isset($group['value'])){
+            $overtime['value'] = $group['value'];
+        }
         if($diff->m >= $overtime['range']){
                 $keterangan = "Non Proteksi";
             }else{

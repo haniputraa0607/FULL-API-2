@@ -605,7 +605,7 @@ class ApiUserV2 extends Controller
         if(empty($sumPoint)){
             return response()->json([
                 'status'    => 'fail',
-                'messages'  => ['Tidak berhasil klaim point']
+                'messages'  => ['Point sudah diklaim']
             ]);
         }
 

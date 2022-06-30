@@ -167,7 +167,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                                 return response()->json([
                                     'status' => 'success', 
                                     'result' => $send
-                                ]); 
+                                ]);
                             }
                         
                     }elseif($cek_employee['office_hour_type'] == 'Without Shift'){
@@ -206,8 +206,8 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                                         $send[$key]['id_employee_schedule'] = $schedule['id_employee_schedule'];
                                         $send[$key]['date'] = $list_date;
                                         $send[$key]['date_format'] = date('d F Y', strtotime($list_date));
-                                        $send[$key]['time_start'] = $outletSchedule[$hari]['time_start'] ? MyHelper::adjustTimezone($outletSchedule[$hari]['time_start'], $timeZone, 'H:i') : null;
-                                        $send[$key]['time_end'] = $outletSchedule[$hari]['time_end'] ? MyHelper::adjustTimezone($outletSchedule[$hari]['time_end'], $timeZone, 'H:i') : null;
+                                        $send[$key]['time_start'] = $cek_employee['office_hour_start'] ? MyHelper::adjustTimezone($cek_employee['office_hour_start'], $timeZone, 'H:i') : null;
+                                        $send[$key]['time_end'] = $cek_employee['office_hour_end'] ? MyHelper::adjustTimezone($cek_employee['office_hour_end'], $timeZone, 'H:i') : null;
                                     }
                                 }
                             }
@@ -618,11 +618,6 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
 
         $check = $this->checkDateOvertime($office, $post);
         if(isset($check['status']) && $check['status'] == 'success'){
-            $send = [
-                'shift' => null,
-                'schedule_in' => $check['date']['time_start'] ? MyHelper::adjustTimezone($check['date']['time_start'], $timeZone, 'H:i', true) : null,
-                'schedule_out' => $check['date']['time_end'] ? MyHelper::adjustTimezone($check['date']['time_end'], $timeZone, 'H:i', true) : null,
-            ];
             $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$employee)->first();
 
             if(empty($type_shift['office_hour_type'])){
@@ -631,6 +626,11 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                     'messages'=>['Jam kantor tidak ada ']
                 ]);
             }
+            $send = [
+                'shift' => null,
+                'schedule_in' => $type_shift['office_hour_start'] ? MyHelper::adjustTimezone($type_shift['office_hour_start'], $timeZone, 'H:i', true) : null,
+                'schedule_out' => $type_shift['office_hour_end'] ? MyHelper::adjustTimezone($type_shift['office_hour_end'], $timeZone, 'H:i', true) : null,
+            ];
             $type_shift = $type_shift['office_hour_type'];
 
             //employee with shift
@@ -1006,6 +1006,12 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                     'time_off' => 'Empty',
                 ]]);
             } else {
+                $time_zone = [
+                    '7' => 'WIB',
+                    '8' => 'WITA',
+                    '9' => 'WIT'
+                ];
+                $time_off['time_zone'] = $time_zone[$timeZone];
                 return response()->json(['status' => 'success', 'result' => [
                     'time_off' => $time_off,
                 ]]);

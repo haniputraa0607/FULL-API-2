@@ -161,6 +161,82 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('/detail','ApiBeEmployeeReimbursementController@detail');
         Route::post('/approved','ApiBeEmployeeReimbursementController@approved');
          });
+    Route::group(['prefix' => 'role'], function () {
+            Route::any('/', ['middleware' => 'feature_control:393','uses' =>'ApiRoleController@index']);
+            Route::post('detail', ['middleware' => 'feature_control:396','uses' =>'ApiRoleController@detail']);
+            
+            //incentive
+            Route::any('list-default-incentive', ['middleware' => 'feature_control:396','uses' =>'ApiRoleController@list_default_incentive']);
+            Route::any('list-default-salary-cut', ['middleware' => 'feature_control:396','uses' =>'ApiRoleController@list_default_salary_cut']);
+       });
+    Route::group(['prefix' => 'role/overtime'], function () {
+           Route::post('create', ['middleware' => 'feature_control:394','uses' =>'ApiOvertimeController@create']);
+           Route::post('update', ['middleware' => 'feature_control:395','uses' =>'ApiOvertimeController@update']);
+           Route::post('detail', ['middleware' => 'feature_control:395','uses' =>'ApiOvertimeController@detail']);
+           Route::post('delete', ['middleware' => 'feature_control:395','uses' =>'ApiOvertimeController@delete']);
+
+           Route::post('/', ['middleware' => 'feature_control:395','uses' =>'ApiOvertimeController@index']);
+
+           Route::post('default/', ['middleware' => 'feature_control:426','uses' =>'ApiOvertimeController@index_default']);
+           Route::post('default/create', ['middleware' => 'feature_control:426','uses' =>'ApiOvertimeController@create_default']);
+           Route::post('default/update', ['middleware' => 'feature_control:426','uses' =>'ApiOvertimeController@update_default']);
+           Route::post('default/detail', ['middleware' => 'feature_control:426','uses' =>'ApiOvertimeController@detail_default']);
+           Route::post('default/delete', ['middleware' => 'feature_control:426','uses' =>'ApiOvertimeController@delete_default']);
+       });
+    Route::group(['prefix' => 'role/fixed-incentive'], function () {
+                Route::post('create', ['middleware' => 'feature_control:394','uses' =>'ApiFixedIncentiveController@create']);
+                Route::post('update', ['middleware' => 'feature_control:395','uses' =>'ApiFixedIncentiveController@update']);
+                Route::post('detail', ['middleware' => 'feature_control:395','uses' =>'ApiFixedIncentiveController@detail']);
+                Route::post('delete', ['middleware' => 'feature_control:395','uses' =>'ApiFixedIncentiveController@delete']);
+               
+                Route::post('/', ['middleware' => 'feature_control:395','uses' =>'ApiFixedIncentiveController@index']);
+                
+                Route::post('default/', ['middleware' => 'feature_control:426','uses' =>'ApiFixedIncentiveController@index_default']);
+                Route::post('default/create', ['middleware' => 'feature_control:426','uses' =>'ApiFixedIncentiveController@create_default']);
+                Route::post('default/update', ['middleware' => 'feature_control:426','uses' =>'ApiFixedIncentiveController@update_default']);
+                Route::post('default/detail', ['middleware' => 'feature_control:426','uses' =>'ApiFixedIncentiveController@detail_default']);
+                Route::post('default/delete', ['middleware' => 'feature_control:426','uses' =>'ApiFixedIncentiveController@delete_default']);
+                Route::post('default/detail/list', ['middleware' => 'feature_control:426','uses' =>'ApiFixedIncentiveController@index_default_detail']);
+                Route::post('default/type1', ['middleware' => 'feature_control:426','uses' =>'ApiFixedIncentiveController@type1']);
+                Route::post('default/type2', ['middleware' => 'feature_control:426','uses' =>'ApiFixedIncentiveController@type2']);
+                Route::post('default/detail/delete', ['middleware' => 'feature_control:426','uses' =>'ApiFixedIncentiveController@delete_detail']);
+            });
+    Route::group(['prefix' => 'role/incentive'], function () {
+                Route::post('/', ['middleware' => 'feature_control:395','uses' =>'ApiIncentiveController@index']);
+                Route::post('create', ['middleware' => 'feature_control:394','uses' =>'ApiIncentiveController@create']);
+                Route::post('update', ['middleware' => 'feature_control:395','uses' =>'ApiIncentiveController@update']);
+                Route::post('detail', ['middleware' => 'feature_control:395','uses' =>'ApiIncentiveController@detail']);
+                Route::post('delete', ['middleware' => 'feature_control:395','uses' =>'ApiIncentiveController@delete']);
+                Route::post('list_incentive', ['middleware' => 'feature_control:395','uses' =>'ApiIncentiveController@list_incentive']);
+                Route::post('list-rumus-incentive', ['middleware' => 'feature_control:395','uses' =>'ApiIncentiveController@list_rumus_incentive']);
+                Route::post('default/', ['middleware' => 'feature_control:425','uses' =>'ApiIncentiveController@index_default']);
+                Route::post('default/create', ['middleware' => 'feature_control:425','uses' =>'ApiIncentiveController@create_default']);
+                Route::post('default/update', ['middleware' => 'feature_control:425','uses' =>'ApiIncentiveController@update_default']);
+                Route::post('default/detail', ['middleware' => 'feature_control:425','uses' =>'ApiIncentiveController@detail_default']);
+                Route::post('default/delete', ['middleware' => 'feature_control:425','uses' =>'ApiIncentiveController@delete_default']);
+            });
+    Route::group(['prefix' => 'role/salary-cut'], function () {
+                Route::post('/', ['middleware' => 'feature_control:395','uses' =>'ApiSalaryCutController@index']);
+                Route::post('create', ['middleware' => 'feature_control:394','uses' =>'ApiSalaryCutController@create']);
+                Route::post('update', ['middleware' => 'feature_control:395','uses' =>'ApiSalaryCutController@update']);
+                Route::post('detail', ['middleware' => 'feature_control:395','uses' =>'ApiSalaryCutController@detail']);
+                Route::post('delete', ['middleware' => 'feature_control:395','uses' =>'ApiSalaryCutController@delete']);
+                Route::post('list_salary_cut', ['middleware' => 'feature_control:395','uses' =>'ApiSalaryCutController@list_salary_cut']);
+                Route::post('list-rumus-salary_cut', ['middleware' => 'feature_control:395','uses' =>'ApiSalaryCutController@list_rumus_salary_cut']);
+                Route::post('default/', ['middleware' => 'feature_control:425','uses' =>'ApiSalaryCutController@index_default']);
+                Route::post('default/create', ['middleware' => 'feature_control:425','uses' =>'ApiSalaryCutController@create_default']);
+                Route::post('default/update', ['middleware' => 'feature_control:425','uses' =>'ApiSalaryCutController@update_default']);
+                Route::post('default/detail', ['middleware' => 'feature_control:425','uses' =>'ApiSalaryCutController@detail_default']);
+                Route::post('default/delete', ['middleware' => 'feature_control:425','uses' =>'ApiSalaryCutController@delete_default']);
+            });
+    Route::group(['prefix' => 'loan'], function () {
+                Route::post('category/create', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@createCategory']);
+                Route::post('category/list', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@listCategory']);
+                Route::post('category/delete', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@deleteCategory']);
+                Route::post('hs', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@hs']);
+                Route::post('create', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@create']);
+                Route::post('/', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@index']);
+            });
 });
 
 Route::group([ 'middleware' => ['log_activities', 'auth:api','auth_client','scopes:landing-page'], 'prefix' => 'employee'], function () {
@@ -279,6 +355,7 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
     });
 
     Route::group(['prefix' => 'inbox'], function () {
+        Route::get('/', 'ApiEmployeeInboxController@getListInbox');
         Route::post('/', 'ApiEmployeeInboxController@listInbox');
         Route::get('approval', 'ApiEmployeeInboxController@getListReqApproval');
         Route::post('approval', 'ApiEmployeeInboxController@listReqApproval');

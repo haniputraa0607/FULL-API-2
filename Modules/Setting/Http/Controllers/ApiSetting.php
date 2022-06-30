@@ -2191,18 +2191,19 @@ class ApiSetting extends Controller
     }
   
     public function delivery_income_create(Request $request){
-        if(isset($request->value)){
+        if(isset($request->value)&&isset($request->value_text)){
              $salary_formula = Setting::where('key','delivery_income')->first();
              if($salary_formula){
                  $data = Setting::where('key','delivery_income')->update([
                   'value'=>$request->value,
-                 
+                  'value_text'=>json_encode($request->value_text)
+                     
              ]);
              }else{
                  $data = Setting::create([
                  'key'=>'delivery_income',
-                 'value'=> $request->value
-                    
+                 'value'=> $request->value,
+                 'value_text'=> json_encode($request->value_text)
              ]);
              }
               return response()->json(MyHelper::checkCreate($data));

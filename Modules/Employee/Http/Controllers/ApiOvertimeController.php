@@ -16,28 +16,31 @@ use App\Lib\Icount;
 use App\Http\Models\Outlet;
 use Modules\Product\Entities\ProductIcount;
 use Validator;
-use Modules\Users\Entities\Role;
+use Modules\Employee\Entities\EmployeeRoleOvertime;
+use Modules\Employee\Entities\EmployeeRoleOvertimeDefault;
+use Modules\Employee\Http\Requests\Income\Overtime\CreateOvertime;
+use Modules\Employee\Http\Requests\Income\Overtime\CreateOvertimeDefault;
+use Modules\Employee\Http\Requests\Income\Overtime\UpdateDefaultOvertime;
 
-
-class ApiIncomeOvertimeController extends Controller
+class ApiOvertimeController extends Controller
 {
     public function create(CreateOvertime $request)
     {
         $data = EmployeeRoleOvertime::where([
-                    "id_employee_role"   =>  $request->id_employee_role,
+                    "id_role"   =>  $request->id_role,
                     "id_employee_role_default_overtime"   =>  $request->id_employee_role_default_overtime,
                 ])->first();
         if($data){
             if(isset($request->value)){
                 $store = EmployeeRoleOvertime::where([
-                    "id_employee_role"   =>  $request->id_employee_role,
+                    "id_role"   =>  $request->id_role,
                     "id_employee_role_default_overtime"   =>  $request->id_employee_role_default_overtime,
                 ])->update([
                     "value"   =>  $request->value,
                 ]);
             }else{
                 $store = EmployeeRoleOvertime::where([
-                    "id_employee_role"   =>  $request->id_employee_role,
+                    "id_role"   =>  $request->id_role,
                     "id_employee_role_default_overtime"   =>  $request->id_employee_role_default_overtime,
                 ])->delete();
             }
@@ -69,8 +72,8 @@ class ApiIncomeOvertimeController extends Controller
     {
         if($request->id_employee_role_overtime){
         $store = EmployeeRoleOvertime::where(array('id_employee_role_overtime'=>$request->id_employee_role_overtime))
-                    ->join('employee_role_default_overtime','employee_role_default_overtime.id_employee_role_default_overtime','employee_role_overtime.id_employee_role_default_overtime')
-                    ->select('employee_role_default_overtime.name','employee_role_overtime.*')
+                    ->join('employee_role_default_overtimes','employee_role_default_overtimes.id_employee_role_default_overtime','employee_role_overtime.id_employee_role_default_overtime')
+                    ->select('employee_role_default_overtimes.name','employee_role_overtime.*')
                     ->first();
         return MyHelper::checkGet($store);
         }
@@ -79,9 +82,9 @@ class ApiIncomeOvertimeController extends Controller
     public function delete(Request $request)
     {
         if($request->id_employee_role_default_overtime && $request->id_employee_role ){
-        $store = EmployeeRoleOvertime::where(array('id_employee_role_default_overtime'=>$request->id_employee_role_default_overtime,'id_employee_role'=>$request->id_employee_role))->first();
+        $store = EmployeeRoleOvertime::where(array('id_employee_role_default_overtime'=>$request->id_employee_role_default_overtime,'id_role'=>$request->id_role))->first();
         if($store){
-        $store = EmployeeRoleOvertime::where(array('id_employee_role_default_overtime'=>$request->id_employee_role_default_overtime,'id_employee_role'=>$request->id_employee_role))->delete();
+        $store = EmployeeRoleOvertime::where(array('id_employee_role_default_overtime'=>$request->id_employee_role_default_overtime,'id_role'=>$request->id_role))->delete();
         }else{
             $store = 1;
         }
@@ -90,11 +93,11 @@ class ApiIncomeOvertimeController extends Controller
         return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
     }
     public function index(Request $request) {
-        if($request->id_employee_role){
+        if($request->id_role){
             $data = array();
             $overtime = EmployeeRoleOvertimeDefault::get();
             foreach ($overtime as $value) {
-                $insen = EmployeeRoleOvertime::where(array('id_employee_role_default_overtime'=>$value['id_employee_role_default_overtime'],'id_employee_role'=>$request->id_employee_role))->first();
+                $insen = EmployeeRoleOvertime::where(array('id_employee_role_default_overtime'=>$value['id_employee_role_default_overtime'],'id_role'=>$request->id_role))->first();
                 $value['default_value'] = $value['value'];
                 $value['default']    = 0;
                 if($insen){
@@ -113,7 +116,7 @@ class ApiIncomeOvertimeController extends Controller
              $list = array();
              $data = EmployeeRoleOvertimeDefault::all();
              foreach ($data as $value) {
-                 $cek = EmployeeRoleOvertime::where(array('id_employee_role'=>$request->id_employee_role,'id_employee_role_default_overtime'=>$value['id_employee_role_default_overtime']))->first();
+                 $cek = EmployeeRoleOvertime::where(array('id_role'=>$request->id_role,'id_employee_role_default_overtime'=>$value['id_employee_role_default_overtime']))->first();
                  if($cek){
                      $value['value']   = $cek->value;
                      $value['formula'] = $cek->formula;
@@ -165,7 +168,7 @@ class ApiIncomeOvertimeController extends Controller
     function index_default(Request $request) 
     {
     	$post = $request->json()->all();
-        $data = EmployeeRoleOvertimeDefault::Select('employee_role_default_overtime.*');
+        $data = EmployeeRoleOvertimeDefault::Select('employee_role_default_overtimes.*');
         $data = $data->get();
             return response()->json(MyHelper::checkGet($data));
     }
@@ -196,11 +199,11 @@ class ApiIncomeOvertimeController extends Controller
         }
     }
     public function list_overtime_default(Request $request) {
-        if($request->id_employee_role){
+        if($request->id_role){
             $data = array();
-            $overtime = EmployeeRoleOvertimeDefault::where(array('id_employee_role'=>$request->id_employee_role))->get();
+            $overtime = EmployeeRoleOvertimeDefault::where(array('id_role'=>$request->id_role))->get();
             foreach ($overtime as $value) {
-                $insen = EmployeeRoleOvertime::where(array('id_employee_role_default_overtime'=>$value['id_employee_role_default_overtime'],'id_employee_role'=>$request->id_employee_role))->first();
+                $insen = EmployeeRoleOvertime::where(array('id_employee_role_default_overtime'=>$value['id_employee_role_default_overtime'],'id_role'=>$request->id_role))->first();
                 if(!$insen){
                     array_push($data,$value);
                 }

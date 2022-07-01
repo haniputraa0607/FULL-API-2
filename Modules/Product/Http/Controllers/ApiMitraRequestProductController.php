@@ -329,7 +329,7 @@ class ApiMitraRequestProductController extends Controller
             
                 $autocrm = app($this->autocrm)->SendAutoCRM(
                     'Confirmation Delivery Product',
-                    User::first()->phone,
+                    $request->user()->phone_number, null, null, null, null, 'hairstylist'
                 );
                 // return $autocrm;
                 if (!$autocrm) {

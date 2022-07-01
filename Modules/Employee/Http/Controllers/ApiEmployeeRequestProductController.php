@@ -137,6 +137,10 @@ class ApiEmployeeRequestProductController extends Controller
     public function listCatalog(Request $request){
         $post = $request->all();
         $outlet = Location::join('outlets','outlets.id_location','locations.id_location')->where('id_outlet',$post['id_outlet'])->first();
+        if(!$outlet){
+            return response()->json(['status' => 'fail', 'messages' => ['Outlet tidak ditemukan']]);
+        }
+        $outlet = Location::join('outlets','outlets.id_location','locations.id_location')->where('id_outlet',$post['id_outlet'])->first();
         $company = [
             'PT IMA' => 'ima',
             'PT IMS' => 'ims',

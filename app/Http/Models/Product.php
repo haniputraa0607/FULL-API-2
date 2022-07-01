@@ -80,7 +80,8 @@ class Product extends Model
         'product_academy_maximum_installment',
         'available_home_service'
     ];
-    
+
+    protected $appends  = ['url_product_photo_detail'];
 
     protected static $_isInactive= false;
 
@@ -103,6 +104,12 @@ class Product extends Model
         static::$_isInactive = true;
 
         return new static;
+    }
+
+    public function getUrlProductPhotoDetailAttribute() {
+        if (!empty($this->product_photo_detail)) {
+            return config('url.storage_url_api').$this->product_photo_detail;
+        }
     }
 
 	public function getPhotoAttribute() {

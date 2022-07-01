@@ -40,20 +40,36 @@ class ApiEmployeeInboxController extends Controller
         $this->product = "Modules\Product\Http\Controllers\ApiProductController";
     }
 
+    public function getListInbox(Request $request){
+        $user = $request->user();
+        $id_employee = $user['id'];
+        $id_outlet = $user['id_outlet'];
+
+        $max_date = date('Y-m-d',time() - ((Setting::select('value')->where('key','inbox_max_days')->pluck('value')->first()?:30) * 86400));
+        $inbox = EmployeeInbox::where('id_employee',$id_employee)->whereDate('inboxes_send_at','>',$max_date)->get()->keyBy('inboxes_category');
+
+        $tab = [
+            [
+                'name' => 'Semua',
+                'value' => null,
+            ],
+        ];
+        foreach($inbox ?? [] as $key => $value){
+            $tab[] = [
+                'name' => $key,
+                'value' => $key
+            ];
+        }
+        return MyHelper::checkGet($tab);
+    }
+
     public function listInbox(Request $request){
         $post = $request->all();
         $user = $request->user();
         $id_employee = $user['id'];
         $id_outlet = $user['id_outlet'];
 
-        $category = null;
-        if($post['category'] == 'Presensi'){
-            $category = 'Attendance';
-        }elseif($post['category'] == 'Cuti'){
-            $category = 'Time Off';
-        }elseif($post['category'] == 'Lembur'){
-            $category = 'Overtime';
-        }
+        $category = $post['category'];
 
     	$max_date = date('Y-m-d',time() - ((Setting::select('value')->where('key','inbox_max_days')->pluck('value')->first()?:30) * 86400));
         $inbox = EmployeeInbox::where('id_employee',$id_employee)->whereDate('inboxes_send_at','>',$max_date);

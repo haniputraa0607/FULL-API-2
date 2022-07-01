@@ -325,10 +325,16 @@ class ApiEmployeeController extends Controller
         $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$employee)->first();
 
         if(empty($type_shift['office_hour_type'])){
-            return response()->json([
-                'status'=>'fail',
-                'messages'=>['Jam kantor tidak ada ']
-            ]);
+            $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
+            if($setting_default){
+                $type_shift = EmployeeOfficeHour::where('id_employee_office_hour',$setting_default['value'])->first();
+                if(empty($type_shift)){
+                    return response()->json([
+                        'status'=>'fail',
+                        'messages'=>['Jam kantor tidak ada ']
+                    ]);
+                }
+            }
         }
 
         //holiday

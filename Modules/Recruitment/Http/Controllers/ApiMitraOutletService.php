@@ -1110,6 +1110,7 @@ class ApiMitraOutletService extends Controller
     {
     	$trxProducts = TransactionProduct::where('id_transaction', $id_transaction)
     	->whereNull('transaction_product_completed_at')
+        ->whereNull('transaction_products.reject_at')
     	->first();
 
     	if (!$trxProducts) {

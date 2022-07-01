@@ -355,6 +355,7 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
     });
 
     Route::group(['prefix' => 'inbox'], function () {
+        Route::get('/', 'ApiEmployeeInboxController@getListInbox');
         Route::post('/', 'ApiEmployeeInboxController@listInbox');
         Route::get('approval', 'ApiEmployeeInboxController@getListReqApproval');
         Route::post('approval', 'ApiEmployeeInboxController@listReqApproval');

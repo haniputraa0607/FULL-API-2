@@ -110,13 +110,6 @@ class ApiEmployeeAttendanceController extends Controller
         $date_time_now = MyHelper::adjustTimezone(date('Y-m-d H:i:s'), $timeZone, 'Y-m-d H:i:s', true);
         $attendance = $employee->getAttendanceByDate(date('Y-m-d'), $shift);
 
-        if ($request->type == 'clock_out' && !$attendance->logs()->where('type', 'clock_in')->exists()) {
-            return [
-                'status' => 'fail',
-                'messages' => ['Tidak bisa melakukan Clock Out sebelum melakukan Clock In'],
-            ];
-        }
-
         $maximumRadius = MyHelper::setting('employee_attendance_max_radius', 'value', 50);
         $distance = MyHelper::getDistance($request->latitude, $request->longitude, $outlet->outlet_latitude, $outlet->outlet_longitude);
         $outsideRadius = $distance > $maximumRadius;
@@ -698,6 +691,12 @@ class ApiEmployeeAttendanceController extends Controller
 
     public function storeRequest(Request $request){
         $post = $request->all();
+        if(!isset($post['notes']) && empty($post['notes'])){
+            return response()->json([
+                'status'=>'fail',
+                'messages'=>['Mohon mengisi keterangan dengan jelas.']
+            ]);
+        }
         $employee = $request->user();
         $outlet = $employee->outlet()->select('id_outlet','outlet_name', 'id_city')->first();
         $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
@@ -923,6 +922,18 @@ class ApiEmployeeAttendanceController extends Controller
             $clock_in_requirement = null;
             $clock_out_requirement =  null;
             $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$data['id'])->first();
+            if(empty($type_shift['office_hour_type'])){
+                $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
+                if($setting_default){
+                    $type_shift = EmployeeOfficeHour::where('id_employee_office_hour',$setting_default['value'])->first();
+                    if(empty($type_shift)){
+                        return response()->json([
+                            'status'=>'fail',
+                            'messages'=>['Shift schedule has not been created']
+                        ]);
+                    }
+                }
+            }
             if(isset($type_shift['office_hour_type'])){
                 $clock_in_requirement = $type_shift['office_hour_start'];
                 $clock_out_requirement = $type_shift['office_hour_end'];
@@ -1033,7 +1044,6 @@ class ApiEmployeeAttendanceController extends Controller
                 }
             }
 
-
             //schedule_date
             $array_date = explode('-',$log_req['attendance_date']);
             $schedule = EmployeeSchedule::where('id', $log_req['id'])->where('id_outlet', $log_req['id_outlet'])->where('schedule_month', $array_date[1])->where('schedule_year', $array_date[0])->first();
@@ -1083,13 +1093,6 @@ class ApiEmployeeAttendanceController extends Controller
                 ]);
             }
             
-            if (isset($log_req['clock_out']) && !isset($log_req['clock_in'])) {
-                DB::rollBack();
-                return [
-                    'status' => 'fail',
-                    'messages' => ['Cant create Clock Out before create Clock In'],
-                ];
-            } 
             if(isset($log_req['clock_in'])){
                 $clock_in = EmployeeAttendance::find($attendance['id_employee_attendance']);
                 $clock_in->storeClock([

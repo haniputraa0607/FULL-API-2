@@ -254,8 +254,8 @@ class ApiEmployeeAnnouncementController extends Controller
     	$today = date('Y-m-d h:i:s');
     	$anns = EmployeeAnnouncement::select('id_employee_announcement', 'date_start as date', 'content')
     			->with('employee_announcement_rule_parents.rules')
-    			->whereDate('date_start','<=',$today)
-    			->whereDate('date_end','>',$today)
+    			->where('date_start','<=',$today)
+    			->where('date_end','>',$today)
 				->get()
 				->toArray();
 

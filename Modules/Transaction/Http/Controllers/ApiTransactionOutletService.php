@@ -213,8 +213,7 @@ class ApiTransactionOutletService extends Controller
         }
         $model->where(function($model2) use ($model, $where, $new_rule){
             $inner = [
-            	'transaction_receipt_number', 
-            	'order_id', 
+            	'transaction_receipt_number',
             	'outlet_name',
             	'outlet_code',
             	'transaction_grandtotal',
@@ -224,6 +223,15 @@ class ApiTransactionOutletService extends Controller
                 if ($rules = $new_rule[$col_name] ?? false) {
                     foreach ($rules as $rul) {
                         $model2->$where($col_name, $rul['operator'], $rul['parameter']);
+                    }
+                }
+            }
+
+            $inner = ['order_id'];
+            foreach ($inner as $col_name) {
+                if ($rules = $new_rule[$col_name] ?? false) {
+                    foreach ($rules as $rul) {
+                        $model2->$where('transaction_product_services.'.$col_name, $rul['operator'], $rul['parameter']);
                     }
                 }
             }

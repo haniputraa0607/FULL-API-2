@@ -1,4 +1,4 @@
-<?php
+ <?php
 
 namespace Modules\Recruitment\Entities;
 
@@ -12,7 +12,7 @@ use DatePeriod;
 use DateInterval;
 use DateTime;
 use App\Http\Models\Setting;
-
+use Modules\Transaction\Entities\TransactionProductService;
 class HairstylistIncome extends Model
 {
     public $primaryKey = 'id_hairstylist_income';
@@ -588,7 +588,7 @@ class HairstylistIncome extends Model
         $array = array();
        $trxs = TransactionProduct::where(array('transaction_product_services.id_user_hair_stylist'=>$hs->id_user_hair_stylist))
             ->join('transactions','transactions.id_transaction','transaction_products.id_transaction')   
-            ->join('transaction_product_services', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
+            ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
             ->join('transaction_breakdowns', function($join) use ($startDate, $endDate) {
                 $join->on('transaction_breakdowns.id_transaction_product', 'transaction_products.id_transaction_product')
                     ->whereNotNull('transaction_products.transaction_product_completed_at')
@@ -601,6 +601,7 @@ class HairstylistIncome extends Model
             ->where('transaction_breakdowns.type', 'fee_hs')
             ->select('transaction_products.id_transaction', 'transaction_products.id_transaction_product', 'transaction_breakdowns.*')
             ->get();
+              
         foreach ($trxs as $value) {
             $total = $total+$value->value;
         }

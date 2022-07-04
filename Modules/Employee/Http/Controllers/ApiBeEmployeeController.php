@@ -599,7 +599,7 @@ class ApiBeEmployeeController extends Controller
             if(isset($post['id_business_partner']) && !empty($post['id_business_partner'])){
                 $id_business_partner = $post['id_business_partner'];
             }
-            return $employee = $employee->businessPartner($id_business_partner);
+            $employee = $employee->businessPartner($id_business_partner);
             if(isset($employee['status']) && $employee['status']=='success'){
                 return [
                     'status' => 'success',

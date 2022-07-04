@@ -213,8 +213,6 @@ class ApiBeEmployeeController extends Controller
                      $update = Employee::where('id_employee', $post['id_employee'])->update([
                          'status_approved' => $post['update_type'],
                          'status_employee' => $post['status_employee'],
-                         'start_date'=>$post['start_date'],
-                         'end_date'=>$post['end_date'],
                              ]);
                      }
                   
@@ -291,7 +289,9 @@ class ApiBeEmployeeController extends Controller
                     "id_cluster"=>"013",
                     "id_term_payment"=>"011",
                     "number"=>$number['number'],
-                    "code"=>$number['code']
+                    "code"=>$number['code'],
+                    'start_date'=>$post['start_date'],
+                    'end_date'=>$post['end_date'],
                         ]);
                 if($update){
                     $employee = Employee::where('id_employee', $post['id_employee'])

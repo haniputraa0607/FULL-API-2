@@ -11,14 +11,14 @@ class RecalculateDiscountAll extends Command
      *
      * @var string
      */
-    protected $signature = 'command:name';
+    protected $signature = 'discount-all:recalculate';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Command description';
+    protected $description = 'Recalculate discount all';
 
     /**
      * Create a new command instance.

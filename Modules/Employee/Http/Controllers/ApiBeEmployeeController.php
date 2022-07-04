@@ -184,7 +184,7 @@ class ApiBeEmployeeController extends Controller
         $update = array();
         if(isset($post['id_employee']) && !empty($post['id_employee'])){
             if(isset($post['update_type']) && $post['update_type'] != 'Approved'){
-              $getData = Employee::where('id_employee', $post['id_employee'])->first();
+              $getData = Employee::join('users','users.id','employees.id_user')->where('id_employee', $post['id_employee'])->first();
                 if(!empty($post['data_document']['attachment'])){
                     $upload = MyHelper::uploadFile($post['data_document']['attachment'], 'document/employee/', $post['data_document']['ext'], $post['id_employee'].'_'.str_replace(" ","_", $post['data_document']['document_type']));
                     if (isset($upload['status']) && $upload['status'] == "success") {
@@ -232,10 +232,10 @@ class ApiBeEmployeeController extends Controller
                         if (\Module::collections()->has('Autocrm')) {
                         $autocrm = app($this->autocrm)->SendAutoCRM(
                             'Interview Invitation Employee',
-                            date('Y-m-d H:i:s', strtotime($post['data_document']['process_date']??date('Y-m-d H:i:s'))),
+                            $getData->phone,
                             [
                                 'date' => date('Y-m-d H:i:s', strtotime($post['data_document']['process_date']??date('Y-m-d H:i:s'))),
-                            ], null, null, null, null, null, null, null, 1,
+                            ], null, null, null, null, null, null, null, null,
                         );
                         // return $autocrm;
                         if (!$autocrm) {

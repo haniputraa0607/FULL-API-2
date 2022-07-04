@@ -518,7 +518,7 @@ class Icount
             "Code" => $request['employee']['code'],
             "TermOfPaymentID" => $request['employee']['id_term_payment'],
             "Email" => $request['employee']['email'],
-            "ClusterID" => $request['employee']['id_cluster'],
+            "ClusterID" => '013',
             "JoinDate" => $request['employee']['start_date']??date('Y-m-d'),
         ];
         if($company=='PT IMS'){
@@ -598,5 +598,9 @@ class Icount
                 }
             }
         return self::sendRequest('POST', '/purchase/create_reimbursement', $data, $company, $logType, $orderId);
+    }
+
+    public static function searchBusinessPartner($id_business_partner, $cluster = '011', $company = null, $logType = null, $orderId = null){
+        return self::sendRequest('GET', '/business_partner/list?ID='.$id_business_partner.'&ClusterID='.$cluster, $request, $logType, $orderId);
     }
 }

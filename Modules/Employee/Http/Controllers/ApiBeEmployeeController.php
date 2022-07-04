@@ -584,5 +584,38 @@ class ApiBeEmployeeController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
         }
    }
+
+    public function createBusinessPartner(Request $request){
+        $post = $request->all();
+        if(isset($post['id_employee']) && !empty($post['id_employee'])){
+            $employee = Employee::find($post['id_employee']);
+            if(!$employee){
+                return [
+                    'status' => 'fail',
+                    'messages' => 'Employee not found',
+                ];
+            }
+            $id_business_partner = null;
+            if(isset($post['id_business_partner']) && !empty($post['id_business_partner'])){
+                $id_business_partner = $post['id_business_partner'];
+            }
+            return $employee = $employee->businessPartner($id_business_partner);
+            if(isset($employee['status']) && $employee['status']=='success'){
+                return [
+                    'status' => 'success',
+                    'id_business_partner' => $employee['id_business_partner']
+                ];
+            }else{
+                return [
+                    'status' => 'fail',
+                    'messages' =>  $employee['messages']
+                ];
+            }
+        }
+        return [
+            'status' => 'fail',
+            'messages' => 'Id Employee Cant be empty',
+        ];
+    }
    
 }

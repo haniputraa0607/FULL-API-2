@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use App\Http\Models\Transaction;
 
 class RecalculateDiscountAll extends Command
 {
@@ -38,10 +39,13 @@ class RecalculateDiscountAll extends Command
     public function handle()
     {
         // find wrong calculated discount all
+        $this->line('Query database');
         $trxs = Transaction::with('transaction_products')->select('transactions.id_transaction', 'transaction_discount', \DB::raw('SUM(transaction_product_discount_all) as discount_all'))->join('transaction_products', 'transactions.id_transaction', 'transaction_products.id_transaction')->groupBy('transactions.id_transaction')->havingRaw('abs(transaction_discount) <> discount_all')->get();
+        $this->info('Found: '. $trxs->count());
         // $trxs = Transaction::select('transactions.id_transaction', 'transaction_discount', \DB::raw('SUM(transaction_product_discount_all) as discount_all, count(distinct(id_transaction_promo)) as total_promo'))->join('transaction_products', 'transactions.id_transaction', 'transaction_products.id_transaction')->groupBy('transactions.id_transaction')->havingRaw('abs(transaction_discount) <> discount_all and total_promo > 1')->join('transaction_promos', 'transaction_promos.id_transaction', 'transactions.id_transaction')->get(); // only multiple promo
          
-        foreach ($trxs as $trx) {
+        foreach ($trxs as $ind => $trx) {
+            $this->line($ind . ' / '. $trxs->count());
             $kurang = abs($trx->transaction_discount) - $trx->discount_all;
             $digunakan = 0;
             $total_harga = $trx->transaction_products->sum('transaction_product_subtotal');
@@ -56,6 +60,12 @@ class RecalculateDiscountAll extends Command
                 $trx_product->update([
                     'transaction_product_discount_all' => $trx_product->transaction_product_discount_all + $diskon_kurang,
                 ]);
+            }
+            $this->line('Validating ' . $trx->id_transaction);
+            if (abs($trx->transaction_discount) == $trx->transaction_products->sum('transaction_product_discount_all')) {
+                $this->info("Success ".abs($trx->transaction_discount)." == " . $trx->transaction_products->sum('transaction_product_discount_all'));
+            } else {
+                $this->error("Error ".abs($trx->transaction_discount)." != " . $trx->transaction_products->sum('transaction_product_discount_all'));
             }
         }
     }

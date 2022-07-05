@@ -9,6 +9,8 @@ use SMartins\PassportMultiauth\HasMultiAuthApiTokens;
 use Hash;
 use App\Lib\MyHelper;
 use Modules\Disburse\Entities\BankAccount;
+use App\Http\Models\Outlet;
+use App\Lib\Icount;
 
 class UserHairStylist extends Authenticatable
 {

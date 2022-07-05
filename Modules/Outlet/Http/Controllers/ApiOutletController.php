@@ -37,6 +37,7 @@ use Modules\Product\Entities\ProductSpecialPrice;
 use Modules\Franchise\Entities\UserFranchise;
 use Modules\Franchise\Entities\UserFranchiseOultet;
 use Modules\Outlet\Entities\OutletScheduleUpdate;
+use Modules\Recruitment\Entities\UserHairStylist;
 
 use App\Imports\ExcelImport;
 use App\Imports\FirstSheetOnlyImport;
@@ -737,7 +738,6 @@ class ApiOutletController extends Controller
 
         if($post['office_only'] ?? false){
             $outlet->where('type', 'Office');
-            $outlet->where('outlet_status', 'Active');
         } else {
             $outlet->where('type', 'Outlet');
         }
@@ -4313,5 +4313,54 @@ class ApiOutletController extends Controller
         
         DB::commit();
         return ['status' => 'success'];
+    }
+
+    public function listOutletConvert(Request $request){
+        $transaction = Transaction::select('id_outlet')->groupBy('id_outlet')->get()->toArray();
+        $hair_stylist = UserHairStylist::whereNotNull('id_outlet')->select('id_outlet')->groupBy('id_outlet')->get()->toArray();
+        $used_outlet = [];
+
+        foreach($transaction ?? [] as $tran){
+            if(!in_array($tran['id_outlet'],$used_outlet)){
+                $used_outlet[] = $tran['id_outlet'];
+            }
+        }
+        foreach($hair_stylist ?? [] as $hs){
+            if(!in_array($hs['id_outlet'],$used_outlet)){
+                $used_outlet[] = $hs['id_outlet'];
+            }
+        }
+
+        $list_avail = Outlet::whereNotIn('id_outlet',$used_outlet)->where('type','Outlet')->whereNotNull('id_location')->get()->toArray();
+        
+        return MyHelper::checkGet($list_avail);
+
+        
+    }
+
+    public function convertToOffice(Request $request){
+        $post = $request->all();
+        if(isset($post['id_outlet']) && !empty($post['id_outlet'])){
+            DB::beginTransaction();
+            $update = Outlet::where('id_outlet',$post['id_outlet'])->update(['type'=>'Office']);
+            if(!$update){
+                DB::rollBack();
+                return [
+                    'status' => 'fail',
+                    'messages' => ['Failed to convert outlet']
+                ];
+            }
+            DB::commit();
+            $getData = Outlet::where('id_outlet',$post['id_outlet'])->first();
+            return [
+                'status' => 'success',
+                'result' => $getData
+            ];
+        }else{
+            return [
+                'status' => 'fail',
+                'messages' => ['Please Select An Outlet']
+            ];
+        }
     }
 }

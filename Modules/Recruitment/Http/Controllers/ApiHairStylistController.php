@@ -1100,7 +1100,7 @@ class ApiHairStylistController extends Controller
         $post = $request->all();
         if(isset($post['id_user_hair_stylist']) && !empty($post['id_user_hair_stylist'])){
             $user_hs = UserHairStylist::find($post['id_user_hair_stylist']);
-            if(!$employee){
+            if(!$user_hs){
                 return [
                     'status' => 'fail',
                     'messages' => 'Hair Stylist not found',

@@ -190,7 +190,7 @@ class ApiEmployeeController extends Controller
                     }
                 }
                 if($get_role['office_hour_type']=='Use Shift'){
-                    EmployeeSchedule::join('users','users.id','employee_schedules.id')->where('id_role',$val['id_role'])->update(['employee_schedules.id_office_hour_shift'=>$val['id_employee_office_hour']]);
+                    EmployeeSchedule::join('users','users.id','employee_schedules.id')->where('id_role',$val['id_role'])->update(['employee_schedules.id_office_hour_shift'=>$get_role['id_employee_office_hour']]);
                 }
             }
             return response()->json(['status' => 'success']);

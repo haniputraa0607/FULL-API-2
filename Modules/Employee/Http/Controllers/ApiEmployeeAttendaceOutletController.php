@@ -677,7 +677,8 @@ class ApiEmployeeAttendaceOutletController extends Controller
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
 
         $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$employee['id'])->first();
-
+        $array_date = explode('-',$post['date']);
+        $schedule_month = EmployeeSchedule::where('id',$employee['id'])->where('schedule_month',$array_date[1])->where('schedule_year',$array_date[0])->first();
         if(empty($type_shift['office_hour_type'])){
             $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
             if($setting_default){
@@ -696,7 +697,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
            'schedule_out' => $type_shift['office_hour_end'] ?? null,
         ];
 
-        if($type_shift['office_hour_type'] == 'Use Shift'){
+        if($type_shift['office_hour_type'] == 'Use Shift' || isset($schedule_month['id_office_hour_shift'])){
             $schedule_date = EmployeeScheduleDate::join('employee_schedules','employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule')
                                                         ->join('users','users.id','employee_schedules.id')
                                                         ->where('users.id', $employee['id'])
@@ -729,7 +730,8 @@ class ApiEmployeeAttendaceOutletController extends Controller
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
 
         $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$employee['id'])->first();
-
+        $array_date = explode('-',$post['date']);
+        $schedule_month = EmployeeSchedule::where('id',$employee['id'])->where('schedule_month',$array_date[1])->where('schedule_year',$array_date[0])->first();
         if(empty($type_shift['office_hour_type'])){
             $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
             if($setting_default){
@@ -743,7 +745,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
             }
         }
 
-        if($type_shift['office_hour_type'] == 'Use Shift'){
+        if($type_shift['office_hour_type'] == 'Use Shift' || isset($schedule_month['id_office_hour_shift'])){
             $schedule_date = EmployeeScheduleDate::join('employee_schedules','employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule')
                                                         ->join('users','users.id','employee_schedules.id')
                                                         ->where('users.id', $employee['id'])
@@ -964,9 +966,11 @@ class ApiEmployeeAttendaceOutletController extends Controller
                 }
             }
             if(isset($type_shift['office_hour_type'])){
+                $array_date = explode('-',$post['date']);
+                $schedule_month = EmployeeSchedule::where('id',$employee['id'])->where('schedule_month',$array_date[1])->where('schedule_year',$array_date[0])->first();
                 $clock_in_requirement = $type_shift['office_hour_start'];
                 $clock_out_requirement = $type_shift['office_hour_end'];
-                if($type_shift['office_hour_type']=='Use Shift'){
+                if($type_shift['office_hour_type']=='Use Shift' || isset($schedule_month['id_office_hour_shift'])){
                     $schedule_date = EmployeeScheduleDate::join('employee_schedules','employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule')
                                         ->join('users','users.id','employee_schedules.id')
                                         ->where('users.id', $data['id'])

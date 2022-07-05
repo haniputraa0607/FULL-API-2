@@ -182,6 +182,16 @@ class ApiEmployeeController extends Controller
 
             foreach ($post['data'] as $val){
                 Role::where('id_role', $val['id_role'])->update(['id_employee_office_hour' => ($val['id_employee_office_hour'] == 'default' ? NULL: $val['id_employee_office_hour'])]);
+                $get_role = Role::join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('roles.id_role', $val['id_role'])->first();
+                if(empty($get_role['office_hour_type'])){
+                    $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
+                    if($setting_default){
+                        $get_role = EmployeeOfficeHour::where('id_employee_office_hour',$setting_default['value'])->first();
+                    }
+                }
+                if($get_role['office_hour_type']=='Use Shift'){
+                    EmployeeSchedule::join('users','users.id','employee_schedules.id')->where('id_role',$val['id_role'])->update(['employee_schedules.id_office_hour_shift'=>$val['id_employee_office_hour']]);
+                }
             }
             return response()->json(['status' => 'success']);
         }

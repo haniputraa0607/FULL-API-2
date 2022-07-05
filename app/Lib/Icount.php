@@ -603,4 +603,28 @@ class Icount
     public static function searchBusinessPartner($id_business_partner, $cluster = '011', $company = null, $logType = null, $orderId = null){
         return self::sendRequest('GET', '/business_partner/list?ID='.$id_business_partner.'&ClusterID='.$cluster, $request, $logType, $orderId);
     }
+
+    public static function ApiCreateHairStylist($request, $company = null, $logType = null, $orderId = null){
+        $data = [
+            "Name" => $request['hairstylist']['fullname'],
+            "Code" => $request['hairstylist']['user_hair_stylist_code'],
+            "TermOfPaymentID" => $request['hairstylist']['id_term_payment'],
+            "Email" => $request['hairstylist']['email'],
+            "ClusterID" => '012',
+            "JoinDate" => $request['hairstylist']['join_date']? date('Y-m-d',strtotime($request['hairstylist']['join_date'])) : date('Y-m-d'),
+        ];
+        if($company=='PT IMS'){
+            if(isset($request['hairstylist']['id_business_partner_ima']) && !empty($request['hairstylist']['id_business_partner_ima']) && isset($request['hairstylist']['id_business_partner']) && !empty($request['hairstylist']['id_business_partner']) ){
+                $data['BusinessPartnerID'] = $request['hairstylist']['id_business_partner'];
+            }
+        }else{
+            if(isset($request['hairstylist']['id_business_partner_ima']) && !empty($request['hairstylist']['id_business_partner_ima'])){
+                $data['BusinessPartnerID'] = $request['hairstylist']['id_business_partner_ima'];
+            }elseif(isset($request['hairstylist']['id_business_partner']) && !empty($request['hairstylist']['id_business_partner'])){
+                $data['BusinessPartnerID'] = $request['hairstylist']['id_business_partner'];
+            }
+        }
+
+        return self::sendRequest('POST', '/business_partner/employee_create', $data, $company, $logType, $orderId);
+    }
 }

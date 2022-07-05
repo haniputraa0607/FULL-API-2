@@ -1095,4 +1095,37 @@ class ApiHairStylistController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
         }
     }
+
+    public function createBusinessPartner(Request $request){
+        $post = $request->all();
+        if(isset($post['id_user_hair_stylist']) && !empty($post['id_user_hair_stylist'])){
+            $user_hs = UserHairStylist::find($post['id_user_hair_stylist']);
+            if(!$employee){
+                return [
+                    'status' => 'fail',
+                    'messages' => 'Hair Stylist not found',
+                ];
+            }
+            $id_business_partner = null;
+            if(isset($post['id_business_partner']) && !empty($post['id_business_partner'])){
+                $id_business_partner = $post['id_business_partner'];
+            }
+            $user_hs = $user_hs->businessPartner($id_business_partner);
+            if(isset($user_hs['status']) && $user_hs['status']=='success'){
+                return [
+                    'status' => 'success',
+                    'id_business_partner' => $user_hs['id_business_partner']
+                ];
+            }else{
+                return [
+                    'status' => 'fail',
+                    'messages' =>  $user_hs['messages']
+                ];
+            }
+        }
+        return [
+            'status' => 'fail',
+            'messages' => 'Id Hair Stylist Cant be empty',
+        ];
+    }
 }

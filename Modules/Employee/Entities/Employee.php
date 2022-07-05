@@ -92,6 +92,28 @@ class Employee extends Model
                         'status' => 'fail',
                         'messages' => 'This Business Partner ID is not registered yet',
                     ];
+                }else{
+                    $getBusinessPartner = $getBusinessPartner[0];
+                    if($data_send['location']['company_type']=='PT IMS'){
+                        $initBranch_ims = Icount::ApiCreateEmployee($data_send, 'PT IMA');
+                        $data_init_ims = $initBranch_ims['response']['Data'][0];
+                        $update = Employee::where('id_employee', $this->id_employee)->update([
+                            'id_business_partner' => $getBusinessPartner['BusinessPartnerID'],
+                            'id_business_partner_ima' => $data_init_ims['BusinessPartnerID'],
+                            'id_company' => $getBusinessPartner['CompanyID'],
+                            'id_group_business_partner' => $getBusinessPartner['GroupBusinessPartner'],
+                        ]);
+                    }else{
+                        $update = Employee::where('id_employee', $this->id_employee)->update([
+                            'id_business_partner' => $getBusinessPartner['BusinessPartnerID'],
+                            'id_company' => $getBusinessPartner['CompanyID'],
+                            'id_group_business_partner' => $getBusinessPartner['GroupBusinessPartner'],
+                        ]);
+                    }
+                    return [
+                        'status' => 'success',
+                        'id_business_partner' => $id_business_partner
+                    ];
                 }
             }else{
                 return [

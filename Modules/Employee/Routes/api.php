@@ -169,6 +169,9 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
             //incentive
             Route::any('list-default-incentive', ['middleware' => 'feature_control:396','uses' =>'ApiRoleController@list_default_incentive']);
             Route::any('list-default-salary-cut', ['middleware' => 'feature_control:396','uses' =>'ApiRoleController@list_default_salary_cut']);
+            Route::post('/basic-salary', ['middleware' => 'feature_control:393','uses' =>'ApiRoleController@basic_salary']);
+            Route::post('/basic-salary-create', ['middleware' => 'feature_control:393','uses' =>'ApiRoleController@basic_salary_create']);
+            
        });
     Route::group(['prefix' => 'role/overtime'], function () {
            Route::post('create', ['middleware' => 'feature_control:394','uses' =>'ApiOvertimeController@create']);

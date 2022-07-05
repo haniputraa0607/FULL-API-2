@@ -226,6 +226,10 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     //hs_proteksi
     Route::get('proteksi-hs', 'ApiSetting@proteksi_hs');
     Route::post('proteksi-hs-create', 'ApiSetting@proteksi_hs_create');
+    
+    //total
+    Route::get('total-date-hs', 'ApiSetting@total_date_hs');
+    Route::post('total-date-hs-create', 'ApiSetting@total_date_hs_create');
 });
 
 Route::group(['prefix' => 'api/timesetting', 'namespace' => 'Modules\Setting\Http\Controllers'], function()

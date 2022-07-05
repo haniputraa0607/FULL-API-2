@@ -73,7 +73,7 @@ class Employee extends Model
         if(isset($id_business_partner)){
 
             $check_id = Employee::join('users','users.id','employees.id_user')
-            ->join('outlet','outlet.id_outlet','users.id_outlet')
+            ->join('outlets','outlets.id_outlet','users.id_outlet')
             ->join('locations','locations.id_location','outlets.id_location')
             ->where('employees.id_business_partner', $id_business_partner)
             ->where('locations.company_type',$data_send['location']['company_type'])
@@ -84,7 +84,43 @@ class Employee extends Model
                     'messages' => 'This Business Partner ID already used by other employee',
                 ];
             }
-            return $getBusinessPartner = Icount::searchBusinessPartner($id_business_partner, '013', $data_send['location']['company_type']??null);
+            $getBusinessPartner = Icount::searchBusinessPartner($id_business_partner, '013', $data_send['location']['company_type']??null);
+            if($getBusinessPartner['response']['Message']=='Success'){
+                $getBusinessPartner = $getBusinessPartner['response']['Data'];
+                if(count($getBusinessPartner)<=0){
+                    return [
+                        'status' => 'fail',
+                        'messages' => 'This Business Partner ID is not registered yet',
+                    ];
+                }else{
+                    $getBusinessPartner = $getBusinessPartner[0];
+                    if($data_send['location']['company_type']=='PT IMS'){
+                        $initBranch_ims = Icount::ApiCreateEmployee($data_send, 'PT IMA');
+                        $data_init_ims = $initBranch_ims['response']['Data'][0];
+                        $update = Employee::where('id_employee', $this->id_employee)->update([
+                            'id_business_partner' => $getBusinessPartner['BusinessPartnerID'],
+                            'id_business_partner_ima' => $data_init_ims['BusinessPartnerID'],
+                            'id_company' => $getBusinessPartner['CompanyID'],
+                            'id_group_business_partner' => $getBusinessPartner['GroupBusinessPartner'],
+                        ]);
+                    }else{
+                        $update = Employee::where('id_employee', $this->id_employee)->update([
+                            'id_business_partner' => $getBusinessPartner['BusinessPartnerID'],
+                            'id_company' => $getBusinessPartner['CompanyID'],
+                            'id_group_business_partner' => $getBusinessPartner['GroupBusinessPartner'],
+                        ]);
+                    }
+                    return [
+                        'status' => 'success',
+                        'id_business_partner' => $id_business_partner
+                    ];
+                }
+            }else{
+                return [
+                    'status' => 'fail',
+                    'messages' => 'Failed send data to Icount',
+                ];
+            }
 
             
         }else{

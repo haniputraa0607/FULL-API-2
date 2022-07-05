@@ -120,7 +120,7 @@ class ApiEmployeeProfileController extends Controller
        return MyHelper::checkGet($response);
    }
    public function emergency_contact() {
-       $data = EmployeeEmergencyContact::where(array('id_user'=>Auth::user()->id))->paginate(10);
+       $data = EmployeeEmergencyContact::where(array('id_user'=>Auth::user()->id))->get();
        return MyHelper::checkGet($data);
    }
    

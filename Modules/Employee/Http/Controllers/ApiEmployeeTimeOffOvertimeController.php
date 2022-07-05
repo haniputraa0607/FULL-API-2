@@ -139,7 +139,9 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                 if(empty($cek_employee['office_hour_type'])){
                     $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
                     if($setting_default){
+                        $old_data = $cek_employee;
                         $cek_employee = EmployeeOfficeHour::where('id_employee_office_hour',$setting_default['value'])->first();
+                        $cek_employee['id_outlet'] = $old_data['id_outlet'];
                     }
                 }
                 $data_outlet = Outlet::where('id_outlet', $cek_employee['id_outlet'])->first();
@@ -148,7 +150,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
 
                 $schedule = EmployeeSchedule::where('id', $post['id_employee'])->where('schedule_month', $post['month'])->where('schedule_year', $post['year'])->first();
                 if($schedule || $cek_employee['office_hour_type'] == 'Without Shift'){
-                    if($cek_employee['office_hour_type'] == 'Use Shift'){
+                    if($cek_employee['office_hour_type'] == 'Use Shift' || isset($schedule['id_office_hour_shift'])){
                             $id_schedule = $schedule['id_employee_schedule'];
 
                             if(isset($post['date'])){
@@ -441,6 +443,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
             $type_time_off = json_decode($type['value_text']??'' , true);
         }
         $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$employee)->first();
+        $schedule_month = EmployeeSchedule::where('id',$employee)->where('schedule_month',$array_date[1])->where('schedule_year',$array_date[0])->first();
 
         if(empty($type_shift['office_hour_type'])){
             $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
@@ -516,7 +519,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
         }
 
         //employee with shift
-        if($type_shift == 'Use Shift'){
+        if($type_shift == 'Use Shift' || isset($schedule_month['id_office_hour_shift'])){
             $schedule_date = EmployeeScheduleDate::join('employee_schedules','employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule')
                                                     ->join('users','users.id','employee_schedules.id')
                                                     ->where('users.id', $employee)
@@ -634,6 +637,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
         $check = $this->checkDateOvertime($office, $post);
         if(isset($check['status']) && $check['status'] == 'success'){
             $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$employee)->first();
+            $schedule_month = EmployeeSchedule::where('id',$employee)->where('schedule_month',$array_date[1])->where('schedule_year',$array_date[0])->first();
 
             if(empty($type_shift['office_hour_type'])){
                 $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
@@ -655,7 +659,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
             $type_shift = $type_shift['office_hour_type'];
 
             //employee with shift
-            if($type_shift == 'Use Shift'){
+            if($type_shift == 'Use Shift' || isset($schedule_month['id_office_hour_shift'])){
                 $schedule_date = EmployeeScheduleDate::join('employee_schedules','employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule')
                                                         ->join('users','users.id','employee_schedules.id')
                                                         ->where('users.id', $employee)
@@ -694,6 +698,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
         $check = $this->checkDateOvertime($office, $post);
         if(isset($check['status']) && $check['status'] == 'success'){
             $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$employee)->first();
+            $schedule_month = EmployeeSchedule::where('id',$employee)->where('schedule_month',$array_date[1])->where('schedule_year',$array_date[0])->first();
 
             if(empty($type_shift['office_hour_type'])){
                 $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
@@ -710,7 +715,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
             $type_shift = $type_shift['office_hour_type'];
 
             //employee with shift
-            if($type_shift == 'Use Shift'){
+            if($type_shift == 'Use Shift' || isset($schedule_month['id_office_hour_shift'])){
                 $schedule_date = EmployeeScheduleDate::join('employee_schedules','employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule')
                                                         ->join('users','users.id','employee_schedules.id')
                                                         ->where('users.id', $employee)

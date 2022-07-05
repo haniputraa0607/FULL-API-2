@@ -178,15 +178,16 @@ class ApiEmployeeScheduleController extends Controller
             }    
                        
             foreach($list_employees ?? [] as $employee){
-                $schedue_before = EmployeeSchedule::where('id', $employee['id'])->where('schedule_month', date('m', strtotime('-1 months')))->where('schedule_year', date('Y'))->first();
+                $schedue_before = EmployeeSchedule::where('id', $employee['id'])->where('schedule_month', date('m', strtotime('-1 months')))->where('schedule_year', date('Y'))->whereNotNull('id_office_hour_shift')->first();
                 if($schedue_before){
-                    $schedue_now = EmployeeSchedule::where('id', $employee['id'])->where('schedule_month', date('m'))->where('schedule_year', date('Y'))->first();
+                    $schedue_now = EmployeeSchedule::where('id', $employee['id'])->where('schedule_month', date('m'))->where('schedule_year', date('Y'))->whereNotNull('id_office_hour_shift')->first();
                     if(!$schedue_now){
                         $schedue_now = EmployeeSchedule::create([
                             'id' => $employee['id'],
                             'id_outlet' => $employee['id_outlet'],
                             "approve_by" => $schedue_before['approve_by'],
                             "last_updated_by" => $schedue_before['last_updated_by'],
+                            "id_office_hour_shift" => $schedue_before['id_office_hour_shift'],
                             'schedule_month' => date('m'),
                             'schedule_year' => date('Y'),
                             'request_at' => date('Y-m-d H:i:s'),
@@ -275,7 +276,6 @@ class ApiEmployeeScheduleController extends Controller
                     if(!$create_schedule){
                         DB::rollback();
                     }
-                    DB::commit();
                     if(isset($hs['id_employee_office_hour']) && !empty($hs['id_employee_office_hour'])){
                         $shift = EmployeeOfficeHour::join('roles','roles.id_employee_office_hour','employee_office_hours.id_employee_office_hour')
                                                     ->join('users','users.id_role','roles.id_role')
@@ -288,7 +288,13 @@ class ApiEmployeeScheduleController extends Controller
                             $default_office = EmployeeOfficeHour::where('id_employee_office_hour',$setting_default['value'])->first();
                         }
                     }
+                   
                     $create_schedule['shift'] = $shift['office_hour_type'] ?? $default_office['office_hour_type'];
+                    if($create_schedule['shift']=='Use Shift'){
+                        $id_employee_office_hour = $hs['id_employee_office_hour'] ?? $setting_default['value'];
+                        $update_sch = EmployeeSchedule::where('id_employee_schedule',$create_schedule['id_employee_schedule'])->update(['id_office_hour_shift'=>$id_employee_office_hour]);
+                    }
+                    DB::commit();
                     return response()->json([
                         'status' => 'success', 
                         'result' => $create_schedule
@@ -476,12 +482,13 @@ class ApiEmployeeScheduleController extends Controller
 		        	'outlets.outlet_code', 
 		        )->paginate(25)->toArray();
         
-        $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
-        if($setting_default){
-            $default_office = EmployeeOfficeHour::where('id_employee_office_hour',$setting_default['value'])->first();
-        }
-        $data['data'] = array_map(function($val)use($default_office){
-            $val['office_hour_type'] = $val['office_hour_type'] ?? $default_office['office_hour_type'];
+        $data['data'] = array_map(function($val){
+            if(isset($val['id_office_hour_shift']) && !empty($val['id_office_hour_shift'])){
+                $default_office = 'Use Shift';
+            }else{
+                $default_office = 'Without Shift';
+            }
+            $val['office_hour_type'] = $default_office;
             return $val;
         },$data['data']);
         return response()->json(MyHelper::checkGet($data));
@@ -651,8 +658,8 @@ class ApiEmployeeScheduleController extends Controller
             return MyHelper::checkGet($detail);
         }
 
-        if(isset($detail['id_employee_office_hour']) && !empty($detail['id_employee_office_hour'])){
-            $shift = EmployeeOfficeHourShift::join('employee_office_hours','employee_office_hours.id_employee_office_hour','employee_office_hour_shift.id_employee_office_hour')->where('employee_office_hours.id_employee_office_hour', $detail->id_employee_office_hour)->get();
+        if(isset($detail['id_office_hour_shift']) && !empty($detail['id_office_hour_shift'])){
+            $shift = EmployeeOfficeHourShift::join('employee_office_hours','employee_office_hours.id_employee_office_hour','employee_office_hour_shift.id_employee_office_hour')->where('employee_office_hours.id_employee_office_hour', $detail->id_office_hour_shift)->get();
         }else{
             $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
             $detail['id_employee_office_hour'] = $setting_default['value'];

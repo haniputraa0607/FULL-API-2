@@ -2331,4 +2331,29 @@ class ApiSetting extends Controller
         }
         return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
     }
+    public function total_date_hs(){
+        $data = Setting::where('key','total_date_hs')->first();
+         return response()->json($data);
+    }
+  
+    public function total_date_hs_create(Request $request){
+        $post = $request->json()->all();
+        if(isset($request->value)){
+             $salary_formula = Setting::where('key','total_date_hs')->first();
+             if($salary_formula){
+                 $data = Setting::where('key','total_date_hs')->update([
+                  'value'=>$request->value
+                 
+             ]);
+             }else{
+                 $data = Setting::create([
+                 'key'=>'total_date_hs',
+                 'value'=>$request->value
+                    
+             ]);
+             }
+              return response()->json(MyHelper::checkCreate($data));
+        }
+        return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
+    }
 }

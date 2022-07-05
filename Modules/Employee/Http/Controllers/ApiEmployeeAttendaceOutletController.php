@@ -67,12 +67,13 @@ class ApiEmployeeAttendaceOutletController extends Controller
         $outlet = Outlet::select('outlet_name', 'outlet_latitude', 'outlet_longitude', 'id_city')->where('id_outlet', $post['id_outlet'])->first();
         $shift = false;
         $outlet->setHidden(['call', 'url']);
+        $schedule_month = EmployeeSchedule::where('id',$employee->id)->where('schedule_month',date('m'))->where('schedule_year',date('Y'))->first();
         // get current schedule
         $todaySchedule = $employee->employee_schedules()
             ->selectRaw('date, min(time_start) as start_shift, max(time_end) as end_shift, shift')
             ->join('employee_schedule_dates', 'employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule');
         
-        if($employee->role->office_hour['office_hour_type'] == 'Use Shift'){
+        if($employee->role->office_hour['office_hour_type'] == 'Use Shift' || isset($schedule_month['id_office_hour_shift'])){
             $todaySchedule = $todaySchedule->whereNotNull('approve_at');
             $shift = true;
         }else{
@@ -97,10 +98,13 @@ class ApiEmployeeAttendaceOutletController extends Controller
         $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
 
+        $default = Setting::where('key', 'employee_office_hour_default')->first()['value'] ?? null;
+        $office_hour_name = isset($employee->role->office_hour['office_hour_name']) ? $employee->role->office_hour['office_hour_name'] : (isset($schedule_month['id_office_hour_shift']) ? EmployeeOfficeHour::where('id_employee_office_hour',$schedule_month['id_office_hour_shift'])->first()['office_hour_name'] : EmployeeOfficeHour::where('id_employee_office_hour',$default)->first()['office_hour_name']);
+
         $result = [
             'start_shift' => MyHelper::adjustTimezone($todaySchedule->start_shift, $timeZone, 'H:i', true),
             'end_shift' => MyHelper::adjustTimezone($todaySchedule->end_shift, $timeZone, 'H:i', true),
-            'shift_name' => $todaySchedule->shift ? $todaySchedule->shift.' ('.$employee->role->office_hour['office_hour_name'].')' : $employee->role->office_hour['office_hour_name'],
+            'shift_name' => $todaySchedule->shift ? $todaySchedule->shift.' ('.$office_hour_name.')' : $office_hour_name,
             'outlet' => $outlet,
             'logs' => $attendance->logs()->get()->transform(function($item) use($timeZone) {
                 return [
@@ -130,8 +134,9 @@ class ApiEmployeeAttendaceOutletController extends Controller
             'photo' => 'string|required',
         ]);
         $employee = $request->user();
+        $schedule_month = EmployeeSchedule::where('id',$employee->id)->where('schedule_month',date('m'))->where('schedule_year',date('Y'))->first();
         $shift = false;
-        if($employee->role->office_hour['office_hour_type'] == 'Use Shift'){
+        if($employee->role->office_hour['office_hour_type'] == 'Use Shift' || isset($schedule_month['id_office_hour_shift'])){
             $shift = true;
         }else{
             $shift = false;

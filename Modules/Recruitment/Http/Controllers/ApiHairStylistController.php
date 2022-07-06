@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Modules\BusinessDevelopment\Entities\Location;
+use Modules\Disburse\Entities\BankAccount;
 use Modules\ProductService\Entities\ProductHairstylistCategory;
 use Modules\Recruitment\Entities\HairstylistCategory;
 use Modules\Recruitment\Entities\UserHairStylist;
@@ -1127,5 +1128,26 @@ class ApiHairStylistController extends Controller
             'status' => 'fail',
             'messages' => 'Id Hair Stylist Cant be empty',
         ];
+    }
+
+    public function bankAccountSave(Request $request){
+        $post = $request->all();
+        $check = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->first();
+        $dtBank = [
+            'id_bank_name' => $post['id_bank_name'],
+            'beneficiary_name' => $post['beneficiary_name'],
+            'beneficiary_account' => $post['beneficiary_account']
+        ];
+        if(empty($check['id_bank_account'])){
+            $createBank = BankAccount::create($dtBank);
+            if($createBank){
+                UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update(['id_bank_account' => $createBank['id_bank_account']]);
+            }
+
+            return response()->json(MyHelper::checkCreate($createBank));
+        }else{
+            $update = BankAccount::where('id_bank_account', $check['id_bank_account'])->update($dtBank);
+            return response()->json(MyHelper::checkUpdate($update));
+        }
     }
 }

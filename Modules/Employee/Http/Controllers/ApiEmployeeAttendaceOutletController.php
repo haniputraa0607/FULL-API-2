@@ -104,7 +104,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
         $result = [
             'start_shift' => MyHelper::adjustTimezone($todaySchedule->start_shift, $timeZone, 'H:i', true),
             'end_shift' => MyHelper::adjustTimezone($todaySchedule->end_shift, $timeZone, 'H:i', true),
-            'shift_name' => $todaySchedule->shift ? $todaySchedule->shift.' ('.$office_hour_name.')' : $office_hour_name,
+            'shift_name' => $todaySchedule->shift ? $office_hour_name.' ('.$todaySchedule->shift.')' : $office_hour_name,
             'outlet' => $outlet,
             'logs' => $attendance->logs()->get()->transform(function($item) use($timeZone) {
                 return [

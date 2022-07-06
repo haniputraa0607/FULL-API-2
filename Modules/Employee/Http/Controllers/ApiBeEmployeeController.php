@@ -26,6 +26,8 @@ use DB;
 use App\Http\Models\Outlet;
 use File;
 use Storage;
+use Modules\Employee\Entities\CategoryQuestion;
+use Modules\Employee\Entities\QuestionEmployee;
 
 class ApiBeEmployeeController extends Controller
 {
@@ -110,10 +112,24 @@ class ApiBeEmployeeController extends Controller
                         'employee_education',
                         'employee_education.city',
                         'employee_education_non_formal',
-                        'employee_job_experience',
-                        'employee_question',
-                        'employee_question.questions'])
+                        'employee_job_experience'])
                     ->first();
+            $category = CategoryQuestion::get();
+            $array = array();
+            foreach ($category as $value) {
+                $s = QuestionEmployee::join('employee_questions','employee_questions.id_question_employee','question_employees.id_question_employee')
+                                        ->where('id_user',$detail->id_user)
+                                        ->where('id_category_question',$value['id_category_question'])
+                                        ->count();
+                if($s != 0){
+                    $value['employee']= QuestionEmployee::join('employee_questions','employee_questions.id_question_employee','question_employees.id_question_employee')
+                                        ->where('id_user',$detail->id_user)
+                                        ->where('id_category_question',$value['id_category_question'])
+                                        ->get();
+                    array_push($array,$value);
+                }
+            }
+            $detail['question'] = $array;
             return response()->json(MyHelper::checkGet($detail));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
@@ -169,11 +185,32 @@ class ApiBeEmployeeController extends Controller
                         'employee_education',
                         'employee_education.city',
                         'employee_education_non_formal',
-                        'employee_job_experience',
-                        'employee_question',
-                        'employee_question.questions'])
+                        'employee_job_experience'])
                     ->first();
-                  
+            $category = CategoryQuestion::get();
+            $array = array();
+            foreach ($category as $value) {
+                $s = QuestionEmployee::join('employee_questions','employee_questions.id_question_employee','question_employees.id_question_employee')
+                                        ->where('id_user',$detail->id_user)
+                                        ->where('id_category_question',$value['id_category_question'])
+                                        ->count();
+                if($s != 0){
+                    $value['employee']= QuestionEmployee::join('employee_questions','employee_questions.id_question_employee','question_employees.id_question_employee')
+                                        ->where('id_user',$detail->id_user)
+                                        ->where('id_category_question',$value['id_category_question'])
+                                        ->get();
+                    foreach($value['employee'] as $v){
+                        if($v['type']=='Type 3'||$v['type']=="Type 4"){
+                            $v['question'] = json_decode($v['question']);
+                        }
+                        if($v['type']!='Type 1'){
+                            $v['answer'] = json_decode($v['answer']);
+                        }
+                    }
+                    array_push($array,$value);
+                }
+            }
+            $detail['question'] = $category;
             return response()->json(MyHelper::checkGet($detail));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);

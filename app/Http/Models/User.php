@@ -408,4 +408,7 @@ class User extends Authenticatable
     public function employee_question() {
     	return $this->hasMany(\Modules\Employee\Entities\EmployeeQuestions::class, 'id_user', 'id');
     }
+    public function employee_category_question() {
+    	return $this->hasMany(\Modules\Employee\Entities\CategoryQuestion::class);
+    }
 }

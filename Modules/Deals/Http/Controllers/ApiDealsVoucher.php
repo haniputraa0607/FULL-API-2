@@ -30,6 +30,7 @@ class ApiDealsVoucher extends Controller
         $this->deals        = "Modules\Deals\Http\Controllers\ApiDeals";
         $this->subscription        	= "Modules\Subscription\Http\Controllers\ApiSubscription";
         $this->promo_campaign       = "Modules\PromoCampaign\Http\Controllers\ApiPromoCampaign";
+        $this->online_transaction       = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
     }
 
     /* CREATE VOUCHER */
@@ -763,7 +764,7 @@ class ApiDealsVoucher extends Controller
             ->whereNull('used_at')
             ->with(['dealVoucher', 'dealVoucher.deal', 'dealVoucher.deal.outlets.city', 'dealVoucher.deal.outlets.city']);
         $voucher->select('deals_users.id_deals','voucher_expired_at','deals_users.id_deals_voucher','id_deals_user','id_outlet','voucher_hash','redeemed_at','used_at','is_used');
-
+        
         //search by outlet
         if(isset($post['id_outlet']) && is_numeric($post['id_outlet'])){
             $voucher->join('deals_vouchers', 'deals_users.id_deals_voucher', 'deals_vouchers.id_deals_voucher')
@@ -775,8 +776,25 @@ class ApiDealsVoucher extends Controller
                         ->orWhere('deals.is_all_outlet','=',1);
                 })
                 ->select('deals_users.*')->distinct();
+        }
 
-
+         //search by outlet
+        if(isset($post['transaction_from']) && is_string($post['transaction_from'])){
+            $service = [
+                'outlet-service' => 'Outlet Service',
+                'home-service' => 'Home Service',
+                'shop' => 'Online Shop',
+                'academy' => 'Academy',
+            ];
+            if(!MyHelper::isJoined($voucher,'deals_vouchers')){
+                $voucher->leftJoin('deals_vouchers', 'deals_users.id_deals_voucher', 'deals_vouchers.id_deals_voucher');
+            }
+            if(!MyHelper::isJoined($voucher,'deals')){
+                $voucher->leftJoin('deals', 'deals.id_deals', 'deals_vouchers.id_deals');
+            }
+            $voucher->leftJoin('deals_services', 'deals.id_deals', 'deals_services.id_deals')
+            ->where('deals_services.service', $service[$post['transaction_from']])
+            ->select('deals_users.*')->distinct();
         }
 
         if(isset($post['voucher_expired']) && $post['voucher_expired'] != null){
@@ -819,24 +837,49 @@ class ApiDealsVoucher extends Controller
             $voucher = $voucher->orderBy('deals_users.claimed_at', 'desc');
         }
 
-        $voucher = $voucher->paginate(10);
-        // get pagination attributes
-        $voucherPaginate = clone $voucher;
-        $voucherPaginate = $voucherPaginate->toArray();
+        $voucher = $voucher->get()->toArray();
 
-        $current_page = $voucher->currentPage();
-        $next_page_url = $voucher->nextPageUrl();
-        $per_page = $voucher->perPage();
-        $prev_page_url = $voucher->previousPageUrl();
-        $total = $voucher->count();
+        $id_vouchers = [];
 
-        $voucher_temp = [];
-        // convert paginate collection to array data of vouchers
-        foreach ($voucher as $key => $value) {
-            $voucher_temp[] = $value->toArray();
+        foreach($voucher ?? [] as $val_vou){
+            if(!in_array($val_vou['deal_voucher']['id_deals'],$id_vouchers)){
+                $id_vouchers[] = $val_vou['deal_voucher']['id_deals'];
+            }
         }
-        $voucher = $voucher_temp;
-
+        $deals_no_claim = (new Deal)->newQuery();
+        $deals_no_claim->where('deals_type', '!=','WelcomeVoucher');
+        $deals_no_claim->where( function($dc) {
+        	$dc->where('deals_publish_start', '<=', date('Y-m-d H:i:s'))
+        	->where('deals_publish_end', '>=', date('Y-m-d H:i:s'))
+        	->where('deals_end', '>=', date('Y-m-d H:i:s'));
+        });
+        $deals_no_claim->where( function($dc) {
+        	$dc->where('deals_voucher_type','Unlimited')
+        		->orWhereRaw('(deals.deals_total_voucher - deals.deals_total_claimed) > 0 ');
+        });
+        $deals_no_claim->where('step_complete', '=', 1);
+        $deals_no_claim->whereNotIn('deals.id_deals', $id_vouchers);
+        $deals_no_claim->with(['outlets', 'outlets.city']);
+        if ($request->json('id_outlet') && is_numeric($request->json('id_outlet'))) {
+            $deals_no_claim->leftJoin('deals_outlets', 'deals.id_deals', 'deals_outlets.id_deals')
+            	->where(function($query) use ($request){
+	                $query->where('id_outlet', $request->json('id_outlet'))
+	                		->orWhere('deals.is_all_outlet','=',1);
+            	})
+	            ->addSelect('deals.*')->distinct();
+        }
+        if(isset($post['transaction_from']) && is_string($post['transaction_from'])){
+            $service = [
+                'outlet-service' => 'Outlet Service',
+                'home-service' => 'Home Service',
+                'shop' => 'Online Shop',
+                'academy' => 'Academy',
+            ];
+            $deals_no_claim->leftJoin('deals_services', 'deals.id_deals', 'deals_services.id_deals')
+            ->where('deals_services.service', $service[$post['transaction_from']])
+            ->select('deals.*')->distinct();
+        }
+        $deals_no_claim = $deals_no_claim->get()->toArray();
         //add outlet name
         foreach($voucher as $index => $datavoucher){
             $check = count($datavoucher['deal_voucher']['deal']['outlets']);
@@ -855,6 +898,42 @@ class ApiDealsVoucher extends Controller
                 $voucher[$index]['label']='Gunakan';
                 $voucher[$index]['status_text']="Berlaku hingga \n".MyHelper::dateFormatInd($voucher[$index]['voucher_expired_at'],false);
             }
+
+            $outlet = null;
+            if($datavoucher['id_outlet']){
+                $getOutlet = Outlet::find($datavoucher['id_outlet']);
+                if($getOutlet){
+                    $outlet = $getOutlet['outlet_name'];
+                }
+            }
+
+            $voucher[$index] = array_slice($voucher[$index], 0, 4, true) +
+                array("outlet_name" => $outlet) +
+                array_slice($voucher[$index], 4, count($voucher[$index]) - 1, true) ;
+
+            preg_match("/chart.googleapis.com\/chart\?chl=(.*)&chs=250x250/", $datavoucher['voucher_hash'], $matches);
+
+            // replace voucher_code with code from voucher_hash
+            if (isset($matches[1])) {
+                $voucher[$index]['deal_voucher']['voucher_code'] = $matches[1];
+            }
+            else {
+                $voucherHash = $datavoucher['voucher_hash'];
+                $voucher[$index]['deal_voucher']['voucher_code'] = str_replace("https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=",'',  $voucherHash);
+            }
+           
+
+            $voucher = $this->kotacuks($voucher);
+        }
+
+        foreach($deals_no_claim ?? [] as $index => $deal){
+            $check = count($deal['outlets']);
+            if ($check == $outlet_total) {
+                $deal[$index]['label_outlet'] = 'All';
+            } else {
+                $deal[$index]['label_outlet'] = 'Some';
+            }
+
             $outlet = null;
             if($datavoucher['deal_voucher'] == null){
                 unset($voucher[$index]);
@@ -866,27 +945,9 @@ class ApiDealsVoucher extends Controller
                         $outlet = $getOutlet['outlet_name'];
                     }
                 }
-
-                $voucher[$index] = array_slice($voucher[$index], 0, 4, true) +
-                    array("outlet_name" => $outlet) +
-                    array_slice($voucher[$index], 4, count($voucher[$index]) - 1, true) ;
-
-                preg_match("/chart.googleapis.com\/chart\?chl=(.*)&chs=250x250/", $datavoucher['voucher_hash'], $matches);
-
-                // replace voucher_code with code from voucher_hash
-                if (isset($matches[1])) {
-                    $voucher[$index]['deal_voucher']['voucher_code'] = $matches[1];
-                }
-                else {
-                    $voucherHash = $datavoucher['voucher_hash'];
-                    $voucher[$index]['deal_voucher']['voucher_code'] = str_replace("https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=",'',  $voucherHash);
-                }
-
             }
-
-            $voucher = $this->kotacuks($voucher);
         }
-
+        
         if (!($post['used']??false)) {
 
             foreach($voucher as $index => $dataVou){
@@ -894,10 +955,9 @@ class ApiDealsVoucher extends Controller
                 $voucher[$index]['webview_url_v2'] = config('url.api_url') ."api/webview/voucher/v2/". $dataVou['id_deals_user'];
                 $voucher[$index]['button_text'] = 'Gunakan';
             }
-
         }
 
-        $result['data'] = array_map(function($var){
+        $voucher = array_map(function($var){
             return [
                 'id_deals'=> $var['deal_voucher']['id_deals']??null,
                 'voucher_expired_at'=> $var['voucher_expired_at'],
@@ -916,6 +976,26 @@ class ApiDealsVoucher extends Controller
                 'voucher_expired_at_time_indo'=> 'pukul '.date('H:i', strtotime($var['voucher_expired_at']))
             ];
         },$voucher);
+        
+        $deals_no_claim = array_map(function($var){
+            return [
+                'id_deals'=> $var['id_deals']??null,
+                'deals_title'=>$var['deals_title']??'',
+                'url_deals_image'=>$var['url_deals_image'],
+            ];
+        },$deals_no_claim);
+        $result['data'] = array_merge($voucher,$deals_no_claim);
+        $outlet = Outlet::where('id_outlet', $post['id_outlet'])->with('today')->where('outlet_status', 'Active')->where('outlets.outlet_service_status', 1)
+        ->join('cities', 'cities.id_city', 'outlets.id_city')
+        ->join('provinces', 'provinces.id_province', 'cities.id_province')
+        ->select('outlets.*', 'cities.city_name', 'provinces.time_zone_utc as province_time_zone_utc')
+        ->first();
+        foreach($result['data'] ?? [] as $key => $data_voucher){
+            if($data_voucher['id_deals']==102){
+                return $check_avail = $this->checkVoucherAvail($data_voucher['id_deals'],$outlet,$post['item_service'],$post['item']);
+            }
+        }
+
         $result['current_page'] = $current_page;
         $result['next_page_url'] = $next_page_url;
         $result['prev_page_url'] = $prev_page_url;
@@ -940,6 +1020,19 @@ class ApiDealsVoucher extends Controller
             ]);
         }
         return response()->json(app($this->subscription)->checkGet($result, $resultMessage??''));
+
+    }
+
+    public function checkVoucherAvail($id_deals,$outlet,$item_service,$item){
+        $totalItem = 0;
+        $totalDisProduct = 0;
+        if(!empty($item_service)){
+            $post['item_service'] = $item_service;
+            $post['id_outlet'] = $outlet['id_outlet'];
+            $itemServices = app($this->online_transaction)->checkServiceProduct($post, $outlet);
+            $post['item_service'] = $itemServices['item_service']??[];
+            $totalItem = $totalItem + $itemServices['total_item_service']??0;
+        }
 
     }
     /*============================= End Filter & Sort V2 ================================*/

@@ -457,7 +457,8 @@ class ApiRequestProductController extends Controller
                 }
             }
             DB::commit();
-            $user_request = User::where('id',$store_request['id_user_request'])->first();
+            $id_user_request = $store_request['id_user_request'] ?? $old_data['id_user_request'];
+            $user_request = User::where('id',$id_user_request)->first();
             if($old_data['status'] == $store_request['status']){
                 if (\Module::collections()->has('Autocrm')) {
                 

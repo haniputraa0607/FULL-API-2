@@ -42,6 +42,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
         Route::get('setting-requirements', 'ApiHairStylistController@candidateSettingRequirements');
         Route::post('setting-requirements', 'ApiHairStylistController@candidateSettingRequirements');
         Route::post('create-business-partner', 'ApiHairStylistController@createBusinessPartner');
+        Route::post('bank-account/save', 'ApiHairStylistController@bankAccountSave');
 
     	Route::group(['prefix' => 'schedule'], function () {
         	Route::post('list', 'ApiHairStylistScheduleController@list');

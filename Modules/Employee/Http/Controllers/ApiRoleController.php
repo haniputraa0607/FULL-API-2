@@ -20,7 +20,7 @@ use Modules\Employee\Entities\EmployeeRoleIncentive;
 use Modules\Employee\Entities\EmployeeRoleIncentiveDefault;
 use Modules\Employee\Entities\EmployeeRoleSalaryCut;
 use Modules\Employee\Entities\EmployeeRoleSalaryCutDefault;
-
+use Modules\Employee\Entities\EmployeeRoleBasicSalary;
 class ApiRoleController extends Controller
 {
     
@@ -271,6 +271,39 @@ class ApiRoleController extends Controller
            return response()->json(MyHelper::checkGet($overtime));
         }
         return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+    
+    }
+    public function basic_salary(Request $request) {
+        if($request->id_role){
+            $basic = Setting::where('key','basic_salary_employee')->first();;
+            $overtime['value'] = $basic['value']??0;
+            $group = EmployeeRoleBasicSalary::where(array('id_role'=>$request->id_role))->first();
+            $overtime['default_value']    = 0;
+            if(isset($group)){
+                $overtime['value_role'] = $group['value'];
+            }
+           return response()->json(MyHelper::checkGet($overtime));
+        }
+        return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+    
+    }
+    public function basic_salary_create(Request $request) {
+         $data = EmployeeRoleBasicSalary::where([
+                    "id_role"   =>  $request->id_role,
+                ])->first();
+        if($data){
+            $store = EmployeeRoleBasicSalary::where([
+                    "id_role"   =>  $request->id_role,
+                    ])->update([
+                    "value"   =>  $request->value,
+                ]);
+        }else{
+        $store = EmployeeRoleBasicSalary::create([
+                    "id_role"   =>  $request->id_role,
+                    "value"   =>  $request->value,
+                ]);
+        }
+        return response()->json(MyHelper::checkCreate($store));
     
     }
         

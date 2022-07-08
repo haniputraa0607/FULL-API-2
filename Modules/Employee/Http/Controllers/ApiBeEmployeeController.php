@@ -112,7 +112,8 @@ class ApiBeEmployeeController extends Controller
                         'employee_education',
                         'employee_education.city',
                         'employee_education_non_formal',
-                        'employee_job_experience'])
+                        'employee_job_experience',
+                        'employee_emergency_call'])
                     ->first();
             $category = CategoryQuestion::get();
             $array = array();
@@ -185,7 +186,8 @@ class ApiBeEmployeeController extends Controller
                         'employee_education',
                         'employee_education.city',
                         'employee_education_non_formal',
-                        'employee_job_experience'])
+                        'employee_job_experience',
+                        'employee_emergency_call'])
                     ->first();
             $category = CategoryQuestion::get();
             $array = array();

@@ -94,14 +94,17 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
             Route::get('/pending', 'ApiBeEmployeeAssetInventoryController@list_loan_pending');
             Route::get('/list', 'ApiBeEmployeeAssetInventoryController@list_loan');
             Route::post('/approve', 'ApiBeEmployeeAssetInventoryController@approve_loan');
+            Route::post('/detail', 'ApiBeEmployeeAssetInventoryController@detail_loan');
         });
         Route::group(['prefix' => 'return'], function(){
             Route::get('/pending', 'ApiBeEmployeeAssetInventoryController@list_return_pending');
             Route::get('/list', 'ApiBeEmployeeAssetInventoryController@list_return');
             Route::post('/approve', 'ApiBeEmployeeAssetInventoryController@approve_return');
+            Route::post('/detail', 'ApiBeEmployeeAssetInventoryController@detail_return');
         });
        
         Route::post('/create', 'ApiBeEmployeeAssetInventoryController@create');
+        Route::post('/delete', 'ApiBeEmployeeAssetInventoryController@delete');
         Route::post('/list', 'ApiBeEmployeeAssetInventoryController@list');
     });
     Route::any('attendance-setting','ApiEmployeeAttendanceController@setting');

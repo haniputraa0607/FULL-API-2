@@ -105,6 +105,7 @@ use Lcobucci\JWT\Parser;
 use App\Http\Models\OauthAccessToken;
 use Modules\BusinessDevelopment\Entities\Location;
 use Modules\Transaction\Http\Requests\Signature;
+use Modules\Transaction\Http\Requests\SignatureLoan;
 use Modules\Franchise\Entities\PromoCampaign;
 use Modules\PromoCampaign\Entities\TransactionPromo;
 use Modules\Product\Entities\ProductIcount;
@@ -6791,6 +6792,16 @@ class ApiTransaction extends Controller
             ];
         }
         $data = hash_hmac('sha256',$request->PurchaseInvoiceID.$request->status.$request->date_disburse,$request->api_secret);
+        return $data;
+    }
+    function signature_loan(SignatureLoan $request) {
+        if (config('app.env') != 'local') {
+            return [
+                'status' => 'fail',
+                'messages' => ['Jangan regenerate secret key server']
+            ];
+        }
+        $data = hash_hmac('sha256',$request->BusinessPartnerID.$request->SalesInvoiceID.$request->amount,$request->api_secret);
         return $data;
     }
 

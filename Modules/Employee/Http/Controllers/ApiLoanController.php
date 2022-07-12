@@ -20,6 +20,8 @@ use Modules\Employee\Entities\EmployeeCategoryLoan;
 use Modules\Employee\Entities\EmployeeLoan;
 use Modules\Employee\Entities\EmployeeLoanReturn;
 use Modules\Employee\Http\Requests\Income\Loan\CreateLoan;
+use Modules\Employee\Http\Requests\Income\Loan\CreateLoanIcount;
+use Modules\Employee\Entities\EmployeeSalesPayment;
 
 class ApiLoanController extends Controller
 {
@@ -115,5 +117,16 @@ class ApiLoanController extends Controller
             }
         }
         return response()->json(MyHelper::checkUpdate($save));
+    }
+    public function create_icount(CreateLoanIcount $request){
+        $create = EmployeeSalesPayment::create([
+            'BusinessPartnerID'=>$request->BusinessPartnerID,
+            'SalesInvoiceID'=>$request->SalesInvoiceID,
+            'amount'=>$request->amount,
+        ]);
+        return response()->json(MyHelper::checkUpdate($create));
+    }
+    public function index_sales_payment() {
+        
     }
 }

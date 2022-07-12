@@ -15,5 +15,12 @@ class QuestionEmployee extends Model
         'type',
         'question'
     ];
-
+    public function category()
+	{
+		return $this->belongsTo(CategoryQuestion::class, 'id_category_question');
+	}
+    public function employee()
+	{
+		return $this->hasOne(EmployeeQuestions::class, 'id_question_employee','id_question_employee');
+	}
 }

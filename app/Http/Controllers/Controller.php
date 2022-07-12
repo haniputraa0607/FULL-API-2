@@ -215,4 +215,14 @@ class Controller extends BaseController
 			'result' => $request->all()
 		];
 	}
+
+    public function getSidebarBadge(Request $request)
+    {
+    	return [
+    		'status' => 'success',
+    		'result' => [
+    			// 'total_home' => 5,
+    		],
+    	];
+    }
 }

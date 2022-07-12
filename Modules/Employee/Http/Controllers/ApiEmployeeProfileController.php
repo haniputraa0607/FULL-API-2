@@ -78,12 +78,13 @@ class ApiEmployeeProfileController extends Controller
    }
    public function payroll() {
        $profile = Employee::join('users','users.id','employees.id_user')
+               ->leftjoin('bank_name','bank_name.id_bank_name','employees.id_bank_name')
                ->where(array('users.id'=>Auth::user()->id))
                ->select([
                    'bpjs_ketenagakerjaan',
                    'bpjs_kesehatan',
                    'npwp',
-                   'bank_name',
+                   'bank_name.bank_name',
                    'bank_account_number',
                    'bank_account_name',
                ])
@@ -119,7 +120,7 @@ class ApiEmployeeProfileController extends Controller
        return MyHelper::checkGet($response);
    }
    public function emergency_contact() {
-       $data = EmployeeEmergencyContact::where(array('id_user'=>Auth::user()->id))->paginate(10);
+       $data = EmployeeEmergencyContact::where(array('id_user'=>Auth::user()->id))->get();
        return MyHelper::checkGet($data);
    }
    

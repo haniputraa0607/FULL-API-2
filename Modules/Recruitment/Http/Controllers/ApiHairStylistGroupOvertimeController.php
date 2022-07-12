@@ -101,7 +101,7 @@ class ApiHairStylistGroupOvertimeController extends Controller
     public function index(Request $request) {
         if($request->id_hairstylist_group){
             $data = array();
-            $overtime = HairstylistGroupOvertimeDefault::get();
+            $overtime = HairstylistGroupOvertimeDefault::orderby('hours','asc')->get();
             foreach ($overtime as $value) {
                 $insen = HairstylistGroupOvertime::where(array('id_hairstylist_group_default_overtimes'=>$value['id_hairstylist_group_default_overtimes'],'id_hairstylist_group'=>$request->id_hairstylist_group))->first();
                 $value['default_value'] = $value['value'];
@@ -174,7 +174,7 @@ class ApiHairStylistGroupOvertimeController extends Controller
     function index_default(Request $request) 
     {
     	$post = $request->json()->all();
-        $data = HairstylistGroupOvertimeDefault::Select('hairstylist_group_default_overtimes.*');
+        $data = HairstylistGroupOvertimeDefault::orderby('hours','asc')->Select('hairstylist_group_default_overtimes.*');
         $data = $data->get();
             return response()->json(MyHelper::checkGet($data));
     }

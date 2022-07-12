@@ -127,6 +127,43 @@ class ApiLoanController extends Controller
         return response()->json(MyHelper::checkUpdate($create));
     }
     public function index_sales_payment() {
-        
+        $data = EmployeeSalesPayment::where('status','Pending')->get();
+        return response()->json(MyHelper::checkGet($data));
+    }
+    public function detail_sales_payment(Request $request) {
+       
+        $store =  EmployeeSalesPayment::where('id_employee_sales_payment',$request->id_employee_sales_payment)
+                ->join('employees','employees.id_business_partner','employee_sales_payments.BusinessPartnerID')
+                ->join('users','users.id','employees.id_user')
+                ->first();
+        if($store){
+            return response()->json(MyHelper::checkGet($store));
+        }
+         return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+    }
+    public function create_sales_payment(CreateLoan $request){
+        $post = $request->json()->all();
+        $save = EmployeeLoan::create($post);
+        $date = (int) MyHelper::setting('delivery_income', 'value')??25;
+        $now = date('d', strtotime($post['effective_date']));
+        $i = 0;
+        $amount = $post['amount']/$post['installment'];
+        if($date<$now){
+            $i = 1;
+            $post['installment'] = $post['installment']+1;
+        }
+        if($save){
+            for ($i;$i<$post['installment'];$i++){
+                EmployeeLoanReturn::create([
+                    'id_employee_loan'=>$save['id_employee_loan'],
+                    'return_date'=>date('Y-m-'.$date,strtotime("+".$i."month")),
+                    'amount_return'=>$amount,
+                    'status_return'=>"Pending"
+                ]);
+            }
+            EmployeeSalesPayment::where('id_employee_sales_payment',$post['id_employee_sales_payment'])
+                    ->update(['status'=>'Success']);
+        }
+        return response()->json(MyHelper::checkUpdate($save));
     }
 }

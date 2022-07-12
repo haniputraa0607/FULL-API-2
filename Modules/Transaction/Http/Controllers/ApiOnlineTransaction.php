@@ -1446,7 +1446,7 @@ class ApiOnlineTransaction extends Controller
         $fake_request = new Request(['show_all' => 1]);
         $result['available_payment'] = $this->availablePayment($fake_request)['result'] ?? [];
 
-        $result = app($this->promo_trx)->applyPromoCheckout($result);
+        $result = app($this->promo_trx)->applyPromoCheckout($result,$post);
 
         if ($result['cashback']) {
             $result['point_earned'] = [

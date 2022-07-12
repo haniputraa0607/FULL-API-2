@@ -25,6 +25,7 @@ use Modules\Employee\Entities\AssetInventoryLog;
 use Modules\Employee\Entities\EmployeeTimeOffImage;
 use Modules\Product\Entities\RequestProduct;
 use Modules\Product\Entities\RequestProductDetail;
+use Modules\Product\Entities\RequestProductImage;
 use App\Http\Models\Province;
 use App\Http\Models\Outlet;
 use App\Http\Models\User;
@@ -212,7 +213,7 @@ class ApiEmployeeInboxController extends Controller
             $key++;
         }
 
-        if(in_array('524',$roles)){
+        if(in_array('415',$roles)){
             $req_product = RequestProduct::where('id_outlet',$id_outlet)->where('status','Draft')->get()->toArray();
             $tab[$key] = [
                 'name' => 'Permintaan Product',
@@ -834,6 +835,28 @@ class ApiEmployeeInboxController extends Controller
                 ];
 
                 if(isset($id_detail)){
+                    $att_image = [
+                        'label' => 'Attachment Image',
+                        'type' => 'Image',
+                        'value' => [
+                            ''
+                        ]
+                    ];
+
+                    $attachment_req_pro = RequestProductImage::where('id_request_product', $val['id_request_product'])->get()->toArray();
+                    $link_img = [];
+                    foreach($attachment_req_pro ?? [] as $att){
+                        $ext = pathinfo($att['path'])['extension'];
+                        if($ext == 'pdf'){
+                            $link_file[] = $att['path'] ? env('STORAGE_URL_API').$att['path'] : '';
+                        }elseif($ext == 'png' || $ext == 'jpeg' || $ext == 'jpg' || $ext == 'bmp'){
+                            $link_img[] = $att['path'] ? env('STORAGE_URL_API').$att['path'] : '';
+                        }
+                    }
+                    if(!empty($link_img)){
+                        $att_image['value'] = $link_img;
+                    }
+                    
                     $product_detail = [
                         'label' => 'Detail',
                         'value' => []
@@ -848,6 +871,7 @@ class ApiEmployeeInboxController extends Controller
                         ];
                     }
                     $data['data'][] = $product_detail;
+                    $data['data'][] = $att_image;
                 }
 
                 $send[] = $data;

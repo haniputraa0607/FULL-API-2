@@ -187,6 +187,7 @@ class ApiEmployeeRequestProductController extends Controller
             'type' => 'string|required',
             'id_product_catalog' => 'integer|required',
             'requirement_date' => 'required',
+            'attachment.*'  => 'mimes:jpeg,jpg,bmp,png|max:2000'
         ]);
         $post = $request->all();
         $user = $request->user();
@@ -264,6 +265,49 @@ class ApiEmployeeRequestProductController extends Controller
             if(!$store_detail){
                 DB::rollback();
                 return response()->json(['status' => 'fail', 'messages' => ['Gagal membuat permintaan']]);
+            }
+        }
+
+        if(isset($post['attachment'])){
+            $delete_image = RequestProductImage::where('id_request_product',$store_request['id_request_product'])->delete();
+    
+            $files = [];
+            foreach ($post['attachment'] as $i => $attachment){
+                if(!empty($attachment)){
+                    try{
+                        $encode = base64_encode(fread(fopen($attachment, "r"), filesize($attachment)));
+                    }catch(\Exception $e) {
+                        DB::rollBack();
+                        return response()->json(['status' => 'fail', 'messages' => ['Ukuran file lebih besar dari 2 MB']]);
+                    }
+                    $originalName = $attachment->getClientOriginalName();
+                    if($originalName == ''){
+                        $ext = 'png';
+                        $name = $request->user()->name.'_'.$i;
+                        $name = str_replace(' ','_',$name);
+                    }else{
+                        $name = pathinfo($originalName, PATHINFO_FILENAME);
+                        $ext = pathinfo($originalName, PATHINFO_EXTENSION);
+                        if(strpos($name, '_blob')){
+                            $name = str_replace('_blob','',$name);
+                            $ext='jpeg';
+                        }
+                    }
+                    $upload = MyHelper::uploadFile($encode, $this->request_path, $ext, date('YmdHis').'_'.$name);
+                    if (isset($upload['status']) && $upload['status'] == "success") {
+                        $save_image = [
+                            "id_request_product" => $store_request['id_request_product'],
+                            "path"               => $upload['path']
+                        ];
+                        $storage_image = RequestProductImage::create($save_image);
+                    }else {
+                        DB::rollback();
+                        return response()->json([
+                            'status'=>'fail',
+                            'messages'=>['Gagal menyimpan file']
+                        ]);
+                    }
+                }
             }
         }
 

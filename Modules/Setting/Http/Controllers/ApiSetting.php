@@ -1949,7 +1949,7 @@ class ApiSetting extends Controller
     }
     public function global_commission_product_setting(){
         $data = Setting::where('key','global_commission_product')->first();
-         return response()->json($data);
+        return response()->json($data);
     }
   
     public function global_commission_product_create(Request $request){

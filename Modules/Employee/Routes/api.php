@@ -243,6 +243,9 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
                 Route::post('hs', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@hs']);
                 Route::post('create', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@create']);
                 Route::post('/', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@index']);
+                Route::post('/sales', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@index_sales_payment']);
+                Route::post('/sales/detail', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@detail_sales_payment']);
+                Route::post('/sales/create', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@create_sales_payment']);
             });
 });
 

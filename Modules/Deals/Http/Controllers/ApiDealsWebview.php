@@ -149,7 +149,8 @@ class ApiDealsWebview extends Controller
             'user_point'                    => Auth()->user()->balance,
             'deals_start_indo'              => MyHelper::dateFormatInd($deals['deals_start'], false, false).' pukul '.date('H:i', strtotime($deals['deals_start'])),
             'deals_end_indo'                => MyHelper::dateFormatInd($deals['deals_end'], false, false).' pukul '.date('H:i', strtotime($deals['deals_end'])),
-            'time_server_indo'              => MyHelper::dateFormatInd(date('Y-m-d H:i:s'), false, false).' pukul '.date('H:i', strtotime(date('Y-m-d H:i:s')))
+            'time_server_indo'              => MyHelper::dateFormatInd(date('Y-m-d H:i:s'), false, false).' pukul '.date('H:i', strtotime(date('Y-m-d H:i:s'))),
+            "from"                          => null
         ];
 
         if($deals['deals_type'] == 'Quest'){
@@ -158,37 +159,64 @@ class ApiDealsWebview extends Controller
 
         if($deals['deals_voucher_price_type']=='free'){
             //voucher free
-            $result['button_text'] = 'KLAIM VOUCHER';
-            $payment_message = Setting::where('key', 'payment_messages')->pluck('value_text')->first()??'Kamu yakin ingin mengambil voucher ini?';
+            if(isset($request->from) && $request->from=='checkout'){
+                $result['button_text'] = 'KLAIM DAN GUNAKAN VOUCHER';
+                $payment_message = Setting::where('key', 'payment_messages')->pluck('value_text')->first()??'Kamu yakin ingin menggunakan voucher ini?';
+            }else{
+                $result['button_text'] = 'KLAIM VOUCHER';
+                $payment_message = Setting::where('key', 'payment_messages')->pluck('value_text')->first()??'Kamu yakin ingin mengambil voucher ini?';
+            }
             $payment_message = MyHelper::simpleReplace($payment_message,['deals_title'=>$deals['deals_title']]);
         }
         elseif($deals['deals_voucher_price_type']=='point')
         {
-            $result['button_text'] = 'BELI VOUCHER';
-            $payment_message = Setting::where('key', 'payment_messages_point')->pluck('value_text')->first()??'Anda akan menukarkan %point% points anda dengan Voucher %deals_title%?';
+            if(isset($request->from) && $request->from=='checkout'){
+                $result['button_text'] = 'BELI DAN GUNAKAN VOUCHER';
+                $payment_message = Setting::where('key', 'payment_messages_point')->pluck('value_text')->first()??'Anda akan menukarkan %point% points anda untuk menggunakan Voucher %deals_title%?';
+            }else{
+                $result['button_text'] = 'BELI VOUCHER';
+                $payment_message = Setting::where('key', 'payment_messages_point')->pluck('value_text')->first()??'Anda akan menukarkan %point% points anda dengan Voucher %deals_title%?';
+            }
             $payment_message = MyHelper::simpleReplace($payment_message,['point'=>$deals['deals_voucher_price_pretty'],'deals_title'=>$deals['deals_title']]);
         }
         else
         {
-            $result['button_text'] = 'BELI VOUCHER';
-            $payment_message = Setting::where('key', 'payment_messages_cash')->pluck('value_text')->first()??'Kamu yakin ingin membeli deals %deals_title% dengan harga %cash%?';
-            $payment_message = MyHelper::simpleReplace($payment_message,['cash'=>$deals['deals_voucher_price_pretty'],'deals_title'=>$deals['deals_title']]);
+            if(isset($request->from) && $request->from=='checkout'){
+                $result['button_text'] = 'BELI DAN GUNAKAN VOUCHER';
+                $payment_message = Setting::where('key', 'payment_messages_point')->pluck('value_text')->first()??'Kamu yakin ingin membeli dan menggunakan deals %deals_title% dengan harga %cash%?';
+            }else{
+                $result['button_text'] = 'BELI VOUCHER';
+                $payment_message = Setting::where('key', 'payment_messages_cash')->pluck('value_text')->first()??'Kamu yakin ingin membeli deals %deals_title% dengan harga %cash%?';
+            }
+            $payment_message = MyHelper::simpleReplace($payment_message,['point'=>$deals['deals_voucher_price_pretty'],'deals_title'=>$deals['deals_title']]);
         }
 
     	$result['payment_success_message'] = Setting::where('key', 'payment_success_messages')->pluck('value_text')->first()??'Klaim Kupon Berhasil! Apakah Anda ingin menggunakannya sekarang?';
 
         $result['payment_message'] = $payment_message;
         if ($deals['deals_voucher_price_cash'] != "") {
+            if(isset($request->from) && $request->from=='checkout'){
+                $result['deals_button'] = "Beli dan Gunakan";
+            }
             $result['deals_price'] = MyHelper::requestNumber($deals['deals_voucher_price_cash'], '_CURRENCY');
             // $result['payment_message'] = 'Anda yakin ingin membeli kupon ini dengan Cash?';
+            
         } elseif ($deals['deals_voucher_price_point']) {
+            if(isset($request->from) && $request->from=='checkout'){
+                $result['deals_button'] = "Beli dan Gunakan";
+            }
             $result['deals_price'] = MyHelper::requestNumber($deals['deals_voucher_price_point'], '_POINT') . " poin";
             // $result['payment_message'] = 'Anda yakin ingin membeli kupon ini dengan Jiwa Poin?';
         } else {
-            $result['deals_price'] = "Free";
-            // $result['payment_message'] = 'Anda akan mengklaim promo GRATIS ini?';
-            $result['deals_button'] = 'Klaim';
-            // $result['payment_success_message'] = 'Klaim Kupon Berhasil! Apakah Anda ingin menggunakannya sekarang?';
+            if(isset($request->from) && $request->from=='checkout'){
+                $result['deals_price'] = "Free";
+                $result['deals_button'] = 'Klaim dan Gunakan';
+            }else{
+                $result['deals_price'] = "Free";
+                // $result['payment_message'] = 'Anda akan mengklaim promo GRATIS ini?';
+                $result['deals_button'] = 'Klaim';
+                // $result['payment_success_message'] = 'Klaim Kupon Berhasil! Apakah Anda ingin menggunakannya sekarang?';
+            }
         }
 
 
@@ -204,7 +232,9 @@ class ApiDealsWebview extends Controller
                 $i++;
             }
         }
-
+        if(isset($request->from) && $request->from=='checkout'){
+            $result['from'] = "checkout";
+        }
         $result['deals_content'][$i]['title'] = 'Tempat Penukaran';
         $result['deals_content'][$i]['is_outlet'] = 1;
         $result['deals_content'][$i]['brand'] = $deals['brand']['name_brand'] ?? '';

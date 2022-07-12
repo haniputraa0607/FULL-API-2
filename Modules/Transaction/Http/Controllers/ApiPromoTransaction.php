@@ -95,7 +95,7 @@ class ApiPromoTransaction extends Controller
         $this->subscription_use = "Modules\Subscription\Http\Controllers\ApiSubscriptionUse";
     }
 
-    public function availableVoucher()
+    public function availableVoucher($data, $transaction_from = null, $id_outlet = null)
     {
     	$user = request()->user();
     	if (!$user) {
@@ -106,10 +106,40 @@ class ApiPromoTransaction extends Controller
             ->whereIn('paid_status', ['Free', 'Completed'])
             ->whereNull('used_at')
             ->with(['dealVoucher', 'dealVoucher.deal', 'dealVoucher.deal.outlets.city', 'dealVoucher.deal.outlets.city'])
-            ->where('deals_users.voucher_expired_at', '>', date('Y-m-d H:i:s'))
-            ->orderBy('deals_users.is_used', 'desc')
+            ->where('deals_users.voucher_expired_at', '>', date('Y-m-d H:i:s'));
+
+        if(isset($id_outlet)){
+            $voucher->join('deals_vouchers', 'deals_users.id_deals_voucher', 'deals_vouchers.id_deals_voucher')
+            ->join('deals', 'deals.id_deals', 'deals_vouchers.id_deals')
+            ->leftJoin('deals_outlets', 'deals.id_deals', 'deals_outlets.id_deals')
+            ->where(function ($query) use ($id_outlet) {
+                $query->where('deals_users.id_outlet', $id_outlet)
+                    ->orWhere('deals_outlets.id_outlet', $id_outlet)
+                    ->orWhere('deals.is_all_outlet','=',1);
+            })
+            ->select('deals_users.*')->distinct();
+        }
+
+        if(isset($transaction_from)){
+            $service = [
+                'outlet-service' => 'Outlet Service',
+                'home-service' => 'Home Service',
+                'shop' => 'Online Shop',
+                'academy' => 'Academy',
+            ];
+            if(!MyHelper::isJoined($voucher,'deals_vouchers')){
+                $voucher->leftJoin('deals_vouchers', 'deals_users.id_deals_voucher', 'deals_vouchers.id_deals_voucher');
+            }
+            if(!MyHelper::isJoined($voucher,'deals')){
+                $voucher->leftJoin('deals', 'deals.id_deals', 'deals_vouchers.id_deals');
+            }
+            $voucher->leftJoin('deals_services', 'deals.id_deals', 'deals_services.id_deals')
+            ->where('deals_services.service', $service[$transaction_from])
+            ->select('deals_users.*')->distinct();
+        }   
+
+        $voucher = $voucher->orderBy('deals_users.is_used', 'desc')
             ->orderBy('deals_users.voucher_expired_at', 'asc')
-            ->limit(5)
             ->get()
             ->toArray();
 
@@ -129,7 +159,24 @@ class ApiPromoTransaction extends Controller
 				'is_error' => false
             ];
         }, $voucher);
-        
+        $new_result_data = [];
+        foreach($result ?? [] as $key => $data_voucher){
+            $check_avail = app($this->voucher)->checkVoucherAvail($data_voucher['id_deals'],$data);
+            if($check_avail['status']=='success'){
+                if(isset($data_voucher['id_deals_voucher']) && isset($data_voucher['id_deals_user'])){
+                    $data_voucher['type_deals'] = 'voucher';
+                }else{
+                    $data_voucher['type_deals'] = 'deals';
+                }
+                $new_result_data[] = $data_voucher;
+            }
+        }
+        $result = [];
+        foreach($new_result_data ?? [] as $index => $val){
+            if($index < 5){
+                $result[] = $val;
+            }
+        }
         return $result;
     }
 
@@ -178,11 +225,11 @@ class ApiPromoTransaction extends Controller
     	return $promoName[$promoSource] ?? $promoSource;
     }
 
-    public function applyPromoCheckout($data)
+    public function applyPromoCheckout($data,$data_2 = null)
     {	
     	$user = request()->user();
     	$sharedPromoTrx = TemporaryDataManager::create('promo_trx');
-		$availableVoucher = $this->availableVoucher();
+		$availableVoucher = $this->availableVoucher($data, $data_2['transaction_from'], $data_2['id_outlet']);
     	$continueCheckOut = $data['continue_checkout'];
 
     	$data['discount'] = 0;

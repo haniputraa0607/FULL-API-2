@@ -388,9 +388,7 @@ Route::group([ 'middleware' => ['auth_client', 'scopes:employee-apps'], 'prefix'
 Route::group(['prefix' => '/icount/reimbursement'], function() {
     Route::post('/callback','ApiBeEmployeeReimbursementController@callbackreimbursement');
 });
-Route::group(['prefix' => '/icount/loan'], function() {
-    Route::post('/create','ApiLoanController@create_icount');
-});
+
 
 Route::group(['prefix' => '/icount/budgeting'], function() {
     Route::post('/store','ApiEmployeeRequestProductController@storeBudgeting');

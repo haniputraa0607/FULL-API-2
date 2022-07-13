@@ -168,8 +168,8 @@ class ApiEmployeeProfileController extends Controller
                'id_user'=>Auth::user()->id
                )
        )->first();
-       if(isset($profile['file'])){
-           $profile['file']= env('STORAGE_URL_API').$profile['file'];
+       if(isset($profile['attachment'])){
+           $profile['attachment']= env('STORAGE_URL_API').$profile['attachment'];
        }
        return MyHelper::checkGet($profile);
    }

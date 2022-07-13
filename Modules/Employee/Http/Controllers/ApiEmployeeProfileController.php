@@ -133,7 +133,12 @@ class ApiEmployeeProfileController extends Controller
        return MyHelper::checkGet($data);
    }
    public function file() {
-       $data = EmployeeFile::where('id_user',Auth::user()->id)->paginate(10);
+       $data = EmployeeFile::where('id_user',Auth::user()->id)->get();
+       foreach($data as $v){
+          if(isset($v['attachment'])){
+            $v['attachment']= env('STORAGE_URL_API').$v['attachment'];
+        }
+       }
        return MyHelper::checkGet($data);
    }
    public function create_file(CreateFile $request) {
@@ -163,6 +168,9 @@ class ApiEmployeeProfileController extends Controller
                'id_user'=>Auth::user()->id
                )
        )->first();
+       if(isset($profile['file'])){
+           $profile['file']= env('STORAGE_URL_API').$profile['file'];
+       }
        return MyHelper::checkGet($profile);
    }
    public function update_file(UpdateFile $request) {

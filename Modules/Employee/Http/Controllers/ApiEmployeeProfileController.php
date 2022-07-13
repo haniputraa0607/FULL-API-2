@@ -144,6 +144,7 @@ class ApiEmployeeProfileController extends Controller
             $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, $file->getClientOriginalExtension());
             if (isset($upload['status']) && $upload['status'] == "success") {
                     $post['attachment'] = $upload['path'];
+                    $post['name_file'] = $file->getClientOriginalName();
                 } else {
                     $result = [
                         'status'   => 'fail',
@@ -172,6 +173,7 @@ class ApiEmployeeProfileController extends Controller
             $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, $file->getClientOriginalExtension());
             if (isset($upload['status']) && $upload['status'] == "success") {
                     $profile['attachment'] = $upload['path'];
+                    $profile['name_file'] = $file->getClientOriginalName();
                 } else {
                     $result = [
                         'status'   => 'fail',

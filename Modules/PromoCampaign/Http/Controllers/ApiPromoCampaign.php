@@ -2605,14 +2605,21 @@ class ApiPromoCampaign extends Controller
 
     public function checkValid(ValidateCode $request)
     {
-    	$id_user 		= $request->user()->id;
-        $phone 	 		= $request->user()->phone;
+    	$id_user 		= isset($request->user->id) ?? $request->user()->id;
+        $phone 	 		= isset($request->user->phone) ?? $request->user()->phone;
         $device_id		= $request->device_id;
         $device_type	= $request->device_type;
         $id_outlet		= $request->id_outlet;
-        $ip 			= $request->ip();
+        $ip 			= isset($request->ip) ?? $request->ip();
     	$pct 			= new PromoCampaignTools();
 
+		if(isset($request->user)){
+			unset($request->user);
+		}
+		if(isset($request->ip)){
+			unset($request->ip);
+		}
+		
     	// get data
         if ($request->promo_code && !$request->id_deals_user && !$request->id_subscription_user) 
         {

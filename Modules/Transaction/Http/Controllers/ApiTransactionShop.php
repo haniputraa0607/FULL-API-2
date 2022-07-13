@@ -684,7 +684,7 @@ class ApiTransactionShop extends Controller
         $fake_request = new Request(['show_all' => 1]);
         $result['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
         
-        $result = app($this->promo_trx)->applyPromoCheckout($result);
+        $result = app($this->promo_trx)->applyPromoCheckout($result,$post);
 
         $result['payment_detail'][] = [
             'name'          => 'Subtotal Order ('.$totalItem.' item):',

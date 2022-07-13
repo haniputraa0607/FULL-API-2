@@ -388,7 +388,7 @@ class ApiBeEmployeeController extends Controller
                     "employee" => Employee::join('users','users.id','employees.id_user')->where('id_employee',$post["id_employee"])->first(),
                     "location" => Outlet::leftjoin('locations','locations.id_location','outlets.id_location')->where('id_outlet',$post["id_outlet"])->first(),
                 ];
-                $initBranch = Icount::ApiCreateEmployee($data_send, $data_send['location']['company_type']??null);
+                // $initBranch = Icount::ApiCreateEmployee($data_send, $data_send['location']['company_type']??null);
                if($initBranch['response']['Status']=='1' && $initBranch['response']['Message']=='success'){
                    $initBranch = $initBranch['response']['Data'][0];
                    if($data_send['location']['company_type']=='PT IMS'){

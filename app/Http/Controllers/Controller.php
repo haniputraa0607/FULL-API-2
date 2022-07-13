@@ -21,7 +21,7 @@ use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use App\Lib\MyHelper;
-
+use Modules\Recruitment\Entities\HairstylistSalesPayment;
 class Controller extends BaseController
 {
     use AuthorizesRequests, DispatchesJobs, ValidatesRequests;
@@ -221,8 +221,62 @@ class Controller extends BaseController
     	return [
     		'status' => 'success',
     		'result' => [
-    			// 'total_home' => 5,
+    			'total_sales_payment' => $this->total_sales_payment(),
+                        'employee'            => $this->employee(),
+                        'asset_inventory'     => $this->asset_inventory(),
+                        'asset_inventory_return_pending'=>$this->asset_inventory_return_pending(),
+                        'asset_inventory_loan_pending'=>$this->asset_inventory_loan_pending(),
     		],
     	];
     }
+    public function total_sales_payment()
+	{
+                return HairstylistSalesPayment::where('status','Pending')->count();
+	}
+    public function employee()
+	{
+                $total = $this->asset_inventory();
+                if($total==0){
+                    $total = null;
+                }
+                return $total;
+	}
+    public function asset_inventory()
+	{
+                $total = $this->asset_inventory_loan_pending()+$this->asset_inventory_return_pending();
+                if($total==0){
+                    $total = null;
+                }
+                return $total;
+	}
+    public function asset_inventory_return_pending()
+	{
+                $total = \Modules\Employee\Entities\AssetInventoryLog::join('asset_inventorys','asset_inventorys.id_asset_inventory','asset_inventory_logs.id_asset_inventory')
+                ->join('asset_inventory_categorys','asset_inventory_categorys.id_asset_inventory_category','asset_inventorys.id_asset_inventory_category')
+                ->join('asset_inventory_returns','asset_inventory_returns.id_asset_inventory','asset_inventorys.id_asset_inventory')
+                ->where([
+                        'type_asset_inventory'=>"Return",
+                    ])->with(['user'])
+                    ->where([
+                        'status_asset_inventory'=>"Pending",
+                        'type_asset_inventory'=>"Return",
+                    ])->count();
+                if($total==0){
+                    $total = null;
+                }
+                return $total;
+	}
+    public function asset_inventory_loan_pending()
+	{
+               $total = \Modules\Employee\Entities\AssetInventoryLog::join('asset_inventorys','asset_inventorys.id_asset_inventory','asset_inventory_logs.id_asset_inventory')
+                ->join('asset_inventory_categorys','asset_inventory_categorys.id_asset_inventory_category','asset_inventorys.id_asset_inventory_category')
+                ->where([
+                'status_asset_inventory'=>"Pending",
+                'type_asset_inventory'=>"Loan",
+                ])->with(['user'])->count();
+               if($total==0){
+                    $total = null;
+                }
+                return $total;
+	}
 }

@@ -4246,13 +4246,14 @@ class ApiPromoCampaign extends Controller
 				'))->groupBy('id_promo_campaign_promo_code')->get()->keyBy('id_promo_campaign_promo_code');
 
 				if($usedCode){
+					$end = false;
 					foreach($usedCode as $key => $usecode){
-						$end = false;
 						if($promo['user_limit']!=0 && $promo['user_limit']<=count($usedCode)){
 							if($promo['code_limit']!=0 && $promo['code_limit']<=$usecode['count']){
 								$end = true;
 								continue;
 							}else{
+								$end = false;
 								$promo_code = PromoCampaignPromoCode::where('id_promo_campaign_promo_code',$usecode['id_promo_campaign_promo_code'])->first();
 								break;
 							}

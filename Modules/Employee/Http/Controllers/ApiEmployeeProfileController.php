@@ -327,6 +327,28 @@ class ApiEmployeeProfileController extends Controller
          return MyHelper::checkGet($profile);
     }
 
+    public function getReminderAttendance(Request $request){
+        $post = $request->all();
+        $employee = $request->user();
+
+        //reminder clock in
+        $clock_in = [
+            'type' => 'clock_in',
+            'value' => SettingUser::where('id',$employee->id)->where('key','reminder_clock_in')->first()['value'] ?? 'off',
+        ];
+
+        $clock_out = [
+            'type' => 'clock_out',
+            'value' => SettingUser::where('id',$employee->id)->where('key','reminder_clock_out')->first()['value'] ?? 'off',
+        ];
+
+        $result = [
+            'clock_in' => $clock_in,
+            'clock_out' => $clock_out,
+        ];
+        return MyHelper::checkGet($result);
+    }
+
     public function reminderAttendance(Request $request){
         $post = $request->all();
         $employee = $request->user();

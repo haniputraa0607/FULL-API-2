@@ -660,6 +660,7 @@ class ApiEmployeeScheduleController extends Controller
 
         if(isset($detail['id_office_hour_shift']) && !empty($detail['id_office_hour_shift'])){
             $shift = EmployeeOfficeHourShift::join('employee_office_hours','employee_office_hours.id_employee_office_hour','employee_office_hour_shift.id_employee_office_hour')->where('employee_office_hours.id_employee_office_hour', $detail->id_office_hour_shift)->get();
+            $detail['id_employee_office_hour'] = $detail->id_office_hour_shift;
         }else{
             $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
             $detail['id_employee_office_hour'] = $setting_default['value'];

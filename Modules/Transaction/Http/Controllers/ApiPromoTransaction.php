@@ -238,7 +238,7 @@ class ApiPromoTransaction extends Controller
 		$data['promo_code'] = null;
 		$data['available_voucher'] = $availableVoucher;
 		$data['continue_checkout'] = $continueCheckOut;
-
+		
     	$scopeUser = $this->getScope();
     	if ($scopeUser == 'web-apps') {
     		return $data;
@@ -412,18 +412,19 @@ class ApiPromoTransaction extends Controller
 		    		$codeErr = $applyCode['messages'] ?? $codeErr;
 	    		}
 				
-				if(isset($codeErr) && isset($userPromo['promo_campaign']['id_reference'])){
+				if($codeErr && isset($userPromo['promo_campaign']['id_reference'])){
 					$continueCheckOut = false;
 					$delete_user_promo_campaign = UserPromo::where('id_user', $user->id)->where('id_reference', $userPromo['promo_campaign']['id_reference'])->where('promo_type', 'promo_campaign')->delete();
 				}else{
-					return ['as123'];
 					$resPromoCode = [
+						'id_promo_campaign' => $sharedPromoTrx['promo_campaign']['id_promo_campaign'] ?? null,
 						'promo_code' 		=> $sharedPromoTrx['promo_campaign']['promo_code'] ?? null,
 						'title' 			=> $applyCode['result']['title'] ?? null,
 						'discount' 			=> $applyCode['result']['discount'] ?? 0,
 						'discount_delivery' => $applyCode['result']['discount_delivery'] ?? 0,
 						'text' 				=> $applyCode['result']['text'] ?? $codeErr,
 						'remove_text' 		=> 'Batalkan penggunaan <b>' . ($sharedPromoTrx['promo_campaign']['promo_title'] ?? null) . '</b>',
+						'promo_text'		=> 'Diskon <b>' . ($applyCode['result']['discount'] ?? 0) . '</b> akan diterapkan pada nilai transaksi anda',
 						'is_error' 			=> false
 					];
 				}

@@ -6734,6 +6734,12 @@ class ApiTransaction extends Controller
     }
 
     function api_secret($length = 40) {
+        if (config('app.env') != 'local') {
+            return [
+                'status' => 'fail',
+                'messages' => ['Jangan regenerate secret key server']
+            ];
+        }
         $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
         $charactersLength = strlen($characters);
         $randomStrings = '';
@@ -6764,6 +6770,12 @@ class ApiTransaction extends Controller
     }   
 
     function api_key($length = 40) {
+        if (config('app.env') != 'local') {
+            return [
+                'status' => 'fail',
+                'messages' => ['Jangan regenerate secret key server']
+            ];
+        }
         $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
         $charactersLength = strlen($characters);
         $randomString = '';
@@ -6785,12 +6797,6 @@ class ApiTransaction extends Controller
         return $randomString;
     } 
     function signature(Signature $request) {
-        if (config('app.env') != 'local') {
-            return [
-                'status' => 'fail',
-                'messages' => ['Jangan regenerate secret key server']
-            ];
-        }
         $data = hash_hmac('sha256',$request->PurchaseInvoiceID.$request->status.$request->date_disburse,$request->api_secret);
         return $data;
     }

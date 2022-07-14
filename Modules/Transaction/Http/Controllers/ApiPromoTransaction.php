@@ -379,7 +379,7 @@ class ApiPromoTransaction extends Controller
     			$applyOrder = ['promo_campaign', 'deals'];
     		}
     	}
-
+		
     	foreach ($applyOrder as $apply) {
 	    	if ($apply == 'deals' && isset($userPromo['deals'])) {
 	    		$this->createSharedPromoTrx($data);
@@ -406,24 +406,26 @@ class ApiPromoTransaction extends Controller
 
 	    	} elseif ($apply == 'promo_campaign' && isset($userPromo['promo_campaign'])) {
 	    		$this->createSharedPromoTrx($data);
-
+				
 	    		if (empty($codeErr)) {
 		    		$applyCode = $this->applyPromoCode($userPromo['promo_campaign']->id_reference, $data);
 		    		$codeErr = $applyCode['messages'] ?? $codeErr;
 	    		}
-
-				$resPromoCode = [
-					'promo_code' 		=> $sharedPromoTrx['promo_campaign']['promo_code'] ?? null,
-					'title' 			=> $applyCode['result']['title'] ?? null,
-					'discount' 			=> $applyCode['result']['discount'] ?? 0,
-					'discount_delivery' => $applyCode['result']['discount_delivery'] ?? 0,
-					'text' 				=> $applyCode['result']['text'] ?? $codeErr,
-					'remove_text' 		=> 'Batalkan penggunaan <b>' . ($sharedPromoTrx['promo_campaign']['promo_title'] ?? null) . '</b>',
-					'is_error' 			=> $codeErr ? true : false
-				];
-
-				if ($resPromoCode['is_error']) {
+				
+				if(isset($codeErr) && isset($userPromo['promo_campaign']['id_reference'])){
 					$continueCheckOut = false;
+					$delete_user_promo_campaign = UserPromo::where('id_user', $user->id)->where('id_reference', $userPromo['promo_campaign']['id_reference'])->where('promo_type', 'promo_campaign')->delete();
+				}else{
+					return ['as123'];
+					$resPromoCode = [
+						'promo_code' 		=> $sharedPromoTrx['promo_campaign']['promo_code'] ?? null,
+						'title' 			=> $applyCode['result']['title'] ?? null,
+						'discount' 			=> $applyCode['result']['discount'] ?? 0,
+						'discount_delivery' => $applyCode['result']['discount_delivery'] ?? 0,
+						'text' 				=> $applyCode['result']['text'] ?? $codeErr,
+						'remove_text' 		=> 'Batalkan penggunaan <b>' . ($sharedPromoTrx['promo_campaign']['promo_title'] ?? null) . '</b>',
+						'is_error' 			=> false
+					];
 				}
 
 				$data = $this->reformatCheckout($data, $applyCode['result'] ?? null);
@@ -1374,6 +1376,7 @@ class ApiPromoTransaction extends Controller
 	    	}
 
     		$promoItems[] = [
+				'id_transaction_product' => $items['id_transaction_product'] ?? null,
     			'id_product' => $items['id_product'],
     			'id_brand' => $items['id_brand'],
     			'product_price' => $price,

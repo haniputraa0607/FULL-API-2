@@ -25,6 +25,7 @@ use Modules\Deals\Http\Requests\Deals\UseVoucher;
 use Modules\Deals\Http\Requests\Deals\MyVoucherStatus;
 use Modules\ProductService\Entities\ProductHairstylistCategory;
 use Modules\Product\Entities\ProductDetail;
+use App\Http\Models\Configs;
 
 use DB;
 use Modules\Brand\Entities\Brand;
@@ -1517,8 +1518,19 @@ class ApiDealsVoucher extends Controller
                 $fake_request = new Request(['show_all' => 1]);
                 $post['available_payment'] = app($this->online_transaction)->availablePayment($fake_request)['result'] ?? [];
                 $post['id_outlet'] = $outlet['id_outlet'];   
+
             }elseif($service[$post['transaction_from']] == 'Online Shop'){
 
+                $grandTotal = app($this->setting_trx)->grandTotal();
+                $user = $request->user();
+                if ($user->complete_profile == 0) {
+                    return response()->json([
+                        'status'    => 'success',
+                        'result'  => [
+                            'complete_profile' => false
+                        ]
+                    ]);
+                }
                 if (empty($post['outlet_code']) && empty($post['id_outlet'])) {
                     $post['id_outlet'] = Setting::where('key', 'default_outlet')->first()['value'] ?? null;
                 }
@@ -1545,7 +1557,7 @@ class ApiDealsVoucher extends Controller
                         'messages'  => ['Outlet Not Found']
                     ]);
                 }
-                return $post;
+                
                 $issetDate = false;
                 if (isset($post['transaction_date'])) {
                     $issetDate = true;
@@ -1585,8 +1597,9 @@ class ApiDealsVoucher extends Controller
                 $post['discount'] = -$post['discount'];
                 $subtotal = 0;
                 $items = [];
+                $error_item = [];
                 $post['item'] = isset($post['item']) ? app($this->online_transaction)->mergeProducts($post['item']) : null;
-        
+  
                 foreach ($grandTotal as $keyTotal => $valueTotal) {
                     if ($valueTotal == 'subtotal') {
                         $post['sub'] = app($this->setting_trx)->countTransaction($valueTotal, $post, $discount_promo);
@@ -1649,7 +1662,7 @@ class ApiDealsVoucher extends Controller
                 $subtotalProduct = 0;
                 foreach ($post['item'] ?? [] as &$item) {
 
-                    $product = $this->getDetailProduct($item['id_product'], $post['id_outlet']);
+                    $product = app($this->shop)->getDetailProduct($item['id_product'], $post['id_outlet']);
                     $product->load([
                                 'product_promo_categories' => function($query) {
                                     $query->select('product_promo_categories.id_product_promo_category','product_promo_category_name as product_category_name','product_promo_category_order as product_category_order');
@@ -1766,7 +1779,7 @@ class ApiDealsVoucher extends Controller
                 $post['subtotal_product'] = $subtotalProduct;
                 $subtotal = $post['subtotal'];
         
-                $earnedPoint = app($this->online_trx)->countTranscationPoint($post, $user);
+                $earnedPoint = app($this->online_transaction)->countTranscationPoint($post, $user);
                 $cashback = $earnedPoint['cashback'] ?? 0;
                 if ($cashback) {
                     $post['point_earned'] = [
@@ -1775,7 +1788,7 @@ class ApiDealsVoucher extends Controller
                     ];
                 }
         
-                $listDelivery = $this->listDelivery();
+                $listDelivery = app($this->shop)->listDelivery();
                 if (!$request->delivery_name && !$request->delivery_method) {
                     $deliv = $listDelivery[0] ?? null;
                 } else {
@@ -1803,14 +1816,161 @@ class ApiDealsVoucher extends Controller
                 $post['payment_detail'] = [];
                 $post['continue_checkout'] = (empty($error_msg) ? true : false);
                 $fake_request = new Request(['show_all' => 1]);
-                $post['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
+                $post['available_payment'] = app($this->online_transaction)->availablePayment($fake_request)['result'] ?? [];
+            }elseif($service[$post['transaction_from']] == 'Academy'){
+
+                $user = User::leftJoin('cities', 'cities.id_city', 'users.id_city')
+                ->select('users.*', 'cities.city_name')
+                ->where('id', $request->user()->id)->first();
+                if (empty($user)) {
+                    return response()->json([
+                        'status'    => 'fail',
+                        'messages'  => ['User Not Found']
+                    ]);
+                }
+                $outlet = Outlet::where('id_outlet', $post['id_outlet'])->where('outlet_academy_status', 1)->first();
+                if (empty($outlet)) {
+                    return response()->json([
+                        'status'    => 'fail',
+                        'messages'  => ['Outlet Not Found']
+                    ]);
+                }
+        
+                $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
+                    ->where('id_outlet', $outlet['id_outlet'])->first();
+        
+                if(empty($brand)){
+                    return response()->json(['status' => 'fail', 'messages' => ['Outlet does not have brand']]);
+                }
+        
+                $errAll = [];
+                $continueCheckOut = true;
                 
+                $error_item = [];
+                $itemAcademy = $post['item_academy'];
+                $academy = Product::leftJoin('product_global_price','product_global_price.id_product','=','products.id_product')
+                    ->where('products.id_product', $itemAcademy['id_product'])
+                    ->select('products.*', DB::raw('(CASE
+                                    WHEN (select outlets.outlet_different_price from outlets  where outlets.id_outlet = ' . $outlet['id_outlet'] . ' ) = 1 
+                                    THEN (select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $outlet['id_outlet'] . ' )
+                                    ELSE product_global_price.product_global_price
+                                END) as product_price'))
+                    ->first();
+        
+                if(empty($academy)){
+                    $errAll[] = 'Kursus tidak tersedia';
+                }
+        
+                $getProductDetail = ProductDetail::where('id_product', $academy['id_product'])->where('id_outlet', $outlet['id_outlet'])->first();
+                $service['visibility_outlet'] = $getProductDetail['product_detail_visibility']??null;
+
+                if($academy['visibility_outlet'] == 'Hidden' || (empty($academy['visibility_outlet']) && $academy['product_visibility'] == 'Hidden')){
+                    $errAll[] = 'Kursus tidak tersedia';
+                }
+        
+                $itemAcademy = [
+                    "id_brand" => $brand['id_brand'],
+                    "id_product" => $academy['id_product'],
+                    "product_code" => $academy['product_code'],
+                    "product_name" => $academy['product_name'],
+                    "product_price" => (int)$academy['product_price'],
+                    'duration' => 'Durasi '.$academy['product_academy_duration'].' bulan',
+                    'total_meeting' => (!empty($academy['product_academy_total_meeting'])? $academy['product_academy_total_meeting'].' x Pertemuan @'.$academy['product_academy_hours_meeting'].' jam':''),
+                    "qty" => 1
+                ];
+        
+                if(!empty($errAll)){
+                    $continueCheckOut = false;
+                }
+                $post['item_academy'] = $itemAcademy;
+        
+                $grandTotal = app($this->setting_trx)->grandTotal();
+                foreach ($grandTotal as $keyTotal => $valueTotal) {
+                    if ($valueTotal == 'subtotal') {
+                        $post['sub'] = app($this->setting_trx)->countTransaction($valueTotal, $post);
+                        if (gettype($post['sub']) != 'array') {
+                            $mes = ['Data Not Valid'];
+        
+                            if (isset($post['sub']->original['messages'])) {
+                                $mes = $post['sub']->original['messages'];
+        
+                                if ($post['sub']->original['messages'] == ['Product academy not found']) {
+                                    if (isset($post['sub']->original['product'])) {
+                                        $mes = ['Price Not Found with product '.$post['sub']->original['product']];
+                                    }
+                                }
+        
+                                if ($post['sub']->original['messages'] == ['Price product academy not valid']) {
+                                    if (isset($post['sub']->original['product'])) {
+                                        $mes = ['Price Not Valid with product '.$post['sub']->original['product']];
+                                    }
+                                }
+                            }
+        
+                            return response()->json([
+                                'status'    => 'fail',
+                                'messages'  => $mes
+                            ]);
+                        }
+        
+                        $post['subtotal'] = array_sum($post['sub']['subtotal']);
+                    } else {
+                        $post[$valueTotal] = app($this->setting_trx)->countTransaction($valueTotal, $post);
+                    }
+                }
+        
+                if(!empty($errAll)){
+                    $continueCheckOut = false;
+                }
+        
+                $post['customer'] = [
+                    "name" => $user['name'],
+                    "email" => $user['email'],
+                    "domicile" => $user['city_name']
+                ];
+                $post['outlet'] = [
+                    'id_outlet' => $outlet['id_outlet'],
+                    'outlet_code' => $outlet['outlet_code'],
+                    'outlet_name' => $outlet['outlet_name'],
+                    'outlet_address' => $outlet['outlet_address'],
+                    'color' => $brand['color_brand']??''
+                ];
+        
+                $post['item_academy'] = $itemAcademy;
+                $post['subtotal'] = $post['subtotal'];
+                $post['tax'] = ($outlet['is_tax']/100) * $post['subtotal'];
+                $post['tax'] = $post['tax'];
+                $post['grandtotal'] = (int)$post['subtotal'] + (int)$post['tax'] ;
+                $balance = app($this->balance)->balanceNow($user->id);
+                $post['points'] = (int) $balance;
+                $post['total_payment'] = $post['grandtotal'];
+                $post['cashback'] = 0;
+        
+                $settingGetPoint = Configs::where('config_name', 'transaction academy get point')->first()['is_active']??0;
+                $post['point_earned'] = null;
+                if($settingGetPoint == 1){
+                    $earnedPoint = app($this->online_transaction)->countTranscationPoint($post, $user);
+                    $post['cashback'] = $earnedPoint['cashback'] ?? 0;
+                }
+        
+                $post['currency'] = 'Rp';
+                $post['complete_profile'] = (empty($user->complete_profile) ?false:true);
+                $post['continue_checkout'] = $continueCheckOut;
+                $post['payment_detail'] = [];
+                $post['point_earned'] = null;
+        
+                $post['payment_method'] = [
+                    ['type' => 'one_time_payment', 'text' => 'One-time Payment'],
+                    ['type' => 'installment', 'text' => 'Cicilan Bertahap']
+                ];
+                $fake_request = new Request(['show_all' => 1]);
+                $post['available_payment'] = app($this->online_transaction)->availablePayment($fake_request)['result'] ?? [];
             }
-    
+            
             $new_result_data = [];
             foreach($result['data'] ?? [] as $key => $data_voucher){
                 if(!$error_item){
-                    $check_avail = app($this->ship)->checkVoucherAvail($data_voucher['id_deals'],$post);
+                    $check_avail = $this->checkVoucherAvail($data_voucher['id_deals'],$post);
                     if($check_avail['status']=='success'){
                         if(isset($data_voucher['id_deals_voucher']) && isset($data_voucher['id_deals_user'])){
                             $data_voucher['type_deals'] = 'voucher';

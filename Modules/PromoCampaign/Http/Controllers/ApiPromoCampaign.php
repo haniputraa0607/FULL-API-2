@@ -4069,7 +4069,11 @@ class ApiPromoCampaign extends Controller
     public function onGoingPromoCampaign(Request $request){
         $post = $request->all();
         
-				$now = date('Y-m-d H-i-s');
+		if ($request->from && $request->from=='checkout') {
+			return $ongoing_promo_checkout = $this->onGoingPromoCampaignCheckout($post);
+		}
+
+		$now = date('Y-m-d H-i-s');
         $home_text = Setting::whereIn('key',['share_promo_code'])->get()->keyBy('key');
         $text['share'] = $home_text['share_promo_code']['value_text'] ?? 'Bagikan %promo_code% ke teman-teman'; //dummy
 
@@ -4166,4 +4170,56 @@ class ApiPromoCampaign extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
         }
     }
+
+	public function onGoingPromoCampaignCheckout($data){
+		$promos = (new PromoCampaign)->newQuery();
+		$promos = $promos->join('promo_campaign_promo_codes','promo_campaign_promo_codes.id_promo_campaign','promo_campaigns.id_promo_campaign')
+		->where('date_end','>=',date('Y-m-d H-i-s'))->where('date_start','<=',date('Y-m-d H-i-s'))
+		->whereHas('brands',function($query){
+			$query->where('brand_active',1);
+		})
+		->where('promo_campaign_visibility', 'Visible')
+		->where('step_complete', 1);
+
+		if (isset($data['id_outlet']) && is_numeric($data['id_outlet'])) {
+			$promos->leftJoin('promo_campaign_outlets', 'promo_campaigns.id_promo_campaign', 'promo_campaign_outlets.id_promo_campaign')
+				->where(function($query) use ($data){
+					$query->where('id_outlet', $data['id_outlet'])
+							->orWhere('promo_campaigns.is_all_outlet','=',1);
+				})
+				->addSelect('promo_campaigns.*')->distinct();
+		}
+		if(isset($data['transaction_from']) && is_string($data['transaction_from'])){
+			$service = [
+				'outlet-service' => 'Outlet Service',
+				'home-service' => 'Home Service',
+				'shop' => 'Online Shop',
+				'academy' => 'Academy',
+			];
+			$promos->leftJoin('promo_campaign_services', 'promo_campaigns.id_promo_campaign', 'promo_campaign_services.id_promo_campaign')
+			->where('promo_campaign_services.service', $service[$data['transaction_from']])
+			->select('promo_campaigns.*')->distinct();
+		}
+		return $promos = $promos->get()->toArray();
+
+		$new_promo = [];
+		foreach($promos ?? [] as $index => $promo){
+			if($promo['code_type']=='Single'){
+
+				if($promo['total_coupon']!=0 && $promo['total_coupon']<=$promo['used_code']){
+					continue;
+				}
+
+				$usedCode = PromoCampaignReport::where('id_promo_campaign',$promo->id_promo_campaign)->where('id_user', $user->id)->count();
+				
+				if($promo['limitation_usage']!=0 && $promo['limitation_usage']<=$usage_code){
+					continue;
+				}
+
+			}else{
+
+			}
+		}
+		
+	}
 }

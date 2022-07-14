@@ -231,7 +231,11 @@ class Controller extends BaseController
     }
     public function total_sales_payment()
 	{
-                return HairstylistSalesPayment::where('status','Pending')->count();
+                $total = HairstylistSalesPayment::where('status','Pending')->count();
+                        if($total==0){
+                            $total = null;
+                        }
+                return $total;
 	}
     public function employee()
 	{

@@ -198,7 +198,7 @@ class ApiPromo extends Controller
 		DB::beginTransaction();
 		// change is used flag to 0
 		$update = SubscriptionUser::where('id_user','=',$user->id)->where('is_used','=',1)->update(['is_used' => 0]);
-
+		
 		if ($status == 'use')
 		{
 
@@ -212,7 +212,6 @@ class ApiPromo extends Controller
 			{
 				$update = SubscriptionUser::where('id_subscription_user','=',$query['id_subscription_user'])->update(['is_used' => 1]);
 			}
-
 			$update = UserPromo::updateOrCreate(['id_user' => $user->id, 'promo_type' => $source], ['id_reference' => $id_promo]);
 		}
 		else
@@ -264,11 +263,15 @@ class ApiPromo extends Controller
     	{
     		$source = 'subscription';
     	}
+		elseif (!empty($post['id_promo_campaign']))
+    	{
+    		$source = 'promo_campaign';
+    	}
     	else
     	{
     		$source = 'promo_campaign';
     	}
-    	$cancel = $this->usePromo($source, $post['id_deals_user']??$post['id_subscription_user']??'', 'cancel');
+    	$cancel = $this->usePromo($source, $post['id_deals_user']??$post['id_subscription_user']??$post['id_promo_campaign']??'', 'cancel');
 
     	if ($cancel) {
     		return response()->json($cancel);

@@ -212,7 +212,7 @@ Route::group(['prefix' => 'api/req-product','middleware' => ['log_activities','a
 });
 
 Route::group(['prefix' => 'api/icount/req-product', 'namespace' => 'Modules\Product\Http\Controllers'], function() {
-    Route::post('/callback','ApiRequestProductController@callbackRequest');
+    Route::post('/callback','ApiRequestProductController@callbackRequest')->middleware('auth_pos2:PurchaseRequestID,status');
 });
 
 Route::group(['prefix' => 'api/dev-product','middleware' => ['log_activities','auth:api', 'scopes:be'], 'namespace' => 'Modules\Product\Http\Controllers'], function(){

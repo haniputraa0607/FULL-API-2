@@ -18,6 +18,7 @@ class HairstylistSalesPayment extends Model
          'BusinessPartnerID',
         'SalesInvoiceID',
         'amount',
+        'type',
         'status',
         'created_at',   
         'updated_at'

@@ -21,8 +21,7 @@ class CreateLoanIcount extends FormRequest
     public function withValidator($validator)
     {
         $validator->addExtension('cek', function ($attribute, $value, $parameters, $validator) {
-           $request = $validator->getData();
-           if($request['type']=="IMA"){
+           if($this->type == "IMA"){
                $share = UserHairStylist::where(array('id_business_partner_ima'=>$value))->first();   
            }else{
                $share = UserHairStylist::where(array('id_business_partner'=>$value))->first();

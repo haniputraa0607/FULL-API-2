@@ -222,6 +222,10 @@ class ApiAcademyScheduleController extends Controller
             }
 
             foreach ($post['date'] as $key=>$value){
+                if(empty($value['date'])){
+                    continue;
+                }
+                
                 if(!empty($value['id_transaction_academy_schedule'])){
                     $save = TransactionAcademySchedule::where('id_transaction_academy_schedule', $value['id_transaction_academy_schedule'])->update([
                         'schedule_date' => date('Y-m-d H:i:s', strtotime($value['date']))

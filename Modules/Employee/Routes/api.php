@@ -392,5 +392,5 @@ Route::group(['prefix' => '/icount/reimbursement'], function() {
 
 
 Route::group(['prefix' => '/icount/budgeting'], function() {
-    Route::post('/store','ApiEmployeeRequestProductController@storeBudgeting')->middleware('auth_pos2:DepartementID,balance');
+    Route::post('/store','ApiEmployeeRequestProductController@storeBudgeting')->middleware('auth_pos2:DepartmentID,balance');
 });

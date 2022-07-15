@@ -11,7 +11,7 @@ class CreateLoanIcount extends FormRequest
     {
         return [
             'BusinessPartnerID'    => 'required|cek',
-            'SalesInvoiceID'       => 'required|hairstylist_sales_payments,SalesInvoiceID',
+            'SalesInvoiceID'       => 'required|exists:hairstylist_sales_payments,SalesInvoiceID',
             'amount'               => 'required|numeric',
             'type'                 => 'required|in:IMS,IMA',
             'status'               => 'required|string|in:Success,Fail',

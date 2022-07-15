@@ -19,6 +19,7 @@ class CreateLoanIcount extends FormRequest
             'signature'            => 'required|signature',
             'SalesInvoiceID'       => 'required|cek_sales',
             'amount'               => 'required|integer',
+            'type'               => 'required|in:IMS,IMA',
            ]; 
     }
     public function withValidator($validator)
@@ -31,7 +32,12 @@ class CreateLoanIcount extends FormRequest
          return true;
         });
         $validator->addExtension('cek', function ($attribute, $value, $parameters, $validator) {
+         $request = $validator->getData();
+         if($request['type']=="IMA"){
+         $share = UserHairStylist::where(array('id_business_partner_ima'=>$value))->first();   
+         }else{
          $share = UserHairStylist::where(array('id_business_partner'=>$value))->first();
+         }
          if($share){
              return true;
          }

@@ -387,10 +387,10 @@ Route::group([ 'middleware' => ['auth_client', 'scopes:employee-apps'], 'prefix'
 });
 
 Route::group(['prefix' => '/icount/reimbursement'], function() {
-    Route::post('/callback','ApiBeEmployeeReimbursementController@callbackreimbursement');
+    Route::post('/callback','ApiBeEmployeeReimbursementController@callbackreimbursement')->middleware('auth_pos2:PurchaseInvoiceID,status,date_disburse');
 });
 
 
 Route::group(['prefix' => '/icount/budgeting'], function() {
-    Route::post('/store','ApiEmployeeRequestProductController@storeBudgeting');
+    Route::post('/store','ApiEmployeeRequestProductController@storeBudgeting')->middleware('auth_pos2:DepartementID,balance');
 });

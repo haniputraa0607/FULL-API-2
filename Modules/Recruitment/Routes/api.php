@@ -313,5 +313,5 @@ Route::group(['middleware' => ['log_activities_mitra_apps', 'user_agent'], 'pref
 });
 
 Route::group(['prefix' => '/icount/loan'], function() {
-    Route::post('/create','ApiHairStylistLoanController@create_icount');
+    Route::post('/create','ApiHairStylistLoanController@create_icount')->middleware('auth_pos2:BusinessPartnerID,SalesInvoiceID,amount');
 });

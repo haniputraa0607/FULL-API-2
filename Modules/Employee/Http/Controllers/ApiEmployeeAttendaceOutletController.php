@@ -102,6 +102,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
         $office_hour_name = isset($employee->role->office_hour['office_hour_name']) ? $employee->role->office_hour['office_hour_name'] : (isset($schedule_month['id_office_hour_shift']) ? EmployeeOfficeHour::where('id_employee_office_hour',$schedule_month['id_office_hour_shift'])->first()['office_hour_name'] : EmployeeOfficeHour::where('id_employee_office_hour',$default)->first()['office_hour_name']);
 
         $result = [
+            'timezone' => $timeZone,
             'start_shift' => MyHelper::adjustTimezone($todaySchedule->start_shift, $timeZone, 'H:i', true),
             'end_shift' => MyHelper::adjustTimezone($todaySchedule->end_shift, $timeZone, 'H:i', true),
             'shift_name' => $todaySchedule->shift ? $office_hour_name.' ('.$todaySchedule->shift.')' : $office_hour_name,
@@ -971,8 +972,8 @@ class ApiEmployeeAttendaceOutletController extends Controller
                 }
             }
             if(isset($type_shift['office_hour_type'])){
-                $array_date = explode('-',$post['date']);
-                $schedule_month = EmployeeSchedule::where('id',$employee['id'])->where('schedule_month',$array_date[1])->where('schedule_year',$array_date[0])->first();
+                $array_date = explode('-',$data['attendance_date']);
+                $schedule_month = EmployeeSchedule::where('id',$data['id'])->where('schedule_month',$array_date[1])->where('schedule_year',$array_date[0])->first();
                 $clock_in_requirement = $type_shift['office_hour_start'];
                 $clock_out_requirement = $type_shift['office_hour_end'];
                 if($type_shift['office_hour_type']=='Use Shift' || isset($schedule_month['id_office_hour_shift'])){

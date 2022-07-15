@@ -6140,16 +6140,16 @@ class ApiTransaction extends Controller
                             ->join('transaction_outlet_services','transaction_outlet_services.id_transaction','=','transactions.id_transaction')
                             ->leftJoin('partners','partners.id_partner','=','locations.id_partner');
 
-            $outlets_mid->join('transaction_payment_midtrans','transaction_payment_midtrans.id_transaction','=','transactions.id_transaction')->whereDate('transaction_outlet_services.completed_at', '=', $date_trans)->where('transactions.flag_icount','0');
-            $outlets_mid->select('outlets.*','partners.*','locations.*','transaction_payment_midtrans.id_transaction_payment','transaction_payment_midtrans.payment_type','transaction_outlet_services.completed_at')->groupBy('outlets.id_outlet','transaction_payment_midtrans.payment_type')->orderBy('outlets.id_outlet', 'DESC');
+            $outlets_mid->join('transaction_payment_midtrans','transaction_payment_midtrans.id_transaction','=','transactions.id_transaction')->whereDate('transactions.transaction_date', '=', $date_trans)->where('transactions.flag_icount','0');
+            $outlets_mid->select('outlets.*','partners.*','locations.*','transaction_payment_midtrans.id_transaction_payment','transaction_payment_midtrans.payment_type','transactions.transaction_date')->groupBy('outlets.id_outlet','transaction_payment_midtrans.payment_type')->orderBy('outlets.id_outlet', 'DESC');
             $outlets_mid =  $outlets_mid->get()->toArray();
 
-            $outlets_xen->join('transaction_payment_xendits','transaction_payment_xendits.id_transaction','=','transactions.id_transaction')->whereDate('transaction_outlet_services.completed_at', '=', $date_trans)->where('transactions.flag_icount','0');
-            $outlets_xen->select('outlets.*','partners.*','locations.*','transaction_payment_xendits.id_transaction_payment_xendit','transaction_payment_xendits.type','transaction_outlet_services.completed_at')->groupBy('outlets.id_outlet','transaction_payment_xendits.type')->orderBy('outlets.id_outlet', 'DESC');
+            $outlets_xen->join('transaction_payment_xendits','transaction_payment_xendits.id_transaction','=','transactions.id_transaction')->whereDate('transactions.transaction_date', '=', $date_trans)->where('transactions.flag_icount','0');
+            $outlets_xen->select('outlets.*','partners.*','locations.*','transaction_payment_xendits.id_transaction_payment_xendit','transaction_payment_xendits.type','transactions.transaction_date')->groupBy('outlets.id_outlet','transaction_payment_xendits.type')->orderBy('outlets.id_outlet', 'DESC');
             $outlets_xen =  $outlets_xen->get()->toArray();
 
-            $outlets_cash->join('transaction_payment_cash','transaction_payment_cash.id_transaction','=','transactions.id_transaction')->whereDate('transaction_outlet_services.completed_at', '=', $date_trans)->where('transactions.flag_icount','0');
-            $outlets_cash->select('outlets.*','partners.*','locations.*','transaction_payment_cash.id_transaction_payment_cash','transaction_outlet_services.completed_at')->groupBy('outlets.id_outlet')->orderBy('outlets.id_outlet', 'DESC');
+            $outlets_cash->join('transaction_payment_cash','transaction_payment_cash.id_transaction','=','transactions.id_transaction')->whereDate('transactions.transaction_date', '=', $date_trans)->where('transactions.flag_icount','0');
+            $outlets_cash->select('outlets.*','partners.*','locations.*','transaction_payment_cash.id_transaction_payment_cash','transactions.transaction_date')->groupBy('outlets.id_outlet')->orderBy('outlets.id_outlet', 'DESC');
             $outlets_cash =  $outlets_cash->get()->toArray();
             
             $outlets = [];
@@ -6195,7 +6195,7 @@ class ApiTransaction extends Controller
                 }elseif(isset($outlet['id_transaction_payment_cash'])){
                     $transaction->join('transaction_payment_cash','transaction_payment_cash.id_transaction','=','transactions.id_transaction');
                 }
-                $transaction->whereDate('transaction_outlet_services.completed_at', '=', $date_trans)->where('transactions.flag_icount','0')->where('outlets.id_outlet', '=', $outlet['id_outlet'])->where('transactions.transaction_payment_status','Completed')->whereNotNull('transaction_outlet_services.completed_at');
+                $transaction->whereDate('transactions.transaction_date', '=', $date_trans)->where('transactions.flag_icount','0')->where('outlets.id_outlet', '=', $outlet['id_outlet'])->where('transactions.transaction_payment_status','Completed')->whereNotNull('transactions.transaction_date');
                 
                 if(isset($outlet['id_transaction_payment'])){
                     $transaction->where('transaction_payment_midtrans.payment_type', '=', $outlet['payment_type']);
@@ -6267,14 +6267,14 @@ class ApiTransaction extends Controller
                     if($new_transaction){
                         $new_outlets[$new] = $outlet;
                         $new_outlets[$new]['transaction'] = $new_transaction;
-                        $new_outlets[$new]['ppn'] = 10;
+                        $new_outlets[$new]['ppn'] = $outlet['is_tax'] ?? 10;
                         $new++;
 
                     }
                     if($new_transaction_non){
                         $new_outlets[$new] = $outlet;
                         $new_outlets[$new]['transaction'] = $new_transaction_non;
-                        $new_outlets[$new]['ppn'] = 0;
+                        $new_outlets[$new]['ppn'] = $outlet['is_tax'] ?? 0;
                         $new++;
                     }
                 }
@@ -6322,16 +6322,16 @@ class ApiTransaction extends Controller
                             ->join('transaction_home_services','transaction_home_services.id_transaction','=','transactions.id_transaction')
                             ->leftJoin('partners','partners.id_partner','=','locations.id_partner');
 
-            $outlets_mid->join('transaction_payment_midtrans','transaction_payment_midtrans.id_transaction','=','transactions.id_transaction')->whereDate('transaction_home_services.completed_at', '=', $date_trans)->where('transactions.flag_icount','0');
-            $outlets_mid->select('outlets.*','partners.*','locations.*','transaction_payment_midtrans.id_transaction_payment','transaction_payment_midtrans.payment_type','transaction_home_services.completed_at')->groupBy('outlets.id_outlet','transaction_payment_midtrans.payment_type')->orderBy('outlets.id_outlet', 'DESC');
+            $outlets_mid->join('transaction_payment_midtrans','transaction_payment_midtrans.id_transaction','=','transactions.id_transaction')->whereDate('transaction.transaction_date', '=', $date_trans)->where('transactions.flag_icount','0');
+            $outlets_mid->select('outlets.*','partners.*','locations.*','transaction_payment_midtrans.id_transaction_payment','transaction_payment_midtrans.payment_type','transaction.transaction_date')->groupBy('outlets.id_outlet','transaction_payment_midtrans.payment_type')->orderBy('outlets.id_outlet', 'DESC');
             $outlets_mid =  $outlets_mid->get()->toArray();
 
-            $outlets_xen->join('transaction_payment_xendits','transaction_payment_xendits.id_transaction','=','transactions.id_transaction')->whereDate('transaction_home_services.completed_at', '=', $date_trans)->where('transactions.flag_icount','0');
-            $outlets_xen->select('outlets.*','partners.*','locations.*','transaction_payment_xendits.id_transaction_payment_xendit','transaction_payment_xendits.type','transaction_home_services.completed_at')->groupBy('outlets.id_outlet','transaction_payment_xendits.type')->orderBy('outlets.id_outlet', 'DESC');
+            $outlets_xen->join('transaction_payment_xendits','transaction_payment_xendits.id_transaction','=','transactions.id_transaction')->whereDate('transaction.transaction_date', '=', $date_trans)->where('transactions.flag_icount','0');
+            $outlets_xen->select('outlets.*','partners.*','locations.*','transaction_payment_xendits.id_transaction_payment_xendit','transaction_payment_xendits.type','transaction.transaction_date')->groupBy('outlets.id_outlet','transaction_payment_xendits.type')->orderBy('outlets.id_outlet', 'DESC');
             $outlets_xen =  $outlets_xen->get()->toArray();
 
-            $outlets_cash->join('transaction_payment_cash','transaction_payment_cash.id_transaction','=','transactions.id_transaction')->whereDate('transaction_home_services.completed_at', '=', $date_trans)->where('transactions.flag_icount','0');
-            $outlets_cash->select('outlets.*','partners.*','locations.*','transaction_payment_cash.id_transaction_payment_cash','transaction_home_services.completed_at')->groupBy('outlets.id_outlet')->orderBy('outlets.id_outlet', 'DESC');
+            $outlets_cash->join('transaction_payment_cash','transaction_payment_cash.id_transaction','=','transactions.id_transaction')->whereDate('transaction.transaction_date', '=', $date_trans)->where('transactions.flag_icount','0');
+            $outlets_cash->select('outlets.*','partners.*','locations.*','transaction_payment_cash.id_transaction_payment_cash','transaction.transaction_date')->groupBy('outlets.id_outlet')->orderBy('outlets.id_outlet', 'DESC');
             $outlets_cash =  $outlets_cash->get()->toArray();
 
             $outlets = [];
@@ -6377,7 +6377,7 @@ class ApiTransaction extends Controller
                 }elseif(isset($outlet['id_transaction_payment_cash'])){
                     $transaction->join('transaction_payment_cash','transaction_payment_cash.id_transaction','=','transactions.id_transaction');
                 }
-                $transaction->whereDate('transaction_home_services.completed_at', '=', $date_trans)->where('transactions.flag_icount','0')->where('outlets.id_outlet', '=', $outlet['id_outlet'])->where('transactions.transaction_payment_status','Completed')->whereNotNull('transaction_home_services.completed_at');
+                $transaction->whereDate('transaction.transaction_date', '=', $date_trans)->where('transactions.flag_icount','0')->where('outlets.id_outlet', '=', $outlet['id_outlet'])->where('transactions.transaction_payment_status','Completed')->whereNotNull('transaction.transaction_date');
                 
                 if(isset($outlet['id_transaction_payment'])){
                     $transaction->where('transaction_payment_midtrans.payment_type', '=', $outlet['payment_type']);
@@ -6449,14 +6449,14 @@ class ApiTransaction extends Controller
                     if($new_transaction){
                         $new_outlets[$new] = $outlet;
                         $new_outlets[$new]['transaction'] = $new_transaction;
-                        $new_outlets[$new]['ppn'] = 10;
+                        $new_outlets[$new]['ppn'] = $outlet['is_tax'] ?? 10;
                         $new++;
 
                     }
                     if($new_transaction_non){
                         $new_outlets[$new] = $outlet;
                         $new_outlets[$new]['transaction'] = $new_transaction_non;
-                        $new_outlets[$new]['ppn'] = 0;
+                        $new_outlets[$new]['ppn'] = $outlet['is_tax'] ?? 0;
                         $new++;
                     }
                 }

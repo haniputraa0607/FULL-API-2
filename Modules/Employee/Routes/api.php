@@ -313,6 +313,7 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         Route::group(['prefix' => 'privacy-policy'], function(){
             Route::get('/', 'ApiEmployeeProfileController@privacy_policy');
         });
+        Route::get('reminder','ApiEmployeeProfileController@getReminderAttendance');
         Route::post('reminder','ApiEmployeeProfileController@reminderAttendance');
     });
     Route::post('update-device','ApiEmployeeAppController@saveDeviceUser');
@@ -388,9 +389,7 @@ Route::group([ 'middleware' => ['auth_client', 'scopes:employee-apps'], 'prefix'
 Route::group(['prefix' => '/icount/reimbursement'], function() {
     Route::post('/callback','ApiBeEmployeeReimbursementController@callbackreimbursement');
 });
-Route::group(['prefix' => '/icount/loan'], function() {
-    Route::post('/create','ApiLoanController@create_icount');
-});
+
 
 Route::group(['prefix' => '/icount/budgeting'], function() {
     Route::post('/store','ApiEmployeeRequestProductController@storeBudgeting');

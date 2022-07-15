@@ -69,6 +69,7 @@ class ApiEmployeeAttendanceController extends Controller
         $office_hour_name = isset($employee->role->office_hour['office_hour_name']) ? $employee->role->office_hour['office_hour_name'] : (isset($schedule_month['id_office_hour_shift']) ? EmployeeOfficeHour::where('id_employee_office_hour',$schedule_month['id_office_hour_shift'])->first()['office_hour_name'] : EmployeeOfficeHour::where('id_employee_office_hour',$default)->first()['office_hour_name']);
         
         $result = [
+            'timezone' => $timeZone,
             'clock_in_requirement' => MyHelper::adjustTimezone($todaySchedule->clock_in_requirement, $timeZone, 'H:i', true),
             'clock_out_requirement' => MyHelper::adjustTimezone($todaySchedule->clock_out_requirement, $timeZone, 'H:i', true),
             'shift_name' => $todaySchedule->shift ? $office_hour_name.' ('.$todaySchedule->shift.')' : $office_hour_name,

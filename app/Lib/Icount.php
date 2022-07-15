@@ -309,7 +309,7 @@ class Icount
 
     public static function ApiCreateOrderPOO($request, $company = null, $logType = null, $orderId = null){
         if(isset($request['transaction']) && !empty($request['transaction'])){
-            $trans_date = date('Y-m-d', strtotime($request['completed_at']));
+            $trans_date = date('Y-m-d', strtotime($request['transaction_date']));
             $due_date = Setting::where('key','due_date')->first()['value'] ?? 30;
             $due_date = date('Y-m-d', strtotime('+'.$due_date.' days', strtotime($trans_date)));
             $penjulana_outlet = Setting::where('key','penjualan_outlet')->first();

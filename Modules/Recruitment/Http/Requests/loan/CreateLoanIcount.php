@@ -1,14 +1,14 @@
 <?php
 
-namespace Modules\Employee\Http\Requests\Income\Loan;
+namespace Modules\Recruitment\Http\Requests\loan;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Modules\Transaction\Entities\SharingManagementFee;
 use App\Http\Models\Setting;
-use Modules\Employee\Entities\Employee;
-use Modules\Employee\Entities\EmployeeSalesPayment;
+use Modules\Recruitment\Entities\UserHairStylist;
+use Modules\Recruitment\Entities\HairstylistSalesPayment;
 class CreateLoanIcount extends FormRequest
 {
     public function rules()
@@ -19,19 +19,25 @@ class CreateLoanIcount extends FormRequest
             'signature'            => 'required|signature',
             'SalesInvoiceID'       => 'required|cek_sales',
             'amount'               => 'required|integer',
+            'type'               => 'required|in:IMS,IMA',
            ]; 
     }
     public function withValidator($validator)
     {
         $validator->addExtension('cek_sales', function ($attribute, $value, $parameters, $validator) {
-         $share = EmployeeSalesPayment::where(array('SalesInvoiceID'=>$value))->first();
+         $share = HairstylistSalesPayment::where(array('SalesInvoiceID'=>$value))->first();
          if($share){
              return false;
          }
          return true;
         });
         $validator->addExtension('cek', function ($attribute, $value, $parameters, $validator) {
-         $share = Employee::where(array('id_business_partner'=>$value))->first();
+         $request = $validator->getData();
+         if($request['type']=="IMA"){
+         $share = UserHairStylist::where(array('id_business_partner_ima'=>$value))->first();   
+         }else{
+         $share = UserHairStylist::where(array('id_business_partner'=>$value))->first();
+         }
          if($share){
              return true;
          }

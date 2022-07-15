@@ -34,7 +34,7 @@ class AuthPOS2
         $signature = hash_hmac('sha256', $to_sign, $api_secret);
 
         $debug_messages = [];
-        if (app()->environment('production')) {
+        if (!app()->environment('production')) {
             if ($request->bypass_signature == 'ok') {
                 $signature = $request->signature;
             }

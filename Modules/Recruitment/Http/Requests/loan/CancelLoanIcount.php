@@ -34,6 +34,9 @@ class CancelLoanIcount extends FormRequest
         $validator->addExtension('cek_payment', function ($attribute, $value, $parameters, $validator) {
            
            $sales = HairstylistSalesPayment::where('SalesInvoiceID',$value)->first();
+           if(!$sales){
+               return false;
+           }
            $loan = HairstylistLoan::where('id_hairstylist_sales_payment',$sales->id_hairstylist_sales_payment)->first();
            if(!$loan){
                return false;

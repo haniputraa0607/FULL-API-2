@@ -327,6 +327,8 @@ class Controller extends BaseController
 
     public function academy_student_day_off(){
         $total = TransactionAcademyScheduleDayOff::join('transaction_academy_schedules', 'transaction_academy_schedules.id_transaction_academy_schedule', 'transaction_academy_schedule_day_off.id_transaction_academy_schedule')
+            ->whereNull('approve_date')
+            ->whereNull('reject_date')
             ->join('users','transaction_academy_schedules.id_user','=','users.id')->count();
 
         if($total==0){

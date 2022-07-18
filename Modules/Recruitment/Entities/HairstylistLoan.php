@@ -22,6 +22,7 @@ class HairstylistLoan extends Model
         'installment',
         'type',
         'notes',
+        'status_loan',
         'id_hairstylist_sales_payment',
         'created_at',   
         'updated_at'

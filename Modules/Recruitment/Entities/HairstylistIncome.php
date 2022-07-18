@@ -1173,6 +1173,7 @@ class HairstylistIncome extends Model
                                 ->whereBetween('hairstylist_loan_returns.date_pay',[$startDate,$endDate])
                                 ->where('hairstylist_loan_returns.status_return','Success');    
                             })
+                ->where('status_loan','Success')
                 ->select('hairstylist_category_loans.name_category_loan',
                         DB::raw('
                                SUM(
@@ -1203,6 +1204,7 @@ class HairstylistIncome extends Model
                                 ->where('hairstylist_loan_returns.return_date','<=',$endDate)
                                 ->where('hairstylist_loan_returns.status_return','Pending');    
                             })
+                ->where('status_loan','Success')
                 ->get();
         foreach ($loan as $value) {
            $array[] = array(

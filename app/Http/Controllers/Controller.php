@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Models\Transaction;
 use Illuminate\Http\Request;
 
 use App\Http\Models\Feature;
@@ -14,6 +15,8 @@ use App\Http\Models\Level;
 use App\Http\Models\Configs;
 use App\Http\Models\Courier;
 use App\Http\Models\Setting;
+use Modules\Recruitment\Entities\UserHairStylist;
+use Modules\Transaction\Entities\TransactionAcademyScheduleDayOff;
 use Modules\Users\Entities\Role;
 
 use Illuminate\Foundation\Bus\DispatchesJobs;
@@ -218,14 +221,20 @@ class Controller extends BaseController
 
     public function getSidebarBadge(Request $request)
     {
+        $academySchedule = $this->academy_student_schedule();
+        $academyDayOff = $this->academy_student_day_off();
     	return [
     		'status' => 'success',
     		'result' => [
     			'total_sales_payment' => $this->total_sales_payment(),
-                        'employee'            => $this->employee(),
-                        'asset_inventory'     => $this->asset_inventory(),
-                        'asset_inventory_return_pending'=>$this->asset_inventory_return_pending(),
-                        'asset_inventory_loan_pending'=>$this->asset_inventory_loan_pending(),
+                'employee'            => $this->employee(),
+                'asset_inventory'     => $this->asset_inventory(),
+                'asset_inventory_return_pending'=>$this->asset_inventory_return_pending(),
+                'asset_inventory_loan_pending'=>$this->asset_inventory_loan_pending(),
+                'candidate_list' => $this->hs_candidate_list(),
+                'academy_student_schedule' => $academySchedule,
+                'academy_student_day_off' => $academyDayOff,
+                'academy_student_notif' => $academySchedule + $academyDayOff
     		],
     	];
     }
@@ -283,4 +292,47 @@ class Controller extends BaseController
                 }
                 return $total;
 	}
+
+    public function hs_candidate_list(){
+        $total = UserHairStylist::whereNotIn('user_hair_stylist_status', ['Active', 'Inactive'])->count();
+        if($total==0){
+            $total = null;
+        }
+
+        return $total;
+    }
+
+    public function academy_student_schedule(){
+        $id = Transaction::join('transaction_academy','transaction_academy.id_transaction','=','transactions.id_transaction')
+            ->join('transaction_academy_schedules','transaction_academy_schedules.id_transaction_academy','=','transaction_academy.id_transaction_academy')
+            ->where('transaction_from', 'academy')
+            ->where('transaction_payment_status', 'Completed')
+            ->whereRaw('transaction_academy.transaction_academy_total_meeting = transaction_academy_schedules.meeting')
+            ->pluck('transactions.id_transaction')->toArray();
+
+        $total = Transaction::join('users','transactions.id_user','=','users.id')
+            ->where('transaction_from', 'academy')
+            ->where('transaction_payment_status', 'Completed')
+            ->whereNotIn('transactions.id_transaction', $id)
+            ->groupBy('transactions.id_user')
+            ->select('id_user')->get();
+
+        $total = count($total);
+        if($total==0){
+            $total = null;
+        }
+
+        return $total;
+    }
+
+    public function academy_student_day_off(){
+        $total = TransactionAcademyScheduleDayOff::join('transaction_academy_schedules', 'transaction_academy_schedules.id_transaction_academy_schedule', 'transaction_academy_schedule_day_off.id_transaction_academy_schedule')
+            ->join('users','transaction_academy_schedules.id_user','=','users.id')->count();
+
+        if($total==0){
+            $total = null;
+        }
+
+        return $total;
+    }
 }

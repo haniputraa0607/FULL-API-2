@@ -141,6 +141,7 @@ class ApiHairStylistLoanController extends Controller
             'BusinessPartnerID'=>$request->BusinessPartnerID,
             'SalesInvoiceID'=>$request->SalesInvoiceID,
             'amount'=>$request->amount,
+            'type'=>$request->type,
         ]);
         return response()->json(MyHelper::checkUpdate($create));
     }
@@ -201,7 +202,7 @@ class ApiHairStylistLoanController extends Controller
                 'messages' => ['Jangan regenerate secret key server']
             ];
         }
-        $data = hash_hmac('sha256',$request->BusinessPartnerID.$request->SalesInvoiceID.$request->amount,$request->api_secret);
+        $data = hash_hmac('sha256',$request->BusinessPartnerID.$request->SalesInvoiceID.$request->amount.$request->type,$request->api_secret);
         return $data;
     }
     function signature_loan_cancel(SignatureLoanCancel $request) {
@@ -211,7 +212,7 @@ class ApiHairStylistLoanController extends Controller
                 'messages' => ['Jangan regenerate secret key server']
             ];
         }
-        $data = hash_hmac('sha256',$request->BusinessPartnerID.$request->SalesInvoiceID,$request->api_secret);
+        $data = hash_hmac('sha256',$request->BusinessPartnerID.$request->SalesInvoiceID.$request->type,$request->api_secret);
         return $data;
     }
 }

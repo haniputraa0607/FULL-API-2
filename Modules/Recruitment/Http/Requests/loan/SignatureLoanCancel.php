@@ -14,6 +14,7 @@ class SignatureLoanCancel extends FormRequest
         return [
             'BusinessPartnerID'    => 'required',
             'SalesInvoiceID'       => 'required',
+            'type'                 => 'required|in:IMS,IMA',
            ]; 
     }
     public function authorize()

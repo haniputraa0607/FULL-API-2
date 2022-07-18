@@ -314,7 +314,7 @@ Route::group(['middleware' => ['log_activities_mitra_apps', 'user_agent'], 'pref
 
 Route::group(['prefix' => '/icount/loan'], function() {
     Route::post('/create','ApiHairStylistLoanController@create_icount')->middleware('auth_pos2:BusinessPartnerID,SalesInvoiceID,amount,type');
-    Route::post('/cancel','ApiHairStylistLoanController@cancel_icount')->middleware('auth_pos2:BusinessPartnerID,SalesInvoiceID');
+    Route::post('/cancel','ApiHairStylistLoanController@cancel_icount')->middleware('auth_pos2:BusinessPartnerID,SalesInvoiceID,type');
     Route::post('/signature/loan','ApiHairStylistLoanController@signature_loan');
     Route::post('/signature/loan/cancel','ApiHairStylistLoanController@signature_loan_cancel');
 });

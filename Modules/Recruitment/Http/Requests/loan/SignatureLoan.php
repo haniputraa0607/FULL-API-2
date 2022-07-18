@@ -15,6 +15,7 @@ class SignatureLoan extends FormRequest
             'BusinessPartnerID'    => 'required',
             'SalesInvoiceID'       => 'required',
             'amount'               => 'required',
+            'type'                 => 'required|in:IMS,IMA',
            ]; 
     }
     public function authorize()

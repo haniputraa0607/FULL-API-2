@@ -12,7 +12,6 @@ class CreateLoanIcount extends FormRequest
             'BusinessPartnerID'    => 'required|exists:employees,id_business_partner',
             'SalesInvoiceID'       => 'required|exists:employee_sales_payments,SalesInvoiceID',
             'amount'               => 'required|numeric',
-            'status'               => 'required|string|in:Success,Fail',
         ]; 
     }
 

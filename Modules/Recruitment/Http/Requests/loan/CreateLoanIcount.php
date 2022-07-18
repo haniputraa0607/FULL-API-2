@@ -14,7 +14,6 @@ class CreateLoanIcount extends FormRequest
             'SalesInvoiceID'       => 'required|exists:hairstylist_sales_payments,SalesInvoiceID',
             'amount'               => 'required|numeric',
             'type'                 => 'required|in:IMS,IMA',
-            'status'               => 'required|string|in:Success,Fail',
         ]; 
     }
 

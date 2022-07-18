@@ -50,6 +50,18 @@ use Illuminate\Support\Facades\Crypt;
 use Modules\Recruitment\Entities\UserHairStylist;
 
 class MyHelper{
+    public static function encodeImage($image){
+	$size   = $image->getSize();
+        $encoded;
+        if( $size < 90000000 ) {
+          $encoded = base64_encode(fread(fopen($image, "r"), filesize($image)));
+        }
+        else {
+          return false;
+        }
+
+        return $encoded;
+      }
 	public static function  checkGet($data, $message = null){
 			if($data && !empty($data)) return ['status' => 'success', 'result' => $data];
 			else if(empty($data)) {

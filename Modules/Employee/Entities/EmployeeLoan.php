@@ -22,6 +22,7 @@ class EmployeeLoan extends Model
         'installment',
         'type',
         'notes',
+        'id_employee_sales_payment',
         'created_at',   
         'updated_at'
 	];

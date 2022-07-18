@@ -79,40 +79,55 @@ class ApiBeEmployeeAssetInventoryController extends Controller
         $user = AssetInventory::create($post);
         return MyHelper::checkGet($user);
     }
+    public function delete(Request $request) {
+        $post = $request->all();
+        $user = AssetInventory::where(array(
+            'id_asset_inventory'=>$request->id_asset_inventory
+        ))->delete();
+        return MyHelper::checkGet($user);
+    }
     public function list() {
-        $user = AssetInventory::get();
+        $user = AssetInventory::join('asset_inventory_categorys','asset_inventory_categorys.id_asset_inventory_category','asset_inventorys.id_asset_inventory_category')->get();
         return MyHelper::checkGet($user);
     }
     public function list_loan_pending() {
-        $user = AssetInventoryLog::where([
+        $user = AssetInventoryLog::join('asset_inventorys','asset_inventorys.id_asset_inventory','asset_inventory_logs.id_asset_inventory')
+                ->join('asset_inventory_categorys','asset_inventory_categorys.id_asset_inventory_category','asset_inventorys.id_asset_inventory_category')
+                ->where([
             'status_asset_inventory'=>"Pending",
             'type_asset_inventory'=>"Loan",
-        ])->get();
+        ])->with(['user'])->get();
         return MyHelper::checkGet($user);
     }
     public function list_loan() {
-        $user = AssetInventoryLog::where([
+        $user = AssetInventoryLog::join('asset_inventorys','asset_inventorys.id_asset_inventory','asset_inventory_logs.id_asset_inventory')
+                ->join('asset_inventory_categorys','asset_inventory_categorys.id_asset_inventory_category','asset_inventorys.id_asset_inventory_category')
+                ->where([
             'type_asset_inventory'=>"Loan",
-        ])->where(
+        ])->with(['user'])->where(
             'status_asset_inventory','!=',"Pending",
         )->get();
+        return MyHelper::checkGet($user);
+    }
+    public function detail_loan(Request $request) {
+        $user = AssetInventoryLog::join('asset_inventorys','asset_inventorys.id_asset_inventory','asset_inventory_logs.id_asset_inventory')
+                ->join('asset_inventory_categorys','asset_inventory_categorys.id_asset_inventory_category','asset_inventorys.id_asset_inventory_category')
+                ->leftjoin('users','users.id','asset_inventory_logs.id_approved')
+                ->where([
+            'id_asset_inventory_log'=>$request->id_asset_inventory_log,
+        ])->first();
         return MyHelper::checkGet($user);
     }
     public function approve_loan(ApproveLoan $request) {
          $post = $request->all();
        if(!empty($post['attachment'])){
-           $file = $request->file('attachment');
-            $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, $file->getClientOriginalExtension());
-            if (isset($upload['status']) && $upload['status'] == "success") {
-                    $attachment = $upload['path'];
-                } else {
-                    $result = [
-                        'status'   => 'fail',
-                        'messages' => ['fail upload file']
-                    ];
-                    return $result;
+                    $upload = MyHelper::uploadFile($post['attachment'],$this->saveFile, $post['ext']);
+                    if (isset($upload['status']) && $upload['status'] == "success") {
+                        $path = $upload['path'];
+                    }else {
+                        return response()->json(['status' => 'fail', 'messages' => ['Failed upload document']]);
+                    }
                 }
-            }
         $available = AssetInventoryLog::leftjoin('asset_inventory_loans','asset_inventory_loans.id_asset_inventory_log','asset_inventory_logs.id_asset_inventory_log')
                     ->where([
                     'asset_inventory_logs.id_asset_inventory_log'=>$request->id_asset_inventory_log
@@ -126,7 +141,7 @@ class ApiBeEmployeeAssetInventoryController extends Controller
         $available['date_action'] = date('Y-m-d H:i:s');
         $available['status_asset_inventory'] = $request->status_asset_inventory;
         $available['notes'] = $request->notes;
-        $available['attachment'] = $attachment ?? null;
+        $available['attachment'] = $path ?? null;
         if($request->status_asset_inventory == "Approved"){
             $loan = AssetInventoryLoan::where([
                 'id_asset_inventory_log'=>$request->id_asset_inventory_log
@@ -157,35 +172,49 @@ class ApiBeEmployeeAssetInventoryController extends Controller
     
     //return 
     public function list_return_pending() {
-        $user = AssetInventoryLog::where([
+        $user = AssetInventoryLog::join('asset_inventorys','asset_inventorys.id_asset_inventory','asset_inventory_logs.id_asset_inventory')
+                ->join('asset_inventory_categorys','asset_inventory_categorys.id_asset_inventory_category','asset_inventorys.id_asset_inventory_category')
+                ->join('asset_inventory_returns','asset_inventory_returns.id_asset_inventory','asset_inventorys.id_asset_inventory')
+                ->where([
+            'type_asset_inventory'=>"Return",
+        ])->with(['user'])
+        ->where([
             'status_asset_inventory'=>"Pending",
             'type_asset_inventory'=>"Return",
         ])->get();
         return MyHelper::checkGet($user);
     }
     public function list_return() {
-        $user = AssetInventoryLog::where([
+        $user = AssetInventoryLog::join('asset_inventorys','asset_inventorys.id_asset_inventory','asset_inventory_logs.id_asset_inventory')
+                ->join('asset_inventory_categorys','asset_inventory_categorys.id_asset_inventory_category','asset_inventorys.id_asset_inventory_category')
+                ->join('asset_inventory_returns','asset_inventory_returns.id_asset_inventory','asset_inventorys.id_asset_inventory')
+                ->where([
             'type_asset_inventory'=>"Return",
-        ])->where(
+        ])->with(['user'])
+        ->where(
             'status_asset_inventory','!=',"Pending",
         )->get();
+        return MyHelper::checkGet($user);
+    }
+    public function detail_return(Request $request) {
+        $user = AssetInventoryLog::join('asset_inventorys','asset_inventorys.id_asset_inventory','asset_inventory_logs.id_asset_inventory')
+                ->join('asset_inventory_categorys','asset_inventory_categorys.id_asset_inventory_category','asset_inventorys.id_asset_inventory_category')
+                ->leftjoin('users','users.id','asset_inventory_logs.id_approved')
+                ->where([
+            'id_asset_inventory_log'=>$request->id_asset_inventory_log,
+        ])->first();
         return MyHelper::checkGet($user);
     }
     public function approve_return(ApproveReturn $request) {
          $post = $request->all();
        if(!empty($post['attachment'])){
-           $file = $request->file('attachment');
-            $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, $file->getClientOriginalExtension());
-            if (isset($upload['status']) && $upload['status'] == "success") {
-                    $attachment = $upload['path'];
-                } else {
-                    $result = [
-                        'status'   => 'fail',
-                        'messages' => ['fail upload file']
-                    ];
-                    return $result;
+                    $upload = MyHelper::uploadFile($post['attachment'],$this->saveFile, $post['ext']);
+                    if (isset($upload['status']) && $upload['status'] == "success") {
+                        $path = $upload['path'];
+                    }else {
+                        return response()->json(['status' => 'fail', 'messages' => ['Failed upload document']]);
+                    }
                 }
-            }
         $available = AssetInventoryLog::leftjoin('asset_inventory_loans','asset_inventory_loans.id_asset_inventory_log','asset_inventory_logs.id_asset_inventory_log')
                     ->where([
                     'asset_inventory_logs.id_asset_inventory_log'=>$request->id_asset_inventory_log
@@ -198,7 +227,7 @@ class ApiBeEmployeeAssetInventoryController extends Controller
         $available['date_action'] = date('Y-m-d H:i:s');
         $available['status_asset_inventory'] = $request->status_asset_inventory;
         $available['notes'] = $request->notes;
-        $available['attachment'] = $attachment ?? null;
+        $available['attachment'] = $path ?? null;
         $return = AssetInventoryReturn::where('id_asset_inventory_log',$request->id_asset_inventory_log)->first();
         if($request->status_asset_inventory == "Approved"){
             $loan = AssetInventoryLoan::where([

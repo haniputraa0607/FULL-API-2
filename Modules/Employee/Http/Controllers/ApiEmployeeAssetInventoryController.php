@@ -148,6 +148,14 @@ class ApiEmployeeAssetInventoryController extends Controller
         return MyHelper::checkGet($available);   
    }
    public function detail_loan(Request $request) {
+       if(!isset($request->id_asset_inventory_loan)){
+           return array(
+               'status'=>'fail',
+               'message'=>[
+                   'Data Incomplete'
+               ]
+           );
+       }
         $available = AssetInventoryLoan::join('asset_inventory_logs','asset_inventory_logs.id_asset_inventory_log','asset_inventory_loans.id_asset_inventory_log')
                 ->join('asset_inventorys','asset_inventorys.id_asset_inventory','asset_inventory_loans.id_asset_inventory')
                 ->where([
@@ -161,6 +169,8 @@ class ApiEmployeeAssetInventoryController extends Controller
                     'asset_inventory_logs.attachment as attachment_foto',
                 ])
                 ->first();
+        $response = [];
+        if($available){
         $response = [
             'code' => $available->code,
             'name' => $available->name_asset_inventory,
@@ -170,6 +180,8 @@ class ApiEmployeeAssetInventoryController extends Controller
             'notes' => $available->notes,
             'attachment' => $available->attachment_foto,
         ];
+        
+        }
         return MyHelper::checkGet($response);   
    }
    public function loan_list_return(Request $request) {

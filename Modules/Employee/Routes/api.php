@@ -94,14 +94,17 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
             Route::get('/pending', 'ApiBeEmployeeAssetInventoryController@list_loan_pending');
             Route::get('/list', 'ApiBeEmployeeAssetInventoryController@list_loan');
             Route::post('/approve', 'ApiBeEmployeeAssetInventoryController@approve_loan');
+            Route::post('/detail', 'ApiBeEmployeeAssetInventoryController@detail_loan');
         });
         Route::group(['prefix' => 'return'], function(){
             Route::get('/pending', 'ApiBeEmployeeAssetInventoryController@list_return_pending');
             Route::get('/list', 'ApiBeEmployeeAssetInventoryController@list_return');
             Route::post('/approve', 'ApiBeEmployeeAssetInventoryController@approve_return');
+            Route::post('/detail', 'ApiBeEmployeeAssetInventoryController@detail_return');
         });
        
         Route::post('/create', 'ApiBeEmployeeAssetInventoryController@create');
+        Route::post('/delete', 'ApiBeEmployeeAssetInventoryController@delete');
         Route::post('/list', 'ApiBeEmployeeAssetInventoryController@list');
     });
     Route::any('attendance-setting','ApiEmployeeAttendanceController@setting');
@@ -240,6 +243,9 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
                 Route::post('hs', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@hs']);
                 Route::post('create', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@create']);
                 Route::post('/', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@index']);
+                Route::post('/sales', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@index_sales_payment']);
+                Route::post('/sales/detail', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@detail_sales_payment']);
+                Route::post('/sales/create', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@create_sales_payment']);
             });
 });
 
@@ -383,6 +389,7 @@ Route::group([ 'middleware' => ['auth_client', 'scopes:employee-apps'], 'prefix'
 Route::group(['prefix' => '/icount/reimbursement'], function() {
     Route::post('/callback','ApiBeEmployeeReimbursementController@callbackreimbursement');
 });
+
 
 Route::group(['prefix' => '/icount/budgeting'], function() {
     Route::post('/store','ApiEmployeeRequestProductController@storeBudgeting');

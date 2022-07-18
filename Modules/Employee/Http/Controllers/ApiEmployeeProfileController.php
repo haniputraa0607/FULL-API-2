@@ -133,7 +133,12 @@ class ApiEmployeeProfileController extends Controller
        return MyHelper::checkGet($data);
    }
    public function file() {
-       $data = EmployeeFile::where('id_user',Auth::user()->id)->paginate(10);
+       $data = EmployeeFile::where('id_user',Auth::user()->id)->get();
+       foreach($data as $v){
+          if(isset($v['attachment'])){
+            $v['attachment']= env('STORAGE_URL_API').$v['attachment'];
+        }
+       }
        return MyHelper::checkGet($data);
    }
    public function create_file(CreateFile $request) {
@@ -144,6 +149,7 @@ class ApiEmployeeProfileController extends Controller
             $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, $file->getClientOriginalExtension());
             if (isset($upload['status']) && $upload['status'] == "success") {
                     $post['attachment'] = $upload['path'];
+                    $post['name_file'] = $file->getClientOriginalName();
                 } else {
                     $result = [
                         'status'   => 'fail',
@@ -162,6 +168,9 @@ class ApiEmployeeProfileController extends Controller
                'id_user'=>Auth::user()->id
                )
        )->first();
+       if(isset($profile['attachment'])){
+           $profile['attachment']= env('STORAGE_URL_API').$profile['attachment'];
+       }
        return MyHelper::checkGet($profile);
    }
    public function update_file(UpdateFile $request) {
@@ -172,6 +181,7 @@ class ApiEmployeeProfileController extends Controller
             $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, $file->getClientOriginalExtension());
             if (isset($upload['status']) && $upload['status'] == "success") {
                     $profile['attachment'] = $upload['path'];
+                    $profile['name_file'] = $file->getClientOriginalName();
                 } else {
                     $result = [
                         'status'   => 'fail',

@@ -34,7 +34,7 @@ class UpdateFile extends FormRequest
 	{
 		return [
                         'id_employee_file'      => 'required|update',
-			'attachment'             => 'max:5000|min:1',
+			'attachment'             => 'max:5000|min:0',
         ];
     }
 

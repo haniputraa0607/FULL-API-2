@@ -15,7 +15,7 @@ class CallbackRequest extends FormRequest
                 'required',
                 'string',
                 Rule::exists('request_products', 'id_purchase_request')->where(function ($query) {
-                    $query->where('status', 'Completed By Finance');
+                    $query->where('status', '<>', 'Completed By Finance');
                 }),
             ],
         ]; 

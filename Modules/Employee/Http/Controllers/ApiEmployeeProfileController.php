@@ -145,8 +145,10 @@ class ApiEmployeeProfileController extends Controller
        $post = $request->all();
        $post['id_user'] = Auth::user()->id;
        if(!empty($post['attachment'])){
-           $file = $request->file('attachment');
-            $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, $file->getClientOriginalExtension());
+            $file = $request->file('attachment');
+            $ext = pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION);
+            $attachment = MyHelper::encodeImage($file);
+            $upload = MyHelper::uploadFile($attachment, $this->saveFile, $ext, strtotime(date('Y-m-d H-i-s')));
             if (isset($upload['status']) && $upload['status'] == "success") {
                     $post['attachment'] = $upload['path'];
                     $post['name_file'] = $file->getClientOriginalName();
@@ -158,6 +160,7 @@ class ApiEmployeeProfileController extends Controller
                     return $result;
                 }
             }
+                    
        $profile = EmployeeFile::create($post);
        return MyHelper::checkGet($profile);
    }

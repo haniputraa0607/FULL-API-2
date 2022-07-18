@@ -187,6 +187,7 @@ class ApiEmployeeRequestProductController extends Controller
             'type' => 'string|required',
             'id_product_catalog' => 'integer|required',
             'requirement_date' => 'required',
+            'notes' => 'required',
             'attachment.*'  => 'mimes:jpeg,jpg,bmp,png|max:2000'
         ]);
         $post = $request->all();

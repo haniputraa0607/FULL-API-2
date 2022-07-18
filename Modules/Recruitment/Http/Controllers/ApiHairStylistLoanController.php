@@ -35,6 +35,9 @@ use Modules\Recruitment\Entities\HairstylistLoanReturn;
 use Modules\Recruitment\Http\Requests\loan\CreateLoan;
 use Modules\Recruitment\Entities\HairstylistSalesPayment;
 use Modules\Recruitment\Http\Requests\loan\CreateLoanIcount;
+use Modules\Recruitment\Http\Requests\loan\CancelLoanIcount;
+use Modules\Recruitment\Http\Requests\loan\SignatureLoan;
+use Modules\Recruitment\Http\Requests\loan\SignatureLoanCancel;
 
 class ApiHairStylistLoanController extends Controller
 {
@@ -179,5 +182,36 @@ class ApiHairStylistLoanController extends Controller
                     ->update(['status'=>'Success']);
         }
         return response()->json(MyHelper::checkUpdate($save));
+    }
+     public function cancel_icount(CancelLoanIcount $request){
+        $sales = HairstylistSalesPayment::where('SalesInvoiceID',$request->SalesInvoiceID)->first();
+        $update = HairstylistSalesPayment::where('SalesInvoiceID',$request->SalesInvoiceID)->update([
+                    'status'=>"Reject"
+                ]);
+        $loan = HairstylistLoan::where('id_hairstylist_sales_payment',$sales->id_hairstylist_sales_payment)
+                ->update([
+                    'status_loan'=>"Reject"
+                ]);
+        return response()->json(MyHelper::checkUpdate($loan));
+    }
+    function signature_loan(SignatureLoan $request) {
+        if (config('app.env') != 'local') {
+            return [
+                'status' => 'fail',
+                'messages' => ['Jangan regenerate secret key server']
+            ];
+        }
+        $data = hash_hmac('sha256',$request->BusinessPartnerID.$request->SalesInvoiceID.$request->amount,$request->api_secret);
+        return $data;
+    }
+    function signature_loan_cancel(SignatureLoanCancel $request) {
+        if (config('app.env') != 'local') {
+            return [
+                'status' => 'fail',
+                'messages' => ['Jangan regenerate secret key server']
+            ];
+        }
+        $data = hash_hmac('sha256',$request->BusinessPartnerID.$request->SalesInvoiceID,$request->api_secret);
+        return $data;
     }
 }

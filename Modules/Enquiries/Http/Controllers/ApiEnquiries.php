@@ -815,7 +815,7 @@ class ApiEnquiries extends Controller
         if($request['enquiry_from'] == 'employee_suggest'){
             $request['enquiry_from'] = 'employee';
             $check = $request->all();
-            $user_date = $check['user_data'];
+            $user_data = $check['user_data'];
             unset($check['user_data']);
         }else{
             $check = $request->json()->all();
@@ -837,11 +837,11 @@ class ApiEnquiries extends Controller
         $categoryId = (array)$parentCategory['child'];
         $categoryId = $categoryId[$data['enquiry_category']];
 
-        $dataUser = $user_date ?? $request->user();
+        $dataUser = $user_data ?? $request->user();
         $data['enquiry_email'] = $dataUser->email;
-        $data['enquiry_name'] =  $user_date['name'] ?? ((!empty($request->user()->name) ? $request->user()->name:$request->user()->fullname));
-        $idUser =  $user_date['id'] ?? ((!empty($request->user()->id) ? $request->user()->id:$request->user()->id_user_hair_stylist));
-        $phone =  $user_date['phone'] ?? ((!empty($request->user()->phone) ? $request->user()->phone:$request->user()->phone_number));
+        $data['enquiry_name'] =  $user_data['name'] ?? ((!empty($request->user()->name) ? $request->user()->name:$request->user()->fullname));
+        $idUser =  $user_data['id'] ?? ((!empty($request->user()->id) ? $request->user()->id:$request->user()->id_user_hair_stylist));
+        $phone =  $user_data['phone'] ?? ((!empty($request->user()->phone) ? $request->user()->phone:$request->user()->phone_number));
         if(!empty(env('TICKETING_BASE_URL')) && !empty(env('TICKETING_API_KEY')) && !empty(env('TICKETING_API_SECRET'))){
             $fileCount = count($data['file']??[]);
             $content = 'Name: '.$data['enquiry_name'].'<br>';
@@ -857,6 +857,8 @@ class ApiEnquiries extends Controller
                 $outlet = Outlet::where('id_outlet', $data['id_outlet'])->first();
                 $content .= 'Outlet code: '.$outlet['outlet_code'].'<br>';
                 $content .= 'Outlet name: '.$outlet['outlet_name'].'<br>';
+            }else{
+                $content .= 'Receipt Number: 1';
             }
             if(isset($data['attachment'])){
                 foreach($data['attachment'] ?? [] as $index => $attachment){
@@ -878,7 +880,7 @@ class ApiEnquiries extends Controller
                 'body' => $content,
                 'file_count' => $fileCount,
             ];
-
+            
             //insert data to ticketing third party
             $ticketing = new Ticketing();
             $ticketing->setData(['body' => $dataSend, 'url' => 'api/tickets/add_ticket']);

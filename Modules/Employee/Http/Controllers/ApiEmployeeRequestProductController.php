@@ -187,7 +187,6 @@ class ApiEmployeeRequestProductController extends Controller
             'type' => 'string|required',
             'id_product_catalog' => 'integer|required',
             'requirement_date' => 'required',
-            'notes' => 'required',
             'attachment.*'  => 'mimes:jpeg,jpg,bmp,png|max:2000'
         ]);
         $post = $request->all();
@@ -203,6 +202,10 @@ class ApiEmployeeRequestProductController extends Controller
         
         $total_cost = 0;
 
+        if(!isset($post['products']) && empty($post['products'])){
+            return response()->json(['status' => 'fail', 'messages' => ['Gagal membuat permintaan, tidak ada produk yang dipilih']]);
+        }
+        
         DB::beginTransaction();
 
         if(!$department){

@@ -270,6 +270,10 @@ class ApiBeEmployeeController extends Controller
                             'Interview Invitation Employee',
                             $getData->phone,
                             [
+                                'name' =>$getData->nickname,
+                                'birthday' =>$getData->birthday,
+                                'birthday' =>$getData->birthday,
+                                'email' =>$getData->email,
                                 'date' => date('Y-m-d H:i:s', strtotime($post['data_document']['process_date']??date('Y-m-d H:i:s'))),
                             ], null, null, null, null, null, null, null, null,
                         );

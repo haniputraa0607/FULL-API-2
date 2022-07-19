@@ -6252,7 +6252,7 @@ class ApiTransaction extends Controller
                             }
                         }
 
-                        if($tran['transaction_tax']==0){
+                        if($tran['ngecek ']==0){
                             $new_transaction_non[$new_trans_non] = $tran;
                             $new_transaction_non[$new_trans_non]['total_price'] = $tran['transaction_product_price_base'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all'];
                             $new_trans_non++;

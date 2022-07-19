@@ -4713,6 +4713,24 @@ class FeaturesTableSeeder extends Seeder
                 'created_at'     => date('Y-m-d H:00:00'),
                 'updated_at'     => date('Y-m-d H:00:00'),
             ),
+            524 => array(
+                'id_feature'     => 526,
+                'feature_type'   => 'Delete',
+                'feature_module' => 'Employee Attendace',
+                'show_hide'      => 1,
+                'order'          => 163,
+                'created_at'     => date('Y-m-d H:00:00'),
+                'updated_at'     => date('Y-m-d H:00:00'),
+            ),
+            525 => array(
+                'id_feature'     => 527,
+                'feature_type'   => 'Delete',
+                'feature_module' => 'Employee Outlet Attendace',
+                'show_hide'      => 1,
+                'order'          => 164,
+                'created_at'     => date('Y-m-d H:00:00'),
+                'updated_at'     => date('Y-m-d H:00:00'),
+            ),
             
         );
 

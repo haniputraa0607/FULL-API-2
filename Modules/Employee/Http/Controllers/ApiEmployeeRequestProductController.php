@@ -202,6 +202,10 @@ class ApiEmployeeRequestProductController extends Controller
         
         $total_cost = 0;
 
+        if(!isset($post['products']) && empty($post['products'])){
+            return response()->json(['status' => 'fail', 'messages' => ['Gagal membuat permintaan, tidak ada produk yang dipilih']]);
+        }
+        
         DB::beginTransaction();
 
         if(!$department){

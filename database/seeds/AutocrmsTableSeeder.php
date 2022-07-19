@@ -4100,7 +4100,7 @@ Message :
                         'autocrm_forward_email' => NULL,
                         'autocrm_forward_email_subject' => 'Interview Invitation Employee',
                         'autocrm_forward_email_content' => 'Hello %name%, Interview Invitation, date %date%',
-                        'custom_text_replace'=>'%pin%;',
+                        'custom_text_replace'=>'%date_invitation%;%time_invitation%;',
                         'created_at' => '2021-09-16 15:21:17',
                         'updated_at' => '2021-09-16 15:21:17',
 	            ),

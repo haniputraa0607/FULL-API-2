@@ -359,6 +359,30 @@ class TextReplacesTableSeeder extends Seeder
                 'created_at' => NULL,
                 'updated_at' => NULL,
             ),
+             29 => 
+            array (
+                'id_text_replace' => 32,
+                'keyword' => '%date_invitation%',
+                'reference' => 'variables',
+                'type' => 'DateTime',
+                'default_value' => 'd F Y',
+                'custom_rule' => 'd F Y',
+                'status' => 'Activated',
+                'created_at' => NULL,
+                'updated_at' => NULL,
+            ),
+            30 => 
+            array (
+                'id_text_replace' => 33,
+                'keyword' => '%time_invitation%',
+                'reference' => 'variables',
+                'type' => 'DateTime',
+                'default_value' => 'H:i',
+                'custom_rule' => 'H:i',
+                'status' => 'Activated',
+                'created_at' => NULL,
+                'updated_at' => NULL,
+            ),
         ));
         
         

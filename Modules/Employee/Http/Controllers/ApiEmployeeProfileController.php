@@ -179,9 +179,11 @@ class ApiEmployeeProfileController extends Controller
    public function update_file(UpdateFile $request) {
        $post = $request->all();
        $profile = EmployeeFile::where(array('id_employee_file'=>$request->id_employee_file))->first();
-       if(!empty($post['attachment'])){
-           $file = $request->file('attachment');
-            $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, $file->getClientOriginalExtension());
+        if(!empty($post['attachment'])){
+            $file = $request->file('attachment');
+            $ext = pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION);
+            $attachment = MyHelper::encodeImage($file);
+            $upload = MyHelper::uploadFile($attachment, $this->saveFile, $ext, strtotime(date('Y-m-d H-i-s')));
             if (isset($upload['status']) && $upload['status'] == "success") {
                     $profile['attachment'] = $upload['path'];
                     $profile['name_file'] = $file->getClientOriginalName();

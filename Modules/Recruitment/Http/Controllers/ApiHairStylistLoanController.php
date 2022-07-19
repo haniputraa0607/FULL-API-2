@@ -190,10 +190,14 @@ class ApiHairStylistLoanController extends Controller
                     'status'=>"Reject"
                 ]);
         $loan = HairstylistLoan::where('id_hairstylist_sales_payment',$sales->id_hairstylist_sales_payment)
+                ->first();
+        if($loan){
+            $loan = HairstylistLoan::where('id_hairstylist_sales_payment',$sales->id_hairstylist_sales_payment)
                 ->update([
                     'status_loan'=>"Reject"
                 ]);
-        return response()->json(MyHelper::checkUpdate($loan));
+        }
+        return response()->json(MyHelper::checkUpdate($update));
     }
     function signature_loan(SignatureLoan $request) {
         if (config('app.env') != 'local') {

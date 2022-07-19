@@ -23,6 +23,10 @@
         font-family: 'Gothic A1', sans-serif;
     }
 
+    body {
+        padding-bottom: 20px;
+    }
+    
     img {
         width: 100%;
     }
@@ -53,7 +57,7 @@
     <title>{{$result['custom_page_title']}}</title>
   </head>
   <body>
-        @if (isset($result['custom_page_image_header']))
+        @if (isset($result['custom_page_image_header']) && count($result['custom_page_image_header']))
         <amp-carousel
           width="450"
           height="300"
@@ -75,7 +79,9 @@
         </amp-carousel>
         @endif
         <div class="content">
+        @if($result['id_custom_page'] != 1)
             <h1 class="title">{{$result['custom_page_title']}}</h1>
+            @endif
             @if(isset($result['custom_page_event_date_start']))
                 <h3 class="label">Periode</h3>
                 @if (isset($result['custom_page_event_date_start']))
@@ -110,7 +116,7 @@
                 <h3 class="label">Alamat</h3>
                 <div class="content-value">{{$result['custom_page_event_location_address']}}</div>
             @endif
-            @if (isset($result['custom_page_event_latitude']) && isset($result['custom_page_event_longitude']))
+            @if (isset($result['custom_page_event_latitude']) && isset($result['custom_page_event_longitude']) && false)
                 <amp-iframe
                   width="200"
                   height="100"
@@ -142,8 +148,8 @@
         @if (isset($result['custom_page_outlet_text']) && isset($result['custom_page_outlet']))
             <h3 class="label">{{ $result['custom_page_outlet_text'] }}</h3>
             <amp-carousel
-              width="450"
-              height="300"
+              width="720"
+              height="360"
               layout="responsive"
               type="slides"
               role="region"
@@ -152,9 +158,9 @@
             @foreach ($result['custom_page_outlet'] as $key => $value)
                 <div style="position: relative !important; width: calc(100vw - 20px) !important;">
                     <amp-img
-                        src="{{ isset($value['outlet']['photos'][0]['url_outlet_photo']) ? $value['outlet']['photos'][0]['url_outlet_photo'] : 'https://via.placeholder.com/450x300.png?text=No Image Available' }}"
-                        width="450"
-                        height="300"
+                        src="{{ isset($value['outlet']['outlet_image']) ? $value['outlet']['outlet_image'] : 'https://via.placeholder.com/450x300.png?text=No Image Available' }}"
+                        width="720"
+                        height="360"
                         layout="responsive"
                     ></amp-img>
                     <span style="background-color: rgba(0, 0, 0, 0.6); position: absolute; top: 0; right:0; left: 0; padding: 10px; color: white; font-weight:600">{{$value['outlet']['outlet_name']}}</span>
@@ -167,7 +173,7 @@
             <h3 class="label">{{ $result['custom_page_product_text'] }}</h3>
             <amp-carousel
               width="450"
-              height="300"
+              height="450"
               layout="responsive"
               type="slides"
               role="region"
@@ -178,7 +184,7 @@
                     <amp-img
                         src="{{ isset($value['product']['photos'][0]['url_product_photo']) ? $value['product']['photos'][0]['url_product_photo'] : 'https://via.placeholder.com/800x500.png?text=No Image Available' }}"
                         width="450"
-                        height="300"
+                        height="450"
                         layout="responsive"
                     ></amp-img>
                     <span style="background-color: rgba(0, 0, 0, 0.6); position: absolute; top: 0; right:0; left: 0; padding: 10px; color: white; font-weight:600">{{ $value['product']['product_name'] }}</span>
@@ -188,8 +194,8 @@
         @endif
 
         @if (isset($result['custom_page_button_form']))
-        <div style="text-align: center; width: 100%; padding: 10px 0;">
-            <button style="color:#ffffff; background-color: #000; width:  100%; border: 0; padding: 10px; font-size: 1.2em" id="action" type="button">{{$result['custom_page_button_form_text_button']}}</button>
+        <div style="text-align: center; width: 100%; margin-top:10px">
+            <a style="color:#ffffff; background-color: #000; width:  100% !important; border: 0; padding: 10px 0; font-size: 1.2em; display: block; text-decoration:none" id="action" href="{{is_numeric($result['custom_page_button_form_text_value']) ? 'tel:' . $result['custom_page_button_form_text_value'] : $result['custom_page_button_form_text_value']}}">{{$result['custom_page_button_form_text_button']}}</a>
         </div>
         @endif
 

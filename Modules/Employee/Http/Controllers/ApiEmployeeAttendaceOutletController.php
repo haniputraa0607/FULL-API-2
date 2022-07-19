@@ -67,12 +67,13 @@ class ApiEmployeeAttendaceOutletController extends Controller
         $outlet = Outlet::select('outlet_name', 'outlet_latitude', 'outlet_longitude', 'id_city')->where('id_outlet', $post['id_outlet'])->first();
         $shift = false;
         $outlet->setHidden(['call', 'url']);
+        $schedule_month = EmployeeSchedule::where('id',$employee->id)->where('schedule_month',date('m'))->where('schedule_year',date('Y'))->first();
         // get current schedule
         $todaySchedule = $employee->employee_schedules()
             ->selectRaw('date, min(time_start) as start_shift, max(time_end) as end_shift, shift')
             ->join('employee_schedule_dates', 'employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule');
         
-        if($employee->role->office_hour['office_hour_type'] == 'Use Shift'){
+        if($employee->role->office_hour['office_hour_type'] == 'Use Shift' || isset($schedule_month['id_office_hour_shift'])){
             $todaySchedule = $todaySchedule->whereNotNull('approve_at');
             $shift = true;
         }else{
@@ -97,10 +98,14 @@ class ApiEmployeeAttendaceOutletController extends Controller
         $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
 
+        $default = Setting::where('key', 'employee_office_hour_default')->first()['value'] ?? null;
+        $office_hour_name = isset($employee->role->office_hour['office_hour_name']) ? $employee->role->office_hour['office_hour_name'] : (isset($schedule_month['id_office_hour_shift']) ? EmployeeOfficeHour::where('id_employee_office_hour',$schedule_month['id_office_hour_shift'])->first()['office_hour_name'] : EmployeeOfficeHour::where('id_employee_office_hour',$default)->first()['office_hour_name']);
+
         $result = [
+            'timezone' => $timeZone,
             'start_shift' => MyHelper::adjustTimezone($todaySchedule->start_shift, $timeZone, 'H:i', true),
             'end_shift' => MyHelper::adjustTimezone($todaySchedule->end_shift, $timeZone, 'H:i', true),
-            'shift_name' => $todaySchedule->shift ?? null,
+            'shift_name' => $todaySchedule->shift ? $office_hour_name.' ('.$todaySchedule->shift.')' : $office_hour_name,
             'outlet' => $outlet,
             'logs' => $attendance->logs()->get()->transform(function($item) use($timeZone) {
                 return [
@@ -130,8 +135,9 @@ class ApiEmployeeAttendaceOutletController extends Controller
             'photo' => 'string|required',
         ]);
         $employee = $request->user();
+        $schedule_month = EmployeeSchedule::where('id',$employee->id)->where('schedule_month',date('m'))->where('schedule_year',date('Y'))->first();
         $shift = false;
-        if($employee->role->office_hour['office_hour_type'] == 'Use Shift'){
+        if($employee->role->office_hour['office_hour_type'] == 'Use Shift' || isset($schedule_month['id_office_hour_shift'])){
             $shift = true;
         }else{
             $shift = false;
@@ -143,13 +149,6 @@ class ApiEmployeeAttendaceOutletController extends Controller
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
         $date_time_now = MyHelper::adjustTimezone(date('Y-m-d H:i:s'), $timeZone, 'Y-m-d H:i:s', true);
         $attendance = $employee->getAttendanceByDateOutlet($outlet['id_outlet'], date('Y-m-d'), $shift);
-
-        if ($request->type == 'clock_out' && !$attendance->logs()->where('type', 'clock_in')->exists()) {
-            return [
-                'status' => 'fail',
-                'messages' => ['Tidak bisa melakukan Clock Out sebelum melakukan Clock In'],
-            ];
-        }
 
         $maximumRadius = MyHelper::setting('employee_attendance_max_radius', 'value', 50);
         $distance = MyHelper::getDistance($request->latitude, $request->longitude, $outlet->outlet_latitude, $outlet->outlet_longitude);
@@ -208,7 +207,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
                 'messages' => ['Tidak ada riwayat absensi pada bulan ini'],
             ];
         }
-        // $schedules = $scheduleMonth->employee_schedule_dates()->leftJoin('employee_outlet_attendances', 'employee_outlet_attendances.id_employee_attendance', 'employee_schedule_dates.id_employee_attendance')->orderBy('is_overtime')->get();
+        
         $schedules = $scheduleMonth->employee_schedule_dates()
             ->leftJoin('employee_outlet_attendances', 'employee_outlet_attendances.id_employee_schedule_date', 'employee_schedule_dates.id_employee_schedule_date')
             ->get() ?? null;
@@ -340,7 +339,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
     {
         $result = User::join('employee_schedules', 'employee_schedules.id', 'users.id')
             ->join('employee_schedule_dates', 'employee_schedule_dates.id_employee_schedule', 'employee_schedules.id_employee_schedule')
-            ->leftJoin('employee_outlet_attendances', 'employee_outlet_attendances.id_employee_schedule_date', 'employee_schedule_dates.id_employee_schedule_date')
+            ->join('employee_outlet_attendances', 'employee_outlet_attendances.id_employee_schedule_date', 'employee_schedule_dates.id_employee_schedule_date')
             ->leftJoin('outlets as outlet_att','outlet_att.id_outlet','employee_outlet_attendances.id_outlet')
             ->leftJoin('outlets as office','office.id_outlet','users.id_outlet')
             ->with(['outlet_attendance_logs' => function ($query) { $query->where('status', 'Approved')->selectRaw('*, null as photo_url');}]);
@@ -643,8 +642,16 @@ class ApiEmployeeAttendaceOutletController extends Controller
     public function updatePending(Request $request)
     {
         $request->validate([
-            'status' => 'string|in:Approved,Rejected',
+            'status' => 'string|in:Approved,Rejected,Approve,Reject',
         ]);
+
+        if($request->status=='Approve'){
+            $request->status = 'Approved';
+        }
+        if($request->status=='Reject'){
+            $request->status = 'Rejected';
+        }
+
         $log = EmployeeOutletAttendanceLog::find($request->id_employee_outlet_attendance_log);
         if (!$log) {
             return [
@@ -652,12 +659,18 @@ class ApiEmployeeAttendaceOutletController extends Controller
                 'messages' => ['Selected pending attendance outlet not found']
             ];
         }
-        $log->update(['status' => $request->status]);
+        $update = [
+            'status' => $request->status
+        ];
+        if(isset($request->approve_notes) && !empty($request->approve_notes)){
+            $update['approve_notes'] = $request->approve_notes;
+        }
+        $log->update($update);
         $log->employee_outlet_attendance->recalculate();
         return [
             'status' => 'success',
             'result' => [
-                'message' => 'Success ' . ($request->status == 'Approved' ? 'approve' : 'reject') . ' pending attendance'
+                'message' => 'Success ' . ($request->status == 'Approved' ? 'approve' : 'reject') . ' pending outlet attendance'
             ],
         ];
     }
@@ -670,12 +683,19 @@ class ApiEmployeeAttendaceOutletController extends Controller
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
 
         $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$employee['id'])->first();
-
+        $array_date = explode('-',$post['date']);
+        $schedule_month = EmployeeSchedule::where('id',$employee['id'])->where('schedule_month',$array_date[1])->where('schedule_year',$array_date[0])->first();
         if(empty($type_shift['office_hour_type'])){
-            return response()->json([
-                'status'=>'fail',
-                'messages'=>['Jam kantor tidak ada ']
-            ]);
+            $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
+            if($setting_default){
+                $type_shift = EmployeeOfficeHour::where('id_employee_office_hour',$setting_default['value'])->first();
+                if(empty($type_shift)){
+                    return response()->json([
+                        'status'=>'fail',
+                        'messages'=>['Jam kantor tidak ada ']
+                    ]);
+                }
+            }
         }
         $data = [
            'shift' => null,
@@ -683,7 +703,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
            'schedule_out' => $type_shift['office_hour_end'] ?? null,
         ];
 
-        if($type_shift['office_hour_type'] == 'Use Shift'){
+        if($type_shift['office_hour_type'] == 'Use Shift' || isset($schedule_month['id_office_hour_shift'])){
             $schedule_date = EmployeeScheduleDate::join('employee_schedules','employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule')
                                                         ->join('users','users.id','employee_schedules.id')
                                                         ->where('users.id', $employee['id'])
@@ -704,21 +724,34 @@ class ApiEmployeeAttendaceOutletController extends Controller
 
     public function storeRequest(Request $request){
         $post = $request->all();
+        if(!isset($post['notes']) && empty($post['notes'])){
+            return response()->json([
+                'status'=>'fail',
+                'messages'=>['Mohon mengisi keterangan dengan jelas.']
+            ]);
+        }
         $employee = $request->user();
         $outlet = Outlet::where('id_outlet', $post['id_outlet'])->select('id_outlet','outlet_name', 'id_city')->first();
         $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
 
         $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$employee['id'])->first();
-
+        $array_date = explode('-',$post['date']);
+        $schedule_month = EmployeeSchedule::where('id',$employee['id'])->where('schedule_month',$array_date[1])->where('schedule_year',$array_date[0])->first();
         if(empty($type_shift['office_hour_type'])){
-            return response()->json([
-                'status'=>'fail',
-                'messages'=>['Jam kantor tidak ada ']
-            ]);
+            $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
+            if($setting_default){
+                $type_shift = EmployeeOfficeHour::where('id_employee_office_hour',$setting_default['value'])->first();
+                if(empty($type_shift)){
+                    return response()->json([
+                        'status'=>'fail',
+                        'messages'=>['Jam kantor tidak ada ']
+                    ]);
+                }
+            }
         }
 
-        if($type_shift['office_hour_type'] == 'Use Shift'){
+        if($type_shift['office_hour_type'] == 'Use Shift' || isset($schedule_month['id_office_hour_shift'])){
             $schedule_date = EmployeeScheduleDate::join('employee_schedules','employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule')
                                                         ->join('users','users.id','employee_schedules.id')
                                                         ->where('users.id', $employee['id'])
@@ -758,7 +791,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
         $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
         
-        $histories = EmployeeOutletAttendanceRequest::join('outlets','outlets.id_outlet', 'employee_outlet_attendance_requests.id_outlet')->where('id', $employee['id'])->select('outlet_name','attendance_date', 'clock_in', 'clock_out', 'status', 'notes')->paginate(10)->toArray();
+        $histories = EmployeeOutletAttendanceRequest::join('outlets','outlets.id_outlet', 'employee_outlet_attendance_requests.id_outlet')->where('id', $employee['id'])->select('outlet_name','attendance_date', 'clock_in', 'clock_out', 'status', 'notes')->orderBy('attendance_date','asc')->paginate(10)->toArray();
         $data = [];
         foreach($histories['data'] ?? [] as $val){
             if(isset($val['clock_in'])){
@@ -869,7 +902,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
 
         if ($rules = $newRule['transaction_date'] ?? false) {
             foreach ($rules as $rul) {
-                $query->whereDate('employee_outlet_attendance_requests.attendance_date', $rul[0], $rul[1]);
+                $query->whereDate('employee_outlet_attendance_requests.created_at', $rul[0], $rul[1]);
             }
         }
     }
@@ -926,10 +959,24 @@ class ApiEmployeeAttendaceOutletController extends Controller
             $clock_in_requirement = null;
             $clock_out_requirement =  null;
             $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$data['id'])->first();
+            if(empty($type_shift['office_hour_type'])){
+                $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
+                if($setting_default){
+                    $type_shift = EmployeeOfficeHour::where('id_employee_office_hour',$setting_default['value'])->first();
+                    if(empty($type_shift)){
+                        return response()->json([
+                            'status'=>'fail',
+                            'messages'=>['Shift schedule has not been created']
+                        ]);
+                    }
+                }
+            }
             if(isset($type_shift['office_hour_type'])){
+                $array_date = explode('-',$data['attendance_date']);
+                $schedule_month = EmployeeSchedule::where('id',$data['id'])->where('schedule_month',$array_date[1])->where('schedule_year',$array_date[0])->first();
                 $clock_in_requirement = $type_shift['office_hour_start'];
                 $clock_out_requirement = $type_shift['office_hour_end'];
-                if($type_shift['office_hour_type']=='Use Shift'){
+                if($type_shift['office_hour_type']=='Use Shift' || isset($schedule_month['id_office_hour_shift'])){
                     $schedule_date = EmployeeScheduleDate::join('employee_schedules','employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule')
                                         ->join('users','users.id','employee_schedules.id')
                                         ->where('users.id', $data['id'])
@@ -976,7 +1023,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
 
         if ($rules = $newRule['transaction_date'] ?? false) {
             foreach ($rules as $rul) {
-                $query->whereDate('employee_outlet_attendance_requests.attendance_date', $rul[0], $rul[1]);
+                $query->whereDate('employee_outlet_attendance_requests.created_at', $rul[0], $rul[1]);
             }
         }
         if ($rules = $newRule['id'] ?? false) {
@@ -988,8 +1035,15 @@ class ApiEmployeeAttendaceOutletController extends Controller
 
     public function updateRequest(Request $request){
         $request->validate([
-            'status' => 'string|in:Accepted,Rejected',
+            'status' => 'string|in:Accepted,Rejected,Approve,Reject',
         ]);
+        if($request->status=='Approve'){
+            $request->status = 'Accepted';
+        }
+        if($request->status=='Reject'){
+            $request->status = 'Rejected';
+        }
+
         $log_req = EmployeeOutletAttendanceRequest::find($request->id_employee_outlet_attendance_request);
         if (!$log_req) {
             return [
@@ -998,7 +1052,13 @@ class ApiEmployeeAttendaceOutletController extends Controller
             ];
         }
         DB::beginTransaction();
-        $log_req->update(['status' => $request->status]);
+        $update = [
+            'status' => $request->status
+        ];
+        if(isset($request->approve_notes) && !empty($request->approve_notes)){
+            $update['approve_notes'] = $request->approve_notes;
+        }
+        $log_req->update($update);
         $final = true;
         if($request->status == 'Accepted'){
 
@@ -1010,11 +1070,17 @@ class ApiEmployeeAttendaceOutletController extends Controller
             $type_shift = User::join('roles','roles.id_role','users.id_role')->leftJoin('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$log_req['id'])->first();
 
             if(empty($type_shift['office_hour_type'])){
-                DB::rollBack();
-                return response()->json([
-                    'status'=>'fail',
-                    'messages'=>['Shift schedule has not been created']
-                ]);
+                $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
+                if($setting_default){
+                    $type_shift = EmployeeOfficeHour::where('id_employee_office_hour',$setting_default['value'])->first();
+                    if(empty($type_shift)){
+                        DB::rollBack();
+                        return response()->json([
+                            'status'=>'fail',
+                            'messages'=>['Shift schedule has not been created']
+                        ]);
+                    }
+                }
             }
 
 
@@ -1066,14 +1132,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
                     'clock_out_tolerance' => MyHelper::setting('employee_clock_out_tolerance', 'value', 0),
                 ]);
             }
-            
-            if (isset($log_req['clock_out']) && !isset($log_req['clock_in'])) {
-                DB::rollBack();
-                return [
-                    'status' => 'fail',
-                    'messages' => ['Cant create Clock Out before create Clock In'],
-                ];
-            } 
+         
             if(isset($log_req['clock_in'])){
                 $clock_in = EmployeeOutletAttendance::find($attendance['id_employee_outlet_attendance']);
                 $clock_in->storeClock([
@@ -1082,7 +1141,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
                     'latitude' => 0,
                     'longitude' => 0,
                     'status' => 'Approved',
-                    'approved_by' =>  $request->user()->id,
+                    'approved_by' => $request->id ?? $request->user()->id,
                     'notes' => $log_req['notes'],
                 ]);
                 if(!$clock_in){
@@ -1098,27 +1157,51 @@ class ApiEmployeeAttendaceOutletController extends Controller
                     'latitude' => 0,
                     'longitude' => 0,
                     'status' => 'Approved',
-                    'approved_by' =>  $request->user()->id,
+                    'approved_by' => $request->id ?? $request->user()->id,
                     'notes' => $log_req['notes'],
                 ]);
                 if(!$clock_out){
                     $final = false;
                 }
             }
+        }elseif($request->status == 'Rejected'){
+            DB::commit();
+            return [
+                'status' => 'success',
+                'messages' => ['Success to reject request outlet attendance'],
+            ];
         }
         if($final){
             DB::commit();
             return [
                 'status' => 'success',
-                'messages' => ['Success to approve request attendance'],
+                'messages' => ['Success to approve request outlet attendance'],
             ];
         }else{
             DB::rollBack();
             return [
                 'status' => 'fail',
-                'messages' => ['Failed to approve reequest attendance'],
+                'messages' => ['Failed to approve reequest outlet attendance'],
             ];
         }
+    }
+
+    public function delete(Request $request){
+        $post = $request->all();
+        $employee = EmployeeOutletAttendance::find($post['id_employee_outlet_attendance']);
+        if(!$employee){
+            return [
+                'status' => 'fail',
+                'messages' => ['Failed to delete attendance'],
+            ];
+        }
+        $request_att = EmployeeOutletAttendanceRequest::where('id',$employee['id'])->where('id_outlet', $employee['id_outlet'])->whereDate('attendance_date', $employee['attendance_date'])->where('status', 'Accepted')->first();
+        if($request_att){
+            $delete_req = EmployeeOutletAttendanceRequest::where('id_employee_outlet_attendance_request', $request_att['id_employee_outlet_attendance_request'])->delete();
+        }
+        $employee->delete();
+
+        return MyHelper::checkDelete($employee);
     }
 
 }

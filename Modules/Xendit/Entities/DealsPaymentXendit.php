@@ -12,6 +12,7 @@ class DealsPaymentXendit extends Model
         'id_deals_user',
         'order_id',
         'xendit_id',
+        'payment_id',
         'external_id',
         'business_id',
         'phone',

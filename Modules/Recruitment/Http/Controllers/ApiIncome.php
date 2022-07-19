@@ -84,13 +84,14 @@ class ApiIncome extends Controller
         $hs = UserHairStylist::get();
         $type = 'end';
         foreach ($hs as $value) {
-            $income = $this->schedule_income($value['id_user_hair_stylist'], $type);
+           $income = $this->schedule_income($value['id_user_hair_stylist'], $type);
         }
         $log->success('success');
             return response()->json(['success']);
         } catch (\Exception $e) {
             DB::rollBack();
             $log->fail($e->getMessage());
+             return response()->json($e->getMessage());
         }
     }
     public function schedule_income($id,$type = 'end') {
@@ -326,6 +327,7 @@ class ApiIncome extends Controller
         $b = new HairstylistIncome();
         $hairstyllist = UserHairStylist::join('outlets','outlets.id_outlet','user_hair_stylist.id_outlet')
                 ->leftjoin('bank_accounts','bank_accounts.id_bank_account','user_hair_stylist.id_bank_account')
+                ->leftjoin('hairstylist_categories','hairstylist_categories.id_hairstylist_category','user_hair_stylist.id_hairstylist_category')
                 ->leftjoin('bank_name','bank_name.id_bank_name','bank_accounts.id_bank_name')
                 ->leftjoin('hairstylist_groups','hairstylist_groups.id_hairstylist_group','user_hair_stylist.id_hairstylist_group')
                 ->wherein('user_hair_stylist.id_outlet',$request->id_outlet)
@@ -333,40 +335,75 @@ class ApiIncome extends Controller
         foreach ($hairstyllist as $value) {
             $hs = UserHairStylist::where('id_user_hair_stylist',$value->id_user_hair_stylist)->first();
             $location = Outlet::where('id_outlet',$value->id_outlet)->join('locations','locations.id_location','outlets.id_location')->first();
-            $diff = date_diff(date_create(date('Y-m-d')), date_create(date('Y-m-d',strtotime($location->start_date))));
-           
-            if($diff->m >= 3){
-                $keterangan = "Non Proteksi";
-            }else{
-                $keterangan = "Proteksi";
-            }
+            
             $data = array(
                 'NIK'=>$hs->user_hair_stylist_code??'',
-                'Nama Lengkap'=>$hs->fullname??'',
-                'Email'=>$hs->email??'',
-                'Jabatan'=>$hs->level??'',
-                'Tanggal_bergabung'=>date('d-M-Y',strtotime($hs->join_date))??'',
+                'NAMA LENGKAP'=>$hs->fullname??'',
+                'Nama Panggilan'=>$hs->nickname??'',
+                'Jabatan'=>$value['hairstylist_category_name']??'',
+                'Join Date'=>date('d-M-Y',strtotime($hs->join_date))??'',
                 'Outlet'=>$value->outlet_name??'',
-                'Bank'=>$value->bank_name??'',
-                'Bank_account'=>$value->beneficiary_name??'',
-                'Keterangan'=>$keterangan??'',
-                'Grup'=>$value->hair_stylist_group_name??'',
             );
-            $response = $b->calculateIncomeExport($hs, $request->start_date,$request->end_date);
-            foreach ($response as $value) {
-                $data[ucfirst($value['name'])]=$value['value'];
+           $response = $b->calculateIncomeGross($hs, $request->start_date,$request->end_date);
+            foreach ($response as $valu) {
+                $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
             }
+            $response = $b->calculateIncomeProductCode($hs, $request->start_date,$request->end_date);
+            foreach ($response as $values) {
+                $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
+            }
+            $response = $b->calculateTambahanJam($hs, $request->start_date,$request->end_date);
+            foreach ($response as $values) {
+                $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
+            }
+            $response = $b->calculateFixedIncentive($hs, $request->start_date,$request->end_date);
+            foreach ($response as $valu) {
+                $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
+            }
+            $response = $b->calculateSalaryCuts($hs, $request->start_date,$request->end_date);
+            foreach ($response as $valu) {
+                $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
+            }
+            $response = $b->calculateIncomeExport($hs, $request->start_date,$request->end_date);
+            foreach ($response as $values) {
+                $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
+            }
+            $response = $b->calculateIncomeOvertime($hs, $request->start_date,$request->end_date);
+            foreach ($response as $values) {
+                $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
+            }
+           $response = $b->calculateIncomeTotal($hs, $request->start_date,$request->end_date);
+            foreach ($response as $valu) {
+                $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
+            }
+            $data['Bank'] = $value->bank_name??'';
+            $data['Bank account'] = $value->beneficiary_name??'';
+            $data['Email'] = $value->email??'';
             array_push($array,$data);
         }
         $b = array();
         foreach ($array as $key => $value) {
             $b = array_merge($b,array_keys($value));
         }
+        $head = array_unique($b);
+        $body = array();
+        $in_array = ["NIK","NAMA LENGKAP","Nama Panggilan","Jabatan","Join Date","Outlet","Keterangan","Bank","Bank account","Email"];
+        foreach ($array as $vab) {
+            foreach($head as $v){
+            if (in_array($v, $in_array)){
+                $not = '';
+                }else{
+                $not = "0";
+                }
+                $isi[$v] = $vab[$v]??$not;
+            }
+            array_push($body,$isi);
+        }
         $response = array(
             'start_date'=>$request->start_date,
             'end_date'=>$request->end_date,
-            'head'=> array_unique($b),
-            'body'=> $array,
+            'head'=> $head,
+            'body'=> $body,
         );
         return MyHelper::checkGet($response);
     }

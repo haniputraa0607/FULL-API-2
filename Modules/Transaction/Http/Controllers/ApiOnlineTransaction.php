@@ -1446,7 +1446,7 @@ class ApiOnlineTransaction extends Controller
         $fake_request = new Request(['show_all' => 1]);
         $result['available_payment'] = $this->availablePayment($fake_request)['result'] ?? [];
 
-        $result = app($this->promo_trx)->applyPromoCheckout($result);
+        $result = app($this->promo_trx)->applyPromoCheckout($result,$post);
 
         if ($result['cashback']) {
             $result['point_earned'] = [
@@ -3342,13 +3342,15 @@ class ApiOnlineTransaction extends Controller
 
             //insert to transaction product service
             $order_id = 'IXBX-'.substr(time(), 3).MyHelper::createrandom(2, 'Angka');
+            $timeZone = $outlet['province_time_zone_utc'] - 7;
+            $bookTime = date('H:i:s', strtotime('-'.$timeZone.' hours', strtotime($itemProduct['booking_time'])));
             $product_service = TransactionProductService::create([
                 'order_id' => $order_id,
                 'id_transaction' => $trx['id_transaction'],
                 'id_transaction_product' => $trx_product['id_transaction_product'],
                 'id_user_hair_stylist' => $itemProduct['id_user_hair_stylist'],
                 'schedule_date' => date('Y-m-d', strtotime($itemProduct['booking_date'])),
-                'schedule_time' => date('H:i:s', strtotime($itemProduct['booking_time']))
+                'schedule_time' => date('H:i:s', strtotime($bookTime))
             ]);
             if (!$product_service) {
                 DB::rollback();
@@ -4164,6 +4166,10 @@ class ApiOnlineTransaction extends Controller
 
     function bookHS($id_transaction){
         $trx = Transaction::where('id_transaction', $id_transaction)->first();
+        $outlet = Outlet::join('cities', 'cities.id_city', 'outlets.id_city')
+            ->join('provinces', 'provinces.id_province', 'cities.id_province')
+            ->where('id_outlet', $trx['id_outlet'])
+            ->select('outlets.*', 'cities.city_name', 'provinces.time_zone_utc as province_time_zone_utc')->first();
 
         if($trx['transaction_from'] == 'home-service'){
             $trxHomeService = TransactionHomeService::where('id_transaction', $id_transaction)->first();
@@ -4193,7 +4199,9 @@ class ApiOnlineTransaction extends Controller
 
             $insert = [];
             foreach ($data as $dt){
-                $scheduleStart = date('Y-m-d H:i:s', strtotime($dt['schedule_date'].' '.$dt['schedule_time']));
+                $timeZone = $outlet['province_time_zone_utc'] - 7;
+                $time = date('H:i:s', strtotime('+'.$timeZone.' hours', strtotime($dt['schedule_time'])));
+                $scheduleStart = date('Y-m-d H:i:s', strtotime($dt['schedule_date'].' '.$time));
                 $scheduleEnd = date('Y-m-d H:i:s', strtotime("+".(empty($dt['processing_time_service']) ? 30 : $dt['processing_time_service'])." minutes", strtotime($scheduleStart)));
 
                 $insert[] = [

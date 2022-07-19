@@ -309,7 +309,7 @@ class Icount
 
     public static function ApiCreateOrderPOO($request, $company = null, $logType = null, $orderId = null){
         if(isset($request['transaction']) && !empty($request['transaction'])){
-            $trans_date = date('Y-m-d', strtotime($request['completed_at']));
+            $trans_date = date('Y-m-d', strtotime($request['transaction_date']));
             $due_date = Setting::where('key','due_date')->first()['value'] ?? 30;
             $due_date = date('Y-m-d', strtotime('+'.$due_date.' days', strtotime($trans_date)));
             $penjulana_outlet = Setting::where('key','penjualan_outlet')->first();
@@ -518,7 +518,7 @@ class Icount
             "Code" => $request['employee']['code'],
             "TermOfPaymentID" => $request['employee']['id_term_payment'],
             "Email" => $request['employee']['email'],
-            "ClusterID" => $request['employee']['id_cluster'],
+            "ClusterID" => '013',
             "JoinDate" => $request['employee']['start_date']??date('Y-m-d'),
         ];
         if($company=='PT IMS'){
@@ -598,5 +598,33 @@ class Icount
                 }
             }
         return self::sendRequest('POST', '/purchase/create_reimbursement', $data, $company, $logType, $orderId);
+    }
+
+    public static function searchBusinessPartner($id_business_partner, $cluster = '011', $company = null, $logType = null, $orderId = null){
+        return self::sendRequest('GET', '/business_partner/list?ID='.$id_business_partner.'&ClusterID='.$cluster, $request, $logType, $orderId);
+    }
+
+    public static function ApiCreateHairStylist($request, $company = null, $logType = null, $orderId = null){
+        $data = [
+            "Name" => $request['hairstylist']['fullname'],
+            "Code" => $request['hairstylist']['user_hair_stylist_code'],
+            "TermOfPaymentID" => $request['hairstylist']['id_term_payment'],
+            "Email" => $request['hairstylist']['email'],
+            "ClusterID" => '012',
+            "JoinDate" => $request['hairstylist']['join_date']? date('Y-m-d',strtotime($request['hairstylist']['join_date'])) : date('Y-m-d'),
+        ];
+        if($company=='PT IMS'){
+            if(isset($request['hairstylist']['id_business_partner_ima']) && !empty($request['hairstylist']['id_business_partner_ima']) && isset($request['hairstylist']['id_business_partner']) && !empty($request['hairstylist']['id_business_partner']) ){
+                $data['BusinessPartnerID'] = $request['hairstylist']['id_business_partner'];
+            }
+        }else{
+            if(isset($request['hairstylist']['id_business_partner_ima']) && !empty($request['hairstylist']['id_business_partner_ima'])){
+                $data['BusinessPartnerID'] = $request['hairstylist']['id_business_partner_ima'];
+            }elseif(isset($request['hairstylist']['id_business_partner']) && !empty($request['hairstylist']['id_business_partner'])){
+                $data['BusinessPartnerID'] = $request['hairstylist']['id_business_partner'];
+            }
+        }
+
+        return self::sendRequest('POST', '/business_partner/employee_create', $data, $company, $logType, $orderId);
     }
 }

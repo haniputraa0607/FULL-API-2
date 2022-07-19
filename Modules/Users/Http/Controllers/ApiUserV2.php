@@ -71,19 +71,20 @@ class ApiUserV2 extends Controller
             ]);
         }
 
-        switch (env('OTP_TYPE', 'PHONE')) {
-            case 'MISSCALL':
-                $msg_check = str_replace('%phone%', $phoneOld, MyHelper::setting('message_send_otp_miscall', 'value_text', 'Kami akan mengirimkan kode OTP melalui Missed Call ke %phone%.<br/>Anda akan mendapatkan panggilan dari nomor 6 digit.<br/>Nomor panggilan tsb adalah Kode OTP Anda.'));
-                break;
+        // switch (env('OTP_TYPE', 'PHONE')) {
+        //     case 'MISSCALL':
+        //         $msg_check = str_replace('%phone%', $phoneOld, MyHelper::setting('message_send_otp_miscall', 'value_text', 'Kami akan mengirimkan kode OTP melalui Missed Call ke %phone%.<br/>Anda akan mendapatkan panggilan dari nomor 6 digit.<br/>Nomor panggilan tsb adalah Kode OTP Anda.'));
+        //         break;
 
-            case 'WA':
-                $msg_check = str_replace('%phone%', $phoneOld, MyHelper::setting('message_send_otp_wa', 'value_text', 'Kami akan mengirimkan kode OTP melalui Whatsapp.<br/>Pastikan nomor %phone% terdaftar di Whatsapp.'));
-                break;
+        //     case 'WHATSAPP':
+        //         $msg_check = str_replace('%phone%', $phoneOld, MyHelper::setting('message_send_otp_wa', 'value_text', 'Kami akan mengirimkan kode OTP melalui Whatsapp.<br/>Pastikan nomor %phone% terdaftar di Whatsapp.'));
+        //         break;
 
-            default:
-                $msg_check = str_replace('%phone%', $phoneOld, MyHelper::setting('message_send_otp_sms', 'value_text', 'Kami akan mengirimkan kode OTP melalui SMS.<br/>Pastikan nomor %phone% aktif.'));
-                break;
-        }
+        //     default:
+        //         $msg_check = str_replace('%phone%', $phoneOld, MyHelper::setting('message_send_otp_sms', 'value_text', 'Kami akan mengirimkan kode OTP melalui SMS.<br/>Pastikan nomor %phone% aktif.'));
+        //         break;
+        // }
+        $msg_check = str_replace('%phone%', $phoneOld, MyHelper::setting('message_send_otp_miscall', 'value_text', 'Kami akan mengirimkan kode OTP melalui ke %phone%.<br/>Anda akan mendapatkan kode berupa 6 digit angka.<br/>Silahkan pilih metode pengiriman OTP yang akan digunakan.'));
 
         if($data){
             if ($data[0]['phone_verified'] == 0 && empty($data[0]['pin_changed'])) {
@@ -245,7 +246,7 @@ class ApiUserV2 extends Controller
                     $msg_otp = str_replace('%phone%', $phoneOld, MyHelper::setting('message_sent_otp_miscall', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui Missed Call.'));
                     break;
 
-                case 'WA':
+                case 'WHATSAPP':
                     $msg_otp = str_replace('%phone%', $phoneOld, MyHelper::setting('message_sent_otp_wa', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui Whatsapp.'));
                     break;
 
@@ -340,7 +341,7 @@ class ApiUserV2 extends Controller
                     $msg_otp = str_replace('%phone%', $phoneOld, MyHelper::setting('message_sent_otp_miscall', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui Missed Call.'));
                     break;
 
-                case 'WA':
+                case 'WHATSAPP':
                     $msg_otp = str_replace('%phone%', $phoneOld, MyHelper::setting('message_sent_otp_wa', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui Whatsapp.'));
                     break;
 
@@ -545,7 +546,7 @@ class ApiUserV2 extends Controller
                     $msg_otp = str_replace('%phone%', $phoneOld, MyHelper::setting('message_sent_otp_miscall', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui Missed Call.'));
                     break;
 
-                case 'WA':
+                case 'WHATSAPP':
                     $msg_otp = str_replace('%phone%', $phoneOld, MyHelper::setting('message_sent_otp_wa', 'value_text', 'Kami telah mengirimkan PIN ke nomor %phone% melalui Whatsapp.'));
                     break;
 
@@ -605,7 +606,7 @@ class ApiUserV2 extends Controller
         if(empty($sumPoint)){
             return response()->json([
                 'status'    => 'fail',
-                'messages'  => ['Tidak berhasil klaim point']
+                'messages'  => ['Point sudah diklaim']
             ]);
         }
 

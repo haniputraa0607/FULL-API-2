@@ -79,6 +79,7 @@ use App\Http\Models\TransactionPickupGoSendUpdate;
 use Modules\OutletApp\Entities\ProductModifierGroupInventoryBrand;
 use App\Http\Models\Autocrm;
 use Modules\Autocrm\Entities\AutoresponseCodeList;
+use Modules\Xendit\Entities\TransactionPaymentXendit;
 
 class ApiOutletApp extends Controller
 {
@@ -97,6 +98,7 @@ class ApiOutletApp extends Controller
         $this->shopeepay      = "Modules\ShopeePay\Http\Controllers\ShopeePayController";
         $this->outlet      		= "Modules\Outlet\Http\Controllers\ApiOutletController";
         $this->autoresponse_code = "Modules\Autocrm\Http\Controllers\ApiAutoresponseWithCode";
+        $this->xendit         = 'Modules\Xendit\Http\Controllers\XenditController';
     }
 
     public function deleteToken(DeleteToken $request)
@@ -6630,6 +6632,53 @@ class ApiOutletApp extends Controller
                                 'reject_type'   => 'point',
                             ]);
                             $refund = app($this->balance)->addLogBalance($order['id_user'], $point = ($payShopeepay['amount']/100), $order['id_transaction'], 'Rejected Order', $order['transaction_grandtotal']);
+                            if ($refund == false) {
+                                return [
+                                    'status'   => 'fail',
+                                    'messages' => ['Insert Cashback Failed'],
+                                ];
+                            }
+                            $rejectBalance = true;
+                        }
+                    }
+                } elseif (strtolower($pay['type']) == 'xendit') {
+                    $point = 0;
+                    $payXendit = TransactionPaymentXendit::find($pay['id_payment']);
+                    if ($payXendit) {
+                        $doRefundPayment = MyHelper::setting('refund_xendit');
+                        if($doRefundPayment){
+                            $refund = app($this->xendit)->refund($payXendit['id_transaction'], 'trx', [], $errors);
+                            $order->update([
+                                'reject_type'   => 'refund',
+                            ]);
+                            if (!$refund) {
+                                $order->update(['failed_void_reason' => implode(', ', $errors ?: [])]);
+                                if ($refund_failed_process_balance) {
+                                    $doRefundPayment = false;
+                                } else {
+                                    $order->update(['need_manual_void' => 1]);
+                                    $order2 = clone $order;
+                                    $order2->payment_method = 'Xendit';
+                                    $order2->manual_refund = $payXendit['amount'];
+                                    $order2->payment_reference_number = $payXendit['xendit_id'];
+                                    if ($shared['reject_batch'] ?? false) {
+                                        $shared['void_failed'][] = $order2;
+                                    } else {
+                                        $variables = [
+                                            'detail' => view('emails.failed_refund', ['transaction' => $order2])->render()
+                                        ];
+                                        app("Modules\Autocrm\Http\Controllers\ApiAutoCrm")->SendAutoCRM('Payment Void Failed', $order->phone, $variables, null, true);
+                                    }
+                                }
+                            }
+                        }
+
+                        // don't use elseif / else because in the if block there are conditions that should be included in this process too
+                        if (!$doRefundPayment) {
+                            $order->update([
+                                'reject_type'   => 'point',
+                            ]);
+                            $refund = app($this->balance)->addLogBalance($order['id_user'], $point = ($payXendit['amount']/100), $order['id_transaction'], 'Rejected Order', $order['transaction_grandtotal']);
                             if ($refund == false) {
                                 return [
                                     'status'   => 'fail',

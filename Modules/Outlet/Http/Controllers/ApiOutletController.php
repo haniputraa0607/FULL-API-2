@@ -37,6 +37,7 @@ use Modules\Product\Entities\ProductSpecialPrice;
 use Modules\Franchise\Entities\UserFranchise;
 use Modules\Franchise\Entities\UserFranchiseOultet;
 use Modules\Outlet\Entities\OutletScheduleUpdate;
+use Modules\Recruitment\Entities\UserHairStylist;
 
 use App\Imports\ExcelImport;
 use App\Imports\FirstSheetOnlyImport;
@@ -380,6 +381,9 @@ class ApiOutletController extends Controller
         $save = Outlet::where('id_outlet', $request->json('id_outlet'))->update($post);
         // return Outlet::where('id_outlet', $request->json('id_outlet'))->first();
         if($save){
+            if(isset($post['outlet_status']) && $post['outlet_status'] == 'Active'){
+                $refresh = $this->refreshProduct(New Request(['id_outlet' =>  $request->json('id_outlet')]));
+            }
             DB::commit();
             SyncronPlasticTypeOutlet::dispatch([])->onQueue('high')->allOnConnection('database');
         }else{
@@ -392,7 +396,9 @@ class ApiOutletController extends Controller
         $post = $request->json()->all();
         $save = Outlet::where('id_outlet', $request->json('id_outlet'))->update(['outlet_status' => $post['outlet_status']??'Inactive']);
         // return Outlet::where('id_outlet', $request->json('id_outlet'))->first();
-
+        if(isset($post['outlet_status']) && $post['outlet_status'] == 'Active'){
+            $refresh = $this->refreshProduct(New Request(['id_outlet' =>  $request->json('id_outlet')]));
+        }
         return response()->json(MyHelper::checkUpdate($save));
     }
 
@@ -732,7 +738,6 @@ class ApiOutletController extends Controller
 
         if($post['office_only'] ?? false){
             $outlet->where('type', 'Office');
-            $outlet->where('outlet_status', 'Active');
         } else {
             $outlet->where('type', 'Outlet');
         }
@@ -4192,5 +4197,170 @@ class ApiOutletController extends Controller
             ];
         }
         return ['status' => 'success'];
+    }
+
+    public function exportProductIcount(Request $request){
+        $post = $request->all();
+        $start_date = date('Y-m-d 00:00:00',strtotime($post['start_date']));
+        $end_date = date('Y-m-d 00:00:00',strtotime($post['end_date']));
+        $outlets = Outlet::leftJoin('product_icount_outlet_stock_logs', 'product_icount_outlet_stock_logs.id_outlet', 'outlets.id_outlet')
+                        ->join('product_icounts', 'product_icounts.id_product_icount', 'product_icount_outlet_stock_logs.id_product_icount')
+                        ->where('outlets.outlet_code', $post['outlet_code'])
+                        ->whereDate('product_icount_outlet_stock_logs.created_at', '>=', $start_date)
+                        ->whereDate('product_icount_outlet_stock_logs.created_at', '<=', $end_date)
+                        ->select('product_icounts.name','product_icount_outlet_stock_logs.*')
+                        ->orderBy('product_icount_outlet_stock_logs.id_product_icount_outlet_stock_log')
+                        ->orderBy('product_icount_outlet_stock_logs.created_at', 'asc')
+                        ->get()->toArray();
+        $outlet = [];
+        foreach($outlets ?? [] as $val){
+            if(isset($outlet[$val['name']])){
+                if(isset($outlet[$val['name']][$val['unit']])){
+                    $outlet[$val['name']][$val['unit']][] = $val;
+                }else{
+                    $outlet[$val['name']][$val['unit']][] = $val;
+                }
+            }else{
+                $outlet[$val['name']][$val['unit']][] = $val;
+            }
+        }
+        $data_export = [];
+        foreach($outlet ?? []  as $key => $out){
+            foreach($out ?? [] as $key_2 => $out_2){
+                foreach($out_2 ?? [] as $key_3 => $out_3){
+
+                    if($out_3['source']=='Book Product' || $out_3['source']=='Cancelled Book Product'){
+                        $link = Transaction::where('id_transaction',$out_3['id_reference'])->first();
+                        $code_link= $link['transaction_receipt_number'] ?? null;
+                    }elseif($out_3['source']=='Transaction Outlet Service'){
+                        $link = TransactionProductService::where('id_transaction_product_service',$out_3['id_reference'])->first();
+                        $code_link = $link['order_id'] ?? null;
+                    }elseif($out_3['source']=='Delivery Product'){
+                        $link = DeliveryProduct::where('id_delivery_product',$out_3['id_reference'])->first();
+                        $code_link = $link['code'] ?? null;
+                    }elseif($out_3['source']=='Product Unit Conversion'){
+                        $link = UnitConversionLog::where('id_unit_conversion_log',$out_3['id_reference'])->first();
+                        $code_link = $link['code_conversion'] ?? null;
+                    }elseif($out_3['source']=='Stock Adjustment'){
+                        $link = ProductIcountStockAdjustment::where('id_product_icount_stock_adjustment',$out_3['id_reference'])->first();
+                        if ($link) {
+                            $code_link = $link['title'] ?? null;
+                        }
+                    }
+                    if($key_3 == 0){
+                        $data_export[$key][$key_2][] = [
+                            'Date' => null,
+                            'Source' => 'INITIAL STOCK',
+                            'Stock In' => null,
+                            'Stock Out' => null,
+                            'Current Stock' => $out_3['stock_before'] == 0 ? '0' : $out_3['stock_before'],
+                        ];
+                    }
+                    $data_export[$key][$key_2][] = [
+                        'Date' =>  date('d F Y', strtotime($out_2[$key_3]['created_at'])) == date('d F Y', strtotime($out_2[$key_3-1]['created_at'] ?? null )) ? null : date('d F Y', strtotime($out_3['created_at'])),
+                        'Source' => $out_3['source'] == 'Stock Adjustment' ? $code_link : $out_3['source'].' '.$code_link,
+                        'Stock In' => $out_3['stock_before'] <  $out_3['stock_after'] ? ($out_3['qty'] == 0 ? '0' : ($out_3['qty'] < 0 ? ($out_3['qty']*-1) : $out_3['qty'])) : null,
+                        'Stock Out' => $out_3['stock_before'] >  $out_3['stock_after'] ? ($out_3['qty'] == 0 ? '0' : ($out_3['qty'] < 0 ? ($out_3['qty']*-1) : $out_3['qty'])) : null,
+                        'Current Stock' => $out_3['stock_after']
+                    ];
+                    if($key_3 == count($out_2)-1){
+                        $data_export[$key][$key_2][] = [
+                            'Date' => null,
+                            'Source' => 'END STOCK',
+                            'Stock In' => null,
+                            'Stock Out' => null,
+                            'Current Stock' => $out_3['stock_after'] == 0 ? '0' : $out_3['stock_after'],
+                        ];
+                    }
+                }
+            }
+        }
+        return MyHelper::checkGet($data_export);
+
+    }
+
+    public function refreshProduct(Request $request){
+        $post = $request->all();
+        
+        $column = '';
+        $this_key = '';
+        if(isset($post['outlet_code'])){
+            $column = 'outlet_code';
+            $this_key = $post['outlet_code'];
+        }elseif(isset($post['id_outlet'])){
+            $column = 'id_outlet';
+            $this_key = $post['id_outlet'];
+        }
+        $outlet = Outlet::where($column, $this_key)->first();
+        if(!$outlet){
+            return [
+                'status' => 'fail',
+                'messages' => ['Outlet doesnt exist']
+            ];
+        }
+
+        $product_icounts = ProductIcountOutletStock::where('id_outlet', $outlet['id_outlet'])->get()->toArray();
+        DB::beginTransaction();
+        $update_product = ProductDetail::where('id_outlet',$outlet['id_outlet'])->update(['product_detail_stock_status' => 'Sold Out', 'product_detail_stock_item' => 0]);
+        
+        if($product_icounts){
+            foreach($product_icounts ?? [] as $product_icount){
+                $icount = New ProductIcount();
+                $refresh_stock = $icount->find($product_icount['id_product_icount'])->refreshStock($outlet['id_outlet'],$product_icount['unit']);
+            }
+        }
+        
+        
+        DB::commit();
+        return ['status' => 'success'];
+    }
+
+    public function listOutletConvert(Request $request){
+        $transaction = Transaction::select('id_outlet')->groupBy('id_outlet')->get()->toArray();
+        $hair_stylist = UserHairStylist::whereNotNull('id_outlet')->select('id_outlet')->groupBy('id_outlet')->get()->toArray();
+        $used_outlet = [];
+
+        foreach($transaction ?? [] as $tran){
+            if(!in_array($tran['id_outlet'],$used_outlet)){
+                $used_outlet[] = $tran['id_outlet'];
+            }
+        }
+        foreach($hair_stylist ?? [] as $hs){
+            if(!in_array($hs['id_outlet'],$used_outlet)){
+                $used_outlet[] = $hs['id_outlet'];
+            }
+        }
+
+        $list_avail = Outlet::whereNotIn('id_outlet',$used_outlet)->where('type','Outlet')->whereNotNull('id_location')->get()->toArray();
+        
+        return MyHelper::checkGet($list_avail);
+
+        
+    }
+
+    public function convertToOffice(Request $request){
+        $post = $request->all();
+        if(isset($post['id_outlet']) && !empty($post['id_outlet'])){
+            DB::beginTransaction();
+            $update = Outlet::where('id_outlet',$post['id_outlet'])->update(['type'=>'Office']);
+            if(!$update){
+                DB::rollBack();
+                return [
+                    'status' => 'fail',
+                    'messages' => ['Failed to convert outlet']
+                ];
+            }
+            DB::commit();
+            $getData = Outlet::where('id_outlet',$post['id_outlet'])->first();
+            return [
+                'status' => 'success',
+                'result' => $getData
+            ];
+        }else{
+            return [
+                'status' => 'fail',
+                'messages' => ['Please Select An Outlet']
+            ];
+        }
     }
 }

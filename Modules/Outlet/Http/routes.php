@@ -77,6 +77,8 @@ Route::group(['prefix' => 'api/outlet', 'middleware' => ['log_activities', 'auth
     });
     Route::post('unit-conversion/detail', ['middleware' => 'feature_control:447', 'uses' =>'ApiOutletController@detailUnitConversion']);
     Route::post('stock-adjustment/detail', ['middleware' => 'feature_control:447', 'uses' =>'ApiOutletController@detailStockAdjustment']);
+    Route::post('export-product-icount-log', ['middleware' => 'feature_control:447', 'uses' =>'ApiOutletController@exportProductIcount']);
+    Route::post('refresh-product', 'ApiOutletController@refreshProduct');
 
     Route::post('import-brand', 'ApiOutletController@importBrand');
     Route::post('import-delivery', 'ApiOutletController@importDelivery');
@@ -101,6 +103,8 @@ Route::group(['prefix' => 'api/outlet', 'middleware' => ['log_activities', 'auth
     Route::get('send-pin', ['middleware' => 'feature_control:261', 'uses' =>'ApiOutletController@sendPin']);
     Route::post('box/save', 'ApiOutletController@boxSave');
     Route::post('shift-time/save', 'ApiOutletController@shiftTimeSave');
+    Route::get('list-convert', 'ApiOutletController@listOutletConvert');
+    Route::post('convert-outlet', 'ApiOutletController@convertToOffice');
 
     /*user franchise*/
     Route::any('list/user-franchise', 'ApiOutletController@listUserFranchise');

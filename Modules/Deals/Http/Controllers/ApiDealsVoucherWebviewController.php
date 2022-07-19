@@ -2,6 +2,7 @@
 
 namespace Modules\Deals\Http\Controllers;
 
+use App\Http\Models\Deal;
 use App\Http\Models\DealsUser;
 use App\Http\Models\Outlet;
 use Illuminate\Http\Request;
@@ -50,30 +51,31 @@ class ApiDealsVoucherWebviewController extends Controller
         }
 
         $post['id_deals_user'] = $request->id_deals_user;
+       
         $post['used'] = 0;
-
+        
         // $action = MyHelper::postCURLWithBearer('api/voucher/me?log_save=0', $post, $bearer);
         $voucher = DealsUser::with([
-        			'deals_voucher', 
-        			'deals_voucher.deal', 
-        			'deals_voucher.deal.brand', 
-        			'deals_voucher.deal.deals_content' => function($q) {
-        				$q->where('is_active',1);
-        			}, 
-        			'deals_voucher.deal.deals_content.deals_content_details', 
-        			'deals_voucher.deal.outlets' => function($q) {
-        				$q->where('outlet_status', 'Active');
-        			}, 
-        			'deals_voucher.deal.outlets.city',
-        			'deals_voucher.deal.outlet_groups',
-        			'deals_voucher.deal.deals_brands'
-        		])
-        		->where('id_deals_user', $request->id_deals_user)
-        		->get()
-        		->toArray()[0]??null;
+            'deals_voucher', 
+            'deals_voucher.deal', 
+            'deals_voucher.deal.brand', 
+            'deals_voucher.deal.deals_content' => function($q) {
+                $q->where('is_active',1);
+            }, 
+            'deals_voucher.deal.deals_content.deals_content_details', 
+            'deals_voucher.deal.outlets' => function($q) {
+                $q->where('outlet_status', 'Active');
+            }, 
+            'deals_voucher.deal.outlets.city',
+            'deals_voucher.deal.outlet_groups',
+            'deals_voucher.deal.deals_brands'
+        ])
+        ->where('id_deals_user', $request->id_deals_user)
+        ->get()
+        ->toArray()[0]??null;
 
         if (!$voucher) {
-        	return [
+            return [
                 'status' => 'fail',
                 'messages' => ['Voucher is not found']
             ];
@@ -88,20 +90,20 @@ class ApiDealsVoucherWebviewController extends Controller
             $voucher['deals_voucher']['deal']['outlets'] = $outlets;
         }
         elseif ($voucher['deals_voucher']['deal']['is_all_outlet'] == 1 && isset($voucher['deals_voucher']['deal']['deals_brands'])) {
-        	$list_outlet = array_column($voucher['deals_voucher']['deal']['deals_brands'], 'id_brand');
+            $list_outlet = array_column($voucher['deals_voucher']['deal']['deals_brands'], 'id_brand');
             $outlets = Outlet::join('brand_outlet', 'outlets.id_outlet', '=', 'brand_outlet.id_outlet');
 
-        	if (($deals['brand_rule']??false) == 'or') {
-	            $outlets = $outlets->whereHas('brands',function($query) use ($list_outlet){
-		                    $query->whereIn('brands.id_brand',$list_outlet);
-		                });
-        	}else{
+            if (($deals['brand_rule']??false) == 'or') {
+                $outlets = $outlets->whereHas('brands',function($query) use ($list_outlet){
+                            $query->whereIn('brands.id_brand',$list_outlet);
+                        });
+            }else{
                 foreach ($list_outlet as $value) {
-	                $outlets = $outlets->whereHas('brands',function($query) use ($value){
-			                    $query->where('brands.id_brand',$value);
-			                });
-	            }
-        	}
+                    $outlets = $outlets->whereHas('brands',function($query) use ($value){
+                                $query->where('brands.id_brand',$value);
+                            });
+                }
+            }
 
             $outlets = $outlets->where('outlet_status','Active')->select('outlets.*')->with('city')->groupBy('id_outlet')->get()->toArray();
             $voucher['deals_voucher']['deal']['outlets'] = $outlets;
@@ -110,7 +112,7 @@ class ApiDealsVoucherWebviewController extends Controller
         $voucher['deals_voucher']['deal']['outlet_by_city'] = [];
 
         if (!empty($voucher['deals_voucher']['deal']['outlet_groups'])) {
-        	$voucher['deals_voucher']['deal']['outlets'] = app($this->deals_webview)->getOutletGroupFilter($voucher['deals_voucher']['deal']['outlet_groups'], $voucher['deals_voucher']['deal']['deals_brands'], $voucher['deals_voucher']['deal']['brand_rule']);
+            $voucher['deals_voucher']['deal']['outlets'] = app($this->deals_webview)->getOutletGroupFilter($voucher['deals_voucher']['deal']['outlet_groups'], $voucher['deals_voucher']['deal']['deals_brands'], $voucher['deals_voucher']['deal']['brand_rule']);
         }
 
         if (!empty($voucher['deals_voucher']['deal']['outlets'])) {
@@ -178,7 +180,8 @@ class ApiDealsVoucherWebviewController extends Controller
                 'akan digunakan pada transaksi selanjutnya'
             ],
             'voucher_expired_indo' 	=> MyHelper::dateFormatInd($data['voucher_expired_at'], false, false),
-            'voucher_expired_time_indo' => 'pukul '.date('H:i', strtotime($data['voucher_expired_at']))
+            'voucher_expired_time_indo' => 'pukul '.date('H:i', strtotime($data['voucher_expired_at'])),
+            'type_deals' => 'voucher',
         ];
 
         
@@ -215,6 +218,7 @@ class ApiDealsVoucherWebviewController extends Controller
                 }
             }
         }
+        
 
         return response()->json(MyHelper::checkGet($result));
     }

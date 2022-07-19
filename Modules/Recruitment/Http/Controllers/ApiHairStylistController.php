@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Modules\BusinessDevelopment\Entities\Location;
+use Modules\Disburse\Entities\BankAccount;
 use Modules\ProductService\Entities\ProductHairstylistCategory;
 use Modules\Recruitment\Entities\HairstylistCategory;
 use Modules\Recruitment\Entities\UserHairStylist;
@@ -658,6 +659,7 @@ class ApiHairStylistController extends Controller
                 unset($post['pin']);
                 unset($post['pin2']);
                 unset($post['auto_generate_pin']);
+                unset($post['businees_partner_id']);
                 $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update($post);
 
                 if($update && $sendCrmUpdatePin == 1){
@@ -964,7 +966,7 @@ class ApiHairStylistController extends Controller
         }
     }
 
-    public function exportCommision(Request $request){
+    public function exportCommission(Request $request){
         $post = $request->json()->all();
 
         $dateStart = date('Y-m-d', strtotime($post['date_start']));
@@ -1036,7 +1038,11 @@ class ApiHairStylistController extends Controller
         foreach ($tmpData as $dt){
             foreach ($dt as $key=>$value){
                 if(is_int($value)){
-                    $dt[$key] = number_format($value);
+                    $dt[$key] = (int)$value;
+                }
+
+                if($value == 0){
+                    $dt[$key] = (string)$value;
                 }
             }
 
@@ -1089,6 +1095,60 @@ class ApiHairStylistController extends Controller
             return response()->json(MyHelper::checkDelete($save));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    }
+
+    public function createBusinessPartner(Request $request){
+        $post = $request->all();
+        if(isset($post['id_user_hair_stylist']) && !empty($post['id_user_hair_stylist'])){
+            $user_hs = UserHairStylist::find($post['id_user_hair_stylist']);
+            if(!$user_hs){
+                return [
+                    'status' => 'fail',
+                    'messages' => 'Hair Stylist not found',
+                ];
+            }
+            $id_business_partner = null;
+            if(isset($post['id_business_partner']) && !empty($post['id_business_partner'])){
+                $id_business_partner = $post['id_business_partner'];
+            }
+            $user_hs = $user_hs->businessPartner($id_business_partner);
+            if(isset($user_hs['status']) && $user_hs['status']=='success'){
+                return [
+                    'status' => 'success',
+                    'id_business_partner' => $user_hs['id_business_partner']
+                ];
+            }else{
+                return [
+                    'status' => 'fail',
+                    'messages' =>  $user_hs['messages']
+                ];
+            }
+        }
+        return [
+            'status' => 'fail',
+            'messages' => 'Id Hair Stylist Cant be empty',
+        ];
+    }
+
+    public function bankAccountSave(Request $request){
+        $post = $request->all();
+        $check = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->first();
+        $dtBank = [
+            'id_bank_name' => $post['id_bank_name'],
+            'beneficiary_name' => $post['beneficiary_name'],
+            'beneficiary_account' => $post['beneficiary_account']
+        ];
+        if(empty($check['id_bank_account'])){
+            $createBank = BankAccount::create($dtBank);
+            if($createBank){
+                UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update(['id_bank_account' => $createBank['id_bank_account']]);
+            }
+
+            return response()->json(MyHelper::checkCreate($createBank));
+        }else{
+            $update = BankAccount::where('id_bank_account', $check['id_bank_account'])->update($dtBank);
+            return response()->json(MyHelper::checkUpdate($update));
         }
     }
 }

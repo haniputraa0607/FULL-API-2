@@ -44,6 +44,8 @@ use Modules\Setting\Http\Requests\SettingUpdate;
 use Modules\Setting\Http\Requests\DatePost;
 
 use App\Exports\DefaultExport;
+use App\Http\Models\Transaction;
+use App\Jobs\RefreshTransactionCommission;
 use Maatwebsite\Excel\Facades\Excel;
 
 use App\Lib\MyHelper;
@@ -1947,7 +1949,7 @@ class ApiSetting extends Controller
     }
     public function global_commission_product_setting(){
         $data = Setting::where('key','global_commission_product')->first();
-         return response()->json($data);
+        return response()->json($data);
     }
   
     public function global_commission_product_create(Request $request){
@@ -1976,6 +1978,35 @@ class ApiSetting extends Controller
         }
         return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
     }
+
+    public function global_commission_product_refresh(Request $request){
+        $post = $request->all();
+        $start_date = date('Y-m-d 00:00:00',strtotime($post['start_date']));
+        $end_date = date('Y-m-d 00:00:00',strtotime($post['end_date']));
+        $setting = Setting::where('key' , 'Refresh Commission Transaction')->first();
+        if($setting){
+            if($setting['value'] != 'finished'){
+                return ['status' => 'fail', 'messages' => ['Cant refresh now, because refresh is in progress']]; 
+            }
+            $update_setting = Setting::where('key', 'Refresh Commission Transaction')->update(['value' => 'start']);
+        }else{
+            $create_setting = Setting::updateOrCreate(['key' => 'Refresh Commission Transaction'],['value' => 'start']);
+        }
+        $transaction = Transaction::whereNotNull('id_outlet')->whereNotNull('id_user')->whereDate('transaction_date', '>=', $start_date)->whereDate('transaction_date', '<=', $end_date)->get()->toArray();
+        foreach($transaction ?? [] as $key => $val){
+            $send = [
+                'id_transaction' => $val['id_transaction'],
+                'key' => $key+1,
+                'total' => count($transaction),
+            ];
+            $refresh = RefreshTransactionCommission::dispatch($send)->onConnection('refreshcommissionqueue');
+        }
+        if(!$transaction){
+            $create_setting = Setting::updateOrCreate(['key' => 'Refresh Commission Transaction'],['value' => 'finished']);
+        }
+        return ['status' => 'success', 'messages' => ['Success to Refresh Commission Transaction']]; 
+    }
+    
     public function salary_formula(){
         $data = Setting::where('key','salary_formula')->first();
          return response()->json($data);
@@ -2151,6 +2182,177 @@ class ApiSetting extends Controller
                   'calculation_mid'=>$calculation_mid,
                   'calculation_end'=>$calculation_end,
               )]);
+        }
+        return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
+    }
+    public function delivery_income(){
+        $data = Setting::where('key','delivery_income')->first();
+         return response()->json($data);
+    }
+  
+    public function delivery_income_create(Request $request){
+        if(isset($request->value)&&isset($request->value_text)){
+             $salary_formula = Setting::where('key','delivery_income')->first();
+             if($salary_formula){
+                 $data = Setting::where('key','delivery_income')->update([
+                  'value'=>$request->value,
+                  'value_text'=>json_encode($request->value_text)
+                     
+             ]);
+             }else{
+                 $data = Setting::create([
+                 'key'=>'delivery_income',
+                 'value'=> $request->value,
+                 'value_text'=> json_encode($request->value_text)
+             ]);
+             }
+              return response()->json(MyHelper::checkCreate($data));
+        }
+        return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
+    }
+    public function basic_salary_employee(){
+        $data = Setting::where('key','basic_salary_employee')->first();
+         return response()->json($data);
+    }
+  
+    public function basic_salary_employee_create(Request $request){
+        if(isset($request->value)){
+             $salary_formula = Setting::where('key','basic_salary_employee')->first();
+             if($salary_formula){
+                 $data = Setting::where('key','basic_salary_employee')->update([
+                  'value'=>$request->value,
+                 
+             ]);
+             }else{
+                 $data = Setting::create([
+                 'key'=>'basic_salary_employee',
+                 'value'=> $request->value
+                    
+             ]);
+             }
+              return response()->json(MyHelper::checkCreate($data));
+        }
+        return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
+    }
+    public function hs_income_calculation_mid(){
+        $data = Setting::where('key','hs_income_calculation_mid')->first();
+         return response()->json($data);
+    }
+  
+    public function hs_income_calculation_mid_create(Request $request){
+        if(isset($request->code)){
+             $salary_formula = Setting::where('key','hs_income_calculation_mid')->first();
+             if($salary_formula){
+                 $data = Setting::where('key','hs_income_calculation_mid')->update([
+                  'value_text'=>json_encode($request->code)
+                 
+             ]);
+             }else{
+                 $data = Setting::create([
+                 'key'=>'hs_income_calculation_mid',
+                 'value_text'=>json_encode($request->code)
+                    
+             ]);
+             }
+              return response()->json(MyHelper::checkCreate($data));
+        }
+        return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
+    }
+    public function hs_income_calculation_end(){
+        $data = Setting::where('key','hs_income_calculation_end')->first();
+         return response()->json($data);
+    }
+  
+    public function hs_income_calculation_end_create(Request $request){
+        if(isset($request->code)){
+             $salary_formula = Setting::where('key','hs_income_calculation_end')->first();
+             if($salary_formula){
+                 $data = Setting::where('key','hs_income_calculation_end')->update([
+                  'value_text'=>json_encode($request->code),
+                 
+             ]);
+             }else{
+                 $data = Setting::create([
+                 'key'=>'hs_income_calculation_end',
+                 'value_text'=>json_encode($request->code)
+                    
+             ]);
+             }
+              return response()->json(MyHelper::checkCreate($data));
+        }
+        return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
+    }
+    public function overtime_hs(){
+        $data = Setting::where('key','overtime_hs')->first();
+         return response()->json($data);
+    }
+  
+    public function overtime_hs_create(Request $request){
+        if(isset($request->value)){
+             $salary_formula = Setting::where('key','overtime_hs')->first();
+             if($salary_formula){
+                 $data = Setting::where('key','overtime_hs')->update([
+                  'value'=>$request->value,
+                 
+             ]);
+             }else{
+                 $data = Setting::create([
+                 'key'=>'overtime_hs',
+                 'value_text'=>$request->value
+                    
+             ]);
+             }
+              return response()->json(MyHelper::checkCreate($data));
+        }
+        return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
+    }
+    public function proteksi_hs(){
+        $data = Setting::where('key','proteksi_hs')->first();
+         return response()->json($data);
+    }
+  
+    public function proteksi_hs_create(Request $request){
+        $post = $request->json()->all();
+        if(isset($post)){
+             $salary_formula = Setting::where('key','proteksi_hs')->first();
+             if($salary_formula){
+                 $data = Setting::where('key','proteksi_hs')->update([
+                  'value_text'=>json_encode($post),
+                 
+             ]);
+             }else{
+                 $data = Setting::create([
+                 'key'=>'proteksi_hs',
+                 'value_text'=>json_encode($post)
+                    
+             ]);
+             }
+              return response()->json(MyHelper::checkCreate($data));
+        }
+        return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
+    }
+    public function total_date_hs(){
+        $data = Setting::where('key','total_date_hs')->first();
+         return response()->json($data);
+    }
+  
+    public function total_date_hs_create(Request $request){
+        $post = $request->json()->all();
+        if(isset($request->value)){
+             $salary_formula = Setting::where('key','total_date_hs')->first();
+             if($salary_formula){
+                 $data = Setting::where('key','total_date_hs')->update([
+                  'value'=>$request->value
+                 
+             ]);
+             }else{
+                 $data = Setting::create([
+                 'key'=>'total_date_hs',
+                 'value'=>$request->value
+                    
+             ]);
+             }
+              return response()->json(MyHelper::checkCreate($data));
         }
         return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
     }

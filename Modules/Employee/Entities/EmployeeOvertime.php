@@ -26,6 +26,7 @@ class EmployeeOvertime extends Model
 		'rest_before',
 		'rest_after',
 		'notes',
+        'approve_notes',
 		'request_at',
 		'approve_at',
 		'reject_at',

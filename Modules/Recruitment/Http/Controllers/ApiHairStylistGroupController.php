@@ -19,11 +19,13 @@ use Modules\Recruitment\Entities\HairstylistGroup;
 use Modules\Recruitment\Entities\HairstylistGroupCommission;
 use App\Http\Models\Product;
 use Modules\Recruitment\Entities\HairstylistGroupInsentifDefault;
+use Modules\Recruitment\Entities\HairstylistGroupOvertimeDefault;
 use Modules\Recruitment\Entities\HairstylistGroupPotonganDefault;
 use Modules\Recruitment\Entities\HairstylistGroupInsentif;
+use Modules\Recruitment\Entities\HairstylistGroupOvertime;
 use Modules\Recruitment\Entities\HairstylistGroupPotongan;
-
-
+use Modules\Recruitment\Entities\HairstylistGroupProteksi;
+use App\Http\Models\Setting;
 class ApiHairStylistGroupController extends Controller
 {
     public function __construct()
@@ -135,11 +137,16 @@ class ApiHairStylistGroupController extends Controller
          $query = UserHairStylist::where(array('user_hair_stylist_status'=>'Active'))->get();
          foreach ($query as $value) {
              if($value['id_hairstylist_group']!=$request->id_hairstylist_group){
+                 $val = array(
+                     'id_user_hair_stylist'=>$value['id_user_hair_stylist'],
+                     'user_hair_stylist_code'=>$value['user_hair_stylist_code'],
+                     'fullname'=>$value['fullname'],
+                 );
                  array_push($data,$value);
              }
          }
         }
-         return response()->json($data);
+         return response()->json(MyHelper::checkGet($data));
     }
     public function invite_hs(InviteHS $request)
     {
@@ -272,6 +279,19 @@ class ApiHairStylistGroupController extends Controller
         }
          return response()->json($data);
     }
+    public function list_default_overtime(Request $request) {
+        $data = array();
+         if($request->id_hairstylist_group){
+         $query = HairstylistGroupOvertimeDefault::get();
+         foreach ($query as $value) {
+             $cek = HairstylistGroupOvertime::where(array('id_hairstylist_group'=>$request->id_hairstylist_group,'id_hairstylist_group_default_overtimes'=>$value['id_hairstylist_group_default_overtimes']))->first();
+             if(!$cek){
+                 array_push($data,$value);
+             }
+         }
+        }
+         return response()->json($data);
+    }
     public function setting_potongan(Request $request) {
         $potongan = HairstylistGroupPotonganDefault::get();
         return MyHelper::checkGet($potongan);
@@ -280,4 +300,57 @@ class ApiHairStylistGroupController extends Controller
         $insentif = HairstylistGroupInsentifDefault::get();
         return MyHelper::checkGet($insentif);
     }
+    public function list_default_proteksi(Request $request) {
+        $overtime = [];
+        if($request->id_hairstylist_group){
+             $data = array();
+            $proteksi = Setting::where('key','proteksi_hs')->first()['value_text']??[];
+            $overtime = json_decode($proteksi,true);
+            $group = HairstylistGroupProteksi::where(array('id_hairstylist_group'=>$request->id_hairstylist_group))->first();
+            $overtime['default_value']    = 0;
+            if(isset($group['value'])){
+                $overtime['value_group'] = $group['value'];
+            }
+           return response()->json(MyHelper::checkGet($overtime));
+        }
+        return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+    
+    }
+        public function create_proteksi(Request $request)
+    {
+        $data = HairstylistGroupProteksi::where([
+                    "id_hairstylist_group"   =>  $request->id_hairstylist_group,
+                    ])->first();
+        if($data){
+            if(isset($request->value)){
+                $store = HairstylistGroupProteksi::where([
+                    "id_hairstylist_group"   =>  $request->id_hairstylist_group
+                        ])->update([
+                    "value"   =>  $request->value,
+                ]);
+            }else{
+                $store = HairstylistGroupProteksi::where([
+                    "id_hairstylist_group"   =>  $request->id_hairstylist_group,
+                    ])->first();
+                if($store){
+                  $store = HairstylistGroupProteksi::where([
+                    "id_hairstylist_group"   =>  $request->id_hairstylist_group,
+                    ])->delete();  
+                }else{
+                  $store = 1;  
+                }
+            }
+        }else{
+            if(isset($request->value)){
+                $store = HairstylistGroupProteksi::create([
+                    "id_hairstylist_group"   =>  $request->id_hairstylist_group,
+                    "value"   =>  $request->value,
+                ]);
+            }else{
+                $store = 1;
+            }
+        }
+        return response()->json(MyHelper::checkCreate($store));
+    }
+    
 }

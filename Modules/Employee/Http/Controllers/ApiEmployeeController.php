@@ -10,7 +10,7 @@ use Modules\Employee\Entities\EmployeeOfficeHourAssign;
 use Modules\Employee\Entities\EmployeeOfficeHourShift;
 use App\Lib\MyHelper;
 use App\Http\Models\Setting;
-use Modules\Employee\Entities\EmployeeOverTime;
+use Modules\Employee\Entities\EmployeeOvertime;
 use Modules\Users\Entities\Role;
 use App\Http\Models\User;
 use App\Http\Models\OutletSchedule;
@@ -182,6 +182,16 @@ class ApiEmployeeController extends Controller
 
             foreach ($post['data'] as $val){
                 Role::where('id_role', $val['id_role'])->update(['id_employee_office_hour' => ($val['id_employee_office_hour'] == 'default' ? NULL: $val['id_employee_office_hour'])]);
+                $get_role = Role::join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('roles.id_role', $val['id_role'])->first();
+                if(empty($get_role['office_hour_type'])){
+                    $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
+                    if($setting_default){
+                        $get_role = EmployeeOfficeHour::where('id_employee_office_hour',$setting_default['value'])->first();
+                    }
+                }
+                if($get_role['office_hour_type']=='Use Shift'){
+                    EmployeeSchedule::join('users','users.id','employee_schedules.id')->where('id_role',$val['id_role'])->update(['employee_schedules.id_office_hour_shift'=>$get_role['id_employee_office_hour']]);
+                }
             }
             return response()->json(['status' => 'success']);
         }
@@ -325,10 +335,16 @@ class ApiEmployeeController extends Controller
         $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$employee)->first();
 
         if(empty($type_shift['office_hour_type'])){
-            return response()->json([
-                'status'=>'fail',
-                'messages'=>['Jam kantor tidak ada ']
-            ]);
+            $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
+            if($setting_default){
+                $type_shift = EmployeeOfficeHour::where('id_employee_office_hour',$setting_default['value'])->first();
+                if(empty($type_shift)){
+                    return response()->json([
+                        'status'=>'fail',
+                        'messages'=>['Jam kantor tidak ada ']
+                    ]);
+                }
+            }
         }
 
         //holiday
@@ -353,9 +369,11 @@ class ApiEmployeeController extends Controller
         foreach($holidays as $h){
             if(isset($data_holidays[$h['holiday_name']])){
                 $data_holidays[$h['holiday_name']]['date'][] = MyHelper::dateFormatInd($h['date'], true, false, true);
+                $data_holidays[$h['holiday_name']]['total'] =  $data_holidays[$h['holiday_name']]['total'] + 1;
             }else{
                 $h_holidays[$h['holiday_name']]['holiday_name'] = $h['holiday_name'];
                 $data_holidays[$h['holiday_name']]['date'][] = MyHelper::dateFormatInd($h['date'], true, false, true);
+                $data_holidays[$h['holiday_name']]['total'] =  1;
             }
         }   
         $send_holidays = [];
@@ -363,6 +381,7 @@ class ApiEmployeeController extends Controller
         foreach($data_holidays as $key => $dh){
             $send_holidays[$i]['event_name'] = $key;
             $send_holidays[$i]['date'] = $dh['date'];
+            $send_holidays[$i]['total'] = $dh['total'];
             $i++;
         }
 

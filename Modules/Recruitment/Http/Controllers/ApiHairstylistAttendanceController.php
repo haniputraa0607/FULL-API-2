@@ -24,6 +24,12 @@ class ApiHairstylistAttendanceController extends Controller
         $today = date('Y-m-d');
         $hairstylist = $request->user();
         $outlet = $hairstylist->outlet()->select('outlet_name', 'outlet_latitude', 'outlet_longitude', 'id_city')->first();
+        if (!$outlet) {
+            return [
+                'status' => 'fail',
+                'messages' => ['Belum ada penugasan Outlet'],
+            ];
+        }
         $outlet->setHidden(['call', 'url']);
         // get current schedule
         $todaySchedule = $hairstylist->hairstylist_schedules()
@@ -367,6 +373,12 @@ class ApiHairstylistAttendanceController extends Controller
         }
 
         return MyHelper::checkGet($result);
+    }
+
+    public function delete(Request $request)
+    {
+        $delete = HairstylistAttendance::where('id_hairstylist_attendance', $request->id_hairstylist_attendance)->delete();
+        return MyHelper::checkDelete($delete);
     }
 
     public function filterListDetail($query,$rules,$operator='and'){

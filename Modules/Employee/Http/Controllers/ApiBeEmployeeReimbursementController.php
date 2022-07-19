@@ -59,7 +59,7 @@ class ApiBeEmployeeReimbursementController extends Controller
    public function approved(Request $request) {
        $post = $request->all();
        $post['date_validation'] = date('Y-m-d H:i:s');
-       $post['id_user_approved'] =  Auth::user()->id;
+       $post['id_user_approved'] =  $post['id_user_approved'] ?? Auth::user()->id;
        $reimbursement = EmployeeReimbursement::where(array('id_employee_reimbursement'=>$request->id_employee_reimbursement))->update($post);
        $reimbursement = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')->where(array('id_employee_reimbursement'=>$request->id_employee_reimbursement))->first();
        if($post['status'] == "Approved"){

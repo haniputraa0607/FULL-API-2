@@ -74,5 +74,6 @@ class Kernel extends HttpKernel
         'user_agent'   => \App\Http\Middleware\UserAgentControl::class,
         'scopes' => \App\Http\Middleware\CheckScopes::class,
         'outlet_device_location' => \App\Http\Middleware\VerifyOutletDeviceLocation::class,
+        'auth_pos2' => \App\Http\Middleware\AuthPOS2::class,
     ];
 }

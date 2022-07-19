@@ -95,7 +95,7 @@ class ApiPromoTransaction extends Controller
         $this->subscription_use = "Modules\Subscription\Http\Controllers\ApiSubscriptionUse";
     }
 
-    public function availableVoucher()
+    public function availableVoucher($data, $transaction_from = null, $id_outlet = null)
     {
     	$user = request()->user();
     	if (!$user) {
@@ -106,10 +106,40 @@ class ApiPromoTransaction extends Controller
             ->whereIn('paid_status', ['Free', 'Completed'])
             ->whereNull('used_at')
             ->with(['dealVoucher', 'dealVoucher.deal', 'dealVoucher.deal.outlets.city', 'dealVoucher.deal.outlets.city'])
-            ->where('deals_users.voucher_expired_at', '>', date('Y-m-d H:i:s'))
-            ->orderBy('deals_users.is_used', 'desc')
+            ->where('deals_users.voucher_expired_at', '>', date('Y-m-d H:i:s'));
+
+        if(isset($id_outlet)){
+            $voucher->join('deals_vouchers', 'deals_users.id_deals_voucher', 'deals_vouchers.id_deals_voucher')
+            ->join('deals', 'deals.id_deals', 'deals_vouchers.id_deals')
+            ->leftJoin('deals_outlets', 'deals.id_deals', 'deals_outlets.id_deals')
+            ->where(function ($query) use ($id_outlet) {
+                $query->where('deals_users.id_outlet', $id_outlet)
+                    ->orWhere('deals_outlets.id_outlet', $id_outlet)
+                    ->orWhere('deals.is_all_outlet','=',1);
+            })
+            ->select('deals_users.*')->distinct();
+        }
+
+        if(isset($transaction_from)){
+            $service = [
+                'outlet-service' => 'Outlet Service',
+                'home-service' => 'Home Service',
+                'shop' => 'Online Shop',
+                'academy' => 'Academy',
+            ];
+            if(!MyHelper::isJoined($voucher,'deals_vouchers')){
+                $voucher->leftJoin('deals_vouchers', 'deals_users.id_deals_voucher', 'deals_vouchers.id_deals_voucher');
+            }
+            if(!MyHelper::isJoined($voucher,'deals')){
+                $voucher->leftJoin('deals', 'deals.id_deals', 'deals_vouchers.id_deals');
+            }
+            $voucher->leftJoin('deals_services', 'deals.id_deals', 'deals_services.id_deals')
+            ->where('deals_services.service', $service[$transaction_from])
+            ->select('deals_users.*')->distinct();
+        }   
+
+        $voucher = $voucher->orderBy('deals_users.is_used', 'desc')
             ->orderBy('deals_users.voucher_expired_at', 'asc')
-            ->limit(5)
             ->get()
             ->toArray();
 
@@ -129,7 +159,24 @@ class ApiPromoTransaction extends Controller
 				'is_error' => false
             ];
         }, $voucher);
-        
+        $new_result_data = [];
+        foreach($result ?? [] as $key => $data_voucher){
+            $check_avail = app($this->voucher)->checkVoucherAvail($data_voucher['id_deals'],$data);
+            if($check_avail['status']=='success'){
+                if(isset($data_voucher['id_deals_voucher']) && isset($data_voucher['id_deals_user'])){
+                    $data_voucher['type_deals'] = 'voucher';
+                }else{
+                    $data_voucher['type_deals'] = 'deals';
+                }
+                $new_result_data[] = $data_voucher;
+            }
+        }
+        $result = [];
+        foreach($new_result_data ?? [] as $index => $val){
+            if($index < 5){
+                $result[] = $val;
+            }
+        }
         return $result;
     }
 
@@ -178,11 +225,11 @@ class ApiPromoTransaction extends Controller
     	return $promoName[$promoSource] ?? $promoSource;
     }
 
-    public function applyPromoCheckout($data)
+    public function applyPromoCheckout($data,$data_2 = null)
     {	
     	$user = request()->user();
     	$sharedPromoTrx = TemporaryDataManager::create('promo_trx');
-		$availableVoucher = $this->availableVoucher();
+		$availableVoucher = $this->availableVoucher($data, $data_2['transaction_from'], $data_2['id_outlet']??null);
     	$continueCheckOut = $data['continue_checkout'];
 
     	$data['discount'] = 0;
@@ -191,7 +238,7 @@ class ApiPromoTransaction extends Controller
 		$data['promo_code'] = null;
 		$data['available_voucher'] = $availableVoucher;
 		$data['continue_checkout'] = $continueCheckOut;
-
+		
     	$scopeUser = $this->getScope();
     	if ($scopeUser == 'web-apps') {
     		return $data;
@@ -202,6 +249,32 @@ class ApiPromoTransaction extends Controller
     	if ($userPromo->isEmpty()) {
     		return $data;
     	}
+
+		if(!$availableVoucher){
+			$delete_user_promo = UserPromo::where('id_user', $user->id)->where('promo_type', 'deals')->delete();
+			foreach($userPromo ?? [] as $key => $usPro){
+				if($key=='deals'){
+					$un_used = DealsUser::where('id_deals_user', $usPro['id_deals_user'])->update(['is_used'=>0]);
+					return $data;
+				}
+			}
+		}else{
+			$id_deals_used = null;
+			foreach($userPromo ?? [] as $key => $usPro){
+				if($key=='deals'){
+					$id_deals_used = $usPro['id_reference'];
+				}
+			}
+			$id_voucher = [];
+			foreach($availableVoucher as $availVou){
+				$id_voucher[] = $availVou['id_deals_user'];
+			}
+			if(!is_null($id_deals_used) && !in_array($id_deals_used,$id_voucher)){
+				$delete_user_promo = UserPromo::where('id_user', $user->id)->where('id_reference', $id_deals_used)->where('promo_type', 'deals')->delete();
+				$un_used = DealsUser::where('id_deals_user', $id_deals_used)->update(['is_used'=>0]);
+				return $data;
+			}
+		}
 
     	$resDeals = null;
     	$dealsType = null;
@@ -306,7 +379,7 @@ class ApiPromoTransaction extends Controller
     			$applyOrder = ['promo_campaign', 'deals'];
     		}
     	}
-
+		
     	foreach ($applyOrder as $apply) {
 	    	if ($apply == 'deals' && isset($userPromo['deals'])) {
 	    		$this->createSharedPromoTrx($data);
@@ -333,24 +406,27 @@ class ApiPromoTransaction extends Controller
 
 	    	} elseif ($apply == 'promo_campaign' && isset($userPromo['promo_campaign'])) {
 	    		$this->createSharedPromoTrx($data);
-
+				
 	    		if (empty($codeErr)) {
 		    		$applyCode = $this->applyPromoCode($userPromo['promo_campaign']->id_reference, $data);
 		    		$codeErr = $applyCode['messages'] ?? $codeErr;
 	    		}
-
-				$resPromoCode = [
-					'promo_code' 		=> $sharedPromoTrx['promo_campaign']['promo_code'] ?? null,
-					'title' 			=> $applyCode['result']['title'] ?? null,
-					'discount' 			=> $applyCode['result']['discount'] ?? 0,
-					'discount_delivery' => $applyCode['result']['discount_delivery'] ?? 0,
-					'text' 				=> $applyCode['result']['text'] ?? $codeErr,
-					'remove_text' 		=> 'Batalkan penggunaan <b>' . ($sharedPromoTrx['promo_campaign']['promo_title'] ?? null) . '</b>',
-					'is_error' 			=> $codeErr ? true : false
-				];
-
-				if ($resPromoCode['is_error']) {
+				
+				if($codeErr && isset($userPromo['promo_campaign']['id_reference'])){
 					$continueCheckOut = false;
+					$delete_user_promo_campaign = UserPromo::where('id_user', $user->id)->where('id_reference', $userPromo['promo_campaign']['id_reference'])->where('promo_type', 'promo_campaign')->delete();
+				}else{
+					$resPromoCode = [
+						'id_promo_campaign' => $sharedPromoTrx['promo_campaign']['id_promo_campaign'] ?? null,
+						'promo_code' 		=> $sharedPromoTrx['promo_campaign']['promo_code'] ?? null,
+						'title' 			=> $applyCode['result']['title'] ?? null,
+						'discount' 			=> $applyCode['result']['discount'] ?? 0,
+						'discount_delivery' => $applyCode['result']['discount_delivery'] ?? 0,
+						'text' 				=> $applyCode['result']['text'] ?? $codeErr,
+						'remove_text' 		=> 'Batalkan penggunaan <b>' . ($sharedPromoTrx['promo_campaign']['promo_title'] ?? null) . '</b>',
+						'promo_text'		=> 'Diskon <b>' . ($applyCode['result']['discount'] ?? 0) . '</b> akan diterapkan pada nilai transaksi anda',
+						'is_error' 			=> false
+					];
 				}
 
 				$data = $this->reformatCheckout($data, $applyCode['result'] ?? null);
@@ -1301,6 +1377,7 @@ class ApiPromoTransaction extends Controller
 	    	}
 
     		$promoItems[] = [
+				'id_transaction_product' => $items['id_transaction_product'] ?? null,
     			'id_product' => $items['id_product'],
     			'id_brand' => $items['id_brand'],
     			'product_price' => $price,
@@ -1555,6 +1632,17 @@ class ApiPromoTransaction extends Controller
 	    	'transaction_cashback_earned' => $cashback_earned,
 	    	'transaction_grandtotal' => $grandtotal
 		]);
+
+        if($totalDiscountBill > 0){
+            $totalSubProduct = TransactionProduct::where('id_transaction', $trx->id_transaction)->sum('transaction_product_subtotal');
+            $products = TransactionProduct::where('id_transaction', $trx->id_transaction)->get()->toArray();
+            foreach ($products as $product){
+                $disc = $product['transaction_product_subtotal'] / $totalSubProduct * $totalDiscountBill;
+                TransactionProduct::where('id_transaction_product', $product['id_transaction_product'])->update([
+                    'transaction_product_discount_all' => $disc
+                ]);
+            }
+        }
 
 		TransactionPromo::create([
 			'id_transaction' => $trxQuery->id_transaction,

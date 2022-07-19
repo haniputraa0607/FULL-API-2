@@ -12,6 +12,7 @@ class EmployeeFile extends Model
     
     protected $fillable = [
         'id_user',
+        'name_file',
         'notes',
         'category',
         'attachment',

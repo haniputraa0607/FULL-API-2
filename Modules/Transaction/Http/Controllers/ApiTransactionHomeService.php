@@ -26,6 +26,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use App\Lib\MyHelper;
 use Modules\Brand\Entities\Brand;
+use App\Http\Models\Province;
 use Modules\Favorite\Entities\FavoriteUserHiarStylist;
 use Modules\IPay88\Entities\TransactionPaymentIpay88;
 use Modules\Product\Entities\ProductDetail;
@@ -583,7 +584,7 @@ class ApiTransactionHomeService extends Controller
         $fake_request = new Request(['show_all' => 1]);
         $result['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
         $result['id_outlet'] = $outlet['id_outlet'];
-        $result = app($this->promo_trx)->applyPromoCheckout($result);
+        $result = app($this->promo_trx)->applyPromoCheckout($result,$post);
 
         if ($result['cashback']) {
             $result['point_earned'] = [
@@ -1274,6 +1275,26 @@ class ApiTransactionHomeService extends Controller
         return $updateDetail??true;
     }
 
+    public function getTimezone($time = null, $time_zone_utc = 7, $format = 'Y-m-d H:i'){
+        $data['time_zone_id'] = 'WIB';
+        $default_time_zone_utc = 7;
+        $time_diff = $time_zone_utc - $default_time_zone_utc;
+        if(isset($time)){
+        $data['time'] = date($format, strtotime('+'.$time_diff.' hour',strtotime($time)));
+        }else{
+        $data['time'] = date($format, strtotime('+'.$time_diff.' hour'));
+        }
+        switch ($time_zone_utc) {
+            case 8:
+                $data['time_zone_id'] = 'WITA';
+            break;
+            case 9:
+                $data['time_zone_id'] = 'WIT';
+            break;
+        }
+        return $data;
+    }
+
     public function listHomeService(Request $request)
     {
         $list = Transaction::where('transaction_from', 'home-service')
@@ -1329,8 +1350,24 @@ class ApiTransactionHomeService extends Controller
             // needed by datatables
             $list['recordsTotal'] = $countTotal;
             $list['recordsFiltered'] = $list['total'];
+            $list['data'] = array_map(function($val){
+                $outlet = Outlet::where('id_outlet',$val['id_outlet'])->first();
+                $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+                ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+                $date_time = $this->getTimezone($val['transaction_date'], $timeZone);
+                $val['transaction_date'] = $date_time['time'].' '.$date_time['time_zone_id'];
+                return $val;
+            },$list['data']);
         } else {
             $list = $list->get();
+            $list = array_map(function($val){
+                $outlet = Outlet::where('id_outlet',$val['id_outlet'])->first();
+                $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+                ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+                $date_time = $this->getTimezone($val['transaction_date'], $timeZone);
+                $val['transaction_date'] = $date_time['time'].' '.$date_time['time_zone_id'];
+                return $val;
+            },$list->toArray());
         }
         return MyHelper::checkGet($list);
     }
@@ -1428,12 +1465,22 @@ class ApiTransactionHomeService extends Controller
         $trxPayment = $this->transactionPayment($trx);
         $trx['payment'] = $trxPayment['payment'];
 
-        $trx->load('user');
+        $trx->load('user','outlet');
+        if(!$trx['outlet']){
+            $transaction_outlet = Transaction::where(['transactions.id_transaction' => $id])->first();
+            $outlet_transaction = Outlet::where('id_outlet',$transaction_outlet['id_outlet'])->first();
+        }
+        $city_transaction = $trx['outlet']['id_city'] ?? $outlet_transaction['id_city'];
+        $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+        ->where('id_city', $city_transaction)->first()['time_zone_utc']??null;
+        $date_time = $this->getTimezone($trx['transaction_date'], $timeZone);
+        $booking_time = $this->getTimezone($trx['schedule_time'], $timeZone, 'H:i:s');
         $result = [
             'id_transaction'                => $trx['id_transaction'],
             'transaction_receipt_number'    => $trx['transaction_receipt_number'],
             'receipt_qrcode' 				=> 'https://chart.googleapis.com/chart?chl=' .$trx['transaction_receipt_number'].'&chs=250x250&cht=qr&chld=H%7C0',
             'transaction_date'              => date('d M Y H:i', strtotime($trx['transaction_date'])),
+            'transaction_date_timezone'     => $date_time['time_zone_id'],
             'transaction_grandtotal'        => MyHelper::requestNumber($trx['transaction_grandtotal'],'_CURRENCY'),
             'transaction_subtotal'          => MyHelper::requestNumber($trx['transaction_subtotal'],'_CURRENCY'),
             'transaction_discount'          => MyHelper::requestNumber($trx['transaction_discount'],'_CURRENCY'),
@@ -1444,7 +1491,8 @@ class ApiTransactionHomeService extends Controller
             'trasaction_type'               => $trx['trasaction_type'],
             'transaction_payment_status'    => $trx['transaction_payment_status'],
             'booking_date'                  => $trx['schedule_date'],
-            'booking_time'                  => $trx['schedule_time'],
+            'booking_time'                  => $booking_time['time'],
+            'booking_time_zone'             => $booking_time['time_zone_id'],
             'destination_name'              => $trx['destination_name'],
             'destination_phone'              => $trx['destination_phone'],
             'destination_address'            => $trx['destination_address'],

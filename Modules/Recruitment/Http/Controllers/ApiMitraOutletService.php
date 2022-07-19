@@ -55,6 +55,7 @@ class ApiMitraOutletService extends Controller
 		$this->trx = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
 		$this->trx_outlet_service = "Modules\Transaction\Http\Controllers\ApiTransactionOutletService";
 		$this->mitra_log_balance = "Modules\Recruitment\Http\Controllers\MitraLogBalance";
+        $this->refund = "Modules\Transaction\Http\Controllers\ApiTransactionRefund";
 	}
 
 	public function customerQueue(Request $request)
@@ -1092,6 +1093,9 @@ class ApiMitraOutletService extends Controller
 
     	$box_url = str_replace(['%box_code%', '%command%', '%status%', '%time%'], [$box->outlet_box_code, 0, 0, 0], $box->outlet_box_url ?: MyHelper::setting('outlet_box_default_url'));
 
+        //check if anyone is rejected
+        app($this->refund)->refundNotFullPayment($service->id_transaction);
+
     	return [
     		'status' => 'success',
     		'result' => [
@@ -1106,6 +1110,7 @@ class ApiMitraOutletService extends Controller
     {
     	$trxProducts = TransactionProduct::where('id_transaction', $id_transaction)
     	->whereNull('transaction_product_completed_at')
+        ->whereNull('transaction_products.reject_at')
     	->first();
 
     	if (!$trxProducts) {
@@ -1271,7 +1276,11 @@ class ApiMitraOutletService extends Controller
     		->whereDate('attendance_date', date('Y-m-d'))
 			->whereNotNull('clock_in')
     		->first();
-    		if (!$attendance) {
+			$not_avail = HairstylistNotAvailable::join('hairstylist_time_off', 'hairstylist_time_off.id_hairstylist_time_off', 'hairstylist_not_available.id_hairstylist_time_off')
+			->where('hairstylist_not_available.id_outlet', $user->id_outlet)->where('hairstylist_not_available.id_user_hair_stylist', $user->id_user_hair_stylist)
+			->whereDate('hairstylist_time_off.date', date('Y-m-d'))->whereTime('hairstylist_time_off.start_time', '<=', date('H:i:s'))->whereTime('hairstylist_time_off.end_time', '>=', date('H:i:s'))
+			->first();
+    		if (!$attendance || $not_avail) {
     			$box = [];
     			$outlet_box = null;
     		}else{

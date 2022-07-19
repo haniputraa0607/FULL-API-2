@@ -22,7 +22,7 @@ class CreateFile extends FormRequest
 		return [
 			'category'		=> 'required',
 			'notes'                 => 'required',
-			'attachment'             => 'max:5000',
+			'attachment'             => 'max:5000|min:0',
         ];
     }
 

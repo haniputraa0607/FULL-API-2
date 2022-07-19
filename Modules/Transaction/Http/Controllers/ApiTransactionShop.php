@@ -10,6 +10,7 @@ use Illuminate\Routing\Controller;
 use App\Http\Models\Setting;
 use App\Http\Models\User;
 use App\Http\Models\Outlet;
+use App\Http\Models\Province;
 use App\Http\Models\Product;
 use App\Http\Models\Transaction;
 use App\Http\Models\TransactionProduct;
@@ -683,7 +684,7 @@ class ApiTransactionShop extends Controller
         $fake_request = new Request(['show_all' => 1]);
         $result['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
         
-        $result = app($this->promo_trx)->applyPromoCheckout($result);
+        $result = app($this->promo_trx)->applyPromoCheckout($result,$post);
 
         $result['payment_detail'][] = [
             'name'          => 'Subtotal Order ('.$totalItem.' item):',
@@ -1457,11 +1458,17 @@ class ApiTransactionShop extends Controller
     		$statusLog[$key]['date'] = MyHelper::adjustTimezone($val['date'], 7, 'd/m/Y');
     		$statusLog[$key]['datetime'] = $val['date'];
     	}
-    	
+
+        $outlet_transaction = Outlet::where('id_outlet',$detail['id_outlet'])->first();
+        $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+        ->where('id_city', $outlet_transaction['id_city'])->first()['time_zone_utc']??null;
+        $date_time = $this->getTimezone($detail['transaction_date'], $timeZone);
+
 		$res = [
 			'id_transaction' => $detail['id_transaction'],
 			'transaction_receipt_number' => $detail['transaction_receipt_number'],
-			'transaction_date' => $detail['transaction_date'],
+			'transaction_date' => $date_time['time'],
+			'transaction_date_zone' => $date_time['time_zone_id'],
 			'transaction_subtotal' => $detail['transaction_subtotal'],
 			'transaction_grandtotal' => $detail['transaction_grandtotal'],
 			'transaction_product_subtotal' => $subtotalProduct,
@@ -1553,6 +1560,26 @@ class ApiTransactionShop extends Controller
     	return $res;
     }
 
+    public function getTimezone($time = null, $time_zone_utc = 7, $format = 'Y-m-d H:i'){
+        $data['time_zone_id'] = 'WIB';
+        $default_time_zone_utc = 7;
+        $time_diff = $time_zone_utc - $default_time_zone_utc;
+        if(isset($time)){
+        $data['time'] = date($format, strtotime('+'.$time_diff.' hour',strtotime($time)));
+        }else{
+        $data['time'] = date($format, strtotime('+'.$time_diff.' hour'));
+        }
+        switch ($time_zone_utc) {
+            case 8:
+                $data['time_zone_id'] = 'WITA';
+            break;
+            case 9:
+                $data['time_zone_id'] = 'WIT';
+            break;
+        }
+        return $data;
+    }
+
     public function listShop(Request $request)
     {
         $list = Transaction::where('transaction_from', 'shop')
@@ -1615,8 +1642,24 @@ class ApiTransactionShop extends Controller
             // needed by datatables
             $list['recordsTotal'] = $countTotal;
             $list['recordsFiltered'] = $list['total'];
+            $list['data'] = array_map(function($val){
+                $outlet = Outlet::where('id_outlet',$val['id_outlet'])->first();
+                $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+                ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+                $date_time = $this->getTimezone($val['transaction_date'], $timeZone);
+                $val['transaction_date'] = $date_time['time'].' '.$date_time['time_zone_id'];
+                return $val;
+            },$list['data']);
         } else {
             $list = $list->get();
+            $list = array_map(function($val){
+                $outlet = Outlet::where('id_outlet',$val['id_outlet'])->first();
+                $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+                ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+                $date_time = $this->getTimezone($val['transaction_date'], $timeZone);
+                $val['transaction_date'] = $date_time['time'].' '.$date_time['time_zone_id'];
+                return $val;
+            },$list->toArray());
         }
         return MyHelper::checkGet($list);
     }

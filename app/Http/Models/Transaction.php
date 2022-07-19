@@ -119,7 +119,8 @@ class Transaction extends Model
         'scope',
         'reject_at',
         'reject_type',
-        'reject_reason'
+        'reject_reason',
+        'refund_requirement',
 	];
 
 	public $manual_refund = 0;
@@ -662,7 +663,7 @@ class Transaction extends Model
     		'reject_reason' => $data['reject_reason'] ?? null
     	]);
 
-    	$refundPayment = app('\Modules\OutletApp\Http\Controllers\ApiOutletApp')->refundPayment($this);
+    	$refundPayment = app('\Modules\Transaction\Http\Controllers\ApiTransactionRefund')->refundPayment($this);
     	if (empty($refundPayment['status']) || $refundPayment['status'] != 'success') {
         	\DB::rollBack();
         	return false;

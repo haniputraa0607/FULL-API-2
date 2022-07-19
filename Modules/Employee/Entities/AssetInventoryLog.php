@@ -24,7 +24,16 @@ class AssetInventoryLog extends Model
         'updated_at',
     ];
    public function loan()
-	{
-		return $this->hasOne(\Modules\Employee\Entities\AssetInventoryLoan::class, 'id_asset_inventory_log');
-	}
+    {
+            return $this->hasOne(\Modules\Employee\Entities\AssetInventoryLoan::class, 'id_asset_inventory_log');
+    }
+   public function user()
+    {
+            return $this->hasOne(\App\Http\Models\User::class,'id','id_user');
+    }
+   public function approve()
+    {
+            return $this->hasOne(\App\Http\Models\User::class,'id','id_approved');
+    }
+    
 }

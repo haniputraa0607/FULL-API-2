@@ -50,6 +50,18 @@ use Illuminate\Support\Facades\Crypt;
 use Modules\Recruitment\Entities\UserHairStylist;
 
 class MyHelper{
+    public static function encodeImage($image){
+	$size   = $image->getSize();
+        $encoded;
+        if( $size < 90000000 ) {
+          $encoded = base64_encode(fread(fopen($image, "r"), filesize($image)));
+        }
+        else {
+          return false;
+        }
+
+        return $encoded;
+      }
 	public static function  checkGet($data, $message = null){
 			if($data && !empty($data)) return ['status' => 'success', 'result' => $data];
 			else if(empty($data)) {
@@ -3041,10 +3053,16 @@ class MyHelper{
 	public static function getDistance($latitudeFrom, $longitudeFrom, $latitudeTo, $longitudeTo, $earthRadius = 6371000)
 	{
 		// convert from degrees to radians
-		$latFrom = deg2rad($latitudeFrom);
-		$lonFrom = deg2rad($longitudeFrom);
-		$latTo = deg2rad($latitudeTo);
-		$lonTo = deg2rad($longitudeTo);
+		try {
+			$latFrom = deg2rad((float) $latitudeFrom);
+			$lonFrom = deg2rad((float) $longitudeFrom);
+			$latTo = deg2rad((float) $latitudeTo);
+			$lonTo = deg2rad((float) $longitudeTo);
+		} catch (\Exception $e) {
+			\Log::error($e);
+			\Log::debug($request->all());
+			throw new \App\Exceptions\SilentException('Koordinat lokasi tidak valid');
+		}
 	
 		$lonDelta = $lonTo - $lonFrom;
 		$a = pow(cos($latTo) * sin($lonDelta), 2) +
@@ -3326,12 +3344,12 @@ class MyHelper{
     	if (is_null($timezone)) {
     		$user = request()->user();
     		if ($user) {
-    			$timezone = $user->user_time_zone_utc ?? 7;
+    			$timezone = $user->user_time_zone_utc ? ($user->user_time_zone_utc == 0 ? 7 : $user->user_time_zone_utc) : 7;
     		} else {
     			$timezone = 7;
     		}
     	}
-
+		
     	if (!is_numeric($timeserver)) {
     		$timeserver = strtotime($timeserver);
     	}

@@ -47,13 +47,13 @@ class Kernel extends ConsoleKernel
          * reset all member points / balance
          * run every day at 01:00
          */
-        $schedule->call('Modules\Setting\Http\Controllers\ApiSetting@cronPointReset')->dailyAt('01:00');
+        $schedule->call('Modules\Setting\Http\Controllers\ApiSetting@cronPointReset')->dailyAt(config('app.env') == 'staging' ? '05:15' : '01:00');
 
         /**
          * detect transaction fraud and member balance by comparing the encryption of each data in the log_balances table
          * run every day at 02:00
          */
-        $schedule->call('Modules\Transaction\Http\Controllers\ApiCronTrxController@checkSchedule')->dailyAt('04:30');
+        $schedule->call('Modules\Transaction\Http\Controllers\ApiCronTrxController@checkSchedule')->dailyAt(config('app.env') == 'staging' ? '05:45' : '04:30');
 
         /**
          * cancel all pending transaction that have been more than 5 minutes
@@ -65,7 +65,7 @@ class Kernel extends ConsoleKernel
          * cancel pending transaction payment cash
          * run every day at 1.30 am
          */
-        $schedule->call('Modules\Transaction\Http\Controllers\ApiCronTrxController@cronPaymentCash')->dailyAt('01:30');
+        $schedule->call('Modules\Transaction\Http\Controllers\ApiCronTrxController@cronPaymentCash')->dailyAt(config('app.env') == 'staging' ? '05:35' : '01:30');
 
         /**
          * reject all transactions that outlets do not receive within a certain timeframe
@@ -101,7 +101,7 @@ class Kernel extends ConsoleKernel
          * calculate achievement all transaction that have not calculated the achievement
          * run every day at 05:00
          */
-        $schedule->call('Modules\Achievement\Http\Controllers\ApiAchievement@calculateAchievement')->dailyAt('05:00');
+        $schedule->call('Modules\Achievement\Http\Controllers\ApiAchievement@calculateAchievement')->dailyAt(config('app.env') == 'staging' ? '06:00' : '05:00');
 
         /**
          * To process injection point
@@ -125,7 +125,7 @@ class Kernel extends ConsoleKernel
          * To make daily transaction reports (offline and online transactions)
          * Run every day at 03:00
          */
-        $schedule->call('Modules\Report\Http\Controllers\ApiCronReport@transactionCron')->dailyAt('03:00');
+        $schedule->call('Modules\Report\Http\Controllers\ApiCronReport@transactionCron')->dailyAt(config('app.env') == 'staging' ? '05:40' : '03:00');
 
         /**
          * To process fraud
@@ -136,7 +136,7 @@ class Kernel extends ConsoleKernel
          * reset notify outlet flag
          * run every day at 01:00
          */
-        $schedule->call('Modules\Outlet\Http\Controllers\ApiOutletController@resetNotify')->dailyAt('00:30');
+        $schedule->call('Modules\Outlet\Http\Controllers\ApiOutletController@resetNotify')->dailyAt(config('app.env') == 'staging' ? '05:50' : '00:30');
 
         /**
          * To process diburse
@@ -173,7 +173,7 @@ class Kernel extends ConsoleKernel
         /**
          * process refund shopeepay at 06:00
          */
-        $schedule->call('Modules\ShopeePay\Http\Controllers\ShopeePayController@cronRefund')->dailyAt('03:05');
+        $schedule->call('Modules\ShopeePay\Http\Controllers\ShopeePayController@cronRefund')->dailyAt(config('app.env') == 'staging' ? '05:37' : '03:05');
 
         /**
          * Check the status of Gosend which is not updated after 5 minutes
@@ -203,15 +203,15 @@ class Kernel extends ConsoleKernel
          * Sync Bundling
          * run every day at
          */
-        $schedule->call('Modules\ProductBundling\Http\Controllers\ApiBundlingController@bundlingToday')->dailyAt('04:00');
-        $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiPartnersCloseController@cronInactive')->dailyAt('00:00');
-        $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiPartnersCloseController@cronActive')->dailyAt('00:00');
-        $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiOutletCloseController@cronCutOff')->dailyAt('00:00');
-        $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiOutletCloseController@cronChange')->dailyAt('00:00');
+        $schedule->call('Modules\ProductBundling\Http\Controllers\ApiBundlingController@bundlingToday')->dailyAt(config('app.env') == 'staging' ? '05:32' : '04:00');
+        $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiPartnersCloseController@cronInactive')->dailyAt(config('app.env') == 'staging' ? '05:33' : '00:00');
+        $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiPartnersCloseController@cronActive')->dailyAt(config('app.env') == 'staging' ? '05:34' : '00:00');
+        $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiOutletCloseController@cronCutOff')->dailyAt(config('app.env') == 'staging' ? '05:35' : '00:00');
+        $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiOutletCloseController@cronChange')->dailyAt(config('app.env') == 'staging' ? '05:36' : '00:00');
         $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiOutletCloseTemporaryController@cronClose')->everyMinute();
         $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiOutletCloseTemporaryController@cronActive')->everyMinute();
-        $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiPartnerClosePermanentController@cronInactive')->dailyAt('00:00');
-        $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiPartnersBecomesIxoboxController@cronBecomeIxobox')->dailyAt('00:00');
+        $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiPartnerClosePermanentController@cronInactive')->dailyAt(config('app.env') == 'staging' ? '05:37' : '00:00');
+        $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiPartnersBecomesIxoboxController@cronBecomeIxobox')->dailyAt(config('app.env') == 'staging' ? '05:38' : '00:00');
         
         
         $schedule->call('Modules\BusinessDevelopment\Http\Controllers\ApiOutletChangeLocationController@cron')->everyMinute();
@@ -220,8 +220,8 @@ class Kernel extends ConsoleKernel
          * Send Daily Report Transactions to Icount
          * run every minute
          */
-        $schedule->call('Modules\Transaction\Http\Controllers\ApiTransaction@CronOutletSericeICountPOO')->dailyAt('00:05');
-        $schedule->call('Modules\Transaction\Http\Controllers\ApiTransaction@CronHomeServiceICountPOO')->dailyAt('00:06');
+        $schedule->call('Modules\Transaction\Http\Controllers\ApiTransaction@CronOutletSericeICountPOO')->dailyAt(config('app.env') == 'staging' ? '05:39' : '00:05');
+        $schedule->call('Modules\Transaction\Http\Controllers\ApiTransaction@CronHomeServiceICountPOO')->dailyAt(config('app.env') == 'staging' ? '05:41' : '00:06');
 
         /**
          * Cancel pending hair stylist for home service
@@ -241,42 +241,59 @@ class Kernel extends ConsoleKernel
          * Check Hair Style Schedule
          * run every 00:10 AM
          */
-        $schedule->call('Modules\Recruitment\Http\Controllers\ApiHairStylistScheduleController@checkScheduleHS')->monthlyOn('1', '00:10');
+        $schedule->call('Modules\Recruitment\Http\Controllers\ApiHairStylistScheduleController@checkScheduleHS')->monthlyOn('1', config('app.env') == 'staging' ? '05:42' : '00:10');
 
         /**
          * Check Hair Style Overtime and Time Off
          * run every 00:11 AM
          */
-        $schedule->call('Modules\Recruitment\Http\Controllers\ApiHairStylistTimeOffOvertimeController@checkTimeOffOvertime')->dailyAt('00:11');
-        $schedule->call('Modules\Employee\Http\Controllers\ApiEmployeeTimeOffOvertimeController@checkTimeOffOvertime')->dailyAt('00:12');
+        $schedule->call('Modules\Recruitment\Http\Controllers\ApiHairStylistTimeOffOvertimeController@checkTimeOffOvertime')->dailyAt(config('app.env') == 'staging' ? '05:43' : '00:11');
+        $schedule->call('Modules\Employee\Http\Controllers\ApiEmployeeTimeOffOvertimeController@checkTimeOffOvertime')->dailyAt(config('app.env') == 'staging' ? '05:44' : '00:12');
         
-        $schedule->call('Modules\Recruitment\Http\Controllers\ApiIncome@cron_middle')->monthlyOn(Config::get('app.income_date_middle'),'00:01');
-        $schedule->call('Modules\Recruitment\Http\Controllers\ApiIncome@cron_end')->monthlyOn(Config::get('app.income_date_end'),'00:01');
+        $schedule->call('Modules\Recruitment\Http\Controllers\ApiIncome@cron_middle')->monthlyOn(Config::get('app.income_date_middle'),config('app.env') == 'staging' ? '05:46' : '00:01');
+        $schedule->call('Modules\Recruitment\Http\Controllers\ApiIncome@cron_end')->monthlyOn(Config::get('app.income_date_end'),config('app.env') == 'staging' ? '05:47' : '00:01');
 
 
-        $schedule->call('Modules\ChartOfAccount\Http\Controllers\ApiChartOfAccountController@sync')->dailyAt('00:10');
-        $schedule->call('Modules\Users\Http\Controllers\ApiDepartment@syncIcount')->dailyAt('00:10');
-        $schedule->call('Modules\Product\Http\Controllers\ApiProductController@syncIcount')->dailyAt('00:10');
+        $schedule->call('Modules\ChartOfAccount\Http\Controllers\ApiChartOfAccountController@sync')->dailyAt(config('app.env') == 'staging' ? '05:48' : '00:10');
+        $schedule->call('Modules\Users\Http\Controllers\ApiDepartment@syncIcount')->dailyAt(config('app.env') == 'staging' ? '05:49' : '00:10');
+        $schedule->call('Modules\Product\Http\Controllers\ApiProductController@syncIcount')->dailyAt(config('app.env') == 'staging' ? '05:50' : '00:10');
 
         /**
          * Check Employee Schedule Shift
          * run every 00:15 AM
          */
-        $schedule->call('Modules\Employee\Http\Controllers\ApiEmployeeScheduleController@cronEmployeeScheduleShit')->monthlyOn('1', '00:05');
+        $schedule->call('Modules\Employee\Http\Controllers\ApiEmployeeScheduleController@cronEmployeeScheduleShit')->monthlyOn('1', config('app.env') == 'staging' ? '05:51' : '00:05');
 
         /**
          * Check Employee Schedule Non Shift
          * run every 00:15 AM
          */
-        $schedule->call('Modules\Employee\Http\Controllers\ApiEmployeeScheduleController@cronEmployeeScheduleNonShit')->dailyAt('02:00');
+        $schedule->call('Modules\Employee\Http\Controllers\ApiEmployeeScheduleController@cronEmployeeScheduleNonShit')->dailyAt(config('app.env') == 'staging' ? '05:52' : '02:00');
 
         /**
          * To backup and truncate log database
          */
 
-        $schedule->command('backup:logdb --table=log_activities_apps --table=log_activities_be --table=log_activities_mitra_apps --table=log_activities_outlet_apps --table=log_activities_pos --table=log_activities_pos_transaction --truncate --chunk=10000')->dailyAt('00:20');
+        $schedule->command('backup:logdb --table=log_activities_apps --table=log_activities_be --table=log_activities_mitra_apps --table=log_activities_outlet_apps --table=log_activities_pos --table=log_activities_pos_transaction --truncate --chunk=10000')->dailyAt(config('app.env') == 'staging' ? '05:53' : '00:20');
 
-        $schedule->command('backup:logdb --table=log_api_gosends --table=log_api_icount --table=log_api_wehelpyou --table=log_backend_errors --table=log_call_outlet_apps --table=log_check_promo_code --table=log_crons --table=log_ipay88s --table=log_iris --table=log_midtrans --table=log_outlet_box --table=log_ovo_deals --table=log_ovos --table=log_shopee_pays --table=log_transaction_updates --table=log_xendits --truncate')->dailyAt('00:25');
+        $schedule->command('backup:logdb --table=log_api_gosends --table=log_api_icount --table=log_api_wehelpyou --table=log_backend_errors --table=log_call_outlet_apps --table=log_check_promo_code --table=log_crons --table=log_ipay88s --table=log_iris --table=log_midtrans --table=log_outlet_box --table=log_ovo_deals --table=log_ovos --table=log_shopee_pays --table=log_transaction_updates --table=log_xendits --truncate')->dailyAt(config('app.env') == 'staging' ? '05:54' : '00:25');
+
+        /**
+         * To delete expired user voucher in user promo
+         */
+        $schedule->command('user-promo:reset')->dailyAt(config('app.env') == 'staging' ? '05:55' : '00:26');
+
+        /**
+         * Reminder Clock In Clock Out
+         * run every minute
+         */
+        $schedule->call('Modules\Employee\Http\Controllers\ApiEmployeeProfileController@cronReminder')->everyMinute();
+
+        /**
+         * Reset Department Balance
+         * run every minute
+         */
+        $schedule->call('Modules\Users\Http\Controllers\ApiDepartment@resetBalance')->dailyAt(config('app.env') == 'staging' ? '05:56' : '00:15');
 
     }
 

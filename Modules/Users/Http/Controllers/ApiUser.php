@@ -2280,8 +2280,7 @@ class ApiUser extends Controller
         if ($data) {
         	DB::beginTransaction();
             // $pin_x = MyHelper::decryptkhususpassword($data[0]['pin_k'], md5($data[0]['id_user'], true));
-            if($request->json('email') != "" && $request->json('name') != "" &&
-                empty($data[0]['email']) && empty($data[0]['name'])){
+            if($request->json('name') != "" && empty($data[0]['name'])){
                 $get_setting = Setting::whereIn('key',['welcome_voucher_setting', 'welcome_subscription_setting'])->get();
 				$setting = [];
 				foreach ($get_setting as $key => $value) {
@@ -2290,6 +2289,10 @@ class ApiUser extends Controller
 
 				$welcome_promo = 1;
             }
+
+            /**
+             * ixobox customer tidak punya email
+             */
 
             if ($request->json('email') != "") {
                 $domain = substr($request->json('email'), strpos($request->json('email'), "@") + 1);
@@ -2313,6 +2316,7 @@ class ApiUser extends Controller
                     }
                 }
             }
+
             if ($data[0]['phone_verified'] == 1) {
                 // if(Auth::attempt(['phone' => $request->json('phone'), 'password' => $request->json('pin')])){
                 $dataupdate = [];
@@ -2374,7 +2378,7 @@ class ApiUser extends Controller
                 $datauser = User::where('id', '=', $data[0]['id'])->with(['city','city.province'])->get()->toArray();
 
                 if ($request->id_user_address) {
-                    $user = User::find($data[0]);
+                    $user = User::find($data[0]['id']);
                     $user_address = $user->addresses()->where('id_user_address', $request->id_user_address)->first();
                     if ($user_address) {
                         $user->addresses()->update(['favorite' => 0]);
@@ -2385,7 +2389,7 @@ class ApiUser extends Controller
                 //cek complete profile ?
                 if ($datauser[0]['complete_profile'] != "1") {
                     if ($datauser[0]['name'] != "" 
-                    	&& $datauser[0]['email'] != "" 
+                    	// && $datauser[0]['email'] != "" 
                     	&& $datauser[0]['gender'] != "" 
                     	&& $datauser[0]['birthday'] != "" 
                     	// && $datauser[0]['id_city'] != "" 

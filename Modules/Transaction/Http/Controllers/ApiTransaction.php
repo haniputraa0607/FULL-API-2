@@ -105,6 +105,7 @@ use Lcobucci\JWT\Parser;
 use App\Http\Models\OauthAccessToken;
 use Modules\BusinessDevelopment\Entities\Location;
 use Modules\Transaction\Http\Requests\Signature;
+use Modules\Transaction\Http\Requests\SignatureLoan;
 use Modules\Franchise\Entities\PromoCampaign;
 use Modules\PromoCampaign\Entities\TransactionPromo;
 use Modules\Product\Entities\ProductIcount;
@@ -117,8 +118,10 @@ class ApiTransaction extends Controller
     function __construct() {
         date_default_timezone_set('Asia/Jakarta');
         $this->shopeepay      = 'Modules\ShopeePay\Http\Controllers\ShopeePayController';
+        $this->xendit         = 'Modules\Xendit\Http\Controllers\XenditController';
         $this->trx_outlet_service = "Modules\Transaction\Http\Controllers\ApiTransactionOutletService";
         $this->trx = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
+        $this->refund = "Modules\Transaction\Http\Controllers\ApiTransactionRefund";
         $this->home_service_status = [
             'Finding Hair Stylist' => ['code' => 1, 'text' => 'Mencari hair stylist'],
             'Get Hair Stylist' => ['code' => 2, 'text' => 'Dapat hair stylist'],
@@ -2717,7 +2720,7 @@ class ApiTransaction extends Controller
                     ];
                 } else {
                     $result['transaction_payment'][$key] = [
-                        'name'      => $value['name'],
+                        'name'      => str_replace('_', ' ', $value['name']),
                         'amount'    => MyHelper::requestNumber($value['amount'],'_CURRENCY')
                     ];
                 }
@@ -5349,7 +5352,7 @@ class ApiTransaction extends Controller
     {
         $trx = Transaction::where('transactions.id_transaction', $id_transaction)->join('transaction_multiple_payments', function($join) {
             $join->on('transaction_multiple_payments.id_transaction', 'transactions.id_transaction')
-                ->whereIn('type', ['Midtrans', 'Shopeepay']);
+                ->whereIn('type', ['Midtrans', 'Shopeepay', 'Xendit']);
         })->first();
         if (!$trx) {
             $errors[] = 'Transaction Not Found';
@@ -5363,7 +5366,12 @@ class ApiTransaction extends Controller
                     $errors[] = 'Model TransactionPaymentMidtran not found';
                     return false;
                 }
-                $refund = Midtrans::refund($payMidtrans['vt_transaction_id'],['reason' => 'refund transaksi']);
+                if($trx['refund_requirement'] > 0){
+                    $refund = Midtrans::refundPartial($payMidtrans['vt_transaction_id'],['reason' => 'refund transaksi', 'amount' => (int)$trx['refund_requirement']]);
+                }else{
+                    $refund = Midtrans::refund($payMidtrans['vt_transaction_id'],['reason' => 'refund transaksi']);
+                }
+
                 if ($refund['status'] != 'success') {
                     Transaction::where('id_transaction', $id_transaction)->update(['failed_void_reason' => implode(', ', $refund['messages'] ?? [])]);
                     $errors = $refund['messages'] ?? [];
@@ -5387,6 +5395,31 @@ class ApiTransaction extends Controller
                     Transaction::where('id_transaction', $id_transaction)->update(['need_manual_void' => 0]);
                 }
                 break;
+
+            case 'Xendit':
+                $payXendit = TransactionPaymentXendit::where('id_transaction', $id_transaction)->first();
+                if (!$payXendit) {
+                    $errors[] = 'Model TransactionPaymentXendit not found';
+                    return false;
+                }
+                if($trx['refund_requirement'] > 0){
+                    $refund = app($this->xendit)->refund($id_transaction, 'trx', [
+                        'amount' => (int) $trx['refund_requirement'],
+                        'reason' => 'Refund partial'
+                    ], $errors2);
+                }else{
+                    $refund = app($this->xendit)->refund($id_transaction, 'trx', [], $errors2);
+                }
+
+                if (!$refund) {
+                    Transaction::where('id_transaction', $id_transaction)->update(['failed_void_reason' => implode(', ', $errors2 ?: [])]);
+                    $errors = $errors2;
+                    $result = false;
+                } else {
+                    Transaction::where('id_transaction', $id_transaction)->update(['need_manual_void' => 0]);
+                }
+                break;
+
             default:
                 $errors[] = 'Unkown payment type '.$trx->type;
                 return false;
@@ -5555,6 +5588,11 @@ class ApiTransaction extends Controller
                 )
                 ->first();
 
+        $outletZone = Outlet::join('cities', 'cities.id_city', 'outlets.id_city')
+            ->join('provinces', 'provinces.id_province', 'cities.id_province')
+            ->where('id_outlet', $detail['id_outlet'])
+            ->select('outlets.*', 'cities.city_name', 'provinces.time_zone_utc as province_time_zone_utc')->first();
+
         if (!$detail) {
             return [
                 'status' => 'fail',
@@ -5600,11 +5638,14 @@ class ApiTransaction extends Controller
                     }
                 }
 
+                $timeZone = $outletZone['province_time_zone_utc'] - 7;
+                $time = date('H:i', strtotime('+'.$timeZone.' hours', strtotime($product['transaction_product_service']['schedule_time'])));
+
                 $services[] = [
                     'id_user_hair_stylist' => $product['transaction_product_service']['id_user_hair_stylist'],
                     'hairstylist_name' => $product['transaction_product_service']['user_hair_stylist']['nickname'],
                     'schedule_date' => MyHelper::dateFormatInd($product['transaction_product_service']['schedule_date'], true, false),
-                    'schedule_time' => date('H:i', strtotime($product['transaction_product_service']['schedule_time'])),
+                    'schedule_time' => $time,
                     'product_name' => $product['product']['product_name'],
                     'subtotal' => $product['transaction_product_subtotal'],
                     'show_rate_popup' => $show_rate_popup
@@ -6099,16 +6140,16 @@ class ApiTransaction extends Controller
                             ->join('transaction_outlet_services','transaction_outlet_services.id_transaction','=','transactions.id_transaction')
                             ->leftJoin('partners','partners.id_partner','=','locations.id_partner');
 
-            $outlets_mid->join('transaction_payment_midtrans','transaction_payment_midtrans.id_transaction','=','transactions.id_transaction')->whereDate('transaction_outlet_services.completed_at', '=', $date_trans)->where('transactions.flag_icount','0');
-            $outlets_mid->select('outlets.*','partners.*','locations.*','transaction_payment_midtrans.id_transaction_payment','transaction_payment_midtrans.payment_type','transaction_outlet_services.completed_at')->groupBy('outlets.id_outlet','transaction_payment_midtrans.payment_type')->orderBy('outlets.id_outlet', 'DESC');
+            $outlets_mid->join('transaction_payment_midtrans','transaction_payment_midtrans.id_transaction','=','transactions.id_transaction')->whereDate('transactions.transaction_date', '=', $date_trans)->where('transactions.flag_icount','0');
+            $outlets_mid->select('outlets.*','partners.*','locations.*','outlets.is_tax as is_tax','transaction_payment_midtrans.id_transaction_payment','transaction_payment_midtrans.payment_type','transactions.transaction_date')->groupBy('outlets.id_outlet','transaction_payment_midtrans.payment_type')->orderBy('outlets.id_outlet', 'DESC');
             $outlets_mid =  $outlets_mid->get()->toArray();
 
-            $outlets_xen->join('transaction_payment_xendits','transaction_payment_xendits.id_transaction','=','transactions.id_transaction')->whereDate('transaction_outlet_services.completed_at', '=', $date_trans)->where('transactions.flag_icount','0');
-            $outlets_xen->select('outlets.*','partners.*','locations.*','transaction_payment_xendits.id_transaction_payment_xendit','transaction_payment_xendits.type','transaction_outlet_services.completed_at')->groupBy('outlets.id_outlet','transaction_payment_xendits.type')->orderBy('outlets.id_outlet', 'DESC');
+            $outlets_xen->join('transaction_payment_xendits','transaction_payment_xendits.id_transaction','=','transactions.id_transaction')->whereDate('transactions.transaction_date', '=', $date_trans)->where('transactions.flag_icount','0');
+            $outlets_xen->select('outlets.*','partners.*','locations.*','outlets.is_tax as is_tax','transaction_payment_xendits.id_transaction_payment_xendit','transaction_payment_xendits.type','transactions.transaction_date')->groupBy('outlets.id_outlet','transaction_payment_xendits.type')->orderBy('outlets.id_outlet', 'DESC');
             $outlets_xen =  $outlets_xen->get()->toArray();
 
-            $outlets_cash->join('transaction_payment_cash','transaction_payment_cash.id_transaction','=','transactions.id_transaction')->whereDate('transaction_outlet_services.completed_at', '=', $date_trans)->where('transactions.flag_icount','0');
-            $outlets_cash->select('outlets.*','partners.*','locations.*','transaction_payment_cash.id_transaction_payment_cash','transaction_outlet_services.completed_at')->groupBy('outlets.id_outlet')->orderBy('outlets.id_outlet', 'DESC');
+            $outlets_cash->join('transaction_payment_cash','transaction_payment_cash.id_transaction','=','transactions.id_transaction')->whereDate('transactions.transaction_date', '=', $date_trans)->where('transactions.flag_icount','0');
+            $outlets_cash->select('outlets.*','partners.*','locations.*','outlets.is_tax as is_tax','transaction_payment_cash.id_transaction_payment_cash','transactions.transaction_date')->groupBy('outlets.id_outlet')->orderBy('outlets.id_outlet', 'DESC');
             $outlets_cash =  $outlets_cash->get()->toArray();
             
             $outlets = [];
@@ -6137,7 +6178,7 @@ class ApiTransaction extends Controller
                 }
             }
             $i = 0;
-
+            
             foreach($outlets as $key => $outlet){
                 $transaction = Transaction::join('transaction_outlet_services','transaction_outlet_services.id_transaction','=','transactions.id_transaction')
                                 ->leftJoin('outlets','outlets.id_outlet','=','transactions.id_outlet')
@@ -6154,7 +6195,7 @@ class ApiTransaction extends Controller
                 }elseif(isset($outlet['id_transaction_payment_cash'])){
                     $transaction->join('transaction_payment_cash','transaction_payment_cash.id_transaction','=','transactions.id_transaction');
                 }
-                $transaction->whereDate('transaction_outlet_services.completed_at', '=', $date_trans)->where('transactions.flag_icount','0')->where('outlets.id_outlet', '=', $outlet['id_outlet'])->where('transactions.transaction_payment_status','Completed')->whereNotNull('transaction_outlet_services.completed_at');
+                $transaction->whereDate('transactions.transaction_date', '=', $date_trans)->where('transactions.flag_icount','0')->where('outlets.id_outlet', '=', $outlet['id_outlet'])->where('transactions.transaction_payment_status','Completed')->whereNotNull('transactions.transaction_date');
                 
                 if(isset($outlet['id_transaction_payment'])){
                     $transaction->where('transaction_payment_midtrans.payment_type', '=', $outlet['payment_type']);
@@ -6210,14 +6251,16 @@ class ApiTransaction extends Controller
                                 $tran['id_item_icount'] = $prod_icount['id_item'];
                             }
                         }
-
+                        
                         if($tran['transaction_tax']==0){
                             $new_transaction_non[$new_trans_non] = $tran;
-                            $new_transaction_non[$new_trans_non]['total_price'] = $tran['transaction_product_price_base'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all'];
+                            $num_is_tax = isset($outlet['is_tax']) ? 100 + $outlet['is_tax'] : 100;
+                            $new_transaction_non[$new_trans_non]['total_price'] = ($tran['transaction_product_price_base'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all']) * (100/$num_is_tax);
                             $new_trans_non++;
                         }else{
                             $new_transaction[$new_trans_use] = $tran;
-                            $new_transaction[$new_trans_use]['total_price'] = $tran['transaction_product_price_base'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all'];
+                            $num_is_tax = isset($outlet['is_tax']) ? 100 + $outlet['is_tax'] : 110;
+                            $new_transaction[$new_trans_use]['total_price'] = ($tran['transaction_product_price_base'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all']) * (100/$num_is_tax);
                             $new_trans_use++;
                         }
 
@@ -6226,19 +6269,19 @@ class ApiTransaction extends Controller
                     if($new_transaction){
                         $new_outlets[$new] = $outlet;
                         $new_outlets[$new]['transaction'] = $new_transaction;
-                        $new_outlets[$new]['ppn'] = 10;
+                        $new_outlets[$new]['ppn'] = $outlet['is_tax'] ?? 10;
                         $new++;
 
                     }
                     if($new_transaction_non){
                         $new_outlets[$new] = $outlet;
                         $new_outlets[$new]['transaction'] = $new_transaction_non;
-                        $new_outlets[$new]['ppn'] = 0;
+                        $new_outlets[$new]['ppn'] = $outlet['is_tax'] ?? 0;
                         $new++;
                     }
                 }
             }   
-
+            
             $create_order_poo= [];
             foreach($new_outlets as $n => $new_outlet){
                     $create_order_poo[$n] = Icount::ApiCreateOrderPOO($new_outlet, $new_outlet['company_type']);
@@ -6281,16 +6324,16 @@ class ApiTransaction extends Controller
                             ->join('transaction_home_services','transaction_home_services.id_transaction','=','transactions.id_transaction')
                             ->leftJoin('partners','partners.id_partner','=','locations.id_partner');
 
-            $outlets_mid->join('transaction_payment_midtrans','transaction_payment_midtrans.id_transaction','=','transactions.id_transaction')->whereDate('transaction_home_services.completed_at', '=', $date_trans)->where('transactions.flag_icount','0');
-            $outlets_mid->select('outlets.*','partners.*','locations.*','transaction_payment_midtrans.id_transaction_payment','transaction_payment_midtrans.payment_type','transaction_home_services.completed_at')->groupBy('outlets.id_outlet','transaction_payment_midtrans.payment_type')->orderBy('outlets.id_outlet', 'DESC');
+            $outlets_mid->join('transaction_payment_midtrans','transaction_payment_midtrans.id_transaction','=','transactions.id_transaction')->whereDate('transaction.transaction_date', '=', $date_trans)->where('transactions.flag_icount','0');
+            $outlets_mid->select('outlets.*','partners.*','locations.*','outlets.is_tax as is_tax','transaction_payment_midtrans.id_transaction_payment','transaction_payment_midtrans.payment_type','transaction.transaction_date')->groupBy('outlets.id_outlet','transaction_payment_midtrans.payment_type')->orderBy('outlets.id_outlet', 'DESC');
             $outlets_mid =  $outlets_mid->get()->toArray();
 
-            $outlets_xen->join('transaction_payment_xendits','transaction_payment_xendits.id_transaction','=','transactions.id_transaction')->whereDate('transaction_home_services.completed_at', '=', $date_trans)->where('transactions.flag_icount','0');
-            $outlets_xen->select('outlets.*','partners.*','locations.*','transaction_payment_xendits.id_transaction_payment_xendit','transaction_payment_xendits.type','transaction_home_services.completed_at')->groupBy('outlets.id_outlet','transaction_payment_xendits.type')->orderBy('outlets.id_outlet', 'DESC');
+            $outlets_xen->join('transaction_payment_xendits','transaction_payment_xendits.id_transaction','=','transactions.id_transaction')->whereDate('transaction.transaction_date', '=', $date_trans)->where('transactions.flag_icount','0');
+            $outlets_xen->select('outlets.*','partners.*','locations.*','outlets.is_tax as is_tax','transaction_payment_xendits.id_transaction_payment_xendit','transaction_payment_xendits.type','transaction.transaction_date')->groupBy('outlets.id_outlet','transaction_payment_xendits.type')->orderBy('outlets.id_outlet', 'DESC');
             $outlets_xen =  $outlets_xen->get()->toArray();
 
-            $outlets_cash->join('transaction_payment_cash','transaction_payment_cash.id_transaction','=','transactions.id_transaction')->whereDate('transaction_home_services.completed_at', '=', $date_trans)->where('transactions.flag_icount','0');
-            $outlets_cash->select('outlets.*','partners.*','locations.*','transaction_payment_cash.id_transaction_payment_cash','transaction_home_services.completed_at')->groupBy('outlets.id_outlet')->orderBy('outlets.id_outlet', 'DESC');
+            $outlets_cash->join('transaction_payment_cash','transaction_payment_cash.id_transaction','=','transactions.id_transaction')->whereDate('transaction.transaction_date', '=', $date_trans)->where('transactions.flag_icount','0');
+            $outlets_cash->select('outlets.*','partners.*','locations.*','outlets.is_tax as is_tax','transaction_payment_cash.id_transaction_payment_cash','transaction.transaction_date')->groupBy('outlets.id_outlet')->orderBy('outlets.id_outlet', 'DESC');
             $outlets_cash =  $outlets_cash->get()->toArray();
 
             $outlets = [];
@@ -6336,7 +6379,7 @@ class ApiTransaction extends Controller
                 }elseif(isset($outlet['id_transaction_payment_cash'])){
                     $transaction->join('transaction_payment_cash','transaction_payment_cash.id_transaction','=','transactions.id_transaction');
                 }
-                $transaction->whereDate('transaction_home_services.completed_at', '=', $date_trans)->where('transactions.flag_icount','0')->where('outlets.id_outlet', '=', $outlet['id_outlet'])->where('transactions.transaction_payment_status','Completed')->whereNotNull('transaction_home_services.completed_at');
+                $transaction->whereDate('transaction.transaction_date', '=', $date_trans)->where('transactions.flag_icount','0')->where('outlets.id_outlet', '=', $outlet['id_outlet'])->where('transactions.transaction_payment_status','Completed')->whereNotNull('transaction.transaction_date');
                 
                 if(isset($outlet['id_transaction_payment'])){
                     $transaction->where('transaction_payment_midtrans.payment_type', '=', $outlet['payment_type']);
@@ -6395,11 +6438,13 @@ class ApiTransaction extends Controller
 
                         if($tran['transaction_tax']==0){
                             $new_transaction_non[$new_trans_non] = $tran;
-                            $new_transaction_non[$new_trans_non]['total_price'] = $tran['transaction_product_price_base'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all'];
+                            $num_is_tax = isset($outlet['is_tax']) ? 100 + $outlet['is_tax'] : 100;
+                            $new_transaction_non[$new_trans_non]['total_price'] = ($tran['transaction_product_price_base'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all']) *  (100/$num_is_tax);
                             $new_trans_non++;
                         }else{
                             $new_transaction[$new_trans_use] = $tran;
-                            $new_transaction[$new_trans_use]['total_price'] = $tran['transaction_product_price_base'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all'];
+                            $num_is_tax = isset($outlet['is_tax']) ? 100 + $outlet['is_tax'] : 100;
+                            $new_transaction[$new_trans_use]['total_price'] = ($tran['transaction_product_price_base'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all']) *  (100/$num_is_tax);
                             $new_trans_use++;
                         }
 
@@ -6408,14 +6453,14 @@ class ApiTransaction extends Controller
                     if($new_transaction){
                         $new_outlets[$new] = $outlet;
                         $new_outlets[$new]['transaction'] = $new_transaction;
-                        $new_outlets[$new]['ppn'] = 10;
+                        $new_outlets[$new]['ppn'] = $outlet['is_tax'] ?? 10;
                         $new++;
 
                     }
                     if($new_transaction_non){
                         $new_outlets[$new] = $outlet;
                         $new_outlets[$new]['transaction'] = $new_transaction_non;
-                        $new_outlets[$new]['ppn'] = 0;
+                        $new_outlets[$new]['ppn'] = $outlet['is_tax'] ?? 0;
                         $new++;
                     }
                 }
@@ -6656,35 +6701,6 @@ class ApiTransaction extends Controller
     }
 
     public function callbacksharing(CallbackFromIcount $request){
-        $pesan = [
-                    'cek' => 'Invalid PurchaseInvoiceID or PurchaseInvoiceID status has been Successed',
-                    'status' => "Invalid status, status must be Success or Fail",
-                ];
-                    Validator::extend('status', function ($attribute, $value, $parameters, $validator) {
-                    if($value == 'Success'||$value=="Fail"){
-                      return true; 
-                  } return false;
-                 }); 
-                    Validator::extend('cek', function ($attribute, $value, $parameters, $validator) {
-                    $share = SharingManagementFee::where(array('PurchaseInvoiceID'=>$value))->where('status','!=','Success')->first();
-                    if($share){
-                        return true;
-                    }
-                    return false;
-                 }); 
-                   
-                  $validator = Validator::make($request->all(), [
-            'PurchaseInvoiceID'    => 'required|cek',
-                        'status'               => 'required|status',
-                        'date_disburse'        => 'required|date_format:Y-m-d H:i:s',
-        ],$pesan);  
-                  
-        if ($validator->fails()) {
-            return response()->json([
-                'status' => false,
-                'message' =>  $validator->errors()
-            ], 400);
-        }
         $data = SharingManagementFee::where(array('PurchaseInvoiceID'=>$request->PurchaseInvoiceID))->where('status','!=','Success')->update([
             'status'=>$request->status,
             'date_disburse'=>$request->date_disburse,
@@ -6693,6 +6709,12 @@ class ApiTransaction extends Controller
     }
 
     function api_secret($length = 40) {
+        if (config('app.env') != 'local') {
+            return [
+                'status' => 'fail',
+                'messages' => ['Jangan regenerate secret key server']
+            ];
+        }
         $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
         $charactersLength = strlen($characters);
         $randomStrings = '';
@@ -6723,6 +6745,12 @@ class ApiTransaction extends Controller
     }   
 
     function api_key($length = 40) {
+        if (config('app.env') != 'local') {
+            return [
+                'status' => 'fail',
+                'messages' => ['Jangan regenerate secret key server']
+            ];
+        }
         $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
         $charactersLength = strlen($characters);
         $randomString = '';
@@ -6745,6 +6773,16 @@ class ApiTransaction extends Controller
     } 
     function signature(Signature $request) {
         $data = hash_hmac('sha256',$request->PurchaseInvoiceID.$request->status.$request->date_disburse,$request->api_secret);
+        return $data;
+    }
+    function signature_loan(SignatureLoan $request) {
+        if (config('app.env') != 'local') {
+            return [
+                'status' => 'fail',
+                'messages' => ['Jangan regenerate secret key server']
+            ];
+        }
+        $data = hash_hmac('sha256',$request->BusinessPartnerID.$request->SalesInvoiceID.$request->amount,$request->api_secret);
         return $data;
     }
 
@@ -6931,7 +6969,7 @@ class ApiTransaction extends Controller
             }
             foreach ($dt as $key=>$value){
                 if(is_array($value)){
-                    $dt[$key] = number_format(count(array_unique($value)));
+                    $dt[$key] = count(array_unique($value));
                 }
 
                 if(is_float($value)){
@@ -6939,7 +6977,11 @@ class ApiTransaction extends Controller
                 }
 
                 if(is_int($value)){
-                    $dt[$key] = number_format($value);
+                    $dt[$key] = $value;
+                }
+
+                if($value == 0){
+                    $dt[$key] = (string)$value;
                 }
             }
             $res[] = $dt;

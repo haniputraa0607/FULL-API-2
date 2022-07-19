@@ -78,12 +78,13 @@ class ApiEmployeeProfileController extends Controller
    }
    public function payroll() {
        $profile = Employee::join('users','users.id','employees.id_user')
+               ->leftjoin('bank_name','bank_name.id_bank_name','employees.id_bank_name')
                ->where(array('users.id'=>Auth::user()->id))
                ->select([
                    'bpjs_ketenagakerjaan',
                    'bpjs_kesehatan',
                    'npwp',
-                   'bank_name',
+                   'bank_name.bank_name',
                    'bank_account_number',
                    'bank_account_name',
                ])
@@ -106,7 +107,7 @@ class ApiEmployeeProfileController extends Controller
        }
        $response = array(
            'id' => $profile->id,
-           'barcode'=>$profile->id_employee,
+           'barcode'=>$profile->code,
            'companies'=>$profile->outlet_name,
            'branch'=>'Pusat',
            'departement'=>$profile->department_name,
@@ -119,7 +120,7 @@ class ApiEmployeeProfileController extends Controller
        return MyHelper::checkGet($response);
    }
    public function emergency_contact() {
-       $data = EmployeeEmergencyContact::where(array('id_user'=>Auth::user()->id))->paginate(10);
+       $data = EmployeeEmergencyContact::where(array('id_user'=>Auth::user()->id))->get();
        return MyHelper::checkGet($data);
    }
    
@@ -132,17 +133,25 @@ class ApiEmployeeProfileController extends Controller
        return MyHelper::checkGet($data);
    }
    public function file() {
-       $data = EmployeeFile::where('id_user',Auth::user()->id)->paginate(10);
+       $data = EmployeeFile::where('id_user',Auth::user()->id)->get();
+       foreach($data as $v){
+          if(isset($v['attachment'])){
+            $v['attachment']= env('STORAGE_URL_API').$v['attachment'];
+        }
+       }
        return MyHelper::checkGet($data);
    }
    public function create_file(CreateFile $request) {
        $post = $request->all();
        $post['id_user'] = Auth::user()->id;
        if(!empty($post['attachment'])){
-           $file = $request->file('attachment');
-            $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, $file->getClientOriginalExtension());
+            $file = $request->file('attachment');
+            $ext = pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION);
+            $attachment = MyHelper::encodeImage($file);
+            $upload = MyHelper::uploadFile($attachment, $this->saveFile, $ext, strtotime(date('Y-m-d H-i-s')));
             if (isset($upload['status']) && $upload['status'] == "success") {
                     $post['attachment'] = $upload['path'];
+                    $post['name_file'] = $file->getClientOriginalName();
                 } else {
                     $result = [
                         'status'   => 'fail',
@@ -151,6 +160,7 @@ class ApiEmployeeProfileController extends Controller
                     return $result;
                 }
             }
+                    
        $profile = EmployeeFile::create($post);
        return MyHelper::checkGet($profile);
    }
@@ -161,16 +171,22 @@ class ApiEmployeeProfileController extends Controller
                'id_user'=>Auth::user()->id
                )
        )->first();
+       if(isset($profile['attachment'])){
+           $profile['attachment']= env('STORAGE_URL_API').$profile['attachment'];
+       }
        return MyHelper::checkGet($profile);
    }
    public function update_file(UpdateFile $request) {
        $post = $request->all();
        $profile = EmployeeFile::where(array('id_employee_file'=>$request->id_employee_file))->first();
-       if(!empty($post['attachment'])){
-           $file = $request->file('attachment');
-            $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, $file->getClientOriginalExtension());
+        if(!empty($post['attachment'])){
+            $file = $request->file('attachment');
+            $ext = pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION);
+            $attachment = MyHelper::encodeImage($file);
+            $upload = MyHelper::uploadFile($attachment, $this->saveFile, $ext, strtotime(date('Y-m-d H-i-s')));
             if (isset($upload['status']) && $upload['status'] == "success") {
                     $profile['attachment'] = $upload['path'];
+                    $profile['name_file'] = $file->getClientOriginalName();
                 } else {
                     $result = [
                         'status'   => 'fail',
@@ -324,6 +340,28 @@ class ApiEmployeeProfileController extends Controller
                ->first();
       $profile['wa'] = "https://wa.me/".$profile['phone'];
          return MyHelper::checkGet($profile);
+    }
+
+    public function getReminderAttendance(Request $request){
+        $post = $request->all();
+        $employee = $request->user();
+
+        //reminder clock in
+        $clock_in = [
+            'type' => 'clock_in',
+            'value' => SettingUser::where('id',$employee->id)->where('key','reminder_clock_in')->first()['value'] ?? 'off',
+        ];
+
+        $clock_out = [
+            'type' => 'clock_out',
+            'value' => SettingUser::where('id',$employee->id)->where('key','reminder_clock_out')->first()['value'] ?? 'off',
+        ];
+
+        $result = [
+            'clock_in' => $clock_in,
+            'clock_out' => $clock_out,
+        ];
+        return MyHelper::checkGet($result);
     }
 
     public function reminderAttendance(Request $request){

@@ -63,7 +63,7 @@ class ReminderEmployeeAttendance implements ShouldQueue
                 }
 
                 $time = date('H:i', $time);
-                $content_time = $content_time.' '.$time_zone[$timeZone];
+                // $content_time = $content_time.' '.$time_zone[$timeZone];
 
                 if(date('H:i') == $time){
                     $autocrm = app($this->autocrm)->SendAutoCRM(
@@ -71,7 +71,7 @@ class ReminderEmployeeAttendance implements ShouldQueue
                         $employee['phone'],
                         [
                             'name' => $employee['name'],
-                            'enquiry_subject' => $content_time,
+                            'variables' => $content_time,
                             'category' => 'Attendance'
                         ], null, false, false, 'employee'
                     );

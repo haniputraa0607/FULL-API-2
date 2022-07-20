@@ -681,6 +681,7 @@ class ApiTransactionShop extends Controller
         $result['complete_profile'] = true;
         $result['payment_detail'] = [];
         $result['continue_checkout'] = (empty($error_msg) ? true : false);
+        $messages_all_title = (empty($error_msg) ? null : 'TRANSAKSI TIDAK DAPAT DILANJUTKAN');
         $fake_request = new Request(['show_all' => 1]);
         $result['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
         
@@ -710,11 +711,25 @@ class ApiTransactionShop extends Controller
         $paymentDetailPromo = app($this->promo_trx)->paymentDetailPromo($result);
         $result['payment_detail'] = array_merge($result['payment_detail'], $paymentDetailPromo);
 
+        if($result['promo_deals']){
+            if($result['promo_deals']['is_error']){
+                $result['continue_checkout'] = false;
+                $messages_all_title = 'VOUCHER ANDA TIDAK DAPAT DIGUNAKAN';
+                $error_msg = ['Silahkan gunakan voucher yang berlaku atau tidak menggunakan voucher sama sekali.'];
+            }
+        }
+        if($result['promo_code']){
+            if($result['promo_code']['is_error']){
+                $result['continue_checkout'] = false;
+                $messages_all_title = 'PROMO ANDA TIDAK DAPAT DIGUNAKAN';
+                $error_msg = ['Silahkan gunakan promo yang berlaku atau tidak menggunakan promo sama sekali.'];
+            }
+        }
+
         if (count($error_msg) > 1 && (!empty($post['item']) || !empty($post['item_service']))) {
             $error_msg = ['Produk yang anda pilih tidak tersedia. Silakan cek kembali pesanan anda'];
         }
-
-
+        
         $finalRes = [
         	'customer' => $result['customer'],
         	'item' => $result['item'],
@@ -740,7 +755,8 @@ class ApiTransactionShop extends Controller
             'available_voucher' => $result['available_voucher'],
             'promo_deals' => $result['promo_deals'],
             'promo_code' => $result['promo_code'],
-            'messages_all' => implode('.', $error_msg)
+            'messages_all' => (empty($error_msg) ? null : implode('.', $error_msg)),
+            'messages_all_title' => $messages_all_title,
         ];
 
         return MyHelper::checkGet($finalRes);

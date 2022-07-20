@@ -580,6 +580,7 @@ class ApiTransactionHomeService extends Controller
         $result['currency'] = 'Rp';
         $result['complete_profile'] = (empty($user->complete_profile) ?false:true);
         $result['continue_checkout'] = $continueCheckOut;
+        $result['messages_all_title'] = (empty($errAll) ? null : 'TRANSAKSI TIDAK DAPAT DILANJUTKAN');
         $result['messages_all'] = (empty($errAll)? null:implode(".", array_unique($errAll)));
         $fake_request = new Request(['show_all' => 1]);
         $result['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
@@ -595,6 +596,21 @@ class ApiTransactionHomeService extends Controller
 
         $paymentDetailPromo = app($this->promo_trx)->paymentDetailPromo($result);
         $result['payment_detail'] = array_merge($result['payment_detail'], $paymentDetailPromo);
+
+        if($result['promo_deals']){
+            if($result['promo_deals']['is_error']){
+                $result['continue_checkout'] = false;
+                $result['messages_all_title'] = 'VOUCHER ANDA TIDAK DAPAT DIGUNAKAN';
+                $result['messages_all'] = 'Silahkan gunakan voucher yang berlaku atau tidak menggunakan voucher sama sekali.';
+            }
+        }
+        if($result['promo_code']){
+            if($result['promo_code']['is_error']){
+                $result['continue_checkout'] = false;
+                $result['messages_all_title'] = 'PROMO ANDA TIDAK DAPAT DIGUNAKAN';
+                $result['messages_all'] = 'Silahkan gunakan promo yang berlaku atau tidak menggunakan promo sama sekali.';
+            }
+        }
 
         if(!empty($outlet['is_tax'])) {
             $result['payment_detail'][] = [

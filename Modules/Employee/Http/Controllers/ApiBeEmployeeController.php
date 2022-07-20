@@ -270,8 +270,7 @@ class ApiBeEmployeeController extends Controller
                             'Interview Invitation Employee',
                             $getData->phone,
                             [
-                                'date_invitation' => date('Y-m-d', strtotime($post['data_document']['process_date']??date('Y-m-d H:i:s'))),
-                                'time_invitation' => date('H:i', strtotime($post['data_document']['process_date']??date('Y-m-d H:i:s'))),
+                                'variables'=>date('Y-m-d H:i:s', strtotime($post['data_document']['process_date']??date('Y-m-d H:i:s'))),
                             ], null, null, null, null, null, null, null, null,
                         );
                         // return $autocrm;

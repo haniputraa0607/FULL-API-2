@@ -5542,7 +5542,7 @@ class ApiTransaction extends Controller
             $resData[] = [
                 'id_transaction' => $val['id_transaction'],
                 'transaction_receipt_number' => $val['transaction_receipt_number'],
-                'qrcode' => 'https://chart.googleapis.com/chart?chl=' . str_replace('#', '', $val['transaction_receipt_number']) . '&chs=250x250&cht=qr&chld=H%7C0',
+                'qrcode' => 'https://quickchart.io/qr?text=' . str_replace('#', '', $val['transaction_receipt_number']) . '&margin=0&size=250',
                 'transaction_date' => $val['transaction_date'],
                 'customer_name' => $val['transaction_outlet_service']['customer_name'],
                 'color' => (!empty($val['outlet']['brands'][0]['color_brand']) ? $val['outlet']['brands'][0]['color_brand'] : null),
@@ -5748,7 +5748,7 @@ class ApiTransaction extends Controller
         $res = [
             'id_transaction' => $detail['id_transaction'],
             'transaction_receipt_number' => $detail['transaction_receipt_number'],
-            'qrcode' => 'https://chart.googleapis.com/chart?chl=' . str_replace('#', '', $detail['transaction_receipt_number']) . '&chs=250x250&cht=qr&chld=H%7C0',
+            'qrcode' => 'https://quickchart.io/qr?text=' . str_replace('#', '', $detail['transaction_receipt_number']) . '&margin=0&size=250',
             'transaction_date' => $detail['transaction_date'],
             'transaction_date_indo' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($detail['transaction_date'])), 'j F Y'),
             'transaction_subtotal' => $detail['transaction_subtotal'],

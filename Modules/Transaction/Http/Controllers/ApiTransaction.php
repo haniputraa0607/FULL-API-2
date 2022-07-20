@@ -6701,7 +6701,7 @@ class ApiTransaction extends Controller
     }
 
     public function callbacksharing(CallbackFromIcount $request){
-        $data = SharingManagementFee::where(array('PurchaseInvoiceID'=>$request->PurchaseInvoiceID))->where('status','!=','Success')->update([
+        $data = SharingManagementFee::where(array('PurchaseInvoiceID'=>$request->PurchaseInvoiceID))->update([
             'status'=>$request->status,
             'date_disburse'=>$request->date_disburse,
         ]);

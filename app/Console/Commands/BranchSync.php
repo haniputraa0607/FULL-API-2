@@ -33,15 +33,60 @@ class BranchSync extends Command
         parent::__construct();
     }
 
+    public function handle()
+    {
+        $companies = ['ima', 'ims'];
+        $resource = 'branch';
+        $found = 0;
+
+        foreach ($companies as $company) {
+            $this->comment("Looking at $company...");
+            $basePath = base_path("database/seeds/fetch/$company/$resource/");
+            $files = array_diff(scandir($basePath), array('.', '..'));
+            foreach ($files as $file) {
+                $json = json_decode(file_get_contents($basePath . $file), true);
+
+                $items = $json['Data'];
+                foreach ($items as $item) {
+                    $location = Location::where('code', $item['Code'])->first();
+                    if ($location) {
+                        $this->updateLocation($company, $location, $item);
+                    } else {
+                        $this->createLocation($company, $item);
+                    }
+                }
+            }
+        }
+    }
+
+    public function updateLocation($company, $location, $item)
+    {
+        $column = 'id_branch' . ($company == 'ima' ? '_ima' : '');
+        if ($location->$column != $item['BranchID']) {
+            $continue = $this->confirm("Update branch id $location[name] in $company to $item[BranchID]? Previously {$location->$column}");
+            if ($continue) {
+                $location->update([$column => $item['BranchID']]);
+                Outlet::where('id_location', $location->id)->update(['id_branch' => $item['BranchID']]);
+            }
+        }
+    }
+
+    function createLocation($company, $item) {
+        $this->synchLocation($company, $item["BranchID"]);
+    }
+
     /**
      * Execute the console command.
      *
      * @return mixed
      */
-    public function handle()
+    public function synchLocation($company, ...$branchIds)
     {
-        $branchIds = $this->option('branch-id');
-        $companies = ['ima', 'ims'];
+        if (!$branchIds) {
+            $branchIds = $this->option('branch-id');
+        }
+        // $companies = ['ima', 'ims'];
+        $companies = [$company];
         $resource = 'branch';
         $found = 0;
 

@@ -1074,7 +1074,8 @@ class ApiMitraOutletService extends Controller
     				'outlet_name' => $trx['outlet']['outlet_name'],
     				'detail' => $detail ?? null,
     				'receipt_number' => $trx['transaction_receipt_number'],
-    				'order_id' => $service['order_id']
+    				'order_id' => $service['order_id'],
+                    'service_name' => Product::where('id_product', $service['id_product'])->first()['product_name']??''
     			]
     		);
 

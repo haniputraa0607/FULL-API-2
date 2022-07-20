@@ -2,6 +2,7 @@
 
 namespace Modules\Transaction\Entities;
 
+use App\Http\Models\Product;
 use Illuminate\Database\Eloquent\Model;
 use App\Http\Models\Transaction;
 use App\Http\Models\TransactionProduct;
@@ -124,7 +125,8 @@ class TransactionOutletService extends \App\Http\Models\Template\TransactionServ
                     	'outlet_name' => $trx['outlet']['outlet_name'],
                     	'detail' => $detail ?? null,
                     	'receipt_number' => $trx['transaction_receipt_number'],
-                    	'order_id' => $tp['transaction_product_service']['order_id']
+                    	'order_id' => $tp['transaction_product_service']['order_id'],
+                        'service_name' => Product::where('id_product', $tp['id_product'])->first()['product_name']??''
                     ], null, false, false, 'hairstylist'
                 );
 			} elseif (!$sentSpv) {

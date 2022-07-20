@@ -383,6 +383,18 @@ class TextReplacesTableSeeder extends Seeder
                 'created_at' => NULL,
                 'updated_at' => NULL,
             ),
+            31 => 
+            array (
+                'id_text_replace' => 34,
+                'keyword' => '%timezone%',
+                'reference' => 'variables',
+                'type' => 'String',
+                'default_value' => 'WIB',
+                'custom_rule' => null,
+                'status' => 'Activated',
+                'created_at' => NULL,
+                'updated_at' => NULL,
+            ),
         ));
         
         

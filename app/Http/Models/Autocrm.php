@@ -47,6 +47,17 @@ class Autocrm extends Model
 		'attachment_forward'
 	];
 
+    protected $appends  = ['url_autocrm_push_image'];
+
+    public function getUrlAutocrmPushImageAttribute() {
+        if (!empty($this->autocrm_push_image)) {
+            return config('url.storage_url_api').$this->autocrm_push_image;
+        }
+        else {
+            return null;
+        }
+    }
+
 	public function autocrm_rule_parents()
 	{
 		return $this->hasMany(\App\Http\Models\AutocrmRuleParent::class, 'id_autocrm')

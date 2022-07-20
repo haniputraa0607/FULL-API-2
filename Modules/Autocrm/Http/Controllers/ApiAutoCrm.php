@@ -1131,11 +1131,15 @@ class ApiAutoCrm extends Controller
 				}
 
 				if($replace['keyword'] == "%points%"){
-					if (is_integer($replaced)) {
+					if (is_integer($replaced) && !empty($replaced)) {
 						$points = number_format($replaced, 0, ',', '.');
 					} else {
-						$points = $replaced;
+						$points = (!empty($replaced) ? $replaced : null);
 					}
+
+                    if($replace['reference'] == 'points' && !empty($user['balance'])){
+                        $points = number_format($user['balance'], 0, ',', '.');
+                    }
 				    $text = str_replace("%point%",$points, $text);
 				    $text = str_replace("%points%",$points, $text);
 				    $text = str_replace($replace['keyword'],$points, $text);

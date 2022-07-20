@@ -294,7 +294,7 @@ class Controller extends BaseController
 	}
 
     public function hs_candidate_list(){
-        $total = UserHairStylist::whereNotIn('user_hair_stylist_status', ['Active', 'Inactive'])->count();
+        $total = UserHairStylist::whereNotIn('user_hair_stylist_status', ['Active', 'Inactive', 'Rejected'])->count();
         if($total==0){
             $total = null;
         }

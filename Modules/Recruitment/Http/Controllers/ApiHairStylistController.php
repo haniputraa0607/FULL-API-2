@@ -491,7 +491,7 @@ class ApiHairStylistController extends Controller
                 }
 
                 if($post['update_type'] == 'Rejected'){
-                    $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update([
+                    UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update([
                         'user_hair_stylist_passed_status' => $post['user_hair_stylist_passed_status']??'Not Passed',
                         'user_hair_stylist_score' => $post['user_hair_stylist_score']??0
                     ]);

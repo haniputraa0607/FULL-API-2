@@ -6120,25 +6120,29 @@ class ApiTransaction extends Controller
         return $promo_discount;
     }
 
-    public function CronOutletSericeICountPOO(Request $request) {
+    public function CronOutletSericeICountPOO($date = null) {
         $log = MyHelper::logCron('Create Order POO Icount Outlet Service');
         try{
             $date_now = date('Y-m-d');
-            $date_trans = date('Y-m-d', strtotime('-1 days'));
+            if ($date) {
+                $date_trans = date('Y-m-d', strtotime($date));
+            } else {
+                $date_trans = date('Y-m-d', strtotime('-1 days'));
+            }
             $outlets_mid = Outlet::join('locations','locations.id_location','=','outlets.id_location')
                             ->join('transactions','transactions.id_outlet','=','outlets.id_outlet')
                             ->join('transaction_outlet_services','transaction_outlet_services.id_transaction','=','transactions.id_transaction')
-                            ->leftJoin('partners','partners.id_partner','=','locations.id_partner');
+                            ->leftJoin('partners','partners.id_partner','=','locations.id_partner')->whereNotIn('outlets.id_outlet', [9, 12, 17, 20, 48, 49, 50, 54, 74]);
 
             $outlets_xen = Outlet::join('locations','locations.id_location','=','outlets.id_location')
                             ->join('transactions','transactions.id_outlet','=','outlets.id_outlet')
                             ->join('transaction_outlet_services','transaction_outlet_services.id_transaction','=','transactions.id_transaction')
-                            ->leftJoin('partners','partners.id_partner','=','locations.id_partner'); 
+                            ->leftJoin('partners','partners.id_partner','=','locations.id_partner')->whereNotIn('outlets.id_outlet', [9, 12, 17, 20, 48, 49, 50, 54, 74]);
 
             $outlets_cash = Outlet::join('locations','locations.id_location','=','outlets.id_location')
                             ->join('transactions','transactions.id_outlet','=','outlets.id_outlet')
                             ->join('transaction_outlet_services','transaction_outlet_services.id_transaction','=','transactions.id_transaction')
-                            ->leftJoin('partners','partners.id_partner','=','locations.id_partner');
+                            ->leftJoin('partners','partners.id_partner','=','locations.id_partner')->whereNotIn('outlets.id_outlet', [9, 12, 17, 20, 48, 49, 50, 54, 74]);
 
             $outlets_mid->join('transaction_payment_midtrans','transaction_payment_midtrans.id_transaction','=','transactions.id_transaction')->whereDate('transactions.transaction_date', '=', $date_trans)->where('transactions.flag_icount','0');
             $outlets_mid->select('outlets.*','partners.*','locations.*','outlets.is_tax as is_tax','transaction_payment_midtrans.id_transaction_payment','transaction_payment_midtrans.payment_type','transactions.transaction_date')->groupBy('outlets.id_outlet','transaction_payment_midtrans.payment_type')->orderBy('outlets.id_outlet', 'DESC');
@@ -6254,13 +6258,13 @@ class ApiTransaction extends Controller
                         
                         if($tran['transaction_tax']==0){
                             $new_transaction_non[$new_trans_non] = $tran;
-                            $num_is_tax = isset($outlet['is_tax']) ? 100 + $outlet['is_tax'] : 100;
-                            $new_transaction_non[$new_trans_non]['total_price'] = ($tran['transaction_product_price_base'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all']) * (100/$num_is_tax);
+                            $num_is_tax = 100;
+                            $new_transaction_non[$new_trans_non]['total_price'] = ($tran['transaction_product_price'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all']) * (100/$num_is_tax);
                             $new_trans_non++;
                         }else{
                             $new_transaction[$new_trans_use] = $tran;
-                            $num_is_tax = isset($outlet['is_tax']) ? 100 + $outlet['is_tax'] : 110;
-                            $new_transaction[$new_trans_use]['total_price'] = ($tran['transaction_product_price_base'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all']) * (100/$num_is_tax);
+                            $num_is_tax = isset($outlet['is_tax']) ? 100 + $outlet['is_tax'] : 111;
+                            $new_transaction[$new_trans_use]['total_price'] = ($tran['transaction_product_price'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all']) * (100/$num_is_tax);
                             $new_trans_use++;
                         }
 
@@ -6269,14 +6273,14 @@ class ApiTransaction extends Controller
                     if($new_transaction){
                         $new_outlets[$new] = $outlet;
                         $new_outlets[$new]['transaction'] = $new_transaction;
-                        $new_outlets[$new]['ppn'] = $outlet['is_tax'] ?? 10;
+                        $new_outlets[$new]['ppn'] = $outlet['is_tax'] ?? 11;
                         $new++;
 
                     }
                     if($new_transaction_non){
                         $new_outlets[$new] = $outlet;
                         $new_outlets[$new]['transaction'] = $new_transaction_non;
-                        $new_outlets[$new]['ppn'] = $outlet['is_tax'] ?? 0;
+                        $new_outlets[$new]['ppn'] = 0;
                         $new++;
                     }
                 }

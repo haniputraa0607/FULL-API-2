@@ -142,6 +142,26 @@ class ApiAcademyScheduleController extends Controller
             // needed by datatables
             $list['recordsTotal'] = $countTotal;
             $list['recordsFiltered'] = $list['total'];
+
+            foreach($list['data']??[] as $key=>$dt){
+                $id = Transaction::join('transaction_academy','transaction_academy.id_transaction','=','transactions.id_transaction')
+                    ->join('transaction_academy_schedules','transaction_academy_schedules.id_transaction_academy','=','transaction_academy.id_transaction_academy')
+                    ->where('transaction_from', 'academy')
+                    ->where('transaction_payment_status', 'Completed')
+                    ->whereRaw('transaction_academy.transaction_academy_total_meeting = transaction_academy_schedules.meeting')
+                    ->where('transactions.id_user', $dt['id'])
+                    ->pluck('transactions.id_transaction')->toArray();
+
+                $total = Transaction::join('users','transactions.id_user','=','users.id')
+                    ->where('transaction_from', 'academy')
+                    ->where('transaction_payment_status', 'Completed')
+                    ->whereNotIn('transactions.id_transaction', $id)
+                    ->where('transactions.id_user', $dt['id'])
+                    ->pluck('id_transaction')->toArray();
+
+                $count = array_unique($total);
+                $list['data'][$key]['status_schedule_not_setting'] = count($count);
+            }
         } else {
             $list = $list->get();
         }
@@ -184,6 +204,22 @@ class ApiAcademyScheduleController extends Controller
                         ->orderBy('transaction_date', 'desc')
                         ->get()->toArray();
 
+            foreach ($listTrx as $key=>$trx){
+                $status = 0;
+                if($trx['transaction_payment_status'] == 'Completed'){
+                    $check = TransactionAcademy::join('transaction_academy_schedules','transaction_academy_schedules.id_transaction_academy','=','transaction_academy.id_transaction_academy')
+                        ->where('transaction_academy_schedules.id_transaction_academy', $trx['id_transaction_academy'])
+                        ->whereRaw('transaction_academy.transaction_academy_total_meeting = transaction_academy_schedules.meeting')
+                        ->get()->toArray();
+
+                    if(empty($check)){
+                        $status = 1;
+                    }
+                }
+
+
+                $listTrx[$key]['status_schedule_not_setting'] = $status;
+            }
             return response()->json(MyHelper::checkGet($listTrx));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID user can not be empty']]);
@@ -222,6 +258,10 @@ class ApiAcademyScheduleController extends Controller
             }
 
             foreach ($post['date'] as $key=>$value){
+                if(empty($value['date'])){
+                    continue;
+                }
+                
                 if(!empty($value['id_transaction_academy_schedule'])){
                     $save = TransactionAcademySchedule::where('id_transaction_academy_schedule', $value['id_transaction_academy_schedule'])->update([
                         'schedule_date' => date('Y-m-d H:i:s', strtotime($value['date']))

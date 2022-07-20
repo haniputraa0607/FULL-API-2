@@ -311,6 +311,78 @@ class TextReplacesTableSeeder extends Seeder
                 'created_at' => NULL,
                 'updated_at' => NULL,
             ),
+            25 => 
+            array (
+                'id_text_replace' => 28,
+                'keyword' => '%date%',
+                'reference' => 'date',
+                'type' => 'Date',
+                'default_value' => 'Y-m-d',
+                'custom_rule' => 'd F Y',
+                'status' => 'Activated',
+                'created_at' => NULL,
+                'updated_at' => NULL,
+            ),
+            26 => 
+            array (
+                'id_text_replace' => 29,
+                'keyword' => '%user_update%',
+                'reference' => 'variables',
+                'type' => 'String',
+                'default_value' => 'Admin',
+                'custom_rule' => null,
+                'status' => 'Activated',
+                'created_at' => NULL,
+                'updated_at' => NULL,
+            ),
+            27 => 
+            array (
+                'id_text_replace' => 30,
+                'keyword' => '%code%',
+                'reference' => 'variables',
+                'type' => 'String',
+                'default_value' => null,
+                'custom_rule' => null,
+                'status' => 'Activated',
+                'created_at' => NULL,
+                'updated_at' => NULL,
+            ),
+            28 => 
+            array (
+                'id_text_replace' => 31,
+                'keyword' => '%time_attendance%',
+                'reference' => 'variables',
+                'type' => 'DateTime',
+                'default_value' => 'H:i',
+                'custom_rule' => 'H:i',
+                'status' => 'Activated',
+                'created_at' => NULL,
+                'updated_at' => NULL,
+            ),
+             29 => 
+            array (
+                'id_text_replace' => 32,
+                'keyword' => '%date_invitation%',
+                'reference' => 'variables',
+                'type' => 'DateTime',
+                'default_value' => 'd F Y',
+                'custom_rule' => 'd F Y',
+                'status' => 'Activated',
+                'created_at' => NULL,
+                'updated_at' => NULL,
+            ),
+            30 => 
+            array (
+                'id_text_replace' => 33,
+                'keyword' => '%time_invitation%',
+                'reference' => 'variables',
+                'type' => 'DateTime',
+                'default_value' => 'H:i',
+                'custom_rule' => 'H:i',
+                'status' => 'Activated',
+                'created_at' => NULL,
+                'updated_at' => NULL,
+            ),
         ));
         
         

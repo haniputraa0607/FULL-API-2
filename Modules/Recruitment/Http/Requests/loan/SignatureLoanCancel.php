@@ -1,29 +1,25 @@
 <?php
 
-namespace Modules\Employee\Http\Requests\InputFile;
+namespace Modules\Recruitment\Http\Requests\loan;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
-
-class CreateFile extends FormRequest
+use Modules\Transaction\Entities\SharingManagementFee;
+use App\Http\Models\Setting;
+class SignatureLoanCancel extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
+    public function rules()
+    {
+        return [
+            'BusinessPartnerID'    => 'required',
+            'SalesInvoiceID'       => 'required',
+            'type'                 => 'required|in:IMS,IMA',
+           ]; 
+    }
     public function authorize()
     {
         return true;
-    }
-    public function rules()
-	{
-		return [
-			'category'		=> 'required',
-			'notes'                 => 'required',
-			'attachment'             => 'max:5000|min:0',
-        ];
     }
 
     protected function failedValidation(Validator $validator)

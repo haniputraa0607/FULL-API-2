@@ -659,6 +659,7 @@ class ApiHairStylistController extends Controller
                 unset($post['pin']);
                 unset($post['pin2']);
                 unset($post['auto_generate_pin']);
+                unset($post['businees_partner_id']);
                 $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update($post);
 
                 if($update && $sendCrmUpdatePin == 1){

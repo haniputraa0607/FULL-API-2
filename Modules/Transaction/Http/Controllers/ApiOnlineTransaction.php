@@ -1483,9 +1483,25 @@ class ApiOnlineTransaction extends Controller
         }
 
         $result['messages_all'] = null;
+        $result['messages_all_title'] = null;
         if(!empty($error_msg)){
             $result['continue_checkout'] = false;
+            $result['messages_all_title'] = 'TRANSAKSI TIDAK DAPAT DILANJUTKAN';
             $result['messages_all'] = implode('.', $error_msg);
+        }
+        if($result['promo_deals']){
+            if($result['promo_deals']['is_error']){
+                $result['continue_checkout'] = false;
+                $result['messages_all_title'] = 'VOUCHER ANDA TIDAK DAPAT DIGUNAKAN';
+                $result['messages_all'] = 'Silahkan gunakan voucher yang berlaku atau tidak menggunakan voucher sama sekali.';
+            }
+        }
+        if($result['promo_code']){
+            if($result['promo_code']['is_error']){
+                $result['continue_checkout'] = false;
+                $result['messages_all_title'] = 'PROMO ANDA TIDAK DAPAT DIGUNAKAN';
+                $result['messages_all'] = 'Silahkan gunakan promo yang berlaku atau tidak menggunakan promo sama sekali.';
+            }
         }
         $result['tax'] = (int) $result['tax'];
         return MyHelper::checkGet($result);

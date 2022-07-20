@@ -325,11 +325,36 @@ class ApiMitraRequestProductController extends Controller
                 return response()->json(['status' => 'fail', 'messages' => ['Failed to confirm delivery product']]);
             }
             DB::commit();
+            $dev_product = DeliveryProduct::where('id_delivery_product',$post['id_delivery_product'])->first();
+            $user_request = User::where('id',$dev_product['id_user_delivery'])->first();
+
             if (\Module::collections()->has('Autocrm')) {
             
                 $autocrm = app($this->autocrm)->SendAutoCRM(
                     'Confirmation Delivery Product',
-                    $request->user()->phone_number, null, null, null, null, 'hairstylist'
+                    $user_request['phone'],
+                    [
+                        'code' => $dev_product['code'],
+                        'user_update' => $request->user()->fullname
+                    ]
+                );
+                // return $autocrm;
+                if (!$autocrm) {
+                    return response()->json([
+                        'status'    => 'fail',
+                        'messages'  => ['Failed to send']
+                    ]);
+                }
+            }
+
+            if (\Module::collections()->has('Autocrm')) {
+            
+                $autocrm = app($this->autocrm)->SendAutoCRM(
+                    'Confirmation Delivery Product',
+                    $request->user()->phone_number, [
+                        'code' => $dev_product['code'],
+                        'user_update' => $request->user()->fullname
+                    ], null, null, null, 'hairstylist'
                 );
                 // return $autocrm;
                 if (!$autocrm) {

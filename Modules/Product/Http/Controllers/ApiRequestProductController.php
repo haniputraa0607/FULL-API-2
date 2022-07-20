@@ -162,6 +162,10 @@ class ApiRequestProductController extends Controller
                 $autocrm = app($this->autocrm)->SendAutoCRM(
                     $crm,
                     auth()->user()->phone,
+                    [
+                        'code' => $store_request['code']
+                    ]
+
                 );
                 // return $autocrm;
                 if (!$autocrm) {
@@ -459,12 +463,16 @@ class ApiRequestProductController extends Controller
             DB::commit();
             $id_user_request = $store_request['id_user_request'] ?? $old_data['id_user_request'];
             $user_request = User::where('id',$id_user_request)->first();
-            if($old_data['status'] == $store_request['status']){
+            $user_approve = User::where('id',$store_request['id_user_approve'])->first();
+            if($old_data['status'] == $store_request['status'] || ($old_data['status'] == 'Draft' && $store_request['status'] == 'Pending')){
                 if (\Module::collections()->has('Autocrm')) {
                 
                     $autocrm = app($this->autocrm)->SendAutoCRM(
                         'Update Request Product',
                         auth()->user()->phone,
+                        [
+                            'code' => $store_request['code']
+                        ]
                     );
                     // return $autocrm;
                     if (!$autocrm) {
@@ -480,6 +488,10 @@ class ApiRequestProductController extends Controller
                     $autocrm = app($this->autocrm)->SendAutoCRM(
                         'Product Request Approved by Admin',
                         $user_request['phone'],
+                        [
+                            'user_update' => $user_approve['name'],
+                            'code' => $store_request['code']
+                        ]
                     );
                     // return $autocrm;
                     if (!$autocrm) {
@@ -495,6 +507,10 @@ class ApiRequestProductController extends Controller
                     $autocrm = app($this->autocrm)->SendAutoCRM(
                         'Product Request Rejected by Admin',
                         $user_request['phone'],
+                        [
+                            'user_update' => $user_approve['name'],
+                            'code' => $store_request['code']
+                        ]
                     );
                     // return $autocrm;
                     if (!$autocrm) {
@@ -670,6 +686,9 @@ class ApiRequestProductController extends Controller
                 $autocrm = app($this->autocrm)->SendAutoCRM(
                     'Create Delivery Product',
                     auth()->user()->phone,
+                    [
+                        'code' => $store_delivery['code']
+                    ]
                 );
                 // return $autocrm;
                 if (!$autocrm) {

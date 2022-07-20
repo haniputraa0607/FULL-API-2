@@ -523,7 +523,8 @@ class ApiPartnersController extends Controller
                     }
                 }
             }
-            if(isset($post['request']) && $post['request'] == 'approve'){
+            if(isset($post['request']) && $post['request'] == 'approve' && isset($post['id_partners_log'])){
+                $update_partners_log = PartnersLog::where('id_partners_log', $post['id_partners_log'])->update(['update_status'=>'approve']);
                 if (\Module::collections()->has('Autocrm')) {
                     $autocrm = app($this->autocrm)->SendAutoCRM(
                         'Approved request update data partner',
@@ -935,7 +936,7 @@ class ApiPartnersController extends Controller
     public function deletePartnersLogs(Request $request)
     {
         $id_partners_log  = $request->json('id_partners_log');
-        $delete = PartnersLog::where('id_partners_log', $id_partners_log)->delete();
+        $delete = PartnersLog::where('id_partners_log', $id_partners_log)->update(['update_status'=>'reject']);
         return MyHelper::checkDelete($delete);
     }
 

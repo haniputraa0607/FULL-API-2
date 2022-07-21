@@ -25,6 +25,7 @@ use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use App\Lib\MyHelper;
 use Modules\Recruitment\Entities\HairstylistSalesPayment;
+use Modules\Employee\Entities\EmployeePerubahanData;
 class Controller extends BaseController
 {
     use AuthorizesRequests, DispatchesJobs, ValidatesRequests;
@@ -226,7 +227,7 @@ class Controller extends BaseController
     	return [
     		'status' => 'success',
     		'result' => [
-    			'total_sales_payment' => $this->total_sales_payment(),
+    		'total_sales_payment' => $this->total_sales_payment(),
                 'employee'            => $this->employee(),
                 'asset_inventory'     => $this->asset_inventory(),
                 'asset_inventory_return_pending'=>$this->asset_inventory_return_pending(),
@@ -234,7 +235,16 @@ class Controller extends BaseController
                 'candidate_list' => $this->hs_candidate_list(),
                 'academy_student_schedule' => $academySchedule,
                 'academy_student_day_off' => $academyDayOff,
-                'academy_student_notif' => $academySchedule + $academyDayOff
+                'academy_student_notif' => $academySchedule + $academyDayOff,
+                'request-employee-perubahan-data'=> $this->request_employee_perubahan_data(),
+                'employee-reimbursement'=> $this->request_employee_reimbursement(),
+                'partners'=> $this->partners(),
+                'candidate-partners'=> $this->candidate_partners(),
+                'request-update-partners'=> $this->request_update_partners(),
+                'locations'=> $this->locations(),
+                'candidate-locations'=> $this->candidate_locations(),    
+                'projects'=> $this->projects(),
+                'process-project'=> $this->process_project(),      
     		],
     	];
     }
@@ -248,7 +258,7 @@ class Controller extends BaseController
 	}
     public function employee()
 	{
-                $total = $this->asset_inventory();
+                $total = $this->asset_inventory()+$this->request_employee_perubahan_data()+$this->request_employee_reimbursement();
                 if($total==0){
                     $total = null;
                 }
@@ -335,6 +345,81 @@ class Controller extends BaseController
             $total = null;
         }
 
+        return $total;
+    }
+    public function request_employee_perubahan_data(){
+        $total =EmployeePerubahanData::where('employee_perubahan_datas.status','Pending')
+                ->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+    public function request_employee_reimbursement(){
+        $total = \Modules\Employee\Entities\EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')
+               ->join('product_icounts','product_icounts.id_product_icount','employee_reimbursements.id_product_icount')
+               ->join('employees','employees.id_user','employee_reimbursements.id_user')
+               ->where('employee_reimbursements.status','Pending')
+                ->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+    public function partners(){
+        $total = $this->request_update_partners()+$this->candidate_partners();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+    public function request_update_partners(){
+        $total = \Modules\BusinessDevelopment\Entities\PartnersLog::with(['original_data'])->join('partners', 'partners_logs.id_partner', '=', 'partners.id_partner')
+                ->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+    public function candidate_partners(){
+        $total = \Modules\BusinessDevelopment\Entities\Partner::where(function($query){$query->where('status', 'Candidate')->orWhere('status', 'Rejected');})
+                ->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+    public function locations(){
+        $total = $this->candidate_locations();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+    public function candidate_locations(){
+        $total = \Modules\BusinessDevelopment\Entities\Location::with(['location_partner','location_city','location_step'])->where(function($query){$query->where('status', 'Candidate');})
+                ->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+    public function projects(){
+        $total = $this->process_project();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+    public function process_project(){
+        $total = \Modules\Project\Entities\Project::where('projects.status','Process')
+                    ->join('locations','locations.id_location','projects.id_location')
+                    ->join('partners','partners.id_partner','projects.id_partner')
+                    ->select('projects.*','partners.name as name_partner','locations.name as name_location')
+                ->count();
+        if($total==0){
+            $total = null;
+        }
         return $total;
     }
 }

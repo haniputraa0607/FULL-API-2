@@ -69,6 +69,8 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
       });
      Route::group(['prefix' => 'perubahan-data'], function(){
         Route::post('/', 'ApiBeEmployeeProfileController@perubahan_data');
+        Route::post('/detail', 'ApiBeEmployeeProfileController@detail_perubahan_data');
+        Route::post('/list', 'ApiBeEmployeeProfileController@perubahan_data_list');
         Route::post('/update', 'ApiBeEmployeeProfileController@update_perubahan_data');
       });
      Route::group(['prefix' => 'faq'], function(){
@@ -161,7 +163,8 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
     });
     
     Route::group(['prefix' => 'be/reimbursement'], function () {
-        Route::post('/','ApiBeEmployeeReimbursementController@list');
+        Route::post('/','ApiBeEmployeeReimbursementController@index');
+        Route::post('/list','ApiBeEmployeeReimbursementController@list');
         Route::post('/detail','ApiBeEmployeeReimbursementController@detail');
         Route::post('/approved','ApiBeEmployeeReimbursementController@approved');
          });

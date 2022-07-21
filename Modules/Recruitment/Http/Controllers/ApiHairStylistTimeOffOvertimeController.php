@@ -26,7 +26,9 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
      */
     public function __construct() {
         date_default_timezone_set('Asia/Jakarta');
-        $this->autocrm = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
+        if (\Module::collections()->has('Autocrm')) {
+            $this->autocrm  = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
+        }
     }
 
     public function listHS(Request $request){
@@ -242,6 +244,23 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
         $delete = HairStylistTimeOff::where('id_hairstylist_time_off', $post['id_hairstylist_time_off'])->update(['reject_at' => date('Y-m-d')]);
         if($delete){
             $delete_hs_not_avail = HairstylistNotAvailable::where('id_hairstylist_time_off', $post['id_hairstylist_time_off'])->delete();
+            $user_hs = UserHairStylist::join('hairstylist_time_off','hairstylist_time_off.id_user_hair_stylist ','user_hair_stylist.id_user_hair_stylist')->where('hairstylist_time_off.id_hairstylist_time_off',$post['id_hairstylist_time_off'])->first();
+            if (\Module::collections()->has('Autocrm')) {
+                $autocrm = app($this->autocrm)->SendAutoCRM(
+                    'Hairstylist Request Time Off Rejected', 
+                    $user_hs['phone_number'] ?? null,
+                    [
+                        'user_update'=>$request->user()->name
+                    ], null, false, false, $recipient_type = 'hairstylist', null, true
+                );
+                // return $autocrm;
+                if (!$autocrm) {
+                    return response()->json([
+                        'status'    => 'fail',
+                        'messages'  => ['Failed to send']
+                    ]);
+                }
+            }
             return response()->json(['status' => 'success']);
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
@@ -319,7 +338,7 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                 if(!$update){
                     DB::rollBack();
                     return response()->json([
-                        'status' => 'success', 
+                        'status' => 'fail', 
                         'messages' => ['Failed to updated a request hair stylist time off']
                     ]);
                 }
@@ -341,9 +360,26 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                     if(!$store_not_avail || !$schedule_date){
                         DB::rollBack();
                         return response()->json([
-                            'status' => 'success', 
+                            'status' => 'fail', 
                             'messages' => ['Failed to updated a request hair stylist time off']
                         ]);
+                    }
+                    $user_hs = UserHairStylist::join('hairstylist_time_off','hairstylist_time_off.id_user_hair_stylist ','user_hair_stylist.id_user_hair_stylist')->where('hairstylist_time_off.id_hairstylist_time_off',$post['id_hairstylist_time_off'])->first();
+                    if (\Module::collections()->has('Autocrm')) {
+                        $autocrm = app($this->autocrm)->SendAutoCRM(
+                            'Hairstylist Request Time Off Approved', 
+                            $user_hs['phone_number'] ?? null,
+                            [
+                                'user_update'=>$request->user()->name
+                            ], null, false, false, $recipient_type = 'hairstylist', null, true
+                        );
+                        // return $autocrm;
+                        if (!$autocrm) {
+                            return response()->json([
+                                'status'    => 'fail',
+                                'messages'  => ['Failed to send']
+                            ]);
+                        }
                     }
                 }
                 DB::commit();
@@ -658,6 +694,23 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
             if($data_time_off){
                 foreach($data_time_off as $time_off){
                     $update = HairStylistTimeOff::where('id_hairstylist_time_off', $time_off['id_hairstylist_time_off'])->update(['reject_at' => date('Y-m-d')]);
+                    $user_hs = UserHairStylist::join('hairstylist_time_off','hairstylist_time_off.id_user_hair_stylist ','user_hair_stylist.id_user_hair_stylist')->where('hairstylist_time_off.id_hairstylist_time_off',$time_off['id_hairstylist_time_off'])->first();
+                    if (\Module::collections()->has('Autocrm')) {
+                        $autocrm = app($this->autocrm)->SendAutoCRM(
+                            'Hairstylist Request Time Off Rejected', 
+                            $user_hs['phone_number'] ?? null,
+                            [
+                                'user_update'=> 'Admin'
+                            ], null, false, false, $recipient_type = 'hairstylist', null, true
+                        );
+                        // return $autocrm;
+                        if (!$autocrm) {
+                            return response()->json([
+                                'status'    => 'fail',
+                                'messages'  => ['Failed to send']
+                            ]);
+                        }
+                    }
                 }
             }
 

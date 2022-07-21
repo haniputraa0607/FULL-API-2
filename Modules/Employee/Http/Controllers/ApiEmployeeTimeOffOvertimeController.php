@@ -27,7 +27,9 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
 {
     public function __construct() {
         date_default_timezone_set('Asia/Jakarta');
-        $this->autocrm = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
+        if (\Module::collections()->has('Autocrm')) {
+            $this->autocrm  = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
+        }
         $this->time_off = "img/employee/time_off/";
     }
 
@@ -371,6 +373,23 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                     }
                 }
                 DB::commit();
+                $user_employee = User::join('employee_time_off','employee_time_off.id_employee ','users.id')->where('employee_time_off.id_employee_time_off',$post['id_employee_time_off'])->first();
+                if (\Module::collections()->has('Autocrm')) {
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Employee Request Time Off Approved', 
+                        $user_employee['phone'] ?? null,
+                        [
+                            'user_update'=>$request->user()->name
+                        ], null, false, false, $recipient_type = 'employee', null, true
+                    );
+                    // return $autocrm;
+                    if (!$autocrm) {
+                        return response()->json([
+                            'status'    => 'fail',
+                            'messages'  => ['Failed to send']
+                        ]);
+                    }
+                }
                 return response()->json([
                     'status' => 'success'
                 ]);
@@ -390,6 +409,23 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
         $delete = EmployeeTimeOff::where('id_employee_time_off', $post['id_employee_time_off'])->update($update);
         if($delete){
             $delete_hs_not_avail = EmployeeNotAvailable::where('id_employee_time_off', $post['id_employee_time_off'])->delete();
+            $user_employee = User::join('employee_time_off','employee_time_off.id_employee ','users.id')->where('employee_time_off.id_employee_time_off',$post['id_employee_time_off'])->first();
+            if (\Module::collections()->has('Autocrm')) {
+                $autocrm = app($this->autocrm)->SendAutoCRM(
+                    'Employee Request Time Off Rejected', 
+                    $user_employee['phone'] ?? null,
+                    [
+                        'user_update'=>$request->user()->name
+                    ], null, false, false, $recipient_type = 'employee', null, true
+                );
+                // return $autocrm;
+                if (!$autocrm) {
+                    return response()->json([
+                        'status'    => 'fail',
+                        'messages'  => ['Failed to send']
+                    ]);
+                }
+            }
             return response()->json(['status' => 'success']);
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
@@ -1321,6 +1357,23 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
             if($data_time_off){
                 foreach($data_time_off as $time_off){
                     $update = EmployeeTimeOff::where('id_employee_time_off', $time_off['id_employee_time_off'])->update(['reject_at' => date('Y-m-d')]);
+                    $user_employee = User::join('employee_time_off','employee_time_off.id_employee ','users.id')->where('employee_time_off.id_employee_time_off',$time_off['id_employee_time_off'])->first();
+                    if (\Module::collections()->has('Autocrm')) {
+                        $autocrm = app($this->autocrm)->SendAutoCRM(
+                            'Employee Request Time Off Rejected', 
+                            $user_employee['phone'] ?? null,
+                            [
+                                'user_update'=>'Admin'
+                            ], null, false, false, $recipient_type = 'employee', null, true
+                        );
+                        // return $autocrm;
+                        if (!$autocrm) {
+                            return response()->json([
+                                'status'    => 'fail',
+                                'messages'  => ['Failed to send']
+                            ]);
+                        }
+                    }
                 }
             }
 

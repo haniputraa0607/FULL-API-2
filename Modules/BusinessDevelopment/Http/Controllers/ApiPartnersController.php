@@ -530,7 +530,7 @@ class ApiPartnersController extends Controller
                         'Approved request update data partner',
                         $data_update['phone'],
                         [
-                            'name' => $data_update['name']
+                            'user_update' => $request->user()->name
                         ], null, null, null, null, null, null, null, 1,
                     );
                     // return $autocrm;
@@ -937,6 +937,22 @@ class ApiPartnersController extends Controller
     {
         $id_partners_log  = $request->json('id_partners_log');
         $delete = PartnersLog::where('id_partners_log', $id_partners_log)->update(['update_status'=>'reject']);
+        if (\Module::collections()->has('Autocrm')) {
+            $autocrm = app($this->autocrm)->SendAutoCRM(
+                'Rejected request update data partner',
+                $data_update['phone'],
+                [
+                    'user_update' => $request->user()->name
+                ], null, null, null, null, null, null, null, 1,
+            );
+            // return $autocrm;
+            if (!$autocrm) {
+                return response()->json([
+                    'status'    => 'fail',
+                    'messages'  => ['Failed to send']
+                ]);
+            }
+        }
         return MyHelper::checkDelete($delete);
     }
 

@@ -1909,7 +1909,7 @@ class ApiDealsVoucher extends Controller
         if (!$request->delivery_name && !$request->delivery_method) {
             $deliv = $listDelivery[0] ?? null;
         } else {
-            $deliv = $this->findDelivery($listDelivery, $request->delivery_name, $request->delivery_method);
+            $deliv = app($this->shop)->findDelivery($listDelivery, $request->delivery_name, $request->delivery_method);
         }
         if (empty($deliv) && $request->delivery_name && $request->delivery_method) {
             $error_msg[] = 'Pengiriman tidak ditemukan';

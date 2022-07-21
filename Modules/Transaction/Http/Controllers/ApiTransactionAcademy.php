@@ -202,6 +202,7 @@ class ApiTransactionAcademy extends Controller
 
         $settingGetPoint = Configs::where('config_name', 'transaction academy get point')->first()['is_active']??0;
         $result['point_earned'] = null;
+        $result['cashback'] = 0;
         if($settingGetPoint == 1){
             $earnedPoint = app($this->online_trx)->countTranscationPoint($post, $user);
             $result['cashback'] = $earnedPoint['cashback'] ?? 0;

@@ -143,6 +143,50 @@ class ApiPromoTransaction extends Controller
             ->get()
             ->toArray();
 
+		$id_vouchers = [];
+
+		foreach($voucher ?? [] as $val_vou){
+			if(!in_array($val_vou['deal_voucher']['id_deals'],$id_vouchers)){
+				$id_vouchers[] = $val_vou['deal_voucher']['id_deals'];
+			}
+		}
+		
+		$deals_no_claim = (new Deal)->newQuery();
+		$deals_no_claim->where('deals_type', '!=','WelcomeVoucher');
+		$deals_no_claim->where( function($dc) {
+			$dc->where('deals_publish_start', '<=', date('Y-m-d H:i:s'))
+			->where('deals_publish_end', '>=', date('Y-m-d H:i:s'))
+			->where('deals_end', '>=', date('Y-m-d H:i:s'));
+		});
+		$deals_no_claim->where( function($dc) {
+			$dc->where('deals_voucher_type','Unlimited')
+				->orWhereRaw('(deals.deals_total_voucher - deals.deals_total_claimed) > 0 ');
+		});
+		$deals_no_claim->where('step_complete', '=', 1);
+		$deals_no_claim->whereNotIn('deals.id_deals', $id_vouchers);
+		$deals_no_claim->with(['outlets', 'outlets.city']);
+	
+		if(isset($id_outlet)){
+			$deals_no_claim->leftJoin('deals_outlets', 'deals.id_deals', 'deals_outlets.id_deals')
+				->where(function($query) use ($id_outlet){
+					$query->where('id_outlet', $id_outlet)
+							->orWhere('deals.is_all_outlet','=',1);
+				})
+				->addSelect('deals.*')->distinct();
+		}
+		if(isset($transaction_from)){
+			$service = [
+				'outlet-service' => 'Outlet Service',
+				'home-service' => 'Home Service',
+				'shop' => 'Online Shop',
+				'academy' => 'Academy',
+			];
+			$deals_no_claim->leftJoin('deals_services', 'deals.id_deals', 'deals_services.id_deals')
+			->where('deals_services.service', $service[$transaction_from])
+			->select('deals.*')->distinct();
+		}
+		$deals_no_claim = $deals_no_claim->get()->toArray();
+
         $result = array_map(function($var) {
             return [
                 'id_deals' => $var['deal_voucher']['id_deals'],
@@ -159,7 +203,28 @@ class ApiPromoTransaction extends Controller
 				'is_error' => false
             ];
         }, $voucher);
+
+		$result_deal = array_map(function($var) {
+            return [
+                'id_deals' => $var['id_deals'],
+				'voucher_expired_at' => null,
+                'id_deals_voucher' => null,
+                'id_deals_user' => null,
+                'deals_title' => $var['deals_title'],
+                'deals_second_title' => $var['deals_second_title'],
+                'url_deals_image' => $var['url_deals_image'],
+                'is_used' => 0,
+				'date_expired_indo' => null,
+                'time_expired_indo' => null,
+                'text' => null,
+				'is_error' => false
+            ];
+        }, $deals_no_claim);
+
+		$result = array_merge($result,$result_deal);
+
         $new_result_data = [];
+		$sharedPromoTrx = TemporaryDataManager::create('promo_trx');
         foreach($result ?? [] as $key => $data_voucher){
             $check_avail = app($this->voucher)->checkVoucherAvail($data_voucher['id_deals'],$data);
             if($check_avail['status']=='success'){
@@ -171,6 +236,7 @@ class ApiPromoTransaction extends Controller
                 $new_result_data[] = $data_voucher;
             }
         }
+		TemporaryDataManager::reset('promo_trx');
         $result = [];
         foreach($new_result_data ?? [] as $index => $val){
             if($index < 5){
@@ -228,8 +294,8 @@ class ApiPromoTransaction extends Controller
     public function applyPromoCheckout($data,$data_2 = null)
     {	
     	$user = request()->user();
-    	$sharedPromoTrx = TemporaryDataManager::create('promo_trx');
 		$availableVoucher = $this->availableVoucher($data, $data_2['transaction_from'], $data_2['id_outlet']??null);
+    	$sharedPromoTrx = TemporaryDataManager::create('promo_trx');
     	$continueCheckOut = $data['continue_checkout'];
 
     	$data['discount'] = 0;
@@ -249,12 +315,12 @@ class ApiPromoTransaction extends Controller
     	if ($userPromo->isEmpty()) {
     		return $data;
     	}
-
+		
 		if(!$availableVoucher){
 			$delete_user_promo = UserPromo::where('id_user', $user->id)->where('promo_type', 'deals')->delete();
 			foreach($userPromo ?? [] as $key => $usPro){
 				if($key=='deals'){
-					$un_used = DealsUser::where('id_deals_user', $usPro['id_deals_user'])->update(['is_used'=>0]);
+					$un_used = DealsUser::where('id_deals_user', $usPro['id_reference'])->update(['is_used'=>0]);
 					return $data;
 				}
 			}

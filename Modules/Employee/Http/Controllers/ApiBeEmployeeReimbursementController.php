@@ -42,14 +42,91 @@ class ApiBeEmployeeReimbursementController extends Controller
         }
         $this->saveFile = "document/employee/reimbursement/"; 
     }
-   public function list(Request $request) {
-       $post = $request->all();
-        $employee = EmployeeReimbursement::orderBy('created_at', 'desc')->paginate($request->length ?: 10);
-        return MyHelper::checkGet($employee);
+    public function index(Request $request) {
+      $post = $request->all();
+      $employee = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')
+               ->join('product_icounts','product_icounts.id_product_icount','employee_reimbursements.id_product_icount')
+               ->join('employees','employees.id_user','employee_reimbursements.id_user')
+               ->where('employee_reimbursements.status','Pending')
+                ->select('employee_reimbursements.*','users.name as user_name','users.email','employees.code','product_icounts.name as name_product');
+       if(isset($post['rule']) && !empty($post['rule'])){
+            $rule = 'and';
+            if(isset($post['operator'])){
+                $rule = $post['operator'];
+            }
+            if($rule == 'and'){
+                foreach ($post['rule'] as $condition){
+                    if(isset($condition['subject'])){               
+                        $employee = $employee->where($condition['subject'], $condition['parameter']);
+                    }
+                }
+            }else{
+                $employee = $employee->where(function ($q) use ($post){
+                    foreach ($post['rule'] as $condition){
+                        if(isset($condition['subject'])){
+                                 if($condition['operator'] == 'like'){
+                                      $q->orWhere($condition['subject'], 'like', '%'.$condition['parameter'].'%');
+                                 }else{
+                                      $q->orWhere($condition['subject'], $condition['parameter']);
+                                 }
+                        }
+                    }
+                });
+            }
+        }
+        $employee = $employee->paginate($request->length ?: 10);
+       return MyHelper::checkGet($employee);
    }
+    public function list(Request $request) {
+      $post = $request->all();
+      $employee = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')
+               ->join('employees','employees.id_user','employee_reimbursements.id_user')
+               ->join('product_icounts','product_icounts.id_product_icount','employee_reimbursements.id_product_icount')
+               ->where('employee_reimbursements.status','!=','Pending')
+               ->join('users as users_approved','users_approved.id','employee_reimbursements.id_user_approved')
+               ->select('employee_reimbursements.*','users.name as user_name','users.email','employees.code','users_approved.name as user_approved','product_icounts.name as name_product');
+       if(isset($post['rule']) && !empty($post['rule'])){
+            $rule = 'and';
+            if(isset($post['operator'])){
+                $rule = $post['operator'];
+            }
+            if($rule == 'and'){
+                foreach ($post['rule'] as $condition){
+                    if(isset($condition['subject'])){               
+                        $employee = $employee->where($condition['subject'], $condition['parameter']);
+                    }
+                }
+            }else{
+                $employee = $employee->where(function ($q) use ($post){
+                    foreach ($post['rule'] as $condition){
+                        if(isset($condition['subject'])){
+                                 if($condition['operator'] == 'like'){
+                                      $q->orWhere($condition['subject'], 'like', '%'.$condition['parameter'].'%');
+                                 }else{
+                                      $q->orWhere($condition['subject'], $condition['parameter']);
+                                 }
+                        }
+                    }
+                });
+            }
+        }
+        $employee = $employee->paginate($request->length ?: 10);
+       return MyHelper::checkGet($employee);
+   }
+//   public function list(Request $request) {
+//       $post = $request->all();
+//        $employee = EmployeeReimbursement::orderBy('created_at', 'desc')->paginate($request->length ?: 10);
+//        return MyHelper::checkGet($employee);
+//   }
    public function detail(Request $request) {
        if(isset($request->id_employee_reimbursement)){
-         $employee = EmployeeReimbursement::where('id_employee_reimbursement', $request->id_employee_reimbursement)->first();
+         $employee = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')
+               ->join('employees','employees.id_user','employee_reimbursements.id_user')
+                 ->join('product_icounts','product_icounts.id_product_icount','employee_reimbursements.id_product_icount')
+               ->where('id_employee_reimbursement', $request->id_employee_reimbursement)
+               ->leftjoin('users as users_approved','users_approved.id','employee_reimbursements.id_user_approved')
+               ->select('employee_reimbursements.*','users.name as user_name','users.email','employees.code','users_approved.name as user_approved','product_icounts.name as name_product')
+                 ->first();
          if($employee){
             return response()->json(['status' => 'success','result'=>$employee]);
             }

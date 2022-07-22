@@ -352,7 +352,7 @@ class TextReplacesTableSeeder extends Seeder
                 'id_text_replace' => 31,
                 'keyword' => '%time_attendance%',
                 'reference' => 'variables',
-                'type' => 'DateTime',
+                'type' => 'String',
                 'default_value' => 'H:i',
                 'custom_rule' => 'H:i',
                 'status' => 'Activated',

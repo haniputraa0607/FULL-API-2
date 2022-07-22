@@ -4217,6 +4217,7 @@ class ApiPromoCampaign extends Controller
 		$promos = $promos->get()->toArray();
 
 		$new_promo = [];
+        $error_item = [];
 		foreach($promos ?? [] as $index => $promo){
 			
 			if($promo['total_coupon']!=0 && $promo['total_coupon']<=$promo['used_code']){

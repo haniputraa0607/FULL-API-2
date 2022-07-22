@@ -412,13 +412,13 @@ class Icount
             "VoucherNo" => "[AUTO]",
             "TransDate" => $request['tanggal_akhir'],
             "DueDate" => $request['tanggal_akhir'],
-            "TermOfPaymentID" => $request['location']['id_term_of_payment'],
+            "TermOfPaymentID" => $request['partner']['id_term_payment'],
             "BusinessPartnerID" => $request['partner']['id_business_partner'],
             "BranchID" => $request['location']['id_branch'],
             "ReferenceNo" => '',
             'Tax'=>$request['tax'],
             'TaxNo'=>'',
-            "Notes" => $request['partner']['notes'],
+            "Notes" => "",
             "Detail" => [
                 [
                     "Name" => "Revenue Sharing",
@@ -461,13 +461,13 @@ class Icount
             "VoucherNo" => "[AUTO]",
             "TransDate" => $request['tanggal_akhir'],
             "DueDate" => $request['tanggal_akhir'],
-            "TermOfPaymentID" => $request['location']['id_term_of_payment'],
+            "TermOfPaymentID" => $request['partner']['id_term_payment'],
             "BusinessPartnerID" => $request['partner']['id_business_partner'],
             "BranchID" => $request['location']['id_branch'],
             "ReferenceNo" => '',
             'Tax'=>$request['tax'],
             'TaxNo'=>'',
-            "Notes" => $request['partner']['notes'],
+            "Notes" => "",
             "Detail" => [
                 [
                     "Name" => "Management Fee",

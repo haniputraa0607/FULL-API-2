@@ -389,29 +389,30 @@ class ApiBeEmployeeController extends Controller
                     "employee" => Employee::join('users','users.id','employees.id_user')->where('id_employee',$post["id_employee"])->first(),
                     "location" => Outlet::leftjoin('locations','locations.id_location','outlets.id_location')->where('id_outlet',$post["id_outlet"])->first(),
                 ];
+                return response()->json(MyHelper::checkUpdate($update));
                 // $initBranch = Icount::ApiCreateEmployee($data_send, $data_send['location']['company_type']??null);
-               if($initBranch['response']['Status']=='1' && $initBranch['response']['Message']=='success'){
-                   $initBranch = $initBranch['response']['Data'][0];
-                   if($data_send['location']['company_type']=='PT IMS'){
-                        $initBranch_ims = Icount::ApiCreateEmployee($data_send, 'PT IMA');
-                        $data_init_ims = $initBranch_ims['response']['Data'][0];
-                        $update = Employee::where('id_employee', $post['id_employee'])->update([
-                            'id_business_partner' => $initBranch['BusinessPartnerID'],
-                            'id_business_partner_ima' => $data_init_ims['BusinessPartnerID'],
-                            'id_company' => $initBranch['CompanyID'],
-                            'id_group_business_partner' => $initBranch['GroupBusinessPartner'],
-                                ]);
-                    }else{
-                        $update = Employee::where('id_employee', $post['id_employee'])->update([
-                            'id_business_partner' => $initBranch['BusinessPartnerID'],
-                            'id_company' => $initBranch['CompanyID'],
-                            'id_group_business_partner' => $initBranch['GroupBusinessPartner'],
-                                ]);
-                    }
-                     return response()->json(MyHelper::checkUpdate($update));
-                }else{
-                    return response()->json(['status' => 'fail', 'messages' => [$initBranch['response']['Message']]]);
-                }
+                // if($initBranch['response']['Status']=='1' && $initBranch['response']['Message']=='success'){
+                //     $initBranch = $initBranch['response']['Data'][0];
+                //     if($data_send['location']['company_type']=='PT IMS'){
+                //          $initBranch_ims = Icount::ApiCreateEmployee($data_send, 'PT IMA');
+                //          $data_init_ims = $initBranch_ims['response']['Data'][0];
+                //          $update = Employee::where('id_employee', $post['id_employee'])->update([
+                //              'id_business_partner' => $initBranch['BusinessPartnerID'],
+                //              'id_business_partner_ima' => $data_init_ims['BusinessPartnerID'],
+                //              'id_company' => $initBranch['CompanyID'],
+                //              'id_group_business_partner' => $initBranch['GroupBusinessPartner'],
+                //                  ]);
+                //      }else{
+                //          $update = Employee::where('id_employee', $post['id_employee'])->update([
+                //              'id_business_partner' => $initBranch['BusinessPartnerID'],
+                //              'id_company' => $initBranch['CompanyID'],
+                //              'id_group_business_partner' => $initBranch['GroupBusinessPartner'],
+                //                  ]);
+                //      }
+                //      return response()->json(MyHelper::checkUpdate($update));
+                // }else{
+                //     return response()->json(['status' => 'fail', 'messages' => [$initBranch['response']['Message']]]);
+                // }
             }
             return response()->json(MyHelper::checkUpdate($update));
         }else{

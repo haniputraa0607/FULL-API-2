@@ -375,6 +375,7 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                         );
                         // return $autocrm;
                         if (!$autocrm) {
+                            DB::rollBack();
                             return response()->json([
                                 'status'    => 'fail',
                                 'messages'  => ['Failed to send']
@@ -555,6 +556,23 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                         ]);
                     }
                     $attendance = HairstylistAttendance::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->where('id_user_hair_stylist', $check['id_user_hair_stylist'])->where('attendance_date',$check['date'])->update([$order_att => $new_time]);
+                    $user_hs = UserHairStylist::where('id_user_hair_stylist', $check['id_user_hair_stylist'])->first();
+                    if (\Module::collections()->has('Autocrm')) {
+                        $autocrm = app($this->autocrm)->SendAutoCRM(
+                            'Hairstylist Request Overtime Rejected', 
+                            $user_hs['phone_number'] ?? null,
+                            [
+                                'user_update'=>$request->user()->name
+                            ], null, false, false, $recipient_type = 'hairstylist', null, true
+                        );
+                        if (!$autocrm) {
+                            DB::rollBack();
+                            return response()->json([
+                                'status'    => 'fail',
+                                'messages'  => ['Failed to send']
+                            ]);
+                        }
+                    }
                     DB::commit();
                     return response()->json([
                         'status' => 'success'
@@ -634,6 +652,26 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                             'messages' => ['Failed to updated a request hair stylist overtime']
                         ]);
                     }
+                    $user_hs = UserHairStylist::join('hairstylist_overtime','hairstylist_overtime.id_user_hair_stylist ','user_hair_stylist.id_user_hair_stylist')->where('hairstylist_overtime.id_hairstylist_overtime',$post['id_hairstylist_overtime'])->first();
+                    if (\Module::collections()->has('Autocrm')) {
+                        $autocrm = app($this->autocrm)->SendAutoCRM(
+                            'Hairstylist Request Overtime Approved', 
+                            $user_hs['phone_number'] ?? null,
+                            [
+                                'user_update'=>$request->user()->name
+                            ], null, false, false, $recipient_type = 'hairstylist', null, true
+                        );
+                        if (!$autocrm) {
+                            DB::rollBack();
+                            return response()->json([
+                                'status'    => 'fail',
+                                'messages'  => ['Failed to send']
+                            ]);
+                        }
+                    }
+                    return response()->json([
+                        'status' => 'success'
+                    ]);
                 }
                 DB::commit();
                 return response()->json([
@@ -718,6 +756,22 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
             if($data_overtime){
                 foreach($data_overtime as $overtime){
                     $update = HairstylistOverTime::where('id_hairstylist_overtime', $overtime['id_hairstylist_overtime'])->update(['reject_at' => date('Y-m-d')]);
+                    $user_hs = UserHairStylist::join('hairstylist_overtime','hairstylist_overtime.id_user_hair_stylist ','user_hair_stylist.id_user_hair_stylist')->where('hairstylist_overtime.id_hairstylist_overtime',$overtime['id_hairstylist_overtime'])->first();
+                    if (\Module::collections()->has('Autocrm')) {
+                        $autocrm = app($this->autocrm)->SendAutoCRM(
+                            'Hairstylist Request Overtime Rejected', 
+                            $user_hs['phone_number'] ?? null,
+                            [
+                                'user_update'=>'Admin'
+                            ], null, false, false, $recipient_type = 'hairstylist', null, true
+                        );
+                        if (!$autocrm) {
+                            return response()->json([
+                                'status'    => 'fail',
+                                'messages'  => ['Failed to send']
+                            ]);
+                        }
+                    }
                 }
             }
             $log->success('success');

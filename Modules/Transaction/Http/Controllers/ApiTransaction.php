@@ -6547,8 +6547,10 @@ class ApiTransaction extends Controller
                         'disc'=>$disc,
                         'id_transaction'=>$transaksi_id,
                         'transfer'=> ($total_transaksi*$sharing/100)-$beban_outlet
-                    );  
-                    array_push($data,$b);
+                    );
+                    if ($b['transfer']) {
+                        array_push($data,$b);
+                    }
                    }
         }
         foreach($data as $n => $request){

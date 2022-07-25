@@ -1979,7 +1979,7 @@ class ApiOnlineTransaction extends Controller
                 continue;
             }
 
-            if($outlet['outlet_special_status'] == 1){
+            if($outlet['outlet_different_price'] == 1){
                 $service['product_price'] = ProductSpecialPrice::where('id_product', $item['id_product'])
                     ->where('id_outlet', $outlet['id_outlet'])->first()['product_special_price']??0;
             }
@@ -4087,7 +4087,7 @@ class ApiOnlineTransaction extends Controller
                 $err[] = 'Stok habis';
             }
 
-            if($outlet['outlet_special_status'] == 1){
+            if($outlet['outlet_different_price'] == 1){
                 $service['product_price'] = ProductSpecialPrice::where('id_product', $item['id_product'])
                         ->where('id_outlet', $outlet['id_outlet'])->first()['product_special_price']??0;
             }

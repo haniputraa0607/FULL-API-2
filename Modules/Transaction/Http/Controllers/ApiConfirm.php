@@ -107,38 +107,6 @@ class ApiConfirm extends Controller
             $post['payment_detail'] = null;
         }
 
-
-        //update mdr
-        if(!empty($post['payment_type']) && !empty($post['payment_detail'])){
-            $code = strtolower($post['payment_type'].'_'.$post['payment_detail']);
-            $settingmdr = Setting::where('key', 'mdr_formula')->first()['value_text']??'';
-            $settingmdr = (array)json_decode($settingmdr);
-            $formula = $settingmdr[$code]??'';
-            if(!empty($formula)){
-                try {
-                    $mdr = MyHelper::calculator($formula, ['transaction_grandtotal' => $check['transaction_grandtotal']]);
-                    if(!empty($mdr)){
-                        Transaction::where('id_transaction', $check['id_transaction'])->update(['mdr' => $mdr]);
-                        $products = TransactionProduct::where('id_transaction', $check['id_transaction'])->get()->toArray();
-                        $count = count($products);
-                        $lastmdr = $mdr;
-                        $sum = array_sum(array_column($products, 'transaction_product_subtotal'));
-                        foreach ($products as $key=>$product){
-                            $index = $key+1;
-                            if($count == $index){
-                                $mdrProduct = $lastmdr;
-                            }else{
-                                $mdrProduct = ($product['transaction_product_subtotal'] * $mdr)/$sum;
-                                $lastmdr = $lastmdr - $mdrProduct;
-                            }
-                            TransactionProduct::where('id_transaction_product', $product['id_transaction_product'])->update(['mdr_product' => $mdrProduct]);
-                        }
-                    }
-                } catch (\Exception $e) {
-                }
-            }
-        }
-
         $checkPayment = TransactionMultiplePayment::where('id_transaction', $check['id_transaction'])->first();
         $countGrandTotal = $check['transaction_grandtotal'];
         $totalPriceProduct = 0;
@@ -484,7 +452,7 @@ class ApiConfirm extends Controller
             $dataMidtrans['midtrans_product'] = $dataDetailProduct;
 
             Transaction::where('id_transaction', $post['id'])->update(['trasaction_payment_type' => $post['payment_type']]);
-
+            optional($trx)->recalculateTaxandMDR();
             DB::commit();
 
             $dataEncode = [
@@ -877,6 +845,8 @@ class ApiConfirm extends Controller
                     'type'           => 'Xendit',
                     'payment_detail' => $post['payment_detail']
                 ], $dataMultiple);
+
+                optional($trx)->recalculateTaxandMDR();
 
                 $result = [
                     'redirect' => true,

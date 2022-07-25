@@ -994,7 +994,7 @@ class ApiEmployeeAttendanceController extends Controller
 
         if ($rules = $newRule['transaction_date'] ?? false) {
             foreach ($rules as $rul) {
-                $query->whereDate('employee_attendance_requests.attendance_date', $rul[0], $rul[1]);
+                $query->whereDate('employee_attendance_requests.created_at', $rul[0], $rul[1]);
             }
         }
         if ($rules = $newRule['id'] ?? false) {

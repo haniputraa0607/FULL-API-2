@@ -148,7 +148,11 @@ class ApiTransactionHomeService extends Controller
             $err = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
                 ->where('products.id_product', $item['id_product'])
-                ->select('products.*', 'product_global_price as product_price')
+                ->select('products.*', DB::raw('(CASE
+                            WHEN (select outlets.outlet_different_price from outlets  where outlets.id_outlet = ' . $outlet['id_outlet'] . ' ) = 1 
+                            THEN (select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $outlet['id_outlet'] . ' )
+                            ELSE product_global_price.product_global_price
+                        END) as product_price'))
                 ->first();
 
             //check category hs when use hs favorite
@@ -407,7 +411,11 @@ class ApiTransactionHomeService extends Controller
             $err = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
                 ->where('products.id_product', $item['id_product'])
-                ->select('products.*', 'product_global_price as product_price')
+                ->select('products.*', DB::raw('(CASE
+                            WHEN (select outlets.outlet_different_price from outlets  where outlets.id_outlet = ' . $outlet['id_outlet'] . ' ) = 1 
+                            THEN (select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $outlet['id_outlet'] . ' )
+                            ELSE product_global_price.product_global_price
+                        END) as product_price'))
                 ->first();
 
             if(empty($service)){
@@ -729,7 +737,11 @@ class ApiTransactionHomeService extends Controller
             $detailStock = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
                 ->where('products.id_product', $item['id_product'])
-                ->select('products.*', 'product_global_price as product_price')
+                ->select('products.*', DB::raw('(CASE
+                            WHEN (select outlets.outlet_different_price from outlets  where outlets.id_outlet = ' . $outlet['id_outlet'] . ' ) = 1 
+                            THEN (select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $outlet['id_outlet'] . ' )
+                            ELSE product_global_price.product_global_price
+                        END) as product_price'))
                 ->first();
 
             if(empty($service)){

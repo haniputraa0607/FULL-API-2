@@ -594,14 +594,14 @@ class HairstylistIncome extends Model
                     ->whereNotNull('transaction_products.transaction_product_completed_at')
                     ->whereBetween('transaction_product_completed_at',[$startDate,$endDate]);
             })
-			->where('transactions.id_outlet', $hs->id_outlet)
             ->where('transaction_product_services.service_status', 'Completed')
             ->wherenotnull('transaction_product_services.completed_at')
             ->wherenull('transaction_products.reject_at')
             ->wherenotnull('transaction_products.transaction_product_completed_at')
             ->where('transaction_breakdowns.type', 'fee_hs')
-            ->select('transaction_products.id_transaction', 'transaction_products.id_transaction_product', 'transaction_breakdowns.*')
-            ->get();    
+            ->select('transaction_breakdowns.value')
+            ->get();
+              
         foreach ($trxs as $value) {
             $total = $total+$value->value;
         }
@@ -674,6 +674,7 @@ class HairstylistIncome extends Model
                             ->wherenotnull('approve_at')
                             ->wherenull('reject_at')
                             ->wheredate('date',$value['date'])
+							->select('duration')
                             ->get();
                     foreach ($overtimess as $va) {
                         array_push($ove,$va['duration']);
@@ -774,6 +775,7 @@ class HairstylistIncome extends Model
                             ->wherenotnull('approve_at')
                             ->wherenull('reject_at')
                             ->wheredate('date',$value['date'])
+							->select('duration')
                             ->get();
                     foreach ($overtimess as $va) {
                         array_push($ove,$va['duration']);
@@ -799,22 +801,7 @@ class HairstylistIncome extends Model
              $total_overtime = $h;
             
         foreach  ($calculations as $calculation) {
-            if ($calculation == 'product_commission') {
-                $trxs = TransactionProduct::select('transaction_products.id_transaction', 'transaction_products.id_transaction_product', 'transaction_breakdowns.*')
-                    ->join('transaction_breakdowns', function($join) use ($startDate, $endDate) {
-                        $join->on('transaction_breakdowns.id_transaction_product', 'transaction_products.id_transaction_product')
-                            ->whereNotNull('transaction_products.transaction_product_completed_at')
-                            ->whereBetween('transaction_product_completed_at',[$startDate,$endDate]);
-                    })
-                    ->where('transaction_breakdowns.type', 'fee_hs')
-                    ->with('transaction')
-                    ->get();
-                $total_product_commission = 0;
-                $trxs->each(function ($item) use ($total_product_commission,$total) {
-                     $total = $total+$item->value;
-                });
-              
-            } elseif (strpos($calculation, 'incentive_') === 0) { // start_with_calculation
+           if (strpos($calculation, 'incentive_') === 0) { // start_with_calculation
                 $code = str_replace('incentive_', '', $calculation);
                 $incentive = HairstylistGroupInsentifDefault::leftJoin('hairstylist_group_insentifs', function($join) use ($hs) {
                                 $join->on('hairstylist_group_insentifs.id_hairstylist_group_default_insentifs', 'hairstylist_group_default_insentifs.id_hairstylist_group_default_insentifs')
@@ -975,25 +962,22 @@ class HairstylistIncome extends Model
                         ->whereBetween('hairstylist_attendances.attendance_date',[$startDate,$endDate])
                         ->count();
                 }
-       $outlet_services = TransactionProduct::where(array('transaction_product_services.id_user_hair_stylist'=>$hs->id_user_hair_stylist))
-							->join('transactions','transactions.id_transaction','transaction_products.id_transaction')   
-							->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
-							->where('transactions.id_outlet', $hs->id_outlet)
-							->where('transaction_product_services.service_status', 'Completed')
-							->wherenotnull('transaction_product_services.completed_at')
-							->wherenull('transaction_products.reject_at')
-							->wherenotnull('transaction_products.transaction_product_completed_at')
-							->whereBetween('transaction_product_completed_at',[$startDate,$endDate])
-							->select('transaction_products.id_transaction', 'transaction_products.id_transaction_product')
-							->select(
-								DB::raw('
-										 SUM(
-										 CASE WHEN transactions.transaction_gross IS NOT NULL AND transaction_product_services.completed_at IS NOT NULL AND transactions.transaction_payment_status = "Completed" AND transaction_product_services.service_status = "Completed" AND transactions.reject_at IS NULL THEN transactions.transaction_gross 
-												 ELSE 0 END
-										 ) as revenue
-										 ')
-							   )
-							   ->first(); 
+       $outlet_services = Transaction::where(array('transaction_product_services.id_user_hair_stylist'=>$hs->id_user_hair_stylist))
+                       ->whereBetween('transactions.transaction_date',[$startDate,$endDate])
+                       ->where('transactions.transaction_payment_status', 'Completed')
+                       ->where('transactions.reject_at', NULL)
+                       ->where('transaction_product_services.service_status', 'Completed')
+                       ->wherenotnull('transaction_product_services.completed_at')
+                       ->join('transaction_product_services', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
+                       ->select(
+                        DB::raw('
+                                 SUM(
+                                 CASE WHEN transactions.transaction_gross IS NOT NULL AND transaction_product_services.completed_at IS NOT NULL AND transactions.transaction_payment_status = "Completed" AND transaction_product_services.service_status = "Completed" AND transactions.reject_at IS NULL THEN transactions.transaction_gross 
+                                         ELSE 0 END
+                                 ) as revenue
+                                 ')
+                       )
+                       ->first();
         $array[] = array(
                     "name"=> "hari masuk",
                     "value"=> $total_attend,

@@ -244,7 +244,24 @@ class Controller extends BaseController
                 'locations'=> $this->locations(),
                 'candidate-locations'=> $this->candidate_locations(),    
                 'projects'=> $this->projects(),
-                'process-project'=> $this->process_project(),      
+                'process-project'=> $this->process_project(),
+                'employee_schedule' => $this->employee_schedule(),      
+                'employee_attendance_pending' => $this->employee_attendance_pending(),      
+                'employee_attendance_request' => $this->employee_attendance_request(),      
+                'employee_attendance_outlet_pending' => $this->employee_attendance_outlet_pending(),      
+                'employee_attendance_outlet_request' => $this->employee_attendance_outlet_request(),      
+                'employee_time_off' => $this->employee_time_off(),      
+                'employee_overtime' => $this->employee_overtime(),      
+                'hairstylist_schedule' => $this->hairstylist_schedule(),      
+                'hairstylist_attendance_pending' => $this->hairstylist_attendance_pending(),      
+                'hairstylist_time_off' => $this->hairstylist_time_off(),      
+                'hairstylist_overtime' => $this->hairstylist_overtime(),      
+                'request_product' => $this->request_product(),      
+                'list_request_product' => $this->list_request_product(),      
+                'list_request_asset' => $this->list_request_asset(),      
+                'delivery_product' => $this->delivery_product(),      
+                'hairstylist_request_update' => $this->hairstylist_request_update(),      
+                'request_hairstylist' => $this->request_hairstylist(),      
     		],
     	];
     }
@@ -258,7 +275,7 @@ class Controller extends BaseController
 	}
     public function employee()
 	{
-                $total = $this->asset_inventory()+$this->request_employee_perubahan_data()+$this->request_employee_reimbursement();
+                $total = $this->asset_inventory()+$this->request_employee_perubahan_data()+$this->request_employee_reimbursement()+$this->employee_schedule();
                 if($total==0){
                     $total = null;
                 }
@@ -375,6 +392,7 @@ class Controller extends BaseController
     }
     public function request_update_partners(){
         $total = \Modules\BusinessDevelopment\Entities\PartnersLog::with(['original_data'])->join('partners', 'partners_logs.id_partner', '=', 'partners.id_partner')
+                ->where('update_status','process')
                 ->count();
         if($total==0){
             $total = null;
@@ -422,4 +440,157 @@ class Controller extends BaseController
         }
         return $total;
     }
+
+    public function employee_schedule(){
+        $total = $this->employee_attendance_pending()+$this->employee_attendance_request()+$this->employee_attendance_outlet_pending()+$this->employee_attendance_outlet_request()+$this->employee_time_off()+$this->employee_overtime();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+
+    public function employee_attendance_pending(){
+        $total = \Modules\Employee\Entities\EmployeeAttendanceLog::where('status', 'Pending')
+            ->whereDate('datetime','>=',date('Y-m-1'))
+            ->whereDate('datetime','<=',date('Y-m-d'))
+            ->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+
+    public function employee_attendance_request(){
+        $total = \Modules\Employee\Entities\EmployeeAttendanceRequest::where('status', 'Pending')
+            ->whereDate('created_at','>=',date('Y-m-1'))
+            ->whereDate('created_at','<=',date('Y-m-d'))
+            ->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+
+    public function employee_attendance_outlet_pending(){
+        $total = \Modules\Employee\Entities\EmployeeOutletAttendanceLog::where('status', 'Pending')
+            ->whereDate('datetime','>=',date('Y-m-1'))
+            ->whereDate('datetime','<=',date('Y-m-d'))
+            ->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+
+    public function employee_attendance_outlet_request(){
+        $total = \Modules\Employee\Entities\EmployeeOutletAttendanceRequest::where('status', 'Pending')
+            ->whereDate('created_at','>=',date('Y-m-1'))
+            ->whereDate('created_at','<=',date('Y-m-d'))
+            ->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+
+    public function employee_time_off(){
+        $total = \Modules\Employee\Entities\EmployeeTimeOff::whereNull('reject_at')->whereNull('approve_by')->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+
+    public function employee_overtime(){
+        $total = \Modules\Employee\Entities\EmployeeOvertime::whereNull('reject_at')->whereNull('approve_by')->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+
+    public function hairstylist_schedule(){
+        $total = $this->hairstylist_attendance_pending()+$this->hairstylist_time_off()+$this->hairstylist_overtime();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+
+    public function hairstylist_attendance_pending(){
+        $total = \Modules\Recruitment\Entities\HairstylistAttendanceLog::where('status', 'Pending')
+            ->whereDate('datetime','>=',date('Y-m-1'))
+            ->whereDate('datetime','<=',date('Y-m-d'))
+            ->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+
+    public function hairstylist_time_off(){
+        $total = \Modules\Recruitment\Entities\HairStylistTimeOff::whereNull('reject_at')->whereNull('approve_by')->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+
+    public function hairstylist_overtime(){
+        $total = \Modules\Recruitment\Entities\HairstylistOverTime::whereNull('reject_at')->whereNull('approve_by')->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+
+    public function request_product(){
+        $total = $this->list_request_product()+$this->list_request_asset();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+
+    public function list_request_product(){
+        $total = \Modules\Product\Entities\RequestProduct::where('from','Product')->where(function($query){$query->where('status','Draft')->orWhere('status','Pending');})->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+
+    public function list_request_asset(){
+        $total = \Modules\Product\Entities\RequestProduct::where('from','Asset')->where(function($query){$query->where('status','Draft')->orWhere('status','Pending');})->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }    
+    
+    public function delivery_product(){
+        $total = \Modules\Product\Entities\DeliveryProduct::where(function($query){$query->where('status','Draft')->orWhere('status','On Progress');})->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+
+    public function hairstylist_request_update(){
+        $total = \Modules\Recruitment\Entities\HairstylistUpdateData::whereNull('reject_at')->whereNull('approve_by')->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+
+    public function request_hairstylist(){
+        $total = \Modules\Recruitment\Entities\RequestHairStylist::where('status','Request')->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+
+
 }

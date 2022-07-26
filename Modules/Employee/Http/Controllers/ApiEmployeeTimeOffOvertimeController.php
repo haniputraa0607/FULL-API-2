@@ -22,6 +22,7 @@ use App\Http\Models\Holiday;
 use App\Http\Models\Setting;
 use Modules\Employee\Http\Requests\EmployeeTimeOffCreate;
 use Modules\Employee\Entities\EmployeeOfficeHour;
+use Modules\Employee\Entities\EmployeeOfficeHourShift;
 
 class ApiEmployeeTimeOffOvertimeController extends Controller
 {
@@ -371,7 +372,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                             'messages' => ['Failed to updated a request employee time off']
                         ]);
                     }
-                    $user_employee = User::join('employee_time_off','employee_time_off.id_employee ','users.id')->where('employee_time_off.id_employee_time_off',$post['id_employee_time_off'])->first();
+                    $user_employee = User::join('employee_time_off','employee_time_off.id_employee','users.id')->where('employee_time_off.id_employee_time_off',$post['id_employee_time_off'])->first();
                     if (\Module::collections()->has('Autocrm')) {
                         $autocrm = app($this->autocrm)->SendAutoCRM(
                             'Employee Request Time Off Approved', 
@@ -409,7 +410,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
         $delete = EmployeeTimeOff::where('id_employee_time_off', $post['id_employee_time_off'])->update($update);
         if($delete){
             $delete_hs_not_avail = EmployeeNotAvailable::where('id_employee_time_off', $post['id_employee_time_off'])->delete();
-            $user_employee = User::join('employee_time_off','employee_time_off.id_employee ','users.id')->where('employee_time_off.id_employee_time_off',$post['id_employee_time_off'])->first();
+            $user_employee = User::join('employee_time_off','employee_time_off.id_employee','users.id')->where('employee_time_off.id_employee_time_off',$post['id_employee_time_off'])->first();
             if (\Module::collections()->has('Autocrm')) {
                 $autocrm = app($this->autocrm)->SendAutoCRM(
                     'Employee Request Time Off Rejected', 
@@ -690,11 +691,14 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                 'shift' => null,
                 'schedule_in' => $type_shift['office_hour_start'] ? MyHelper::adjustTimezone($type_shift['office_hour_start'], $timeZone, 'H:i', true) : null,
                 'schedule_out' => $type_shift['office_hour_end'] ? MyHelper::adjustTimezone($type_shift['office_hour_end'], $timeZone, 'H:i', true) : null,
+                'list_shift' => [
+                    'name' => $type_shift['office_hour_name'],
+                    'selected' => true
+                ],
             ];
-            $type_shift = $type_shift['office_hour_type'];
 
             //employee with shift
-            if($type_shift == 'Use Shift' || isset($schedule_month['id_office_hour_shift'])){
+            if($type_shift['office_hour_type'] == 'Use Shift' || isset($schedule_month['id_office_hour_shift'])){
                 $schedule_date = EmployeeScheduleDate::join('employee_schedules','employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule')
                                                         ->join('users','users.id','employee_schedules.id')
                                                         ->where('users.id', $employee)
@@ -705,10 +709,18 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                 if(!$schedule_date){
                     return response()->json(['status' => 'fail', 'messages' => ['Jadwal karyawan pada tanggal ini belum dibuat']]);
                 }
+                $list_shifts = EmployeeOfficeHourShift::where('id_employee_office_hour',$type_shift['id_employee_office_hour'])->get()->toArray();
 
                 $send['shift'] = $schedule_date['shift'];
                 $send['schedule_in'] = MyHelper::adjustTimezone(date('H:i', strtotime($schedule_date['time_start'])), $timeZone, 'H:i', true);
                 $send['schedule_out'] = MyHelper::adjustTimezone(date('H:i', strtotime($schedule_date['time_end'])), $timeZone, 'H:i', true);
+                $send['list_shift'] = [];
+                foreach($list_shifts ?? [] as $list_shift){
+                    $send['list_shift'][] = [
+                        'name' => $list_shift['shift_name'],
+                        'selected' => $list_shift['shift_name'] == $schedule_date['shift'] ? true : false,
+                    ]; 
+                }
                 
             }
 
@@ -1189,7 +1201,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                             'messages' => ['Failed to updated a request employee overtime']
                         ]);
                     }
-                    $user_employee = User::join('employee_overtime','employee_overtime.id_employee ','users.id')->where('employee_overtime.id_employee_overtime',$post['id_employee_overtime'])->first();
+                    $user_employee = User::join('employee_overtime','employee_overtime.id_employee','users.id')->where('employee_overtime.id_employee_overtime',$post['id_employee_overtime'])->first();
                     if (\Module::collections()->has('Autocrm')) {
                         $autocrm = app($this->autocrm)->SendAutoCRM(
                             'Employee Request Overtime Approved', 
@@ -1390,7 +1402,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
             if($data_time_off){
                 foreach($data_time_off as $time_off){
                     $update = EmployeeTimeOff::where('id_employee_time_off', $time_off['id_employee_time_off'])->update(['reject_at' => date('Y-m-d')]);
-                    $user_employee = User::join('employee_time_off','employee_time_off.id_employee ','users.id')->where('employee_time_off.id_employee_time_off',$time_off['id_employee_time_off'])->first();
+                    $user_employee = User::join('employee_time_off','employee_time_off.id_employee','users.id')->where('employee_time_off.id_employee_time_off',$time_off['id_employee_time_off'])->first();
                     if (\Module::collections()->has('Autocrm')) {
                         $autocrm = app($this->autocrm)->SendAutoCRM(
                             'Employee Request Time Off Rejected', 
@@ -1413,7 +1425,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
             if($data_overtime){
                 foreach($data_overtime as $overtime){
                     $update = EmployeeOvertime::where('id_employee_overtime', $overtime['id_employee_overtime'])->update(['reject_at' => date('Y-m-d')]);
-                    $user_employee = User::join('employee_overtime','employee_overtime.id_employee ','users.id')->where('employee_overtime.id_employee_overtime',$overtime['id_employee_overtime'])->first();
+                    $user_employee = User::join('employee_overtime','employee_overtime.id_employee','users.id')->where('employee_overtime.id_employee_overtime',$overtime['id_employee_overtime'])->first();
                     if (\Module::collections()->has('Autocrm')) {
                         $autocrm = app($this->autocrm)->SendAutoCRM(
                             'Employee Request Overtime Rejected', 

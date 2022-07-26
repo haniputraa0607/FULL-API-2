@@ -113,13 +113,14 @@ class ApiEmployeeReimbursementController extends Controller
            $start = date('Y-m-01');
            $end = date('Y-m-t');
        }
-       $saldo = EmployeeReimbursement::wherebetween(
+       $saldo = EmployeeReimbursement::join('product_icounts','product_icounts.id_product_icount','employee_reimbursements.id_product_icount')
+               ->wherebetween(
                "date_reimbursement",[$start,$end]
        )->where(array(
            'id_user'=>Auth::user()->id,
            'status'=>"Pending"
        ))->select(
-              'id_employee_reimbursement','name_reimbursement','date_reimbursement','notes','status','price'
+              'employee_reimbursements.id_employee_reimbursement','name','date_reimbursement','employee_reimbursements.notes','status','price'
        )->orderby('date_reimbursement','desc')->paginate(10);
        return MyHelper::checkGet($saldo);
    }
@@ -131,12 +132,13 @@ class ApiEmployeeReimbursementController extends Controller
            $start = date('Y-m-01');
            $end = date('Y-m-t');
        }
-       $saldo = EmployeeReimbursement::wherebetween(
+       $saldo = EmployeeReimbursement::join('product_icounts','product_icounts.id_product_icount','employee_reimbursements.id_product_icount')
+               ->wherebetween(
                "date_reimbursement",[$start,$end]
        )->where(array(
            'id_user'=>Auth::user()->id
        ))->where('status','!=','Pending')->select(
-              'id_employee_reimbursement','name_reimbursement','date_reimbursement','notes','status','price'
+              'employee_reimbursements.id_employee_reimbursement','name','date_reimbursement','employee_reimbursements.notes','status','price'
        )->orderby('date_reimbursement','desc')->paginate(10);
        return MyHelper::checkGet($saldo);
    }

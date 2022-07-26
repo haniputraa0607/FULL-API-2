@@ -437,7 +437,7 @@ class ApiRequestProductController extends Controller
                 }
                 if($invoice['response']['Status']=='1' && $invoice['response']['Message']=='success'){
                     $data_invoice = [
-                        'id_project'=>$project['id_project'] ?? 0,
+                        'id_project'=>$project['id_project'] ?? null,
                         'id_request_product'=>$post['id_request_product'],
                         'id_sales_invoice'=>$invoice['response']['Data'][0]['SalesInvoiceID']??null,
                         'id_business_partner'=>$invoice['response']['Data'][0]['BusinessPartnerID'],

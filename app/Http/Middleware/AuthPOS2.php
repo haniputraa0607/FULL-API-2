@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use App\Http\Models\Setting;
+use App\Http\Models\LogApiIcount;
 
 class AuthPOS2
 {
@@ -52,6 +53,29 @@ class AuthPOS2
             ], 401);
         }
 
-        return $next($request);
+        $expectedIds = ['PurchaseInvoiceID', 'PurchaseRequestID', 'DepartmentID', 'PurchaseInvoiceID', 'SalesInvoiceID'];
+        $reference_id = null;
+        foreach ($expectedIds as $expectedId) {
+            if ($request->$expectedId) {
+                $reference_id = $request->$expectedId;
+                break;
+            }
+        }
+
+        $response = $next($request);
+
+        $log_api_array = [
+            'type'              => 'webhook',
+            'id_reference'      => $reference_id,
+            'request_url'       => url()->current(),
+            'request_method'    => $request->method(),
+            'request_parameter' => json_encode($request->all()),
+            'response_body'     => json_encode($response),
+            'response_header'   => null,
+            'response_code'     => 200
+        ];
+        LogApiIcount::create($log_api_array);
+
+        return $response;
     }
 }

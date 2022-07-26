@@ -148,6 +148,11 @@ class UserHairStylist extends Authenticatable
         return $this->hasMany(\Modules\Recruitment\Entities\HairstylistAttendance::class, 'id_user_hair_stylist');
     }
 
+    public function hairstylistCategory()
+    {
+        return $this->belongsTo(\Modules\Recruitment\Entities\HairstylistCategory::class, 'id_hairstylist_category');
+    }
+
     public function getAttendanceByDate($schedule)
     {
         if (is_string($schedule)) {

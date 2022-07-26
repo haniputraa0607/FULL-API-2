@@ -692,8 +692,10 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                 'schedule_in' => $type_shift['office_hour_start'] ? MyHelper::adjustTimezone($type_shift['office_hour_start'], $timeZone, 'H:i', true) : null,
                 'schedule_out' => $type_shift['office_hour_end'] ? MyHelper::adjustTimezone($type_shift['office_hour_end'], $timeZone, 'H:i', true) : null,
                 'list_shift' => [
-                    'name' => $type_shift['office_hour_name'],
-                    'selected' => true
+                    [
+                        'name' => $type_shift['office_hour_name'],
+                        'selected' => true
+                    ],
                 ],
             ];
 

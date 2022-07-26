@@ -407,7 +407,7 @@ class HairstylistIncome extends Model
 
         return $hsIncome;
     }
-    public static function calculateIncomeExport(UserHairStylist $hs, $startDate, $endDate)
+    public static function calculateIncomeExport(UserHairStylist $hs, $startDate, $endDate, $id_outlets, $all_attends, $all_lates, $all_absens, $all_overtimes)
     {
         $total           = 0;
         $array           = array();
@@ -422,42 +422,11 @@ class HairstylistIncome extends Model
         $total_absen    = 0;
         $total_overtime = 0;
         $overtime       = array();
-        $id_outlets     = HairstylistAttendance::where('id_user_hair_stylist', $hs->id_user_hair_stylist)->groupby('id_outlet')->distinct()->get()->pluck('id_outlet');
         foreach ($id_outlets as $id_outlet) {
-            $total_attend = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) use ($hs, $id_outlet) {
-                $join->on('hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
-                    ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
-                    ->where('id_outlet', $id_outlet);
-            })
-                ->whereNotNull('clock_in')
-                ->whereBetween('hairstylist_attendances.attendance_date', [$startDate, $endDate])
-                ->count();
-            $total_late = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) use ($hs, $id_outlet) {
-                $join->on('hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
-                    ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
-                    ->where('id_outlet', $id_outlet);
-            })
-                ->whereNotNull('clock_in')
-                ->where('is_on_time', 0)
-                ->whereBetween('hairstylist_attendances.attendance_date', [$startDate, $endDate])
-                ->count();
-            $total_absen = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) use ($hs, $id_outlet) {
-                $join->on('hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
-                    ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
-                    ->where('id_outlet', $id_outlet);
-            })
-                ->whereNull('clock_in')
-                ->whereBetween('hairstylist_attendances.attendance_date', [$startDate, $endDate])
-                ->count();
-            $total_overtimes = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) use ($hs, $id_outlet) {
-                $join->on('hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
-                    ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
-                    ->where('id_outlet', $id_outlet);
-            })
-                ->whereNotNull('clock_in')
-                ->whereBetween('hairstylist_attendances.attendance_date', [$startDate, $endDate])
-                ->select('date')
-                ->get();
+            $total_attend = $all_attends[$hs->id_user_hair_stylist][$id_outlet]['total'] ?? 0;
+            $total_late = $all_lates[$hs->id_user_hair_stylist][$id_outlet]['total'] ?? 0;
+            $total_absen = $all_absens[$hs->id_user_hair_stylist][$id_outlet]['total'] ?? 0;
+            $total_overtimes = $all_overtimes[$hs->id_user_hair_stylist][$id_outlet] ?? [];
             foreach ($total_overtimes as $value) {
                 array_push($overtime, $value);
             }
@@ -562,7 +531,6 @@ class HairstylistIncome extends Model
 
                 $formula    = str_replace('value', $salary_cut->value, $salary_cut->formula);
                 $amount     = 0;
-                $id_outlets = HairstylistAttendance::where('id_user_hair_stylist', $hs->id_user_hair_stylist)->get()->pluck('id_outlet');
                 foreach ($id_outlets as $id_outlet) {
 
                     try {
@@ -994,7 +962,7 @@ class HairstylistIncome extends Model
         );
         return $array;
     }
-    public static function calculateIncomeOvertime(UserHairStylist $hs, $startDate, $endDate)
+    public static function calculateIncomeOvertime(UserHairStylist $hs, $startDate, $endDate, $id_outlets, $all_overtimes)
     {
         $total          = 0;
         $array          = array();
@@ -1004,17 +972,8 @@ class HairstylistIncome extends Model
         $total_overtime = 0;
         $overtime       = array();
         $set_over       = Setting::where('key', 'overtime_hs')->first()['value'] ?? 0;
-        $id_outlets     = HairstylistAttendance::where('id_user_hair_stylist', $hs->id_user_hair_stylist)->groupby('id_outlet')->distinct()->get()->pluck('id_outlet');
         foreach ($id_outlets as $id_outlet) {
-            $total_overtimes = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) use ($hs, $id_outlet) {
-                $join->on('hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
-                    ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
-                    ->where('id_outlet', $id_outlet);
-            })
-                ->whereNotNull('clock_in')
-                ->whereBetween('hairstylist_attendances.attendance_date', [$startDate, $endDate])
-                ->select('date')
-                ->get();
+            $total_overtimes = $all_overtimes[$hs->id_user_hair_stylist][$id_outlet] ?? [];
             foreach ($total_overtimes as $value) {
                 array_push($overtime, $value);
             }

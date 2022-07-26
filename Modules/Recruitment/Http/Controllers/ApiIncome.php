@@ -49,6 +49,7 @@ use Modules\Recruitment\Http\Requests\Export_Outlet;
 use Modules\Transaction\Entities\TransactionBreakdown;
 use Modules\Recruitment\Entities\HairstylistOverTime;
 use Modules\Recruitment\Entities\HairstylistLoan;
+use Modules\Recruitment\Entities\HairstylistGroupProteksi;
 
 class ApiIncome extends Controller
 {
@@ -361,7 +362,11 @@ class ApiIncome extends Controller
         $transactionBreakdownsGroupByTrxProduct = $transactionBreakdowns->groupBy('id_transaction_product');
 
         $transactionsByHS = $transactions->groupBy('id_user_hair_stylist');
-        $hairstylists = UserHairStylist::whereIn('id_user_hair_stylist', $transactions->pluck('id_user_hair_stylist')->unique())
+        $hairstylists = UserHairStylist::where(function($query) use ($transactions, $request) {
+                $query->whereIn('id_user_hair_stylist', $transactions->pluck('id_user_hair_stylist')->unique())
+                    ->orWhereIn('id_outlet', $request->id_outlet);
+            })
+            ->where('user_hair_stylist_status', 'Active')
             ->orderBy('fullname')
             ->with('hairstylistCategory', 'bank_account')
             ->get();
@@ -456,6 +461,7 @@ class ApiIncome extends Controller
 
 
         $incomeDefault = \Modules\Recruitment\Entities\HairstylistGroupFixedIncentiveDefault::with(['detail'])->get();
+        $hsGroup = HairstylistGroupProteksi::get()->groupBy('id_hairstylist_group');
 
         $exportResults = [];
         foreach ($hairstylists as $hairstylist) {
@@ -468,32 +474,35 @@ class ApiIncome extends Controller
                 'Join Date'         => date('d-M-Y',strtotime($hairstylist->join_date)),
                 'Outlet'            => '',
             );
-            $hsTransactions = $transactionsByHS[$hairstylist->id_user_hair_stylist];
+            $hsTransactions = $transactionsByHS[$hairstylist->id_user_hair_stylist] ?? collect([]);
             $hsTransactionsByOutlet = $hsTransactions->groupBy('id_outlet');
+            if ($hsTransactionsByOutlet->count() == 0) {
+                $hsTransactionsByOutlet = [$hairstylist->id_outlet => collect([])];
+            }
             foreach ($hsTransactionsByOutlet as $id_outlet => $outletTransactions) {
                 $outlet = $outlets[$id_outlet];
                 $data['Outlet'] = $outlet['outlet_name'];
 
-                $total_attend = $all_attends[$hs->id_user_hair_stylist][$id_outlet]['total'] ?? 0;
-                $total_late = $all_lates[$hs->id_user_hair_stylist][$id_outlet]['total'] ?? 0;
-                $total_absen = $all_absens[$hs->id_user_hair_stylist][$id_outlet]['total'] ?? 0;
-                $total_overtimes = $all_overtimes[$hs->id_user_hair_stylist][$id_outlet] ?? 0;
-                $data['Hari Masuk'] = $total_attend;
+                $total_attend = $all_attends[$hs->id_user_hair_stylist][$id_outlet]['total'] ?? '0';
+                $total_late = $all_lates[$hs->id_user_hair_stylist][$id_outlet]['total'] ?? '0';
+                $total_absen = $all_absens[$hs->id_user_hair_stylist][$id_outlet]['total'] ?? '0';
+                $total_overtimes = $all_overtimes[$hs->id_user_hair_stylist][$id_outlet] ?? '0';
+                $data['Hari Masuk'] = (string) $total_attend;
 
-                $data['Total gross sale'] = $outletTransactions->sum('transaction_product_subtotal');
+                $data['Total gross sale'] = (string) $outletTransactions->sum('transaction_product_subtotal');
 
                 $total_income = 0;
                 $total_commission = 0;
                 foreach ($outletTransactions as $trx) {
-                    $total_commission += optional($transactionBreakdownsGroupByTrxProduct[$trx->id_transaction_product])->sum('value') ?? 0;
+                    $total_commission += optional($transactionBreakdownsGroupByTrxProduct[$trx->id_transaction_product] ?? null)->sum('value') ?? '0';
                 }
 
-                $data['Total commission'] = $total_commission;
+                $data['Total commission'] = (string) $total_commission;
                 $total_income += $total_commission;
 
-                $data['Tambahan jam'] = $overtimes[$hs->id_user_hair_stylist][$id_outlet]->values()->sum();
+                $data['Tambahan jam'] = (string) optional(optional($overtimes[$hs->id_user_hair_stylist][$id_outlet] ?? null)->values())->sum() ?? '0';
 
-                $data['Potongan telat'] = $total_late;
+                $data['Potongan telat'] = (string) $total_late;
 
                 // $response = HairstylistIncome::calculateFixedIncentive($hs, $request->start_date,$request->end_date,$outlet,$incomeDefault);
                 // foreach ($response as $valu) {
@@ -503,19 +512,47 @@ class ApiIncome extends Controller
                     $response = HairstylistIncome::calculateSalaryCuts($hs, $request->start_date,$request->end_date, $allLoans[$hs->id_user_hair_stylist]);
                     foreach ($response as $valu) {
                         $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
+                        $total_income += $valu['value'];
                     }
                 }
-                $response = HairstylistIncome::calculateIncomeExport($hs, $request->start_date,$request->end_date);
+
+                $response = HairstylistIncome::calculateIncomeExport($hs, $request->start_date, $request->end_date, [$id_outlet], $all_attends, $all_lates, $all_absens, $all_overtimes);
                 foreach ($response as $values) {
                     $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
-                }
-                $response = HairstylistIncome::calculateIncomeOvertime($hs, $request->start_date,$request->end_date);
-                foreach ($response as $values) {
-                    $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
+                    $total_income += $values['value'];
                 }
 
-                $data['Total imbal jasa'] = $total_income;
-                $data['Keterangan'] = $hairstylist->bank_account->beneficiary_name??'';
+                $response = HairstylistIncome::calculateIncomeOvertime($hs, $request->start_date,$request->end_date, [$id_outlet], $all_overtimes);
+                foreach ($response as $values) {
+                    $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
+                    $total_income += $values['value'];
+                }
+
+                $diff     = date_diff(date_create(date('Y-m-d')), date_create(date('Y-m-d', strtotime($outlet->start_date))));
+                $proteksi = Setting::where('key', 'proteksi_hs')->first()['value_text'] ?? [];
+                if ($proteksi) {
+                    $overtime = json_decode($proteksi, true);
+                } else {
+                    $overtime = array(
+                        'range' => 0,
+                        'value' => 0,
+                    );
+                }
+                $group                     = $hsGroup[$hs->id_hairstylist_group] ?? null;
+                $overtime['default_value'] = 0;
+                if (isset($group['value'])) {
+                    $overtime['value'] = $group['value'];
+                }
+                if ($diff->m >= $overtime['range']) {
+                    $keterangan = "Non Proteksi";
+                } else {
+                    $keterangan = "Proteksi";
+                    $total_income = $overtime['value'];
+                }
+
+
+                $data['Total imbal jasa'] = (string) $total_income;
+                $data['Keterangan'] = $keterangan;
 
                 $data['Bank'] = $hairstylist->bank_account->bank_name??'';
                 $data['Bank account'] = $hairstylist->bank_account->beneficiary_name??'';

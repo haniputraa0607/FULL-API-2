@@ -419,7 +419,9 @@ class ApiRequestProductController extends Controller
                 $data_send['location'] = Location::where('id_location',$cek_outlet['id_location'])->first();
                 $data_send['location']['no_spk'] = $store_request['code'];
                 $data_send['location']['trans_date'] = date('Y-m-d');
+                $data_send['location']['due_date'] = date('Y-m-d', strtotime('+30days'));
                 $data_send['partner'] = Partner::where('id_partner',$data_send['location']['id_partner'])->first();
+                $data_send['partner']['notes'] = $old_data['note_request'] ?? '';
                 $data_send['confir'] = ConfirmationLetter::where('id_partner',$data_send['location']['id_partner'])->where('id_location',$data_send['location']['id_location'])->first();
                 $data_send["location_bundling"] = RequestProductDetail::where('id_request_product',$post['id_request_product'])->where('status','Approved')->join('product_icounts','product_icounts.id_product_icount','request_product_details.id_product_icount')->get()->toArray();
                 $data_send["location_bundling"] = array_map(function($val){
@@ -435,7 +437,7 @@ class ApiRequestProductController extends Controller
                 }
                 if($invoice['response']['Status']=='1' && $invoice['response']['Message']=='success'){
                     $data_invoice = [
-                        'id_project'=>$project['id_project'],
+                        'id_project'=>$project['id_project'] ?? 0,
                         'id_request_product'=>$post['id_request_product'],
                         'id_sales_invoice'=>$invoice['response']['Data'][0]['SalesInvoiceID']??null,
                         'id_business_partner'=>$invoice['response']['Data'][0]['BusinessPartnerID'],

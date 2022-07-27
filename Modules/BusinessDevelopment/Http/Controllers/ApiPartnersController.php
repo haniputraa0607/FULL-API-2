@@ -499,9 +499,9 @@ class ApiPartnersController extends Controller
                                 'pin' => $post['pin'],
                                 'title' => $new_data['title'],
                                 'code' => $new_data['code'],
-                                'approved_date' => date('Y-m-d'),
-                                'start_date' => $new_data['start_date'],
-                                'end_date' => $new_data['end_date'],
+                                'approved_date' => date('d F Y'),
+                                'start_date' => date('d F Y', strtotime($new_data['start_date'])), 
+                                'end_date' => date('d F Y', strtotime($new_data['end_date'])),
                             ], null, null, null, null, null, null, null, 1,
                         );
                         // return $autocrm;

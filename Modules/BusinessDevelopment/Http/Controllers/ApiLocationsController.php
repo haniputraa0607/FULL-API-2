@@ -458,11 +458,11 @@ class ApiLocationsController extends Controller
             }
             $old_data = Location::where('id_location', $post['id_location'])->first();
             $update = Location::where('id_location', $post['id_location'])->update($data_update);
-            $new_data = Location::where('id_location', $post['id_location'])->first();
             if(!$update){
                 DB::rollback();
                 return response()->json(['status' => 'fail', 'messages' => ['Failed update location']]);
             }
+            $new_data = Location::where('id_location', $post['id_location'])->first();
             if(isset($request['data_confir']) && !empty($request['data_confir'])){
                 $confir = new ApiPartnersController;
                 $confir_letter = $confir->createConfirLetter($request['data_confir']);
@@ -480,8 +480,8 @@ class ApiLocationsController extends Controller
                             [
                                 'name_location' => $new_data['name'],
                                 'code' => $new_data['code'],
-                                'pic_contact' => $old_data['pic_contact'],
-                                'approved_date' => date('Y-m-d')
+                                'pic_contact' => $new_data['pic_contact'],
+                                'approved_date' => date('d F Y')
                             ], null, null, null, null, null, null, null, 1,
                         );
                         // return $autocrm;

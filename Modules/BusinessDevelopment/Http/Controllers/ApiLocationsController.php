@@ -456,20 +456,46 @@ class ApiLocationsController extends Controller
                     $data_update['end_date'] = Partner::where('id_partner', $post['id_partner'])->first()['end_date'];
                 }
             }
-            $old_status = Location::where('id_location', $post['id_location'])->get('status')[0]['status'];
+            $old_data = Location::where('id_location', $post['id_location'])->first();
             $update = Location::where('id_location', $post['id_location'])->update($data_update);
+            $new_data = Location::where('id_location', $post['id_location'])->first();
             if(!$update){
                 DB::rollback();
                 return response()->json(['status' => 'fail', 'messages' => ['Failed update location']]);
             }
-            DB::commit();
             if(isset($request['data_confir']) && !empty($request['data_confir'])){
                 $confir = new ApiPartnersController;
                 $confir_letter = $confir->createConfirLetter($request['data_confir']);
                 if($confir_letter['status'] != 'success' && isset($confir_letter['status'])){
+                    DB::rollback();
                     return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
                 }
             }
+            if (isset($data_update['status'])) {
+                if($old_data['status']=='Candidate' && $data_update['status'] == 'Active'){
+                    if (\Module::collections()->has('Autocrm')) {
+                        $autocrm = app($this->autocrm)->SendAutoCRM(
+                            'Updated Candidate Location to Location',
+                            $new_data['email'],
+                            [
+                                'name_location' => $new_data['name'],
+                                'code' => $new_data['code'],
+                                'pic_contact' => $old_data['pic_contact'],
+                                'approved_date' => date('Y-m-d')
+                            ], null, null, null, null, null, null, null, 1,
+                        );
+                        // return $autocrm;
+                        if (!$autocrm) {
+                            DB::rollback();
+                            return response()->json([
+                                'status'    => 'fail',
+                                'messages'  => ['Failed to send']
+                            ]);
+                        }
+                    }
+                }
+            }
+            DB::commit();
             return response()->json(['status' => 'success']);
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
@@ -743,6 +769,7 @@ class ApiLocationsController extends Controller
 
             $data_loc = [
                 "name"   => $data_request['name'],
+                "email"   => $data_request['email'],
                 "address"   => $data_request['address'],
                 "id_city"   => $data_request['id_city'],
                 "latitude"   => $data_request['latitude'],
@@ -775,6 +802,25 @@ class ApiLocationsController extends Controller
             if(!$store) {
                 DB::rollback();
                 return response()->json(['status' => 'fail', 'messages' => ['Failed add location']]);
+            }
+            if (\Module::collections()->has('Autocrm')) {
+                $autocrm = app($this->autocrm)->SendAutoCRM(
+                    'Create A New Candidate Location',
+                    $data_loc['email'],
+                    [
+                        'name_location' => $data_loc['name'],
+                        'code' => $data_loc['code'],
+                        'pic_contact' => $data_loc['pic_contact']
+                    ], null, null, null, null, null, null, null, 1,
+                );
+                // return $autocrm;
+                if (!$autocrm) {
+                    DB::rollback();
+                    return response()->json([
+                        'status'    => 'fail',
+                        'messages'  => ['Failed to send']
+                    ]);
+                }
             }
             DB::commit();
             return response()->json(MyHelper::checkCreate($store));

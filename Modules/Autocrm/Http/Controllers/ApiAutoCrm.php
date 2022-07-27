@@ -41,6 +41,7 @@ use Hash;
 use DB;
 use App\Lib\SendMail as Mail;
 use Modules\BusinessDevelopment\Entities\Partner;
+use Modules\BusinessDevelopment\Entities\Location;
 
 class ApiAutoCrm extends Controller
 {
@@ -65,6 +66,9 @@ class ApiAutoCrm extends Controller
 				$users = UserOutlet::select('id_user_outlet as id', 'user_outlets.*')->where('phone','=',$receipient)->get()->toArray();
 			}elseif($partner){
 				$users = Partner::where('phone','=',$receipient)->get()->toArray();
+				if(empty($users)){
+					$users = Location::where('email','=',$receipient)->get()->toArray();
+				}
 			}else{
 				$users = User::where('phone','=',$receipient)->get()->toArray();
 			}
@@ -901,7 +905,10 @@ class ApiAutoCrm extends Controller
 			$user = UserFranchise::select('id_user_franchise as id', 'user_franchises.*')->where('username','=',$receipient)->get()->first();
 		}elseif($partner){
 			$user = Partner::select('id_partner as id', 'partners.*')->where('phone','=',$receipient)->get()->first();
-				}else{
+			if(empty($users)){
+				$users = Location::select('id_location as id', 'locations.*')->where('email','=',$receipient)->get()->toArray();
+			}
+		}else{
             if($wherefield != null){
                 $user = User::leftJoin('cities','cities.id_city','=','users.id_city')
                     ->leftJoin('provinces','cities.id_province','=','provinces.id_province')

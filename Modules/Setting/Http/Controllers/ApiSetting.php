@@ -1949,6 +1949,10 @@ class ApiSetting extends Controller
     }
     public function global_commission_product_setting(){
         $data = Setting::where('key','global_commission_product')->first();
+        $refresh = Setting::where('key' , 'Refresh Commission Transaction')->first();
+        if($data){
+            $data['status'] = $refresh['value'] ?? null;
+        }
         return response()->json($data);
     }
   
@@ -1992,15 +1996,12 @@ class ApiSetting extends Controller
         }else{
             $create_setting = Setting::updateOrCreate(['key' => 'Refresh Commission Transaction'],['value' => 'start']);
         }
-        $transaction = Transaction::whereNotNull('id_outlet')->whereNotNull('id_user')->whereDate('transaction_date', '>=', $start_date)->whereDate('transaction_date', '<=', $end_date)->get()->toArray();
-        foreach($transaction ?? [] as $key => $val){
-            $send = [
-                'id_transaction' => $val['id_transaction'],
-                'key' => $key+1,
-                'total' => count($transaction),
-            ];
-            $refresh = RefreshTransactionCommission::dispatch($send)->onConnection('refreshcommissionqueue');
-        }
+        $send = [
+            'start_date' => $start_date,
+            'end_date' => $end_date,
+        ];
+        $refresh = RefreshTransactionCommission::dispatch($send)->onConnection('refreshcommissionqueue');
+
         if(!$transaction){
             $create_setting = Setting::updateOrCreate(['key' => 'Refresh Commission Transaction'],['value' => 'finished']);
         }

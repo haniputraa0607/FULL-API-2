@@ -79,7 +79,9 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('/detail', 'ApiBeEmployeeProfileController@detail_faq');
         Route::post('/update', 'ApiBeEmployeeProfileController@update_faq');
         Route::post('/delete', 'ApiBeEmployeeProfileController@delete_faq');
-        Route::post('/popular', 'ApiBeEmployeeProfileController@create_faq_popular');
+        Route::post('/popular', 'ApiBeEmployeeProfileController@faq_popular');
+        Route::post('/popular/create', 'ApiBeEmployeeProfileController@create_faq_popular');
+        Route::post('/popular/delete', 'ApiBeEmployeeProfileController@delete_faq_popular');
       });
      Route::group(['prefix' => 'privacy-policy'], function(){
         Route::post('/', 'ApiBeEmployeeProfileController@privacy_policy');
@@ -262,7 +264,6 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
     Route::group(['prefix' => 'recruitment'], function(){
         Route::post('detail', 'ApiRegisterEmployeeController@detail');
         Route::post('update', 'ApiRegisterEmployeeController@update');
-        Route::post('submit', 'ApiRegisterEmployeeController@submit');
         Route::post('submit', 'ApiRegisterEmployeeController@submit');
         Route::get('question', 'ApiQuestionEmployeeController@list');
     });

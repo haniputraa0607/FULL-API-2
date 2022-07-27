@@ -101,9 +101,11 @@ class ApiEmployeeAssetInventoryController extends Controller
    //loan
    public function create_loan(CreateLoan $request) {
        $post = $request->all();
-       if(!empty($post['attachment'])){
-           $file = $request->file('attachment');
-            $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, $file->getClientOriginalExtension());
+      if(!empty($post['attachment'])){
+            $file = $request->file('attachment');
+            $ext = pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION);
+            $attachment = MyHelper::encodeImage($file);
+            $upload = MyHelper::uploadFile($attachment, $this->saveFileLoan, $ext, strtotime(date('Y-m-d H-i-s')));
             if (isset($upload['status']) && $upload['status'] == "success") {
                     $attachment = $upload['path'];
                 } else {
@@ -144,7 +146,7 @@ class ApiEmployeeAssetInventoryController extends Controller
                     'asset_inventorys.code',
                     'qty_logs as qty'
                 ])
-                ->paginate(10);
+                ->get();
         return MyHelper::checkGet($available);   
    }
    public function detail_loan(Request $request) {
@@ -171,6 +173,9 @@ class ApiEmployeeAssetInventoryController extends Controller
                 ->first();
         $response = [];
         if($available){
+             if(isset($available->attachment_foto)){
+                    $available->attachment_foto= env('STORAGE_URL_API').$available->attachment_foto;
+                }
         $response = [
             'code' => $available->code,
             'name' => $available->name_asset_inventory,
@@ -204,8 +209,10 @@ class ApiEmployeeAssetInventoryController extends Controller
    public function create_return(CreateReturn $request) {
        $post = $request->all();
        if(!empty($post['attachment'])){
-           $file = $request->file('attachment');
-            $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, $file->getClientOriginalExtension());
+            $file = $request->file('attachment');
+            $ext = pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION);
+            $attachment = MyHelper::encodeImage($file);
+            $upload = MyHelper::uploadFile($attachment, $this->saveFileReturn, $ext, strtotime(date('Y-m-d H-i-s')));
             if (isset($upload['status']) && $upload['status'] == "success") {
                     $attachment = $upload['path'];
                 } else {

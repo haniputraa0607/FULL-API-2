@@ -192,18 +192,22 @@ class ApiEmployeeAttendaceOutletController extends Controller
         ]);
 
         if($outsideRadius){
-            $autocrm = app($this->autocrm)->SendAutoCRM(
-                'Employee Attendance Outlet Pending',
-                $employee['phone'],
-                [
-                    'name' => $employee['name'],
-                    'name_office' => $office['outlet_name'],
-                    'name_outlet' => $outlet['outlet_name'],
-                    'time_attendance' => $date_time_now,
-                    'timezone' => $time_zone[$timeZone],
-                    'role' => $role['role_name'],
-                ], null, false, false, 'employee'
-            );
+            $user_sends = User::join('roles_features','roles_features.id_role', 'users.id_role')->where('id_feature',
+            503)->get()->toArray();
+            foreach($user_sends ?? [] as $user_send){
+                $autocrm = app($this->autocrm)->SendAutoCRM(
+                    'Employee Attendance Outlet Pending',
+                    $user_send['phone'],
+                    [
+                        'name' => $employee['name'],
+                        'name_office' => $office['outlet_name'],
+                        'name_outlet' => $outlet['outlet_name'],
+                        'time_attendance' => $date_time_now,
+                        'timezone' => $time_zone[$timeZone],
+                        'role' => $role['role_name'],
+                    ], null, false, false, 'employee'
+                );
+            }
         }
 
         return MyHelper::checkGet([
@@ -814,19 +818,23 @@ class ApiEmployeeAttendaceOutletController extends Controller
             ]);
         }
 
-        $autocrm = app($this->autocrm)->SendAutoCRM(
-            'Employee Attendance Outlet Request',
-            $employee['phone'],
-            [
-                'name' => $employee['name'],
-                'name_office' => $office['outlet_name'],
-                'name_outlet' => $outlet['outlet_name'],
-                'clock_in' => $post['clock_in'] ?? null,
-                'clock_out' => $post['clock_out'] ?? null,
-                'timezone' => $time_zone[$timeZone],
-                'role' => $role['role_name'],
-            ], null, false, false, 'employee'
-        );
+        $user_sends = User::join('roles_features','roles_features.id_role', 'users.id_role')->where('id_feature',
+        506)->get()->toArray();
+        foreach($user_sends ?? [] as $user_send){
+            $autocrm = app($this->autocrm)->SendAutoCRM(
+                'Employee Attendance Outlet Request',
+                $user_send['phone'],
+                [
+                    'name' => $employee['name'],
+                    'name_office' => $office['outlet_name'],
+                    'name_outlet' => $outlet['outlet_name'],
+                    'clock_in' => $post['clock_in'] ?? null,
+                    'clock_out' => $post['clock_out'] ?? null,
+                    'timezone' => $time_zone[$timeZone],
+                    'role' => $role['role_name'],
+                ], null, false, false, 'employee'
+            );
+        }
 
         DB::commit();
         return response()->json(['status' => 'success', 'messages' => ['Berhasil mengajukan permintaan presensi outlet, silahkan menunggu persetujuan']]);

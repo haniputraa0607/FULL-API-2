@@ -2002,9 +2002,6 @@ class ApiSetting extends Controller
         ];
         $refresh = RefreshTransactionCommission::dispatch($send)->onConnection('refreshcommissionqueue');
 
-        if(!$transaction){
-            $create_setting = Setting::updateOrCreate(['key' => 'Refresh Commission Transaction'],['value' => 'finished']);
-        }
         return ['status' => 'success', 'messages' => ['Success to Refresh Commission Transaction']]; 
     }
     

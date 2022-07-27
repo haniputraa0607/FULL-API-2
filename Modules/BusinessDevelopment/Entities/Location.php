@@ -52,7 +52,8 @@ class Location extends Model
         "company_type",
         'code',
         'id_branch',
-        'id_branch_ima'
+        'id_branch_ima',
+        'email'
 
     ];
     public function location_partner(){

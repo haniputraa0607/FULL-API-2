@@ -29,6 +29,12 @@ use Modules\Employee\Entities\EmployeeOutletAttendanceLog;
 
 class ApiEmployeeAttendaceOutletController extends Controller
 {
+    public function __construct()
+    {
+        if (\Module::collections()->has('Autocrm')) {
+            $this->autocrm  = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
+        }
+    }
 
     public function listOutlet(Request $request){
         $post = $request->all();
@@ -144,9 +150,15 @@ class ApiEmployeeAttendaceOutletController extends Controller
         }
         
         $outlet = Outlet::where('id_outlet', $request['id_outlet'])->first();
-        
+        $office = $employee->outlet;
+        $role = $employee->role;
         $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+        $time_zone = [
+            '7' => 'WIB',
+            '8' => 'WITA',
+            '9' => 'WIT',
+        ];
         $date_time_now = MyHelper::adjustTimezone(date('Y-m-d H:i:s'), $timeZone, 'Y-m-d H:i:s', true);
         $attendance = $employee->getAttendanceByDateOutlet($outlet['id_outlet'], date('Y-m-d'), $shift);
 
@@ -178,6 +190,21 @@ class ApiEmployeeAttendaceOutletController extends Controller
             'approved_by' => null,
             'notes' => $request->notes,
         ]);
+
+        if($outsideRadius){
+            $autocrm = app($this->autocrm)->SendAutoCRM(
+                'Employee Attendance Outlet Pending',
+                $employee['phone'],
+                [
+                    'name' => $employee['name'],
+                    'name_office' => $office['outlet_name'],
+                    'name_outlet' => $outlet['outlet_name'],
+                    'time_attendance' => $date_time_now,
+                    'timezone' => $time_zone[$timeZone],
+                    'role' => $role['role_name'],
+                ], null, false, false, 'employee'
+            );
+        }
 
         return MyHelper::checkGet([
             'need_confirmation' => false,
@@ -679,6 +706,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
         $post = $request->all();
         $employee = $request->user();
         $outlet = Outlet::where('id_outlet', $post['id_outlet'])->select('id_outlet','outlet_name', 'id_city')->first();
+
         $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
 
@@ -732,9 +760,15 @@ class ApiEmployeeAttendaceOutletController extends Controller
         }
         $employee = $request->user();
         $outlet = Outlet::where('id_outlet', $post['id_outlet'])->select('id_outlet','outlet_name', 'id_city')->first();
+        $office = $employee->outlet;
+        $role = $employee->role;
         $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
-
+        $time_zone = [
+            '7' => 'WIB',
+            '8' => 'WITA',
+            '9' => 'WIT',
+        ];
         $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$employee['id'])->first();
         $array_date = explode('-',$post['date']);
         $schedule_month = EmployeeSchedule::where('id',$employee['id'])->where('schedule_month',$array_date[1])->where('schedule_year',$array_date[0])->first();
@@ -779,6 +813,20 @@ class ApiEmployeeAttendaceOutletController extends Controller
                 'messages' => ['Gagal mengajukan permintaan presensi outlet']
             ]);
         }
+
+        $autocrm = app($this->autocrm)->SendAutoCRM(
+            'Employee Attendance Outlet Request',
+            $employee['phone'],
+            [
+                'name' => $employee['name'],
+                'name_office' => $office['outlet_name'],
+                'name_outlet' => $outlet['outlet_name'],
+                'clock_in' => $post['clock_in'] ?? null,
+                'clock_out' => $post['clock_out'] ?? null,
+                'timezone' => $time_zone[$timeZone],
+                'role' => $role['role_name'],
+            ], null, false, false, 'employee'
+        );
 
         DB::commit();
         return response()->json(['status' => 'success', 'messages' => ['Berhasil mengajukan permintaan presensi outlet, silahkan menunggu persetujuan']]);

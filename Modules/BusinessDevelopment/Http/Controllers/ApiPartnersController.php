@@ -194,6 +194,7 @@ class ApiPartnersController extends Controller
 
                         $data_loc = [
                             "name"   => $location['name'],
+                            "email"   => $location['email'],
                             "address"   => $location['address'],
                             "id_city"   => $location['id_city'],
                             "latitude"   => $location['latitude'],
@@ -218,6 +219,25 @@ class ApiPartnersController extends Controller
             } else {
                 DB::rollback();
                 return response()->json(['status' => 'fail', 'messages' => ['Failed add partner']]);
+            }
+            if (\Module::collections()->has('Autocrm')) {
+                $autocrm = app($this->autocrm)->SendAutoCRM(
+                    'Create A New Candidate Partner',
+                    $store->phone,
+                    [
+                        'name' => $store->name,
+                        'code' => $store->code,
+                        'title' => $store->title,
+                    ], null, null, null, null, null, null, null, 1,
+                );
+                // return $autocrm;
+                if (!$autocrm) {
+                    DB::rollback();
+                    return response()->json([
+                        'status'    => 'fail',
+                        'messages'  => ['Failed to send']
+                    ]);
+                }
             }
             DB::commit();
             return response()->json(MyHelper::checkCreate($store));
@@ -460,35 +480,33 @@ class ApiPartnersController extends Controller
             if (isset($post['sharing_percent'])) {
                 $data_update['sharing_percent'] = $post['sharing_percent'];
             }
-            $old_status = Partner::where('id_partner', $post['id_partner'])->get('status')[0]['status'];
-            $old_phone = Partner::where('id_partner', $post['id_partner'])->get('phone')[0]['phone'];
-            $old_name = Partner::where('id_partner', $post['id_partner'])->get('name')[0]['name'];
+            $old_data = Partner::where('id_partner', $post['id_partner'])->first();
 
             $update = Partner::where('id_partner', $post['id_partner'])->update($data_update);
             if(!$update){
                 DB::rollback();
                 return response()->json(['status' => 'fail', 'messages' => ['Failed update partner']]);
             }
-            DB::commit();
-
+            $new_data = Partner::where('id_partner', $post['id_partner'])->first();
             if (isset($data_update['status'])) {
-                if($old_status=='Candidate' && $data_update['status'] == 'Active'){
+                if($old_data['status']=='Candidate' && $data_update['status'] == 'Active'){
                     if (\Module::collections()->has('Autocrm')) {
                         $autocrm = app($this->autocrm)->SendAutoCRM(
                             'Updated Candidate Partner to Partner',
-                            $old_phone,
+                            $new_data['phone'],
                             [
-                                'name' => $old_name,
+                                'name' => $new_data['name'],
                                 'pin' => $post['pin'],
+                                'title' => $new_data['title'],
+                                'code' => $new_data['code'],
+                                'approved_date' => date('d F Y'),
+                                'start_date' => date('d F Y', strtotime($new_data['start_date'])), 
+                                'end_date' => date('d F Y', strtotime($new_data['end_date'])),
                             ], null, null, null, null, null, null, null, 1,
                         );
                         // return $autocrm;
-                        if ($autocrm) {
-                            return response()->json([
-                                'status'    => 'success',
-                                'messages'  => ['Approved sent to email partner']
-                            ]);
-                        } else {
+                        if (!$autocrm) {
+                            DB::rollback();
                             return response()->json([
                                 'status'    => 'fail',
                                 'messages'  => ['Failed to send']
@@ -496,7 +514,7 @@ class ApiPartnersController extends Controller
                         }
                     }
                 }
-                if($old_status=='Candidate' && $data_update['status'] == 'Rejected'){
+                if($old_data['status']=='Candidate' && $data_update['status'] == 'Rejected'){
                     $reject_data = Partner::where('id_partner', $post['id_partner'])->get();
                     $phone_reject = $reject_data[0]["phone"];
                     $name_reject = $reject_data[0]["name"];
@@ -509,12 +527,8 @@ class ApiPartnersController extends Controller
                             ], null, null, null, null, null, null, null, 1,
                         );
                         // return $autocrm;
-                        if ($autocrm) {
-                            return response()->json([
-                                'status'    => 'success',
-                                'messages'  => ['Rejected sent to email partner']
-                            ]);
-                        } else {
+                        if (!$autocrm) {
+                            DB::rollback();
                             return response()->json([
                                 'status'    => 'fail',
                                 'messages'  => ['Failed to send']
@@ -534,12 +548,8 @@ class ApiPartnersController extends Controller
                         ], null, null, null, null, null, null, null, 1,
                     );
                     // return $autocrm;
-                    if ($autocrm) {
-                        return response()->json([
-                            'status'    => 'success',
-                            'messages'  => ['Approved request has been sent to email partner']
-                        ]);
-                    } else {
+                    if (!$autocrm) {
+                        DB::rollback();
                         return response()->json([
                             'status'    => 'fail',
                             'messages'  => ['Failed to send']
@@ -547,6 +557,7 @@ class ApiPartnersController extends Controller
                     }
                 }
             }
+            DB::commit();
             return response()->json(['status' => 'success']);
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);

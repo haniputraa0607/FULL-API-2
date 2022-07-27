@@ -647,6 +647,30 @@ class TextReplacesTableSeeder extends Seeder
                 'created_at' => NULL,
                 'updated_at' => NULL,
             ),
+            53 => 
+            array (
+                'id_text_replace' => 56,
+                'keyword' => '%name_employee%',
+                'reference' => 'variables',
+                'type' => 'String',
+                'default_value' => 'H:i',
+                'custom_rule' => 'H:i',
+                'status' => 'Activated',
+                'created_at' => NULL,
+                'updated_at' => NULL,
+            ),
+            54 => 
+            array (
+                'id_text_replace' => 57,
+                'keyword' => '%phone_employee%',
+                'reference' => 'variables',
+                'type' => 'String',
+                'default_value' => 'H:i',
+                'custom_rule' => 'H:i',
+                'status' => 'Activated',
+                'created_at' => NULL,
+                'updated_at' => NULL,
+            ),
 
         ));
         

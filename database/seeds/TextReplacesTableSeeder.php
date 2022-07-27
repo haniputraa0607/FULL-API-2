@@ -623,6 +623,30 @@ class TextReplacesTableSeeder extends Seeder
                 'created_at' => NULL,
                 'updated_at' => NULL,
             ),
+            51 => 
+            array (
+                'id_text_replace' => 54,
+                'keyword' => '%clock_in%',
+                'reference' => 'variables',
+                'type' => 'String',
+                'default_value' => 'H:i',
+                'custom_rule' => 'H:i',
+                'status' => 'Activated',
+                'created_at' => NULL,
+                'updated_at' => NULL,
+            ),
+            52 => 
+            array (
+                'id_text_replace' => 55,
+                'keyword' => '%clock_out%',
+                'reference' => 'variables',
+                'type' => 'String',
+                'default_value' => 'H:i',
+                'custom_rule' => 'H:i',
+                'status' => 'Activated',
+                'created_at' => NULL,
+                'updated_at' => NULL,
+            ),
 
         ));
         

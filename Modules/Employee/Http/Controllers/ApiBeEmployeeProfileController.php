@@ -206,7 +206,11 @@ class ApiBeEmployeeProfileController extends Controller
    
    //FAQ
    public function faq() {
-       $data = EmployeeFaq::paginate(10);
+       $data = EmployeeFaq::get()->toArray();
+       return MyHelper::checkGet($data);
+   }
+   public function faq_popular() {
+       $data = EmployeeFaq::join('employee_faq_logs','employee_faq_logs.id_employee_faq','employee_faqs.id_employee_faq')->get()->toArray();
        return MyHelper::checkGet($data);
    }
    public function create_faq(CreateFaq $request) {
@@ -271,6 +275,12 @@ class ApiBeEmployeeProfileController extends Controller
                 ];
             }
         return $result;
+   }
+    public function delete_faq_popular(Request $request) {
+       $post = $request->all();
+        $employee = EmployeeFaqLog::where('id_employee_faq',$post['id_employee_faq'])->delete();
+      
+        return response()->json(MyHelper::checkCreate($employee));
    }
     //privacy_policy
     public function privacy_policy(){

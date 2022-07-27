@@ -199,7 +199,8 @@ class ApiEmployeeAttendaceOutletController extends Controller
                     'Employee Attendance Outlet Pending',
                     $user_send['phone'],
                     [
-                        'name' => $employee['name'],
+                        'name_employee' => $employee['name'],
+                        'phone_employee' => $employee['phone'],
                         'name_office' => $office['outlet_name'],
                         'name_outlet' => $outlet['outlet_name'],
                         'time_attendance' => $date_time_now,
@@ -825,7 +826,8 @@ class ApiEmployeeAttendaceOutletController extends Controller
                 'Employee Attendance Outlet Request',
                 $user_send['phone'],
                 [
-                    'name' => $employee['name'],
+                    'name_employee' => $employee['name'],
+                    'phone_employee' => $employee['phone'],
                     'name_office' => $office['outlet_name'],
                     'name_outlet' => $outlet['outlet_name'],
                     'clock_in' => $post['clock_in'] ?? null,

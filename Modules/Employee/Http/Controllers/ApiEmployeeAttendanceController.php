@@ -159,17 +159,21 @@ class ApiEmployeeAttendanceController extends Controller
             'notes' => $request->notes,
         ]);
         if($outsideRadius){
-            $autocrm = app($this->autocrm)->SendAutoCRM(
-                'Employee Attendance Pending',
-                $employee['phone'],
-                [
-                    'name' => $employee['name'],
-                    'name_office' => $outlet['outlet_name'],
-                    'time_attendance' => $date_time_now,
-                    'timezone' => $time_zone[$timeZone],
-                    'role' => $role['role_name'],
-                ], null, false, false, 'employee'
-            );
+            $user_sends = User::join('roles_features','roles_features.id_role', 'users.id_role')->where('id_feature',
+            497)->get()->toArray();
+            foreach($user_sends ?? [] as $user_send){
+                $autocrm = app($this->autocrm)->SendAutoCRM(
+                    'Employee Attendance Pending',
+                    $user_send['phone'],
+                    [
+                        'name' => $employee['name'],
+                        'name_office' => $outlet['outlet_name'],
+                        'time_attendance' => $date_time_now,
+                        'timezone' => $time_zone[$timeZone],
+                        'role' => $role['role_name'],
+                    ], null, false, false, 'employee'
+                );
+            }
         }
 
         return MyHelper::checkGet([
@@ -787,18 +791,22 @@ class ApiEmployeeAttendanceController extends Controller
                 'messages' => ['Gagal mengajukan permintaan presensi']
             ]);
         }
-        $autocrm = app($this->autocrm)->SendAutoCRM(
-            'Employee Attendance Request',
-            $employee['phone'],
-            [
-                'name' => $employee['name'],
-                'name_office' => $outlet['outlet_name'],
-                'clock_in' => $post['clock_in'] ?? null,
-                'clock_out' => $post['clock_out'] ?? null,
-                'timezone' => $time_zone[$timeZone],
-                'role' => $role['role_name'],
-            ], null, false, false, 'employee'
-        );
+        $user_sends = User::join('roles_features','roles_features.id_role', 'users.id_role')->where('id_feature',
+            500)->get()->toArray();
+        foreach($user_sends ?? [] as $user_send){
+            $autocrm = app($this->autocrm)->SendAutoCRM(
+                'Employee Attendance Request',
+                $user_send['phone'],
+                [
+                    'name' => $employee['name'],
+                    'name_office' => $outlet['outlet_name'],
+                    'clock_in' => $post['clock_in'] ?? null,
+                    'clock_out' => $post['clock_out'] ?? null,
+                    'timezone' => $time_zone[$timeZone],
+                    'role' => $role['role_name'],
+                ], null, false, false, 'employee'
+            );
+        }
 
         DB::commit();
         return response()->json(['status' => 'success', 'messages' => ['Berhasil mengajukan permintaan presensi, silahkan menunggu persetujuan']]);

@@ -1705,7 +1705,7 @@ class ApiPromoTransaction extends Controller
             foreach ($products as $product){
                 $disc = $product['transaction_product_subtotal'] / $totalSubProduct * $totalDiscountBill;
                 TransactionProduct::where('id_transaction_product', $product['id_transaction_product'])->update([
-                    'transaction_product_discount_all' => $disc
+                    'transaction_product_discount_all' => $disc + $product['transaction_product_discount_all']
                 ]);
             }
         }

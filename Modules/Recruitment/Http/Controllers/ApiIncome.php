@@ -373,7 +373,8 @@ class ApiIncome extends Controller
 
         $all_attends = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
             ->whereNotNull('clock_in')
-            ->whereBetween('hairstylist_attendances.attendance_date', [$start_date, $end_date])
+            ->whereDate('hairstylist_attendances.attendance_date', '>=', $request->start_date)
+            ->whereDate('hairstylist_attendances.attendance_date', '<=', $request->end_date)
             ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
             ->groupBy('id_outlet', 'id_user_hair_stylist')
             ->get()
@@ -385,7 +386,8 @@ class ApiIncome extends Controller
         $all_lates = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
             ->whereNotNull('clock_in')
             ->where('is_on_time', 0)
-            ->whereBetween('hairstylist_attendances.attendance_date', [$start_date, $end_date])
+            ->whereDate('hairstylist_attendances.attendance_date', '>=', $request->start_date)
+            ->whereDate('hairstylist_attendances.attendance_date', '<=', $request->end_date)
             ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
             ->groupBy('id_outlet', 'id_user_hair_stylist')
             ->get()
@@ -396,7 +398,8 @@ class ApiIncome extends Controller
 
         $all_absens = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
             ->whereNull('clock_in')
-            ->whereBetween('hairstylist_attendances.attendance_date', [$start_date, $end_date])
+            ->whereDate('hairstylist_attendances.attendance_date', '>=', $request->start_date)
+            ->whereDate('hairstylist_attendances.attendance_date', '<=', $request->end_date)
             ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
             ->groupBy('id_outlet', 'id_user_hair_stylist')
             ->get()
@@ -407,7 +410,8 @@ class ApiIncome extends Controller
 
         $all_overtimes = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
             ->whereNotNull('clock_in')
-            ->whereBetween('hairstylist_attendances.attendance_date', [$start_date, $end_date])
+            ->whereDate('hairstylist_attendances.attendance_date', '>=', $request->start_date)
+            ->whereDate('hairstylist_attendances.attendance_date', '<=', $request->end_date)
             ->select('date','id_outlet', 'id_user_hair_stylist')
             ->groupBy('id_outlet', 'id_user_hair_stylist')
             ->get()
@@ -419,7 +423,8 @@ class ApiIncome extends Controller
         $minOvertimeMinutes = MyHelper::setting('overtime_hs', 'value', 45);
         $overtimes = HairstylistOverTime::wherenotnull('approve_at')
             ->wherenull('reject_at')
-            ->whereBetween('date', [$start_date, $end_date])
+            ->whereDate('date', '>=', $request->start_date)
+            ->whereDate('date', '<=', $request->end_date)
             ->select('duration', 'id_user_hair_stylist', 'id_outlet', \DB::raw('DATE(date) as datex'))
             ->get()
             ->groupBy('id_user_hair_stylist')
@@ -443,7 +448,8 @@ class ApiIncome extends Controller
         $allLoans = HairstylistLoan::join('hairstylist_category_loans', 'hairstylist_category_loans.id_hairstylist_category_loan', 'hairstylist_loans.id_hairstylist_category_loan')
             ->join('hairstylist_loan_returns', function ($join) use ($start_date, $end_date) {
                 $join->on('hairstylist_loan_returns.id_hairstylist_loan', 'hairstylist_loans.id_hairstylist_loan')
-                    ->whereBetween('hairstylist_loan_returns.date_pay', [$start_date, $end_date])
+                    ->whereDate('hairstylist_loan_returns.date_pay', '>=', $start_date)
+                    ->whereDate('hairstylist_loan_returns.date_pay', '<=', $end_date)
                     ->where('hairstylist_loan_returns.status_return', 'Success');
             })
             ->where('status_loan', 'Success')
@@ -504,10 +510,10 @@ class ApiIncome extends Controller
 
                 $data['Potongan telat'] = (string) $total_late;
 
-                // $response = HairstylistIncome::calculateFixedIncentive($hs, $request->start_date,$request->end_date,$outlet,$incomeDefault);
-                // foreach ($response as $valu) {
-                //     $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
-                // }
+                $response = HairstylistIncome::calculateFixedIncentive($hs, $request->start_date,$request->end_date,$outlet,$incomeDefault);
+                foreach ($response as $valu) {
+                    $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
+                }
                 if ($allLoans[$hs->id_user_hair_stylist] ?? false) {
                     $response = HairstylistIncome::calculateSalaryCuts($hs, $request->start_date,$request->end_date, $allLoans[$hs->id_user_hair_stylist]);
                     foreach ($response as $valu) {

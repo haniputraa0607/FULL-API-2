@@ -5,4 +5,5 @@ return [
     'api_url'          => env('API_URL'),
     'app_url'          => env('APP_URL'),
     'app_api_url'      => env('APP_API_URL'),
+    'be_ip'            => env('BE_IP'),
 ];

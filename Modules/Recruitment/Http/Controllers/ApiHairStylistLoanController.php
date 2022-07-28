@@ -170,7 +170,7 @@ class ApiHairStylistLoanController extends Controller
     public function create_sales_payment(CreateLoan $request){
         $post = $request->json()->all();
         $save = HairstylistLoan::create($post);
-        $date = (int) MyHelper::setting('delivery_income', 'value')??25;
+        $date = (int) MyHelper::setting('hs_income_cut_off_end_date', 'value')??25;
         $now = date('d', strtotime($post['effective_date']));
         $i = 0;
         $amount = $post['amount']/$post['installment'];

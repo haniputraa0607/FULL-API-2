@@ -4,7 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 
-class ThrottleRequestsExcludeIP
+class ThrottleRequestsExcludeIP extends \Illuminate\Routing\Middleware\ThrottleRequests
 {
     /**
      * Handle an incoming request.

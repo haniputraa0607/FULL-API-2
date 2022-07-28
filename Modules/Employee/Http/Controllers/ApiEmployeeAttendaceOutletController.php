@@ -200,11 +200,10 @@ class ApiEmployeeAttendaceOutletController extends Controller
                     $user_send['phone'],
                     [
                         'name_employee' => $employee['name'],
-                        'phone_employee' => $employee['phone'],
+                        'phone_employee' => $employee['phone'], 
                         'name_office' => $office['outlet_name'],
                         'name_outlet' => $outlet['outlet_name'],
-                        'time_attendance' => $date_time_now,
-                        'timezone' => $time_zone[$timeZone],
+                        'time_attendance' => date('d F Y', strtotime($date_time_now)),
                         'role' => $role['role_name'],
                     ], null, false, false, 'employee'
                 );
@@ -699,6 +698,34 @@ class ApiEmployeeAttendaceOutletController extends Controller
         }
         $log->update($update);
         $log->employee_outlet_attendance->recalculate();
+
+        $user_attendance = User::join('employee_outlet_attendances', 'employee_outlet_attendances.id', 'users.id')->join('employee_outlet_attendance_logs','employee_outlet_attendance_logs.id_employee_outlet_attendance','employee_outlet_attendances.id_employee_outlet_attendance')->where('employee_outlet_attendance_logs.id_employee_outlet_attendance_log', $request->id_employee_outlet_attendance_log)->select('users.*','employee_outlet_attendances.id_outlet as outlet','employee_outlet_attendance_logs.datetime')->first();
+        $office = Outlet::where('id_outlet',$user_attendance['id_outlet'])->first();
+        $outlet = Outlet::where('id_outlet',$user_attendance['outlet'])->first();
+        $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+        ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+        $date_time_now = MyHelper::adjustTimezone($user_attendance['datetime'], $timeZone, 'd F Y', true);
+        $role = Role::where('id_role',$user_attendance['id_role'])->first();
+
+        $time_zone = [
+            '7' => 'WIB',
+            '8' => 'WITA',
+            '9' => 'WIT',
+        ];
+
+        $autocrm = app($this->autocrm)->SendAutoCRM(
+            $keyAutocrm,
+            $user_attendance['phone'],
+            [
+                'name_employee' => $user_attendance['name'],
+                'phone_employee' => $user_attendance['phone'],
+                'name_office' => $office['name_outlet'],
+                'name_outlet' => $outlet['name_outlet'],
+                'time_attendance' => $date_time_now,
+                'role' => $role['role_name'],
+                'user_update' => $request->user()->id
+            ], null, false, false, 'employee'
+        );
         return [
             'status' => 'success',
             'result' => [
@@ -830,9 +857,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
                     'phone_employee' => $employee['phone'],
                     'name_office' => $office['outlet_name'],
                     'name_outlet' => $outlet['outlet_name'],
-                    'clock_in' => $post['clock_in'] ?? null,
-                    'clock_out' => $post['clock_out'] ?? null,
-                    'timezone' => $time_zone[$timeZone],
+                    'time_attendance' => date('d F Y',strtotime($post['date'])),
                     'role' => $role['role_name'],
                 ], null, false, false, 'employee'
             );

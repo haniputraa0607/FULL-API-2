@@ -373,12 +373,15 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                         ]);
                     }
                     $user_employee = User::join('employee_time_off','employee_time_off.id_employee','users.id')->where('employee_time_off.id_employee_time_off',$post['id_employee_time_off'])->first();
+                    $office = Outlet::where('id_outlet',$user_employee['id_outlet'])->first();
                     if (\Module::collections()->has('Autocrm')) {
                         $autocrm = app($this->autocrm)->SendAutoCRM(
                             'Employee Request Time Off Approved', 
                             $user_employee['phone'] ?? null,
                             [
-                                'user_update'=>$request->user()->name
+                                'user_update'=> $request->user()->name,
+                                'time_off_date'=> $user_employee['date'],
+                                'name_office'=> $office['name_outlet'],
                             ], null, false, false, $recipient_type = 'employee', null, true
                         );
                         if (!$autocrm) {
@@ -411,12 +414,15 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
         if($delete){
             $delete_hs_not_avail = EmployeeNotAvailable::where('id_employee_time_off', $post['id_employee_time_off'])->delete();
             $user_employee = User::join('employee_time_off','employee_time_off.id_employee','users.id')->where('employee_time_off.id_employee_time_off',$post['id_employee_time_off'])->first();
+            $office = Outlet::where('id_outlet',$user_employee['id_outlet'])->first();
             if (\Module::collections()->has('Autocrm')) {
                 $autocrm = app($this->autocrm)->SendAutoCRM(
                     'Employee Request Time Off Rejected', 
                     $user_employee['phone'] ?? null,
                     [
-                        'user_update'=>$request->user()->name
+                        'user_update'=>$request->user()->name,
+                        'time_off_date'=> $user_employee['date'],
+                        'name_office'=> $office['name_outlet'],
                     ], null, false, false, $recipient_type = 'employee', null, true
                 );
                 if (!$autocrm) {
@@ -627,6 +633,21 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
         }
 
         DB::commit();
+        $user_sends = User::join('roles_features','roles_features.id_role', 'users.id_role')->where('id_feature',
+        510)->get()->toArray();
+        foreach($user_sends ?? [] as $user_send){
+            $autocrm = app($this->autocrm)->SendAutoCRM(
+                'Employee Request Time Off',
+                $user_send['phone'],
+                [
+                    'name_employee' => $employee['name'],
+                    'phone_employee' => $employee['phone'],
+                    'name_office' => $outlet['outlet_name'],
+                    'time_off_date' => date('d F Y', strtotime($post['date'])),
+                ], null, false, false, 'employee'
+            );
+        }
+        
         return response()->json(['status' => 'success', 'messages' => ['Berhasil mengajukan permintaan cuti, silahkan menunggu persetujuan']]);
     }
 
@@ -790,6 +811,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
 
             $data_overtime = [
                 'id_employee' => $employee,
+                'id_assign'   => $request->user()->id,  
                 'id_outlet'   => $office,
                 'request_by'  => $request->user()->id,
                 'date'        => $date,
@@ -813,6 +835,35 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
             }
 
             DB::commit();
+            $user_sends = User::join('roles_features','roles_features.id_role', 'users.id_role')->where('id_feature',
+            514)->get()->toArray();
+            $employee_overtime = User::where('id',$data_overtime['id_employee'])->first();
+            foreach($user_sends ?? [] as $user_send){
+                $autocrm = app($this->autocrm)->SendAutoCRM(
+                    'Employee Request Overtime',
+                    $user_send['phone'],
+                    [
+                        'name_employee' => $employee_overtime['name'],
+                        'phone_employee' => $employee_overtime['phone'],
+                        'name_assign' => $request->user()->name,
+                        'name_office' => $data_office['outlet_name'],
+                        'overtime_date' => date('d F Y', strtotime($data_overtime['date'])),
+                        'start_overtime' => date('H:i', strtotime($post['start_time_off'])),
+                        'end_overtime' => date('H:i', strtotime($post['end_time_off'])),
+                    ], null, false, false, 'employee'
+                );
+            }
+            if($data_overtime['id_employee'] != $data_overtime['id_assign']){
+                $autocrm = app($this->autocrm)->SendAutoCRM(
+                    'Employee Request Overtime Assign to Other Employee',
+                    $employee_overtime['phone'],
+                    [
+                        'name_office' => $data_office['outlet_name'],
+                        'overtime_date' => date('d F Y', strtotime($data_overtime['date'])),
+                        'name_assign' => $request->user()->name
+                    ], null, false, false, 'employee'
+                );
+            }
             return response()->json(['status' => 'success', 'messages' => ['Berhasil mengajukan permintaan lembur, silahkan menunggu persetujuan']]);
         }else{
             return response()->json($check);
@@ -1203,13 +1254,18 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                             'messages' => ['Failed to updated a request employee overtime']
                         ]);
                     }
-                    $user_employee = User::join('employee_overtime','employee_overtime.id_employee','users.id')->where('employee_overtime.id_employee_overtime',$post['id_employee_overtime'])->first();
+                    $user_assign = User::join('employee_overtime','employee_overtime.id_assign','users.id')->where('employee_overtime.id_employee_overtime',$post['id_employee_overtime'])->first();
+                    $employee_overtime = User::where('id',$user_assign['id_employee'])->first();
+                    $office = Outlet::where('id_outlet',$employee_overtime['id_outlet'])->first();
                     if (\Module::collections()->has('Autocrm')) {
                         $autocrm = app($this->autocrm)->SendAutoCRM(
                             'Employee Request Overtime Approved', 
-                            $user_employee['phone'] ?? null,
+                            $user_assign['phone'] ?? null,
                             [
-                                'user_update'=>$request->user()->name
+                                'user_update'=>$request->user()->name,
+                                'overtime_date' => date('d F Y', strtotime($user_assign['date'])),
+                                'name_employee' => $employee_overtime['name'],
+                                'name_office' => $office['name_outlet'],
                             ], null, false, false, $recipient_type = 'employee', null, true
                         );
                         if (!$autocrm) {
@@ -1219,6 +1275,18 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                                 'messages'  => ['Failed to send']
                             ]);
                         }
+                    }
+                    if($user_assign['id'] != $employee_overtime['id']){
+                        $autocrm = app($this->autocrm)->SendAutoCRM(
+                            'Employee Request Overtime Assign to Other Employee Approved',
+                            $employee_overtime['phone'],
+                            [
+                                'name_office' => $office['outlet_name'],
+                                'overtime_date' => date('d F Y', strtotime($user_assign['date'])),
+                                'name_assign' => $user_assign['name'],
+                                'user_update' => $request->user()->name,
+                            ], null, false, false, 'employee'
+                        );
                     }
                 }
                 DB::commit();
@@ -1323,9 +1391,9 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
             $year_sc = date('Y', strtotime($check['date']));
             $get_schedule = EmployeeSchedule::where('id', $check['id_employee'])->where('schedule_month', $month_sc)->where('schedule_year',$year_sc)->first();
             if($get_schedule){
-                $get_schedule_date = EmployeeScheduleDate::where('id_employee_schedule',$get_schedule['id_employee_schedule'])->where('date',$check['date'])->first();
+                $get_schedule_date = EmployeeScheduleDate::where('id_employee_schedule',$get_schedule['id_employee_schedule'])->where('date',$check['date'])->where('is_overtime',1)->first();
                 if($get_schedule_date){
-                    
+                    $duration = date("H:i:s",strtotime($check['duration']));
                     if(isset($check['rest_before']) && isset($check['rest_after'])){
                         $duration_rest = strtotime($check['rest_before']);
                         $start_rest = strtotime($check['rest_after']);
@@ -1358,37 +1426,61 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                     if(isset($post['approve_notes']) && !empty($post['approve_notes'])){
                         $update['approve_notes'] = $post['approve_notes'];
                     }
-                    $update_overtime = EmployeeOvertime::where('id_employee_overtime', $post['id_employee_overtime'])->update($update);
-                    if(!$update_overtime || !$update_schedule){
+                    if(!$update_schedule){
                         DB::rollBack();
                         return response()->json([
                             'status' => 'fail'
                         ]);
                     }
+                    
                     $attendance = EmployeeAttendance::where('id_employee_schedule_date',$get_schedule_date['id_employee_schedule_date'])->where('id', $check['id'])->where('attendance_date',$check['date'])->update([$order_att => $new_time]);
-                    $user_employee = User::where('id',$post['id_employee'])->first();
-                    if (\Module::collections()->has('Autocrm')) {
-                        $autocrm = app($this->autocrm)->SendAutoCRM(
-                            'Employee Request Overtime Rejected', 
-                            $user_employee['phone'] ?? null,
-                            [
-                                'user_update'=>$request->user()->name
-                            ], null, false, false, $recipient_type = 'employee', null, true
-                        );
-                        if (!$autocrm) {
-                            DB::rollBack();
-                            return response()->json([
-                                'status'    => 'fail',
-                                'messages'  => ['Failed to send']
-                            ]);
-                        }
-                    }
-                    DB::commit();
-                    return response()->json([
-                        'status' => 'success'
-                    ]);
 
                 }
+                $update_overtime = EmployeeOvertime::where('id_employee_overtime', $post['id_employee_overtime'])->update($update);
+                if(!$update_overtime){
+                    DB::rollBack();
+                    return response()->json([
+                        'status' => 'fail'
+                    ]);
+                }
+                $user_assign = User::where('id',$check['id_assign'])->first();
+                $employee_overtime = User::where('id',$check['id_employee'])->first();
+                $office = Outlet::where('id_outlet',$employee_overtime['id_outlet'])->first();
+                if (\Module::collections()->has('Autocrm')) {
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Employee Request Overtime Rejected', 
+                        $user_assign['phone'] ?? null,
+                        [
+                            'user_update'=>$request->user()->name,
+                            'overtime_date' => date('d F Y', strtotime($check['date'])),
+                            'name_employee' => $employee_overtime['name'],
+                            'name_office' => $office['name_outlet'],
+                        ], null, false, false, $recipient_type = 'employee', null, true
+                    );
+                    if (!$autocrm) {
+                        DB::rollBack();
+                        return response()->json([
+                            'status'    => 'fail',
+                            'messages'  => ['Failed to send']
+                        ]);
+                    }
+                }
+                if($user_assign['id'] != $employee_overtime['id']){
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Employee Request Overtime Assign to Other Employee Rejeted',
+                        $employee_overtime['phone'],
+                        [
+                            'name_office' => $office['outlet_name'],
+                            'overtime_date' => date('d F Y', strtotime($check['date'])),
+                            'name_assign' => $user_assign['name'],
+                            'user_update' => $request->user()->name,
+                        ], null, false, false, 'employee'
+                    );
+                }
+                DB::commit();
+                return response()->json([
+                    'status' => 'success'
+                ]);
             }
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }else{
@@ -1405,12 +1497,15 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                 foreach($data_time_off as $time_off){
                     $update = EmployeeTimeOff::where('id_employee_time_off', $time_off['id_employee_time_off'])->update(['reject_at' => date('Y-m-d')]);
                     $user_employee = User::join('employee_time_off','employee_time_off.id_employee','users.id')->where('employee_time_off.id_employee_time_off',$time_off['id_employee_time_off'])->first();
+                    $office = Outlet::where('id_outlet',$user_employee['id_outlet'])->first();
                     if (\Module::collections()->has('Autocrm')) {
                         $autocrm = app($this->autocrm)->SendAutoCRM(
                             'Employee Request Time Off Rejected', 
                             $user_employee['phone'] ?? null,
                             [
-                                'user_update'=>'Admin'
+                                'user_update'=>'Admin',
+                                'time_off_date'=> $user_employee['date'],
+                                'name_office'=> $office['name_outlet'],
                             ], null, false, false, $recipient_type = 'employee', null, true
                         );
                         if (!$autocrm) {
@@ -1427,13 +1522,18 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
             if($data_overtime){
                 foreach($data_overtime as $overtime){
                     $update = EmployeeOvertime::where('id_employee_overtime', $overtime['id_employee_overtime'])->update(['reject_at' => date('Y-m-d')]);
-                    $user_employee = User::join('employee_overtime','employee_overtime.id_employee','users.id')->where('employee_overtime.id_employee_overtime',$overtime['id_employee_overtime'])->first();
+                    $user_assign = User::join('employee_overtime','employee_overtime.id_assign','users.id')->where('employee_overtime.id_employee_overtime',$overtime['id_employee_overtime'])->first();
+                    $employee_overtime = User::where('id',$user_assign['id_employee'])->first();
+                    $office = Outlet::where('id_outlet',$employee_overtime['id_outlet'])->first();
                     if (\Module::collections()->has('Autocrm')) {
                         $autocrm = app($this->autocrm)->SendAutoCRM(
                             'Employee Request Overtime Rejected', 
-                            $user_employee['phone'] ?? null,
+                            $user_assign['phone'] ?? null,
                             [
-                                'user_update'=>'Admin'
+                                'user_update'=>'Admin',
+                                'overtime_date' => date('d F Y', strtotime($user_assign['date'])),
+                                'name_employee' => $employee_overtime['name'],
+                                'name_office' => $office['name_outlet'],
                             ], null, false, false, $recipient_type = 'employee', null, true
                         );
                         if (!$autocrm) {
@@ -1442,6 +1542,18 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                                 'messages'  => ['Failed to send']
                             ]);
                         }
+                    }
+                    if($user_assign['id'] != $employee_overtime['id']){
+                        $autocrm = app($this->autocrm)->SendAutoCRM(
+                            'Employee Request Overtime Assign to Other Employee Rejeted',
+                            $employee_overtime['phone'],
+                            [
+                                'name_office' => $office['outlet_name'],
+                                'overtime_date' => date('d F Y', strtotime($user_assign['date'])),
+                                'name_assign' => $user_assign['name'],
+                                'user_update' => $request->user()->name,
+                            ], null, false, false, 'employee'
+                        );
                     }
                 }
             }

@@ -529,7 +529,7 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
             $year_sc = date('Y', strtotime($check['date']));
             $get_schedule = HairstylistSchedule::where('id_user_hair_stylist', $check['id_user_hair_stylist'])->where('schedule_month', $month_sc)->where('schedule_year',$year_sc)->first();
             if($get_schedule){
-                $get_schedule_date = HairstylistScheduleDate::where('id_hairstylist_schedule',$get_schedule['id_hairstylist_schedule'])->where('date',$check['date'])->first();
+                $get_schedule_date = HairstylistScheduleDate::where('id_hairstylist_schedule',$get_schedule['id_hairstylist_schedule'])->where('date',$check['date'])->where('is_overtime',1)->first();
                 if($get_schedule_date){
                     if($check['time'] == 'after'){
                         $duration = strtotime($check['duration']);
@@ -548,37 +548,46 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                         $order_att = 'clock_in_requirement';
                     }
                     $update_schedule = HairstylistScheduleDate::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->update([$order => $new_time,  'is_overtime' => 0, 'id_outlet_box' => null]);
-                    $update_overtime = HairstylistOverTime::where('id_hairstylist_overtime', $post['id_hairstylist_overtime'])->update(['reject_at' => date('Y-m-d')]);
-                    if(!$update_overtime || !$update_schedule){
+                    if(!$update_schedule){
                         DB::rollBack();
                         return response()->json([
                             'status' => 'fail'
                         ]);
                     }
+                    
                     $attendance = HairstylistAttendance::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->where('id_user_hair_stylist', $check['id_user_hair_stylist'])->where('attendance_date',$check['date'])->update([$order_att => $new_time]);
-                    $user_hs = UserHairStylist::where('id_user_hair_stylist', $check['id_user_hair_stylist'])->first();
-                    if (\Module::collections()->has('Autocrm')) {
-                        $autocrm = app($this->autocrm)->SendAutoCRM(
-                            'Hairstylist Request Overtime Rejected', 
-                            $user_hs['phone_number'] ?? null,
-                            [
-                                'user_update'=>$request->user()->name
-                            ], null, false, false, $recipient_type = 'hairstylist', null, true
-                        );
-                        if (!$autocrm) {
-                            DB::rollBack();
-                            return response()->json([
-                                'status'    => 'fail',
-                                'messages'  => ['Failed to send']
-                            ]);
-                        }
-                    }
-                    DB::commit();
-                    return response()->json([
-                        'status' => 'success'
-                    ]);
 
                 }
+                $update_overtime = HairstylistOverTime::where('id_hairstylist_overtime', $post['id_hairstylist_overtime'])->update(['reject_at' => date('Y-m-d')]);
+                if(!$update_overtime){
+                    DB::rollBack();
+                    return response()->json([
+                        'status' => 'fail'
+                    ]);
+                }
+                $user_hs = UserHairStylist::where('id_user_hair_stylist', $check['id_user_hair_stylist'])->first();
+                if (\Module::collections()->has('Autocrm')) {
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Hairstylist Request Overtime Rejected', 
+                        $user_hs['phone_number'] ?? null,
+                        [
+                            'user_update'=>$request->user()->name
+                        ], null, false, false, $recipient_type = 'hairstylist', null, true
+                    );
+                    if (!$autocrm) {
+                        DB::rollBack();
+                        return response()->json([
+                            'status'    => 'fail',
+                            'messages'  => ['Failed to send']
+                        ]);
+                    }
+                }
+                
+                DB::commit();
+                return response()->json([
+                    'status' => 'success'
+                ]);
+
             }
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }else{

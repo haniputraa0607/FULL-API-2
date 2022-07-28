@@ -152,9 +152,17 @@ class ApiHairStylistLoanController extends Controller
     public function detail_sales_payment(Request $request) {
        
         $store =  HairstylistSalesPayment::where('id_hairstylist_sales_payment',$request->id_hairstylist_sales_payment)
-                ->join('user_hair_stylist','user_hair_stylist.id_business_partner','hairstylist_sales_payments.BusinessPartnerID')
                 ->first();
         if($store){
+			if($store->type == "IMA"){
+				$store =  HairstylistSalesPayment::where('id_hairstylist_sales_payment',$request->id_hairstylist_sales_payment)
+                ->join('user_hair_stylist','user_hair_stylist.id_business_partner_ima','hairstylist_sales_payments.BusinessPartnerID')
+                ->first();
+			}else{
+			$store =  HairstylistSalesPayment::where('id_hairstylist_sales_payment',$request->id_hairstylist_sales_payment)
+                ->join('user_hair_stylist','user_hair_stylist.id_business_partner','hairstylist_sales_payments.BusinessPartnerID')
+                ->first();	
+			}
             return response()->json(MyHelper::checkGet($store));
         }
          return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);

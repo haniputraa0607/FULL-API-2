@@ -678,9 +678,11 @@ class ApiEmployeeAttendaceOutletController extends Controller
 
         if($request->status=='Approve'){
             $request->status = 'Approved';
+            $keyAutocrm = 'Employee Attendance Outlet Pending Approve';
         }
         if($request->status=='Reject'){
             $request->status = 'Rejected';
+            $keyAutocrm = 'Employee Attendance Outlet Pending Reject';
         }
 
         $log = EmployeeOutletAttendanceLog::find($request->id_employee_outlet_attendance_log);
@@ -1249,7 +1251,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
             }
         }elseif($request->status == 'Rejected'){
             DB::commit();
-            $user_attendance = User::join(' employee_outlet_attendance_requests', 'employee_outlet_attendance_requests.id', 'users.id')->where('employee_outlet_attendance_requests.id_employee_outlet_attendance_request', $request->id_employee_outlet_attendance_request)->select('users.*','employee_outlet_attendance_requests.id_outlet as outlet','employee_outlet_attendance_requests.attendance_date')->first();
+            $user_attendance = User::join('employee_outlet_attendance_requests', 'employee_outlet_attendance_requests.id', 'users.id')->where('employee_outlet_attendance_requests.id_employee_outlet_attendance_request', $request->id_employee_outlet_attendance_request)->select('users.*','employee_outlet_attendance_requests.id_outlet as outlet','employee_outlet_attendance_requests.attendance_date')->first();
             $office = Outlet::where('id_outlet',$user_attendance['id_outlet'])->first();
             $outlet = Outlet::where('id_outlet',$user_attendance['outlet'])->first();
             $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
@@ -1283,7 +1285,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
         }
         if($final){
             DB::commit();
-            $user_attendance = User::join(' employee_outlet_attendance_requests', 'employee_outlet_attendance_requests.id', 'users.id')->where('employee_outlet_attendance_requests.id_employee_outlet_attendance_request', $request->id_employee_outlet_attendance_request)->select('users.*','employee_outlet_attendance_requests.id_outlet as outlet','employee_outlet_attendance_requests.attendance_date')->first();
+            $user_attendance = User::join('employee_outlet_attendance_requests', 'employee_outlet_attendance_requests.id', 'users.id')->where('employee_outlet_attendance_requests.id_employee_outlet_attendance_request', $request->id_employee_outlet_attendance_request)->select('users.*','employee_outlet_attendance_requests.id_outlet as outlet','employee_outlet_attendance_requests.attendance_date')->first();
             $office = Outlet::where('id_outlet',$user_attendance['id_outlet'])->first();
             $outlet = Outlet::where('id_outlet',$user_attendance['outlet'])->first();
             $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')

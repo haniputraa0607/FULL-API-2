@@ -1083,7 +1083,7 @@ class ApiDealsVoucher extends Controller
             $resultMessage['header'] =  $empty_text[0]['value']??'Anda belum memiliki Kupon.';
             $resultMessage['content'] =  $empty_text[1]['value']??'Potongan menarik untuk setiap pembelian.';
             return  response()->json([
-                'status'   => 'fail',
+                'status'   => 'success',
                 'messages' => ['My voucher is empty'],
                 'empty'    => $resultMessage
             ]);

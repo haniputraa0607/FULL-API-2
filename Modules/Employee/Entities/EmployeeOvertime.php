@@ -30,6 +30,7 @@ class EmployeeOvertime extends Model
 		'request_at',
 		'approve_at',
 		'reject_at',
+		'id_assign'
 
 	];
 

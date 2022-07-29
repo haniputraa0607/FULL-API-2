@@ -105,7 +105,20 @@ class ApiEmployeeProfileController extends Controller
           $diff = date_diff( $awal, $akhir );
           $validity_period = $diff->y.' Tahun '.$diff->m.' Bulan '.$diff->d.' Hari';
        }
-       $response = array(
+       if($profile->status_employee==1){
+           $response = array(
+           'id' => $profile->id,
+           'barcode'=>$profile->code,
+           'companies'=>$profile->outlet_name,
+           'branch'=>'Pusat',
+           'departement'=>$profile->department_name,
+           'position'=>$profile->role_name,
+           'status_employee'=>"Karyawan Tetap",
+           'start_date'=>$profile->start_date,
+           'validity_period'=>$validity_period
+       );
+       }else{
+           $response = array(
            'id' => $profile->id,
            'barcode'=>$profile->code,
            'companies'=>$profile->outlet_name,
@@ -117,6 +130,8 @@ class ApiEmployeeProfileController extends Controller
            'end_date'=>$profile->end_date,
            'validity_period'=>$validity_period
        );
+       }
+       
        return MyHelper::checkGet($response);
    }
    public function emergency_contact() {

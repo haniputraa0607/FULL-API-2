@@ -61,7 +61,7 @@ class Kernel extends HttpKernel
         'bindings' => \Illuminate\Routing\Middleware\SubstituteBindings::class,
         'can' => \Illuminate\Auth\Middleware\Authorize::class,
         'guest' => \App\Http\Middleware\RedirectIfAuthenticated::class,
-        'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
+        'throttle' => \App\Http\Middleware\ThrottleRequestsExcludeIP::class,
         'log_activities'    => \App\Http\Middleware\LogActivitiesMiddleware::class,
         'log_activities_pos'    => \App\Http\Middleware\LogActivitiesPOSMiddleware::class,
         'log_activities_pos_transaction'    => \App\Http\Middleware\LogActivitiesPOSTransactionMiddleware::class,

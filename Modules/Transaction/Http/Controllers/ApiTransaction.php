@@ -6442,13 +6442,13 @@ class ApiTransaction extends Controller
 
                         if($tran['transaction_tax']==0){
                             $new_transaction_non[$new_trans_non] = $tran;
-                            $num_is_tax = isset($outlet['is_tax']) ? 100 + $outlet['is_tax'] : 100;
-                            $new_transaction_non[$new_trans_non]['total_price'] = ($tran['transaction_product_price_base'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all']) *  (100/$num_is_tax);
+                            $num_is_tax = 100;
+                            $new_transaction_non[$new_trans_non]['total_price'] = ($tran['transaction_product_price'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all']) *  (100/$num_is_tax);
                             $new_trans_non++;
                         }else{
                             $new_transaction[$new_trans_use] = $tran;
-                            $num_is_tax = isset($outlet['is_tax']) ? 100 + $outlet['is_tax'] : 100;
-                            $new_transaction[$new_trans_use]['total_price'] = ($tran['transaction_product_price_base'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all']) *  (100/$num_is_tax);
+                            $num_is_tax = isset($outlet['is_tax']) ? 100 + $outlet['is_tax'] : 111;
+                            $new_transaction[$new_trans_use]['total_price'] = ($tran['transaction_product_price'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all']) *  (100/$num_is_tax);
                             $new_trans_use++;
                         }
 
@@ -6457,14 +6457,14 @@ class ApiTransaction extends Controller
                     if($new_transaction){
                         $new_outlets[$new] = $outlet;
                         $new_outlets[$new]['transaction'] = $new_transaction;
-                        $new_outlets[$new]['ppn'] = $outlet['is_tax'] ?? 10;
+                        $new_outlets[$new]['ppn'] = $outlet['is_tax'] ?? 11;
                         $new++;
 
                     }
                     if($new_transaction_non){
                         $new_outlets[$new] = $outlet;
                         $new_outlets[$new]['transaction'] = $new_transaction_non;
-                        $new_outlets[$new]['ppn'] = $outlet['is_tax'] ?? 0;
+                        $new_outlets[$new]['ppn'] = 0;
                         $new++;
                     }
                 }

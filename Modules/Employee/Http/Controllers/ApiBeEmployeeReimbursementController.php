@@ -133,7 +133,7 @@ class ApiBeEmployeeReimbursementController extends Controller
         }
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
    }
-   public function approved(Request $request) {
+   public function approved(Approved $request) {
        $post = $request->all();
        $post['date_validation'] = date('Y-m-d H:i:s');
        $post['id_user_approved'] =  $post['id_user_approved'] ?? Auth::user()->id;

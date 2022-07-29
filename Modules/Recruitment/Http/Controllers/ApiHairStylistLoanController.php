@@ -152,9 +152,17 @@ class ApiHairStylistLoanController extends Controller
     public function detail_sales_payment(Request $request) {
        
         $store =  HairstylistSalesPayment::where('id_hairstylist_sales_payment',$request->id_hairstylist_sales_payment)
-                ->join('user_hair_stylist','user_hair_stylist.id_business_partner','hairstylist_sales_payments.BusinessPartnerID')
                 ->first();
         if($store){
+			if($store->type == "IMA"){
+				$store =  HairstylistSalesPayment::where('id_hairstylist_sales_payment',$request->id_hairstylist_sales_payment)
+                ->join('user_hair_stylist','user_hair_stylist.id_business_partner_ima','hairstylist_sales_payments.BusinessPartnerID')
+                ->first();
+			}else{
+			$store =  HairstylistSalesPayment::where('id_hairstylist_sales_payment',$request->id_hairstylist_sales_payment)
+                ->join('user_hair_stylist','user_hair_stylist.id_business_partner','hairstylist_sales_payments.BusinessPartnerID')
+                ->first();	
+			}
             return response()->json(MyHelper::checkGet($store));
         }
          return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
@@ -162,7 +170,7 @@ class ApiHairStylistLoanController extends Controller
     public function create_sales_payment(CreateLoan $request){
         $post = $request->json()->all();
         $save = HairstylistLoan::create($post);
-        $date = (int) MyHelper::setting('delivery_income', 'value')??25;
+        $date = (int) MyHelper::setting('hs_income_cut_off_end_date', 'value')??25;
         $now = date('d', strtotime($post['effective_date']));
         $i = 0;
         $amount = $post['amount']/$post['installment'];

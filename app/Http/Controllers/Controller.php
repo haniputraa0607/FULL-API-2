@@ -262,6 +262,7 @@ class Controller extends BaseController
                 'delivery_product' => $this->delivery_product(),      
                 'hairstylist_request_update' => $this->hairstylist_request_update(),      
                 'request_hairstylist' => $this->request_hairstylist(),      
+                'employee_candidate' => $this->employee_candidate(),      
     		],
     	];
     }
@@ -275,7 +276,22 @@ class Controller extends BaseController
 	}
     public function employee()
 	{
-                $total = $this->asset_inventory()+$this->request_employee_perubahan_data()+$this->request_employee_reimbursement()+$this->employee_schedule();
+                $total = $this->asset_inventory()+
+                         $this->request_employee_perubahan_data()+
+                         $this->request_employee_reimbursement()+
+                         $this->employee_schedule()+
+                         $this->employee_candidate();
+                if($total==0){
+                    $total = null;
+                }
+                return $total;
+	}
+    public function employee_candidate()
+	{
+                $total = User::where(array(
+                            "employees.status"=>"candidate",
+                            "users.level"=>"Customer"
+                            ))->wherenotnull('employees.status_approved')->join('employees','employees.id_user','users.id')->count();
                 if($total==0){
                     $total = null;
                 }

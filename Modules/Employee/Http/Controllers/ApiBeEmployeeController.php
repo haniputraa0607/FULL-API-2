@@ -294,16 +294,16 @@ class ApiBeEmployeeController extends Controller
             if(isset($post['update_type']) && $post['update_type'] == 'Approved'){
                 
                 $employee = Employee::where('id_employee', $post['id_employee'])->first();
-                if(isset($post['auto_generate_pin'])){
-                    $pin = MyHelper::createrandom(6, 'Angka');
-                }else{
-                    $pin = $post['pin'];
-                }
+//                if(isset($post['auto_generate_pin'])){
+//                    $pin = MyHelper::createrandom(6, 'Angka');
+//                }else{
+//                    $pin = $post['pin'];
+//                }
                 $dtHs = User::where('id', $employee['id_user'])->first();
                 if(empty($dtHs)){
                     return response()->json(['status' => 'fail', 'messages' => ['User not found']]);
                 }
-                $dtHs->password = bcrypt($pin);
+//                $dtHs->password = bcrypt($pin);
                 $dtHs->level = "Admin";
                 $dtHs->id_outlet = $post['id_outlet']??null;
                 $dtHs->id_role = $post['id_role']??null;

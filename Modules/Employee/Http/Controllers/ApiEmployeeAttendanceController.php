@@ -158,6 +158,7 @@ class ApiEmployeeAttendanceController extends Controller
             'approved_by' => null,
             'notes' => $request->notes,
         ]);
+        $logs = $attendance->logs->where('type',$request->type)->first();
         if($outsideRadius){
             $user_sends = User::join('roles_features','roles_features.id_role', 'users.id_role')->where('id_feature',
             497)->get()->toArray();
@@ -171,6 +172,7 @@ class ApiEmployeeAttendanceController extends Controller
                         'name_office' => $outlet['outlet_name'],
                         'time_attendance' => date('d F Y', strtotime($date_time_now)),
                         'role' => $role['role_name'],
+                        'id_attendance' => $logs['id_employee_attendance_log'],
                     ], null, false, false, 'employee'
                 );
             }
@@ -190,7 +192,7 @@ class ApiEmployeeAttendanceController extends Controller
         ]);
         $employee = $request->user();
 
-        $outlet = Outlet::where('id_outlet', $request['id_outlet'])->first();
+        $outlet = $employee->outlet;
         $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
         
@@ -714,9 +716,40 @@ class ApiEmployeeAttendanceController extends Controller
         ];
     }
 
+    public function checkCurrentTime($data,$timeZone = 7){
+        $check = true;
+        if(isset($data['date']) && !empty($data['date'])){
+            if(date('Y-m-d') < date('Y-m-d',strtotime($data['date']))){
+                $check = false;
+            }
+        }
+        if(isset($data['clock_in']) && !empty($data['clock_in'])){
+            $clock_in = MyHelper::reverseAdjustTimezone($data['clock_in'], $timeZone, 'H:i', true);
+            if(date('H:i') < date('H:i',strtotime($clock_in))){
+                $check = false;
+            }
+        }
+        if(isset($data['clock_out']) && !empty($data['clock_out'])){
+            $clock_out = MyHelper::reverseAdjustTimezone($data['clock_out'], $timeZone, 'H:i', true);
+            if(date('H:i') < date('H:i',strtotime($clock_out))){
+                $check = false;
+            }
+        }
+        return $check;
+    }
+
     public function checkDateRequest(Request $request){
         $post = $request->all();
         $employee = $request->user();
+        
+        $check_date = $this->checkCurrentTime($post);
+        if(!$check_date){
+            return [
+                'status'=>'fail',
+                'messages'=>['Request Absen maksimal adalah sekarang']
+            ];
+        }
+
         $outlet = $employee->outlet()->select('outlet_name', 'outlet_latitude', 'outlet_longitude', 'id_city')->first();
         $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
@@ -769,11 +802,20 @@ class ApiEmployeeAttendanceController extends Controller
                 'messages'=>['Mohon mengisi keterangan dengan jelas.']
             ]);
         }
+
         $employee = $request->user();
         $outlet = $employee->outlet()->select('id_outlet','outlet_name', 'id_city')->first();
         $role = $employee->role;
         $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+
+        $check_date = $this->checkCurrentTime($post,$timeZone);
+        if(!$check_date){
+            return [
+                'status'=>'fail',
+                'messages'=>['Request Absen maksimal adalah sekarang']
+            ];
+        }
 
         $time_zone = [
             '7' => 'WIB',
@@ -837,6 +879,7 @@ class ApiEmployeeAttendanceController extends Controller
                     'name_office' => $outlet['outlet_name'],
                     'time_attendance' => date('d F Y',strtotime($post['date'])),
                     'role' => $role['role_name'],
+                    'id_attendance' => $store['id_employee_attendance_request'],
                 ], null, false, false, 'employee'
             );
         }
@@ -1194,7 +1237,7 @@ class ApiEmployeeAttendanceController extends Controller
                 $clock_in = EmployeeAttendance::find($attendance['id_employee_attendance']);
                 $clock_in->storeClock([
                     'type' => 'clock_in',
-                    'datetime' => MyHelper::reverseAdjustTimezone(date('Y-m-d H:i:s', strtotime($log_req['attendance_date'].' '.$log_req['clock_in'])), $timeZone, 'Y-m-d H:i:s', true),
+                    'datetime' => date('Y-m-d H:i:s', strtotime($log_req['attendance_date'].' '.$log_req['clock_in'])),
                     'latitude' => 0,
                     'longitude' => 0,
                     'status' => 'Approved',
@@ -1210,7 +1253,7 @@ class ApiEmployeeAttendanceController extends Controller
                 $clock_out = EmployeeAttendance::find($attendance['id_employee_attendance']);
                 $clock_out->storeClock([
                     'type' => 'clock_out',
-                    'datetime' => MyHelper::reverseAdjustTimezone(date('Y-m-d H:i:s', strtotime($log_req['attendance_date'].' '.$log_req['clock_out'])), $timeZone, 'Y-m-d H:i:s', true),
+                    'datetime' => date('Y-m-d H:i:s', strtotime($log_req['attendance_date'].' '.$log_req['clock_out'])),
                     'latitude' => 0,
                     'longitude' => 0,
                     'status' => 'Approved',

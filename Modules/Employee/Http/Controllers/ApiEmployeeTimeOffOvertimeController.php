@@ -676,7 +676,15 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
     public function createOvertimeEmployee(Request $request){
         $post = $request->all(); 
         $office = $request->user()->id_outlet;
-        $employees = User::where('id_outlet', $office)->whereNotNull('id_role')->select('id', 'name')->get()->toArray();
+        $cek_feature =  $request->user()->role->roles_features->where('id_feature','513')->first();
+        if($cek_feature){
+            $employees = User::where('id_outlet', $office)->whereNotNull('id_role')->select('id', 'name')->get()->toArray();
+        }else{
+            $employees[] = [
+                'id' => $request->user()->id,
+                'name' => $request->user()->name,
+            ];
+        }
 
         return MyHelper::checkGet($employees);
 

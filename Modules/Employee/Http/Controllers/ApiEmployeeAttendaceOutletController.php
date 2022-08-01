@@ -604,6 +604,14 @@ class ApiEmployeeAttendaceOutletController extends Controller
         }
 
         // $result->selectRaw('*, ');
+        $result->select(
+            'employee_outlet_attendance_logs.*',
+            'employee_schedule_dates.shift',
+            'outlet_att.id_outlet',
+            'outlet_att.outlet_name',
+            'outlet_att.outlet_latitude',
+            'outlet_att.outlet_longitude',
+        );
         $result->orderBy('employee_outlet_attendance_logs.id_employee_outlet_attendance_log');
 
         if ($request->page) {
@@ -678,11 +686,9 @@ class ApiEmployeeAttendaceOutletController extends Controller
 
         if($request->status=='Approve'){
             $request->status = 'Approved';
-            $keyAutocrm = 'Employee Attendance Outlet Pending Approve';
         }
         if($request->status=='Reject'){
             $request->status = 'Rejected';
-            $keyAutocrm = 'Employee Attendance Outlet Pending Reject';
         }
 
         $log = EmployeeOutletAttendanceLog::find($request->id_employee_outlet_attendance_log);
@@ -714,6 +720,13 @@ class ApiEmployeeAttendaceOutletController extends Controller
             '8' => 'WITA',
             '9' => 'WIT',
         ];
+
+        if($request->status=='Approved'){
+            $keyAutocrm = 'Employee Attendance Outlet Pending Approve';
+        }
+        if($request->status=='Rejected'){
+            $keyAutocrm = 'Employee Attendance Outlet Pending Reject';
+        }
 
         $autocrm = app($this->autocrm)->SendAutoCRM(
             $keyAutocrm,

@@ -33,6 +33,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
     {
         if (\Module::collections()->has('Autocrm')) {
             $this->autocrm  = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
+            $this->employee_attendance = "Modules\Employee\Http\Controllers\ApiEmployeeAttendanceController";
         }
     }
 
@@ -190,7 +191,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
             'approved_by' => null,
             'notes' => $request->notes,
         ]);
-
+        $logs = $attendance->logs->where('type',$request->type)->first();
         if($outsideRadius){
             $user_sends = User::join('roles_features','roles_features.id_role', 'users.id_role')->where('id_feature',
             503)->get()->toArray();
@@ -205,6 +206,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
                         'name_outlet' => $outlet['outlet_name'],
                         'time_attendance' => date('d F Y', strtotime($date_time_now)),
                         'role' => $role['role_name'],
+                        'id_attendance' => $logs['id_employee_outlet_attendance_log'],
                     ], null, false, false, 'employee'
                 );
             }
@@ -241,6 +243,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
         
         $schedules = $scheduleMonth->employee_schedule_dates()
             ->leftJoin('employee_outlet_attendances', 'employee_outlet_attendances.id_employee_schedule_date', 'employee_schedule_dates.id_employee_schedule_date')
+            ->where('employee_outlet_attendances.id_outlet',$request['id_outlet'])
             ->get() ?? null;
         $numOfDays = cal_days_in_month(CAL_GREGORIAN, $request->month, $request->year);
         
@@ -752,6 +755,15 @@ class ApiEmployeeAttendaceOutletController extends Controller
     public function checkDateRequest(Request $request){
         $post = $request->all();
         $employee = $request->user();
+
+        $check_date = app($this->employee_attendance)->checkCurrentTime($post);
+        if(!$check_date){
+            return [
+                'status'=>'fail',
+                'messages'=>['Request Absen maksimal adalah sekarang']
+            ];
+        }
+        
         $outlet = Outlet::where('id_outlet', $post['id_outlet'])->select('id_outlet','outlet_name', 'id_city')->first();
 
         $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
@@ -811,6 +823,15 @@ class ApiEmployeeAttendaceOutletController extends Controller
         $role = $employee->role;
         $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+
+        $check_date = app($this->employee_attendance)->checkCurrentTime($post);
+        if(!$check_date){
+            return [
+                'status'=>'fail',
+                'messages'=>['Request Absen maksimal adalah sekarang']
+            ];
+        }
+        
         $time_zone = [
             '7' => 'WIB',
             '8' => 'WITA',
@@ -874,6 +895,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
                     'name_outlet' => $outlet['outlet_name'],
                     'time_attendance' => date('d F Y',strtotime($post['date'])),
                     'role' => $role['role_name'],
+                    'id_attendance' => $store['id_employee_outlet_attendance_request'],
                 ], null, false, false, 'employee'
             );
         }
@@ -1235,7 +1257,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
                 $clock_in = EmployeeOutletAttendance::find($attendance['id_employee_outlet_attendance']);
                 $clock_in->storeClock([
                     'type' => 'clock_in',
-                    'datetime' => MyHelper::reverseAdjustTimezone(date('Y-m-d H:i:s', strtotime($log_req['attendance_date'].' '.$log_req['clock_in'])), $timeZone, 'Y-m-d H:i:s', true),
+                    'datetime' => date('Y-m-d H:i:s', strtotime($log_req['attendance_date'].' '.$log_req['clock_in'])),
                     'latitude' => 0,
                     'longitude' => 0,
                     'status' => 'Approved',
@@ -1251,7 +1273,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
                 $clock_out = EmployeeOutletAttendance::find($attendance['id_employee_outlet_attendance']);
                 $clock_out->storeClock([
                     'type' => 'clock_out',
-                    'datetime' => MyHelper::reverseAdjustTimezone(date('Y-m-d H:i:s', strtotime($log_req['attendance_date'].' '.$log_req['clock_out'])), $timeZone, 'Y-m-d H:i:s', true),
+                    'datetime' => date('Y-m-d H:i:s', strtotime($log_req['attendance_date'].' '.$log_req['clock_out'])),
                     'latitude' => 0,
                     'longitude' => 0,
                     'status' => 'Approved',

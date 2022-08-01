@@ -313,6 +313,16 @@ class ApiPromoTransaction extends Controller
     	$userPromo = UserPromo::where('id_user', $user->id)->get()->keyBy('promo_type');
 
     	if ($userPromo->isEmpty()) {
+			$data['promo_deals'] = [
+				'is_error' 			=> false,
+				'can_use_deal'   	=> 1,
+				'use_deal_message'	=> null,
+			];
+			$data['promo_code'] = [
+				'is_error' 			=> false,
+				'can_use_promo'   	=> 1,
+				'use_promo_message'	=> null,
+			];
     		return $data;
     	}
 		
@@ -461,13 +471,20 @@ class ApiPromoTransaction extends Controller
 					'discount' 			=> $applyDeals['result']['discount'] ?? 0,
 					'discount_delivery' => $applyDeals['result']['discount_delivery'] ?? 0,
 					'text' 				=> $applyDeals['result']['text'] ?? $dealsErr,
-					'is_error' 			=> $dealsErr ? true : false
+					'is_error' 			=> $dealsErr ? true : false,
+					'can_use_deal'   	=> 1,
+					'use_deal_message'	=> null,
+				];
+				$resPromoCode = [
+					'is_error' 			=> false,
+					'can_use_promo'   	=> 0,
+					'use_promo_message' => 'Kode Promo tidak dapat digunakan bersamaan dengan Deals & Voucher',
 				];
 
 				if ($resDeals['is_error']) {
 					$continueCheckOut = false;
 				}
-
+				
 				$data = $this->reformatCheckout($data, $applyDeals['result'] ?? null);
 
 	    	} elseif ($apply == 'promo_campaign' && isset($userPromo['promo_campaign'])) {
@@ -491,18 +508,25 @@ class ApiPromoTransaction extends Controller
 						'text' 				=> $applyCode['result']['text'] ?? $codeErr,
 						'remove_text' 		=> 'Batalkan penggunaan <b>' . ($sharedPromoTrx['promo_campaign']['promo_title'] ?? null) . '</b>',
 						'promo_text'		=> 'Diskon <b>' . ($applyCode['result']['discount'] ?? 0) . '</b> akan diterapkan pada nilai transaksi anda',
-						'is_error' 			=> false
+						'is_error' 			=> false,
+						'can_use_promo'   	=> 1,
+						'use_promo_message'	=> null,
+					];
+					$resDeals = [
+						'is_error' 			=> false,
+						'can_use_deal'   	=> 0,
+						'use_deal_message'	=> 'Deals & Voucher tidak dapat digunakan bersamaan dengan Kode Promo',
 					];
 				}
 
 				$data = $this->reformatCheckout($data, $applyCode['result'] ?? null);
 	    	}
     	}
-    	
+		
 		$data['promo_deals'] = $resDeals;
 		$data['promo_code'] = $resPromoCode;
-
-		if ($resDeals) {
+		
+		if ($resDeals && $resDeals['can_use_deal']==1) {
 			foreach ($data['available_voucher'] as &$voucher) {
 				if ($resDeals['id_deals_user'] == $voucher['id_deals_user']) {
 					$voucher['text'] = $resDeals['text'];
@@ -1794,7 +1818,7 @@ class ApiPromoTransaction extends Controller
                 'amount'        => null
             ];
 
-	        if (!empty($result['promo_deals']) && !$result['promo_deals']['is_error']) {
+	        if (!empty($result['promo_deals']) && !$result['promo_deals']['is_error'] && $result['promo_deals']['can_use_deal']==1) {
 	            $paymentDetail[] = [
 	                'name'          => $result['promo_deals']['title'],
 	                "is_discount"   => 1,
@@ -1802,7 +1826,7 @@ class ApiPromoTransaction extends Controller
 	            ];
 	        }
 
-	        if (!empty($result['promo_code']) && !$result['promo_code']['is_error']) {
+	        if (!empty($result['promo_code']) && !$result['promo_code']['is_error'] && $result['promo_code']['can_use_promo']==1) {
 	            $paymentDetail[] = [
 	                'name'          => $result['promo_code']['title'],
 	                "is_discount"   => 1,
@@ -1810,7 +1834,7 @@ class ApiPromoTransaction extends Controller
 	            ];
 	        }
         }
-
+		
         return $paymentDetail;
     }
 

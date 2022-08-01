@@ -201,7 +201,8 @@ class ApiPromo extends Controller
 		
 		if ($status == 'use')
 		{
-
+			$delete = UserPromo::where('id_user', $user->id)->delete();
+			$update = DealsUser::where('id_user','=',$user->id)->where('is_used','=',1)->update(['is_used' => 0]);
 			if ($source == 'deals')
 			{
 				// change specific deals user is used to 1

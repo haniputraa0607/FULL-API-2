@@ -144,6 +144,23 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                     'messages' => ['Failed to create a request hair stylist time off']
                 ]);
             }
+            $user_hs = UserHairStylist::where('id_user_hair_stylist',$data_store['id_user_hair_stylist'])->first();
+            $outlet = Outlet::where('id_outlet',$user_hs['id_outlet'])->first();
+            $autocrm = app($this->autocrm)->SendAutoCRM(
+                'Hairstylist Request Time Off',
+                $user_hs['phone_number'],
+                [
+                    'name_outlet' => $outlet['name_outlet'],
+                    'time_off_date' => date('d F Y', strtotime($data_store['date'])),
+                ], null, false, false, 'hairstylist'
+            );
+            if(!$autocrm){
+                DB::rollBack();
+                return response()->json([
+                    'status' => 'success', 
+                    'messages' => ['Failed to create a request hair stylist time off']
+                ]);
+            }
             DB::commit();
             return response()->json([
                 'status' => 'success', 
@@ -245,12 +262,15 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
         if($delete){
             $delete_hs_not_avail = HairstylistNotAvailable::where('id_hairstylist_time_off', $post['id_hairstylist_time_off'])->delete();
             $user_hs = UserHairStylist::join('hairstylist_time_off','hairstylist_time_off.id_user_hair_stylist ','user_hair_stylist.id_user_hair_stylist')->where('hairstylist_time_off.id_hairstylist_time_off',$post['id_hairstylist_time_off'])->first();
+            $outlet = Outlet::where('id_outlet',$user_hs['id_outlet'])->first();
             if (\Module::collections()->has('Autocrm')) {
                 $autocrm = app($this->autocrm)->SendAutoCRM(
                     'Hairstylist Request Time Off Rejected', 
                     $user_hs['phone_number'] ?? null,
                     [
-                        'user_update'=>$request->user()->name
+                        'user_update'=>$request->user()->name,
+                        'name_outlet'=>$outlet['name_outlet'],
+                        'time_off_date'=>date('d F Y', strtotime($user_hs['date'])),
                     ], null, false, false, $recipient_type = 'hairstylist', null, true
                 );
                 // return $autocrm;
@@ -365,12 +385,15 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                         ]);
                     }
                     $user_hs = UserHairStylist::join('hairstylist_time_off','hairstylist_time_off.id_user_hair_stylist ','user_hair_stylist.id_user_hair_stylist')->where('hairstylist_time_off.id_hairstylist_time_off',$post['id_hairstylist_time_off'])->first();
+                    $outlet = Outlet::where('id_outlet',$user_hs['id_outlet'])->first();
                     if (\Module::collections()->has('Autocrm')) {
                         $autocrm = app($this->autocrm)->SendAutoCRM(
                             'Hairstylist Request Time Off Approved', 
                             $user_hs['phone_number'] ?? null,
                             [
-                                'user_update'=>$request->user()->name
+                                'user_update'=>$request->user()->name,
+                                'name_outlet'=>$outlet['name_outlet'],
+                                'time_off_date'=>date('d F Y', strtotime($data_update['date'])),
                             ], null, false, false, $recipient_type = 'hairstylist', null, true
                         );
                         // return $autocrm;
@@ -423,6 +446,23 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                 return response()->json([
                     'status' => 'success', 
                     'messages' => ['Failed to create a request hair stylist overtime']
+                ]);
+            }
+            $user_hs = UserHairStylist::join('hairstylist_overtime','hairstylist_overtime.id_user_hair_stylist ','user_hair_stylist.id_user_hair_stylist')->where('hairstylist_overtime.id_hairstylist_overtime',$store['id_hairstylist_overtime'])->first();
+            $outlet = Outlet::where('id_outlet',$user_hs['id_outlet'])->first();
+            $autocrm = app($this->autocrm)->SendAutoCRM(
+                'Hairstylist Request Overtime',
+                $user_hs['phone_number'],
+                [
+                    'name_outlet' => $outlet['name_outlet'],
+                    'overtime_date' => date('d F Y', strtotime($data_store['date'])),
+                ], null, false, false, 'hairstylist'
+            );
+            if(!$autocrm){
+                DB::rollBack();
+                return response()->json([
+                    'status' => 'success', 
+                    'messages' => ['Failed to create a request hair stylist time off']
                 ]);
             }
             DB::commit();
@@ -566,12 +606,15 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                     ]);
                 }
                 $user_hs = UserHairStylist::where('id_user_hair_stylist', $check['id_user_hair_stylist'])->first();
+                $outlet = Outlet::where('id_outlet',$user_hs['id_outlet'])->first();
                 if (\Module::collections()->has('Autocrm')) {
                     $autocrm = app($this->autocrm)->SendAutoCRM(
                         'Hairstylist Request Overtime Rejected', 
                         $user_hs['phone_number'] ?? null,
                         [
-                            'user_update'=>$request->user()->name
+                            'user_update'=>$request->user()->name,
+                            'name_outlet' => $outlet['name_outlet'],
+                            'overtime_date' => date('d F Y', strtotime($check['date'])),
                         ], null, false, false, $recipient_type = 'hairstylist', null, true
                     );
                     if (!$autocrm) {
@@ -662,12 +705,15 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                         ]);
                     }
                     $user_hs = UserHairStylist::join('hairstylist_overtime','hairstylist_overtime.id_user_hair_stylist ','user_hair_stylist.id_user_hair_stylist')->where('hairstylist_overtime.id_hairstylist_overtime',$post['id_hairstylist_overtime'])->first();
+                    $outlet = Outlet::where('id_outlet',$user_hs['id_outlet'])->first();
                     if (\Module::collections()->has('Autocrm')) {
                         $autocrm = app($this->autocrm)->SendAutoCRM(
                             'Hairstylist Request Overtime Approved', 
                             $user_hs['phone_number'] ?? null,
                             [
-                                'user_update'=>$request->user()->name
+                                'user_update'=>$request->user()->name,
+                                'name_outlet' => $outlet['name_outlet'],
+                                'overtime_date' => date('d F Y', strtotime($user_hs['date'])),
                             ], null, false, false, $recipient_type = 'hairstylist', null, true
                         );
                         if (!$autocrm) {
@@ -742,12 +788,15 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                 foreach($data_time_off as $time_off){
                     $update = HairStylistTimeOff::where('id_hairstylist_time_off', $time_off['id_hairstylist_time_off'])->update(['reject_at' => date('Y-m-d')]);
                     $user_hs = UserHairStylist::join('hairstylist_time_off','hairstylist_time_off.id_user_hair_stylist ','user_hair_stylist.id_user_hair_stylist')->where('hairstylist_time_off.id_hairstylist_time_off',$time_off['id_hairstylist_time_off'])->first();
+                    $outlet = Outlet::where('id_outlet',$user_hs['id_outlet'])->first();
                     if (\Module::collections()->has('Autocrm')) {
                         $autocrm = app($this->autocrm)->SendAutoCRM(
                             'Hairstylist Request Time Off Rejected', 
                             $user_hs['phone_number'] ?? null,
                             [
-                                'user_update'=> 'Admin'
+                                'user_update'=> 'Admin',
+                                'name_outlet'=>$outlet['name_outlet'],
+                                'time_off_date'=>date('d F Y', strtotime($time_off['date'])),
                             ], null, false, false, $recipient_type = 'hairstylist', null, true
                         );
                         // return $autocrm;
@@ -766,12 +815,15 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                 foreach($data_overtime as $overtime){
                     $update = HairstylistOverTime::where('id_hairstylist_overtime', $overtime['id_hairstylist_overtime'])->update(['reject_at' => date('Y-m-d')]);
                     $user_hs = UserHairStylist::join('hairstylist_overtime','hairstylist_overtime.id_user_hair_stylist ','user_hair_stylist.id_user_hair_stylist')->where('hairstylist_overtime.id_hairstylist_overtime',$overtime['id_hairstylist_overtime'])->first();
+                    $outlet = Outlet::where('id_outlet',$user_hs['id_outlet'])->first();
                     if (\Module::collections()->has('Autocrm')) {
                         $autocrm = app($this->autocrm)->SendAutoCRM(
                             'Hairstylist Request Overtime Rejected', 
                             $user_hs['phone_number'] ?? null,
                             [
-                                'user_update'=>'Admin'
+                                'user_update'=>'Admin',
+                                'name_outlet' => $outlet['name_outlet'],
+                                'overtime_date' => date('d F Y', strtotime($overtime['date'])),
                             ], null, false, false, $recipient_type = 'hairstylist', null, true
                         );
                         if (!$autocrm) {

@@ -635,6 +635,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
         DB::commit();
         $user_sends = User::join('roles_features','roles_features.id_role', 'users.id_role')->where('id_feature',
         510)->get()->toArray();
+        $outlet = Outlet::where('id_outlet',$office)->first();
         foreach($user_sends ?? [] as $user_send){
             $autocrm = app($this->autocrm)->SendAutoCRM(
                 'Employee Request Time Off',

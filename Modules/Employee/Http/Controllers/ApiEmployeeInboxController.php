@@ -1091,4 +1091,18 @@ class ApiEmployeeInboxController extends Controller
         return $update;
     }
 
+    public function inboxRead(Request $request){
+        $post = $request->all();
+        if(!isset($post['id_inbox']) && empty($post['id_inbox'])){
+            return ['status' => 'fail', 'messages' => ['Mohon untuk memilih salah satu pesan.']];
+        }
+        
+
+        $update = EmployeeInbox::where('id_inbox',$post['inbox'])->update(['read'=>1]);
+        if(!$update){
+            return ['status' => 'fail', 'messages' => ['Gagal membaca pesan.']];
+        }
+        return ['status' => 'success'];
+    }
+
 }

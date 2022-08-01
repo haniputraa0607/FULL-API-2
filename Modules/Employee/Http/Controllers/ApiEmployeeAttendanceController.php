@@ -652,11 +652,9 @@ class ApiEmployeeAttendanceController extends Controller
 
         if($request->status=='Approve'){
             $request->status = 'Approved';
-            $keyAutocrm = 'Employee Attendance Pending Approve';
         }
         if($request->status=='Reject'){
             $request->status = 'Rejected';
-            $keyAutocrm = 'Employee Attendance Pending Reject';
 
         }
         
@@ -689,6 +687,13 @@ class ApiEmployeeAttendanceController extends Controller
             '9' => 'WIT',
         ];
 
+        if($request->status=='Approved'){
+            $keyAutocrm = 'Employee Attendance Pending Approve';
+        }
+        if($request->status=='Rejected'){
+            $keyAutocrm = 'Employee Attendance Pending Reject';
+
+        }
         $autocrm = app($this->autocrm)->SendAutoCRM(
             $keyAutocrm,
             $user_attendance['phone'],

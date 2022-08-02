@@ -207,6 +207,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
                         'time_attendance' => date('d F Y', strtotime($date_time_now)),
                         'role' => $role['role_name'],
                         'id_attendance' => $logs['id_employee_outlet_attendance_log'],
+                        'category' => 'Attendance Outlet'
                     ], null, false, false, 'employee'
                 );
             }
@@ -741,7 +742,8 @@ class ApiEmployeeAttendaceOutletController extends Controller
                 'name_outlet' => $outlet['name_outlet'],
                 'time_attendance' => $date_time_now,
                 'role' => $role['role_name'],
-                'user_update' => $request->user()->id
+                'user_update' => $request->user()->id,
+                'id_outlet' => $outlet['id_outlet']
             ], null, false, false, 'employee'
         );
         return [
@@ -896,6 +898,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
                     'time_attendance' => date('d F Y',strtotime($post['date'])),
                     'role' => $role['role_name'],
                     'id_attendance' => $store['id_employee_outlet_attendance_request'],
+                    'category' => 'Attendance Outlet'
                 ], null, false, false, 'employee'
             );
         }
@@ -1310,7 +1313,9 @@ class ApiEmployeeAttendaceOutletController extends Controller
                     'name_outlet' => $outlet['outlet_name'],
                     'time_attendance' => $date_time_now,
                     'role' => $role['role_name'],
-                    'user_update' => $request->user()->id
+                    'user_update' => $request->user()->id,
+                    'id_outlet' => $outlet['id_outlet'],
+                    'category' => 'Attendance Outlet'
                 ], null, false, false, 'employee'
             );
             return [
@@ -1344,7 +1349,9 @@ class ApiEmployeeAttendaceOutletController extends Controller
                     'name_outlet' => $outlet['outlet_name'],
                     'time_attendance' => $date_time_now,
                     'role' => $role['role_name'],
-                    'user_update' => $request->user()->id
+                    'user_update' => $request->user()->id,
+                    'id_outlet' => $outlet['id_outlet'],
+                    'category' => 'Attendance Outlet'
                 ], null, false, false, 'employee'
             );
             return [

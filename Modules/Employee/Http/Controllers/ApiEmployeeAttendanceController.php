@@ -173,6 +173,7 @@ class ApiEmployeeAttendanceController extends Controller
                         'time_attendance' => date('d F Y', strtotime($date_time_now)),
                         'role' => $role['role_name'],
                         'id_attendance' => $logs['id_employee_attendance_log'],
+                        'category' => 'Attendance'
                     ], null, false, false, 'employee'
                 );
             }
@@ -705,7 +706,8 @@ class ApiEmployeeAttendanceController extends Controller
                 'name_office' => $outlet['name_outlet'],
                 'time_attendance' => $date_time_now,
                 'role' => $role['role_name'],
-                'user_update' => $request->user()->id
+                'user_update' => $request->user()->id,
+                'category' => 'Attendance'
             ], null, false, false, 'employee'
         );
         return [
@@ -880,6 +882,7 @@ class ApiEmployeeAttendanceController extends Controller
                     'time_attendance' => date('d F Y',strtotime($post['date'])),
                     'role' => $role['role_name'],
                     'id_attendance' => $store['id_employee_attendance_request'],
+                    'category' => 'Attendance'
                 ], null, false, false, 'employee'
             );
         }
@@ -1287,7 +1290,8 @@ class ApiEmployeeAttendanceController extends Controller
                     'name_office' => $outlet['outlet_name'],
                     'time_attendance' => $date_time_now,
                     'role' => $role['role_name'],
-                    'user_update' => $request->user()->id
+                    'user_update' => $request->user()->id,
+                    'category' => 'Attendance'
                 ], null, false, false, 'employee'
             );
             return [
@@ -1318,7 +1322,8 @@ class ApiEmployeeAttendanceController extends Controller
                     'name_office' => $outlet['outlet_name'],
                     'time_attendance' => $date_time_now,
                     'role' => $role['role_name'],
-                    'user_update' => $request->user()->id
+                    'user_update' => $request->user()->id,
+                    'category' => 'Attendance'
                 ], null, false, false, 'employee'
             );
             return [

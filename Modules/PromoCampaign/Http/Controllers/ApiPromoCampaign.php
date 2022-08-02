@@ -2841,10 +2841,10 @@ class ApiPromoCampaign extends Controller
             }
             if(isset($post['transaction_from']) && is_string($post['transaction_from'])){
                 if(!MyHelper::isJoined($deals,'deals_vouchers')){
-                    $voucher->leftJoin('deals_vouchers', 'deals_users.id_deals_voucher', 'deals_vouchers.id_deals_voucher');
+                    $deals->leftJoin('deals_vouchers', 'deals_users.id_deals_voucher', 'deals_vouchers.id_deals_voucher');
                 }
                 if(!MyHelper::isJoined($deals,'deals')){
-                    $voucher->leftJoin('deals', 'deals.id_deals', 'deals_vouchers.id_deals');
+                    $deals->leftJoin('deals', 'deals.id_deals', 'deals_vouchers.id_deals');
                 }
                 $deals = $deals->leftJoin('deals_services', 'deals.id_deals', 'deals_services.id_deals')
                     ->where('deals_services.service', $service[$post['transaction_from']])
@@ -2991,7 +2991,7 @@ class ApiPromoCampaign extends Controller
 		$result['promo_code'] 			= $request->promo_code;
 		$result['id_deals_user'] 		= $request->id_deals_user;
 		$result['id_subscription_user']	= $request->id_subscription_user;
-        
+
 		$result = MyHelper::checkGet($result);
 
 		// check item

@@ -1809,8 +1809,8 @@ class ApiPromoTransaction extends Controller
     public function paymentDetailPromo($result)
     {
     	$paymentDetail = [];
-    	if ((!empty($result['promo_deals']) && !$result['promo_deals']['is_error'] && $result['promo_deals']['can_use_deal']==1 && $result['promo_code']['can_use_promo']==0)
-        	|| (!empty($result['promo_code']) && !$result['promo_code']['is_error'] && $result['promo_deals']['can_use_deal']==0 && $result['promo_code']['can_use_promo']==1)
+    	if ((!empty($result['promo_deals']) && !$result['promo_deals']['is_error'] && $result['promo_deals']['can_use_deal']==1 && $result['promo_code']['can_use_promo']==0 && ($result['promo_deals']['title'] ?? false))
+        	|| (!empty($result['promo_code']) && !$result['promo_code']['is_error'] && $result['promo_deals']['can_use_deal']==0 && $result['promo_code']['can_use_promo']==1 && ($result['promo_code']['title'] ?? false))
     	) {
     		$paymentDetail[] = [
                 'name'          => 'Promo / Discount:',
@@ -1818,7 +1818,7 @@ class ApiPromoTransaction extends Controller
                 'amount'        => null
             ];
 
-	        if (!empty($result['promo_deals']) && !$result['promo_deals']['is_error'] && $result['promo_deals']['can_use_deal']==1 && $result['promo_code']['can_use_promo']==0) {
+	        if (!empty($result['promo_deals']) && !$result['promo_deals']['is_error'] && $result['promo_deals']['can_use_deal']==1 && $result['promo_code']['can_use_promo']==0 && ($result['promo_deals']['title'] ?? false)) {
 	            $paymentDetail[] = [
 	                'name'          => $result['promo_deals']['title'],
 	                "is_discount"   => 1,
@@ -1826,7 +1826,7 @@ class ApiPromoTransaction extends Controller
 	            ];
 	        }
 
-	        if (!empty($result['promo_code']) && !$result['promo_code']['is_error'] && $result['promo_deals']['can_use_deal']==0 && $result['promo_code']['can_use_promo']==1) {
+	        if (!empty($result['promo_code']) && !$result['promo_code']['is_error'] && $result['promo_deals']['can_use_deal']==0 && $result['promo_code']['can_use_promo']==1 && ($result['promo_code']['title'] ?? false)) {
 	            $paymentDetail[] = [
 	                'name'          => $result['promo_code']['title'],
 	                "is_discount"   => 1,

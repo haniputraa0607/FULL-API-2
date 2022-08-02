@@ -670,6 +670,24 @@ class ApiAutoCrm extends Controller
                             case 'home_service_history' :
                                 $dataOptional['type'] = $variables['mitra_get_order_clickto']??'home_service_history';
                                 break;
+							case 'approval_attendance_pending' :
+							case 'approval_attendance_request' :
+							case 'approval_attendance_outlet_pending' :
+							case 'approval_attendance_outlet_request' :
+								if (isset($variables['id_attendance'])) {
+                                    $dataOptional['id_reference'] = $variables['id_attendance'];
+                                } else {
+                                    $dataOptional['id_reference'] = 0;
+                                }
+								break;
+							case 'attendance_outlet_history' :
+							case 'attendance_outlet_request' :
+								if (isset($variables['id_outlet'])) {
+                                    $dataOptional['id_reference'] = $variables['id_outlet'];
+                                } else {
+                                    $dataOptional['id_reference'] = 0;
+                                }
+								break;
                             default :
                                 $dataOptional['type'] = 'Home';
                                 $dataOptional['id_reference'] = 0;
@@ -838,20 +856,39 @@ class ApiAutoCrm extends Controller
                         case 'home_service_history' :
                             $inbox['inboxes_clickto'] = $variables['mitra_get_order_clickto']??'home_service_history';
                             break;
-                        case 'employee_inbox' :
-                            if (isset($variables['clickto'])) {
-                                $inbox['inboxes_clickto'] = $variables['clickto'];
-                            }
+						case 'approval_attendance_pending' :
+						case 'approval_attendance_request' :
+						case 'approval_attendance_outlet_pending' :
+						case 'approval_attendance_outlet_request' :
 							if (isset($variables['category'])) {
                                 $inbox['inboxes_category'] = $variables['category'];
                             }
-                            
-                            if (isset($variables['id_employee_reference'])) {
-                                $inbox['inboxes_id_reference'] = $variables['id_employee_reference'];
-                            }else{
-                                $inbox['inboxes_id_reference'] = 0;
+							if (isset($variables['id_attendance'])) {
+								$inbox['inboxes_id_reference'] = $variables['id_attendance'];
+                                $inbox['inboxes_clickto'] = $variables['autocrm_inbox_clickto'];
+							} else {
+								$inbox['inboxes_id_reference'] = 0;
+                                $inbox['inboxes_clickto'] = 0;
+							}
+							break;
+						case 'attendance_outlet_history' :
+						case 'attendance_outlet_request' :
+							if (isset($variables['category'])) {
+                                $inbox['inboxes_category'] = $variables['category'];
                             }
-                            break;
+							if (isset($variables['id_outlet'])) {
+								$inbox['id_reference'] = $variables['id_outlet'];
+                                $inbox['inboxes_clickto'] = $variables['autocrm_inbox_clickto'];
+							} else {
+								$inbox['id_reference'] = 0;
+                                $inbox['inboxes_clickto'] = 0;
+							}
+							break;
+						case 'employee_approval' : 
+							if (isset($variables['category'])) {
+                                $inbox['inboxes_category'] = $variables['category'];
+                            }
+							break;
                         default :
                             $inbox['inboxes_clickto'] = 'Default';
                             $inbox['inboxes_id_reference'] = 0;

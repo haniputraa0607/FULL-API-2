@@ -47,7 +47,6 @@ class Icount
         }else{
             $response = MyHelper::postWithTimeout(self::getBaseUrl($company) . $url, null, $request, $time_out, $header, 65, $fullResponse);
         }   
-
         try {
             if($method=='get'){
                 foreach($response['response']['Data'] as $key => $data){
@@ -59,14 +58,14 @@ class Icount
             $log_response = $response;
             
             $log_api_array = [
-                'type'              => $logType,
-                'id_reference'      => $orderId,
+                'type'              => $logType??'',
+                'id_reference'      => $orderId??'',
                 'request_url'       => self::getBaseUrl($company) . $url,
                 'request_method'    => strtoupper($method),
                 'request_parameter' => json_encode($request),
                 'response_body'     => json_encode($log_response),
-                'response_header'   => json_encode($fullResponse->getHeaders()),
-                'response_code'     => $fullResponse->getStatusCode()
+                'response_header'   => json_encode($fullResponse->getHeaders()??''),
+                'response_code'     => $fullResponse->getStatusCode()??''
             ];
             LogApiIcount::create($log_api_array);
         } catch (\Exception $e) {                    
@@ -433,7 +432,7 @@ class Icount
                 ],
             ]
         ];
-        if($company=='PT IMS'){
+        if($company=='PT IMA'){
             $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
             $data['BranchID'] = $request['location']['id_branch_ima'];
         }else{
@@ -482,7 +481,7 @@ class Icount
                 ],
             ]
         ];
-        if($company=='PT IMS'){
+        if($company=='PT IMA'){
             $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
             $data['BranchID'] = $request['location']['id_branch_ima'];
         }else{
@@ -498,6 +497,23 @@ class Icount
             }
         }
         return self::sendRequest('POST', '/sales/sharing_management_fee', $data, $company, $logType, $orderId);
+    }
+    public static function SalesPayment($request, $company = null, $logType = null, $orderId = null){
+        $data = [
+            "VoucherNo" => "[AUTO]",
+            "TransDate" => date("Y-m-d"),
+            "ReferenceNo" => null,
+            "SalesInvoiceID" => $request['SalesInvoiceID'],
+            "Amount" => $request['amount_return'],
+            "Description" => $request['name_category_loan'],
+            "Notes" => "Pembayaran peminjaman"
+        ];
+        if($company=='IMA'){
+           $company = "PT IMA";
+        }else{
+           $company = "PT IMS";
+        }
+        return self::sendRequest('POST', '/sales/create_sp_hs', $data, $company, $logType, $orderId);
     }
     public static function get($request, $logType = null, $orderId = null){
         return self::sendRequest('GET', '/branch/list', $request, $logType, $orderId);

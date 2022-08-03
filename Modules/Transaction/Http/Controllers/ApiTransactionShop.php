@@ -144,7 +144,7 @@ class ApiTransactionShop extends Controller
         }
 
         $cashBack = app($this->setting_trx)->countTransaction('cashback', $post);
-        $countUserTrx = Transaction::where('id_user', $user['id_user'])->where('transaction_payment_status', 'Completed')->count();
+        $countUserTrx = Transaction::where('id_user', $user['id'])->where('transaction_payment_status', 'Completed')->count();
         $countSettingCashback = TransactionSetting::get();
 
         if ($countUserTrx < count($countSettingCashback)) {
@@ -393,6 +393,16 @@ class ApiTransactionShop extends Controller
 
         $grandTotal = app($this->setting_trx)->grandTotal();
         $user = $request->user();
+        if(!empty($request->user()->id)){
+            $user = User::with('memberships')->where('id', $request->user()->id)->first();
+            if (empty($user)) {
+                return response()->json([
+                    'status'    => 'fail',
+                    'messages'  => ['User Not Found']
+                ]);
+            }
+        }
+
         if ($user->complete_profile == 0) {
             return response()->json([
                 'status'    => 'success',
@@ -645,8 +655,45 @@ class ApiTransactionShop extends Controller
         $result['subtotal_product'] = $subtotalProduct;
         $subtotal = $post['subtotal'];
 
-        $earnedPoint = app($this->online_trx)->countTranscationPoint($post, $user);
-        $cashback = $earnedPoint['cashback'] ?? 0;
+        $cashBack = app($this->setting_trx)->countTransaction('cashback', $post);
+        $countUserTrx = Transaction::where('id_user', $user['id'])->where('transaction_payment_status', 'Completed')->count();
+        $countSettingCashback = TransactionSetting::get();
+
+        if ($countUserTrx < count($countSettingCashback)) {
+            $cashBack = $cashBack * $countSettingCashback[$countUserTrx]['cashback_percent'] / 100;
+
+            if ($cashBack > $countSettingCashback[$countUserTrx]['cashback_maximum']) {
+                $cashBack = $countSettingCashback[$countUserTrx]['cashback_maximum'];
+            }
+        } else {
+
+            $maxCash = Setting::where('key', 'cashback_maximum')->first();
+
+            if (count($user['memberships']) > 0) {
+                $cashBack = $cashBack * ($user['memberships'][0]['benefit_cashback_multiplier']) / 100;
+
+                if($user['memberships'][0]['cashback_maximum']){
+                    $maxCash['value'] = $user['memberships'][0]['cashback_maximum'];
+                }
+            }
+
+            $statusCashMax = 'no';
+
+            if (!empty($maxCash) && !empty($maxCash['value'])) {
+                $statusCashMax = 'yes';
+                $totalCashMax = $maxCash['value'];
+            }
+
+            if ($statusCashMax == 'yes') {
+                if ($totalCashMax < $cashBack) {
+                    $cashBack = $totalCashMax;
+                }
+            } else {
+                $cashBack = $cashBack;
+            }
+        }
+
+        $cashback = $cashBack ?? 0;
         if ($cashback) {
             $result['point_earned'] = [
                 'value' => MyHelper::requestNumber($cashback, '_CURRENCY'),
@@ -968,8 +1015,43 @@ class ApiTransactionShop extends Controller
             $post['membership_promo_id'] = null;
         }
 
-        $earnedPoint = app($this->online_trx)->countTranscationPoint($post, $user);
-        $cashback = $earnedPoint['cashback'] ?? 0;
+        $cashBack = app($this->setting_trx)->countTransaction('cashback', $post);
+        $countUserTrx = Transaction::where('id_user', $user['id'])->where('transaction_payment_status', 'Completed')->count();
+        $countSettingCashback = TransactionSetting::get();
+
+        if ($countUserTrx < count($countSettingCashback)) {
+            $cashBack = $cashBack * $countSettingCashback[$countUserTrx]['cashback_percent'] / 100;
+
+            if ($cashBack > $countSettingCashback[$countUserTrx]['cashback_maximum']) {
+                $cashBack = $countSettingCashback[$countUserTrx]['cashback_maximum'];
+            }
+        } else {
+
+            $maxCash = Setting::where('key', 'cashback_maximum')->first();
+
+            if (count($user['memberships']) > 0) {
+                $cashBack = $cashBack * ($user['memberships'][0]['benefit_cashback_multiplier']) / 100;
+
+                if($user['memberships'][0]['cashback_maximum']){
+                    $maxCash['value'] = $user['memberships'][0]['cashback_maximum'];
+                }
+            }
+
+            $statusCashMax = 'no';
+
+            if (!empty($maxCash) && !empty($maxCash['value'])) {
+                $statusCashMax = 'yes';
+                $totalCashMax = $maxCash['value'];
+            }
+
+            if ($statusCashMax == 'yes') {
+                if ($totalCashMax < $cashBack) {
+                    $cashBack = $totalCashMax;
+                }
+            } else {
+                $cashBack = $cashBack;
+            }
+        }
 
         $listDelivery = $this->listDelivery();
         $deliv = $this->findDelivery($listDelivery, $request->delivery_name, $request->delivery_method);
@@ -999,7 +1081,7 @@ class ApiTransactionShop extends Controller
             'transaction_gross'  		  => $post['subtotal'],
             'transaction_tax'             => $post['tax'],
             'transaction_grandtotal'      => $grandTotal,
-            'transaction_cashback_earned' => $cashback,
+            'transaction_cashback_earned' => $cashBack??0,
             'transaction_payment_status'  => $post['transaction_payment_status'],
             'membership_level'            => $post['membership_level'],
             'membership_promo_id'         => $post['membership_promo_id'],

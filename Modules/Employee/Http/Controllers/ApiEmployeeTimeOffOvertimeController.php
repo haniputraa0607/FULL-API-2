@@ -382,6 +382,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                                 'user_update'=> $request->user()->name,
                                 'time_off_date'=> $user_employee['date'],
                                 'name_office'=> $office['name_outlet'],
+                                'categore' => 'Time Off',
                             ], null, false, false, $recipient_type = 'employee', null, true
                         );
                         if (!$autocrm) {
@@ -423,6 +424,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                         'user_update'=>$request->user()->name,
                         'time_off_date'=> $user_employee['date'],
                         'name_office'=> $office['name_outlet'],
+                        'categore' => 'Time Off',
                     ], null, false, false, $recipient_type = 'employee', null, true
                 );
                 if (!$autocrm) {
@@ -645,6 +647,8 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                     'phone_employee' => $employee['phone'],
                     'name_office' => $outlet['outlet_name'],
                     'time_off_date' => date('d F Y', strtotime($post['date'])),
+                    'categore' => 'Time Off',
+                    'id_time_off' => $store['id_employee_time_off']
                 ], null, false, false, 'employee'
             );
         }
@@ -859,6 +863,8 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                         'overtime_date' => date('d F Y', strtotime($data_overtime['date'])),
                         'start_overtime' => date('H:i', strtotime($post['start_time_off'])),
                         'end_overtime' => date('H:i', strtotime($post['end_time_off'])),
+                        'category' => 'Overtime',
+                        'id_overtime' => $store['id_employee_overtime']
                     ], null, false, false, 'employee'
                 );
             }
@@ -869,7 +875,8 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                     [
                         'name_office' => $data_office['outlet_name'],
                         'overtime_date' => date('d F Y', strtotime($data_overtime['date'])),
-                        'name_assign' => $request->user()->name
+                        'name_assign' => $request->user()->name,
+                        'category' => 'Overtime',
                     ], null, false, false, 'employee'
                 );
             }
@@ -1275,6 +1282,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                                 'overtime_date' => date('d F Y', strtotime($user_assign['date'])),
                                 'name_employee' => $employee_overtime['name'],
                                 'name_office' => $office['name_outlet'],
+                                'category' => 'Overtime',
                             ], null, false, false, $recipient_type = 'employee', null, true
                         );
                         if (!$autocrm) {
@@ -1294,6 +1302,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                                 'overtime_date' => date('d F Y', strtotime($user_assign['date'])),
                                 'name_assign' => $user_assign['name'],
                                 'user_update' => $request->user()->name,
+                                'category' => 'Overtime',
                             ], null, false, false, 'employee'
                         );
                     }
@@ -1464,6 +1473,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                             'overtime_date' => date('d F Y', strtotime($check['date'])),
                             'name_employee' => $employee_overtime['name'],
                             'name_office' => $office['name_outlet'],
+                            'category' => 'Overtime',
                         ], null, false, false, $recipient_type = 'employee', null, true
                     );
                     if (!$autocrm) {
@@ -1483,6 +1493,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                             'overtime_date' => date('d F Y', strtotime($check['date'])),
                             'name_assign' => $user_assign['name'],
                             'user_update' => $request->user()->name,
+                            'category' => 'Overtime',
                         ], null, false, false, 'employee'
                     );
                 }
@@ -1515,6 +1526,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                                 'user_update'=>'Admin',
                                 'time_off_date'=> $user_employee['date'],
                                 'name_office'=> $office['name_outlet'],
+                                'categore' => 'Time Off',
                             ], null, false, false, $recipient_type = 'employee', null, true
                         );
                         if (!$autocrm) {
@@ -1543,6 +1555,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                                 'overtime_date' => date('d F Y', strtotime($user_assign['date'])),
                                 'name_employee' => $employee_overtime['name'],
                                 'name_office' => $office['name_outlet'],
+                                'category' => 'Overtime',
                             ], null, false, false, $recipient_type = 'employee', null, true
                         );
                         if (!$autocrm) {
@@ -1561,6 +1574,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                                 'overtime_date' => date('d F Y', strtotime($user_assign['date'])),
                                 'name_assign' => $user_assign['name'],
                                 'user_update' => $request->user()->name,
+                                'category' => 'Overtime',
                             ], null, false, false, 'employee'
                         );
                     }

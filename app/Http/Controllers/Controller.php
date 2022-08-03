@@ -245,7 +245,9 @@ class Controller extends BaseController
                 'candidate-locations'=> $this->candidate_locations(),    
                 'projects'=> $this->projects(),
                 'process-project'=> $this->process_project(),
-                'employee_schedule' => $this->employee_schedule(),      
+                'employee_attendance' => $this->employee_attendance(),      
+                'employee_attendance_outlet' => $this->employee_attendance_outlet(),      
+                'employee_timeoff_overtime' => $this->employee_timeoff_overtime(),      
                 'employee_attendance_pending' => $this->employee_attendance_pending(),      
                 'employee_attendance_request' => $this->employee_attendance_request(),      
                 'employee_attendance_outlet_pending' => $this->employee_attendance_outlet_pending(),      
@@ -279,7 +281,9 @@ class Controller extends BaseController
                 $total = $this->asset_inventory()+
                          $this->request_employee_perubahan_data()+
                          $this->request_employee_reimbursement()+
-                         $this->employee_schedule()+
+                         $this->employee_attendance()+
+                         $this->employee_attendance_outlet()+
+                         $this->employee_timeoff_overtime()+
                          $this->employee_candidate();
                 if($total==0){
                     $total = null;
@@ -457,8 +461,24 @@ class Controller extends BaseController
         return $total;
     }
 
-    public function employee_schedule(){
-        $total = $this->employee_attendance_pending()+$this->employee_attendance_request()+$this->employee_attendance_outlet_pending()+$this->employee_attendance_outlet_request()+$this->employee_time_off()+$this->employee_overtime();
+    public function employee_attendance(){
+        $total = $this->employee_attendance_pending()+$this->employee_attendance_request();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+
+    public function employee_attendance_outlet(){
+        $total = $this->employee_attendance_outlet_pending()+$this->employee_attendance_outlet_request();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+
+    public function employee_timeoff_overtime(){
+        $total = +$this->employee_time_off()+$this->employee_overtime();
         if($total==0){
             $total = null;
         }

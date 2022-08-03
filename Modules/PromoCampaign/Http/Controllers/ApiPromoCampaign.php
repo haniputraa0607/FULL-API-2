@@ -3352,7 +3352,7 @@ class ApiPromoCampaign extends Controller
 	        if ($query['promo_type'] == 'Product discount') 
 	        {
 	        	$discount = $query[$source.'_product_discount_rules']['discount_type']??'Nominal';
-	        	$qty = $query[$source.'_product_discount_rules']['max_product']??0;
+	        	$qty = 'Rp '.number_format(($query[$source.'_product_discount_rules']['max_product']??0),0,',','.');
 
 	        	if ($discount == 'Percent') {
 	        		$discount = ($query[$source.'_product_discount_rules']['discount_value']??0).'%';

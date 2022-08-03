@@ -688,6 +688,20 @@ class ApiAutoCrm extends Controller
                                     $dataOptional['id_reference'] = 0;
                                 }
 								break;
+							case 'approval_time_off' :
+								if (isset($variables['id_time_off'])) {
+                                    $dataOptional['id_reference'] = $variables['id_time_off'];
+                                } else {
+                                    $dataOptional['id_reference'] = 0;
+                                }
+								break;
+							case 'approval_overtime' :
+								if (isset($variables['id_overtime'])) {
+                                    $dataOptional['id_reference'] = $variables['id_overtime'];
+                                } else {
+                                    $dataOptional['id_reference'] = 0;
+                                }
+								break;
                             default :
                                 $dataOptional['type'] = 'Home';
                                 $dataOptional['id_reference'] = 0;
@@ -888,6 +902,42 @@ class ApiAutoCrm extends Controller
 							if (isset($variables['category'])) {
                                 $inbox['inboxes_category'] = $variables['category'];
                             }
+							break;
+						case 'approval_time_off' :
+							if (isset($variables['category'])) {
+                                $inbox['inboxes_category'] = $variables['category'];
+                            }
+							if (isset($variables['id_time_off'])) {
+								$inbox['inboxes_id_reference'] = $variables['id_time_off'];
+                                $inbox['inboxes_clickto'] = $variables['autocrm_inbox_clickto'];
+							} else {
+								$inbox['inboxes_id_reference'] = 0;
+                                $inbox['inboxes_clickto'] = 0;
+							}
+							break;
+						case 'timeoff_history' :
+							if (isset($variables['category'])) {
+                                $inbox['inboxes_category'] = $variables['category'];
+                            }
+							$inbox['inboxes_clickto'] = $variables['autocrm_inbox_clickto'];
+							break;
+						case 'approval_overtime' :
+							if (isset($variables['category'])) {
+                                $inbox['inboxes_category'] = $variables['category'];
+                            }
+							if (isset($variables['id_overtime'])) {
+								$inbox['inboxes_id_reference'] = $variables['id_overtime'];
+                                $inbox['inboxes_clickto'] = $variables['autocrm_inbox_clickto'];
+							} else {
+								$inbox['inboxes_id_reference'] = 0;
+                                $inbox['inboxes_clickto'] = 0;
+							}
+							break;
+						case 'overtime_history' :
+							if (isset($variables['category'])) {
+                                $inbox['inboxes_category'] = $variables['category'];
+                            }
+							$inbox['inboxes_clickto'] = $variables['autocrm_inbox_clickto'];
 							break;
                         default :
                             $inbox['inboxes_clickto'] = 'Default';

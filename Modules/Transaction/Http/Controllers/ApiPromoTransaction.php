@@ -524,7 +524,7 @@ class ApiPromoTransaction extends Controller
 						'discount_delivery' => $applyCode['result']['discount_delivery'] ?? 0,
 						'text' 				=> $applyCode['result']['text'] ?? $codeErr,
 						'remove_text' 		=> 'Batalkan penggunaan <b>' . ($sharedPromoTrx['promo_campaign']['promo_title'] ?? null) . '</b>',
-						'promo_text'		=> 'Diskon <b>' . ($applyCode['result']['discount'] ?? 0) . '</b> akan diterapkan pada nilai transaksi anda',
+						'promo_text'		=> 'Diskon <b>' . ('Rp '.number_format(($applyCode['result']['discount'] ?? 0),0,',','.')) . '</b> akan diterapkan pada nilai transaksi anda',
 						'is_error' 			=> false,
 					];
 					if($new_version){

@@ -12,6 +12,8 @@ use DatePeriod;
 use DateTime;
 use DB;
 use Illuminate\Database\Eloquent\Model;
+use App\Lib\Icount;
+use Modules\Recruitment\Entities\HairstylistLoanIcount;
 
 class HairstylistIncome extends Model
 {
@@ -91,11 +93,13 @@ class HairstylistIncome extends Model
         if (!$hsIncome) {
             throw new \Exception('Failed create hs income data');
         }
+        $incomeDefault = HairstylistGroupFixedIncentiveDefault::with(['detail'])->get();
         $total_attend   = 0;
         $total_late     = 0;
         $total_absen    = 0;
         $total_overtime = 0;
         $overtime       = array();
+        $outlet = Outlet::where('id_outlet', $hs->id_outlet)->first();
         $id_outlets     = HairstylistAttendance::where('id_user_hair_stylist', $hs->id_user_hair_stylist)->groupby('id_outlet')->distinct()->get()->pluck('id_outlet');
         foreach ($id_outlets as $id_outlet) {
             $total_attend = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) use ($hs, $id_outlet) {
@@ -361,7 +365,7 @@ class HairstylistIncome extends Model
                 ]);
             $total = $total + $nominal;
         }
-        $fixed = self::calculateFixedIncentive($hs, $startDate, $endDate);
+        $fixed = self::calculateFixedIncentive($hs, $startDate, $endDate,$outlet,$incomeDefault);
         foreach ($fixed as $value) {
             $hsIncome->hairstylist_income_details()->updateOrCreate([
                 'source'    => "Fixed Incentive",
@@ -380,8 +384,23 @@ class HairstylistIncome extends Model
         }
         $loan = self::calculateLoan($hs, $startDate, $endDate);
         foreach ($loan as $value) {
+            
             $total = $total - $value['value'];
             if ($total >= 0) {
+                if(isset($value['type'])){
+                $icount = Icount::SalesPayment($value, $value['type'], null, null);
+                if($icount['response']['Status']=='1' && $icount['response']['Message']=='success'){
+                    $icount = $icount['response']['Data'][0];
+                    $loanicount = HairstylistLoanIcount::create([
+                     'SalesPaymentID'=> $icount['SalesPaymentID'],
+                     'SalesInvoiceID'=> $value['SalesInvoiceID'],
+                     'BusinessPartnerID'=> $icount['BusinessPartnerID'],
+                     'CompanyID'=> $icount['CompanyID'],
+                     'BranchID'=> $icount['BranchID'],
+                     'VoucherNo'=> $icount['VoucherNo'],
+                     'id_hairstylist_loan_return'=> $value['id_hairstylist_loan_return'],
+                     'value_detail'=> json_encode($icount),
+                 ]);
                 $hsIncome->hairstylist_income_details()->updateOrCreate([
                     'source'    => "Hairstylist Loan",
                     'reference' => $value['id_hairstylist_loan_return'],
@@ -395,6 +414,22 @@ class HairstylistIncome extends Model
                         'status_return' => "Success",
                         'date_pay'      => date('Y-m-d H:i:s'),
                     ]);
+                }
+                }else{
+                    $hsIncome->hairstylist_income_details()->updateOrCreate([
+                        'source'    => "Hairstylist Loan",
+                        'reference' => $value['id_hairstylist_loan_return'],
+                    ],
+                        [
+                            'id_outlet' => $value['id_outlet'],
+                            'amount'    => $value['value'],
+                        ]);
+                    $loan_return = HairstylistLoanReturn::where('id_hairstylist_loan_return', $value['id_hairstylist_loan_return'])
+                        ->update([
+                            'status_return' => "Success",
+                            'date_pay'      => date('Y-m-d H:i:s'),
+                        ]);
+                }
             } else {
                 $total = $total + $value['value'];
                 break;
@@ -1138,15 +1173,30 @@ class HairstylistIncome extends Model
                     ->where('hairstylist_loan_returns.return_date', '<=', $endDate)
                     ->where('hairstylist_loan_returns.status_return', 'Pending');
             })
+            ->leftjoin('hairstylist_sales_payments','hairstylist_sales_payments.id_hairstylist_sales_payment','hairstylist_loans.id_hairstylist_sales_payment')
             ->where('status_loan', 'Success')
             ->get();
+          
         foreach ($loan as $value) {
-            $array[] = array(
-                "name"                       => $value['name_category_loan'],
-                "value"                      => $value['amount_return'],
-                "id_outlet"                  => $hs->id_outlet,
-                "id_hairstylist_loan_return" => $value['id_hairstylist_loan_return'],
-            );
+            if(isset($value['type'])){
+                    $array[] = array(
+                        "name"                       => $value['name_category_loan'],
+                        "value"                      => $value['amount_return'],
+                        "id_outlet"                  => $hs->id_outlet,
+                        "id_hairstylist_loan_return" => $value['id_hairstylist_loan_return'],
+                        "SalesInvoiceID"             => $value['SalesInvoiceID'],
+                        "amount_return"              => $value['amount_return'],
+                        "name_category_loan"         => $value['name_category_loan'],
+                        "type"                       => $value['type']      
+                    );
+            }else{
+                $array[] = array(
+                    "name"                       => $value['name_category_loan'],
+                    "value"                      => $value['amount_return'],
+                    "id_outlet"                  => $hs->id_outlet,
+                    "id_hairstylist_loan_return" => $value['id_hairstylist_loan_return'],
+                );
+            }
         }
         return $array;
     }

@@ -262,6 +262,8 @@ class ApiVersion extends Controller
         $result['OutletApp'] = $version['OutletApp'] ?? [];
         $result['MitraApp'] = $version['MitraApp'] ?? [];
         $result['MitraAppIOS'] = $version['MitraAppIOS'] ?? [];
+        $result['EmployeeAndroid'] = $version['EmployeeAndroid'] ?? [];
+        $result['EmployeeIOS'] = $version['EmployeeIOS'] ?? [];
         $result['WebApp'] = $version['WebApp'] ?? [];
 
         return response()->json(MyHelper::checkGet($result));
@@ -277,6 +279,7 @@ class ApiVersion extends Controller
                     if ($keyData == 'version_image_mobile' 
                     	|| $keyData == 'version_image_outlet' 
                     	|| $keyData == 'version_image_mitra'
+                    	|| $keyData == 'version_image_employee'
                     	|| $keyData == 'version_image_web'
                     ) {
                         if (!file_exists('img/setting/version/')) {

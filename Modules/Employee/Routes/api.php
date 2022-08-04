@@ -84,7 +84,7 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('/popular/delete', 'ApiBeEmployeeProfileController@delete_faq_popular');
       });
      Route::group(['prefix' => 'privacy-policy'], function(){
-        Route::post('/', 'ApiBeEmployeeProfileController@privacy_policy');
+        Route::get('/', 'ApiBeEmployeeProfileController@privacy_policy');
         Route::post('/update', 'ApiBeEmployeeProfileController@privacy_policy_update');
       });
     });

@@ -275,35 +275,25 @@ class ApiBeEmployeeProfileController extends Controller
                 ];
             }
         return $result;
-   }
+    }
     public function delete_faq_popular(Request $request) {
        $post = $request->all();
         $employee = EmployeeFaqLog::where('id_employee_faq',$post['id_employee_faq'])->delete();
       
         return response()->json(MyHelper::checkCreate($employee));
-   }
+    }
     //privacy_policy
     public function privacy_policy(){
         $data = Setting::where('key','privacy_policy_employee')->first();
-         return MyHelper::checkGet($data);
+        return MyHelper::checkGet($data);
     }
   
     public function privacy_policy_update(Request $request){
         if(isset($request->value_text)){
-             $salary_formula = Setting::where('key','privacy_policy_employee')->first();
-             if($salary_formula){
-                 $data = Setting::where('key','privacy_policy_employee')->update([
-                  'value_text'=>$request->value_text,
-                 
-             ]);
-             }else{
-                 $data = Setting::create([
-                 'key'=>'privacy_policy_employee',
-                 'value_text'=> $request->value_text
-                    
-             ]);
-             }
-              return response()->json(MyHelper::checkCreate($data));
+            $salary_formula = Setting::updateOrCreate(['key'=>'privacy_policy_employee'],['value_text'=>$request->value_text]);
+            if($salary_formula){
+                return response()->json(MyHelper::checkCreate($salary_formula));
+            }
         }
         return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
     }

@@ -264,7 +264,8 @@ class ApiMitraOutletService extends Controller
 		$startTime = !empty($logService['Start']['created_at'])  ? date('Y-m-d H:i:s', strtotime($logService['Start']['created_at'])) : null;
 		$extendTime = !empty($logService['Extend']['created_at'])  ? date('Y-m-d H:i:s', strtotime($logService['Extend']['created_at'])) : null;
 		
-    	$processingTime = ($queue['processing_time_service'] ?? 30) * 60; //second
+		$product_service = Product::where('id_product',$queue['id_product'])->first();
+    	$processingTime = ($product_service['processing_time_service'] ?? 30) * 60; //second
 
     	$timeLeft = 0;
     	if ($startTime) {

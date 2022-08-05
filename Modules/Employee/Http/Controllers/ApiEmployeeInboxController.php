@@ -1098,7 +1098,7 @@ class ApiEmployeeInboxController extends Controller
         }
         
 
-        $update = EmployeeInbox::where('id_inbox',$post['inbox'])->update(['read'=>1]);
+        $update = EmployeeInbox::where('id_employee_inboxes',$post['id_inbox'])->update(['read'=>1]);
         if(!$update){
             return ['status' => 'fail', 'messages' => ['Gagal membaca pesan.']];
         }

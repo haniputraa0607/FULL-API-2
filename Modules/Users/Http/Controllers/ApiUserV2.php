@@ -693,22 +693,23 @@ class ApiUserV2 extends Controller
             ->get()
             ->toArray();
         if ($data && $data[0]['phone'] == $employee['phone']) {
+            $this_employee = User::find($employee->id)->makeVisible('password');
             if(!empty($data[0]['otp_forgot']) && !empty($data[0]['phone_verified']) && !password_verify($request->json('old_password'), $data[0]['otp_forgot'])){
                 return response()->json([
                     'status'    => 'fail',
-                    'messages'    => ['Current PIN doesn\'t match']
+                    'messages'    => ['Password lama tidak sesuai']
                 ]);
-            }elseif(empty($data[0]['otp_forgot']) && !empty($data[0]['pin_changed']) && !empty($data[0]['phone_verified']) && !Auth::attempt(['phone' => $phone, 'password' => $request->json('old_password')])){
+            }elseif(empty($data[0]['otp_forgot']) && !empty($data[0]['pin_changed']) && !empty($data[0]['phone_verified']) && !password_verify($request->json('old_password'), $this_employee['password'])){
                 return response()->json([
                     'status'    => 'fail',
-                    'messages'    => ['Current PIN doesn\'t match']
+                    'messages'    => ['Password lama tidak sesuai']
                 ]);
             }
-
+            
             if($request->json('new_password') != $request->json('confirm_new_password')){
                 return response()->json([
                     'status'    => 'fail',
-                    'messages'    => ['New Password doesn\'t match']
+                    'messages'    => ['Password baru tidak sama']
                 ]);
             }
 
@@ -739,7 +740,7 @@ class ApiUserV2 extends Controller
         } else {
             $result = [
                 'status'    => 'fail',
-                'messages'    => ['Invalid Number Phone']
+                'messages'    => ['Nomor HP tidak sesuai']
             ];
         }
         return response()->json($result);

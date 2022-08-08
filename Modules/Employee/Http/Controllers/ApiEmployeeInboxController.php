@@ -118,17 +118,17 @@ class ApiEmployeeInboxController extends Controller
         if(in_array('497',$roles) || in_array('500',$roles)){
             $flag = 0;
             if(in_array('497',$roles)){
-                $a_pending = EmployeeAttendanceLog::join('employee_attendances', 'employee_attendances.id_employee_attendance', 'employee_attendance_logs.id_employee_attendance')->where('employee_attendances.id_outlet', $id_outlet)->where('employee_attendance_logs.status', 'Pending')->get()->toArray();
-                if($a_pending){
-                    $flag = 1;
-                    $flag_all = 1;
+                $a_pending = EmployeeAttendanceLog::join('employee_attendances', 'employee_attendances.id_employee_attendance', 'employee_attendance_logs.id_employee_attendance')->where('employee_attendances.id_outlet', $id_outlet)->where('employee_attendance_logs.status', 'Pending')->where('read',0)->count();
+                if($a_pending>0){
+                    $flag = $flag + $a_pending;
+                    $flag_all = $flag_all + $a_pending;
                 }
             }
             if(in_array('500',$roles)){
-                $a_req = EmployeeAttendanceRequest::where('id_outlet', $id_outlet)->where('status', 'Pending')->get()->toArray();
-                if($a_req){
-                    $flag = 1;
-                    $flag_all = 1;
+                $a_req = EmployeeAttendanceRequest::where('id_outlet', $id_outlet)->where('status', 'Pending')>where('read',0)->count();
+                if($a_req>0){
+                    $flag = $flag + $a_req;
+                    $flag_all = $flag_all + $a_req;
                 }
             }
             $tab[$key] = [
@@ -142,17 +142,17 @@ class ApiEmployeeInboxController extends Controller
         if(in_array('503',$roles) || in_array('506',$roles)){
             $flag = 0;
             if(in_array('503',$roles)){
-                $a_pending = EmployeeOutletAttendanceLog::join('employee_outlet_attendances', 'employee_outlet_attendances.id_employee_outlet_attendance', 'employee_outlet_attendance_logs.id_employee_outlet_attendance')->join('users','users.id','employee_outlet_attendances.id')->where('users.id_outlet', $id_outlet)->where('employee_outlet_attendance_logs.status', 'Pending')->get()->toArray();
-                if($a_pending){
-                    $flag = 1;
-                    $flag_all = 1;
+                $a_pending = EmployeeOutletAttendanceLog::join('employee_outlet_attendances', 'employee_outlet_attendances.id_employee_outlet_attendance', 'employee_outlet_attendance_logs.id_employee_outlet_attendance')->join('users','users.id','employee_outlet_attendances.id')->where('users.id_outlet', $id_outlet)->where('employee_outlet_attendance_logs.status', 'Pending')->where('read',0)->count();
+                if($a_pending>0){
+                    $flag = $flag + $a_pending;
+                    $flag_all = $flag_all + $a_pending;
                 }
             }
             if(in_array('506',$roles)){
-                $a_req = EmployeeOutletAttendanceRequest::join('users','users.id','employee_outlet_attendance_requests.id')->where('users.id_outlet', $id_outlet)->where('employee_outlet_attendance_requests.status', 'Pending')->get()->toArray();
-                if($a_req){
-                    $flag = 1;
-                    $flag_all = 1;
+                $a_req = EmployeeOutletAttendanceRequest::join('users','users.id','employee_outlet_attendance_requests.id')->where('users.id_outlet', $id_outlet)->where('employee_outlet_attendance_requests.status', 'Pending')->where('read',0)->count();
+                if($a_req>0){
+                    $flag = $flag + $a_req;
+                    $flag_all = $flag_all + $a_req;
                 }
             }
             $tab[$key] = [
@@ -164,61 +164,91 @@ class ApiEmployeeInboxController extends Controller
         }
 
         if(in_array('510',$roles)){
-            $time_off = EmployeeTimeOff::where('id_outlet',$id_outlet)->whereNull('approve_by')->whereNull('reject_at')->get()->toArray();
+            $flag = 0;
+            $time_off = EmployeeTimeOff::where('id_outlet',$id_outlet)->whereNull('approve_by')->whereNull('reject_at')->where('read',0)->count();
+            if($time_off>0){
+                $flag = $flag + $time_off;
+                $flag_all = $flag_all + $time_off;
+            }
             $tab[$key] = [
                 'name' => 'Cuti',
                 'value' => 'time_off',
-                'flag' => $time_off ? 1 : 0,
+                'flag' => $flag,
             ];
             $key++;
         }
 
         if(in_array('514',$roles)){
-            $overtime = EmployeeOvertime::where('id_outlet',$id_outlet)->whereNull('approve_by')->whereNull('reject_at')->get()->toArray();
+            $flag = 0;
+            $overtime = EmployeeOvertime::where('id_outlet',$id_outlet)->whereNull('approve_by')->whereNull('reject_at')->where('read',0)->count();
+            if($overtime>0){
+                $flag = $flag + $overtime;
+                $flag_all = $flag_all + $overtime;
+            }
             $tab[$key] = [
                 'name' => 'Lembur',
                 'value' => 'overtime',
-                'flag' => $overtime ? 1 : 0,
+                'flag' => $flag,
             ];
             $key++;
         }
 
         if(in_array('517',$roles)){
-            $reim = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')->where('users.id_outlet', $id_outlet)->where('employee_reimbursements.status', 'Pending')->get()->toArray();
+            $flag = 0;
+            $reim = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')->where('users.id_outlet', $id_outlet)->where('employee_reimbursements.status', 'Pending')->where('read',0)->count();
+            if($reim>0){
+                $flag = $flag + $reim;
+                $flag_all = $flag_all + $reim;
+            }
             $tab[$key] = [
                 'name' => 'Pengembalian Dana',
                 'value' => 'reimbursement',
-                'flag' => $reim ? 1 : 0,
+                'flag' => $flag,
             ];
             $key++;
         }
 
         if(in_array('520',$roles)){
-            $loan = AssetInventoryLog::join('users','users.id','asset_inventory_logs.id_user')->where('users.id_outlet', $id_outlet)->where('asset_inventory_logs.type_asset_inventory','Loan')->where('asset_inventory_logs.status_asset_inventory','Pending')->get()->toArray();
+            $flag = 0;
+            $loan = AssetInventoryLog::join('users','users.id','asset_inventory_logs.id_user')->where('users.id_outlet', $id_outlet)->where('asset_inventory_logs.type_asset_inventory','Loan')->where('asset_inventory_logs.status_asset_inventory','Pending')->where('read',0)->count();
+            if($loan>0){
+                $flag = $flag + $loan;
+                $flag_all = $flag_all + $loan;
+            }
             $tab[$key] = [
                 'name' => 'Peminjaman Barang',
                 'value' => 'loan_assets',
-                'flag' => $loan ? 1 : 0,
+                'flag' => $flag,
             ];
             $key++;
         }
 
         if(in_array('523',$roles)){
-            $ret = AssetInventoryLog::join('users','users.id','asset_inventory_logs.id_user')->where('users.id_outlet', $id_outlet)->where('asset_inventory_logs.type_asset_inventory','Return')->where('asset_inventory_logs.status_asset_inventory','Pending')->get()->toArray();
+            $flag = 0;
+            $ret = AssetInventoryLog::join('users','users.id','asset_inventory_logs.id_user')->where('users.id_outlet', $id_outlet)->where('asset_inventory_logs.type_asset_inventory','Return')->where('asset_inventory_logs.status_asset_inventory','Pending')->where('read',0)->count();
+            if($ret>0){
+                $flag = $flag + $ret;
+                $flag_all = $flag_all + $ret;
+            }
             $tab[$key] = [
                 'name' => 'Pengembalian Barang',
                 'value' => 'return_assets',
-                'flag' => $ret ? 1 : 0,
+                'flag' => $flag,
             ];
             $key++;
         }
 
         if(in_array('415',$roles)){
-            $req_product = RequestProduct::where('id_outlet',$id_outlet)->where('status','Draft')->get()->toArray();
+            $flag = 0;
+            $req_product = RequestProduct::where('id_outlet',$id_outlet)->where('status','Draft')->where('read',0)->count();
+            if($req_product>0){
+                $flag = $flag + $req_product;
+                $flag_all = $flag_all + $req_product;
+            }
             $tab[$key] = [
                 'name' => 'Permintaan Product',
                 'value' => 'request_product',
-                'flag' => $req_product ? 1 : 0,
+                'flag' => $flag,
             ];
             $key++;
         }
@@ -285,6 +315,14 @@ class ApiEmployeeInboxController extends Controller
                                     'value' => date('d/m/Y H:i', strtotime($val['datetime']))
                                 ],
                                 [
+                                    'label' => 'Absensi',
+                                    'value' => $val['type'] == 'clock_in' ? 'Clock In' : 'Clock Out'
+                                ],
+                                [
+                                    'label' => 'Read',
+                                    'value' => $val['read']
+                                ],
+                                [
                                     'label' => 'Keterangan',
                                     'value' => $val['notes']
                                 ],
@@ -299,6 +337,7 @@ class ApiEmployeeInboxController extends Controller
                                     $val['photo_path'] ? env('STORAGE_URL_API').$val['photo_path'] : ''
                                 ]
                             ];
+                            $update_read = EmployeeAttendanceLog::where('id_employee_attendance_log',$val['id_employee_attendance_log'])->update(['read'=>1]);
                         }
 
                         $send[] = $data;
@@ -337,11 +376,18 @@ class ApiEmployeeInboxController extends Controller
                                     'value' => $val['clock_out'] ? date('d/m/Y H:i', strtotime($val['attendance_date'].' '.$val['clock_out'])) : '-'
                                 ],
                                 [
+                                    'label' => 'Read',
+                                    'value' => $val['read']
+                                ],
+                                [
                                     'label' => 'Keterangan',
                                     'value' => $val['notes']
                                 ],
                             ]
                         ];
+                        if(isset($id_detail)){
+                            $update_read = EmployeeAttendanceRequest::where('id_employee_attendance_request',$val['id_employee_attendance_request'])->update(['read'=>1]);
+                        }
 
                         $send[] = $data;
                     }
@@ -377,6 +423,14 @@ class ApiEmployeeInboxController extends Controller
                                     'value' => date('d/m/Y H:i', strtotime($val['datetime']))
                                 ],
                                 [
+                                    'label' => 'Absensi',
+                                    'value' => $val['type'] == 'clock_in' ? 'Clock In' : 'Clock Out'
+                                ],
+                                [
+                                    'label' => 'Read',
+                                    'value' => $val['read']
+                                ],
+                                [
                                     'label' => 'Keterangan',
                                     'value' => $val['notes']
                                 ],
@@ -391,6 +445,7 @@ class ApiEmployeeInboxController extends Controller
                                     $val['photo_path'] ? env('STORAGE_URL_API').$val['photo_path'] : ''
                                 ]
                             ];
+                            $update_read = EmployeeOutletAttendanceLog::where('id_employee_outlet_attendance_log',$val['id_employee_outlet_attendance_log'])->update(['read'=>1]);
                         }
                         
                         $send[] = $data;
@@ -429,11 +484,18 @@ class ApiEmployeeInboxController extends Controller
                                     'value' => $val['clock_out'] ? date('d/m/Y H:i', strtotime($val['attendance_date'].' '.$val['clock_out'])) : '-'
                                 ],
                                 [
+                                    'label' => 'Read',
+                                    'value' => $val['read']
+                                ],
+                                [
                                     'label' => 'Keterangan',
                                     'value' => $val['notes']
                                 ],
                             ]
                         ];
+                        if(isset($id_detail)){
+                            $update_read = EmployeeOutletAttendanceRequest::where('id_employee_outlet_attendance_request',$val['id_employee_outlet_attendance_request'])->update(['read'=>1]);
+                        }
                         $send[] = $data;
                     }
                 }
@@ -464,6 +526,10 @@ class ApiEmployeeInboxController extends Controller
                             [
                                 'label' => 'Tanggal',
                                 'value' => date('d/m/Y', strtotime($val['date']))
+                            ],
+                            [
+                                'label' => 'Read',
+                                'value' => $val['read']
                             ],
                             [
                                 'label' => 'Keterangan',
@@ -507,6 +573,8 @@ class ApiEmployeeInboxController extends Controller
 
                     $data['data'][] = $att_image;
                     $data['data'][] = $att_file;
+
+                    $update_read = EmployeeTimeOff::where('id_employee_time_off',$val['id_employee_time_off'])->update(['read'=>1]);
                 }
 
                 $send[] = $data;
@@ -539,6 +607,10 @@ class ApiEmployeeInboxController extends Controller
                                 'value' => date('d/m/Y', strtotime($val['date']))
                             ],
                             [
+                                'label' => 'Read',
+                                'value' => $val['read']
+                            ],
+                            [
                                 'label' => 'Keterangan',
                                 'value' => $val['notes']
                             ],
@@ -551,6 +623,7 @@ class ApiEmployeeInboxController extends Controller
                         'label' => 'Jam Lembur',
                         'value' => $shift['schedule_in'].' - '.$shift['schedule_out']
                     ];
+                    $update_read = EmployeeOvertime::where('id_employee_overtime',$val['id_employee_overtime'])->update(['read'=>1]);
                 }
 
                 $send[] = $data;
@@ -581,6 +654,10 @@ class ApiEmployeeInboxController extends Controller
                             [
                                 'label' => 'Tanggal',
                                 'value' => date('d/m/Y', strtotime($val['date_reimbursement']))
+                            ],
+                            [
+                                'label' => 'Read',
+                                'value' => $val['read']
                             ],
                             [
                                 'label' => 'Keterangan',
@@ -623,6 +700,7 @@ class ApiEmployeeInboxController extends Controller
 
                     $data['data'][] = $att_image;
                     $data['data'][] = $att_file;
+                    $update_read = EmployeeReimbursement::where('id_employee_reimbursement',$val['id_employee_reimbursement'])->update(['read'=>1]);
                 }
                 
                 $send[] = $data;
@@ -670,6 +748,10 @@ class ApiEmployeeInboxController extends Controller
                                 'value' => $val['long'].' '.$longtime[$val['long_loan']]
                             ],
                             [
+                                'label' => 'Read',
+                                'value' => $val['read']
+                            ],
+                            [
                                 'label' => 'Keterangan',
                                 'value' => $val['loan_notes']
                             ],
@@ -710,6 +792,7 @@ class ApiEmployeeInboxController extends Controller
 
                     $data['data'][] = $att_image;
                     $data['data'][] = $att_file;
+                    $update_read = AssetInventoryLog::where('id_asset_inventory_log',$val['id_asset_inventory_log'])->update(['read'=>1]);
                 }
                 
                 $send[] = $data;
@@ -746,6 +829,10 @@ class ApiEmployeeInboxController extends Controller
                             [
                                 'label' => 'Tanggal Pengembalian',
                                 'value' => date('d/m/Y', strtotime($val['date_return']))
+                            ],
+                            [
+                                'label' => 'Read',
+                                'value' => $val['read']
                             ],
                             [
                                 'label' => 'Keterangan',
@@ -788,6 +875,7 @@ class ApiEmployeeInboxController extends Controller
 
                     $data['data'][] = $att_image;
                     $data['data'][] = $att_file;
+                    $update_read = AssetInventoryLog::where('id_asset_inventory_log',$val['id_asset_inventory_log'])->update(['read'=>1]);
                 }
                 
                 $send[] = $data;
@@ -826,6 +914,10 @@ class ApiEmployeeInboxController extends Controller
                             [
                                 'label' => 'Jumlah Produk',
                                 'value' => number_format($val['count'],0,",",".")
+                            ],
+                            [
+                                'label' => 'Read',
+                                'value' => $val['read']
                             ],
                             [
                                 'label' => 'Keterangan',
@@ -872,6 +964,7 @@ class ApiEmployeeInboxController extends Controller
                     }
                     $data['data'][] = $product_detail;
                     $data['data'][] = $att_image;
+                    $update_read = RequestProduct::where('id_request_product',$val['id_request_product'])->update(['read'=>1]);
                 }
 
                 $send[] = $data;

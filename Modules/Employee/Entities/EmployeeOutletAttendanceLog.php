@@ -20,6 +20,7 @@ class EmployeeOutletAttendanceLog extends Model
         'approved_by',
         'notes',
         'approve_notes',
+        'read'
     ];
 
     public function getPhotoUrlAttribute()

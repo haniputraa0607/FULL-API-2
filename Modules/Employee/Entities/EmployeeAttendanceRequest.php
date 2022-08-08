@@ -17,5 +17,6 @@ class EmployeeAttendanceRequest extends Model
         'approve_notes',
         'status',
         'id_outlet',
+        'read'
     ];
 }

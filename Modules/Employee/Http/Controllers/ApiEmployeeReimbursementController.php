@@ -121,6 +121,9 @@ class ApiEmployeeReimbursementController extends Controller
                    END) as saldo
                 ')
             )->first();
+       if(!$saldo['saldo']){
+           $saldo = array('saldo'=>0);
+       }
        return MyHelper::checkGet($saldo);
    }
    public function pending(history $request){

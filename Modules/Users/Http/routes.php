@@ -190,6 +190,6 @@ Route::group(['middleware' => ['auth_client', 'scopes:employee-apps'], 'prefix' 
 {
     Route::post('phone/check', 'ApiUserV2@phoneCheckEmployee');
     Route::post('pin/forgot', 'ApiUserV2@forgotPin');
-    Route::post('pin/change', 'ApiUserV2@changePin')->middleware(['decrypt_pin:pin_new','decrypt_pin:pin_old']);
+    Route::post('pin/change', 'ApiUserV2@changePinEmployee')->middleware(['decrypt_pin:old_password','decrypt_pin:new_password','decrypt_pin:confirm_new_password','auth:api']);
     Route::post('pin/verify', 'ApiUser@verifyPin')->middleware('decrypt_pin');
 });

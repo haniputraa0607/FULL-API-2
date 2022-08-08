@@ -22,6 +22,7 @@ class AssetInventoryLog extends Model
         'date_action',
         'created_at',
         'updated_at',
+        'read'
     ];
    public function loan()
     {

@@ -30,6 +30,7 @@ class EmployeeReimbursement extends Model
         'status',
         'created_at',
         'updated_at',
+        'read'
     ];
     public function user()
 	{

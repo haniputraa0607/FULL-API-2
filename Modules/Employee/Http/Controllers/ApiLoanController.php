@@ -133,10 +133,19 @@ class ApiLoanController extends Controller
     public function detail_sales_payment(Request $request) {
        
         $store =  EmployeeSalesPayment::where('id_employee_sales_payment',$request->id_employee_sales_payment)
-                ->join('employees','employees.id_business_partner','employee_sales_payments.BusinessPartnerID')
-                ->join('users','users.id','employees.id_user')
                 ->first();
         if($store){
+            if($store->type == 'IMA'){
+                 $store =  EmployeeSalesPayment::where('id_employee_sales_payment',$request->id_employee_sales_payment)
+                ->join('employees','employees.id_business_partner_ima','employee_sales_payments.BusinessPartnerID')
+                ->join('users','users.id','employees.id_user')
+                ->first();
+            }else{
+              $store =  EmployeeSalesPayment::where('id_employee_sales_payment',$request->id_employee_sales_payment)
+                ->join('employees','employees.id_business_partner','employee_sales_payments.BusinessPartnerID')
+                ->join('users','users.id','employees.id_user')
+                ->first();   
+            }
             return response()->json(MyHelper::checkGet($store));
         }
          return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);

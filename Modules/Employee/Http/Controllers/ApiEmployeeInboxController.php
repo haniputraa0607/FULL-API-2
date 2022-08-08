@@ -125,7 +125,7 @@ class ApiEmployeeInboxController extends Controller
                 }
             }
             if(in_array('500',$roles)){
-                $a_req = EmployeeAttendanceRequest::where('id_outlet', $id_outlet)->where('status', 'Pending')>where('read',0)->count();
+                $a_req = EmployeeAttendanceRequest::where('id_outlet', $id_outlet)->where('status', 'Pending')->where('read',0)->count();
                 if($a_req>0){
                     $flag = $flag + $a_req;
                     $flag_all = $flag_all + $a_req;
@@ -301,6 +301,7 @@ class ApiEmployeeInboxController extends Controller
                             'type' => 'Presensi',
                             'important' => 0,
                             'detail' => 'attendance_pending-'.$val['id_employee_attendance_log'],
+                            'read' => $val['read'],
                             'data' => [
                                 [
                                     'label' => 'Jenis Presensi',
@@ -317,10 +318,6 @@ class ApiEmployeeInboxController extends Controller
                                 [
                                     'label' => 'Absensi',
                                     'value' => $val['type'] == 'clock_in' ? 'Clock In' : 'Clock Out'
-                                ],
-                                [
-                                    'label' => 'Read',
-                                    'value' => $val['read']
                                 ],
                                 [
                                     'label' => 'Keterangan',
@@ -358,6 +355,7 @@ class ApiEmployeeInboxController extends Controller
                             'type' => 'Presensi',
                             'important' => 0,
                             'detail' => 'attendance_request-'.$val['id_employee_attendance_request'],
+                            'read' => $val['read'],
                             'data' => [
                                 [
                                     'label' => 'Jenis Presensi',
@@ -374,10 +372,6 @@ class ApiEmployeeInboxController extends Controller
                                 [
                                     'label' => 'Clock Out',
                                     'value' => $val['clock_out'] ? date('d/m/Y H:i', strtotime($val['attendance_date'].' '.$val['clock_out'])) : '-'
-                                ],
-                                [
-                                    'label' => 'Read',
-                                    'value' => $val['read']
                                 ],
                                 [
                                     'label' => 'Keterangan',
@@ -409,6 +403,7 @@ class ApiEmployeeInboxController extends Controller
                             'type' => 'Presensi Outlet',
                             'important' => 0,
                             'detail' => 'attendance_outlet_pending-'.$val['id_employee_outlet_attendance_log'],
+                            'read' => $val['read'],
                             'data' => [
                                 [
                                     'label' => 'Jenis Presensi',
@@ -425,10 +420,6 @@ class ApiEmployeeInboxController extends Controller
                                 [
                                     'label' => 'Absensi',
                                     'value' => $val['type'] == 'clock_in' ? 'Clock In' : 'Clock Out'
-                                ],
-                                [
-                                    'label' => 'Read',
-                                    'value' => $val['read']
                                 ],
                                 [
                                     'label' => 'Keterangan',
@@ -466,6 +457,7 @@ class ApiEmployeeInboxController extends Controller
                             'type' => 'Presensi Outlet',
                             'important' => 0,
                             'detail' => 'attendance_outlet_request-'.$val['id_employee_outlet_attendance_request'],
+                            'read' => $val['read'],
                             'data' => [
                                 [
                                     'label' => 'Jenis Presensi',
@@ -482,10 +474,6 @@ class ApiEmployeeInboxController extends Controller
                                 [
                                     'label' => 'Clock Out',
                                     'value' => $val['clock_out'] ? date('d/m/Y H:i', strtotime($val['attendance_date'].' '.$val['clock_out'])) : '-'
-                                ],
-                                [
-                                    'label' => 'Read',
-                                    'value' => $val['read']
                                 ],
                                 [
                                     'label' => 'Keterangan',
@@ -514,6 +502,7 @@ class ApiEmployeeInboxController extends Controller
                         'type' => 'Cuti',
                         'important' => 0,
                         'detail' => 'time_off-'.$val['id_employee_time_off'],
+                        'read' => $val['read'],
                         'data' => [
                             [
                                 'label' => 'Jenis Cuti',
@@ -593,6 +582,7 @@ class ApiEmployeeInboxController extends Controller
                         'type' => 'Lembur',
                         'important' => 0,
                         'detail' => 'overtime-'.$val['id_employee_overtime'],
+                        'read' => $val['read'],
                         'data' => [
                             [
                                 'label' => 'Jenis Lembur',
@@ -642,6 +632,7 @@ class ApiEmployeeInboxController extends Controller
                         'type' => 'Pengembalian Dana',
                         'important' => 0,
                         'detail' => 'reimbursement-'.$val['id_employee_reimbursement'],
+                        'read' => $val['read'],
                         'data' => [
                             [
                                 'label' => 'Product',
@@ -730,6 +721,7 @@ class ApiEmployeeInboxController extends Controller
                         'type' => 'Peminjaman Barang',
                         'important' => 0,
                         'detail' => 'loan_assets-'.$val['id_asset_inventory_log'],
+                        'read' => $val['read'],
                         'data' => [
                             [
                                 'label' => 'Barang',
@@ -817,6 +809,7 @@ class ApiEmployeeInboxController extends Controller
                         'type' => 'Pengembalian Barang',
                         'important' => 0,
                         'detail' => 'return_assets-'.$val['id_asset_inventory_log'],
+                        'read' => $val['read'],
                         'data' => [
                             [
                                 'label' => 'Barang',
@@ -898,6 +891,7 @@ class ApiEmployeeInboxController extends Controller
                         'type' => 'Permintaan Produk',
                         'important' => 0,
                         'detail' => 'request_product-'.$val['id_request_product'],
+                        'read' => $val['read'],
                         'data' => [
                             [
                                 'label' => 'Code',

@@ -21,6 +21,8 @@ use Modules\Employee\Entities\EmployeeIncome;
 use Modules\Employee\Entities\EmployeeIncomeDetail;
 use Config;
 use Modules\Employee\Http\Requests\Income\Payslip;
+use Modules\Employee\Http\Requests\Income\Password;
+
 class ApiIncome extends Controller
 {
 
@@ -68,6 +70,10 @@ class ApiIncome extends Controller
         }else{
             $array = 'Payslip not found in periode '.date('M Y', strtotime($request->month));
         }
+        return response()->json(MyHelper::checkGet($array));
+    }
+    public function password(Password $request){
+        $array = 'Password match';
         return response()->json(MyHelper::checkGet($array));
     }
 }

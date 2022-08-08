@@ -298,6 +298,7 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
     });
     Route::group(['prefix' => 'payslip'], function () {
         Route::post('/','ApiIncome@payslip');
+        Route::post('/password','ApiIncome@password');
     });
     Route::group(['prefix' => 'profile'], function () {
         Route::get('info','ApiEmployeeProfileController@info');

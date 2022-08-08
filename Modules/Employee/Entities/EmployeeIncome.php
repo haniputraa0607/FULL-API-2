@@ -368,16 +368,16 @@ class EmployeeIncome extends Model
                             'amount'    => $amount,
                             'type'      => "Incentive"
                         ]);
-                    $basic = array(
-                        'name'=>$incentive->name,
-                        'amount'=>$amount
-                    );
-                array_push($pemasukan,$basic);
+                   
                     }
                 }
                 $total = $total + $amount;
                 $total_pemasukan = $total_pemasukan + $amount;
-                
+                 $basic = array(
+                        'name'=>$incentive->name,
+                        'amount'=>$amount
+                    );
+                array_push($pemasukan,$basic);
         }
         //salary cut
         $salary = EmployeeRoleSalaryCutDefault::all();
@@ -430,18 +430,18 @@ class EmployeeIncome extends Model
                             'amount'    => $amount,
                             'type'    => "Salary Cuts",
                         ]);
-                       $basic = array(
-                            'name'=>$salary_cut->name,
-                            'amount'=>$amount
-                        );
-                    array_push($pengurangan,$basic);
+                       
                     }
                     
 
                 }
                 $total = $total - $amount;
                 $total_pengurangan = $total_pengurangan + $amount;
-                
+                $basic = array(
+                            'name'=>$salary_cut->name,
+                            'amount'=>$amount
+                        );
+                    array_push($pengurangan,$basic);
          }
         $loan = self::calculateLoan($hs, $startDate, $endDate);
         foreach ($loan as $value) {

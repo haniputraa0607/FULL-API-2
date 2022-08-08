@@ -59,6 +59,9 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('category', 'ApiQuestionEmployeeController@category');
         Route::post('create', 'ApiQuestionEmployeeController@create');
     });
+    Route::group(['prefix' => 'be/income'], function(){
+        Route::post('/', 'ApiIncome@cron_end');
+    });
     Route::group(['prefix' => 'be/profile'], function(){
      Route::group(['prefix' => 'emergency'], function(){
         Route::post('/', 'ApiBeEmployeeProfileController@emergency_contact');
@@ -292,6 +295,9 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         Route::get('/list-employee','ApiEmployeeProfileController@list_employee');
         Route::get('/cuti-employee','ApiEmployeeProfileController@cuti_employee');
         Route::post('/detail-employee','ApiEmployeeProfileController@detail_employee');
+    });
+    Route::group(['prefix' => 'payslip'], function () {
+        Route::post('/','ApiIncome@payslip');
     });
     Route::group(['prefix' => 'profile'], function () {
         Route::get('info','ApiEmployeeProfileController@info');

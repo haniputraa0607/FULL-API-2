@@ -22,6 +22,7 @@ class EmployeeIncomeDetail extends Model
         'reference',
         'id_outlet',
         'amount',
+        'name_income',
         'type'
     ];
 }

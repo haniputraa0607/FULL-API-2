@@ -18,6 +18,7 @@ use Modules\Users\Http\Requests\users_forgot;
 use Modules\Users\Http\Requests\users_phone;
 use Modules\Users\Http\Requests\users_phone_pin_admin;
 use Modules\Users\Http\Requests\usersNewPinEmployee;
+use Modules\Users\Http\Requests\users_phone_pin_new_v2;
 
 use App\Lib\MyHelper;
 use Validator;

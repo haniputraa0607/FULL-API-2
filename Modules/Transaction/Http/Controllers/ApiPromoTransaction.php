@@ -241,19 +241,24 @@ class ApiPromoTransaction extends Controller
         }
 
         $new_result_data = [];
-		$sharedPromoTrx = TemporaryDataManager::create('promo_trx');
-        foreach($result ?? [] as $key => $data_voucher){
-            $check_avail = app($this->voucher)->checkVoucherAvail($data_voucher['id_deals'],$data);
-            if($check_avail['status']=='success'){
-                if(isset($data_voucher['id_deals_voucher']) && isset($data_voucher['id_deals_user'])){
-                    $data_voucher['type_deals'] = 'voucher';
-                }else{
-                    $data_voucher['type_deals'] = 'deals';
+
+        if($new_version){
+            $sharedPromoTrx = TemporaryDataManager::create('promo_trx');
+            foreach($result ?? [] as $key => $data_voucher){
+                $check_avail = app($this->voucher)->checkVoucherAvail($data_voucher['id_deals'],$data);
+                if($check_avail['status']=='success'){
+                    if(isset($data_voucher['id_deals_voucher']) && isset($data_voucher['id_deals_user'])){
+                        $data_voucher['type_deals'] = 'voucher';
+                    }else{
+                        $data_voucher['type_deals'] = 'deals';
+                    }
+                    $new_result_data[] = $data_voucher;
                 }
-                $new_result_data[] = $data_voucher;
             }
+            TemporaryDataManager::reset('promo_trx');
+        }else{
+            $new_result_data = $result;
         }
-		TemporaryDataManager::reset('promo_trx');
         $result = [];
         foreach($new_result_data ?? [] as $index => $val){
             if($index < 5){
@@ -358,31 +363,33 @@ class ApiPromoTransaction extends Controller
     		return $data;
     	}
 		
-		if(!$availableVoucher){
-			$delete_user_promo = UserPromo::where('id_user', $user->id)->where('promo_type', 'deals')->delete();
-			foreach($userPromo ?? [] as $key => $usPro){
-				if($key=='deals'){
-					$un_used = DealsUser::where('id_deals_user', $usPro['id_reference'])->update(['is_used'=>0]);
-					return $data;
-				}
-			}
-		}else{
-			$id_deals_used = null;
-			foreach($userPromo ?? [] as $key => $usPro){
-				if($key=='deals'){
-					$id_deals_used = $usPro['id_reference'];
-				}
-			}
-			$id_voucher = [];
-			foreach($availableVoucher as $availVou){
-				$id_voucher[] = $availVou['id_deals_user'];
-			}
-			if(!is_null($id_deals_used) && !in_array($id_deals_used,$id_voucher)){
-				$delete_user_promo = UserPromo::where('id_user', $user->id)->where('id_reference', $id_deals_used)->where('promo_type', 'deals')->delete();
-				$un_used = DealsUser::where('id_deals_user', $id_deals_used)->update(['is_used'=>0]);
-				return $data;
-			}
-		}
+		if($new_version){
+            if(!$availableVoucher){
+                $delete_user_promo = UserPromo::where('id_user', $user->id)->where('promo_type', 'deals')->delete();
+                foreach($userPromo ?? [] as $key => $usPro){
+                    if($key=='deals'){
+                        $un_used = DealsUser::where('id_deals_user', $usPro['id_reference'])->update(['is_used'=>0]);
+                        return $data;
+                    }
+                }
+            }else{
+                $id_deals_used = null;
+                foreach($userPromo ?? [] as $key => $usPro){
+                    if($key=='deals'){
+                        $id_deals_used = $usPro['id_reference'];
+                    }
+                }
+                $id_voucher = [];
+                foreach($availableVoucher as $availVou){
+                    $id_voucher[] = $availVou['id_deals_user'];
+                }
+                if(!is_null($id_deals_used) && !in_array($id_deals_used,$id_voucher)){
+                    $delete_user_promo = UserPromo::where('id_user', $user->id)->where('id_reference', $id_deals_used)->where('promo_type', 'deals')->delete();
+                    $un_used = DealsUser::where('id_deals_user', $id_deals_used)->update(['is_used'=>0]);
+                    return $data;
+                }
+            }
+        }
 
     	$resDeals = null;
     	$dealsType = null;

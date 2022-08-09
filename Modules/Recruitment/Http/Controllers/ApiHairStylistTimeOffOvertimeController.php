@@ -261,7 +261,7 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
         $delete = HairStylistTimeOff::where('id_hairstylist_time_off', $post['id_hairstylist_time_off'])->update(['reject_at' => date('Y-m-d')]);
         if($delete){
             $delete_hs_not_avail = HairstylistNotAvailable::where('id_hairstylist_time_off', $post['id_hairstylist_time_off'])->delete();
-            $user_hs = UserHairStylist::join('hairstylist_time_off','hairstylist_time_off.id_user_hair_stylist ','user_hair_stylist.id_user_hair_stylist')->where('hairstylist_time_off.id_hairstylist_time_off',$post['id_hairstylist_time_off'])->first();
+            $user_hs = UserHairStylist::join('hairstylist_time_off','hairstylist_time_off.id_user_hair_stylist','user_hair_stylist.id_user_hair_stylist')->where('hairstylist_time_off.id_hairstylist_time_off',$post['id_hairstylist_time_off'])->first();
             $outlet = Outlet::where('id_outlet',$user_hs['id_outlet'])->first();
             if (\Module::collections()->has('Autocrm')) {
                 $autocrm = app($this->autocrm)->SendAutoCRM(
@@ -384,7 +384,7 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                             'messages' => ['Failed to updated a request hair stylist time off']
                         ]);
                     }
-                    $user_hs = UserHairStylist::join('hairstylist_time_off','hairstylist_time_off.id_user_hair_stylist ','user_hair_stylist.id_user_hair_stylist')->where('hairstylist_time_off.id_hairstylist_time_off',$post['id_hairstylist_time_off'])->first();
+                    $user_hs = UserHairStylist::join('hairstylist_time_off','hairstylist_time_off.id_user_hair_stylist','user_hair_stylist.id_user_hair_stylist')->where('hairstylist_time_off.id_hairstylist_time_off',$post['id_hairstylist_time_off'])->first();
                     $outlet = Outlet::where('id_outlet',$user_hs['id_outlet'])->first();
                     if (\Module::collections()->has('Autocrm')) {
                         $autocrm = app($this->autocrm)->SendAutoCRM(
@@ -448,7 +448,7 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                     'messages' => ['Failed to create a request hair stylist overtime']
                 ]);
             }
-            $user_hs = UserHairStylist::join('hairstylist_overtime','hairstylist_overtime.id_user_hair_stylist ','user_hair_stylist.id_user_hair_stylist')->where('hairstylist_overtime.id_hairstylist_overtime',$store['id_hairstylist_overtime'])->first();
+            $user_hs = UserHairStylist::join('hairstylist_overtime','hairstylist_overtime.id_user_hair_stylist','user_hair_stylist.id_user_hair_stylist')->where('hairstylist_overtime.id_hairstylist_overtime',$store['id_hairstylist_overtime'])->first();
             $outlet = Outlet::where('id_outlet',$user_hs['id_outlet'])->first();
             $autocrm = app($this->autocrm)->SendAutoCRM(
                 'Hairstylist Request Overtime',
@@ -704,7 +704,7 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                             'messages' => ['Failed to updated a request hair stylist overtime']
                         ]);
                     }
-                    $user_hs = UserHairStylist::join('hairstylist_overtime','hairstylist_overtime.id_user_hair_stylist ','user_hair_stylist.id_user_hair_stylist')->where('hairstylist_overtime.id_hairstylist_overtime',$post['id_hairstylist_overtime'])->first();
+                    $user_hs = UserHairStylist::join('hairstylist_overtime','hairstylist_overtime.id_user_hair_stylist','user_hair_stylist.id_user_hair_stylist')->where('hairstylist_overtime.id_hairstylist_overtime',$post['id_hairstylist_overtime'])->first();
                     $outlet = Outlet::where('id_outlet',$user_hs['id_outlet'])->first();
                     if (\Module::collections()->has('Autocrm')) {
                         $autocrm = app($this->autocrm)->SendAutoCRM(
@@ -787,7 +787,7 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
             if($data_time_off){
                 foreach($data_time_off as $time_off){
                     $update = HairStylistTimeOff::where('id_hairstylist_time_off', $time_off['id_hairstylist_time_off'])->update(['reject_at' => date('Y-m-d')]);
-                    $user_hs = UserHairStylist::join('hairstylist_time_off','hairstylist_time_off.id_user_hair_stylist ','user_hair_stylist.id_user_hair_stylist')->where('hairstylist_time_off.id_hairstylist_time_off',$time_off['id_hairstylist_time_off'])->first();
+                    $user_hs = UserHairStylist::join('hairstylist_time_off','hairstylist_time_off.id_user_hair_stylist','user_hair_stylist.id_user_hair_stylist')->where('hairstylist_time_off.id_hairstylist_time_off',$time_off['id_hairstylist_time_off'])->first();
                     $outlet = Outlet::where('id_outlet',$user_hs['id_outlet'])->first();
                     if (\Module::collections()->has('Autocrm')) {
                         $autocrm = app($this->autocrm)->SendAutoCRM(
@@ -814,7 +814,7 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
             if($data_overtime){
                 foreach($data_overtime as $overtime){
                     $update = HairstylistOverTime::where('id_hairstylist_overtime', $overtime['id_hairstylist_overtime'])->update(['reject_at' => date('Y-m-d')]);
-                    $user_hs = UserHairStylist::join('hairstylist_overtime','hairstylist_overtime.id_user_hair_stylist ','user_hair_stylist.id_user_hair_stylist')->where('hairstylist_overtime.id_hairstylist_overtime',$overtime['id_hairstylist_overtime'])->first();
+                    $user_hs = UserHairStylist::join('hairstylist_overtime','hairstylist_overtime.id_user_hair_stylist','user_hair_stylist.id_user_hair_stylist')->where('hairstylist_overtime.id_hairstylist_overtime',$overtime['id_hairstylist_overtime'])->first();
                     $outlet = Outlet::where('id_outlet',$user_hs['id_outlet'])->first();
                     if (\Module::collections()->has('Autocrm')) {
                         $autocrm = app($this->autocrm)->SendAutoCRM(

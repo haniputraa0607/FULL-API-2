@@ -178,6 +178,7 @@ class EmployeeIncome extends Model
                     ],
                         [
                             'id_outlet' =>$hs->id_outlet,
+                            'name_income' =>"Basic Salary",
                             'amount'    => $basic_salary,
                             'type'    => "Incentive"
                         ]);
@@ -203,6 +204,7 @@ class EmployeeIncome extends Model
                 'reference' => $value['id_employee_role_default_fixed_incentive'],
             ],
                 [
+                    'name_income' => $value['name'],
                     'id_outlet' => $value['id_outlet'],
                     'amount'    => $value['value'],
                     'type'      => $sta
@@ -303,6 +305,7 @@ class EmployeeIncome extends Model
                 'reference' => $value['id_hairstylist_overtime'],
             ],
                 [
+                    'name_income' => "Overtime",
                     'id_outlet' => $value['id_outlet'],
                     'amount'    => $nominal,
                     'type'      => "Incentive"
@@ -364,6 +367,7 @@ class EmployeeIncome extends Model
                         'reference' => $incentive->id_employee_role_default_incentive,
                     ],
                         [
+                            'name_income' => $incentive->name,
                             'id_outlet' => $id_outlet,
                             'amount'    => $amount,
                             'type'      => "Incentive"
@@ -428,9 +432,10 @@ class EmployeeIncome extends Model
                         'reference' => $salary_cut->id_employee_role_default_salary_cut,
                     ],
                         [
+                            'name_income' => $salary_cut->name,
                             'id_outlet' => $id_outlet,
                             'amount'    => $amount,
-                            'type'    => "Salary Cuts",
+                            'type'    => "Salary Cut",
                         ]);
                        
                     }
@@ -457,6 +462,7 @@ class EmployeeIncome extends Model
                         'reference' => $value['id_employee_loan_return'],
                         ],
                         [
+                            'name_income' => $value['name'],
                             'id_outlet' => $value['id_outlet'],
                             'amount'    => $value['value'],
                             'type'      => 'Salary Cut'

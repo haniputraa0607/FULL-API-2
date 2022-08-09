@@ -224,6 +224,7 @@ class EmployeeIncome extends Model
                 'reference' => $value['id_employee_role_default_fixed_incentive'],
             ],
                 [
+                    'name_income' => $value['name'],
                     'id_outlet' => $value['id_outlet'],
                     'amount'    => $value['value'],
                     'type'      => $sta

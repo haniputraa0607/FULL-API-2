@@ -49,18 +49,35 @@ class ApiEmployeeInboxController extends Controller
         $max_date = date('Y-m-d',time() - ((Setting::select('value')->where('key','inbox_max_days')->pluck('value')->first()?:30) * 86400));
         $inbox = EmployeeInbox::where('id_employee',$id_employee)->whereDate('inboxes_send_at','>',$max_date)->get()->keyBy('inboxes_category');
 
+        $flag_all = 0;
         $tab = [
             [
                 'name' => 'Semua',
                 'value' => null,
+                'flag' => $flag_all
             ],
         ];
+
         foreach($inbox ?? [] as $key => $value){
-            $tab[] = [
-                'name' => $key,
-                'value' => $key
-            ];
+            $flag = 0;
+            $flag = EmployeeInbox::where('id_employee',$id_employee)->whereDate('inboxes_send_at','>',$max_date)->where('inboxes_category',$key)->where('read',0)->count();
+            if($key==''){
+                $tab[] = [
+                    'name' => 'Lain-lain',
+                    'value' => $key,
+                    'flag' => $flag
+                ];
+            }else{
+                $tab[] = [
+                    'name' => $key,
+                    'value' => $key,
+                    'flag' => $flag
+                ];
+            }
+            $flag_all = $flag_all + $flag;
         }
+        $tab[0]['flag'] = $flag_all;
+
         return MyHelper::checkGet($tab);
     }
 
@@ -240,7 +257,7 @@ class ApiEmployeeInboxController extends Controller
 
         if(in_array('415',$roles)){
             $flag = 0;
-            $req_product = RequestProduct::where('id_outlet',$id_outlet)->where('status','Draft')->where('read',0)->count();
+            $req_product = RequestProduct::where('id_outlet',$id_outlet)->where('status','Pending')->where('read',0)->count();
             if($req_product>0){
                 $flag = $flag + $req_product;
                 $flag_all = $flag_all + $req_product;
@@ -490,7 +507,7 @@ class ApiEmployeeInboxController extends Controller
             }
         }
 
-        if($category=='time_off' || $category == 'all' || $key_id == 'time_off'){
+        if(in_array('510',$roles) && ($category=='time_off' || $category == 'all' || $key_id == 'time_off')){
             $time_off = EmployeeTimeOff::join('users','users.id','employee_time_off.id_employee')->where('employee_time_off.id_outlet',$id_outlet)->whereNull('employee_time_off.approve_by')->whereNull('employee_time_off.reject_at');
             if($key_id == 'time_off'){
                 $time_off = $time_off->where('employee_time_off.id_employee_time_off', $id_detail);
@@ -515,10 +532,6 @@ class ApiEmployeeInboxController extends Controller
                             [
                                 'label' => 'Tanggal',
                                 'value' => date('d/m/Y', strtotime($val['date']))
-                            ],
-                            [
-                                'label' => 'Read',
-                                'value' => $val['read']
                             ],
                             [
                                 'label' => 'Keterangan',
@@ -570,7 +583,7 @@ class ApiEmployeeInboxController extends Controller
             }
         }
 
-        if($category=='overtime' || $category == 'all' || $key_id == 'overtime'){
+        if(in_array('514',$roles) && ($category=='overtime' || $category == 'all' || $key_id == 'overtime')){
             $overtime = EmployeeOvertime::join('users','users.id','employee_overtime.id_employee')->where('employee_overtime.id_outlet',$id_outlet)->whereNull('employee_overtime.approve_by')->whereNull('employee_overtime.reject_at');
             if($key_id == 'overtime'){
                 $overtime = $overtime->where('employee_overtime.id_employee_overtime', $id_detail);
@@ -597,10 +610,6 @@ class ApiEmployeeInboxController extends Controller
                                 'value' => date('d/m/Y', strtotime($val['date']))
                             ],
                             [
-                                'label' => 'Read',
-                                'value' => $val['read']
-                            ],
-                            [
                                 'label' => 'Keterangan',
                                 'value' => $val['notes']
                             ],
@@ -620,7 +629,7 @@ class ApiEmployeeInboxController extends Controller
             }
         }
         
-        if($category=='reimbursement' || $category == 'all' || $key_id == 'reimbursement'){
+        if(in_array('517',$roles) && ($category=='reimbursement' || $category == 'all' || $key_id == 'reimbursement')){
             $reim = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')->join('product_icounts','product_icounts.id_product_icount','employee_reimbursements.id_product_icount')->where('users.id_outlet', $id_outlet)->where('employee_reimbursements.status', 'Pending');
             if($key_id == 'reimbursement'){
                 $reim = $reim->where('employee_reimbursements.id_employee_reimbursement', $id_detail);
@@ -645,10 +654,6 @@ class ApiEmployeeInboxController extends Controller
                             [
                                 'label' => 'Tanggal',
                                 'value' => date('d/m/Y', strtotime($val['date_reimbursement']))
-                            ],
-                            [
-                                'label' => 'Read',
-                                'value' => $val['read']
                             ],
                             [
                                 'label' => 'Keterangan',
@@ -698,7 +703,7 @@ class ApiEmployeeInboxController extends Controller
             }
         }
          
-        if($category=='loan_assets' || $category == 'all' || $key_id == 'loan_assets'){
+        if(in_array('520',$roles) && ($category=='loan_assets' || $category == 'all' || $key_id == 'loan_assets')){
             $loan = AssetInventoryLog::join('users','users.id','asset_inventory_logs.id_user')
                         ->join('asset_inventorys','asset_inventorys.id_asset_inventory','asset_inventory_logs.id_asset_inventory')
                         ->join('asset_inventory_loans', 'asset_inventory_loans.id_asset_inventory_log', 'asset_inventory_logs.id_asset_inventory_log')
@@ -738,10 +743,6 @@ class ApiEmployeeInboxController extends Controller
                             [
                                 'label' => 'Durasi',
                                 'value' => $val['long'].' '.$longtime[$val['long_loan']]
-                            ],
-                            [
-                                'label' => 'Read',
-                                'value' => $val['read']
                             ],
                             [
                                 'label' => 'Keterangan',
@@ -791,7 +792,7 @@ class ApiEmployeeInboxController extends Controller
             }
         }
 
-        if($category=='return_assets' || $category == 'all' || $key_id == 'return_assets'){
+        if(in_array('523',$roles) && ($category=='return_assets' || $category == 'all' || $key_id == 'return_assets')){
             $ret = AssetInventoryLog::join('users','users.id','asset_inventory_logs.id_user')
                         ->join('asset_inventorys','asset_inventorys.id_asset_inventory','asset_inventory_logs.id_asset_inventory')
                         ->join('asset_inventory_returns', 'asset_inventory_returns.id_asset_inventory_log', 'asset_inventory_logs.id_asset_inventory_log')
@@ -822,10 +823,6 @@ class ApiEmployeeInboxController extends Controller
                             [
                                 'label' => 'Tanggal Pengembalian',
                                 'value' => date('d/m/Y', strtotime($val['date_return']))
-                            ],
-                            [
-                                'label' => 'Read',
-                                'value' => $val['read']
                             ],
                             [
                                 'label' => 'Keterangan',
@@ -875,7 +872,7 @@ class ApiEmployeeInboxController extends Controller
             }
         }
         
-        if($category=='request_product' || $category == 'all'  || $key_id == 'request_product'){
+        if(in_array('415',$roles) && ($category=='request_product' || $category == 'all'  || $key_id == 'request_product')){
             $req_product = RequestProduct::join('users','users.id','request_products.id_user_request')
                         ->leftJoin('request_product_details', 'request_product_details.id_request_product', 'request_products.id_request_product')
                         ->where('request_products.id_outlet',$id_outlet)
@@ -908,10 +905,6 @@ class ApiEmployeeInboxController extends Controller
                             [
                                 'label' => 'Jumlah Produk',
                                 'value' => number_format($val['count'],0,",",".")
-                            ],
-                            [
-                                'label' => 'Read',
-                                'value' => $val['read']
                             ],
                             [
                                 'label' => 'Keterangan',

@@ -997,7 +997,8 @@ class ApiDealsVoucher extends Controller
                 'status_text'=>$var['status_text'],
                 'is_used'=>$var['is_used'],
                 'voucher_expired_at_indo'=> MyHelper::dateFormatInd($var['voucher_expired_at'], false, false),
-                'voucher_expired_at_time_indo'=> 'pukul '.date('H:i', strtotime($var['voucher_expired_at']))
+                'voucher_expired_at_time_indo'=> 'pukul '.date('H:i', strtotime($var['voucher_expired_at'])),
+                'type_deals' => 'voucher'
             ];
         },$voucher);
 
@@ -1010,6 +1011,7 @@ class ApiDealsVoucher extends Controller
                     'id_deals'=> $var['id_deals']??null,
                     'deals_title'=>$var['deals_title']??'',
                     'url_deals_image'=>$var['url_deals_image'],
+                    'type_deals' => 'deals'
                 ];
             },$deals_no_claim);
     

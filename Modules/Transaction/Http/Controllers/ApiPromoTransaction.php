@@ -150,42 +150,57 @@ class ApiPromoTransaction extends Controller
 				$id_vouchers[] = $val_vou['deal_voucher']['id_deals'];
 			}
 		}
-		
-		$deals_no_claim = (new Deal)->newQuery();
-		$deals_no_claim->where('deals_type', '!=','WelcomeVoucher');
-		$deals_no_claim->where( function($dc) {
-			$dc->where('deals_publish_start', '<=', date('Y-m-d H:i:s'))
-			->where('deals_publish_end', '>=', date('Y-m-d H:i:s'))
-			->where('deals_end', '>=', date('Y-m-d H:i:s'));
-		});
-		$deals_no_claim->where( function($dc) {
-			$dc->where('deals_voucher_type','Unlimited')
-				->orWhereRaw('(deals.deals_total_voucher - deals.deals_total_claimed) > 0 ');
-		});
-		$deals_no_claim->where('step_complete', '=', 1);
-		$deals_no_claim->whereNotIn('deals.id_deals', $id_vouchers);
-		$deals_no_claim->with(['outlets', 'outlets.city']);
-	
-		if(isset($id_outlet)){
-			$deals_no_claim->leftJoin('deals_outlets', 'deals.id_deals', 'deals_outlets.id_deals')
-				->where(function($query) use ($id_outlet){
-					$query->where('id_outlet', $id_outlet)
-							->orWhere('deals.is_all_outlet','=',1);
-				})
-				->addSelect('deals.*')->distinct();
+
+		$header_verison = request()->header('User-Agent');
+        $new_version = true;
+        if(strpos($header_verison,'ios')){
+			if(strpos($header_verison,'0.0.7 ') || strpos($header_verison,'1.0.5 ')){
+				$new_version = false;
+			}
 		}
-		if(isset($transaction_from)){
-			$service = [
-				'outlet-service' => 'Outlet Service',
-				'home-service' => 'Home Service',
-				'shop' => 'Online Shop',
-				'academy' => 'Academy',
-			];
-			$deals_no_claim->leftJoin('deals_services', 'deals.id_deals', 'deals_services.id_deals')
-			->where('deals_services.service', $service[$transaction_from])
-			->select('deals.*')->distinct();
+		if(strpos($header_verison,'android')){
+			if(strpos($header_verison,'0.0.7 ') || strpos($header_verison,'1.0.4 ')){
+				$new_version = false;
+			}
 		}
-		$deals_no_claim = $deals_no_claim->get()->toArray();
+
+        if($new_version){
+            $deals_no_claim = (new Deal)->newQuery();
+            $deals_no_claim->where('deals_type', '!=','WelcomeVoucher');
+            $deals_no_claim->where( function($dc) {
+                $dc->where('deals_publish_start', '<=', date('Y-m-d H:i:s'))
+                ->where('deals_publish_end', '>=', date('Y-m-d H:i:s'))
+                ->where('deals_end', '>=', date('Y-m-d H:i:s'));
+            });
+            $deals_no_claim->where( function($dc) {
+                $dc->where('deals_voucher_type','Unlimited')
+                    ->orWhereRaw('(deals.deals_total_voucher - deals.deals_total_claimed) > 0 ');
+            });
+            $deals_no_claim->where('step_complete', '=', 1);
+            $deals_no_claim->whereNotIn('deals.id_deals', $id_vouchers);
+            $deals_no_claim->with(['outlets', 'outlets.city']);
+        
+            if(isset($id_outlet)){
+                $deals_no_claim->leftJoin('deals_outlets', 'deals.id_deals', 'deals_outlets.id_deals')
+                    ->where(function($query) use ($id_outlet){
+                        $query->where('id_outlet', $id_outlet)
+                                ->orWhere('deals.is_all_outlet','=',1);
+                    })
+                    ->addSelect('deals.*')->distinct();
+            }
+            if(isset($transaction_from)){
+                $service = [
+                    'outlet-service' => 'Outlet Service',
+                    'home-service' => 'Home Service',
+                    'shop' => 'Online Shop',
+                    'academy' => 'Academy',
+                ];
+                $deals_no_claim->leftJoin('deals_services', 'deals.id_deals', 'deals_services.id_deals')
+                ->where('deals_services.service', $service[$transaction_from])
+                ->select('deals.*')->distinct();
+            }
+            $deals_no_claim = $deals_no_claim->get()->toArray();
+        }
 
         $result = array_map(function($var) {
             return [
@@ -204,24 +219,26 @@ class ApiPromoTransaction extends Controller
             ];
         }, $voucher);
 
-		$result_deal = array_map(function($var) {
-            return [
-                'id_deals' => $var['id_deals'],
-				'voucher_expired_at' => null,
-                'id_deals_voucher' => null,
-                'id_deals_user' => null,
-                'deals_title' => $var['deals_title'],
-                'deals_second_title' => $var['deals_second_title'],
-                'url_deals_image' => $var['url_deals_image'],
-                'is_used' => 0,
-				'date_expired_indo' => null,
-                'time_expired_indo' => null,
-                'text' => null,
-				'is_error' => false
-            ];
-        }, $deals_no_claim);
-
-		$result = array_merge($result,$result_deal);
+        if($new_version){
+            $result_deal = array_map(function($var) {
+                return [
+                    'id_deals' => $var['id_deals'],
+                    'voucher_expired_at' => null,
+                    'id_deals_voucher' => null,
+                    'id_deals_user' => null,
+                    'deals_title' => $var['deals_title'],
+                    'deals_second_title' => $var['deals_second_title'],
+                    'url_deals_image' => $var['url_deals_image'],
+                    'is_used' => 0,
+                    'date_expired_indo' => null,
+                    'time_expired_indo' => null,
+                    'text' => null,
+                    'is_error' => false
+                ];
+            }, $deals_no_claim);
+    
+            $result = array_merge($result,$result_deal);
+        }
 
         $new_result_data = [];
 		$sharedPromoTrx = TemporaryDataManager::create('promo_trx');

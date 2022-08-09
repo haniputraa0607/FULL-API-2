@@ -60,7 +60,10 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('create', 'ApiQuestionEmployeeController@create');
     });
     Route::group(['prefix' => 'be/income'], function(){
-        Route::post('/', 'ApiIncome@cron_end');
+        Route::post('/cron_end', 'ApiIncome@cron_end');
+        Route::post('/', 'ApiBeIncomeController@index');
+        Route::post('/outlet', 'ApiBeIncomeController@outlet');
+        Route::post('/detail', 'ApiBeIncomeController@detail');
     });
     Route::group(['prefix' => 'be/profile'], function(){
      Route::group(['prefix' => 'emergency'], function(){

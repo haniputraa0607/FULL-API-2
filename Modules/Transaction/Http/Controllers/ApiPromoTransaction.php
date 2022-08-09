@@ -1853,8 +1853,8 @@ class ApiPromoTransaction extends Controller
     {
 		$new_version = true;
 		$header_verison = request()->header('User-Agent');
-		if(strpos($header_verison,'PostmanRuntime') || strpos($header_verison,'PostmanRuntime') >= 0){
-			if(strpos($header_verison,'7.28.4 ') || strpos($header_verison,'7.28.4 ') >= 0 || strpos($header_verison,'1.0.5 ') || strpos($header_verison,'1.0.5 ') >= 0){
+		if(strpos($header_verison,'ios') || strpos($header_verison,'ios') >= 0){
+			if(strpos($header_verison,'0.0.7 ') || strpos($header_verison,'0.0.7 ') >= 0 || strpos($header_verison,'1.0.5 ') || strpos($header_verison,'1.0.5 ') >= 0){
 				$new_version = false;
 			}
 		}

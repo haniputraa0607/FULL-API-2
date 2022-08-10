@@ -94,7 +94,11 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
                 Route::post('/sales/detail', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiHairStylistLoanController@detail_sales_payment']);
                 Route::post('/sales/create', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiHairStylistLoanController@create_sales_payment']);
     	});
-
+        Route::group(['prefix' => 'income'], function () {
+        	Route::post('/', 'ApiHairStylistIncomeController@index');
+        	Route::post('/detail', 'ApiHairStylistIncomeController@detail');
+        	Route::post('/outlet', 'ApiHairStylistIncomeController@outlet');
+    	});
     	Route::group(['prefix' => 'group'], function () {
             Route::any('/', ['middleware' => 'feature_control:393','uses' =>'ApiHairStylistGroupController@index']);
             Route::post('create', ['middleware' => 'feature_control:394','uses' =>'ApiHairStylistGroupController@create']);

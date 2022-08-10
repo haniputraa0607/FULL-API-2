@@ -39,8 +39,8 @@ class ApproveReturn extends FormRequest
 		return [
 			'id_asset_inventory_log' => 'required|cek',
 			'status_asset_inventory' => 'required|in:Approved,Rejected',
-			'notes' => 'required',
-			'attachment' => 'required',
+//			'notes' => 'required',
+//			'attachment' => 'required',
 //			'attachment' => 'required|max:5000',
         ];
     }

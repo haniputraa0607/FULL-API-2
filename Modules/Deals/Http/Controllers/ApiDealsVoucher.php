@@ -1002,6 +1002,19 @@ class ApiDealsVoucher extends Controller
             ];
         },$voucher);
 
+        $check_duplicat_vocher = [];
+        foreach($voucher ?? [] as $vou){
+            if(!isset($check_duplicat_vocher[$vou['id_deals']])){
+                $check_duplicat_vocher[$vou['id_deals']] = $vou;
+            }
+        }
+        $voucher = [];
+        $i = 0;
+        foreach($check_duplicat_vocher as $check_vou){
+            $voucher[$i] = $check_vou;
+            $i++;
+        }
+
         $result['data'] = $voucher ?? [];
 
         if ($request->json('from') && $request->json('from')=='checkout') {

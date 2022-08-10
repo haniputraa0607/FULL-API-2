@@ -151,15 +151,15 @@ class ApiPromoTransaction extends Controller
 			}
 		}
 
-		$header_verison = request()->header('User-Agent');
+		$header_version = request()->header('User-Agent');
         $new_version = true;
-        if(strpos($header_verison,'ios') || strpos($header_verison,'ios') >= 0){
-			if(strpos($header_verison,'0.0.7 ') || strpos($header_verison,'0.0.7 ') >= 0 || strpos($header_verison,'1.0.5 ') || strpos($header_verison,'1.0.5 ') >= 0){
+        if(strpos($header_version,'ios') || (is_integer(strpos($header_version,'ios')) && strpos($header_version,'ios') >= 0)){
+			if(strpos($header_version,'0.0.7 ') || (is_integer(strpos($header_version,'0.0.7')) && strpos($header_version,'0.0.7') >= 0) || strpos($header_version,'1.0.5 ') || (is_integer(strpos($header_version,'1.0.5')) && strpos($header_version,'1.0.5') >= 0)){
 				$new_version = false;
 			}
 		}
-		if(strpos($header_verison,'android') || strpos($header_verison,'android') >= 0){
-			if(strpos($header_verison,'0.0.7 ') || strpos($header_verison,'0.0.7 ') >= 0 || strpos($header_verison,'1.0.4 ') || strpos($header_verison,'1.0.4 ') >= 0){
+		if(strpos($header_version,'android') || (is_integer(strpos($header_version,'android')) && strpos($header_version,'android') >= 0)){
+			if(strpos($header_version,'0.0.7 ') || (is_integer(strpos($header_version,'0.0.7')) && strpos($header_version,'0.0.7') >= 0) || strpos($header_version,'1.0.4 ') || (is_integer(strpos($header_version,'1.0.5')) && strpos($header_version,'1.0.5') >= 0)){
 				$new_version = false;
 			}
 		}
@@ -215,9 +215,23 @@ class ApiPromoTransaction extends Controller
                 'date_expired_indo' => MyHelper::adjustTimezone($var['voucher_expired_at'], $user->user_time_zone_utc ?? 7, 'd F Y', true),
                 'time_expired_indo' => 'pukul '.date('H:i', strtotime($var['voucher_expired_at'])),
                 'text' => null,
-				'is_error' => false
+				'is_error' => false,
+                'type_deals' => 'voucher'
             ];
         }, $voucher);
+
+        $check_duplicat_vocher = [];
+        foreach($result ?? [] as $vou){
+            if(!isset($check_duplicat_vocher[$vou['id_deals']])){
+                $check_duplicat_vocher[$vou['id_deals']] = $vou;
+            }
+        }
+        $result = [];
+        $i = 0;
+        foreach($check_duplicat_vocher as $check_vou){
+            $result[$i] = $check_vou;
+            $i++;
+        }
 
         if($new_version){
             $result_deal = array_map(function($var) {
@@ -233,7 +247,8 @@ class ApiPromoTransaction extends Controller
                     'date_expired_indo' => null,
                     'time_expired_indo' => null,
                     'text' => null,
-                    'is_error' => false
+                    'is_error' => false,
+                    'type_deals' => 'deals'
                 ];
             }, $deals_no_claim);
     
@@ -335,18 +350,18 @@ class ApiPromoTransaction extends Controller
     	$userPromo = UserPromo::where('id_user', $user->id)->get()->keyBy('promo_type');
 
 		$new_version = true;
-		$header_verison = request()->header('User-Agent');
-		if(strpos($header_verison,'ios') || strpos($header_verison,'ios') >= 0){
-			if(strpos($header_verison,'0.0.7 ') || strpos($header_verison,'0.0.7 ') >= 0 || strpos($header_verison,'1.0.5 ') || strpos($header_verison,'1.0.5 ') >= 0){
+		$header_version = request()->header('User-Agent');
+		if(strpos($header_version,'ios') || (is_integer(strpos($header_version,'ios')) && strpos($header_version,'ios') >= 0)){
+			if(strpos($header_version,'0.0.7 ') || (is_integer(strpos($header_version,'0.0.7')) && strpos($header_version,'0.0.7') >= 0) || strpos($header_version,'1.0.5 ') || (is_integer(strpos($header_version,'1.0.5')) && strpos($header_version,'1.0.5') >= 0)){
 				$new_version = false;
 			}
 		}
-		if(strpos($header_verison,'android') || strpos($header_verison,'android') >= 0){
-			if(strpos($header_verison,'0.0.7 ') || strpos($header_verison,'0.0.7 ') >= 0 || strpos($header_verison,'1.0.4 ') || strpos($header_verison,'1.0.4 ') >= 0){
+		if(strpos($header_version,'android') || (is_integer(strpos($header_version,'android')) && strpos($header_version,'android') >= 0)){
+			if(strpos($header_version,'0.0.7 ') || (is_integer(strpos($header_version,'0.0.7')) && strpos($header_version,'0.0.7') >= 0) || strpos($header_version,'1.0.4 ') || (is_integer(strpos($header_version,'1.0.5')) && strpos($header_version,'1.0.5') >= 0)){
 				$new_version = false;
 			}
 		}
-		
+        
     	if ($userPromo->isEmpty()) {
 			if($new_version){
 				$data['promo_deals'] = [
@@ -1852,14 +1867,14 @@ class ApiPromoTransaction extends Controller
     public function paymentDetailPromo($result)
     {
 		$new_version = true;
-		$header_verison = request()->header('User-Agent');
-		if(strpos($header_verison,'ios') || strpos($header_verison,'ios') >= 0){
-			if(strpos($header_verison,'0.0.7 ') || strpos($header_verison,'0.0.7 ') >= 0 || strpos($header_verison,'1.0.5 ') || strpos($header_verison,'1.0.5 ') >= 0){
+		$header_version = request()->header('User-Agent');
+		if(strpos($header_version,'ios') || (is_integer(strpos($header_version,'ios')) && strpos($header_version,'ios') >= 0)){
+			if(strpos($header_version,'0.0.7 ') || (is_integer(strpos($header_version,'0.0.7')) && strpos($header_version,'0.0.7') >= 0) || strpos($header_version,'1.0.5 ') || (is_integer(strpos($header_version,'1.0.5')) && strpos($header_version,'1.0.5') >= 0)){
 				$new_version = false;
 			}
 		}
-		if(strpos($header_verison,'android') || strpos($header_verison,'android') >= 0){
-			if(strpos($header_verison,'0.0.7 ') || strpos($header_verison,'0.0.7 ') >= 0 || strpos($header_verison,'1.0.4 ') || strpos($header_verison,'1.0.4 ') >= 0){
+		if(strpos($header_version,'android') || (is_integer(strpos($header_version,'android')) && strpos($header_version,'android') >= 0)){
+			if(strpos($header_version,'0.0.7 ') || (is_integer(strpos($header_version,'0.0.7')) && strpos($header_version,'0.0.7') >= 0) || strpos($header_version,'1.0.4 ') || (is_integer(strpos($header_version,'1.0.5')) && strpos($header_version,'1.0.5') >= 0)){
 				$new_version = false;
 			}
 		}

@@ -3352,7 +3352,7 @@ class ApiPromoCampaign extends Controller
 	        if ($query['promo_type'] == 'Product discount') 
 	        {
 	        	$discount = $query[$source.'_product_discount_rules']['discount_type']??'Nominal';
-	        	$qty = 'Rp '.number_format(($query[$source.'_product_discount_rules']['max_product']??0),0,',','.');
+	        	$qty = $query[$source.'_product_discount_rules']['max_product'] ?? null;
 
 	        	if ($discount == 'Percent') {
 	        		$discount = ($query[$source.'_product_discount_rules']['discount_value']??0).'%';
@@ -3367,7 +3367,11 @@ class ApiPromoCampaign extends Controller
 	        	}else{
 	        		$key = 'description_product_discount_brand';
 	    			// $key_null = 'Anda berhak mendapatkan potongan %discount% untuk pembelian %product%. Maksimal %qty% buah untuk setiap produk';
-	    			$key_null = 'Diskon %discount% untuk pembelian %product%. Maksimal %qty% item untuk setiap produk';
+                    if($qty){
+                        $key_null = 'Diskon %discount% untuk pembelian %product%. Maksimal %qty% item untuk setiap produk';
+                    }else{
+                        $key_null = 'Diskon %discount% untuk pembelian %product%.';
+                    }
 	        	}
 
 	    		// $desc = Setting::where('key', '=', $key)->first()['value']??$key_null;

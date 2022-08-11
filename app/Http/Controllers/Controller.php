@@ -224,6 +224,7 @@ class Controller extends BaseController
     {
         $academySchedule = $this->academy_student_schedule();
         $academyDayOff = $this->academy_student_day_off();
+        $sutendAllNotif = $academySchedule + $academyDayOff;
     	return [
     		'status' => 'success',
     		'result' => [
@@ -235,7 +236,7 @@ class Controller extends BaseController
                 'candidate_list' => $this->hs_candidate_list(),
                 'academy_student_schedule' => $academySchedule,
                 'academy_student_day_off' => $academyDayOff,
-                'academy_student_notif' => $academySchedule + $academyDayOff,
+                'academy_student_notif' =>($sutendAllNotif == 0 ? null : $sutendAllNotif),
                 'request-employee-perubahan-data'=> $this->request_employee_perubahan_data(),
                 'employee-reimbursement'=> $this->request_employee_reimbursement(),
                 'partners'=> $this->partners(),

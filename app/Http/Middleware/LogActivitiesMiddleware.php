@@ -306,9 +306,17 @@ class LogActivitiesMiddleware
                             'useragent'                 => $userAgent
                         ];
                     }
-                    $log = LogActivitiesBE::create($data);
+                    try {
+                        $log = LogActivitiesBE::create($data);
+                    } catch (\Exception $e) {
+
+                    }
                 }else{
-                    $log = LogActivitiesApps::create($data);
+                    try {
+                        $log = LogActivitiesApps::create($data);
+                    } catch (\Exception $e) {
+
+                    }
                 }
                 
             }

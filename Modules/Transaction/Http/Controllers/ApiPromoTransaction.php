@@ -159,7 +159,7 @@ class ApiPromoTransaction extends Controller
 			}
 		}
 		if(strpos($header_version,'android') || (is_integer(strpos($header_version,'android')) && strpos($header_version,'android') >= 0)){
-			if(strpos($header_version,'0.0.7 ') || (is_integer(strpos($header_version,'0.0.7')) && strpos($header_version,'0.0.7') >= 0) || strpos($header_version,'1.0.4 ') || (is_integer(strpos($header_version,'1.0.5')) && strpos($header_version,'1.0.5') >= 0)){
+			if(strpos($header_version,'0.0.7 ') || (is_integer(strpos($header_version,'0.0.7')) && strpos($header_version,'0.0.7') >= 0) || strpos($header_version,'1.0.4 ') || (is_integer(strpos($header_version,'1.0.4')) && strpos($header_version,'1.0.4') >= 0)){
 				$new_version = false;
 			}
 		}
@@ -357,7 +357,7 @@ class ApiPromoTransaction extends Controller
 			}
 		}
 		if(strpos($header_version,'android') || (is_integer(strpos($header_version,'android')) && strpos($header_version,'android') >= 0)){
-			if(strpos($header_version,'0.0.7 ') || (is_integer(strpos($header_version,'0.0.7')) && strpos($header_version,'0.0.7') >= 0) || strpos($header_version,'1.0.4 ') || (is_integer(strpos($header_version,'1.0.5')) && strpos($header_version,'1.0.5') >= 0)){
+			if(strpos($header_version,'0.0.7 ') || (is_integer(strpos($header_version,'0.0.7')) && strpos($header_version,'0.0.7') >= 0) || strpos($header_version,'1.0.4 ') || (is_integer(strpos($header_version,'1.0.4')) && strpos($header_version,'1.0.4') >= 0)){
 				$new_version = false;
 			}
 		}
@@ -1874,7 +1874,7 @@ class ApiPromoTransaction extends Controller
 			}
 		}
 		if(strpos($header_version,'android') || (is_integer(strpos($header_version,'android')) && strpos($header_version,'android') >= 0)){
-			if(strpos($header_version,'0.0.7 ') || (is_integer(strpos($header_version,'0.0.7')) && strpos($header_version,'0.0.7') >= 0) || strpos($header_version,'1.0.4 ') || (is_integer(strpos($header_version,'1.0.5')) && strpos($header_version,'1.0.5') >= 0)){
+			if(strpos($header_version,'0.0.7 ') || (is_integer(strpos($header_version,'0.0.7')) && strpos($header_version,'0.0.7') >= 0) || strpos($header_version,'1.0.4 ') || (is_integer(strpos($header_version,'1.0.4')) && strpos($header_version,'1.0.4') >= 0)){
 				$new_version = false;
 			}
 		}

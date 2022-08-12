@@ -1073,7 +1073,7 @@ class ApiDealsVoucher extends Controller
             if(count($new_result_data)>0){
                 $result['data'] = $new_result_data;
             }else{
-                $result['data'] = !$error_item ? $result['data'] : [];
+                $result['data'] = !$error_item ? $new_result_data : [];
             }
 
 

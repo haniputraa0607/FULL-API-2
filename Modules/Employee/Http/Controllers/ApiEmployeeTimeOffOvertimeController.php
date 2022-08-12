@@ -1067,6 +1067,13 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
             $array_date = explode('-', $date);
             //
             $cek_employee = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$time_off['id_employee'])->first();
+            if(empty($cek_employee['office_hour_type'])){
+                $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
+                if($setting_default){
+                    $old_data = $cek_employee;
+                    $cek_employee = EmployeeOfficeHour::where('id_employee_office_hour',$setting_default['value'])->first();
+                }
+            }
             if($cek_employee['office_hour_type'] == 'Without Shift'){
                 $schedule_date_without = EmployeeScheduleDate::join('employee_schedules','employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule')
                                     ->join('users','users.id','employee_schedules.id')
@@ -1323,6 +1330,12 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
         $month_sc = date('m', strtotime($data['date']));
         $year_sc = date('Y', strtotime($data['date']));
         $cek_employee = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$data['id_employee'])->first();
+        if(empty($cek_employee['office_hour_type'])){
+            $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
+            if($setting_default){
+                $cek_employee = EmployeeOfficeHour::where('id_employee_office_hour',$setting_default['value'])->first();
+            }
+        }
         $get_schedule = EmployeeSchedule::where('id', $data['id_employee'])->where('schedule_month', $month_sc)->where('schedule_year',$year_sc)->first();
         if($get_schedule){
             $get_schedule_date = EmployeeScheduleDate::where('id_employee_schedule',$get_schedule['id_employee_schedule'])->where('date',$data['date'])->first();
@@ -1409,7 +1422,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
             $year_sc = date('Y', strtotime($check['date']));
             $get_schedule = EmployeeSchedule::where('id', $check['id_employee'])->where('schedule_month', $month_sc)->where('schedule_year',$year_sc)->first();
             if($get_schedule){
-                $get_schedule_date = EmployeeScheduleDate::where('id_employee_schedule',$get_schedule['id_employee_schedule'])->where('date',$check['date'])->where('is_overtime',1)->first();
+                $get_schedule_date = EmployeeScheduleDate::where('id_employee_schedule',$get_schedule['id_employee_schedule'])->where('date',$check['date'])->first();
                 if($get_schedule_date){
                     $duration = date("H:i:s",strtotime($check['duration']));
                     if(isset($check['rest_before']) && isset($check['rest_after'])){
@@ -1422,7 +1435,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                         $secs = strtotime($new_time_rest)-strtotime("00:00:00");
                         $duration = date("H:i:s",strtotime($check['duration'])+$secs);
                     }
-
+                    
                     if($check['time'] == 'after'){
                         $duration = strtotime($duration);
                         $start = strtotime($get_schedule_date['time_end']);
@@ -1439,11 +1452,10 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                         $order = 'time_start';
                         $order_att = 'clock_in_requirement';
                     }
-                    $update_schedule = EmployeeScheduleDate::where('id_employee_schedule_date',$get_schedule_date['id_employee_schedule_date'])->update([$order => $new_time,  'is_overtime' => 0]);
-                    $update = ['reject_at' => date('Y-m-d')];
-                    if(isset($post['approve_notes']) && !empty($post['approve_notes'])){
-                        $update['approve_notes'] = $post['approve_notes'];
+                    if($get_schedule_date['is_overtime']==1){
+                        $update_schedule = EmployeeScheduleDate::where('id_employee_schedule_date',$get_schedule_date['id_employee_schedule_date'])->update([$order => $new_time,  'is_overtime' => 0]);
                     }
+                   
                     if(!$update_schedule){
                         DB::rollBack();
                         return response()->json([
@@ -1453,6 +1465,10 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                     
                     $attendance = EmployeeAttendance::where('id_employee_schedule_date',$get_schedule_date['id_employee_schedule_date'])->where('id', $check['id'])->where('attendance_date',$check['date'])->update([$order_att => $new_time]);
 
+                }
+                $update = ['reject_at' => date('Y-m-d')];
+                if(isset($post['approve_notes']) && !empty($post['approve_notes'])){
+                    $update['approve_notes'] = $post['approve_notes'];
                 }
                 $update_overtime = EmployeeOvertime::where('id_employee_overtime', $post['id_employee_overtime'])->update($update);
                 if(!$update_overtime){

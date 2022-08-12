@@ -384,6 +384,18 @@ class ApiPromoTransaction extends Controller
                 foreach($userPromo ?? [] as $key => $usPro){
                     if($key=='deals'){
                         $un_used = DealsUser::where('id_deals_user', $usPro['id_reference'])->update(['is_used'=>0]);
+                        if($new_version){
+                            $data['promo_deals'] = [
+                                'is_error' 			=> false,
+                                'can_use_deal'   	=> 1,
+                                'use_deal_message'	=> null,
+                            ];
+                            $data['promo_code'] = [
+                                'is_error' 			=> false,
+                                'can_use_promo'   	=> 1,
+                                'use_promo_message'	=> null,
+                            ];
+                        }
                         return $data;
                     }
                 }
@@ -401,6 +413,18 @@ class ApiPromoTransaction extends Controller
                 if(!is_null($id_deals_used) && !in_array($id_deals_used,$id_voucher)){
                     $delete_user_promo = UserPromo::where('id_user', $user->id)->where('id_reference', $id_deals_used)->where('promo_type', 'deals')->delete();
                     $un_used = DealsUser::where('id_deals_user', $id_deals_used)->update(['is_used'=>0]);
+                    if($new_version){
+                        $data['promo_deals'] = [
+                            'is_error' 			=> false,
+                            'can_use_deal'   	=> 1,
+                            'use_deal_message'	=> null,
+                        ];
+                        $data['promo_code'] = [
+                            'is_error' 			=> false,
+                            'can_use_promo'   	=> 1,
+                            'use_promo_message'	=> null,
+                        ];
+                    }
                     return $data;
                 }
             }
@@ -554,6 +578,19 @@ class ApiPromoTransaction extends Controller
 				if($codeErr && isset($userPromo['promo_campaign']['id_reference'])){
 					$continueCheckOut = false;
 					$delete_user_promo_campaign = UserPromo::where('id_user', $user->id)->where('id_reference', $userPromo['promo_campaign']['id_reference'])->where('promo_type', 'promo_campaign')->delete();
+                    if($new_version){
+                        $data['promo_deals'] = [
+                            'is_error' 			=> false,
+                            'can_use_deal'   	=> 1,
+                            'use_deal_message'	=> null,
+                        ];
+                        $data['promo_code'] = [
+                            'is_error' 			=> false,
+                            'can_use_promo'   	=> 1,
+                            'use_promo_message'	=> null,
+                        ];
+                        return $data;
+                    }
 				}else{
 					$resPromoCode = [
 						'id_promo_campaign' => $sharedPromoTrx['promo_campaign']['id_promo_campaign'] ?? null,
@@ -595,7 +632,7 @@ class ApiPromoTransaction extends Controller
 				}
 			}
 		}
-
+        
 		$data['continue_checkout'] = $continueCheckOut;
 		return $data;
     }

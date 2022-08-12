@@ -569,7 +569,7 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
             $year_sc = date('Y', strtotime($check['date']));
             $get_schedule = HairstylistSchedule::where('id_user_hair_stylist', $check['id_user_hair_stylist'])->where('schedule_month', $month_sc)->where('schedule_year',$year_sc)->first();
             if($get_schedule){
-                $get_schedule_date = HairstylistScheduleDate::where('id_hairstylist_schedule',$get_schedule['id_hairstylist_schedule'])->where('date',$check['date'])->where('is_overtime',1)->first();
+                $get_schedule_date = HairstylistScheduleDate::where('id_hairstylist_schedule',$get_schedule['id_hairstylist_schedule'])->where('date',$check['date'])->first();
                 if($get_schedule_date){
                     if($check['time'] == 'after'){
                         $duration = strtotime($check['duration']);
@@ -587,7 +587,9 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                         $order = 'time_start';
                         $order_att = 'clock_in_requirement';
                     }
-                    $update_schedule = HairstylistScheduleDate::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->update([$order => $new_time,  'is_overtime' => 0, 'id_outlet_box' => null]);
+                    if($get_schedule_date['is_overtime']==1){
+                        $update_schedule = HairstylistScheduleDate::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->update([$order => $new_time,  'is_overtime' => 0, 'id_outlet_box' => null]);
+                    }
                     if(!$update_schedule){
                         DB::rollBack();
                         return response()->json([

@@ -91,7 +91,11 @@ class LogActivitiesMitraAppsMiddleware
                     'useragent' 	    => $userAgent
                 ];
 
-                $log = LogActivitiesMitraApp::create($data);
+                try {
+                    $log = LogActivitiesMitraApp::create($data);
+                } catch (\Exception $e) {
+
+                }
             }
 
         }

@@ -82,7 +82,11 @@ class LogActivitiesEmployeeAppsMiddleware
                     'useragent' 	    => $userAgent
                 ];
 
-                $log = LogActivitiesEmployeeApp::create($data);
+                try {
+                    $log = LogActivitiesEmployeeApp::create($data);
+                } catch (\Exception $e) {
+
+                }
             }
 
         }

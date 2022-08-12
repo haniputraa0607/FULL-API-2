@@ -74,8 +74,12 @@ class AuthPOS2
             'response_header'   => null,
             'response_code'     => 200
         ];
-        LogApiIcount::create($log_api_array);
 
+        try {
+            LogApiIcount::create($log_api_array);
+        } catch (\Exception $e) {
+
+        }
         return $response;
     }
 }

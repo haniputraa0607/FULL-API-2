@@ -742,7 +742,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
                 'name_outlet' => $outlet['name_outlet'],
                 'time_attendance' => $date_time_now,
                 'role' => $role['role_name'],
-                'user_update' => $request->user()->id,
+                'user_update' => $request->user_update ?? $request->user()->name,
                 'id_outlet' => $outlet['id_outlet']
             ], null, false, false, 'employee'
         );
@@ -1313,7 +1313,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
                     'name_outlet' => $outlet['outlet_name'],
                     'time_attendance' => $date_time_now,
                     'role' => $role['role_name'],
-                    'user_update' => $request->user()->id,
+                    'user_update' => $request->user_update ?? $request->user()->name,
                     'id_outlet' => $outlet['id_outlet'],
                     'category' => 'Attendance Outlet'
                 ], null, false, false, 'employee'
@@ -1349,7 +1349,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
                     'name_outlet' => $outlet['outlet_name'],
                     'time_attendance' => $date_time_now,
                     'role' => $role['role_name'],
-                    'user_update' => $request->user()->id,
+                    'user_update' => $request->user_update ?? $request->user()->name,
                     'id_outlet' => $outlet['id_outlet'],
                     'category' => 'Attendance Outlet'
                 ], null, false, false, 'employee'

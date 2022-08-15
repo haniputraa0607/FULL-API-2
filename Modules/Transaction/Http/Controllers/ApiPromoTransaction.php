@@ -609,7 +609,7 @@ class ApiPromoTransaction extends Controller
 						$resDeals = [
 							'is_error' 			=> false,
 							'can_use_deal'   	=> 0,
-							'use_deal_message'	=> 'Deals & Voucher tidak dapat digunakan bersamaan dengan Kode Promo',
+							'use_deal_message'	=> $availableVoucher ? 'Deals & Voucher tidak dapat digunakan bersamaan dengan Kode Promo' : 'Anda tidak memiliki voucher yang dapat digunakan',
 						];
 					}
 				}

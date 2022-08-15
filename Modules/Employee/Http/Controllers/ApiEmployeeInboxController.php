@@ -23,6 +23,7 @@ use Modules\Employee\Entities\EmployeeOvertime;
 use Modules\Employee\Entities\EmployeeReimbursement;
 use Modules\Employee\Entities\AssetInventoryLog;
 use Modules\Employee\Entities\EmployeeTimeOffImage;
+use Modules\Employee\Entities\EmployeeOfficeHour;
 use Modules\Product\Entities\RequestProduct;
 use Modules\Product\Entities\RequestProductDetail;
 use Modules\Product\Entities\RequestProductImage;
@@ -973,6 +974,18 @@ class ApiEmployeeInboxController extends Controller
         $array_date = explode('-', $date);
 
         $cek_employee = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$data['id_employee'])->first();
+        if(empty($cek_employee['office_hour_type'])){
+            $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
+            if($setting_default){
+                $cek_employee = EmployeeOfficeHour::where('id_employee_office_hour',$setting_default['value'])->first();
+                if(empty($cek_employee)){
+                    return response()->json([
+                        'status'=>'fail',
+                        'messages'=>['Jam kantor tidak ada ']
+                    ]);
+                }
+            }
+        }
         if($cek_employee['office_hour_type'] == 'Without Shift'){
             $schedule_date_without = EmployeeScheduleDate::join('employee_schedules','employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule')
                                 ->join('users','users.id','employee_schedules.id')
@@ -1003,6 +1016,23 @@ class ApiEmployeeInboxController extends Controller
 
         $time_off['schedule_in'] = $send['schedule_in'] ? MyHelper::adjustTimezone($send['schedule_in'], $timeZone, 'H:i') : null;
         $time_off['schedule_out'] = $send['schedule_out'] ? MyHelper::adjustTimezone($send['schedule_out'], $timeZone, 'H:i') : null;
+
+        if($data['time']=='before'){
+            $duration = strtotime($data['duration']);
+            $start = strtotime($time_off['schedule_in']);
+            $diff = $start - $duration;
+            $hour = floor($diff / (60*60));
+            $minute = floor(($diff - ($hour*60*60))/(60));
+            $second = floor(($diff - ($hour*60*60))%(60));
+            $new_time =  date('H:i', strtotime($hour.':'.$minute.':'.$second));
+            $time_off['schedule_out'] = $time_off['schedule_in'];
+            $time_off['schedule_in'] = $new_time;
+        }else{
+            $secs = strtotime($data['duration'])-strtotime("00:00:00");
+            $new_time = date("H:i",strtotime($time_off['schedule_out'])+$secs);
+            $time_off['schedule_in'] = $time_off['schedule_out'];
+            $time_off['schedule_out'] = $new_time;
+        }
         return $time_off;
     }
 
@@ -1027,7 +1057,8 @@ class ApiEmployeeInboxController extends Controller
             $data_update = [
                 'id_employee_attendance_log' => $id_detail,
                 'approve_notes' => $post['approve_notes'],
-                'status' => $post['status']
+                'status' => $post['status'],
+                'user_update' => $user['name']
             ];
             $update = app('\Modules\Employee\Http\Controllers\ApiEmployeeAttendanceController')->updatePending(New Request($data_update));
         }
@@ -1038,6 +1069,7 @@ class ApiEmployeeInboxController extends Controller
                 'approve_notes' => $post['approve_notes'],
                 'status' => $post['status'],
                 'id' => $id_employee,
+                'user_update' => $user['name']
             ];
             $update = app('\Modules\Employee\Http\Controllers\ApiEmployeeAttendanceController')->updateRequest(New Request($data_update));
         }
@@ -1046,7 +1078,8 @@ class ApiEmployeeInboxController extends Controller
             $data_update = [
                 'id_employee_outlet_attendance_log' => $id_detail,
                 'approve_notes' => $post['approve_notes'],
-                'status' => $post['status']
+                'status' => $post['status'],
+                'user_update' => $user['name']
             ];
             $update = app('\Modules\Employee\Http\Controllers\ApiEmployeeAttendaceOutletController')->updatePending(New Request($data_update));
         }
@@ -1057,6 +1090,7 @@ class ApiEmployeeInboxController extends Controller
                 'approve_notes' => $post['approve_notes'],
                 'status' => $post['status'],
                 'id' => $id_employee,
+                'user_update' => $user['name']
             ];
             $update = app('\Modules\Employee\Http\Controllers\ApiEmployeeAttendaceOutletController')->updateRequest(New Request($data_update));
         }

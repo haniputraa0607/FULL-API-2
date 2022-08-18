@@ -199,9 +199,10 @@ class ApiBeEmployeeAssetInventoryController extends Controller
     public function detail_return(Request $request) {
         $user = AssetInventoryLog::join('asset_inventorys','asset_inventorys.id_asset_inventory','asset_inventory_logs.id_asset_inventory')
                 ->join('asset_inventory_categorys','asset_inventory_categorys.id_asset_inventory_category','asset_inventorys.id_asset_inventory_category')
+                ->leftjoin('asset_inventory_returns','asset_inventory_returns.id_asset_inventory_log','asset_inventory_logs.id_asset_inventory_log')
                 ->leftjoin('users','users.id','asset_inventory_logs.id_approved')
                 ->where([
-            'id_asset_inventory_log'=>$request->id_asset_inventory_log,
+            'asset_inventory_logs.id_asset_inventory_log'=>$request->id_asset_inventory_log,
         ])->first();
         return MyHelper::checkGet($user);
     }

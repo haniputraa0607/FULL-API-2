@@ -40,6 +40,7 @@ Route::group(['middleware' => ['auth_client', 'log_activities', 'user_agent'], '
     Route::get('/navigation-navbar', 'ApiSetting@NavigationNavbar');
     Route::any('outletapp/splash-screen', 'ApiSetting@splashScreenOutletApps');
     Route::any('mitra-apps/splash-screen', 'ApiSetting@splashScreenMitraApps');
+    Route::any('employee-apps/splash-screen', 'ApiSetting@splashScreenEmployee');
 });
 
 Route::group(['middleware' => ['auth_client', 'log_activities', 'user_agent'], 'prefix' => 'api/version', 'namespace' => 'Modules\Setting\Http\Controllers'], function()

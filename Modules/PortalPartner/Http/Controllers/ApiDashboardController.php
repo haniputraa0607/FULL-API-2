@@ -323,7 +323,7 @@ class ApiDashboardController extends Controller
                        ->where('transactions.reject_at', NULL)
                        ->where('transactions.transaction_payment_status', 'Completed')
                        ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
-                       ->select(DB::raw('DATE_FORMAT(transactions.transaction_date, "%d %M %y") as date'),DB::raw('
+                       ->select(DB::raw('DATE_FORMAT(transactions.transaction_date, "%M %y") as date'),DB::raw('
                                         count(
                                        CASE WHEN
                                        transaction_outlet_services.reject_at IS NULL THEN 1 ELSE 0
@@ -341,13 +341,30 @@ class ApiDashboardController extends Controller
                        ->groupby('date')
                        ->orderby('transactions.transaction_date','asc')
                        ->get();
-               $array = array();
+               $revenue = array();
                foreach ($transaction as $value) {
                    $value['revenue'] = floor($value['revenue']);
+                   array_push($revenue,$value);
+               }
+               $average = array();
+               foreach ($transaction as $value) {
                    $value['average'] = $value['revenue']/$value['total_order']??0;
                    $value['average'] = floor($value['average']);
-                   array_push($array,$value);
+                   array_push($average,$value);
                }
+               $total_order = array();
+               foreach ($transaction as $value) {
+                  $vas = array(
+                      'date'=>$value['date'],
+                      'total_order'=>$value['total_order'],
+                  );
+                   array_push($total_order,$vas);
+               }
+               $array = array(
+                   'revenue'=>$revenue,
+                   'average'=>$average,
+                   'total_order'=>$total_order,
+               );
        return response()->json(['status' => 'success', 'result' => $array]);  
        }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incomplete data']]);

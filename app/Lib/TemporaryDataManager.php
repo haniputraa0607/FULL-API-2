@@ -17,4 +17,9 @@ class TemporaryDataManager extends Collection
 
 		return static::$collections[$name];
 	}
+
+	public static function reset($name = 'default')
+    {
+        static::$collections[$name] = [];
+    }
 }

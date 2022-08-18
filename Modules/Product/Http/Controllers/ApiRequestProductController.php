@@ -162,6 +162,10 @@ class ApiRequestProductController extends Controller
                 $autocrm = app($this->autocrm)->SendAutoCRM(
                     $crm,
                     auth()->user()->phone,
+                    [
+                        'code' => $store_request['code']
+                    ]
+
                 );
                 // return $autocrm;
                 if (!$autocrm) {
@@ -415,7 +419,9 @@ class ApiRequestProductController extends Controller
                 $data_send['location'] = Location::where('id_location',$cek_outlet['id_location'])->first();
                 $data_send['location']['no_spk'] = $store_request['code'];
                 $data_send['location']['trans_date'] = date('Y-m-d');
+                $data_send['location']['due_date'] = date('Y-m-d', strtotime('+30days'));
                 $data_send['partner'] = Partner::where('id_partner',$data_send['location']['id_partner'])->first();
+                $data_send['partner']['notes'] = $old_data['note_request'] ?? '';
                 $data_send['confir'] = ConfirmationLetter::where('id_partner',$data_send['location']['id_partner'])->where('id_location',$data_send['location']['id_location'])->first();
                 $data_send["location_bundling"] = RequestProductDetail::where('id_request_product',$post['id_request_product'])->where('status','Approved')->join('product_icounts','product_icounts.id_product_icount','request_product_details.id_product_icount')->get()->toArray();
                 $data_send["location_bundling"] = array_map(function($val){
@@ -431,7 +437,7 @@ class ApiRequestProductController extends Controller
                 }
                 if($invoice['response']['Status']=='1' && $invoice['response']['Message']=='success'){
                     $data_invoice = [
-                        'id_project'=>$project['id_project'],
+                        'id_project'=>$project['id_project'] ?? null,
                         'id_request_product'=>$post['id_request_product'],
                         'id_sales_invoice'=>$invoice['response']['Data'][0]['SalesInvoiceID']??null,
                         'id_business_partner'=>$invoice['response']['Data'][0]['BusinessPartnerID'],
@@ -459,12 +465,16 @@ class ApiRequestProductController extends Controller
             DB::commit();
             $id_user_request = $store_request['id_user_request'] ?? $old_data['id_user_request'];
             $user_request = User::where('id',$id_user_request)->first();
-            if($old_data['status'] == $store_request['status']){
+            $user_approve = User::where('id',$store_request['id_user_approve'])->first();
+            if($old_data['status'] == $store_request['status'] || ($old_data['status'] == 'Draft' && $store_request['status'] == 'Pending')){
                 if (\Module::collections()->has('Autocrm')) {
                 
                     $autocrm = app($this->autocrm)->SendAutoCRM(
                         'Update Request Product',
                         auth()->user()->phone,
+                        [
+                            'code' => $store_request['code']
+                        ]
                     );
                     // return $autocrm;
                     if (!$autocrm) {
@@ -480,6 +490,10 @@ class ApiRequestProductController extends Controller
                     $autocrm = app($this->autocrm)->SendAutoCRM(
                         'Product Request Approved by Admin',
                         $user_request['phone'],
+                        [
+                            'user_update' => $user_approve['name'],
+                            'code' => $store_request['code']
+                        ]
                     );
                     // return $autocrm;
                     if (!$autocrm) {
@@ -495,6 +509,10 @@ class ApiRequestProductController extends Controller
                     $autocrm = app($this->autocrm)->SendAutoCRM(
                         'Product Request Rejected by Admin',
                         $user_request['phone'],
+                        [
+                            'user_update' => $user_approve['name'],
+                            'code' => $store_request['code']
+                        ]
                     );
                     // return $autocrm;
                     if (!$autocrm) {
@@ -670,6 +688,9 @@ class ApiRequestProductController extends Controller
                 $autocrm = app($this->autocrm)->SendAutoCRM(
                     'Create Delivery Product',
                     auth()->user()->phone,
+                    [
+                        'code' => $store_delivery['code']
+                    ]
                 );
                 // return $autocrm;
                 if (!$autocrm) {
@@ -924,7 +945,7 @@ class ApiRequestProductController extends Controller
         }else if($post['status'] == 'Reject'){
             $status = 'Rejected';
         }
-        $update = RequestProduct::where('id_purchase_request', $post['PurchaseRequestID'] ?? $post['PurchaseRequestID'])->where('status','!=','Completed By Finance')->update(['status'=>$status]);
+        $update = RequestProduct::where('id_purchase_request', $post['PurchaseRequestID'] ?? $post['PurchaseRequestID'])->update(['status'=>$status]);
         if($update){
             $data_req = RequestProduct::where('id_purchase_request', $post['PurchaseRequestID'])->first();
             $user_req = User::where('id',$data_req['id_user_request'])->first();

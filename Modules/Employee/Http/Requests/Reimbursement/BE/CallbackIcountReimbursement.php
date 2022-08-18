@@ -13,9 +13,7 @@ class CallbackIcountReimbursement extends FormRequest
             'PurchaseInvoiceID' => [
                 'required',
                 'string',
-                Rule::exists('sharing_management_fee', 'PurchaseInvoiceID')->where(function ($query) {
-                    $query->where('status', 'Proccess');
-                }),
+                Rule::exists('employee_reimbursements', 'id_purchase_invoice'),
             ],
             'status'            => 'required|string|in:Success,Fail',
             'date_disburse'     => 'required|date_format:Y-m-d H:i:s',

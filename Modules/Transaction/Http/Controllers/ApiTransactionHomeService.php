@@ -17,6 +17,7 @@ use App\Http\Models\TransactionPaymentOffline;
 use App\Http\Models\TransactionPaymentOvo;
 use App\Http\Models\TransactionPickup;
 use App\Http\Models\TransactionProduct;
+use App\Http\Models\TransactionSetting;
 use App\Http\Models\UserAddress;
 use App\Jobs\ExportFranchiseJob;
 use App\Jobs\FindingHairStylistHomeService;
@@ -78,6 +79,7 @@ class ApiTransactionHomeService extends Controller
         if(!empty($request->user()->id)){
             $user = User::where('id', $request->user()->id)
                 ->leftJoin('cities', 'cities.id_city', 'users.id_city')
+                ->with('memberships')
                 ->select('users.*', 'cities.city_name')
                 ->first();
             if (empty($user)) {
@@ -148,7 +150,11 @@ class ApiTransactionHomeService extends Controller
             $err = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
                 ->where('products.id_product', $item['id_product'])
-                ->select('products.*', 'product_global_price as product_price')
+                ->select('products.*', DB::raw('(CASE
+                            WHEN (select outlets.outlet_different_price from outlets  where outlets.id_outlet = ' . $outlet['id_outlet'] . ' ) = 1 
+                            THEN (select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $outlet['id_outlet'] . ' )
+                            ELSE product_global_price.product_global_price
+                        END) as product_price'))
                 ->first();
 
             //check category hs when use hs favorite
@@ -281,11 +287,48 @@ class ApiTransactionHomeService extends Controller
         $result['currency'] = 'Rp';
         $result['complete_profile'] = (empty($user->complete_profile) ?false:true);
         $result['continue_checkout'] = $continueCheckOut;
-        $earnedPoint = app($this->online_trx)->countTranscationPoint($post, $user);
-        $cashback = $earnedPoint['cashback'] ?? 0;
-        if ($cashback) {
+
+        $cashBack = app($this->setting_trx)->countTransaction('cashback', $result);
+        $countUserTrx = Transaction::where('id_user', $user['id'])->where('transaction_payment_status', 'Completed')->count();
+        $countSettingCashback = TransactionSetting::get();
+
+        if ($countUserTrx < count($countSettingCashback)) {
+            $cashBack = $cashBack * $countSettingCashback[$countUserTrx]['cashback_percent'] / 100;
+
+            if ($cashBack > $countSettingCashback[$countUserTrx]['cashback_maximum']) {
+                $cashBack = $countSettingCashback[$countUserTrx]['cashback_maximum'];
+            }
+        } else {
+
+            $maxCash = Setting::where('key', 'cashback_maximum')->first();
+
+            if (count($user['memberships']) > 0) {
+                $cashBack = $cashBack * ($user['memberships'][0]['benefit_cashback_multiplier']) / 100;
+
+                if($user['memberships'][0]['cashback_maximum']){
+                    $maxCash['value'] = $user['memberships'][0]['cashback_maximum'];
+                }
+            }
+
+            $statusCashMax = 'no';
+
+            if (!empty($maxCash) && !empty($maxCash['value'])) {
+                $statusCashMax = 'yes';
+                $totalCashMax = $maxCash['value'];
+            }
+
+            if ($statusCashMax == 'yes') {
+                if ($totalCashMax < $cashBack) {
+                    $cashBack = $totalCashMax;
+                }
+            } else {
+                $cashBack = $cashBack;
+            }
+        }
+
+        if ($cashBack > 0) {
             $result['point_earned'] = [
-                'value' => MyHelper::requestNumber($cashback, '_CURRENCY'),
+                'value' => MyHelper::requestNumber($cashBack, '_CURRENCY'),
                 'text' => MyHelper::setting('cashback_earned_text', 'value', 'Point yang akan didapatkan')
             ];
         }
@@ -339,6 +382,7 @@ class ApiTransactionHomeService extends Controller
         if(!empty($request->user()->id)){
             $user = User::where('id', $request->user()->id)
                 ->leftJoin('cities', 'cities.id_city', 'users.id_city')
+                ->with('memberships')
                 ->select('users.*', 'cities.city_name')
                 ->first();
             if (empty($user)) {
@@ -407,7 +451,11 @@ class ApiTransactionHomeService extends Controller
             $err = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
                 ->where('products.id_product', $item['id_product'])
-                ->select('products.*', 'product_global_price as product_price')
+                ->select('products.*', DB::raw('(CASE
+                            WHEN (select outlets.outlet_different_price from outlets  where outlets.id_outlet = ' . $outlet['id_outlet'] . ' ) = 1 
+                            THEN (select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $outlet['id_outlet'] . ' )
+                            ELSE product_global_price.product_global_price
+                        END) as product_price'))
                 ->first();
 
             if(empty($service)){
@@ -571,8 +619,45 @@ class ApiTransactionHomeService extends Controller
         $result['tax'] = $post['tax'];
         $result['service'] = $post['service'] ?? 0;
 
-        $earnedPoint = app($this->online_trx)->countTranscationPoint($post, $user);
-        $result['cashback'] = $earnedPoint['cashback'] ?? 0;
+
+        $cashBack = app($this->setting_trx)->countTransaction('cashback', $result);
+        $countUserTrx = Transaction::where('id_user', $user['id'])->where('transaction_payment_status', 'Completed')->count();
+        $countSettingCashback = TransactionSetting::get();
+
+        if ($countUserTrx < count($countSettingCashback)) {
+            $cashBack = $cashBack * $countSettingCashback[$countUserTrx]['cashback_percent'] / 100;
+
+            if ($cashBack > $countSettingCashback[$countUserTrx]['cashback_maximum']) {
+                $cashBack = $countSettingCashback[$countUserTrx]['cashback_maximum'];
+            }
+        } else {
+
+            $maxCash = Setting::where('key', 'cashback_maximum')->first();
+
+            if (count($user['memberships']) > 0) {
+                $cashBack = $cashBack * ($user['memberships'][0]['benefit_cashback_multiplier']) / 100;
+
+                if($user['memberships'][0]['cashback_maximum']){
+                    $maxCash['value'] = $user['memberships'][0]['cashback_maximum'];
+                }
+            }
+
+            $statusCashMax = 'no';
+
+            if (!empty($maxCash) && !empty($maxCash['value'])) {
+                $statusCashMax = 'yes';
+                $totalCashMax = $maxCash['value'];
+            }
+
+            if ($statusCashMax == 'yes') {
+                if ($totalCashMax < $cashBack) {
+                    $cashBack = $totalCashMax;
+                }
+            } else {
+                $cashBack = $cashBack;
+            }
+        }
+        $result['cashback'] = $cashBack ?? 0;
 
         $result['currency'] = 'Rp';
         $result['payment_detail'] = [];
@@ -580,6 +665,7 @@ class ApiTransactionHomeService extends Controller
         $result['currency'] = 'Rp';
         $result['complete_profile'] = (empty($user->complete_profile) ?false:true);
         $result['continue_checkout'] = $continueCheckOut;
+        $result['messages_all_title'] = (empty($errAll) ? null : 'TRANSAKSI TIDAK DAPAT DILANJUTKAN');
         $result['messages_all'] = (empty($errAll)? null:implode(".", array_unique($errAll)));
         $fake_request = new Request(['show_all' => 1]);
         $result['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
@@ -595,6 +681,21 @@ class ApiTransactionHomeService extends Controller
 
         $paymentDetailPromo = app($this->promo_trx)->paymentDetailPromo($result);
         $result['payment_detail'] = array_merge($result['payment_detail'], $paymentDetailPromo);
+
+        if($result['promo_deals']){
+            if($result['promo_deals']['is_error']){
+                $result['continue_checkout'] = false;
+                $result['messages_all_title'] = 'VOUCHER ANDA TIDAK DAPAT DIGUNAKAN';
+                $result['messages_all'] = 'Silahkan gunakan voucher yang berlaku atau tidak menggunakan voucher sama sekali.';
+            }
+        }
+        if($result['promo_code']){
+            if($result['promo_code']['is_error']){
+                $result['continue_checkout'] = false;
+                $result['messages_all_title'] = 'PROMO ANDA TIDAK DAPAT DIGUNAKAN';
+                $result['messages_all'] = 'Silahkan gunakan promo yang berlaku atau tidak menggunakan promo sama sekali.';
+            }
+        }
 
         if(!empty($outlet['is_tax'])) {
             $result['payment_detail'][] = [
@@ -713,7 +814,11 @@ class ApiTransactionHomeService extends Controller
             $detailStock = [];
             $service = Product::leftJoin('product_global_price', 'product_global_price.id_product', 'products.id_product')
                 ->where('products.id_product', $item['id_product'])
-                ->select('products.*', 'product_global_price as product_price')
+                ->select('products.*', DB::raw('(CASE
+                            WHEN (select outlets.outlet_different_price from outlets  where outlets.id_outlet = ' . $outlet['id_outlet'] . ' ) = 1 
+                            THEN (select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $outlet['id_outlet'] . ' )
+                            ELSE product_global_price.product_global_price
+                        END) as product_price'))
                 ->first();
 
             if(empty($service)){
@@ -840,8 +945,43 @@ class ApiTransactionHomeService extends Controller
             $post['membership_promo_id'] = null;
         }
 
-        $earnedPoint = app($this->online_trx)->countTranscationPoint($post, $user);
-        $cashback = $earnedPoint['cashback'] ?? 0;
+        $cashBack = app($this->setting_trx)->countTransaction('cashback', $post);
+        $countUserTrx = Transaction::where('id_user', $user['id'])->where('transaction_payment_status', 'Completed')->count();
+        $countSettingCashback = TransactionSetting::get();
+
+        if ($countUserTrx < count($countSettingCashback)) {
+            $cashBack = $cashBack * $countSettingCashback[$countUserTrx]['cashback_percent'] / 100;
+
+            if ($cashBack > $countSettingCashback[$countUserTrx]['cashback_maximum']) {
+                $cashBack = $countSettingCashback[$countUserTrx]['cashback_maximum'];
+            }
+        } else {
+
+            $maxCash = Setting::where('key', 'cashback_maximum')->first();
+
+            if (count($user['memberships']) > 0) {
+                $cashBack = $cashBack * ($user['memberships'][0]['benefit_cashback_multiplier']) / 100;
+
+                if($user['memberships'][0]['cashback_maximum']){
+                    $maxCash['value'] = $user['memberships'][0]['cashback_maximum'];
+                }
+            }
+
+            $statusCashMax = 'no';
+
+            if (!empty($maxCash) && !empty($maxCash['value'])) {
+                $statusCashMax = 'yes';
+                $totalCashMax = $maxCash['value'];
+            }
+
+            if ($statusCashMax == 'yes') {
+                if ($totalCashMax < $cashBack) {
+                    $cashBack = $totalCashMax;
+                }
+            } else {
+                $cashBack = $cashBack;
+            }
+        }
 
         DB::beginTransaction();
         $id=$request->user()->id;
@@ -853,7 +993,7 @@ class ApiTransactionHomeService extends Controller
             'transaction_gross'  		  => $post['subtotal'],
             'transaction_tax'             => $post['tax'],
             'transaction_grandtotal'      => (int)$post['subtotal'] + (int)$post['tax'],
-            'transaction_cashback_earned' => $cashback,
+            'transaction_cashback_earned' => $cashBack,
             'transaction_payment_status'  => $post['transaction_payment_status'],
             'membership_level'            => $post['membership_level'],
             'membership_promo_id'         => $post['membership_promo_id'],

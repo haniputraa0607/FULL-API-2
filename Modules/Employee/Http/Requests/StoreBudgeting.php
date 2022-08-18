@@ -14,7 +14,7 @@ class StoreBudgeting extends FormRequest
     {
         return [
             'DepartmentID'         => 'required|string|exists:departments,id_department_icount',
-            'balance'              => 'required|integer'
+            'balance'              => 'required|numeric'
         ]; 
     }
 

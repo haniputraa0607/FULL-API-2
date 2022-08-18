@@ -17,6 +17,7 @@ use Modules\Users\Entities\OldMember;
 use Modules\Users\Http\Requests\users_forgot;
 use Modules\Users\Http\Requests\users_phone;
 use Modules\Users\Http\Requests\users_phone_pin_admin;
+use Modules\Users\Http\Requests\usersNewPinEmployee;
 use Modules\Users\Http\Requests\users_phone_pin_new_v2;
 
 use App\Lib\MyHelper;
@@ -25,6 +26,7 @@ use Hash;
 use DB;
 use Mail;
 use Auth;
+use Modules\Users\Http\Requests\users_phone_pin_new;
 
 class ApiUserV2 extends Controller
 {
@@ -660,5 +662,88 @@ class ApiUserV2 extends Controller
                 'status' => 'fail',
                 'messages' => ['Akun tidak ditemukan']]);
         }
+    }
+
+    public function changePinEmployee(Request $request){
+
+        $request->validate([
+            'phone'			=> 'required|string|max:18',
+            'old_password'		=> 'required|string|digits:6',
+            'new_password'		=> 'required|string|digits:6',
+            'confirm_new_password'		=> 'required|string|digits:6',
+            'device_id'		=> 'max:200',
+            'device_token'	=> 'max:225'
+        ]);
+        
+        $phone = $request->json('phone');
+        $employee = $request->user();
+        $phone = preg_replace("/[^0-9]/", "", $phone);
+
+        $checkPhoneFormat = MyHelper::phoneCheckFormat($phone);
+
+        if (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'fail') {
+            return response()->json([
+                'status' => 'fail',
+                'messages' => $checkPhoneFormat['messages']
+            ]);
+        } elseif (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'success') {
+            $phone = $checkPhoneFormat['phone'];
+        }
+        
+        $data = User::where('phone', '=', $phone)
+            ->get()
+            ->toArray();
+        if ($data && $data[0]['phone'] == $employee['phone']) {
+            $this_employee = User::find($employee->id)->makeVisible('password');
+            if(!empty($data[0]['otp_forgot']) && !empty($data[0]['phone_verified']) && !password_verify($request->json('old_password'), $data[0]['otp_forgot'])){
+                return response()->json([
+                    'status'    => 'fail',
+                    'messages'    => ['Password lama tidak sesuai']
+                ]);
+            }elseif(empty($data[0]['otp_forgot']) && !empty($data[0]['pin_changed']) && !empty($data[0]['phone_verified']) && !password_verify($request->json('old_password'), $this_employee['password'])){
+                return response()->json([
+                    'status'    => 'fail',
+                    'messages'    => ['Password lama tidak sesuai']
+                ]);
+            }
+            
+            if($request->json('new_password') != $request->json('confirm_new_password')){
+                return response()->json([
+                    'status'    => 'fail',
+                    'messages'    => ['Password baru tidak sama']
+                ]);
+            }
+
+            $pin     = bcrypt($request->json('new_password'));
+            $update = User::where('id', '=', $data[0]['id'])->update(['password' => $pin, 'otp_forgot' => null, 'phone_verified' => '1', 'pin_changed' => '1']);
+            if (\Module::collections()->has('Autocrm')) {
+                if ($data[0]['first_pin_change'] < 1) {
+                    $autocrm = app($this->autocrm)->SendAutoCRM('Pin Changed', $phone);
+                    $changepincount = $data[0]['first_pin_change'] + 1;
+                    $update = User::where('id', '=', $data[0]['id'])->update(['first_pin_change' => $changepincount]);
+                } else {
+                    $autocrm = app($this->autocrm)->SendAutoCRM('Pin Changed Forgot Password', $phone);
+
+                    $del = OauthAccessToken::join('oauth_access_token_providers', 'oauth_access_tokens.id', 'oauth_access_token_providers.oauth_access_token_id')
+                        ->where('oauth_access_tokens.user_id', $data[0]['id'])->where('oauth_access_token_providers.provider', 'users')->delete();
+                }
+            }
+
+            $user = User::select('password',\DB::raw('0 as challenge_key'))->where('phone', $phone)->first();
+
+            $result = [
+                'status'    => 'success',
+                'result'    => [
+                    'phone'    =>    $data[0]['phone'],
+                    'challenge_key' => $user->challenge_key
+                ]
+            ];
+        } else {
+            $result = [
+                'status'    => 'fail',
+                'messages'    => ['Nomor HP tidak sesuai']
+            ];
+        }
+        return response()->json($result);
     }
 }

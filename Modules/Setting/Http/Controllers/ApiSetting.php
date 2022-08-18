@@ -1949,6 +1949,10 @@ class ApiSetting extends Controller
     }
     public function global_commission_product_setting(){
         $data = Setting::where('key','global_commission_product')->first();
+        $refresh = Setting::where('key' , 'Refresh Commission Transaction')->first();
+        if($data){
+            $data['status'] = $refresh['value'] ?? null;
+        }
         return response()->json($data);
     }
   
@@ -1992,18 +1996,12 @@ class ApiSetting extends Controller
         }else{
             $create_setting = Setting::updateOrCreate(['key' => 'Refresh Commission Transaction'],['value' => 'start']);
         }
-        $transaction = Transaction::whereNotNull('id_outlet')->whereNotNull('id_user')->whereDate('transaction_date', '>=', $start_date)->whereDate('transaction_date', '<=', $end_date)->get()->toArray();
-        foreach($transaction ?? [] as $key => $val){
-            $send = [
-                'id_transaction' => $val['id_transaction'],
-                'key' => $key+1,
-                'total' => count($transaction),
-            ];
-            $refresh = RefreshTransactionCommission::dispatch($send)->onConnection('refreshcommissionqueue');
-        }
-        if(!$transaction){
-            $create_setting = Setting::updateOrCreate(['key' => 'Refresh Commission Transaction'],['value' => 'finished']);
-        }
+        $send = [
+            'start_date' => $start_date,
+            'end_date' => $end_date,
+        ];
+        $refresh = RefreshTransactionCommission::dispatch($send)->onConnection('refreshcommissionqueue');
+
         return ['status' => 'success', 'messages' => ['Success to Refresh Commission Transaction']]; 
     }
     
@@ -2355,5 +2353,56 @@ class ApiSetting extends Controller
               return response()->json(MyHelper::checkCreate($data));
         }
         return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
+    }
+
+    function splashScreenEmployee(Request $request){
+        $post = $request->json()->all();
+
+        if(empty($post)){
+            $image = Setting::where('key', 'default_splash_screen_employee_apps')->first();
+            $duration = Setting::where('key', 'default_splash_screen_employee_apps_duration')->first();
+
+            $data = [
+                'default_splash_screen_employee_apps' => NULL,
+                'default_splash_screen_employee_apps_duration' => NULL
+            ];
+            if(isset($image['value'])){
+                $data['default_splash_screen_employee_apps'] = $this->endPoint.$image['value'];
+            }
+
+            if(isset($duration['value'])){
+                $data['default_splash_screen_employee_apps_duration'] = $duration['value'];
+            }
+
+            return response()->json(MyHelper::checkGet($data));
+        }else{
+            if (isset($post['default_splash_screen_employee_apps'])) {
+                $image = Setting::where('key', 'default_splash_screen_employee_apps')->first();
+
+                if(isset($image['value']) && file_exists($image['value'])){
+                    unlink($image['value']);
+                }
+                // base64 image,path,h,w,name,ext
+                $upload = MyHelper::uploadPhotoStrict($post['default_splash_screen_employee_apps'], $this->saveImage, 1080, 1920,'splash_employee_apps');
+
+                if (isset($upload['status']) && $upload['status'] == "success") {
+                    $save = Setting::updateOrCreate(['key'=>'default_splash_screen_employee_apps'],['value'=>$upload['path']]);
+                }
+                else {
+                    $result = [
+                        'error'    => 1,
+                        'status'   => 'fail',
+                        'messages' => ['fail upload image']
+                    ];
+
+                    return $result;
+                }
+            }
+            
+            if(isset($post['default_splash_screen_employee_apps_duration'])){
+                $save = Setting::updateOrCreate(['key'=>'default_splash_screen_employee_apps_duration'],['value'=>$post['default_splash_screen_employee_apps_duration']]);
+            }
+            return response()->json(MyHelper::checkUpdate($save));
+        }
     }
 }

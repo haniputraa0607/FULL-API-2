@@ -41,6 +41,7 @@ use Hash;
 use DB;
 use App\Lib\SendMail as Mail;
 use Modules\BusinessDevelopment\Entities\Partner;
+use Modules\BusinessDevelopment\Entities\Location;
 
 class ApiAutoCrm extends Controller
 {
@@ -65,6 +66,9 @@ class ApiAutoCrm extends Controller
 				$users = UserOutlet::select('id_user_outlet as id', 'user_outlets.*')->where('phone','=',$receipient)->get()->toArray();
 			}elseif($partner){
 				$users = Partner::where('phone','=',$receipient)->get()->toArray();
+				if(empty($users)){
+					$users = Location::where('email','=',$receipient)->get()->toArray();
+				}
 			}else{
 				$users = User::where('phone','=',$receipient)->get()->toArray();
 			}
@@ -666,6 +670,38 @@ class ApiAutoCrm extends Controller
                             case 'home_service_history' :
                                 $dataOptional['type'] = $variables['mitra_get_order_clickto']??'home_service_history';
                                 break;
+							case 'approval_attendance_pending' :
+							case 'approval_attendance_request' :
+							case 'approval_attendance_outlet_pending' :
+							case 'approval_attendance_outlet_request' :
+								if (isset($variables['id_attendance'])) {
+                                    $dataOptional['id_reference'] = $variables['id_attendance'];
+                                } else {
+                                    $dataOptional['id_reference'] = 0;
+                                }
+								break;
+							case 'attendance_outlet_history' :
+							case 'attendance_outlet_request' :
+								if (isset($variables['id_outlet'])) {
+                                    $dataOptional['id_reference'] = $variables['id_outlet'];
+                                } else {
+                                    $dataOptional['id_reference'] = 0;
+                                }
+								break;
+							case 'approval_time_off' :
+								if (isset($variables['id_time_off'])) {
+                                    $dataOptional['id_reference'] = $variables['id_time_off'];
+                                } else {
+                                    $dataOptional['id_reference'] = 0;
+                                }
+								break;
+							case 'approval_overtime' :
+								if (isset($variables['id_overtime'])) {
+                                    $dataOptional['id_reference'] = $variables['id_overtime'];
+                                } else {
+                                    $dataOptional['id_reference'] = 0;
+                                }
+								break;
                             default :
                                 $dataOptional['type'] = 'Home';
                                 $dataOptional['id_reference'] = 0;
@@ -834,20 +870,75 @@ class ApiAutoCrm extends Controller
                         case 'home_service_history' :
                             $inbox['inboxes_clickto'] = $variables['mitra_get_order_clickto']??'home_service_history';
                             break;
-                        case 'employee_inbox' :
-                            if (isset($variables['clickto'])) {
-                                $inbox['inboxes_clickto'] = $variables['clickto'];
-                            }
+						case 'approval_attendance_pending' :
+						case 'approval_attendance_request' :
+						case 'approval_attendance_outlet_pending' :
+						case 'approval_attendance_outlet_request' :
 							if (isset($variables['category'])) {
                                 $inbox['inboxes_category'] = $variables['category'];
                             }
-                            
-                            if (isset($variables['id_employee_reference'])) {
-                                $inbox['inboxes_id_reference'] = $variables['id_employee_reference'];
-                            }else{
-                                $inbox['inboxes_id_reference'] = 0;
+							if (isset($variables['id_attendance'])) {
+								$inbox['inboxes_id_reference'] = $variables['id_attendance'];
+                                $inbox['inboxes_clickto'] = $variables['autocrm_inbox_clickto'];
+							} else {
+								$inbox['inboxes_id_reference'] = 0;
+                                $inbox['inboxes_clickto'] = 0;
+							}
+							break;
+						case 'attendance_outlet_history' :
+						case 'attendance_outlet_request' :
+							if (isset($variables['category'])) {
+                                $inbox['inboxes_category'] = $variables['category'];
                             }
-                            break;
+							if (isset($variables['id_outlet'])) {
+								$inbox['id_reference'] = $variables['id_outlet'];
+                                $inbox['inboxes_clickto'] = $variables['autocrm_inbox_clickto'];
+							} else {
+								$inbox['id_reference'] = 0;
+                                $inbox['inboxes_clickto'] = 0;
+							}
+							break;
+						case 'employee_approval' : 
+							if (isset($variables['category'])) {
+                                $inbox['inboxes_category'] = $variables['category'];
+                            }
+							break;
+						case 'approval_time_off' :
+							if (isset($variables['category'])) {
+                                $inbox['inboxes_category'] = $variables['category'];
+                            }
+							if (isset($variables['id_time_off'])) {
+								$inbox['inboxes_id_reference'] = $variables['id_time_off'];
+                                $inbox['inboxes_clickto'] = $variables['autocrm_inbox_clickto'];
+							} else {
+								$inbox['inboxes_id_reference'] = 0;
+                                $inbox['inboxes_clickto'] = 0;
+							}
+							break;
+						case 'timeoff_history' :
+							if (isset($variables['category'])) {
+                                $inbox['inboxes_category'] = $variables['category'];
+                            }
+							$inbox['inboxes_clickto'] = $variables['autocrm_inbox_clickto'];
+							break;
+						case 'approval_overtime' :
+							if (isset($variables['category'])) {
+                                $inbox['inboxes_category'] = $variables['category'];
+                            }
+							if (isset($variables['id_overtime'])) {
+								$inbox['inboxes_id_reference'] = $variables['id_overtime'];
+                                $inbox['inboxes_clickto'] = $variables['autocrm_inbox_clickto'];
+							} else {
+								$inbox['inboxes_id_reference'] = 0;
+                                $inbox['inboxes_clickto'] = 0;
+							}
+							break;
+						case 'overtime_history' :
+							if (isset($variables['category'])) {
+                                $inbox['inboxes_category'] = $variables['category'];
+                            }
+							$inbox['inboxes_clickto'] = $variables['autocrm_inbox_clickto'];
+							break;
                         default :
                             $inbox['inboxes_clickto'] = 'Default';
                             $inbox['inboxes_id_reference'] = 0;
@@ -901,7 +992,10 @@ class ApiAutoCrm extends Controller
 			$user = UserFranchise::select('id_user_franchise as id', 'user_franchises.*')->where('username','=',$receipient)->get()->first();
 		}elseif($partner){
 			$user = Partner::select('id_partner as id', 'partners.*')->where('phone','=',$receipient)->get()->first();
-				}else{
+			if(empty($users)){
+				$users = Location::select('id_location as id', 'locations.*')->where('email','=',$receipient)->get()->toArray();
+			}
+		}else{
             if($wherefield != null){
                 $user = User::leftJoin('cities','cities.id_city','=','users.id_city')
                     ->leftJoin('provinces','cities.id_province','=','provinces.id_province')
@@ -1131,11 +1225,15 @@ class ApiAutoCrm extends Controller
 				}
 
 				if($replace['keyword'] == "%points%"){
-					if (is_integer($replaced)) {
+					if (is_integer($replaced) && !empty($replaced)) {
 						$points = number_format($replaced, 0, ',', '.');
 					} else {
-						$points = $replaced;
+						$points = (!empty($replaced) ? $replaced : null);
 					}
+
+                    if($replace['reference'] == 'points' && !empty($user['balance'])){
+                        $points = number_format($user['balance'], 0, ',', '.');
+                    }
 				    $text = str_replace("%point%",$points, $text);
 				    $text = str_replace("%points%",$points, $text);
 				    $text = str_replace($replace['keyword'],$points, $text);

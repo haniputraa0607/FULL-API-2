@@ -104,13 +104,81 @@ class ApiBeEmployeeProfileController extends Controller
         return $result;
     }
     //perubahan data 
-    public function perubahan_data() {
-       $data = EmployeePerubahanData::where('status','Pending')->paginate(10);
-       return MyHelper::checkGet($data);
+    public function perubahan_data(Request $request) {
+      $post = $request->all();
+      $employee = EmployeePerubahanData::join('users','users.id','employee_perubahan_datas.id_user')
+               ->join('employees','employees.id_user','employee_perubahan_datas.id_user')
+               ->where('employee_perubahan_datas.status','Pending')
+                ->select('employee_perubahan_datas.*','users.name as user_name','users.email','employees.code');
+       if(isset($post['rule']) && !empty($post['rule'])){
+            $rule = 'and';
+            if(isset($post['operator'])){
+                $rule = $post['operator'];
+            }
+            if($rule == 'and'){
+                foreach ($post['rule'] as $condition){
+                    if(isset($condition['subject'])){               
+                        $employee = $employee->where($condition['subject'], $condition['parameter']);
+                    }
+                }
+            }else{
+                $employee = $employee->where(function ($q) use ($post){
+                    foreach ($post['rule'] as $condition){
+                        if(isset($condition['subject'])){
+                                 if($condition['operator'] == 'like'){
+                                      $q->orWhere($condition['subject'], 'like', '%'.$condition['parameter'].'%');
+                                 }else{
+                                      $q->orWhere($condition['subject'], $condition['parameter']);
+                                 }
+                        }
+                    }
+                });
+            }
+        }
+        $employee = $employee->paginate($request->length ?: 10);
+       return MyHelper::checkGet($employee);
+   }
+    public function perubahan_data_list(Request $request) {
+        $post = $request->all();
+        $employee = EmployeePerubahanData::join('users','users.id','employee_perubahan_datas.id_user')
+               ->join('employees','employees.id_user','employee_perubahan_datas.id_user')
+               ->leftjoin('users as users_approved','users_approved.id','employee_perubahan_datas.id_approved')
+               ->where('employee_perubahan_datas.status','!=','Pending')
+                 ->select('employee_perubahan_datas.*','users.name as user_name','users.email','employees.code','users_approved.name as user_approved');
+       if(isset($post['rule']) && !empty($post['rule'])){
+            $rule = 'and';
+            if(isset($post['operator'])){
+                $rule = $post['operator'];
+            }
+            if($rule == 'and'){
+                foreach ($post['rule'] as $condition){
+                    if(isset($condition['subject'])){               
+                        $employee = $employee->where($condition['subject'], $condition['parameter']);
+                    }
+                }
+            }else{
+                $employee = $employee->where(function ($q) use ($post){
+                    foreach ($post['rule'] as $condition){
+                        if(isset($condition['subject'])){
+                                 if($condition['operator'] == 'like'){
+                                      $q->orWhere($condition['subject'], 'like', '%'.$condition['parameter'].'%');
+                                 }else{
+                                      $q->orWhere($condition['subject'], $condition['parameter']);
+                                 }
+                        }
+                    }
+                });
+            }
+        }
+        $employee = $employee->paginate($request->length ?: 10);
+       return MyHelper::checkGet($employee);
    }
     public function update_perubahan_data(UpdatePerubahanData $request) {
        $data = EmployeePerubahanData::where('id_employee_perubahan_data',$request->id_employee_perubahan_data)->first();
        $data->status = $request->status;
+       $data->note_approved = $request->note_approved??null;
+       $data->date_action = $request->date_action??null;
+       $data->id_approved = $request->id_approved??null;
        $data->save();
        if($request->status == 'Success'){
            $update = Employee::join('users','users.id','employees.id_user')
@@ -118,16 +186,31 @@ class ApiBeEmployeeProfileController extends Controller
                ->update([
                    $data->key => $data->change_data,
                ]);
-           
            $update_icount = app('\Modules\Employee\Http\Controllers\ApiBeEmployeeController')->update_icount($data->id_user);
        }
        
        return MyHelper::checkGet($data);
    }
+    public function detail_perubahan_data(Request $request) {
+       $data = null;
+       if($request->id_employee_perubahan_data){
+            $data = EmployeePerubahanData::join('users','users.id','employee_perubahan_datas.id_user')
+                    ->join('employees','employees.id_user','employee_perubahan_datas.id_user')
+                    ->leftjoin('users as users_approved','users_approved.id','employee_perubahan_datas.id_approved')
+                    ->where('id_employee_perubahan_data',$request->id_employee_perubahan_data)
+                     ->select('employee_perubahan_datas.*','users.name as user_name','users.email','employees.code','users_approved.name as user_approved')
+                    ->first();
+       } 
+       return MyHelper::checkGet($data);
+   }
    
    //FAQ
    public function faq() {
-       $data = EmployeeFaq::paginate(10);
+       $data = EmployeeFaq::get()->toArray();
+       return MyHelper::checkGet($data);
+   }
+   public function faq_popular() {
+       $data = EmployeeFaq::join('employee_faq_logs','employee_faq_logs.id_employee_faq','employee_faqs.id_employee_faq')->get()->toArray();
        return MyHelper::checkGet($data);
    }
    public function create_faq(CreateFaq $request) {
@@ -192,29 +275,25 @@ class ApiBeEmployeeProfileController extends Controller
                 ];
             }
         return $result;
-   }
+    }
+    public function delete_faq_popular(Request $request) {
+       $post = $request->all();
+        $employee = EmployeeFaqLog::where('id_employee_faq',$post['id_employee_faq'])->delete();
+      
+        return response()->json(MyHelper::checkCreate($employee));
+    }
     //privacy_policy
     public function privacy_policy(){
         $data = Setting::where('key','privacy_policy_employee')->first();
-         return MyHelper::checkGet($data);
+        return MyHelper::checkGet($data);
     }
   
     public function privacy_policy_update(Request $request){
         if(isset($request->value_text)){
-             $salary_formula = Setting::where('key','privacy_policy_employee')->first();
-             if($salary_formula){
-                 $data = Setting::where('key','privacy_policy_employee')->update([
-                  'value_text'=>$request->value_text,
-                 
-             ]);
-             }else{
-                 $data = Setting::create([
-                 'key'=>'privacy_policy_employee',
-                 'value_text'=> $request->value_text
-                    
-             ]);
-             }
-              return response()->json(MyHelper::checkCreate($data));
+            $salary_formula = Setting::updateOrCreate(['key'=>'privacy_policy_employee'],['value_text'=>$request->value_text]);
+            if($salary_formula){
+                return response()->json(MyHelper::checkCreate($salary_formula));
+            }
         }
         return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
     }

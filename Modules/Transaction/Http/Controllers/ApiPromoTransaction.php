@@ -143,6 +143,65 @@ class ApiPromoTransaction extends Controller
             ->get()
             ->toArray();
 
+		$id_vouchers = [];
+
+		foreach($voucher ?? [] as $val_vou){
+			if(!in_array($val_vou['deal_voucher']['id_deals'],$id_vouchers)){
+				$id_vouchers[] = $val_vou['deal_voucher']['id_deals'];
+			}
+		}
+
+		$header_version = request()->header('User-Agent');
+        $new_version = true;
+        if(strpos($header_version,'ios') || (is_integer(strpos($header_version,'ios')) && strpos($header_version,'ios') >= 0)){
+			if(strpos($header_version,'0.0.7 ') || (is_integer(strpos($header_version,'0.0.7')) && strpos($header_version,'0.0.7') >= 0) || strpos($header_version,'1.0.5 ') || (is_integer(strpos($header_version,'1.0.5')) && strpos($header_version,'1.0.5') >= 0)){
+				$new_version = false;
+			}
+		}
+		if(strpos($header_version,'android') || (is_integer(strpos($header_version,'android')) && strpos($header_version,'android') >= 0)){
+			if(strpos($header_version,'0.0.7 ') || (is_integer(strpos($header_version,'0.0.7')) && strpos($header_version,'0.0.7') >= 0) || strpos($header_version,'1.0.4 ') || (is_integer(strpos($header_version,'1.0.4')) && strpos($header_version,'1.0.4') >= 0)){
+				$new_version = false;
+			}
+		}
+
+        if($new_version){
+            $deals_no_claim = (new Deal)->newQuery();
+            $deals_no_claim->where('deals_type', '!=','WelcomeVoucher');
+            $deals_no_claim->where( function($dc) {
+                $dc->where('deals_publish_start', '<=', date('Y-m-d H:i:s'))
+                ->where('deals_publish_end', '>=', date('Y-m-d H:i:s'))
+                ->where('deals_end', '>=', date('Y-m-d H:i:s'));
+            });
+            $deals_no_claim->where( function($dc) {
+                $dc->where('deals_voucher_type','Unlimited')
+                    ->orWhereRaw('(deals.deals_total_voucher - deals.deals_total_claimed) > 0 ');
+            });
+            $deals_no_claim->where('step_complete', '=', 1);
+            $deals_no_claim->whereNotIn('deals.id_deals', $id_vouchers);
+            $deals_no_claim->with(['outlets', 'outlets.city']);
+        
+            if(isset($id_outlet)){
+                $deals_no_claim->leftJoin('deals_outlets', 'deals.id_deals', 'deals_outlets.id_deals')
+                    ->where(function($query) use ($id_outlet){
+                        $query->where('id_outlet', $id_outlet)
+                                ->orWhere('deals.is_all_outlet','=',1);
+                    })
+                    ->addSelect('deals.*')->distinct();
+            }
+            if(isset($transaction_from)){
+                $service = [
+                    'outlet-service' => 'Outlet Service',
+                    'home-service' => 'Home Service',
+                    'shop' => 'Online Shop',
+                    'academy' => 'Academy',
+                ];
+                $deals_no_claim->leftJoin('deals_services', 'deals.id_deals', 'deals_services.id_deals')
+                ->where('deals_services.service', $service[$transaction_from])
+                ->select('deals.*')->distinct();
+            }
+            $deals_no_claim = $deals_no_claim->get()->toArray();
+        }
+
         $result = array_map(function($var) {
             return [
                 'id_deals' => $var['deal_voucher']['id_deals'],
@@ -156,20 +215,64 @@ class ApiPromoTransaction extends Controller
                 'date_expired_indo' => MyHelper::adjustTimezone($var['voucher_expired_at'], $user->user_time_zone_utc ?? 7, 'd F Y', true),
                 'time_expired_indo' => 'pukul '.date('H:i', strtotime($var['voucher_expired_at'])),
                 'text' => null,
-				'is_error' => false
+				'is_error' => false,
+                'type_deals' => 'voucher'
             ];
         }, $voucher);
-        $new_result_data = [];
-        foreach($result ?? [] as $key => $data_voucher){
-            $check_avail = app($this->voucher)->checkVoucherAvail($data_voucher['id_deals'],$data);
-            if($check_avail['status']=='success'){
-                if(isset($data_voucher['id_deals_voucher']) && isset($data_voucher['id_deals_user'])){
-                    $data_voucher['type_deals'] = 'voucher';
-                }else{
-                    $data_voucher['type_deals'] = 'deals';
-                }
-                $new_result_data[] = $data_voucher;
+
+        $check_duplicat_vocher = [];
+        foreach($result ?? [] as $vou){
+            if(!isset($check_duplicat_vocher[$vou['id_deals']])){
+                $check_duplicat_vocher[$vou['id_deals']] = $vou;
             }
+        }
+        $result = [];
+        $i = 0;
+        foreach($check_duplicat_vocher as $check_vou){
+            $result[$i] = $check_vou;
+            $i++;
+        }
+
+        if($new_version){
+            $result_deal = array_map(function($var) {
+                return [
+                    'id_deals' => $var['id_deals'],
+                    'voucher_expired_at' => null,
+                    'id_deals_voucher' => null,
+                    'id_deals_user' => null,
+                    'deals_title' => $var['deals_title'],
+                    'deals_second_title' => $var['deals_second_title'],
+                    'url_deals_image' => $var['url_deals_image'],
+                    'is_used' => 0,
+                    'date_expired_indo' => null,
+                    'time_expired_indo' => null,
+                    'text' => null,
+                    'is_error' => false,
+                    'type_deals' => 'deals'
+                ];
+            }, $deals_no_claim);
+    
+            $result = array_merge($result,$result_deal);
+        }
+
+        $new_result_data = [];
+
+        if($new_version){
+            $sharedPromoTrx = TemporaryDataManager::create('promo_trx');
+            foreach($result ?? [] as $key => $data_voucher){
+                $check_avail = app($this->voucher)->checkVoucherAvail($data_voucher['id_deals'],$data);
+                if($check_avail['status']=='success'){
+                    if(isset($data_voucher['id_deals_voucher']) && isset($data_voucher['id_deals_user'])){
+                        $data_voucher['type_deals'] = 'voucher';
+                    }else{
+                        $data_voucher['type_deals'] = 'deals';
+                    }
+                    $new_result_data[] = $data_voucher;
+                }
+            }
+            TemporaryDataManager::reset('promo_trx');
+        }else{
+            $new_result_data = $result;
         }
         $result = [];
         foreach($new_result_data ?? [] as $index => $val){
@@ -228,8 +331,8 @@ class ApiPromoTransaction extends Controller
     public function applyPromoCheckout($data,$data_2 = null)
     {	
     	$user = request()->user();
-    	$sharedPromoTrx = TemporaryDataManager::create('promo_trx');
 		$availableVoucher = $this->availableVoucher($data, $data_2['transaction_from'], $data_2['id_outlet']??null);
+    	$sharedPromoTrx = TemporaryDataManager::create('promo_trx');
     	$continueCheckOut = $data['continue_checkout'];
 
     	$data['discount'] = 0;
@@ -243,38 +346,65 @@ class ApiPromoTransaction extends Controller
     	if ($scopeUser == 'web-apps') {
     		return $data;
     	}
-
+		
     	$userPromo = UserPromo::where('id_user', $user->id)->get()->keyBy('promo_type');
 
-    	if ($userPromo->isEmpty()) {
-    		return $data;
-    	}
-
-		if(!$availableVoucher){
-			$delete_user_promo = UserPromo::where('id_user', $user->id)->where('promo_type', 'deals')->delete();
-			foreach($userPromo ?? [] as $key => $usPro){
-				if($key=='deals'){
-					$un_used = DealsUser::where('id_deals_user', $usPro['id_deals_user'])->update(['is_used'=>0]);
-					return $data;
-				}
-			}
-		}else{
-			$id_deals_used = null;
-			foreach($userPromo ?? [] as $key => $usPro){
-				if($key=='deals'){
-					$id_deals_used = $usPro['id_reference'];
-				}
-			}
-			$id_voucher = [];
-			foreach($availableVoucher as $availVou){
-				$id_voucher[] = $availVou['id_deals_user'];
-			}
-			if(!is_null($id_deals_used) && !in_array($id_deals_used,$id_voucher)){
-				$delete_user_promo = UserPromo::where('id_user', $user->id)->where('id_reference', $id_deals_used)->where('promo_type', 'deals')->delete();
-				$un_used = DealsUser::where('id_deals_user', $id_deals_used)->update(['is_used'=>0]);
-				return $data;
+		$new_version = true;
+		$header_version = request()->header('User-Agent');
+		if(strpos($header_version,'ios') || (is_integer(strpos($header_version,'ios')) && strpos($header_version,'ios') >= 0)){
+			if(strpos($header_version,'0.0.7 ') || (is_integer(strpos($header_version,'0.0.7')) && strpos($header_version,'0.0.7') >= 0) || strpos($header_version,'1.0.5 ') || (is_integer(strpos($header_version,'1.0.5')) && strpos($header_version,'1.0.5') >= 0)){
+				$new_version = false;
 			}
 		}
+		if(strpos($header_version,'android') || (is_integer(strpos($header_version,'android')) && strpos($header_version,'android') >= 0)){
+			if(strpos($header_version,'0.0.7 ') || (is_integer(strpos($header_version,'0.0.7')) && strpos($header_version,'0.0.7') >= 0) || strpos($header_version,'1.0.4 ') || (is_integer(strpos($header_version,'1.0.4')) && strpos($header_version,'1.0.4') >= 0)){
+				$new_version = false;
+			}
+		}
+        
+    	if ($userPromo->isEmpty()) {
+			if($new_version){
+				$data['promo_deals'] = [
+					'is_error' 			=> false,
+					'can_use_deal'   	=> 1,
+					'use_deal_message'	=> null,
+				];
+				$data['promo_code'] = [
+					'is_error' 			=> false,
+					'can_use_promo'   	=> 1,
+					'use_promo_message'	=> null,
+				];
+			}
+    		return $data;
+    	}
+		
+		if($new_version){
+            if(!$availableVoucher){
+                $delete_user_promo = UserPromo::where('id_user', $user->id)->where('promo_type', 'deals')->delete();
+                foreach($userPromo ?? [] as $key => $usPro){
+                    if($key=='deals'){
+                        $un_used = DealsUser::where('id_deals_user', $usPro['id_reference'])->update(['is_used'=>0]);
+                        return $data;
+                    }
+                }
+            }else{
+                $id_deals_used = null;
+                foreach($userPromo ?? [] as $key => $usPro){
+                    if($key=='deals'){
+                        $id_deals_used = $usPro['id_reference'];
+                    }
+                }
+                $id_voucher = [];
+                foreach($availableVoucher as $availVou){
+                    $id_voucher[] = $availVou['id_deals_user'];
+                }
+                if(!is_null($id_deals_used) && !in_array($id_deals_used,$id_voucher)){
+                    $delete_user_promo = UserPromo::where('id_user', $user->id)->where('id_reference', $id_deals_used)->where('promo_type', 'deals')->delete();
+                    $un_used = DealsUser::where('id_deals_user', $id_deals_used)->update(['is_used'=>0]);
+                    return $data;
+                }
+            }
+        }
 
     	$resDeals = null;
     	$dealsType = null;
@@ -395,13 +525,22 @@ class ApiPromoTransaction extends Controller
 					'discount' 			=> $applyDeals['result']['discount'] ?? 0,
 					'discount_delivery' => $applyDeals['result']['discount_delivery'] ?? 0,
 					'text' 				=> $applyDeals['result']['text'] ?? $dealsErr,
-					'is_error' 			=> $dealsErr ? true : false
+					'is_error' 			=> $dealsErr ? true : false,
 				];
+				if($new_version){
+					$resDeals['can_use_deal'] = 1;
+					$resDeals['use_deal_message'] = null;
+					$resPromoCode = [
+						'is_error' 			=> false,
+						'can_use_promo'   	=> 0,
+						'use_promo_message' => 'Kode Promo tidak dapat digunakan bersamaan dengan Deals & Voucher',
+					];
+				}
 
 				if ($resDeals['is_error']) {
 					$continueCheckOut = false;
 				}
-
+				
 				$data = $this->reformatCheckout($data, $applyDeals['result'] ?? null);
 
 	    	} elseif ($apply == 'promo_campaign' && isset($userPromo['promo_campaign'])) {
@@ -424,19 +563,28 @@ class ApiPromoTransaction extends Controller
 						'discount_delivery' => $applyCode['result']['discount_delivery'] ?? 0,
 						'text' 				=> $applyCode['result']['text'] ?? $codeErr,
 						'remove_text' 		=> 'Batalkan penggunaan <b>' . ($sharedPromoTrx['promo_campaign']['promo_title'] ?? null) . '</b>',
-						'promo_text'		=> 'Diskon <b>' . ($applyCode['result']['discount'] ?? 0) . '</b> akan diterapkan pada nilai transaksi anda',
-						'is_error' 			=> false
+						'promo_text'		=> 'Diskon <b>' . ('Rp '.number_format(($applyCode['result']['discount'] ?? 0),0,',','.')) . '</b> akan diterapkan pada nilai transaksi anda',
+						'is_error' 			=> false,
 					];
+					if($new_version){
+						$resPromoCode['can_use_promo'] = 1;
+						$resPromoCode['use_promo_message'] = null;
+						$resDeals = [
+							'is_error' 			=> false,
+							'can_use_deal'   	=> 0,
+							'use_deal_message'	=> 'Deals & Voucher tidak dapat digunakan bersamaan dengan Kode Promo',
+						];
+					}
 				}
 
 				$data = $this->reformatCheckout($data, $applyCode['result'] ?? null);
 	    	}
     	}
-    	
+		
 		$data['promo_deals'] = $resDeals;
 		$data['promo_code'] = $resPromoCode;
-
-		if ($resDeals) {
+		
+		if ($resDeals && (($new_version && $resDeals['can_use_deal']==1) || !$new_version)) {
 			foreach ($data['available_voucher'] as &$voucher) {
 				if ($resDeals['id_deals_user'] == $voucher['id_deals_user']) {
 					$voucher['text'] = $resDeals['text'];
@@ -1639,7 +1787,7 @@ class ApiPromoTransaction extends Controller
             foreach ($products as $product){
                 $disc = $product['transaction_product_subtotal'] / $totalSubProduct * $totalDiscountBill;
                 TransactionProduct::where('id_transaction_product', $product['id_transaction_product'])->update([
-                    'transaction_product_discount_all' => $disc
+                    'transaction_product_discount_all' => $disc + $product['transaction_product_discount_all']
                 ]);
             }
         }
@@ -1718,9 +1866,22 @@ class ApiPromoTransaction extends Controller
 
     public function paymentDetailPromo($result)
     {
+		$new_version = true;
+		$header_version = request()->header('User-Agent');
+		if(strpos($header_version,'ios') || (is_integer(strpos($header_version,'ios')) && strpos($header_version,'ios') >= 0)){
+			if(strpos($header_version,'0.0.7 ') || (is_integer(strpos($header_version,'0.0.7')) && strpos($header_version,'0.0.7') >= 0) || strpos($header_version,'1.0.5 ') || (is_integer(strpos($header_version,'1.0.5')) && strpos($header_version,'1.0.5') >= 0)){
+				$new_version = false;
+			}
+		}
+		if(strpos($header_version,'android') || (is_integer(strpos($header_version,'android')) && strpos($header_version,'android') >= 0)){
+			if(strpos($header_version,'0.0.7 ') || (is_integer(strpos($header_version,'0.0.7')) && strpos($header_version,'0.0.7') >= 0) || strpos($header_version,'1.0.4 ') || (is_integer(strpos($header_version,'1.0.4')) && strpos($header_version,'1.0.4') >= 0)){
+				$new_version = false;
+			}
+		}
+		
     	$paymentDetail = [];
-    	if ((!empty($result['promo_deals']) && !$result['promo_deals']['is_error'])
-        	|| (!empty($result['promo_code']) && !$result['promo_code']['is_error'])
+    	if (( ($new_version && !empty($result['promo_deals']) && !$result['promo_deals']['is_error'] && $result['promo_deals']['can_use_deal']==1 && $result['promo_code']['can_use_promo']==0 && ($result['promo_deals']['title'] ?? false)) || (!$new_version && !empty($result['promo_deals']) && !$result['promo_deals']['is_error'] ) )
+        	|| ( ($new_version && !empty($result['promo_code']) && !$result['promo_code']['is_error'] && $result['promo_deals']['can_use_deal']==0 && $result['promo_code']['can_use_promo']==1 && ($result['promo_code']['title'] ?? false)) || (!$new_version && !empty($result['promo_code']) && !$result['promo_code']['is_error']) )
     	) {
     		$paymentDetail[] = [
                 'name'          => 'Promo / Discount:',
@@ -1728,7 +1889,7 @@ class ApiPromoTransaction extends Controller
                 'amount'        => null
             ];
 
-	        if (!empty($result['promo_deals']) && !$result['promo_deals']['is_error']) {
+	        if (($new_version && !empty($result['promo_deals']) && !$result['promo_deals']['is_error'] && $result['promo_deals']['can_use_deal']==1 && $result['promo_code']['can_use_promo']==0 && ($result['promo_deals']['title'] ?? false)) || (!$new_version && !empty($result['promo_deals']) && !$result['promo_deals']['is_error'] )) {
 	            $paymentDetail[] = [
 	                'name'          => $result['promo_deals']['title'],
 	                "is_discount"   => 1,
@@ -1736,7 +1897,7 @@ class ApiPromoTransaction extends Controller
 	            ];
 	        }
 
-	        if (!empty($result['promo_code']) && !$result['promo_code']['is_error']) {
+	        if (($new_version && !empty($result['promo_code']) && !$result['promo_code']['is_error'] && $result['promo_deals']['can_use_deal']==0 && $result['promo_code']['can_use_promo']==1 && ($result['promo_code']['title'] ?? false)) || (!$new_version && !empty($result['promo_code']) && !$result['promo_code']['is_error'])) {
 	            $paymentDetail[] = [
 	                'name'          => $result['promo_code']['title'],
 	                "is_discount"   => 1,
@@ -1744,7 +1905,7 @@ class ApiPromoTransaction extends Controller
 	            ];
 	        }
         }
-
+		
         return $paymentDetail;
     }
 

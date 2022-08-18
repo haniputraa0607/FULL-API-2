@@ -33,6 +33,7 @@ class EmployeeSchedule extends Model
 		'schedule_month',
 		'schedule_year',
 		'request_at',
+		'id_office_hour_shift',
 		'approve_at',
 		'reject_at'
 	];

@@ -53,11 +53,18 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('detail', 'ApiBeEmployeeController@candidateDetail');
         Route::post('update', 'ApiBeEmployeeController@update');
         Route::post('complement', 'ApiBeEmployeeController@complement');
+        Route::post('manager', 'ApiBeEmployeeController@manager');
         Route::post('create-business-partner', 'ApiBeEmployeeController@createBusinessPartner');
     });
     Route::group(['prefix' => 'be/question'], function(){
         Route::post('category', 'ApiQuestionEmployeeController@category');
         Route::post('create', 'ApiQuestionEmployeeController@create');
+    });
+    Route::group(['prefix' => 'be/income'], function(){
+        Route::post('/cron_end', 'ApiIncome@cron_end');
+        Route::post('/', 'ApiBeIncomeController@index');
+        Route::post('/outlet', 'ApiBeIncomeController@outlet');
+        Route::post('/detail', 'ApiBeIncomeController@detail');
     });
     Route::group(['prefix' => 'be/profile'], function(){
      Route::group(['prefix' => 'emergency'], function(){
@@ -69,6 +76,8 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
       });
      Route::group(['prefix' => 'perubahan-data'], function(){
         Route::post('/', 'ApiBeEmployeeProfileController@perubahan_data');
+        Route::post('/detail', 'ApiBeEmployeeProfileController@detail_perubahan_data');
+        Route::post('/list', 'ApiBeEmployeeProfileController@perubahan_data_list');
         Route::post('/update', 'ApiBeEmployeeProfileController@update_perubahan_data');
       });
      Route::group(['prefix' => 'faq'], function(){
@@ -77,10 +86,12 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('/detail', 'ApiBeEmployeeProfileController@detail_faq');
         Route::post('/update', 'ApiBeEmployeeProfileController@update_faq');
         Route::post('/delete', 'ApiBeEmployeeProfileController@delete_faq');
-        Route::post('/popular', 'ApiBeEmployeeProfileController@create_faq_popular');
+        Route::post('/popular', 'ApiBeEmployeeProfileController@faq_popular');
+        Route::post('/popular/create', 'ApiBeEmployeeProfileController@create_faq_popular');
+        Route::post('/popular/delete', 'ApiBeEmployeeProfileController@delete_faq_popular');
       });
      Route::group(['prefix' => 'privacy-policy'], function(){
-        Route::post('/', 'ApiBeEmployeeProfileController@privacy_policy');
+        Route::get('/', 'ApiBeEmployeeProfileController@privacy_policy');
         Route::post('/update', 'ApiBeEmployeeProfileController@privacy_policy_update');
       });
     });
@@ -161,7 +172,11 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
     });
     
     Route::group(['prefix' => 'be/reimbursement'], function () {
-        Route::post('/','ApiBeEmployeeReimbursementController@list');
+        Route::post('/','ApiBeEmployeeReimbursementController@index');
+        Route::post('/manager','ApiBeEmployeeReimbursementController@manager');
+        Route::post('/update','ApiBeEmployeeReimbursementController@update');
+        Route::post('/manager/detail','ApiBeEmployeeReimbursementController@detail');
+        Route::post('/list','ApiBeEmployeeReimbursementController@list');
         Route::post('/detail','ApiBeEmployeeReimbursementController@detail');
         Route::post('/approved','ApiBeEmployeeReimbursementController@approved');
          });
@@ -260,13 +275,13 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('detail', 'ApiRegisterEmployeeController@detail');
         Route::post('update', 'ApiRegisterEmployeeController@update');
         Route::post('submit', 'ApiRegisterEmployeeController@submit');
-        Route::post('submit', 'ApiRegisterEmployeeController@submit');
         Route::get('question', 'ApiQuestionEmployeeController@list');
     });
 });
 
 Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_agent', 'scopes:employee-apps'], 'prefix' => 'employee'], function () {
     Route::get('announcement','ApiEmployeeAnnouncementController@announcementList');
+    Route::get('splash','ApiEmployeeController@splash');
 
     Route::group(['prefix' => 'attendance'], function () {
         Route::get('live','ApiEmployeeAttendanceController@liveAttendance');
@@ -287,6 +302,10 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         Route::get('/list-employee','ApiEmployeeProfileController@list_employee');
         Route::get('/cuti-employee','ApiEmployeeProfileController@cuti_employee');
         Route::post('/detail-employee','ApiEmployeeProfileController@detail_employee');
+    });
+    Route::group(['prefix' => 'payslip'], function () {
+        Route::post('/','ApiIncome@payslip');
+        Route::post('/password','ApiIncome@password');
     });
     Route::group(['prefix' => 'profile'], function () {
         Route::get('info','ApiEmployeeProfileController@info');
@@ -368,6 +387,7 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
     Route::group(['prefix' => 'inbox'], function () {
         Route::get('/', 'ApiEmployeeInboxController@getListInbox');
         Route::post('/', 'ApiEmployeeInboxController@listInbox');
+        Route::post('read', 'ApiEmployeeInboxController@inboxRead');
         Route::get('approval', 'ApiEmployeeInboxController@getListReqApproval');
         Route::post('approval', 'ApiEmployeeInboxController@listReqApproval');
         Route::post('approval-detail', 'ApiEmployeeInboxController@listReqApproval');

@@ -3,7 +3,7 @@
 namespace Modules\Employee\Entities;
 
 use Illuminate\Database\Eloquent\Model;
-
+use Modules\Employee\Entities\EmployeeReimbursementDocument;
 class EmployeeReimbursement extends Model
 {
     protected $table = 'employee_reimbursements';
@@ -30,6 +30,7 @@ class EmployeeReimbursement extends Model
         'status',
         'created_at',
         'updated_at',
+        'read'
     ];
     public function user()
 	{
@@ -39,4 +40,7 @@ class EmployeeReimbursement extends Model
 	{
 		return $this->belongsTo(\App\Http\Models\User::class, 'id_user_approved','id');
 	}
+        public function document() {
+            return $this->hasMany(EmployeeReimbursementDocument::class,'id_employee_reimbursement','id_employee_reimbursement'); 
+        }    
 }

@@ -27,6 +27,8 @@ use DB;
 use Modules\Employee\Entities\QuestionEmployee;
 use Modules\Employee\Entities\EmployeeReimbursement;
 use Modules\Product\Entities\ProductIcount;
+use App\Http\Models\Outlet;
+
 class ApiEmployeeReimbursementController extends Controller
 {
     public function __construct()
@@ -42,8 +44,10 @@ class ApiEmployeeReimbursementController extends Controller
        $post['id_user'] = Auth::user()->id;
        $post['due_date'] = date('Y-m-d H:i:s',strtotime('+1 months'));
        if(!empty($post['attachment'])){
-           $file = $request->file('attachment');
-            $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, $file->getClientOriginalExtension());
+            $file = $request->file('attachment');
+            $ext = pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION);
+            $attachment = MyHelper::encodeImage($file);
+            $upload = MyHelper::uploadFile($attachment, $this->saveFile, $ext, strtotime(date('Y-m-d H-i-s')));
             if (isset($upload['status']) && $upload['status'] == "success") {
                     $post['attachment'] = $upload['path'];
                 } else {
@@ -59,13 +63,18 @@ class ApiEmployeeReimbursementController extends Controller
    }
    public function detail(Detail $request) {
        $reimbursement = EmployeeReimbursement::where(array('id_employee_reimbursement'=>$request->id_employee_reimbursement))->with(['user','approval_user'])->first();
+       if(isset($reimbursement['attachment'])){
+           $reimbursement['attachment']= env('STORAGE_URL_API').$reimbursement['attachment'];
+       }
        return MyHelper::checkGet($reimbursement);
    }
    public function update(Update $request) {
        $post = $request->all();
         if(!empty($post['attachment'])){
             $file = $request->file('attachment');
-            $upload = MyHelper::uploadFile($request->file('attachment'), $this->saveFile, $file->getClientOriginalExtension());
+            $ext = pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION);
+            $attachment = MyHelper::encodeImage($file);
+            $upload = MyHelper::uploadFile($attachment, $this->saveFile, $ext, strtotime(date('Y-m-d H-i-s')));
             if (isset($upload['status']) && $upload['status'] == "success") {
                     $post['attachment'] = $upload['path'];
                 } else {
@@ -75,17 +84,26 @@ class ApiEmployeeReimbursementController extends Controller
                     ];
                     return $result;
                 }
-       }
+            }
        $reimbursement = EmployeeReimbursement::where(array('id_employee_reimbursement'=>$request->id_employee_reimbursement))->update($post);
        $reimbursement = EmployeeReimbursement::where(array('id_employee_reimbursement'=>$request->id_employee_reimbursement))->first();
        return MyHelper::checkGet($reimbursement);
    }
    public function name_reimbursement() {
+       $post =  Auth::user();
+       $outlet = Outlet::leftjoin('locations','locations.id_location','outlets.id_location')->where('id_outlet',$post["id_outlet"])->select('company_type')->first();
+       if($outlet['company_type']??''=="PT IMA"){
+           $company = 'ima';
+       }else{
+           $company = 'ims';
+       }
        $data = ProductIcount::where([
            'is_buyable'=>'true',
            'is_sellable'=>'true',
            'is_deleted'=>'false',
            'is_suspended'=>'false',
+           'is_actived'=>'true',
+           'company_type'=>$company
        ])->select([
            'id_product_icount',
            'name',
@@ -103,6 +121,9 @@ class ApiEmployeeReimbursementController extends Controller
                    END) as saldo
                 ')
             )->first();
+       if(!$saldo['saldo']){
+           $saldo = array('saldo'=>0);
+       }
        return MyHelper::checkGet($saldo);
    }
    public function pending(history $request){
@@ -113,13 +134,14 @@ class ApiEmployeeReimbursementController extends Controller
            $start = date('Y-m-01');
            $end = date('Y-m-t');
        }
-       $saldo = EmployeeReimbursement::wherebetween(
+       $saldo = EmployeeReimbursement::join('product_icounts','product_icounts.id_product_icount','employee_reimbursements.id_product_icount')
+               ->wherebetween(
                "date_reimbursement",[$start,$end]
        )->where(array(
            'id_user'=>Auth::user()->id,
            'status'=>"Pending"
        ))->select(
-              'id_employee_reimbursement','name_reimbursement','date_reimbursement','notes','status','price'
+              'employee_reimbursements.id_employee_reimbursement','name','date_reimbursement','employee_reimbursements.notes','status','price'
        )->orderby('date_reimbursement','desc')->paginate(10);
        return MyHelper::checkGet($saldo);
    }
@@ -131,12 +153,13 @@ class ApiEmployeeReimbursementController extends Controller
            $start = date('Y-m-01');
            $end = date('Y-m-t');
        }
-       $saldo = EmployeeReimbursement::wherebetween(
+       $saldo = EmployeeReimbursement::join('product_icounts','product_icounts.id_product_icount','employee_reimbursements.id_product_icount')
+               ->wherebetween(
                "date_reimbursement",[$start,$end]
        )->where(array(
            'id_user'=>Auth::user()->id
        ))->where('status','!=','Pending')->select(
-              'id_employee_reimbursement','name_reimbursement','date_reimbursement','notes','status','price'
+              'employee_reimbursements.id_employee_reimbursement','name','date_reimbursement','employee_reimbursements.notes','status','price'
        )->orderby('date_reimbursement','desc')->paginate(10);
        return MyHelper::checkGet($saldo);
    }

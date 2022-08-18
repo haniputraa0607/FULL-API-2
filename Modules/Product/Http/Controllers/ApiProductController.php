@@ -2217,7 +2217,7 @@ class ApiProductController extends Controller
         $timeZone = (empty($outlet['province_time_zone_utc']) ? 7:$outlet['province_time_zone_utc']);
         $diffTimeZone = $timeZone - 7;
         $date = date('Y-m-d H:i:s');
-        $date = date('Y-m-d H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($date)));
+        // $date = date('Y-m-d H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($date)));
         $currentDate = date('Y-m-d', strtotime($date));
         $currentHour = date('H:i:s', strtotime($date));
         if(empty($outlet['today']['open']) || empty( $outlet['today']['close'])){
@@ -2521,7 +2521,7 @@ class ApiProductController extends Controller
         $timeZone = (empty($outlet['province_time_zone_utc']) ? 7:$outlet['province_time_zone_utc']);
         $diffTimeZone = $timeZone - 7;
         $date = date('Y-m-d H:i:s');
-        $date = date('Y-m-d H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($date)));
+        // $date = date('Y-m-d H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($date)));
         $today = date('Y-m-d', strtotime($date));
         $currentTime = date('H:i', strtotime($date));
         $processingTime = (int)(empty($product['processing_time_service']) ? 30:$product['processing_time_service']);

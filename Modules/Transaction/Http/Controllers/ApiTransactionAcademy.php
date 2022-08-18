@@ -13,6 +13,7 @@ use App\Http\Models\TransactionPaymentManual;
 use App\Http\Models\TransactionPaymentMidtran;
 use App\Http\Models\TransactionPaymentOffline;
 use App\Http\Models\TransactionProduct;
+use App\Http\Models\TransactionSetting;
 use App\Lib\Midtrans;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -66,6 +67,7 @@ class ApiTransactionAcademy extends Controller
 
         if(!empty($request->user()->id)){
             $user = User::leftJoin('cities', 'cities.id_city', 'users.id_city')
+                ->with('memberships')
                 ->select('users.*', 'cities.city_name')
             ->where('id', $request->user()->id)->first();
             if (empty($user)) {
@@ -202,9 +204,47 @@ class ApiTransactionAcademy extends Controller
 
         $settingGetPoint = Configs::where('config_name', 'transaction academy get point')->first()['is_active']??0;
         $result['point_earned'] = null;
+        $result['cashback'] = 0;
         if($settingGetPoint == 1){
-            $earnedPoint = app($this->online_trx)->countTranscationPoint($post, $user);
-            $result['cashback'] = $earnedPoint['cashback'] ?? 0;
+            $cashBack = app($this->setting_trx)->countTransaction('cashback', $post);
+            $countUserTrx = Transaction::where('id_user', $user['id'])->where('transaction_payment_status', 'Completed')->count();
+            $countSettingCashback = TransactionSetting::get();
+
+            if ($countUserTrx < count($countSettingCashback)) {
+                $cashBack = $cashBack * $countSettingCashback[$countUserTrx]['cashback_percent'] / 100;
+
+                if ($cashBack > $countSettingCashback[$countUserTrx]['cashback_maximum']) {
+                    $cashBack = $countSettingCashback[$countUserTrx]['cashback_maximum'];
+                }
+            } else {
+
+                $maxCash = Setting::where('key', 'cashback_maximum')->first();
+
+                if (count($user['memberships']) > 0) {
+                    $cashBack = $cashBack * ($user['memberships'][0]['benefit_cashback_multiplier']) / 100;
+
+                    if($user['memberships'][0]['cashback_maximum']){
+                        $maxCash['value'] = $user['memberships'][0]['cashback_maximum'];
+                    }
+                }
+
+                $statusCashMax = 'no';
+
+                if (!empty($maxCash) && !empty($maxCash['value'])) {
+                    $statusCashMax = 'yes';
+                    $totalCashMax = $maxCash['value'];
+                }
+
+                if ($statusCashMax == 'yes') {
+                    if ($totalCashMax < $cashBack) {
+                        $cashBack = $totalCashMax;
+                    }
+                } else {
+                    $cashBack = $cashBack;
+                }
+            }
+
+            $result['cashback'] = $cashBack ?? 0;
         }
 
         $result['currency'] = 'Rp';
@@ -246,7 +286,24 @@ class ApiTransactionAcademy extends Controller
         $paymentDetailPromo = app($this->promo_trx)->paymentDetailPromo($result);
         $result['payment_detail'] = array_merge($result['payment_detail'], $paymentDetailPromo);
 
+        $result['messages_all_title'] = (empty($errAll)? null : 'TRANSAKSI TIDAK DAPAT DILANJUTKAN');
         $result['messages_all'] = (empty($errAll)? null:implode(".", array_unique($errAll)));
+        
+        if($result['promo_deals']){
+            if($result['promo_deals']['is_error']){
+                $result['continue_checkout'] = false;
+                $result['messages_all_title'] = 'VOUCHER ANDA TIDAK DAPAT DIGUNAKAN';
+                $result['messages_all'] = 'Silahkan gunakan voucher yang berlaku atau tidak menggunakan voucher sama sekali.';
+            }
+        }
+        if($result['promo_code']){
+            if($result['promo_code']['is_error']){
+                $result['continue_checkout'] = false;
+                $result['messages_all_title'] = 'PROMO ANDA TIDAK DAPAT DIGUNAKAN';
+                $result['messages_all'] = 'Silahkan gunakan promo yang berlaku atau tidak menggunakan promo sama sekali.';
+            }
+        }
+
 
         return MyHelper::checkGet($result);
     }
@@ -406,9 +463,45 @@ class ApiTransactionAcademy extends Controller
 
         $settingGetPoint = Configs::where('config_name', 'transaction academy get point')->first()['is_active']??0;
         if($settingGetPoint == 1) {
-            $earnedPoint = app($this->online_trx)->countTranscationPoint($post, $user);
+            $cashBack = app($this->setting_trx)->countTransaction('cashback', $post);
+            $countUserTrx = Transaction::where('id_user', $user['id'])->where('transaction_payment_status', 'Completed')->count();
+            $countSettingCashback = TransactionSetting::get();
+
+            if ($countUserTrx < count($countSettingCashback)) {
+                $cashBack = $cashBack * $countSettingCashback[$countUserTrx]['cashback_percent'] / 100;
+
+                if ($cashBack > $countSettingCashback[$countUserTrx]['cashback_maximum']) {
+                    $cashBack = $countSettingCashback[$countUserTrx]['cashback_maximum'];
+                }
+            } else {
+
+                $maxCash = Setting::where('key', 'cashback_maximum')->first();
+
+                if (count($user['memberships']) > 0) {
+                    $cashBack = $cashBack * ($user['memberships'][0]['benefit_cashback_multiplier']) / 100;
+
+                    if($user['memberships'][0]['cashback_maximum']){
+                        $maxCash['value'] = $user['memberships'][0]['cashback_maximum'];
+                    }
+                }
+
+                $statusCashMax = 'no';
+
+                if (!empty($maxCash) && !empty($maxCash['value'])) {
+                    $statusCashMax = 'yes';
+                    $totalCashMax = $maxCash['value'];
+                }
+
+                if ($statusCashMax == 'yes') {
+                    if ($totalCashMax < $cashBack) {
+                        $cashBack = $totalCashMax;
+                    }
+                } else {
+                    $cashBack = $cashBack;
+                }
+            }
         }
-        $cashback = $earnedPoint['cashback'] ?? 0;
+        $cashback = $cashBack ?? 0;
         $post['tax'] = ($outlet['is_tax']/100) * $post['subtotal'];
 
         DB::beginTransaction();

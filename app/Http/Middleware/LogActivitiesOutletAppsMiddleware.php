@@ -95,7 +95,11 @@ class LogActivitiesOutletAppsMiddleware
                     'useragent' 	=> $userAgent
                 ];
 
-                $log = LogActivitiesOutletApps::create($data);
+                try {
+                    $log = LogActivitiesOutletApps::create($data);
+                } catch (\Exception $e) {
+
+                }
             }
 
         }

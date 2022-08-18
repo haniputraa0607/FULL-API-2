@@ -311,7 +311,7 @@ class ApiMitraUpdateData extends Controller
 				$updateData = HairstylistUpdateData::where('id_hairstylist_update_data', $post['id_hairstylist_update_data'])
 							->with('user_hair_stylist')->first();
 	        	app($this->autocrm)->SendAutoCRM($autocrmTitle, $updateData['user_hair_stylist']['phone_number'] ?? null,
-	                $updateData->toArray(), null, false, false, $recipient_type = 'hairstylist', null, true
+	                ['user_update'=>$request->user()->name], null, false, false, $recipient_type = 'hairstylist', null, true
 	            );
         	}
         	return response()->json(MyHelper::checkUpdate($update));

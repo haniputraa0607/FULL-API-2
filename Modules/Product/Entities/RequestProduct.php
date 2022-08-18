@@ -24,7 +24,8 @@ class RequestProduct extends Model
         'from',
         'id_product_catalog',
         'id_purchase_request',
-        'use_department_budget'
+        'use_department_budget',
+        'read'
 	];
 
     public function request_product_detail(){

@@ -31,6 +31,7 @@ use Modules\Product\Entities\ProductIcount;
 use Modules\Employee\Http\Requests\Reimbursement\BE\CallbackIcountReimbursement;
 use Validator;
 use Modules\Employee\Entities\EmployeeReimbursementIcount;
+use Modules\Employee\Entities\EmployeeReimbursementDocument;
 
 class ApiBeEmployeeReimbursementController extends Controller
 {
@@ -42,21 +43,187 @@ class ApiBeEmployeeReimbursementController extends Controller
         }
         $this->saveFile = "document/employee/reimbursement/"; 
     }
-   public function list(Request $request) {
-       $post = $request->all();
-        $employee = EmployeeReimbursement::orderBy('created_at', 'desc')->paginate($request->length ?: 10);
-        return MyHelper::checkGet($employee);
+    public function index(Request $request) {
+      $post = $request->all();
+      $employee = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')
+               ->join('product_icounts','product_icounts.id_product_icount','employee_reimbursements.id_product_icount')
+               ->join('employees','employees.id_user','employee_reimbursements.id_user')
+               ->where('employee_reimbursements.status','!=','Pending')
+               ->where('employee_reimbursements.status','!=','Successed')
+               ->where('employee_reimbursements.status','!=','Approved')
+               ->where('employee_reimbursements.status','!=','Rejected')
+               ->orderby('employee_reimbursements.created_at','desc')
+               ->select('employee_reimbursements.*','users.name as user_name','users.email','employees.code','product_icounts.name as name_product');
+       if(isset($post['rule']) && !empty($post['rule'])){
+            $rule = 'and';
+            if(isset($post['operator'])){
+                $rule = $post['operator'];
+            }
+            if($rule == 'and'){
+                foreach ($post['rule'] as $condition){
+                    if(isset($condition['subject'])){               
+                        $employee = $employee->where($condition['subject'], $condition['parameter']);
+                    }
+                }
+            }else{
+                $employee = $employee->where(function ($q) use ($post){
+                    foreach ($post['rule'] as $condition){
+                        if(isset($condition['subject'])){
+                                 if($condition['operator'] == 'like'){
+                                      $q->orWhere($condition['subject'], 'like', '%'.$condition['parameter'].'%');
+                                 }else{
+                                      $q->orWhere($condition['subject'], $condition['parameter']);
+                                 }
+                        }
+                    }
+                });
+            }
+        }
+        $employee = $employee->paginate($request->length ?: 10);
+       return MyHelper::checkGet($employee);
    }
+   public function manager(Request $request) {
+      $post = $request->all();
+      if(Auth::user()->level == "Admin"){
+      $employee = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')
+               ->join('product_icounts','product_icounts.id_product_icount','employee_reimbursements.id_product_icount')
+               ->join('employees','employees.id_user','employee_reimbursements.id_user')
+               ->where('id_manager',Auth::user()->id)
+               ->where('employee_reimbursements.status','Pending')
+                ->select('employee_reimbursements.*','users.name as user_name','users.email','employees.code','product_icounts.name as name_product');    
+      }else{
+      $employee = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')
+               ->join('product_icounts','product_icounts.id_product_icount','employee_reimbursements.id_product_icount')
+               ->join('employees','employees.id_user','employee_reimbursements.id_user')
+               ->where('employee_reimbursements.status','Pending')
+               ->select('employee_reimbursements.*','users.name as user_name','users.email','employees.code','product_icounts.name as name_product');    
+      }
+       if(isset($post['rule']) && !empty($post['rule'])){
+            $rule = 'and';
+            if(isset($post['operator'])){
+                $rule = $post['operator'];
+            }
+            if($rule == 'and'){
+                foreach ($post['rule'] as $condition){
+                    if(isset($condition['subject'])){               
+                        $employee = $employee->where($condition['subject'], $condition['parameter']);
+                    }
+                }
+            }else{
+                $employee = $employee->where(function ($q) use ($post){
+                    foreach ($post['rule'] as $condition){
+                        if(isset($condition['subject'])){
+                                 if($condition['operator'] == 'like'){
+                                      $q->orWhere($condition['subject'], 'like', '%'.$condition['parameter'].'%');
+                                 }else{
+                                      $q->orWhere($condition['subject'], $condition['parameter']);
+                                 }
+                        }
+                    }
+                });
+            }
+        }
+        $employee = $employee->paginate($request->length ?: 10);
+       return MyHelper::checkGet($employee);
+   }
+    public function list(Request $request) {
+      $post = $request->all();
+      $employee = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')
+               ->join('employees','employees.id_user','employee_reimbursements.id_user')
+               ->join('product_icounts','product_icounts.id_product_icount','employee_reimbursements.id_product_icount')
+               ->where('employee_reimbursements.status','!=','Pending')
+               ->join('users as users_approved','users_approved.id','employee_reimbursements.id_user_approved')
+               ->select('employee_reimbursements.*','users.name as user_name','users.email','employees.code','users_approved.name as user_approved','product_icounts.name as name_product');
+       if(isset($post['rule']) && !empty($post['rule'])){
+            $rule = 'and';
+            if(isset($post['operator'])){
+                $rule = $post['operator'];
+            }
+            if($rule == 'and'){
+                foreach ($post['rule'] as $condition){
+                    if(isset($condition['subject'])){               
+                        $employee = $employee->where($condition['subject'], $condition['parameter']);
+                    }
+                }
+            }else{
+                $employee = $employee->where(function ($q) use ($post){
+                    foreach ($post['rule'] as $condition){
+                        if(isset($condition['subject'])){
+                                 if($condition['operator'] == 'like'){
+                                      $q->orWhere($condition['subject'], 'like', '%'.$condition['parameter'].'%');
+                                 }else{
+                                      $q->orWhere($condition['subject'], $condition['parameter']);
+                                 }
+                        }
+                    }
+                });
+            }
+        }
+        $employee = $employee->paginate($request->length ?: 10);
+       return MyHelper::checkGet($employee);
+   }
+//   public function list(Request $request) {
+//       $post = $request->all();
+//        $employee = EmployeeReimbursement::orderBy('created_at', 'desc')->paginate($request->length ?: 10);
+//        return MyHelper::checkGet($employee);
+//   }
    public function detail(Request $request) {
        if(isset($request->id_employee_reimbursement)){
-         $employee = EmployeeReimbursement::where('id_employee_reimbursement', $request->id_employee_reimbursement)->first();
+         $employee = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')
+               ->join('employees','employees.id_user','employee_reimbursements.id_user')
+                 ->join('product_icounts','product_icounts.id_product_icount','employee_reimbursements.id_product_icount')
+               ->where('id_employee_reimbursement', $request->id_employee_reimbursement)
+               ->leftjoin('users as users_approved','users_approved.id','employee_reimbursements.id_user_approved')
+               ->select('employee_reimbursements.*','users.name as user_name','users.email','employees.code','users_approved.name as user_approved','product_icounts.name as name_product','id_manager')
+               ->with(['document'])
+               ->first();
          if($employee){
             return response()->json(['status' => 'success','result'=>$employee]);
             }
         }
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
    }
-   public function approved(Request $request) {
+   public function update(Request $request) {
+       $post = $request->json()->all();
+        $update = array();
+        if(isset($post['id_employee_reimbursement']) && !empty($post['id_employee_reimbursement'])){
+              $getData = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')->where('id_employee_reimbursement', $post['id_employee_reimbursement'])->first();
+                if(!empty($post['data_document']['attachment'])){
+                    $upload = MyHelper::uploadFile($post['data_document']['attachment'], 'document/employee/', $post['data_document']['ext'], $post['id_employee_reimbursement'].'_'.str_replace(" ","_", $post['data_document']['document_type']));
+                    if (isset($upload['status']) && $upload['status'] == "success") {
+                        $path = $upload['path'];
+                    }else {
+                        return response()->json(['status' => 'fail', 'messages' => ['Failed upload document']]);
+                    }
+                }
+                $update = array();
+                
+                    if(isset($post['update_type'])){
+                     $update = EmployeeReimbursement::where('id_employee_reimbursement', $post['id_employee_reimbursement'])->update([
+                         'status' => $post['update_type'],
+                             ]);
+                     }
+                  
+                if(!empty($post['data_document'])){
+                    $createDoc = EmployeeReimbursementDocument::create([
+                        'id_employee_reimbursement' => $post['id_employee_reimbursement'],
+                        'document_type' => $post['data_document']['document_type'],
+                        'process_date' => date('Y-m-d H:i:s'),
+                        'id_approved' => Auth::user()->id??null,
+                        'process_notes' => $post['data_document']['process_notes'],
+                        'attachment' => $path??null
+                    ]);
+                    if(!$createDoc){
+                        return response()->json(MyHelper::checkCreate($createDoc));
+                    }
+                }
+                
+                return response()->json(MyHelper::checkUpdate($update));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+   }
+   public function approved(Approved $request) {
        $post = $request->all();
        $post['date_validation'] = date('Y-m-d H:i:s');
        $post['id_user_approved'] =  $post['id_user_approved'] ?? Auth::user()->id;
@@ -82,41 +249,12 @@ class ApiBeEmployeeReimbursementController extends Controller
        return MyHelper::checkGet($reimbursement);
    }
    public function callbackreimbursement(CallbackIcountReimbursement $request){
-        $pesan = [
-                    'cek' => 'Invalid PurchaseInvoiceID or PurchaseInvoiceID status has been Rejected',
-                    'status' => "Invalid status, status must be Success or Failed",
-                ];
-                    Validator::extend('status', function ($attribute, $value, $parameters, $validator) {
-                    if($value == 'Success'||$value=="Failed"){
-                      return true; 
-                  } return false;
-                 }); 
-                    Validator::extend('cek', function ($attribute, $value, $parameters, $validator) {
-                    $share = EmployeeReimbursement::where(array('id_purchase_invoice'=>$value))->where('status','!=','Rejected')->first();
-                    if($share){
-                        return true;
-                    }
-                    return false;
-                 }); 
-                   
-                  $validator = Validator::make($request->all(), [
-                    'PurchaseInvoiceID'    => 'required|cek',
-                    'status'               => 'required|status',
-                    'date_disburse'        => 'required|date_format:Y-m-d H:i:s',
-        ],$pesan);  
-                  
-        if ($validator->fails()) {
-            return response()->json([
-                'status' => false,
-                'message' =>  $validator->errors()
-            ], 400);
-        }
         if($request->status == "Success"){
             $request->status = "Successed";
         }else{
             $request->status = "Rejected";
         }
-        $data = EmployeeReimbursement::where(array('id_purchase_invoice'=>$request->PurchaseInvoiceID))->where('status','!=','Rejected')->update([
+        $data = EmployeeReimbursement::where(array('id_purchase_invoice'=>$request->PurchaseInvoiceID))->update([
             'status'=>$request->status,
             'date_disburse'=>$request->date_disburse,
             'date_send_reimbursement'=>date('Y-m-d H:i:s')

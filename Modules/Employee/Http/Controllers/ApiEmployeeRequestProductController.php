@@ -136,6 +136,9 @@ class ApiEmployeeRequestProductController extends Controller
 
     public function listCatalog(Request $request){
         $post = $request->all();
+        if(!isset($post['id_outlet']) && empty($post['id_outlet'])){
+            return ['status' => 'fail', 'messages' => ['Mohon untuk memilih outlet.']];
+        }
         $outlet = Location::join('outlets','outlets.id_location','locations.id_location')->where('id_outlet',$post['id_outlet'])->first();
         if(!$outlet){
             return response()->json(['status' => 'fail', 'messages' => ['Outlet tidak ditemukan']]);
@@ -151,6 +154,9 @@ class ApiEmployeeRequestProductController extends Controller
 
     public function listProduct(Request $request){
         $post = $request->all();
+        if(!isset($post['id_product_catalog']) && empty($post['id_product_catalog'])){
+            return ['status' => 'fail', 'messages' => ['Mohon untuk memilih katalog produk.']];
+        }
         $products = ProductCatalogDetail::join('product_icounts', 'product_icounts.id_product_icount', 'product_catalog_details.id_product_icount')
                                         ->join('product_catalogs', 'product_catalogs.id_product_catalog', 'product_catalog_details.id_product_catalog')
                                         ->where('product_catalogs.id_product_catalog', $post['id_product_catalog'])

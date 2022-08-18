@@ -137,7 +137,11 @@ class LogActivitiesPOSMiddleware
                     'useragent' 	=> $userAgent
                 ];
 
-                $log = LogActivitiesPos::create($data);
+                try {
+                    $log = LogActivitiesPos::create($data);
+                } catch (\Exception $e) {
+
+                }
             }
 
         }

@@ -270,11 +270,8 @@ class ApiBeEmployeeController extends Controller
                             'Interview Invitation Employee',
                             $getData->phone,
                             [
-                                'name' =>$getData->nickname,
-                                'birthday' =>$getData->birthday,
-                                'birthday' =>$getData->birthday,
-                                'email' =>$getData->email,
-                                'date' => date('Y-m-d H:i:s', strtotime($post['data_document']['process_date']??date('Y-m-d H:i:s'))),
+                                'date_invitation'=>date('Y-m-d', strtotime($post['data_document']['process_date']??date('Y-m-d H:i:s'))),
+                                'time_invitation'=>date('H:i:s', strtotime($post['data_document']['process_date']??date('Y-m-d H:i:s'))),
                             ], null, null, null, null, null, null, null, null,
                         );
                         // return $autocrm;
@@ -297,16 +294,16 @@ class ApiBeEmployeeController extends Controller
             if(isset($post['update_type']) && $post['update_type'] == 'Approved'){
                 
                 $employee = Employee::where('id_employee', $post['id_employee'])->first();
-                if(isset($post['auto_generate_pin'])){
-                    $pin = MyHelper::createrandom(6, 'Angka');
-                }else{
-                    $pin = $post['pin'];
-                }
+//                if(isset($post['auto_generate_pin'])){
+//                    $pin = MyHelper::createrandom(6, 'Angka');
+//                }else{
+//                    $pin = $post['pin'];
+//                }
                 $dtHs = User::where('id', $employee['id_user'])->first();
                 if(empty($dtHs)){
                     return response()->json(['status' => 'fail', 'messages' => ['User not found']]);
                 }
-                $dtHs->password = bcrypt($pin);
+//                $dtHs->password = bcrypt($pin);
                 $dtHs->level = "Admin";
                 $dtHs->id_outlet = $post['id_outlet']??null;
                 $dtHs->id_role = $post['id_role']??null;
@@ -334,6 +331,8 @@ class ApiBeEmployeeController extends Controller
                     "code"=>$number['code'],
                     'start_date'=>$post['start_date'],
                     'end_date'=>$post['end_date'],
+                    'id_department'=>$post['id_department'],
+                    'id_manager'=>$post['id_manager']??null,
                     'status_employee' => $post['status_employee'],
                         ]);
                 if($update){
@@ -392,29 +391,30 @@ class ApiBeEmployeeController extends Controller
                     "employee" => Employee::join('users','users.id','employees.id_user')->where('id_employee',$post["id_employee"])->first(),
                     "location" => Outlet::leftjoin('locations','locations.id_location','outlets.id_location')->where('id_outlet',$post["id_outlet"])->first(),
                 ];
+                return response()->json(MyHelper::checkUpdate($update));
                 // $initBranch = Icount::ApiCreateEmployee($data_send, $data_send['location']['company_type']??null);
-               if($initBranch['response']['Status']=='1' && $initBranch['response']['Message']=='success'){
-                   $initBranch = $initBranch['response']['Data'][0];
-                   if($data_send['location']['company_type']=='PT IMS'){
-                        $initBranch_ims = Icount::ApiCreateEmployee($data_send, 'PT IMA');
-                        $data_init_ims = $initBranch_ims['response']['Data'][0];
-                        $update = Employee::where('id_employee', $post['id_employee'])->update([
-                            'id_business_partner' => $initBranch['BusinessPartnerID'],
-                            'id_business_partner_ima' => $data_init_ims['BusinessPartnerID'],
-                            'id_company' => $initBranch['CompanyID'],
-                            'id_group_business_partner' => $initBranch['GroupBusinessPartner'],
-                                ]);
-                    }else{
-                        $update = Employee::where('id_employee', $post['id_employee'])->update([
-                            'id_business_partner' => $initBranch['BusinessPartnerID'],
-                            'id_company' => $initBranch['CompanyID'],
-                            'id_group_business_partner' => $initBranch['GroupBusinessPartner'],
-                                ]);
-                    }
-                     return response()->json(MyHelper::checkUpdate($update));
-                }else{
-                    return response()->json(['status' => 'fail', 'messages' => [$initBranch['response']['Message']]]);
-                }
+                // if($initBranch['response']['Status']=='1' && $initBranch['response']['Message']=='success'){
+                //     $initBranch = $initBranch['response']['Data'][0];
+                //     if($data_send['location']['company_type']=='PT IMS'){
+                //          $initBranch_ims = Icount::ApiCreateEmployee($data_send, 'PT IMA');
+                //          $data_init_ims = $initBranch_ims['response']['Data'][0];
+                //          $update = Employee::where('id_employee', $post['id_employee'])->update([
+                //              'id_business_partner' => $initBranch['BusinessPartnerID'],
+                //              'id_business_partner_ima' => $data_init_ims['BusinessPartnerID'],
+                //              'id_company' => $initBranch['CompanyID'],
+                //              'id_group_business_partner' => $initBranch['GroupBusinessPartner'],
+                //                  ]);
+                //      }else{
+                //          $update = Employee::where('id_employee', $post['id_employee'])->update([
+                //              'id_business_partner' => $initBranch['BusinessPartnerID'],
+                //              'id_company' => $initBranch['CompanyID'],
+                //              'id_group_business_partner' => $initBranch['GroupBusinessPartner'],
+                //                  ]);
+                //      }
+                //      return response()->json(MyHelper::checkUpdate($update));
+                // }else{
+                //     return response()->json(['status' => 'fail', 'messages' => [$initBranch['response']['Message']]]);
+                // }
             }
             return response()->json(MyHelper::checkUpdate($update));
         }else{
@@ -660,5 +660,17 @@ class ApiBeEmployeeController extends Controller
             'messages' => 'Id Employee Cant be empty',
         ];
     }
-   
+   public function manager(Request $request) {
+       $post = $request->json()->all();
+        if(isset($post['id_outlet']) && !empty($post['id_department'])){
+             $detail = Employee::join('users','users.id','employees.id_user')
+                     ->where('id_outlet',$post['id_outlet'])
+                     ->where('id_department',$post['id_department'])
+                     ->select('users.id','users.name')
+                     ->get();
+            return response()->json(MyHelper::checkGet($detail));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+   }
 }

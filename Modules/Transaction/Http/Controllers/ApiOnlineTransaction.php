@@ -1109,8 +1109,17 @@ class ApiOnlineTransaction extends Controller
         }
 
         $grandTotal = app($this->setting_trx)->grandTotal();
-        $user = $request->user();
-        if($user->complete_profile == 0){
+        if(!empty($request->user()->id)){
+            $user = User::with('memberships')->where('id', $request->user()->id)->first();
+            if (empty($user)) {
+                return response()->json([
+                    'status'    => 'fail',
+                    'messages'  => ['User Not Found']
+                ]);
+            }
+        }
+
+        if($user['complete_profile'] == 0){
             return response()->json([
                 'status'    => 'success',
                 'result'  => [
@@ -1351,6 +1360,7 @@ class ApiOnlineTransaction extends Controller
             $id = $request->user()->id;
 
             $user = User::leftJoin('cities', 'cities.id_city', 'users.id_city')->where('id', $id)
+                    ->with('memberships')
                     ->select('users.*', 'cities.city_name')->first();
             if (empty($user)) {
                 DB::rollback();
@@ -1388,10 +1398,45 @@ class ApiOnlineTransaction extends Controller
         $result['item'] = $items;
         $result['subtotal_product_service'] = $itemServices['subtotal_service']??0;
         $result['subtotal_product'] = $subtotalProduct;
-        $subtotal = $post['subtotal'];
+        $post['subtotal'] = $result['subtotal_product_service'] + $result['subtotal_product'];
 
-        $earnedPoint = $this->countTranscationPoint($post, $user);
-        $cashback = $earnedPoint['cashback'] ?? 0;
+        $cashBack = app($this->setting_trx)->countTransaction('cashback', $post);
+        $countUserTrx = Transaction::where('id_user', $user['id'])->where('transaction_payment_status', 'Completed')->count();
+        $countSettingCashback = TransactionSetting::get();
+
+        if ($countUserTrx < count($countSettingCashback)) {
+            $cashBack = $cashBack * $countSettingCashback[$countUserTrx]['cashback_percent'] / 100;
+
+            if ($cashBack > $countSettingCashback[$countUserTrx]['cashback_maximum']) {
+                $cashBack = $countSettingCashback[$countUserTrx]['cashback_maximum'];
+            }
+        } else {
+
+            $maxCash = Setting::where('key', 'cashback_maximum')->first();
+
+            if (count($user['memberships']) > 0) {
+                $cashBack = $cashBack * ($user['memberships'][0]['benefit_cashback_multiplier']) / 100;
+
+                if($user['memberships'][0]['cashback_maximum']){
+                    $maxCash['value'] = $user['memberships'][0]['cashback_maximum'];
+                }
+            }
+
+            $statusCashMax = 'no';
+
+            if (!empty($maxCash) && !empty($maxCash['value'])) {
+                $statusCashMax = 'yes';
+                $totalCashMax = $maxCash['value'];
+            }
+
+            if ($statusCashMax == 'yes') {
+                if ($totalCashMax < $cashBack) {
+                    $cashBack = $totalCashMax;
+                }
+            } else {
+                $cashBack = $cashBack;
+            }
+        }
 
         // $post['tax'] = 0;
 
@@ -1428,7 +1473,7 @@ class ApiOnlineTransaction extends Controller
         $result['shipping'] = $post['shipping']+$shippingGoSend;
         $result['discount'] = $post['discount'];
         $result['discount_delivery'] = $post['discount_delivery'];
-        $result['cashback'] = $cashback;
+        $result['cashback'] = $cashBack??0;
         $result['service'] = $post['service'];
         $result['grandtotal'] = (int)$result['subtotal'] + (int)(-$post['discount']) + (int)$post['service'];
         $result['tax'] = (int) ($result['grandtotal'] * ($outlet['is_tax'] ?? 0) / (100 + ($outlet['is_tax'] ?? 0)));
@@ -1483,9 +1528,25 @@ class ApiOnlineTransaction extends Controller
         }
 
         $result['messages_all'] = null;
+        $result['messages_all_title'] = null;
         if(!empty($error_msg)){
             $result['continue_checkout'] = false;
+            $result['messages_all_title'] = 'TRANSAKSI TIDAK DAPAT DILANJUTKAN';
             $result['messages_all'] = implode('.', $error_msg);
+        }
+        if($result['promo_deals']){
+            if($result['promo_deals']['is_error']){
+                $result['continue_checkout'] = false;
+                $result['messages_all_title'] = 'VOUCHER ANDA TIDAK DAPAT DIGUNAKAN';
+                $result['messages_all'] = 'Silahkan gunakan voucher yang berlaku atau tidak menggunakan voucher sama sekali.';
+            }
+        }
+        if($result['promo_code']){
+            if($result['promo_code']['is_error']){
+                $result['continue_checkout'] = false;
+                $result['messages_all_title'] = 'PROMO ANDA TIDAK DAPAT DIGUNAKAN';
+                $result['messages_all'] = 'Silahkan gunakan promo yang berlaku atau tidak menggunakan promo sama sekali.';
+            }
         }
         $result['tax'] = (int) $result['tax'];
         return MyHelper::checkGet($result);
@@ -1963,7 +2024,7 @@ class ApiOnlineTransaction extends Controller
                 continue;
             }
 
-            if($outlet['outlet_special_status'] == 1){
+            if($outlet['outlet_different_price'] == 1){
                 $service['product_price'] = ProductSpecialPrice::where('id_product', $item['id_product'])
                     ->where('id_outlet', $outlet['id_outlet'])->first()['product_special_price']??0;
             }
@@ -3782,7 +3843,7 @@ class ApiOnlineTransaction extends Controller
             }
 
             $cashBack = app($this->setting_trx)->countTransaction('cashback', $post);
-            $countUserTrx = Transaction::where('id_user', $user['id_user'])->where('transaction_payment_status', 'Completed')->count();
+            $countUserTrx = Transaction::where('id_user', $user['id'])->where('transaction_payment_status', 'Completed')->count();
             $countSettingCashback = TransactionSetting::get();
 
             if ($countUserTrx < count($countSettingCashback)) {
@@ -4071,7 +4132,7 @@ class ApiOnlineTransaction extends Controller
                 $err[] = 'Stok habis';
             }
 
-            if($outlet['outlet_special_status'] == 1){
+            if($outlet['outlet_different_price'] == 1){
                 $service['product_price'] = ProductSpecialPrice::where('id_product', $item['id_product'])
                         ->where('id_outlet', $outlet['id_outlet'])->first()['product_special_price']??0;
             }

@@ -162,7 +162,9 @@ class ApiHairStylistController extends Controller
                 [
                     'fullname' => $create['fullname'],
                     'phone_number' => $create['phone_number'],
-                    'email' => $create['email']
+                    'email' => $create['email'],
+                    'approved_date' => date('d F Y'),
+                    'status' => 'Candidate',
                 ], null, false, false, 'hairstylist'
             );
         }
@@ -491,7 +493,7 @@ class ApiHairStylistController extends Controller
                 }
 
                 if($post['update_type'] == 'Rejected'){
-                    $update = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update([
+                    UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update([
                         'user_hair_stylist_passed_status' => $post['user_hair_stylist_passed_status']??'Not Passed',
                         'user_hair_stylist_score' => $post['user_hair_stylist_score']??0
                     ]);
@@ -611,7 +613,9 @@ class ApiHairStylistController extends Controller
                             'fullname' => $dtHs['fullname'],
                             'phone_number' => $dtHs['phone_number'],
                             'email' => $dtHs['email'],
-                            'pin_hair_stylist' => $pin
+                            'pin_hair_stylist' => $pin,
+                            'approved_date' => date('d F Y'),
+                            'status' => 'Active',
                         ], null, false, false, 'hairstylist'
                     );
                 }

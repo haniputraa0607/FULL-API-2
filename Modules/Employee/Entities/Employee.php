@@ -51,6 +51,8 @@ class Employee extends Model
         'id_bank_name',
         'status_employee',
         'surat_perjanjian',
+        'id_department',
+        'id_manager',
         'created_at',
         'updated_at',
     ];

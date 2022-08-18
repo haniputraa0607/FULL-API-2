@@ -27,6 +27,7 @@ class StoreNewLocation extends FormRequest
 	{
 		return [
                 "name"   => 'required|string',
+                "email"   => 'required|email',
                 "address"   => 'required|string',
                 "id_city"   => 'required|integer',
                 "latitude"   => 'required',

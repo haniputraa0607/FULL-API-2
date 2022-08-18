@@ -27,6 +27,13 @@ use Modules\Employee\Entities\EmployeeOfficeHour;
 
 class ApiEmployeeAttendanceController extends Controller
 {
+    public function __construct()
+    {
+        if (\Module::collections()->has('Autocrm')) {
+            $this->autocrm  = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
+        }
+    }
+
     public function liveAttendance(Request $request)
     {
         $today = date('Y-m-d');
@@ -110,11 +117,18 @@ class ApiEmployeeAttendanceController extends Controller
             $shift = false;
         }
         $outlet = $employee->outlet;
-        
+        $role = $employee->role;
+
         $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
         $date_time_now = MyHelper::adjustTimezone(date('Y-m-d H:i:s'), $timeZone, 'Y-m-d H:i:s', true);
         $attendance = $employee->getAttendanceByDate(date('Y-m-d'), $shift);
+
+        $time_zone = [
+            '7' => 'WIB',
+            '8' => 'WITA',
+            '9' => 'WIT',
+        ];
 
         $maximumRadius = MyHelper::setting('employee_attendance_max_radius', 'value', 50);
         $distance = MyHelper::getDistance($request->latitude, $request->longitude, $outlet->outlet_latitude, $outlet->outlet_longitude);
@@ -144,6 +158,26 @@ class ApiEmployeeAttendanceController extends Controller
             'approved_by' => null,
             'notes' => $request->notes,
         ]);
+        $logs = $attendance->logs->where('type',$request->type)->first();
+        if($outsideRadius){
+            $user_sends = User::join('roles_features','roles_features.id_role', 'users.id_role')->where('id_feature',
+            497)->get()->toArray();
+            foreach($user_sends ?? [] as $user_send){
+                $autocrm = app($this->autocrm)->SendAutoCRM(
+                    'Employee Attendance Pending',
+                    $user_send['phone'],
+                    [
+                        'name_employee' => $employee['name'],
+                        'phone_employee' => $employee['phone'],
+                        'name_office' => $outlet['outlet_name'],
+                        'time_attendance' => date('d F Y', strtotime($date_time_now)),
+                        'role' => $role['role_name'],
+                        'id_attendance' => $logs['id_employee_attendance_log'],
+                        'category' => 'Attendance'
+                    ], null, false, false, 'employee'
+                );
+            }
+        }
 
         return MyHelper::checkGet([
             'need_confirmation' => false,
@@ -159,7 +193,7 @@ class ApiEmployeeAttendanceController extends Controller
         ]);
         $employee = $request->user();
 
-        $outlet = Outlet::where('id_outlet', $request['id_outlet'])->first();
+        $outlet = $employee->outlet;
         $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
         
@@ -624,6 +658,7 @@ class ApiEmployeeAttendanceController extends Controller
         }
         if($request->status=='Reject'){
             $request->status = 'Rejected';
+
         }
         
         $log = EmployeeAttendanceLog::find($request->id_employee_attendance_log);
@@ -641,6 +676,40 @@ class ApiEmployeeAttendanceController extends Controller
         }
         $log->update($update);
         $log->employee_attendance->recalculate();
+
+        $user_attendance = User::join('employee_attendances', 'employee_attendances.id', 'users.id')->join('employee_attendance_logs','employee_attendance_logs.id_employee_attendance','employee_attendances.id_employee_attendance')->where('employee_attendance_logs.id_employee_attendance_log', $request->id_employee_attendance_log)->first();
+        $outlet = Outlet::where('id_outlet',$user_attendance['id_outlet'])->first();
+        $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+        ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+        $date_time_now = MyHelper::adjustTimezone($user_attendance['datetime'], $timeZone, 'd F Y', true);
+        $role = Role::where('id_role',$user_attendance['id_role'])->first();
+
+        $time_zone = [
+            '7' => 'WIB',
+            '8' => 'WITA',
+            '9' => 'WIT',
+        ];
+
+        if($request->status=='Approved'){
+            $keyAutocrm = 'Employee Attendance Pending Approve';
+        }
+        if($request->status=='Rejected'){
+            $keyAutocrm = 'Employee Attendance Pending Reject';
+
+        }
+        $autocrm = app($this->autocrm)->SendAutoCRM(
+            $keyAutocrm,
+            $user_attendance['phone'],
+            [
+                'name_employee' => $user_attendance['name'],
+                'phone_employee' => $user_attendance['phone'],
+                'name_office' => $outlet['name_outlet'],
+                'time_attendance' => $date_time_now,
+                'role' => $role['role_name'],
+                'user_update' => $request->user()->id,
+                'category' => 'Attendance'
+            ], null, false, false, 'employee'
+        );
         return [
             'status' => 'success',
             'result' => [
@@ -649,9 +718,40 @@ class ApiEmployeeAttendanceController extends Controller
         ];
     }
 
+    public function checkCurrentTime($data,$timeZone = 7){
+        $check = true;
+        if(isset($data['date']) && !empty($data['date'])){
+            if(date('Y-m-d') < date('Y-m-d',strtotime($data['date']))){
+                $check = false;
+            }
+        }
+        if(isset($data['clock_in']) && !empty($data['clock_in'])){
+            $clock_in = MyHelper::reverseAdjustTimezone($data['clock_in'], $timeZone, 'H:i', true);
+            if(date('H:i') < date('H:i',strtotime($clock_in))){
+                $check = false;
+            }
+        }
+        if(isset($data['clock_out']) && !empty($data['clock_out'])){
+            $clock_out = MyHelper::reverseAdjustTimezone($data['clock_out'], $timeZone, 'H:i', true);
+            if(date('H:i') < date('H:i',strtotime($clock_out))){
+                $check = false;
+            }
+        }
+        return $check;
+    }
+
     public function checkDateRequest(Request $request){
         $post = $request->all();
         $employee = $request->user();
+        
+        $check_date = $this->checkCurrentTime($post);
+        if(!$check_date){
+            return [
+                'status'=>'fail',
+                'messages'=>['Request Absen maksimal adalah sekarang']
+            ];
+        }
+
         $outlet = $employee->outlet()->select('outlet_name', 'outlet_latitude', 'outlet_longitude', 'id_city')->first();
         $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
@@ -704,11 +804,27 @@ class ApiEmployeeAttendanceController extends Controller
                 'messages'=>['Mohon mengisi keterangan dengan jelas.']
             ]);
         }
+
         $employee = $request->user();
         $outlet = $employee->outlet()->select('id_outlet','outlet_name', 'id_city')->first();
+        $role = $employee->role;
         $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
 
+        $check_date = $this->checkCurrentTime($post,$timeZone);
+        if(!$check_date){
+            return [
+                'status'=>'fail',
+                'messages'=>['Request Absen maksimal adalah sekarang']
+            ];
+        }
+
+        $time_zone = [
+            '7' => 'WIB',
+            '8' => 'WITA',
+            '9' => 'WIT'
+        ];
+        
         $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$employee['id'])->first();
         $array_date = explode('-',$post['date']);
         $schedule_month = EmployeeSchedule::where('id',$employee['id'])->where('schedule_month',$array_date[1])->where('schedule_year',$array_date[0])->first();
@@ -752,6 +868,23 @@ class ApiEmployeeAttendanceController extends Controller
                 'status' => 'fail', 
                 'messages' => ['Gagal mengajukan permintaan presensi']
             ]);
+        }
+        $user_sends = User::join('roles_features','roles_features.id_role', 'users.id_role')->where('id_feature',
+            500)->get()->toArray();
+        foreach($user_sends ?? [] as $user_send){
+            $autocrm = app($this->autocrm)->SendAutoCRM(
+                'Employee Attendance Request',
+                $user_send['phone'],
+                [
+                    'name_employee' => $employee['name'],
+                    'phone_employee' => $employee['phone'],
+                    'name_office' => $outlet['outlet_name'],
+                    'time_attendance' => date('d F Y',strtotime($post['date'])),
+                    'role' => $role['role_name'],
+                    'id_attendance' => $store['id_employee_attendance_request'],
+                    'category' => 'Attendance'
+                ], null, false, false, 'employee'
+            );
         }
 
         DB::commit();
@@ -874,7 +1007,7 @@ class ApiEmployeeAttendanceController extends Controller
 
         if ($rules = $newRule['transaction_date'] ?? false) {
             foreach ($rules as $rul) {
-                $query->whereDate('employee_attendance_requests.attendance_date', $rul[0], $rul[1]);
+                $query->whereDate('employee_attendance_requests.created_at', $rul[0], $rul[1]);
             }
         }
     }
@@ -994,7 +1127,7 @@ class ApiEmployeeAttendanceController extends Controller
 
         if ($rules = $newRule['transaction_date'] ?? false) {
             foreach ($rules as $rul) {
-                $query->whereDate('employee_attendance_requests.attendance_date', $rul[0], $rul[1]);
+                $query->whereDate('employee_attendance_requests.created_at', $rul[0], $rul[1]);
             }
         }
         if ($rules = $newRule['id'] ?? false) {
@@ -1107,7 +1240,7 @@ class ApiEmployeeAttendanceController extends Controller
                 $clock_in = EmployeeAttendance::find($attendance['id_employee_attendance']);
                 $clock_in->storeClock([
                     'type' => 'clock_in',
-                    'datetime' => MyHelper::reverseAdjustTimezone(date('Y-m-d H:i:s', strtotime($log_req['attendance_date'].' '.$log_req['clock_in'])), $timeZone, 'Y-m-d H:i:s', true),
+                    'datetime' => date('Y-m-d H:i:s', strtotime($log_req['attendance_date'].' '.$log_req['clock_in'])),
                     'latitude' => 0,
                     'longitude' => 0,
                     'status' => 'Approved',
@@ -1123,7 +1256,7 @@ class ApiEmployeeAttendanceController extends Controller
                 $clock_out = EmployeeAttendance::find($attendance['id_employee_attendance']);
                 $clock_out->storeClock([
                     'type' => 'clock_out',
-                    'datetime' => MyHelper::reverseAdjustTimezone(date('Y-m-d H:i:s', strtotime($log_req['attendance_date'].' '.$log_req['clock_out'])), $timeZone, 'Y-m-d H:i:s', true),
+                    'datetime' => date('Y-m-d H:i:s', strtotime($log_req['attendance_date'].' '.$log_req['clock_out'])),
                     'latitude' => 0,
                     'longitude' => 0,
                     'status' => 'Approved',
@@ -1136,6 +1269,31 @@ class ApiEmployeeAttendanceController extends Controller
             }
         }elseif($request->status == 'Rejected'){
             DB::commit();
+            $user_attendance = User::join('employee_attendance_requests', 'employee_attendance_requests.id', 'users.id')->where('employee_attendance_requests.id_employee_attendance_request', $request->id_employee_attendance_request)->first();
+            $outlet = Outlet::where('id_outlet',$user_attendance['id_outlet'])->first();
+            $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+            ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+            $date_time_now = MyHelper::adjustTimezone($user_attendance['attendance_date'], $timeZone, 'd F Y', true);
+            $role = Role::where('id_role',$user_attendance['id_role'])->first();
+    
+            $time_zone = [
+                '7' => 'WIB',
+                '8' => 'WITA',
+                '9' => 'WIT',
+            ];
+            $autocrm = app($this->autocrm)->SendAutoCRM(
+                'Employee Attendance Request Reject',
+                $user_attendance['phone'],
+                [
+                    'name_employee' => $user_attendance['name'],
+                    'phone_employee' => $user_attendance['phone'],
+                    'name_office' => $outlet['outlet_name'],
+                    'time_attendance' => $date_time_now,
+                    'role' => $role['role_name'],
+                    'user_update' => $request->user()->id,
+                    'category' => 'Attendance'
+                ], null, false, false, 'employee'
+            );
             return [
                 'status' => 'success',
                 'messages' => ['Success to reject request attendance'],
@@ -1143,6 +1301,31 @@ class ApiEmployeeAttendanceController extends Controller
         }
         if($final){
             DB::commit();
+            $user_attendance = User::join('employee_attendance_requests', 'employee_attendance_requests.id', 'users.id')->where('employee_attendance_requests.id_employee_attendance_request', $request->id_employee_attendance_request)->first();
+            $outlet = Outlet::where('id_outlet',$user_attendance['id_outlet'])->first();
+            $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+            ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+            $date_time_now = MyHelper::adjustTimezone($user_attendance['attendance_date'], $timeZone, 'd F Y', true);
+            $role = Role::where('id_role',$user_attendance['id_role'])->first();
+    
+            $time_zone = [
+                '7' => 'WIB',
+                '8' => 'WITA',
+                '9' => 'WIT',
+            ];
+            $autocrm = app($this->autocrm)->SendAutoCRM(
+                'Employee Attendance Request Approve',
+                $user_attendance['phone'],
+                [
+                    'name_employee' => $user_attendance['name'],
+                    'phone_employee' => $user_attendance['phone'],
+                    'name_office' => $outlet['outlet_name'],
+                    'time_attendance' => $date_time_now,
+                    'role' => $role['role_name'],
+                    'user_update' => $request->user()->id,
+                    'category' => 'Attendance'
+                ], null, false, false, 'employee'
+            );
             return [
                 'status' => 'success',
                 'messages' => ['Success to approve request attendance'],

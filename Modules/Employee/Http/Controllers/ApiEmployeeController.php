@@ -481,8 +481,33 @@ class ApiEmployeeController extends Controller
         ];
 
         return response()->json(MyHelper::checkGet($data));
- 
-
     }
+
+    public function splash(Request $request){
+		$getSetting = Setting::whereIn('key',[
+			'default_splash_screen_employee_apps', 
+			'default_splash_screen_employee_apps_duration'
+		])->get()->keyBy('key');
+
+		$splash = $getSetting['default_splash_screen_employee_apps']['value'] ?? null;
+		$duration = $getSetting['default_splash_screen_employee_apps_duration']['value'] ?? 5;
+
+		if (!empty($splash)) {
+			$splash = config('url.storage_url_api').$splash;
+		} else {
+			$splash = null;
+		}
+		
+		$ext = explode('.', $splash);
+		$result = [
+			'status' => 'success',
+			'result' => [
+				'splash_screen_url' => $splash."?update=".time(),
+				'splash_screen_duration' => $duration,
+				'splash_screen_ext' => '.'.end($ext)
+			]
+		];
+		return $result;
+	}
 
 }

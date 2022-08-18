@@ -5542,7 +5542,7 @@ class ApiTransaction extends Controller
             $resData[] = [
                 'id_transaction' => $val['id_transaction'],
                 'transaction_receipt_number' => $val['transaction_receipt_number'],
-                'qrcode' => 'https://chart.googleapis.com/chart?chl=' . str_replace('#', '', $val['transaction_receipt_number']) . '&chs=250x250&cht=qr&chld=H%7C0',
+                'qrcode' => 'https://quickchart.io/qr?text=' . str_replace('#', '', $val['transaction_receipt_number']) . '&margin=0&size=250',
                 'transaction_date' => $val['transaction_date'],
                 'customer_name' => $val['transaction_outlet_service']['customer_name'],
                 'color' => (!empty($val['outlet']['brands'][0]['color_brand']) ? $val['outlet']['brands'][0]['color_brand'] : null),
@@ -5748,7 +5748,7 @@ class ApiTransaction extends Controller
         $res = [
             'id_transaction' => $detail['id_transaction'],
             'transaction_receipt_number' => $detail['transaction_receipt_number'],
-            'qrcode' => 'https://chart.googleapis.com/chart?chl=' . str_replace('#', '', $detail['transaction_receipt_number']) . '&chs=250x250&cht=qr&chld=H%7C0',
+            'qrcode' => 'https://quickchart.io/qr?text=' . str_replace('#', '', $detail['transaction_receipt_number']) . '&margin=0&size=250',
             'transaction_date' => $detail['transaction_date'],
             'transaction_date_indo' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($detail['transaction_date'])), 'j F Y'),
             'transaction_subtotal' => $detail['transaction_subtotal'],
@@ -6120,25 +6120,29 @@ class ApiTransaction extends Controller
         return $promo_discount;
     }
 
-    public function CronOutletSericeICountPOO(Request $request) {
+    public function CronOutletSericeICountPOO($date = null) {
         $log = MyHelper::logCron('Create Order POO Icount Outlet Service');
         try{
             $date_now = date('Y-m-d');
-            $date_trans = date('Y-m-d', strtotime('-1 days'));
+            if ($date) {
+                $date_trans = date('Y-m-d', strtotime($date));
+            } else {
+                $date_trans = date('Y-m-d', strtotime('-1 days'));
+            }
             $outlets_mid = Outlet::join('locations','locations.id_location','=','outlets.id_location')
                             ->join('transactions','transactions.id_outlet','=','outlets.id_outlet')
                             ->join('transaction_outlet_services','transaction_outlet_services.id_transaction','=','transactions.id_transaction')
-                            ->leftJoin('partners','partners.id_partner','=','locations.id_partner');
+                            ->leftJoin('partners','partners.id_partner','=','locations.id_partner')->whereNotIn('outlets.id_outlet', [9, 12, 17, 20, 48, 49, 50, 54, 74]);
 
             $outlets_xen = Outlet::join('locations','locations.id_location','=','outlets.id_location')
                             ->join('transactions','transactions.id_outlet','=','outlets.id_outlet')
                             ->join('transaction_outlet_services','transaction_outlet_services.id_transaction','=','transactions.id_transaction')
-                            ->leftJoin('partners','partners.id_partner','=','locations.id_partner'); 
+                            ->leftJoin('partners','partners.id_partner','=','locations.id_partner')->whereNotIn('outlets.id_outlet', [9, 12, 17, 20, 48, 49, 50, 54, 74]);
 
             $outlets_cash = Outlet::join('locations','locations.id_location','=','outlets.id_location')
                             ->join('transactions','transactions.id_outlet','=','outlets.id_outlet')
                             ->join('transaction_outlet_services','transaction_outlet_services.id_transaction','=','transactions.id_transaction')
-                            ->leftJoin('partners','partners.id_partner','=','locations.id_partner');
+                            ->leftJoin('partners','partners.id_partner','=','locations.id_partner')->whereNotIn('outlets.id_outlet', [9, 12, 17, 20, 48, 49, 50, 54, 74]);
 
             $outlets_mid->join('transaction_payment_midtrans','transaction_payment_midtrans.id_transaction','=','transactions.id_transaction')->whereDate('transactions.transaction_date', '=', $date_trans)->where('transactions.flag_icount','0');
             $outlets_mid->select('outlets.*','partners.*','locations.*','outlets.is_tax as is_tax','transaction_payment_midtrans.id_transaction_payment','transaction_payment_midtrans.payment_type','transactions.transaction_date')->groupBy('outlets.id_outlet','transaction_payment_midtrans.payment_type')->orderBy('outlets.id_outlet', 'DESC');
@@ -6254,13 +6258,13 @@ class ApiTransaction extends Controller
                         
                         if($tran['transaction_tax']==0){
                             $new_transaction_non[$new_trans_non] = $tran;
-                            $num_is_tax = isset($outlet['is_tax']) ? 100 + $outlet['is_tax'] : 100;
-                            $new_transaction_non[$new_trans_non]['total_price'] = ($tran['transaction_product_price_base'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all']) * (100/$num_is_tax);
+                            $num_is_tax = 100;
+                            $new_transaction_non[$new_trans_non]['total_price'] = ($tran['transaction_product_price'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all']) * (100/$num_is_tax);
                             $new_trans_non++;
                         }else{
                             $new_transaction[$new_trans_use] = $tran;
-                            $num_is_tax = isset($outlet['is_tax']) ? 100 + $outlet['is_tax'] : 110;
-                            $new_transaction[$new_trans_use]['total_price'] = ($tran['transaction_product_price_base'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all']) * (100/$num_is_tax);
+                            $num_is_tax = isset($outlet['is_tax']) ? 100 + $outlet['is_tax'] : 111;
+                            $new_transaction[$new_trans_use]['total_price'] = ($tran['transaction_product_price'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all']) * (100/$num_is_tax);
                             $new_trans_use++;
                         }
 
@@ -6269,14 +6273,14 @@ class ApiTransaction extends Controller
                     if($new_transaction){
                         $new_outlets[$new] = $outlet;
                         $new_outlets[$new]['transaction'] = $new_transaction;
-                        $new_outlets[$new]['ppn'] = $outlet['is_tax'] ?? 10;
+                        $new_outlets[$new]['ppn'] = $outlet['is_tax'] ?? 11;
                         $new++;
 
                     }
                     if($new_transaction_non){
                         $new_outlets[$new] = $outlet;
                         $new_outlets[$new]['transaction'] = $new_transaction_non;
-                        $new_outlets[$new]['ppn'] = $outlet['is_tax'] ?? 0;
+                        $new_outlets[$new]['ppn'] = 0;
                         $new++;
                     }
                 }
@@ -6438,13 +6442,13 @@ class ApiTransaction extends Controller
 
                         if($tran['transaction_tax']==0){
                             $new_transaction_non[$new_trans_non] = $tran;
-                            $num_is_tax = isset($outlet['is_tax']) ? 100 + $outlet['is_tax'] : 100;
-                            $new_transaction_non[$new_trans_non]['total_price'] = ($tran['transaction_product_price_base'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all']) *  (100/$num_is_tax);
+                            $num_is_tax = 100;
+                            $new_transaction_non[$new_trans_non]['total_price'] = ($tran['transaction_product_price'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all']) *  (100/$num_is_tax);
                             $new_trans_non++;
                         }else{
                             $new_transaction[$new_trans_use] = $tran;
-                            $num_is_tax = isset($outlet['is_tax']) ? 100 + $outlet['is_tax'] : 100;
-                            $new_transaction[$new_trans_use]['total_price'] = ($tran['transaction_product_price_base'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all']) *  (100/$num_is_tax);
+                            $num_is_tax = isset($outlet['is_tax']) ? 100 + $outlet['is_tax'] : 111;
+                            $new_transaction[$new_trans_use]['total_price'] = ($tran['transaction_product_price'] * $tran['transaction_product_qty'] - $tran['transaction_product_discount_all']) *  (100/$num_is_tax);
                             $new_trans_use++;
                         }
 
@@ -6453,14 +6457,14 @@ class ApiTransaction extends Controller
                     if($new_transaction){
                         $new_outlets[$new] = $outlet;
                         $new_outlets[$new]['transaction'] = $new_transaction;
-                        $new_outlets[$new]['ppn'] = $outlet['is_tax'] ?? 10;
+                        $new_outlets[$new]['ppn'] = $outlet['is_tax'] ?? 11;
                         $new++;
 
                     }
                     if($new_transaction_non){
                         $new_outlets[$new] = $outlet;
                         $new_outlets[$new]['transaction'] = $new_transaction_non;
-                        $new_outlets[$new]['ppn'] = $outlet['is_tax'] ?? 0;
+                        $new_outlets[$new]['ppn'] = 0;
                         $new++;
                     }
                 }
@@ -6493,7 +6497,7 @@ class ApiTransaction extends Controller
         $tanggal = 25;
         $tanggal_awal = date('Y-m-d 00:00:00', strtotime(date('Y-m-'.$tanggal) . '- 1 month'));
         $tanggal_akhir = date('Y-m-d 00:00:00', strtotime(date('Y-m-'.$tanggal)));
-        $partners = Partner::where(array('cooperation_scheme'=>'Revenue Sharing'))
+        $partners = Partner::where(array('locations.cooperation_scheme'=>'Revenue Sharing'))
                     ->join('locations','locations.id_partner','partners.id_partner')
                     ->join('outlets','outlets.id_location','locations.id_location')
                     ->join('transactions','transactions.id_outlet','outlets.id_outlet')
@@ -6543,8 +6547,10 @@ class ApiTransaction extends Controller
                         'disc'=>$disc,
                         'id_transaction'=>$transaksi_id,
                         'transfer'=> ($total_transaksi*$sharing/100)-$beban_outlet
-                    );  
-                    array_push($data,$b);
+                    );
+                    if ($b['transfer']) {
+                        array_push($data,$b);
+                    }
                    }
         }
         foreach($data as $n => $request){
@@ -6585,7 +6591,7 @@ class ApiTransaction extends Controller
         $tanggal = 25;
         $tanggal_awal = date('Y-m-d 00:00:00', strtotime(date('Y-m-'.$tanggal) . '- 1 month'));
         $tanggal_akhir = date('Y-m-d 00:00:00', strtotime(date('Y-m-'.$tanggal)));
-        $partners = Partner::where(array('cooperation_scheme'=>'Management Fee'))
+        $partners = Partner::where(array('locations.cooperation_scheme'=>'Management Fee'))
                     ->join('locations','locations.id_partner','partners.id_partner')
                     ->join('outlets','outlets.id_location','locations.id_location')
                     ->join('transactions','transactions.id_outlet','outlets.id_outlet')
@@ -6701,7 +6707,7 @@ class ApiTransaction extends Controller
     }
 
     public function callbacksharing(CallbackFromIcount $request){
-        $data = SharingManagementFee::where(array('PurchaseInvoiceID'=>$request->PurchaseInvoiceID))->where('status','!=','Success')->update([
+        $data = SharingManagementFee::where(array('PurchaseInvoiceID'=>$request->PurchaseInvoiceID))->update([
             'status'=>$request->status,
             'date_disburse'=>$request->date_disburse,
         ]);

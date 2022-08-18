@@ -17,6 +17,9 @@ class EmployeePerubahanData extends Model
         'change_data',
         'notes',
         'status',
+        'id_approved',
+        'date_action',
+        'notes_approved',
         'created_at',
         'updated_at',
     ];

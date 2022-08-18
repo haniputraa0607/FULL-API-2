@@ -4731,6 +4731,33 @@ class FeaturesTableSeeder extends Seeder
                 'created_at'     => date('Y-m-d H:00:00'),
                 'updated_at'     => date('Y-m-d H:00:00'),
             ),
+            526 => array(
+                'id_feature'     => 528,
+                'feature_type'   => 'List',
+                'feature_module' => 'Employee Director',
+                'show_hide'      => 1,
+                'order'          => 165,
+                'created_at'     => date('Y-m-d H:00:00'),
+                'updated_at'     => date('Y-m-d H:00:00'),
+            ),
+            527 => array(
+                'id_feature'     => 529,
+                'feature_type'   => 'List',
+                'feature_module' => 'Employee HRGA',
+                'show_hide'      => 1,
+                'order'          => 165,
+                'created_at'     => date('Y-m-d H:00:00'),
+                'updated_at'     => date('Y-m-d H:00:00'),
+            ),
+            528 => array(
+                'id_feature'     => 530,
+                'feature_type'   => 'List',
+                'feature_module' => 'Employee Finance',
+                'show_hide'      => 1,
+                'order'          => 165,
+                'created_at'     => date('Y-m-d H:00:00'),
+                'updated_at'     => date('Y-m-d H:00:00'),
+            ),
             
         );
 

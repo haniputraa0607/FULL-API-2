@@ -331,6 +331,8 @@ class ApiBeEmployeeController extends Controller
                     "code"=>$number['code'],
                     'start_date'=>$post['start_date'],
                     'end_date'=>$post['end_date'],
+                    'id_department'=>$post['id_department'],
+                    'id_manager'=>$post['id_manager']??null,
                     'status_employee' => $post['status_employee'],
                         ]);
                 if($update){
@@ -658,5 +660,17 @@ class ApiBeEmployeeController extends Controller
             'messages' => 'Id Employee Cant be empty',
         ];
     }
-   
+   public function manager(Request $request) {
+       $post = $request->json()->all();
+        if(isset($post['id_outlet']) && !empty($post['id_department'])){
+             $detail = Employee::join('users','users.id','employees.id_user')
+                     ->where('id_outlet',$post['id_outlet'])
+                     ->where('id_department',$post['id_department'])
+                     ->select('users.id','users.name')
+                     ->get();
+            return response()->json(MyHelper::checkGet($detail));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+   }
 }

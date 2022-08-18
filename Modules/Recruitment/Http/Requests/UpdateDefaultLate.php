@@ -8,13 +8,13 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 use Modules\Recruitment\Entities\HairstylistGroup;
 use Modules\Recruitment\Entities\HairstylistGroupOvertimeDefault;
 use Modules\Recruitment\Entities\HairstylistGroupOvertime;
-class UpdateDefaultOvertime extends FormRequest
+class UpdateDefaultLate extends FormRequest
 {
     public function rules()
     {
         return [
             'id_hairstylist_group_default_overtimes'        => 'required',
-            'days'                                          => 'required|integer|unik',
+            'range'                                          => 'required|integer|unik',
             'value'                                         => 'required|integer',
            ]; 
     }
@@ -22,7 +22,7 @@ class UpdateDefaultOvertime extends FormRequest
     {
         $validator->addExtension('unik', function ($attribute, $value, $parameters, $validator) {
         $data = $validator->getData();
-        $survey = HairstylistGroupOvertimeDefault::where('id_hairstylist_group_default_overtimes','!=',$data['id_hairstylist_group_default_overtimes'])->where('days',$value)->first();
+        $survey = HairstylistGroupOvertimeDefault::where('id_hairstylist_group_default_overtimes','!=',$data['id_hairstylist_group_default_overtimes'])->where('range',$value)->first();
          if($survey){
              return false;
          }return true;

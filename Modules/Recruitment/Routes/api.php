@@ -161,6 +161,20 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
                 Route::post('default/detail', ['middleware' => 'feature_control:426','uses' =>'ApiHairStylistGroupOvertimeController@detail_default']);
                 Route::post('default/delete', ['middleware' => 'feature_control:426','uses' =>'ApiHairStylistGroupOvertimeController@delete_default']);
             });
+            Route::group(['prefix' => 'late'], function () {
+                Route::post('create', ['middleware' => 'feature_control:533','uses' =>'ApiHairStylistGroupLateController@create']);
+                Route::post('update', ['middleware' => 'feature_control:534','uses' =>'ApiHairStylistGroupLateController@update']);
+                Route::post('detail', ['middleware' => 'feature_control:532','uses' =>'ApiHairStylistGroupLateController@detail']);
+                Route::post('delete', ['middleware' => 'feature_control:535','uses' =>'ApiHairStylistGroupLateController@delete']);
+               
+                Route::post('/', ['middleware' => 'feature_control:531','uses' =>'ApiHairStylistGroupLateController@index']);
+                
+                Route::post('default/', ['middleware' => 'feature_control:531','uses' =>'ApiHairStylistGroupLateController@index_default']);
+                Route::post('default/create', ['middleware' => 'feature_control:533','uses' =>'ApiHairStylistGroupLateController@create_default']);
+                Route::post('default/update', ['middleware' => 'feature_control:534','uses' =>'ApiHairStylistGroupLateController@update_default']);
+                Route::post('default/detail', ['middleware' => 'feature_control:532','uses' =>'ApiHairStylistGroupLateController@detail_default']);
+                Route::post('default/delete', ['middleware' => 'feature_control:535','uses' =>'ApiHairStylistGroupLateController@delete_default']);
+            });
             Route::group(['prefix' => 'fixed-incentive'], function () {
                 Route::post('create', ['middleware' => 'feature_control:394','uses' =>'ApiHairStylistGroupFixedIncentiveController@create']);
                 Route::post('update', ['middleware' => 'feature_control:395','uses' =>'ApiHairStylistGroupFixedIncentiveController@update']);

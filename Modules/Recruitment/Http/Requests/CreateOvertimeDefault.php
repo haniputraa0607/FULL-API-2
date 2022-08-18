@@ -12,7 +12,7 @@ class CreateOvertimeDefault extends FormRequest
     {
         return [
             'value'       => 'required|integer',
-            'hours'       => 'required|integer|unique:hairstylist_group_default_overtimes,hours',
+            'days'       => 'required|integer|unique:hairstylist_group_default_overtimes,days',
            ]; 
     }
     public function withValidator($validator)

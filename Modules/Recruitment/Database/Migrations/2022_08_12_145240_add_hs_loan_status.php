@@ -13,6 +13,9 @@ class AddHsLoanStatus extends Migration
     public function up()
     {
        Schema::table('hairstylist_loans', function (Blueprint $table) {
+            $table->dropColumn('status_loan')->default();
+        });
+       Schema::table('hairstylist_loans', function (Blueprint $table) {
             $table->enum('status_loan',['Success','Reject'])->default('Success');
         });
     }
@@ -24,7 +27,7 @@ class AddHsLoanStatus extends Migration
     public function down()
     {
         Schema::table('hairstylist_loans', function (Blueprint $table) {
-            $table->dropColumn('status_loan',['Success','Reject'])->nullable();
+             $table->enum('status_loan',['Success','Reject'])->default('Success');
         });
     }
 }

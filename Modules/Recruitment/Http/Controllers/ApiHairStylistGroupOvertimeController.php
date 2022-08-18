@@ -101,7 +101,7 @@ class ApiHairStylistGroupOvertimeController extends Controller
     public function index(Request $request) {
         if($request->id_hairstylist_group){
             $data = array();
-            $overtime = HairstylistGroupOvertimeDefault::orderby('hours','asc')->get();
+            $overtime = HairstylistGroupOvertimeDefault::orderby('days','asc')->get();
             foreach ($overtime as $value) {
                 $insen = HairstylistGroupOvertime::where(array('id_hairstylist_group_default_overtimes'=>$value['id_hairstylist_group_default_overtimes'],'id_hairstylist_group'=>$request->id_hairstylist_group))->first();
                 $value['default_value'] = $value['value'];
@@ -138,7 +138,7 @@ class ApiHairStylistGroupOvertimeController extends Controller
     public function create_default(CreateOvertimeDefault $request)
     {
         $store = HairstylistGroupOvertimeDefault::create([
-                    "hours"   => $request->hours,
+                    "days"   => $request->days,
                     "value"   =>  $request->value,
                 ]);
         return response()->json(MyHelper::checkCreate($store));
@@ -146,7 +146,7 @@ class ApiHairStylistGroupOvertimeController extends Controller
     public function update_default(UpdateDefaultOvertime $request)
     {
         $store = HairstylistGroupOvertimeDefault::where(array('id_hairstylist_group_default_overtimes'=>$request->id_hairstylist_group_default_overtimes))->update([
-                     "hours"   => $request->hours,
+                     "days"   => $request->days,
                     "value"   =>  $request->value,
                 ]);
         if($store){
@@ -174,7 +174,7 @@ class ApiHairStylistGroupOvertimeController extends Controller
     function index_default(Request $request) 
     {
     	$post = $request->json()->all();
-        $data = HairstylistGroupOvertimeDefault::orderby('hours','asc')->Select('hairstylist_group_default_overtimes.*');
+        $data = HairstylistGroupOvertimeDefault::orderby('days','asc')->Select('hairstylist_group_default_overtimes.*');
         $data = $data->get();
             return response()->json(MyHelper::checkGet($data));
     }

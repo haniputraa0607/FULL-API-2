@@ -11,7 +11,7 @@ class Approved extends FormRequest
       public function withValidator($validator)
     {
         $validator->addExtension('reimbursement', function ($attribute, $value, $parameters, $validator) {
-         $survey = EmployeeReimbursement::where(array('id_employee_reimbursement'=>$value,'status'=>"Pending"))->count();
+         $survey = EmployeeReimbursement::where(array('id_employee_reimbursement'=>$value,'status'=>"Fat Dept Approved"))->count();
          if($survey != 0){
              return true;
          } return false;
@@ -21,7 +21,7 @@ class Approved extends FormRequest
     public function messages()
     {
         return [
-            'reimbursement' => 'Update failed, :attribute not found or status not Pending',
+            'reimbursement' => 'Update failed, :attribute not found or Finance Department not approved',
         ];
     }
     public function authorize()
@@ -32,7 +32,6 @@ class Approved extends FormRequest
 	{
 		return [
 			'id_employee_reimbursement'     => 'required|reimbursement',
-			'validator_reimbursement'       => 'required',
 			'approve_notes'                 => 'required',
 			'status'                        => 'required|in:Approved,Rejected'
         ];

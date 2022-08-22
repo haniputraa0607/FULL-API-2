@@ -3905,7 +3905,7 @@ class ApiPromoCampaign extends Controller
         if($action == 'download'){
             $data = PromoCampaign::where('id_promo_campaign', $id_promo_campaign)->first();
             if(!empty($data)){
-                $data['export_url'] = config('url.storage_url_api').$data['export_url'];
+                $data['export_url'] = \Storage::disk(env('STORAGE'))->url($data['export_url']);
             }
             return response()->json(MyHelper::checkGet($data));
         }elseif($action == 'deleted'){

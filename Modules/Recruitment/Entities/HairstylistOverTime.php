@@ -29,6 +29,7 @@ class HairstylistOverTime extends Model
 		'not_schedule',
 		'schedule_in',
 		'schedule_out',
+		'shift'
 	];
 
     public function hair_stylist(){

@@ -12,49 +12,49 @@ use Modules\Recruitment\Http\Requests\user_hair_stylist_create;
 use Modules\Recruitment\Http\Requests\CreateGroup;
 use Modules\Recruitment\Http\Requests\CreateGroupCommission;
 use Modules\Recruitment\Http\Requests\UpdateGroupCommission;
-use Modules\Recruitment\Http\Requests\CreateOvertime;
-use Modules\Recruitment\Http\Requests\CreateOvertimeDefault;
+use Modules\Recruitment\Http\Requests\CreateOvertimeDay;
+use Modules\Recruitment\Http\Requests\CreateOvertimeDayDefault;
 use Modules\Recruitment\Http\Requests\UpdateDefaultOvertime;
 use Modules\Recruitment\Http\Requests\InviteHS;
 use Image;
 use Modules\Recruitment\Entities\HairstylistGroup;
 use Modules\Recruitment\Entities\HairstylistGroupCommission;
-use Modules\Recruitment\Entities\HairstylistGroupOvertime;
-use Modules\Recruitment\Entities\HairstylistGroupOvertimeDefault;
+use Modules\Recruitment\Entities\HairstylistGroupOvertimeDay;
+use Modules\Recruitment\Entities\HairstylistGroupOvertimeDayDefault;
 use App\Http\Models\Product;
-use Modules\Recruitment\Http\Requests\UpdateOvertime;
-class ApiHairStylistGroupOvertimeController extends Controller
+use Modules\Recruitment\Http\Requests\UpdateOvertimeDay;
+class ApiHairStylistGroupOvertimeDayController extends Controller
 {
     public function __construct()
     {
         date_default_timezone_set('Asia/Jakarta');
 //        $this->autocrm          = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
     }
-    public function create(CreateOvertime $request)
+    public function create(CreateOvertimeDay $request)
     {
-        $data = HairstylistGroupOvertime::where([
+        $data = HairstylistGroupOvertimeDay::where([
                     "id_hairstylist_group"   =>  $request->id_hairstylist_group,
-                    "id_hairstylist_group_default_overtimes"   =>  $request->id_hairstylist_group_default_overtimes,
+                    "id_hairstylist_group_default_overtime_day"   =>  $request->id_hairstylist_group_default_overtime_day,
                 ])->first();
         if($data){
             if(isset($request->value)){
-                $store = HairstylistGroupOvertime::where([
+                $store = HairstylistGroupOvertimeDay::where([
                     "id_hairstylist_group"   =>  $request->id_hairstylist_group,
-                    "id_hairstylist_group_default_overtimes"   =>  $request->id_hairstylist_group_default_overtimes,
+                    "id_hairstylist_group_default_overtime_day"   =>  $request->id_hairstylist_group_default_overtime_day,
                 ])->update([
                     "value"   =>  $request->value,
                 ]);
             }else{
-                $store = HairstylistGroupOvertime::where([
+                $store = HairstylistGroupOvertimeDay::where([
                     "id_hairstylist_group"   =>  $request->id_hairstylist_group,
-                    "id_hairstylist_group_default_overtimes"   =>  $request->id_hairstylist_group_default_overtimes,
+                    "id_hairstylist_group_default_overtime_day"   =>  $request->id_hairstylist_group_default_overtime_day,
                 ])->delete();
             }
         }else{
             if(isset($request->value)){
-                $store = HairstylistGroupOvertime::create([
+                $store = HairstylistGroupOvertimeDay::create([
                     "id_hairstylist_group"   =>  $request->id_hairstylist_group,
-                    "id_hairstylist_group_default_overtimes"   =>  $request->id_hairstylist_group_default_overtimes,
+                    "id_hairstylist_group_default_overtime_day"   =>  $request->id_hairstylist_group_default_overtime_day,
                     "value"   =>  $request->value,
                 ]);
             }else{
@@ -63,23 +63,23 @@ class ApiHairStylistGroupOvertimeController extends Controller
         }
         return response()->json(MyHelper::checkCreate($store));
     }
-    public function update(UpdateOvertime $request)
+    public function update(UpdateOvertimeDay $request)
     {
-        $store = HairstylistGroupOvertime::where(array('id_hairstylist_group_overtimes'=>$request->id_hairstylist_group_overtimes))->update([
+        $store = HairstylistGroupOvertimeDay::where(array('id_hairstylist_group_overtime'=>$request->id_hairstylist_group_overtime))->update([
                     "value"   =>  $request->value,
                 ]);
         if($store){
-            $store = HairstylistGroupOvertime::where(array('id_hairstylist_group_overtimes'=>$request->id_hairstylist_group_overtimes))->first();
+            $store = HairstylistGroupOvertimeDay::where(array('id_hairstylist_group_overtime'=>$request->id_hairstylist_group_overtime))->first();
         return response()->json(MyHelper::checkCreate($store));
         }
         return response()->json(['status' => 'fail', 'messages' => ['Error Data']]);
     }
     public function detail(Request $request)
     {
-        if($request->id_hairstylist_group_overtimes){
-        $store = HairstylistGroupOvertime::where(array('id_hairstylist_group_overtimes'=>$request->id_hairstylist_group_overtimes))
-                    ->join('hairstylist_group_default_overtimes','hairstylist_group_default_overtimes.id_hairstylist_group_default_overtimes','hairstylist_group_overtimes.id_hairstylist_group_default_overtimes')
-                    ->select('hairstylist_group_default_overtimes.name','hairstylist_group_overtimes.*')
+        if($request->id_hairstylist_group_overtime){
+        $store = HairstylistGroupOvertimeDay::where(array('id_hairstylist_group_overtime'=>$request->id_hairstylist_group_overtime))
+                    ->join('hairstylist_group_default_overtime_days','hairstylist_group_default_overtime_days.id_hairstylist_group_default_overtime_day','hairstylist_group_overtimes.id_hairstylist_group_default_overtime_day')
+                    ->select('hairstylist_group_default_overtime_days.name','hairstylist_group_overtimes.*')
                     ->first();
         return MyHelper::checkGet($store);
         }
@@ -87,10 +87,10 @@ class ApiHairStylistGroupOvertimeController extends Controller
     }
     public function delete(Request $request)
     {
-        if($request->id_hairstylist_group_default_overtimes && $request->id_hairstylist_group ){
-        $store = HairstylistGroupOvertime::where(array('id_hairstylist_group_default_overtimes'=>$request->id_hairstylist_group_default_overtimes,'id_hairstylist_group'=>$request->id_hairstylist_group))->first();
+        if($request->id_hairstylist_group_default_overtime_day && $request->id_hairstylist_group ){
+        $store = HairstylistGroupOvertimeDay::where(array('id_hairstylist_group_default_overtime_day'=>$request->id_hairstylist_group_default_overtime_day,'id_hairstylist_group'=>$request->id_hairstylist_group))->first();
         if($store){
-        $store = HairstylistGroupOvertime::where(array('id_hairstylist_group_default_overtimes'=>$request->id_hairstylist_group_default_overtimes,'id_hairstylist_group'=>$request->id_hairstylist_group))->delete();
+        $store = HairstylistGroupOvertimeDay::where(array('id_hairstylist_group_default_overtime_day'=>$request->id_hairstylist_group_default_overtime_day,'id_hairstylist_group'=>$request->id_hairstylist_group))->delete();
         }else{
             $store = 1;
         }
@@ -101,9 +101,9 @@ class ApiHairStylistGroupOvertimeController extends Controller
     public function index(Request $request) {
         if($request->id_hairstylist_group){
             $data = array();
-            $overtime = HairstylistGroupOvertimeDefault::orderby('hours','asc')->get();
+            $overtime = HairstylistGroupOvertimeDayDefault::orderby('days','asc')->get();
             foreach ($overtime as $value) {
-                $insen = HairstylistGroupOvertime::where(array('id_hairstylist_group_default_overtimes'=>$value['id_hairstylist_group_default_overtimes'],'id_hairstylist_group'=>$request->id_hairstylist_group))->first();
+                $insen = HairstylistGroupOvertimeDay::where(array('id_hairstylist_group_default_overtime_day'=>$value['id_hairstylist_group_default_overtime_day'],'id_hairstylist_group'=>$request->id_hairstylist_group))->first();
                 $value['default_value'] = $value['value'];
                 $value['default']    = 0;
                 if($insen){
@@ -120,9 +120,9 @@ class ApiHairStylistGroupOvertimeController extends Controller
     public function list_rumus_overtime(Request $request) {
         if($request->id_hairstylist_group){
              $list = array();
-             $data = HairstylistGroupOvertimeDefault::all();
+             $data = HairstylistGroupOvertimeDayDefault::all();
              foreach ($data as $value) {
-                 $cek = HairstylistGroupOvertime::where(array('id_hairstylist_group'=>$request->id_hairstylist_group,'id_hairstylist_group_default_overtimes'=>$value['id_hairstylist_group_default_overtimes']))->first();
+                 $cek = HairstylistGroupOvertimeDay::where(array('id_hairstylist_group'=>$request->id_hairstylist_group,'id_hairstylist_group_default_overtime_day'=>$value['id_hairstylist_group_default_overtime_day']))->first();
                  if($cek){
                      $value['value']   = $cek->value;
                      $value['formula'] = $cek->formula;
@@ -135,38 +135,38 @@ class ApiHairStylistGroupOvertimeController extends Controller
         return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
     }
     
-    public function create_default(CreateOvertimeDefault $request)
+    public function create_default(CreateOvertimeDayDefault $request)
     {
-        $store = HairstylistGroupOvertimeDefault::create([
-                    "hours"   => $request->hours,
+        $store = HairstylistGroupOvertimeDayDefault::create([
+                    "days"   => $request->days,
                     "value"   =>  $request->value,
                 ]);
         return response()->json(MyHelper::checkCreate($store));
     }
     public function update_default(UpdateDefaultOvertime $request)
     {
-        $store = HairstylistGroupOvertimeDefault::where(array('id_hairstylist_group_default_overtimes'=>$request->id_hairstylist_group_default_overtimes))->update([
-                     "hours"   => $request->hours,
+        $store = HairstylistGroupOvertimeDayDefault::where(array('id_hairstylist_group_default_overtime_day'=>$request->id_hairstylist_group_default_overtime_day))->update([
+                     "days"   => $request->days,
                     "value"   =>  $request->value,
                 ]);
         if($store){
-            $store = HairstylistGroupOvertimeDefault::where(array('id_hairstylist_group_default_overtimes'=>$request->id_hairstylist_group_default_overtimes))->first();
+            $store = HairstylistGroupOvertimeDayDefault::where(array('id_hairstylist_group_default_overtime_day'=>$request->id_hairstylist_group_default_overtime_day))->first();
         return response()->json(MyHelper::checkCreate($store));
         }
         return response()->json(['status' => 'fail', 'messages' => ['Error Data']]);
     }
     public function detail_default(Request $request)
     {
-        if($request->id_hairstylist_group_default_overtimes){
-        $store = HairstylistGroupOvertimeDefault::where(array('id_hairstylist_group_default_overtimes'=>$request->id_hairstylist_group_default_overtimes))->first();
+        if($request->id_hairstylist_group_default_overtime_day){
+        $store = HairstylistGroupOvertimeDayDefault::where(array('id_hairstylist_group_default_overtime_day'=>$request->id_hairstylist_group_default_overtime_day))->first();
         return MyHelper::checkGet($store);
         }
         return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
     }
     public function delete_default(Request $request)
     {
-        if($request->id_hairstylist_group_default_overtimes){
-        $store = HairstylistGroupOvertimeDefault::where(array('id_hairstylist_group_default_overtimes'=>$request->id_hairstylist_group_default_overtimes))->delete();
+        if($request->id_hairstylist_group_default_overtime_day){
+        $store = HairstylistGroupOvertimeDayDefault::where(array('id_hairstylist_group_default_overtime_day'=>$request->id_hairstylist_group_default_overtime_day))->delete();
         return response()->json(MyHelper::checkCreate($store));
         }
         return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
@@ -174,7 +174,7 @@ class ApiHairStylistGroupOvertimeController extends Controller
     function index_default(Request $request) 
     {
     	$post = $request->json()->all();
-        $data = HairstylistGroupOvertimeDefault::orderby('hours','asc')->Select('hairstylist_group_default_overtimes.*');
+        $data = HairstylistGroupOvertimeDayDefault::orderby('days','asc')->Select('hairstylist_group_default_overtime_days.*');
         $data = $data->get();
             return response()->json(MyHelper::checkGet($data));
     }
@@ -207,9 +207,9 @@ class ApiHairStylistGroupOvertimeController extends Controller
     public function list_overtime_default(Request $request) {
         if($request->id_hairstylist_group){
             $data = array();
-            $overtime = HairstylistGroupOvertimeDefault::where(array('id_hairstylist_group'=>$request->id_hairstylist_group))->get();
+            $overtime = HairstylistGroupOvertimeDayDefault::where(array('id_hairstylist_group'=>$request->id_hairstylist_group))->get();
             foreach ($overtime as $value) {
-                $insen = HairstylistGroupOvertime::where(array('id_hairstylist_group_default_overtimes'=>$value['id_hairstylist_group_default_overtimes'],'id_hairstylist_group'=>$request->id_hairstylist_group))->first();
+                $insen = HairstylistGroupOvertimeDay::where(array('id_hairstylist_group_default_overtime_day'=>$value['id_hairstylist_group_default_overtime_day'],'id_hairstylist_group'=>$request->id_hairstylist_group))->first();
                 if(!$insen){
                     array_push($data,$value);
                 }

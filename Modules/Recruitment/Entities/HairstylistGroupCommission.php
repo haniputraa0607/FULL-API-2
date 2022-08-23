@@ -26,6 +26,6 @@ class HairstylistGroupCommission extends Model
 	];
 
 	public function dynamic_rule(){
-        return $this->hasMany(Modules\Recruitment\Entities\HairstylistGroupCommissionDynamic::class, 'id_hairstylist_group_commission');
+        return $this->hasMany(HairstylistGroupCommissionDynamic::class, 'id_hairstylist_group_commission');
     }
 }

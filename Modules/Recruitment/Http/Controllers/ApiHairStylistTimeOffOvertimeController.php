@@ -16,6 +16,7 @@ use Modules\Recruitment\Entities\HairstylistAttendance;
 use Modules\Recruitment\Entities\HairStylistTimeOff;
 use Modules\Recruitment\Entities\HairstylistOverTime;
 use Modules\Transaction\Entities\HairstylistNotAvailable;
+use Modules\Outlet\Entities\OutletTimeShift;
 
 
 class ApiHairStylistTimeOffOvertimeController extends Controller
@@ -73,20 +74,36 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
 
                     $detail = HairstylistScheduleDate::where('id_hairstylist_schedule',$id_schedule)->get()->toArray();
                     if($detail){
+                        $listDate = MyHelper::getListDate($post['month'], $post['year']);
                         $send = [];
                         foreach($detail as $key => $data){
                             if($data['date'] >= date('Y-m-d 00:00:00')){
-                                $send[$key]['id_hairstylist_schedule_date'] = $data['id_hairstylist_schedule_date'];
-                                $send[$key]['date'] = $data['date'];
-                                $send[$key]['date_format'] = date('d F Y', strtotime($data['date']));
-                                $send[$key]['time_start'] = $data['time_start'] ? MyHelper::adjustTimezone($data['time_start'], $timeZone, 'H:i') : null;
-                                $send[$key]['time_end'] = $data['time_end'] ? MyHelper::adjustTimezone($data['time_end'], $timeZone, 'H:i') : null;
-                                $send[$key]['timezone'] = $send_timezone ?? null;
+                                $send[date('Y-m-d',strtotime($data['date']))]['id_hairstylist_schedule_date'] = $data['id_hairstylist_schedule_date'];
+                                $send[date('Y-m-d',strtotime($data['date']))]['date'] = $data['date'];
+                                $send[date('Y-m-d',strtotime($data['date']))]['date_format'] = date('d F Y', strtotime($data['date']));
+                                $send[date('Y-m-d',strtotime($data['date']))]['time_start'] = $data['time_start'] ? MyHelper::adjustTimezone($data['time_start'], $timeZone, 'H:i') : null;
+                                $send[date('Y-m-d',strtotime($data['date']))]['time_end'] = $data['time_end'] ? MyHelper::adjustTimezone($data['time_end'], $timeZone, 'H:i') : null;
+                                $send[date('Y-m-d',strtotime($data['date']))]['timezone'] = $send_timezone ?? null;
+                            }
+                        }
+                        $result = [];
+                        foreach($listDate as $date){
+                            if(date('Y-m-d 00:00:00',strtotime($date)) >= date('Y-m-d 00:00:00') && isset($send[$date])){
+                                $result[] = $send[$date];
+                            }elseif(date('Y-m-d 00:00:00',strtotime($date)) >= date('Y-m-d 00:00:00') && !isset($send[$date])){
+                                $result[] = [
+                                    'id_hairstylist_schedule_date' => null,
+                                    'date' => date('Y-m-d 00:00:00',strtotime($date)),
+                                    'date_format' => date('d F Y', strtotime($date)),
+                                    'time_start' => null,
+                                    'time_end' => null,
+                                    'timezone' => $send_timezone ?? null,
+                                ];
                             }
                         }
                         return response()->json([
                             'status' => 'success', 
-                            'result' => $send
+                            'result' => $post['type_date'] == 'overtime' ? $result : $send
                         ]); 
                     }
                 }
@@ -425,6 +442,9 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
         }
         if(isset($post['id_outlet'])){
             $data_store['id_outlet'] = $post['id_outlet'];
+            $outlet_hs = Outlet::where('id_outlet', $data_store['id_outlet'])->first();
+            $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+            ->where('id_city', $outlet_hs['id_city'])->first()['time_zone_utc']??null;
         }
         if(isset($post['date'])){
             $data_store['date'] = $post['date'];
@@ -434,6 +454,18 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
         }
         if(isset($post['duration'])){
             $data_store['duration'] = date('H:i:s', strtotime($post['duration']));
+        }
+        if(isset($post['time_start'])){
+            $data_store['schedule_in'] = MyHelper::reverseAdjustTimezone(date('H:i:s', strtotime($post['time_start'])), $timeZone, 'H:i:s');
+        }
+        if(isset($post['time_end'])){
+            $data_store['schedule_out'] = MyHelper::reverseAdjustTimezone(date('H:i:s', strtotime($post['time_end'])), $timeZone, 'H:i:s');
+        }
+        if(isset($post['time_start']) && isset($post['time_end'])){
+            $data_store['not_schedule'] = 1;
+        }
+        if(isset($post['shift'])){
+            $data_store['shift'] = $post['shift'];
         }
         
         $data_store['request_by'] = auth()->user()->id;
@@ -569,7 +601,7 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
             $year_sc = date('Y', strtotime($check['date']));
             $get_schedule = HairstylistSchedule::where('id_user_hair_stylist', $check['id_user_hair_stylist'])->where('schedule_month', $month_sc)->where('schedule_year',$year_sc)->first();
             if($get_schedule){
-                $get_schedule_date = HairstylistScheduleDate::where('id_hairstylist_schedule',$get_schedule['id_hairstylist_schedule'])->where('date',$check['date'])->where('is_overtime',1)->first();
+                $get_schedule_date = HairstylistScheduleDate::where('id_hairstylist_schedule',$get_schedule['id_hairstylist_schedule'])->where('date',$check['date'])->first();
                 if($get_schedule_date){
                     if($check['time'] == 'after'){
                         $duration = strtotime($check['duration']);
@@ -587,7 +619,9 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                         $order = 'time_start';
                         $order_att = 'clock_in_requirement';
                     }
-                    $update_schedule = HairstylistScheduleDate::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->update([$order => $new_time,  'is_overtime' => 0, 'id_outlet_box' => null]);
+                    if($get_schedule_date['is_overtime']==1){
+                        $update_schedule = HairstylistScheduleDate::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->update([$order => $new_time,  'is_overtime' => 0, 'id_outlet_box' => null]);
+                    }
                     if(!$update_schedule){
                         DB::rollBack();
                         return response()->json([
@@ -649,6 +683,16 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                     'time_off' => 'Empty',
                 ]]);
             } else {
+                $data_outlet = Outlet::where('id_outlet', $time_off['id_outlet'])->first();
+                $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+                ->where('id_city', $data_outlet['id_city'])->first()['time_zone_utc']??null;
+                if($timeZone == 7){
+                    $time_off['timezone'] = 'WIB';
+                }elseif($timeZone == 8){
+                    $time_off['timezone'] = 'WITA';
+                }elseif($timeZone == 9){
+                    $time_off['timezone'] = 'WIT';
+                }
                 return response()->json(['status' => 'success', 'result' => [
                     'time_off' => $time_off,
                 ]]);
@@ -668,6 +712,9 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
             }
             if(isset($post['id_outlet'])){
                 $data_update['id_outlet'] = $post['id_outlet'];
+                $outlet_hs = Outlet::where('id_outlet', $data_update['id_outlet'])->first();
+                $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+                ->where('id_city', $outlet_hs['id_city'])->first()['time_zone_utc']??null;
             }
             if(isset($post['date'])){
                 $data_update['date'] = $post['date'];
@@ -677,6 +724,18 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
             }
             if(isset($post['duration'])){
                 $data_update['duration'] = date('H:i:s', strtotime($post['duration']));
+            }
+            if(isset($post['time_start'])){
+                $data_update['schedule_in'] = MyHelper::reverseAdjustTimezone(date('H:i:s', strtotime($post['time_start'])), $timeZone, 'H:i:s');
+            }
+            if(isset($post['time_end'])){
+                $data_update['schedule_out'] = MyHelper::reverseAdjustTimezone(date('H:i:s', strtotime($post['time_end'])), $timeZone, 'H:i:s');
+            }
+            if(isset($post['time_start']) && isset($post['time_end'])){
+                $data_update['not_schedule'] = 1;
+            }
+            if(isset($post['shift'])){
+                $data_update['shift'] = $post['shift'];
             }
             
             if(isset($post['approve'])){
@@ -746,34 +805,50 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
         $year_sc = date('Y', strtotime($data['date']));
         $get_schedule = HairstylistSchedule::where('id_user_hair_stylist', $data['id_user_hair_stylist'])->where('schedule_month', $month_sc)->where('schedule_year',$year_sc)->first();
         if($get_schedule){
-            $get_schedule_date = HairstylistScheduleDate::where('id_hairstylist_schedule',$get_schedule['id_hairstylist_schedule'])->where('date',$data['date'])->first();
-            if($get_schedule_date){
-                //update
-                if($data['time']=='before'){
-                    $duration = strtotime($data['duration']);
-                    $start = strtotime($get_schedule_date['time_start']);
-                    $diff = $start - $duration;
-                    $hour = floor($diff / (60*60));
-                    $minute = floor(($diff - ($hour*60*60))/(60));
-                    $second = floor(($diff - ($hour*60*60))%(60));
-                    $new_time =  date('H:i:s', strtotime($hour.':'.$minute.':'.$second));
-                    $order = 'time_start';
-                    $order_att = 'clock_in_requirement';
-                }elseif($data['time']=='after'){
-                    $secs = strtotime($data['duration'])-strtotime("00:00:00");
-                    $new_time = date("H:i:s",strtotime($get_schedule_date['time_end'])+$secs);
-                    $order = 'time_end';
-                    $order_att = 'clock_out_requirement';
-                }else{
-                    return false;
-                }
-
-                $update_date = HairstylistScheduleDate::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->update([$order => $new_time,  'is_overtime' => 1]);
-                if($update_date){
-                    $attendance = HairstylistAttendance::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->where('id_user_hair_stylist', $get_schedule['id_user_hair_stylist'])->whereDate('attendance_date',$get_schedule_date['date'])->first();
-                    if($attendance){
-                        $update_attendance = HairstylistAttendance::where('id_hairstylist_attendance', $attendance['id_hairstylist_attendance'])->update([$order_att => $new_time]);
+            if($data['not_schedule']==0){
+                $get_schedule_date = HairstylistScheduleDate::where('id_hairstylist_schedule',$get_schedule['id_hairstylist_schedule'])->where('date',$data['date'])->first();
+                if($get_schedule_date){
+                    //update
+                    if($data['time']=='before'){
+                        $duration = strtotime($data['duration']);
+                        $start = strtotime($get_schedule_date['time_start']);
+                        $diff = $start - $duration;
+                        $hour = floor($diff / (60*60));
+                        $minute = floor(($diff - ($hour*60*60))/(60));
+                        $second = floor(($diff - ($hour*60*60))%(60));
+                        $new_time =  date('H:i:s', strtotime($hour.':'.$minute.':'.$second));
+                        $order = 'time_start';
+                        $order_att = 'clock_in_requirement';
+                    }elseif($data['time']=='after'){
+                        $secs = strtotime($data['duration'])-strtotime("00:00:00");
+                        $new_time = date("H:i:s",strtotime($get_schedule_date['time_end'])+$secs);
+                        $order = 'time_end';
+                        $order_att = 'clock_out_requirement';
+                    }else{
+                        return false;
                     }
+    
+                    $update_date = HairstylistScheduleDate::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->update([$order => $new_time,  'is_overtime' => 1]);
+                    if($update_date){
+                        $attendance = HairstylistAttendance::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->where('id_user_hair_stylist', $get_schedule['id_user_hair_stylist'])->whereDate('attendance_date',$get_schedule_date['date'])->first();
+                        if($attendance){
+                            $update_attendance = HairstylistAttendance::where('id_hairstylist_attendance', $attendance['id_hairstylist_attendance'])->update([$order_att => $new_time]);
+                        }
+                        return true;
+                    }
+                }
+            }elseif($data['not_schedule']==1){
+                $create_schedule = HairstylistScheduleDate::updateOrCreate([
+                    'id_hairstylist_schedule' => $get_schedule['id_hairstylist_schedule'],
+                    'date' => $data['date']
+                ],[
+                    'shift' => $data['shift'],
+                    'request_by' => 'Admin',
+                    'is_overtime' => 1,
+                    'time_start' => $data['schedule_in'],
+                    'time_end' => $data['schedule_out'],
+                ]);
+                if($create_schedule){
                     return true;
                 }
             }
@@ -843,5 +918,43 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
             DB::rollBack();
             $log->fail($e->getMessage());
         }    
+    }
+
+    public function listShift(Request $request){
+        $post = $request->all();
+        $data_outlet = Outlet::where('id_outlet', $post['id_outlet'])->first();
+        $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+        ->where('id_city', $data_outlet['id_city'])->first()['time_zone_utc']??null;
+        if($timeZone == 7){
+            $send_timezone = 'WIB';
+        }elseif($timeZone == 8){
+            $send_timezone = 'WITA';
+        }elseif($timeZone == 9){
+            $send_timezone = 'WIT';
+        }
+        $day = MyHelper::indonesian_date_v2($post['date'], 'l');
+        $day = str_replace('Jum\'at', 'Jumat', $day);
+        $outlet_schedule = OutletTimeShift::join('outlet_schedules','outlet_schedules.id_outlet_schedule','outlet_time_shift.id_outlet_schedule')->where('outlet_schedules.id_outlet',$post['id_outlet'])->where('outlet_schedules.day',$day)->get()->toArray();
+
+        if(!$outlet_schedule){
+            return response()->json([
+                'status' => 'fail', 
+                'messages' => ['Empty Shift']
+            ]);
+        }
+
+        $result = [];
+        foreach($outlet_schedule as $data){
+            $result[] = [
+                'shift' => $data['shift'],
+                'start_shift' => $data['shift_time_start'] ? MyHelper::adjustTimezone($data['shift_time_start'], $timeZone, 'H:i') : null,
+                'end_shift' => $data['shift_time_end'] ? MyHelper::adjustTimezone($data['shift_time_end'], $timeZone, 'H:i') : null,
+                'timezone' => $send_timezone
+            ];
+        }
+        return response()->json([
+            'status' => 'success', 
+            'result' => $result
+        ]); 
     }
 }

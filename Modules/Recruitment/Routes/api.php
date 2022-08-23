@@ -69,6 +69,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
         	Route::post('update', 'ApiHairStylistTimeOffOvertimeController@updateOvertime');
         	Route::post('create', 'ApiHairStylistTimeOffOvertimeController@createOvertime');
         	Route::post('delete', 'ApiHairStylistTimeOffOvertimeController@deleteOvertime');
+        	Route::post('list-shift', 'ApiHairStylistTimeOffOvertimeController@listShift');
     	});
 
     	Route::group(['prefix' => 'announcement'], function () {

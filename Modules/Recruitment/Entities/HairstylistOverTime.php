@@ -26,7 +26,10 @@ class HairstylistOverTime extends Model
 		'request_at',
 		'approve_at',
 		'reject_at',
-
+		'not_schedule',
+		'schedule_in',
+		'schedule_out',
+		'shift'
 	];
 
     public function hair_stylist(){

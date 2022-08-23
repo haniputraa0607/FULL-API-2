@@ -192,10 +192,14 @@ class TransactionProduct extends Model
             $found_unit = false;
             $conversion = 1;
             $this_conv = [];
-            $total_use = $this->whileUnit($unit_conv,$detail_product_use,$product_use,$conversion);  
+            if(!$unit_conv && ($detail_product_use['unit1']==$product_use['unit'])){
+                $total_use = $product_use['qty']*$detail_product_use['unit_price_1'];
+            }else{
+                $total_use = $this->whileUnit($unit_conv,$detail_product_use,$product_use,$conversion);
+            }  
             $total_material = $total_use + $total_material;
         }
-        $material = [
+        return $material = [
             "id_transaction_product" => $this->id_transaction_product,
             "type"                   => 'material',
             "value"                  => $total_material*$this->transaction_product_qty

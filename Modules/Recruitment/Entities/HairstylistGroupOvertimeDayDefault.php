@@ -9,12 +9,12 @@ namespace Modules\Recruitment\Entities;
 
 use Illuminate\Database\Eloquent\Model;
 
-class HairstylistGroupOvertimeDefault extends Model
+class HairstylistGroupOvertimeDayDefault extends Model
 {
-	protected $table = 'hairstylist_group_default_overtimes';
-	protected $primaryKey = 'id_hairstylist_group_default_overtimes';
+	protected $table = 'hairstylist_group_default_overtime_days';
+	protected $primaryKey = 'id_hairstylist_group_default_overtime_day';
 	protected $fillable = [
-        'hours',
+        'days',
         'value',
         'created_at',   
         'updated_at',

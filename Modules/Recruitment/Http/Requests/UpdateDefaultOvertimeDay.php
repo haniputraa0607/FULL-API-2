@@ -6,30 +6,33 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Modules\Recruitment\Entities\HairstylistGroup;
-class CreateOvertimeDefault extends FormRequest
+use Modules\Recruitment\Entities\HairstylistGroupOvertimeDayDefault;
+use Modules\Recruitment\Entities\HairstylistGroupOvertime;
+class UpdateDefaultOvertimeDay extends FormRequest
 {
     public function rules()
     {
         return [
-            'value'       => 'required|integer',
-            'hours'       => 'required|integer|unique:hairstylist_group_default_overtimes,hours',
+            'id_hairstylist_group_default_overtime_day'        => 'required',
+            'days'                                          => 'required|integer|unik',
+            'value'                                         => 'required|integer',
            ]; 
     }
     public function withValidator($validator)
     {
         $validator->addExtension('unik', function ($attribute, $value, $parameters, $validator) {
-         $survey = HairstylistGroup::where(array('id_hairstylist_group'=>$value))->first();
+        $data = $validator->getData();
+        $survey = HairstylistGroupOvertimeDayDefault::where('id_hairstylist_group_default_overtime_day','!=',$data['id_hairstylist_group_default_overtime_day'])->where('days',$value)->first();
          if($survey){
-             return true;
-         } return false;
+             return false;
+         }return true;
         }); 
 
     }
     public function messages()
     {
         return [
-            'required' => ':attribute harus diisi',
-            'unik' => 'Group Hairstylist tidak ada',
+            'unik' => 'The :attribute has already been taken.',
         ];
     }
     public function authorize()

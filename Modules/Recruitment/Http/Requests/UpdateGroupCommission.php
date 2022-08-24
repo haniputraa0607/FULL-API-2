@@ -14,7 +14,7 @@ class UpdateGroupCommission extends FormRequest
         return [
             'id_hairstylist_group'        => 'required',
             'id_product'                  => 'required|unik',
-            'commission_percent'          => 'required|cek',
+            'commission_percent'          => 'cek',
            ]; 
     }
     public function withValidator($validator)

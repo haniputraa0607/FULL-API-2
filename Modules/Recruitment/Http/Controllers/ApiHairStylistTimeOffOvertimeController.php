@@ -476,7 +476,7 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
             if(!$store){
                 DB::rollBack();
                 return response()->json([
-                    'status' => 'success', 
+                    'status' => 'fail', 
                     'messages' => ['Failed to create a request hair stylist overtime']
                 ]);
             }
@@ -493,8 +493,8 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
             if(!$autocrm){
                 DB::rollBack();
                 return response()->json([
-                    'status' => 'success', 
-                    'messages' => ['Failed to create a request hair stylist time off']
+                    'status' => 'fail', 
+                    'messages' => ['Failed to create a request hair stylist overtime']
                 ]);
             }
             DB::commit();

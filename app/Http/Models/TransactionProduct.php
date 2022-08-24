@@ -199,7 +199,7 @@ class TransactionProduct extends Model
             }  
             $total_material = $total_use + $total_material;
         }
-        return $material = [
+        $material = [
             "id_transaction_product" => $this->id_transaction_product,
             "type"                   => 'material',
             "value"                  => $total_material*$this->transaction_product_qty
@@ -216,15 +216,20 @@ class TransactionProduct extends Model
             $fee_hs = [
                 "id_transaction_product" => $this->id_transaction_product,
                 "type"                   => 'fee_hs',
+                "value"                  => null
             ];
+            $dynamic = false;
             if($group){
-                if($group['percent']==0){
-                    $fee_hs['value'] = $group['commission_percent'];
-                }else{
-                    $fee_hs['value'] = ($group['commission_percent']/100) * $sub_total;
+                if($group['dynamic']==0){
+                    if($group['percent']==0){
+                        $fee_hs['value'] = $group['commission_percent'];
+                    }else{
+                        $fee_hs['value'] = ($group['commission_percent']/100) * $sub_total;
+                    }
+                    $dynamic = true;
                 }
-                
             }else{
+                $dynamic = true;
                 $defaultCommission = ProductCommissionDefault::where('id_product', $id_product)->first();
                 if ($defaultCommission) {
                     if($defaultCommission['percent']==0){
@@ -245,51 +250,14 @@ class TransactionProduct extends Model
                     }
                 }
             }
-            $send = $this->transaction_breakdown()->updateOrCreate(["type" => $fee_hs['type']],["value"=> $fee_hs['value']]);
-            if($send){
-                $payment = TransactionPaymentMidtran::where('id_transaction',$id_transaction)->first();
-                if($payment){
-                    $method = 'Midtran';
-                    $payment = ucfirst(strtolower($payment['payment_type']));
-                }else{
-                    $payment = TransactionPaymentXendit::where('id_transaction',$id_transaction)->first();
-                    if($payment){
-                        $method = 'Xendit';
-                        $payment = ucfirst(strtolower($payment['type']));
-                    }else{
-                        $method = null;
-                        $payment = null;
-                    }
+            if($dynamic && isset($fee_hs['value'])){
+                $send = $this->transaction_breakdown()->updateOrCreate(["type" => $fee_hs['type']],["value"=> $fee_hs['value']]);
+                if($send){
+                    return true;
                 }
-                $availablePayment = config('payment_method');
-                $setting  = json_decode(MyHelper::setting('active_payment_methods', 'value_text', '[]'), true) ?? [];
-                foreach($setting as $s => $set){
-                    $availablePayment[$set['code']]['method'] = $set['code'] ?? false;
-                }
-                $payment_method = '';
-                foreach($availablePayment as $av_pay){
-                    if($av_pay['payment_gateway'] == $method && $av_pay['payment_method'] == $payment){
-                        $payment_method = $av_pay['method'];
-                    }
-                }$fee_payment = [
-                    "id_transaction_product" => $this->id_transaction_product,
-                    "type"                   => 'fee_payment',
-                ];
-                $mdr = MDR::where('payment_name',$payment_method)->first();
-                if($mdr['percent_type']=='Nominal'){
-                    $fee_payment['value'] = $mdr['mdr'] * $subtotal_grandtotal;
-                }elseif($mdr['percent_type']=='Percent'){
-                    $fee_payment['value'] = (($mdr['mdr']/100)*$trans_grandtotal) * $subtotal_grandtotal;
-                }else{
-                    $fee_payment['value'] = null;
-                }
-                
-                if($fee_payment['value']){
-                    $send = $this->transaction_breakdown()->updateOrCreate(["type" => $fee_payment['type']],["value"=> $fee_payment['value']]);
-                    if($send){
-                        return true;
-                    }
-                }
+            }else{
+                $this->transaction_breakdown()->where('type','fee_hs')->delete();
+                return true;
             }
         }
         return false;

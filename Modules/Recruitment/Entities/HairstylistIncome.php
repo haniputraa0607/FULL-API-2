@@ -1017,10 +1017,12 @@ class HairstylistIncome extends Model
         $over = 0;
         $ove  = array();
         foreach (array_unique($overtime) as $value) {
-            $overtimess = HairstylistOverTime::where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+           $overtimess = HairstylistOverTime::where('id_user_hair_stylist', $hs->id_user_hair_stylist)
                 ->wherenotnull('approve_at')
                 ->wherenull('reject_at')
+                ->where('not_schedule',0)
                 ->wheredate('date', $value['date'])
+                ->select('duration')
                 ->get();
             foreach ($overtimess as $va) {
                 array_push($ove, $va['duration']);
@@ -1055,11 +1057,41 @@ class HairstylistIncome extends Model
             $total = $total + $nominal;
         }
         $array[] = array(
-            "name"  => "Overtime",
+            "name"  => "Overtime Schedule",
             "value" => $total,
 
         );
         return $array;
+    }
+    public static function calculateIncomeOvertimeDay(UserHairStylist $hs, $startDate, $endDate, $id_outlets, $overtimes_day)
+    {
+        $total          = 0;
+        $overtime = count($overtimes_day[$hs->id_user_hair_stylist]??[]);
+        $nominal = 0;
+       $incentive = HairstylistGroupOvertimeDayDefault::leftJoin('hairstylist_group_overtime_days', function ($join) use ($hs) {
+                $join->on('hairstylist_group_overtime_days.id_hairstylist_group_default_overtime_day', 'hairstylist_group_default_overtime_days.id_hairstylist_group_default_overtime_day')
+                    ->where('id_hairstylist_group', $hs->id_hairstylist_group);
+            })
+                ->select('hairstylist_group_default_overtime_days.days',
+                    DB::raw('
+                                       CASE WHEN
+                                       hairstylist_group_overtime_days.value IS NOT NULL THEN hairstylist_group_overtime_days.value ELSE hairstylist_group_default_overtime_days.value
+                                       END as value
+                                    '),
+                )->orderby('days', 'DESC')->get();
+            foreach ($incentive as $valu) {
+                if ($valu['days'] <= (int) $overtime) {
+                    $nominal = $valu['value'];
+                    break;
+                }
+            }
+        $array[] = array(
+            "name"  => "Overtime Not Schedule",
+            "value" => $nominal,
+
+        );
+        return $array;
+        
     }
     public static function calculateFixedIncentive(UserHairStylist $hs, $startDate, $endDate, $outlet, $incomeDefault)
     {

@@ -18,7 +18,7 @@ Route::group(['middleware' => ['auth:api', 'scopes:be'], 'prefix' => 'hairstylis
     Route::any('category', 'ApiHairStylistController@listCategory');
     Route::post('category/update', 'ApiHairStylistController@updateCategory');
     Route::post('category/delete', 'ApiHairStylistController@deleteCategory');
-    Route::post('export-payroll', 'ApiIncome@export_income');
+    Route::post('export-payroll', 'ApiIncome@export_income2');
     Route::post('income-end', 'ApiIncome@cron_end');
 });
 

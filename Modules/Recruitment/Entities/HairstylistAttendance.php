@@ -29,7 +29,7 @@ class HairstylistAttendance extends Model
 
     public function hairstylistScheduleDate()
     {
-        return $this->hasMany(HairstylistScheduleDate::class, 'id_hairstylist_schedule_date');
+        return $this->belongsTo(HairstylistScheduleDate::class, 'id_hairstylist_schedule_date');
     }
 
     public function storeClock($data)

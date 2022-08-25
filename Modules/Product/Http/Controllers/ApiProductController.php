@@ -2704,7 +2704,7 @@ class ApiProductController extends Controller
                 continue;
             }
 
-            if($bookDate == date('Y-m-d')){
+            if($bookDate == date('Y-m-d') && strtotime($bookTime) < strtotime($shift['time_end'])){
                 $clockInOut = HairstylistAttendance::where('id_user_hair_stylist', $val['id_user_hair_stylist'])
                     ->where('id_hairstylist_schedule_date', $shift['id_hairstylist_schedule_date'])->orderBy('updated_at', 'desc')->first();
 

@@ -4338,7 +4338,7 @@ class ApiOnlineTransaction extends Controller
         $shiftStart = date('H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($shift['time_start'])));
         $shiftEnd = date('H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($shift['time_end'])));
 
-        if($data['booking_date'] == date('Y-m-d') && strtotime($data['booking_time']) >= strtotime($shiftStart) && strtotime($data['booking_time']) < strtotime($shiftEnd)){
+        if($data['booking_date'] == date('Y-m-d') && strtotime($data['booking_time']) < strtotime($shiftEnd)){
             $clockInOut = HairstylistAttendance::where('id_user_hair_stylist', $data['id_user_hair_stylist'])
                 ->where('id_hairstylist_schedule_date', $shift['id_hairstylist_schedule_date'])->orderBy('updated_at', 'desc')->first();
 

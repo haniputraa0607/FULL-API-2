@@ -43,8 +43,8 @@ class OutletDisplayController extends Controller
                     })
                     ->join('hairstylist_schedule_dates', function ($join) use ($currentShift, $item) {
                         $join->on('hairstylist_schedule_dates.id_hairstylist_schedule', 'hairstylist_schedules.id_hairstylist_schedule')
-                            ->whereTime('time_start', '<=' ,date('H:i:s'))
-                            ->whereTime('time_end','>=',date('H:i:s'))
+                            // ->whereTime('time_start', '<=' ,date('H:i:s'))
+                            // ->whereTime('time_end','>=',date('H:i:s'))
                             ->whereDate('date', date('Y-m-d'))
                             ->where('id_outlet_box', $item->id_outlet_box);
                     })->first();

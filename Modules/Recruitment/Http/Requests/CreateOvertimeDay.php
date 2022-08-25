@@ -6,14 +6,14 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Modules\Recruitment\Entities\HairstylistGroup;
-class CreateOvertimeDefault extends FormRequest
+class CreateOvertimeDay extends FormRequest
 {
     public function rules()
     {
         return [
-            'value'       => 'required|integer',
-            'hours'       => 'required|integer|unique:hairstylist_group_default_overtimes,hours',
-           ]; 
+            'id_hairstylist_group'                      => 'required|unik',
+            'id_hairstylist_group_default_overtime_day'    => 'required',
+            ]; 
     }
     public function withValidator($validator)
     {

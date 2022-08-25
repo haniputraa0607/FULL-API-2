@@ -161,6 +161,60 @@ class ApiHairstylistAttendanceController extends Controller
         ]);
     }
 
+    public function correction(Request $request)
+    {
+        $attendance = null;
+        if ($request->id_hairstylist_attendance) {
+            $attendance = HairstylistAttendance::find($request->id_hairstylist_attendance);
+        }
+
+        if (!$attendance) {
+            $hairstylist = UserHairStylist::find($request->id_user_hair_stylist);
+            $attendance = $hairstylist->getAttendanceByDate(date('Y-m-d', strtotime($request->date)));
+        }
+
+        if (!$attendance) {
+            return [
+                'status' => 'fail',
+                'messages' => ['Schedule not found'],
+            ];
+        }
+
+        if ($request->type == 'clock_out' && !$attendance->logs()->where('type', 'clock_in')->exists()) {
+            return [
+                'status' => 'fail',
+                'messages' => ['Please Clock in first'],
+            ];
+        }
+
+        $outlet = Outlet::find($attendance->id_outlet);
+        if (!$outlet) {
+            return [
+                'status' => 'fail',
+                'messages' => ['Outlet not found'],
+            ];
+        }
+
+        $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+        ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+
+        $attendance->storeClock([
+            'type' => $request->type,
+            'datetime' => MyHelper::reverseAdjustTimezone(date('Y-m-d', strtotime($request->date)) . ' ' . $request->time . ':00', $timeZone, 'Y-m-d H:i:s'),
+            'latitude' => $outlet->latitude ?? 0,
+            'longitude' => $outlet->longitude ?? 0,
+            'location_name' => '',
+            'photo_path' => null,
+            'status' => 'Approved',
+            'approved_by' => $request->user()->id,
+            'notes' => $request->notes,
+        ]);
+
+        return MyHelper::checkGet([
+            'message' => 'Attendance updated',
+        ]);
+    }
+
     /**
      * Menampilkan riwayat attendance & attendance requirement
      * @param  Request $request [description]

@@ -449,13 +449,13 @@ class ApiMitraOutletService extends Controller
     		];
     	}
 
-    	$shift = app($this->mitra)->getOutletShift($user->id_outlet);
-    	if (!$shift) {
-    		return [
-    			'status' => 'fail',
-    			'messages' => ['Shift outlet tidak ditemukan']
-    		];
-    	}
+    	// $shift = app($this->mitra)->getOutletShift($user->id_outlet);
+    	// if (!$shift) {
+    	// 	return [
+    	// 		'status' => 'fail',
+    	// 		'messages' => ['Shift outlet tidak ditemukan']
+    	// 	];
+    	// }
 
     	$usedBox = HairstylistSchedule::join(
     		'hairstylist_schedule_dates', 
@@ -464,7 +464,7 @@ class ApiMitraOutletService extends Controller
     	)
     	->where('id_user_hair_stylist', '!=', $user->id_user_hair_stylist)
     	->whereDate('date', date('Y-m-d'))
-    	->where('shift', $shift)
+    	// ->where('shift', $shift)
     	->where('id_outlet_box', $request->id_outlet_box)
     	->first();
 
@@ -627,13 +627,13 @@ class ApiMitraOutletService extends Controller
     		];
     	}
 
-    	$shift = app($this->mitra)->getOutletShift($user->id_outlet);
-    	if (!$shift) {
-    		return [
-    			'status' => 'fail',
-    			'messages' => ['Shift outlet tidak ditemukan']
-    		];
-    	}
+    	// $shift = app($this->mitra)->getOutletShift($user->id_outlet);
+    	// if (!$shift) {
+    	// 	return [
+    	// 		'status' => 'fail',
+    	// 		'messages' => ['Shift outlet tidak ditemukan']
+    	// 	];
+    	// }
 
     	$usedBox = HairstylistSchedule::join(
     		'hairstylist_schedule_dates', 
@@ -642,7 +642,7 @@ class ApiMitraOutletService extends Controller
     	)
     	->where('id_user_hair_stylist', '!=', $user->id_user_hair_stylist)
     	->whereDate('date', date('Y-m-d'))
-    	->where('shift', $shift)
+    	// ->where('shift', $shift)
     	->where('id_outlet_box', $request->id_outlet_box)
     	->first();
 
@@ -1303,8 +1303,6 @@ class ApiMitraOutletService extends Controller
     					$box = array();
     					foreach ($boxs as $value) {
     						$hs = HairstylistScheduleDate::whereDate('date', date('Y-m-d'))
-    						->whereTime('time_start', '<=' ,date('H:i:s'))
-    						->whereTime('time_end','>=',date('H:i:s'))
     						->where('id_outlet_box',$value['id_outlet_box'])
     						->join('hairstylist_attendances','hairstylist_attendances.id_hairstylist_schedule_date','hairstylist_schedule_dates.id_hairstylist_schedule_date')->first();
     						if(!$hs){
@@ -1583,12 +1581,12 @@ class ApiMitraOutletService extends Controller
     	}
 
     	$shift = app($this->mitra)->getOutletShift($user->id_outlet);
-    	if (!$shift) {
-    		return [
-    			'status' => 'fail',
-    			'messages' => ['Shift outlet tidak ditemukan']
-    		];
-    	}
+    	// if (!$shift) {
+    	// 	return [
+    	// 		'status' => 'fail',
+    	// 		'messages' => ['Shift outlet tidak ditemukan']
+    	// 	];
+    	// }
 
     	$usedBox = HairstylistSchedule::join(
     		'hairstylist_schedule_dates', 
@@ -1597,7 +1595,7 @@ class ApiMitraOutletService extends Controller
     	)
     	->where('id_user_hair_stylist', '!=', $user->id_user_hair_stylist)
     	->whereDate('date', date('Y-m-d'))
-    	->where('shift', $shift)
+    	// ->where('shift', $shift)
     	->where('id_outlet_box', $request->id_outlet_box)
     	->first();
 

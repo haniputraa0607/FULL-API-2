@@ -373,6 +373,7 @@ class ApiIncome extends Controller
 
         $all_attends = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
             ->whereNotNull('clock_in')
+            ->where('is_overtime',0)
             ->whereDate('hairstylist_attendances.attendance_date', '>=', $request->start_date)
             ->whereDate('hairstylist_attendances.attendance_date', '<=', $request->end_date)
             ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
@@ -386,6 +387,7 @@ class ApiIncome extends Controller
         $all_lates = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
             ->whereNotNull('clock_in')
             ->where('is_on_time', 0)
+            ->where('is_overtime',0)
             ->whereDate('hairstylist_attendances.attendance_date', '>=', $request->start_date)
             ->whereDate('hairstylist_attendances.attendance_date', '<=', $request->end_date)
             ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
@@ -398,6 +400,7 @@ class ApiIncome extends Controller
 
         $all_absens = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
             ->whereNull('clock_in')
+            ->where('is_overtime',0)
             ->whereDate('hairstylist_attendances.attendance_date', '>=', $request->start_date)
             ->whereDate('hairstylist_attendances.attendance_date', '<=', $request->end_date)
             ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
@@ -410,6 +413,7 @@ class ApiIncome extends Controller
 
         $all_overtimes = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
             ->whereNotNull('clock_in')
+            ->where('is_overtime',1)
             ->whereDate('hairstylist_attendances.attendance_date', '>=', $request->start_date)
             ->whereDate('hairstylist_attendances.attendance_date', '<=', $request->end_date)
             ->select('date','id_outlet', 'id_user_hair_stylist')
@@ -419,10 +423,11 @@ class ApiIncome extends Controller
             ->map(function ($item) {
                 return $item->groupBy('id_outlet');
             });
-
+        
         $minOvertimeMinutes = MyHelper::setting('overtime_hs', 'value', 45);
         $overtimes = HairstylistOverTime::wherenotnull('approve_at')
             ->wherenull('reject_at')
+            ->where('not_schedule',0)
             ->whereDate('date', '>=', $request->start_date)
             ->whereDate('date', '<=', $request->end_date)
             ->select('duration', 'id_user_hair_stylist', 'id_outlet', \DB::raw('DATE(date) as datex'))
@@ -444,7 +449,14 @@ class ApiIncome extends Controller
                     });
                 });
             });
-
+        $overtimes_day = HairstylistOverTime::wherenotnull('approve_at')
+            ->wherenull('reject_at')
+            ->where('not_schedule',1)
+            ->whereDate('date', '>=', $request->start_date)
+            ->whereDate('date', '<=', $request->end_date)
+            ->select('duration', 'id_user_hair_stylist', 'id_outlet', \DB::raw('DATE(date) as datex'))
+            ->get()
+            ->groupBy('id_user_hair_stylist');
         $allLoans = HairstylistLoan::join('hairstylist_category_loans', 'hairstylist_category_loans.id_hairstylist_category_loan', 'hairstylist_loans.id_hairstylist_category_loan')
             ->join('hairstylist_loan_returns', function ($join) use ($start_date, $end_date) {
                 $join->on('hairstylist_loan_returns.id_hairstylist_loan', 'hairstylist_loans.id_hairstylist_loan')
@@ -533,6 +545,11 @@ class ApiIncome extends Controller
                     $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
                     $total_income += $values['value'];
                 }
+               $response = HairstylistIncome::calculateIncomeOvertimeDay($hs, $request->start_date,$request->end_date, [$id_outlet], $overtimes_day);
+                foreach ($response as $values) {
+                    $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
+                    $total_income += $values['value'];
+                }
 
                 $diff     = date_diff(date_create(date('Y-m-d')), date_create(date('Y-m-d', strtotime($outlet->start_date))));
                 $proteksi = Setting::where('key', 'proteksi_hs')->first()['value_text'] ?? [];
@@ -560,7 +577,7 @@ class ApiIncome extends Controller
                 $data['Total imbal jasa'] = (string) $total_income;
                 $data['Keterangan'] = $keterangan;
 
-                $data['Bank'] = $hairstylist->bank_account->bank_name??'';
+                $data['Bank'] = $hairstylist->bank_account->bank_name->bank_name??'';
                 $data['Bank account'] = $hairstylist->bank_account->beneficiary_name??'';
                 $data['Email'] = $hairstylist->email??'';
 

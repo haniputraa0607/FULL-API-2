@@ -27,6 +27,11 @@ class HairstylistAttendance extends Model
         return $this->hasMany(HairstylistAttendanceLog::class, 'id_hairstylist_attendance');
     }
 
+    public function hairstylistScheduleDate()
+    {
+        return $this->hasMany(HairstylistScheduleDate::class, 'id_hairstylist_schedule_date');
+    }
+
     public function storeClock($data)
     {
         $clock = $this->logs()->updateOrCreate([
@@ -45,6 +50,7 @@ class HairstylistAttendance extends Model
         $clockOut = $this->logs()->where('type', 'clock_out')->where('status', 'Approved')->max('datetime');
         if ($clockOut) {
             $clockOut = date('H:i', strtotime($clockOut));
+            $this->hairstylistScheduleDate()->update(['id_outlet_box' => null]);
         }
         $isOnTime = strtotime($clockIn) <= (strtotime($this->clock_in_requirement) + ($this->clock_in_tolerance * 60))
             && strtotime($clockOut) >= (strtotime($this->clock_out_requirement) - ($this->clock_out_tolerance * 60));

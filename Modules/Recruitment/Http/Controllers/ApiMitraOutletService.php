@@ -1303,8 +1303,6 @@ class ApiMitraOutletService extends Controller
     					$box = array();
     					foreach ($boxs as $value) {
     						$hs = HairstylistScheduleDate::whereDate('date', date('Y-m-d'))
-    						->whereTime('time_start', '<=' ,date('H:i:s'))
-    						->whereTime('time_end','>=',date('H:i:s'))
     						->where('id_outlet_box',$value['id_outlet_box'])
     						->join('hairstylist_attendances','hairstylist_attendances.id_hairstylist_schedule_date','hairstylist_schedule_dates.id_hairstylist_schedule_date')->first();
     						if(!$hs){

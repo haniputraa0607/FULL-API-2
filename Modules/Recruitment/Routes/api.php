@@ -228,6 +228,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
             Route::post('list','ApiHairstylistAttendanceController@list');
             Route::post('detail','ApiHairstylistAttendanceController@detail');
             Route::post('delete','ApiHairstylistAttendanceController@delete');
+            Route::post('correction','ApiHairstylistAttendanceController@correction')->middleware('feature_control:536');
         });
         Route::group(['prefix' => 'attendance-pending'], function () {
             Route::post('list','ApiHairstylistAttendanceController@listPending');

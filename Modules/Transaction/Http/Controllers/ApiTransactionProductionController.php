@@ -15,6 +15,9 @@ use App\Http\Models\ManualPaymentMethod;
 use App\Http\Models\TransactionPaymentMidtran;
 use App\Http\Models\TransactionMultiplePayment;
 use App\Http\Models\TransactionPaymentBalance;
+use Modules\Transaction\Entities\TransactionProductService;
+use Modules\Recruitment\Entities\HairstylistGroupCommission;
+use Modules\Transaction\Entities\TransactionBreakdown;
 
 use DB;
 use App\Lib\MyHelper;
@@ -349,5 +352,68 @@ class ApiTransactionProductionController extends Controller
             ]);
             
         }
+    }
+
+    public function CronBreakdownCommission(Request $request){
+        $date_trans = date('Y-m-15', strtotime('-1 days'));
+        $transactions = Transaction::join('transaction_products','transaction_products.id_transaction','transactions.id_transaction')
+        ->whereDate('transactions.transaction_date', '>=', $date_trans)->whereDate('transactions.transaction_date', '<=', $date_trans)
+        ->get()->toArray();
+
+        $transactions = array_map(function($val){
+            if(!isset($val['id_user_hair_stylist']) && empty($val['id_user_hair_stylist'])){
+                $val['id_user_hair_stylist'] = TransactionProductService::where('id_transaction_product',$val['id_transaction_product'])->first()['id_user_hair_stylist'] ?? null;
+                return $val;
+            }
+        },$transactions);
+
+        $data = [];
+        foreach($transactions ?? [] as $key =>$transaction){
+            if(isset($data[$transaction['id_user_hair_stylist'].'_'.$transaction['id_product']])){
+                $data[$transaction['id_user_hair_stylist'].'_'.$transaction['id_product']]['sum']++;
+                $data[$transaction['id_user_hair_stylist'].'_'.$transaction['id_product']]['transaction'][] = $transaction;
+            }else{
+                $data[$transaction['id_user_hair_stylist'].'_'.$transaction['id_product']]['sum'] = 1;
+                $data[$transaction['id_user_hair_stylist'].'_'.$transaction['id_product']]['id_user_hair_stylist'] = $transaction['id_user_hair_stylist'];
+                $data[$transaction['id_user_hair_stylist'].'_'.$transaction['id_product']]['id_product'] = $transaction['id_product'];
+                $data[$transaction['id_user_hair_stylist'].'_'.$transaction['id_product']]['transaction'][] = $transaction;
+            }
+        }
+        
+        foreach($data ?? [] as $val){
+            $group = HairstylistGroupCommission::join('user_hair_stylist','user_hair_stylist.id_hairstylist_group','hairstylist_group_commissions.id_hairstylist_group')
+            ->where('user_hair_stylist.id_user_hair_stylist',$val['id_user_hair_stylist'])->where('hairstylist_group_commissions.id_product',$val['id_product'])->where('hairstylist_group_commissions.dynamic',1)
+            ->with(['dynamic_rule'=>function($d){$d->orderBy('qty','desc');}])->first();
+            if($group && isset($group['dynamic_rule'])){
+                $dynamic = true;
+                $check = false;
+                $fee_hs = 0;
+                foreach($group['dynamic_rule'] as $rule){
+                    if($val['sum']>=$rule['qty'] && !$check){
+                        $check = true;
+                        if($group['percent']==0){
+                            $fee_hs = $rule['value'];
+                        }else{
+                            $fee_hs = ($rule['value']/100) * $val['transaction_product_subtotal'];
+                        }
+                    }
+                }
+            }else{
+                $dynamic = false;
+                //product && global
+            }
+
+            if($dynamic){
+                foreach($val['transaction'] as $tran){
+                    $breakdown = TransactionBreakdown::updateOrCreate([
+                            'id_transaction_product' => $tran['id_transaction_product'],
+                            'type' => 'fee_hs'
+                        ],[
+                            'value' => $fee_hs
+                        ]);
+                }
+            }
+        }
+        
     }
 }

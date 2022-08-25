@@ -22,7 +22,7 @@ class ProductCommissionDefault extends Model
     }
 
     public function dynamic_rule(){
-        return $this->hasMany(Modules\Product\Entities\ProductCommissionDefaultDynamic::class, 'id_product_commission_default');
+        return $this->hasMany(ProductCommissionDefaultDynamic::class, 'id_product_commission_default');
     }
 
 }

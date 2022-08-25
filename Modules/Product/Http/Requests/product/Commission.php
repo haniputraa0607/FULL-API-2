@@ -17,7 +17,6 @@ class Commission extends FormRequest
     {
         return [
             "product_code" => "required",
-            "commission"   => "required",
         ];
     }
 

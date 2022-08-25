@@ -218,7 +218,7 @@ class TransactionProduct extends Model
                 "type"                   => 'fee_hs',
                 "value"                  => null
             ];
-            $dynamic = false;
+            $static = false;
             if($group){
                 if($group['dynamic']==0){
                     if($group['percent']==0){
@@ -226,16 +226,19 @@ class TransactionProduct extends Model
                     }else{
                         $fee_hs['value'] = ($group['commission_percent']/100) * $sub_total;
                     }
-                    $dynamic = true;
+                    $static = true;
                 }
             }else{
-                $dynamic = true;
+                $static = false;
                 $defaultCommission = ProductCommissionDefault::where('id_product', $id_product)->first();
                 if ($defaultCommission) {
-                    if($defaultCommission['percent']==0){
-                        $fee_hs['value'] = $defaultCommission['commission'];
-                    }else{
-                        $fee_hs['value'] = ($defaultCommission['commission']/100) * $sub_total;
+                    if($defaultCommission['dynamic']==0){
+                        if($defaultCommission['percent']==0){
+                            $fee_hs['value'] = $defaultCommission['commission'];
+                        }else{
+                            $fee_hs['value'] = ($defaultCommission['commission']/100) * $sub_total;
+                        }
+                        $static = true;
                     }
                 } else {
                     $defaultGlobal = Setting::where('key','global_commission_product')->first();
@@ -250,7 +253,7 @@ class TransactionProduct extends Model
                     }
                 }
             }
-            if($dynamic && isset($fee_hs['value'])){
+            if($static && isset($fee_hs['value'])){
                 $send = $this->transaction_breakdown()->updateOrCreate(["type" => $fee_hs['type']],["value"=> $fee_hs['value']]);
                 if($send){
                     return true;

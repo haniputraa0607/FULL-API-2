@@ -326,6 +326,18 @@ class ApiHairStylistGroupController extends Controller
         }
         return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
     }
+
+    public function deleteCommission(Request $request){
+        $post = $request->all();
+        if(isset($post['id_hairstylist_group_commission_dynamic'])){
+            $delete = HairstylistGroupCommissionDynamic::where('id_hairstylist_group_commission_dynamic',$post['id_hairstylist_group_commission_dynamic'])->delete();
+            return response()->json([
+                'status'   => 'success',
+            ]);
+        }
+        return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+    }
+
     public function commission(Request $request) {
         $post = $request->json()->all();
         $data = HairstylistGroupCommission::where(array('id_hairstylist_group'=>$request->id_hairstylist_group))->join('products','products.id_product','hairstylist_group_commissions.id_product')->select('id_hairstylist_group_commission','product_name','product_code','commission_percent','id_hairstylist_group','percent','dynamic');

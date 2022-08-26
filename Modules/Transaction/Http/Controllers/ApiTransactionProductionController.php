@@ -12,6 +12,7 @@ use App\Http\Models\LogTopupMidtrans;
 use App\Http\Models\LogTopupManual;
 use App\Http\Models\Transaction;
 use App\Http\Models\ManualPaymentMethod;
+use App\Http\Models\Setting;
 use App\Http\Models\TransactionPaymentMidtran;
 use App\Http\Models\TransactionMultiplePayment;
 use App\Http\Models\TransactionPaymentBalance;
@@ -22,7 +23,8 @@ use Modules\Transaction\Entities\TransactionBreakdown;
 use DB;
 use App\Lib\MyHelper;
 use App\Lib\Midtrans;
-
+use Modules\Product\Entities\ProductCommissionDefault;
+use Modules\Setting\Entities\GlobalCommissionProductDynamic;
 use Modules\Transaction\Http\Requests\Transaction\ConfirmPayment;
 
 class ApiTransactionProductionController extends Controller
@@ -381,6 +383,7 @@ class ApiTransactionProductionController extends Controller
         }
         
         foreach($data ?? [] as $val){
+            $dynamic = false;
             $group = HairstylistGroupCommission::join('user_hair_stylist','user_hair_stylist.id_hairstylist_group','hairstylist_group_commissions.id_hairstylist_group')
             ->where('user_hair_stylist.id_user_hair_stylist',$val['id_user_hair_stylist'])->where('hairstylist_group_commissions.id_product',$val['id_product'])->where('hairstylist_group_commissions.dynamic',1)
             ->with(['dynamic_rule'=>function($d){$d->orderBy('qty','desc');}])->first();
@@ -399,8 +402,43 @@ class ApiTransactionProductionController extends Controller
                     }
                 }
             }else{
-                $dynamic = false;
-                //product && global
+                $product_rule = ProductCommissionDefault::where('id_product',$val['id_product'])->where('dynamic',1)->with(['dynamic_rule'=>function($d){$d->orderBy('qty','desc');}])->first();
+                if($product_rule && isset($product_rule['dynamic_rule'])){
+                    $dynamic = true;
+                    $check = false;
+                    $fee_hs = 0;
+                    foreach($product_rule['dynamic_rule'] as $rule){
+                        if($val['sum']>=$rule['qty'] && !$check){
+                            $check = true;
+                            if($product_rule['percent']==0){
+                                $fee_hs = $rule['value'];
+                            }else{
+                                $fee_hs = ($rule['value']/100) * $val['transaction_product_subtotal'];
+                            }
+                        }
+                    }
+                }else{
+                    $global_rule_dynamic = Setting::where('key','global_commission_product_dynamic')->first()['value'] ?? 0;
+                    if($global_rule_dynamic==1){
+                        $setting_percent = Setting::where('key','global_commission_product')->first();
+                        $global_rule = GlobalCommissionProductDynamic::orderBy('qty','desc')->get()->toArray();
+                        if($global_rule && $setting_percent){
+                            $dynamic = true;
+                            $check = false;
+                            $fee_hs = 0;
+                            foreach($global_rule as $rule){
+                                if($val['sum']>=$rule['qty'] && !$check){
+                                    $check = true;
+                                    if($setting_percent['value']==0){
+                                        $fee_hs = $rule['value'];
+                                    }else{
+                                        $fee_hs = ($rule['value']/100) * $val['transaction_product_subtotal'];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             if($dynamic){

@@ -3596,6 +3596,17 @@ class ApiProductController extends Controller
         return response()->json($result);
     }
 
+    public function deleteCommission(Request $request){
+        $post = $request->all();
+        if(isset($post['id_product_commission_default_dynamic'])){
+            $delete = ProductCommissionDefaultDynamic::where('id_product_commission_default_dynamic',$post['id_product_commission_default_dynamic'])->delete();
+            return response()->json([
+                'status'   => 'success',
+            ]);
+        }
+        return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+    }
+
     public function unitDetailIcount(Request $request){
         $post = $request->all();
         if(isset($post['id_product_icount']) && !empty($post['id_product_icount'])){

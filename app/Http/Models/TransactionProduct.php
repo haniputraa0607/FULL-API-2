@@ -241,15 +241,20 @@ class TransactionProduct extends Model
                         $static = true;
                     }
                 } else {
+                    $static = false;
                     $defaultGlobal = Setting::where('key','global_commission_product')->first();
-                    if (!$defaultGlobal) {
-                        $fee_hs['value'] = '';
-                    } else {
-                        if($defaultGlobal['value']==0){
-                            $fee_hs['value'] = $defaultGlobal['value_text'];
-                        }else{
-                            $fee_hs['value'] = ($defaultGlobal['value_text']/100) * $sub_total;
+                    $defaultGlobalDynamic = Setting::where('key','global_commission_product_dynamic')->first()['value'] ?? 0;
+                    if($defaultGlobalDynamic==0){
+                        if (!$defaultGlobal) {
+                            $fee_hs['value'] = '';
+                        } else {
+                            if($defaultGlobal['value']==0){
+                                $fee_hs['value'] = $defaultGlobal['value_text'];
+                            }else{
+                                $fee_hs['value'] = ($defaultGlobal['value_text']/100) * $sub_total;
+                            }
                         }
+                        $static = true;
                     }
                 }
             }

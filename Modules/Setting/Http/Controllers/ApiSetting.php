@@ -1974,11 +1974,13 @@ class ApiSetting extends Controller
                                 'value' => $value['value']
                             ];
                         }
-                        $dynamic_rule[] = [
+                        if($value['qty']!=1){
+                            $dynamic_rule[] = [
                                 'id_global_commission_product_dynamics' => null,
                                 'qty' => '0 - '.$for_null,
                                 'value' => 0
-                        ];
+                            ];
+                        }
                     }else{
                         if($key==0){
                             $dynamic_rule[] = [
@@ -2076,6 +2078,17 @@ class ApiSetting extends Controller
             return response()->json(MyHelper::checkCreate($data));
         }
         return response()->json(['status' => 'fail', 'message' => 'Data Incomplete']);
+    }
+    
+    public function global_commission_product_delete(Request $request){
+        $post = $request->all();
+        if(isset($post['id_global_commission_product_dynamics'])){
+            $delete = GlobalCommissionProductDynamic::where('id_global_commission_product_dynamics',$post['id_global_commission_product_dynamics'])->delete();
+            return response()->json([
+                'status'   => 'success',
+            ]);
+        }
+        return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
     }
 
     public function global_commission_product_refresh(Request $request){

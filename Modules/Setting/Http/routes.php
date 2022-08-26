@@ -194,6 +194,7 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     //global
     Route::get('global_commission_product', 'ApiSetting@global_commission_product_setting');
     Route::post('global_commission_product_create', 'ApiSetting@global_commission_product_create');
+    Route::post('global_commission_product_delete', 'ApiSetting@global_commission_product_delete');
     Route::post('global_commission_product_refresh', 'ApiSetting@global_commission_product_refresh');
     
     //delivery income

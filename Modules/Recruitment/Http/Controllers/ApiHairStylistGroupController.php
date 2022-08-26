@@ -292,11 +292,13 @@ class ApiHairStylistGroupController extends Controller
                                     'value' => $value['value']
                                 ];
                             }
-                            $dynamic_rule[] = [
+                            if($value['qty']!=1){
+                                $dynamic_rule[] = [
                                     'id_hairstylist_group_commission_dynamic' => null,
                                     'qty' => '0 - '.$for_null,
                                     'value' => 0
-                            ];
+                                ];
+                            }
                         }else{
                             if($key==0){
                                 $dynamic_rule[] = [

@@ -373,7 +373,6 @@ class ApiIncome extends Controller
 
         $all_attends = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
             ->whereNotNull('clock_in')
-            ->where('is_overtime',0)
             ->whereDate('hairstylist_attendances.attendance_date', '>=', $request->start_date)
             ->whereDate('hairstylist_attendances.attendance_date', '<=', $request->end_date)
             ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
@@ -384,10 +383,9 @@ class ApiIncome extends Controller
                 return $item->keyBy('id_outlet');
             });
 
-        $all_lates = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+       $all_lates = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
             ->whereNotNull('clock_in')
             ->where('is_on_time', 0)
-            ->where('is_overtime',0)
             ->whereDate('hairstylist_attendances.attendance_date', '>=', $request->start_date)
             ->whereDate('hairstylist_attendances.attendance_date', '<=', $request->end_date)
             ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
@@ -400,7 +398,6 @@ class ApiIncome extends Controller
 
         $all_absens = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
             ->whereNull('clock_in')
-            ->where('is_overtime',0)
             ->whereDate('hairstylist_attendances.attendance_date', '>=', $request->start_date)
             ->whereDate('hairstylist_attendances.attendance_date', '<=', $request->end_date)
             ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
@@ -498,6 +495,7 @@ class ApiIncome extends Controller
                 $hsTransactionsByOutlet = [$hairstylist->id_outlet => collect([])];
             }
             foreach ($hsTransactionsByOutlet as $id_outlet => $outletTransactions) {
+                
                 $outlet = $outlets[$id_outlet];
                 $data['Outlet'] = $outlet['outlet_name'];
 
@@ -549,6 +547,16 @@ class ApiIncome extends Controller
                 foreach ($response as $values) {
                     $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
                     $total_income += $values['value'];
+                }
+                $response = HairstylistIncome::calculateIncomeProteksi($hs, $request->start_date,$request->end_date,$id_outlet);
+                foreach ($response as $values) {
+                    $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
+                    $total_income += $values['value'];
+                }
+               $response = HairstylistIncome::calculateIncomeLateness($hs, $request->start_date,$request->end_date,$id_outlet);
+                foreach ($response as $values) {
+                    $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
+                    $total_income -= $values['value'];
                 }
 
                 $diff     = date_diff(date_create(date('Y-m-d')), date_create(date('Y-m-d', strtotime($outlet->start_date))));

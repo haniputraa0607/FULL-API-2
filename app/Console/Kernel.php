@@ -295,6 +295,12 @@ class Kernel extends ConsoleKernel
          */
         $schedule->call('Modules\Users\Http\Controllers\ApiDepartment@resetBalance')->dailyAt(config('app.env') == 'staging' ? '05:56' : '00:15');
 
+        /**
+         * Commission HS Dynamic
+         * run every minute
+         */
+        $schedule->call('Modules\Transaction\Http\Controllers\ApiTransactionProductionController@CronBreakdownCommission')->dailyAt(config('app.env') == 'staging' ? '06:20' : '00:20');
+
     }
 
     /**

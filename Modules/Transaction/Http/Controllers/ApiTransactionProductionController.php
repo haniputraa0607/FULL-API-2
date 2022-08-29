@@ -357,101 +357,133 @@ class ApiTransactionProductionController extends Controller
     }
 
     public function CronBreakdownCommission(Request $request){
-        $date_trans = date('Y-m-15', strtotime('-1 days'));
-        $transactions = Transaction::join('transaction_products','transaction_products.id_transaction','transactions.id_transaction')
-        ->whereDate('transactions.transaction_date', '>=', $date_trans)->whereDate('transactions.transaction_date', '<=', $date_trans)
-        ->get()->toArray();
+        $log = MyHelper::logCron('Check Schedule Hair Stylist');
+        try{
+            DB::beginTransaction();
 
-        $transactions = array_map(function($val){
-            if(!isset($val['id_user_hair_stylist']) && empty($val['id_user_hair_stylist'])){
-                $val['id_user_hair_stylist'] = TransactionProductService::where('id_transaction_product',$val['id_transaction_product'])->first()['id_user_hair_stylist'] ?? null;
-                return $val;
-            }
-        },$transactions);
+            $fail = false;
+            $date_trans = date('Y-m-d', strtotime('-1 days'));
+            $transactions = Transaction::join('transaction_products','transaction_products.id_transaction','transactions.id_transaction')
+            ->whereDate('transactions.transaction_date', '>=', $date_trans)->whereDate('transactions.transaction_date', '<=', $date_trans)
+            ->get()->toArray();
 
-        $data = [];
-        foreach($transactions ?? [] as $key =>$transaction){
-            if(isset($data[$transaction['id_user_hair_stylist'].'_'.$transaction['id_product']])){
-                $data[$transaction['id_user_hair_stylist'].'_'.$transaction['id_product']]['sum']++;
-                $data[$transaction['id_user_hair_stylist'].'_'.$transaction['id_product']]['transaction'][] = $transaction;
-            }else{
-                $data[$transaction['id_user_hair_stylist'].'_'.$transaction['id_product']]['sum'] = 1;
-                $data[$transaction['id_user_hair_stylist'].'_'.$transaction['id_product']]['id_user_hair_stylist'] = $transaction['id_user_hair_stylist'];
-                $data[$transaction['id_user_hair_stylist'].'_'.$transaction['id_product']]['id_product'] = $transaction['id_product'];
-                $data[$transaction['id_user_hair_stylist'].'_'.$transaction['id_product']]['transaction'][] = $transaction;
-            }
-        }
-        
-        foreach($data ?? [] as $val){
-            $dynamic = false;
-            $group = HairstylistGroupCommission::join('user_hair_stylist','user_hair_stylist.id_hairstylist_group','hairstylist_group_commissions.id_hairstylist_group')
-            ->where('user_hair_stylist.id_user_hair_stylist',$val['id_user_hair_stylist'])->where('hairstylist_group_commissions.id_product',$val['id_product'])->where('hairstylist_group_commissions.dynamic',1)
-            ->with(['dynamic_rule'=>function($d){$d->orderBy('qty','desc');}])->first();
-            if($group && isset($group['dynamic_rule'])){
-                $dynamic = true;
-                $check = false;
-                $fee_hs = 0;
-                foreach($group['dynamic_rule'] as $rule){
-                    if($val['sum']>=$rule['qty'] && !$check){
-                        $check = true;
-                        if($group['percent']==0){
-                            $fee_hs = $rule['value'];
-                        }else{
-                            $fee_hs = ($rule['value']/100) * $val['transaction_product_subtotal'];
-                        }
-                    }
+            $transactions = array_map(function($val){
+                if(!isset($val['id_user_hair_stylist']) && empty($val['id_user_hair_stylist'])){
+                    $val['id_user_hair_stylist'] = TransactionProductService::where('id_transaction_product',$val['id_transaction_product'])->first()['id_user_hair_stylist'] ?? null;
+                    return $val;
                 }
-            }else{
-                $product_rule = ProductCommissionDefault::where('id_product',$val['id_product'])->where('dynamic',1)->with(['dynamic_rule'=>function($d){$d->orderBy('qty','desc');}])->first();
-                if($product_rule && isset($product_rule['dynamic_rule'])){
+            },$transactions);
+
+            $data = [];
+            foreach($transactions ?? [] as $key =>$transaction){
+                if(isset($data[$transaction['id_user_hair_stylist'].'_'.$transaction['id_product']])){
+                    $data[$transaction['id_user_hair_stylist'].'_'.$transaction['id_product']]['sum']++;
+                    $data[$transaction['id_user_hair_stylist'].'_'.$transaction['id_product']]['transaction'][] = $transaction;
+                }else{
+                    $data[$transaction['id_user_hair_stylist'].'_'.$transaction['id_product']]['sum'] = 1;
+                    $data[$transaction['id_user_hair_stylist'].'_'.$transaction['id_product']]['id_user_hair_stylist'] = $transaction['id_user_hair_stylist'];
+                    $data[$transaction['id_user_hair_stylist'].'_'.$transaction['id_product']]['id_product'] = $transaction['id_product'];
+                    $data[$transaction['id_user_hair_stylist'].'_'.$transaction['id_product']]['transaction'][] = $transaction;
+                }
+            }
+            $tes = [];
+            foreach($data ?? [] as $key_1 => $val){
+                $dynamic = false;
+                $percent = false;
+                $group = HairstylistGroupCommission::join('user_hair_stylist','user_hair_stylist.id_hairstylist_group','hairstylist_group_commissions.id_hairstylist_group')
+                ->where('user_hair_stylist.id_user_hair_stylist',$val['id_user_hair_stylist'])->where('hairstylist_group_commissions.id_product',$val['id_product'])->where('hairstylist_group_commissions.dynamic',1)
+                ->with(['dynamic_rule'=>function($d){$d->orderBy('qty','desc');}])->first();
+                if($group && isset($group['dynamic_rule'])){
                     $dynamic = true;
                     $check = false;
                     $fee_hs = 0;
-                    foreach($product_rule['dynamic_rule'] as $rule){
+                    foreach($group['dynamic_rule'] as $rule){
                         if($val['sum']>=$rule['qty'] && !$check){
                             $check = true;
-                            if($product_rule['percent']==0){
+                            if($group['percent']==0){
                                 $fee_hs = $rule['value'];
                             }else{
-                                $fee_hs = ($rule['value']/100) * $val['transaction_product_subtotal'];
+                                $fee_hs = ($rule['value']/100);
+                                $percent = true;
                             }
                         }
                     }
                 }else{
-                    $global_rule_dynamic = Setting::where('key','global_commission_product_dynamic')->first()['value'] ?? 0;
-                    if($global_rule_dynamic==1){
-                        $setting_percent = Setting::where('key','global_commission_product')->first();
-                        $global_rule = GlobalCommissionProductDynamic::orderBy('qty','desc')->get()->toArray();
-                        if($global_rule && $setting_percent){
-                            $dynamic = true;
-                            $check = false;
-                            $fee_hs = 0;
-                            foreach($global_rule as $rule){
-                                if($val['sum']>=$rule['qty'] && !$check){
-                                    $check = true;
-                                    if($setting_percent['value']==0){
-                                        $fee_hs = $rule['value'];
-                                    }else{
-                                        $fee_hs = ($rule['value']/100) * $val['transaction_product_subtotal'];
+                    $product_rule = ProductCommissionDefault::where('id_product',$val['id_product'])->where('dynamic',1)->with(['dynamic_rule'=>function($d){$d->orderBy('qty','desc');}])->first();
+                    if($product_rule && isset($product_rule['dynamic_rule'])){
+                        $dynamic = true;
+                        $check = false;
+                        $fee_hs = 0;
+                        foreach($product_rule['dynamic_rule'] as $rule){
+                            if($val['sum']>=$rule['qty'] && !$check){
+                                $check = true;
+                                if($product_rule['percent']==0){
+                                    $fee_hs = $rule['value'];
+                                }else{
+                                    $fee_hs = ($rule['value']/100);
+                                    $percent = true;
+                                }
+                            }
+                        }
+                    }else{
+                        $global_rule_dynamic = Setting::where('key','global_commission_product_dynamic')->first()['value'] ?? 0;
+                        if($global_rule_dynamic==1){
+                            $setting_percent = Setting::where('key','global_commission_product')->first();
+                            $global_rule = GlobalCommissionProductDynamic::orderBy('qty','desc')->get()->toArray();
+                            if($global_rule && $setting_percent){
+                                $dynamic = true;
+                                $check = false;
+                                $fee_hs = 0;
+                                foreach($global_rule as $rule){
+                                    if($val['sum']>=$rule['qty'] && !$check){
+                                        $check = true;
+                                        if($setting_percent['value']==0){
+                                            $fee_hs = $rule['value'];
+                                        }else{
+                                            $fee_hs = ($rule['value']/100);
+                                            $percent = true;
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
-            }
-
-            if($dynamic){
-                foreach($val['transaction'] as $tran){
-                    $breakdown = TransactionBreakdown::updateOrCreate([
-                            'id_transaction_product' => $tran['id_transaction_product'],
-                            'type' => 'fee_hs'
-                        ],[
-                            'value' => $fee_hs
-                        ]);
+                
+                if($dynamic){
+                    foreach($val['transaction'] ??[] as $key_2 => $tran){
+                        if($percent){
+                            $commission = $fee_hs * $tran['transaction_product_subtotal'];
+                        }else{
+                            $commission = $fee_hs;
+                        }
+                        $breakdown = TransactionBreakdown::updateOrCreate([
+                                'id_transaction_product' => $tran['id_transaction_product'],
+                                'type' => 'fee_hs'
+                            ],[
+                                'value' => $commission
+                            ]
+                        );
+                        if(!$breakdown){
+                            $fail = true;
+                        }
+                    }
                 }
             }
-        }
+
+            if($fail){
+                DB::rollback();
+            }else{
+                DB::commit();
+            }
+
+            $log->success('success');
+            return response()->json(['status' => 'success']);
+
+        }catch (\Exception $e) {
+            DB::rollBack();
+            $log->fail($e->getMessage());
+        }  
         
     }
 }

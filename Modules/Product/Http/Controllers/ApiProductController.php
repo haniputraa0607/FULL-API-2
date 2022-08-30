@@ -2390,12 +2390,14 @@ class ApiProductController extends Controller
         }
 
         $messagesFailOutlet = '';
-        if(empty($outlet['today']) && $isClose == true){
-            $messagesFailOutlet = 'Maaf outlet belum buka.';
+        if ($outlet['today']['is_closed']) {
+            $messagesFailOutlet = 'Maaf, outlet tutup hari ini';
+        } elseif (empty($outlet['today']) && $isClose == true){
+            $messagesFailOutlet = 'Maaf, outlet belum buka.';
         }elseif(!empty($outlet['today']) && !empty($open) && !empty($close) && $isClose == true){
-            $messagesFailOutlet = 'Maaf outlet belum buka. Silahkan berkunjung kembali diantara pukul '.date('H:i', strtotime($open)).' sampai '.date('H:i', strtotime($close));
+            $messagesFailOutlet = 'Maaf, outlet belum buka. Silahkan berkunjung kembali diantara pukul '.MyHelper::adjustTimezone($open, $timeZone, 'H:i').' sampai '.MyHelper::adjustTimezone($close, $timeZone, 'H:i');
         }elseif(!empty($outlet['today']) && (empty($open) || empty($close)) && $isClose == true){
-            $messagesFailOutlet = 'Maaf outlet belum buka.';
+            $messagesFailOutlet = 'Maaf, outlet belum buka.';
         }
 
         $resOutlet = [

@@ -456,7 +456,7 @@ class HairstylistIncome extends Model
                         'id_outlet'   => $outlet,
                         'amount'      => $value['value'],
                         'type'        => "Incentive",
-                        'name_income' => $value['id_hairstylist_group_default_proteksi_attendance'],
+                        'name_income' => "Proteksi Attendance",
                         'value_detail'=> json_encode($value),
                     ]);
             $total = $total + $value['value'];

@@ -13,5 +13,8 @@ class HairstylistIncomeDetail extends Model
         'reference',
         'id_outlet',
         'amount',
+        'value_detail',
+        'name_income',
+        'type',
     ];
 }

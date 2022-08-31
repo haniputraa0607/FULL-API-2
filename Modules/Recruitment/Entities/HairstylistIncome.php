@@ -28,6 +28,7 @@ class HairstylistIncome extends Model
         'status',
         'amount',
         'notes',
+        'value_detail',
     ];
 
     public function hairstylist_income_details()
@@ -65,7 +66,7 @@ class HairstylistIncome extends Model
             throw new \Exception("Hairstylist income for periode $type $month/$year already exists for $hs->id_user_hair_stylist");
         }
 
-        $lastDate = static::where('id_user_hair_stylist', $hs->id_user_hair_stylist)->orderBy('end_date', 'desc')->whereDate('end_date', '<', date('Y-m-d'))->where('status', '<>', 'Cancelled')->first();
+       $lastDate = static::where('id_user_hair_stylist', $hs->id_user_hair_stylist)->orderBy('end_date', 'desc')->whereDate('end_date', '<', date('Y-m-d'))->where('status', '<>', 'Cancelled')->first();
         if ($lastDate) {
             $startDate = date('Y-m-d', strtotime($lastDate->end_date . '+1 days'));
         } else {
@@ -78,6 +79,7 @@ class HairstylistIncome extends Model
         if (date('m', strtotime($endDate)) != $month) {
             $endDate = date('Y-m-d', ("$year-" . ($month + 1) . "-01 -1 days"));
         }
+        
         $hsIncome = static::updateOrCreate([
             'id_user_hair_stylist' => $hs->id_user_hair_stylist,
             'type'                 => $type,
@@ -133,6 +135,7 @@ class HairstylistIncome extends Model
                     ->where('id_outlet', $id_outlet);
             })
                 ->whereNotNull('clock_in')
+                ->where('is_overtime',1)
                 ->whereBetween('hairstylist_attendances.attendance_date', [$startDate, $endDate])
                 ->select('date')
                 ->get();
@@ -147,11 +150,22 @@ class HairstylistIncome extends Model
             $overtimess = HairstylistOverTime::where('id_user_hair_stylist', $hs->id_user_hair_stylist)
                 ->wherenotnull('approve_at')
                 ->wherenull('reject_at')
+                ->where('not_schedule',0)
                 ->wheredate('date', $value['date'])
                 ->get();
             foreach ($overtimess as $va) {
                 array_push($ove, $va['duration']);
             }
+        }
+        $jml_overtime = 0;
+        foreach (array_unique($overtime) as $value) {
+            $overtimess = HairstylistOverTime::where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+                ->wherenotnull('approve_at')
+                ->wherenull('reject_at')
+                ->where('not_schedule',1)
+                ->wheredate('date', $value['date'])
+                ->count();
+            $jml_overtime += $jml_overtime+$overtimess;
         }
         $h = 0;
         $m = 0;
@@ -174,13 +188,37 @@ class HairstylistIncome extends Model
 
         foreach ($calculations as $calculation) {
             if ($calculation == 'product_commission') {
+                $mulai = $startDate;
+                $pc_mid = 0;
+                $pc_end = 0;
+                $product_mid = json_decode(MyHelper::setting('hs_income_calculation_mid', 'value_text', '[]'), true) ?? [];
+                 foreach ($product_mid as $c) {
+                     if ($c == 'product_commission') {
+                         $pc_mid = 1;
+                     }
+                 }
+                $product_end = json_decode(MyHelper::setting('hs_income_calculation_end', 'value_text', '[]'), true) ?? [];
+                foreach ($product_end as $c) {
+                     if ($c == 'product_commission') {
+                         $pc_end = 1;
+                     }
+                 }
+                  if ($type == 'middle') {
+                      if($pc_end==0){
+                       $mulai = $startDate = date('Y-m-d', strtotime($startDate . '+1 days'.'-1 months'));
+                      } 
+                    } else {
+                       if($pc_mid==0){
+                        $mulai = $startDate = date('Y-m-d', strtotime($startDate . '+1 days'.'-1 months'));
+                      }  
+                    }
                 $trxs = TransactionProduct::where(array('transaction_product_services.id_user_hair_stylist' => $hs->id_user_hair_stylist))
                     ->join('transactions', 'transactions.id_transaction', 'transaction_products.id_transaction')
                     ->join('transaction_product_services', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
-                    ->join('transaction_breakdowns', function ($join) use ($startDate, $endDate) {
+                    ->join('transaction_breakdowns', function ($join) use ($mulai, $endDate) {
                         $join->on('transaction_breakdowns.id_transaction_product', 'transaction_products.id_transaction_product')
                             ->whereNotNull('transaction_products.transaction_product_completed_at')
-                            ->whereBetween('transaction_product_completed_at', [$startDate, $endDate]);
+                            ->whereBetween('transaction_product_completed_at', [$mulai, $endDate]);
                     })
                     ->where('transaction_product_services.service_status', 'Completed')
                     ->wherenotnull('transaction_product_services.completed_at')
@@ -196,6 +234,13 @@ class HairstylistIncome extends Model
                         [
                             'id_outlet' => $item->transaction->id_outlet,
                             'amount'    => $item->value,
+                            'type'        => "Incentive",
+                            'name_income' => 'Product Comission',
+                            'value_detail'=>json_encode(array(
+                                'start_date'=>$mulai,
+                                'start_date'=>$endDate,
+                                'data'=>$item
+                            )),
                         ]);
                     $amount += $item->value;
                 }
@@ -246,6 +291,9 @@ class HairstylistIncome extends Model
                         [
                             'id_outlet' => $id_outlet,
                             'amount'    => $amount,
+                            'type'        => "Incentive",
+                            'name_income' => $calculation,
+                            'value_detail'=> json_encode($incentive),
                         ]);
                 }
                 $total = $total + $amount;
@@ -295,6 +343,9 @@ class HairstylistIncome extends Model
                         [
                             'id_outlet' => $id_outlet,
                             'amount'    => $amount,
+                            'type'        => "Salary Cut",
+                            'name_income' => $calculation,
+                            'value_detail'=> json_encode($salary_cut),
                         ]);
 
                 }
@@ -302,7 +353,9 @@ class HairstylistIncome extends Model
             }
         }
         $id_outlets = HairstylistAttendance::where('id_user_hair_stylist', $hs->id_user_hair_stylist)->groupby('id_outlet')->distinct()->get()->pluck('id_outlet');
-        foreach ($id_outlets as $id_outlet) {
+        if ($type == 'end') {
+            $startDate = date('Y-m-d', strtotime("$year-" . ($month - 1) . "-$date +1 days"));
+            foreach ($id_outlets as $id_outlet) {
             $total_overtimes = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) use ($hs, $id_outlet) {
                 $join->on('hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
                     ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
@@ -317,12 +370,14 @@ class HairstylistIncome extends Model
             }
 
         }
+        
         $over = 0;
         $ove  = array();
         foreach (array_unique($overtime) as $value) {
             $overtimess = HairstylistOverTime::where('id_user_hair_stylist', $hs->id_user_hair_stylist)
                 ->wherenotnull('approve_at')
                 ->wherenull('reject_at')
+                ->where('not_schedule',0)
                 ->wheredate('date', $value['date'])
                 ->get();
             foreach ($overtimess as $va) {
@@ -333,40 +388,49 @@ class HairstylistIncome extends Model
                 ));
             }
         }
-        foreach ($ove as $value) {
-            $va        = explode(":", $value['duration']);
-            $nominal   = 0;
-            $h         = $va[0];
-            $incentive = HairstylistGroupOvertimeDefault::leftJoin('hairstylist_group_overtimes', function ($join) use ($hs) {
-                $join->on('hairstylist_group_overtimes.id_hairstylist_group_default_overtimes', 'hairstylist_group_default_overtimes.id_hairstylist_group_default_overtimes')
-                    ->where('id_hairstylist_group', $hs->id_hairstylist_group);
-            })
-                ->select('hairstylist_group_default_overtimes.hours',
-                    DB::raw('
-                                       CASE WHEN
-                                       hairstylist_group_overtimes.value IS NOT NULL THEN hairstylist_group_overtimes.value ELSE hairstylist_group_default_overtimes.value
-                                       END as value
-                                    '),
-                )->orderby('hours', 'DESC')->get();
-            foreach ($incentive as $valu) {
-                if ($valu['hours'] <= (int) $h) {
-                    $nominal = $valu['value'];
-                    break;
+            foreach ($ove as $value) {
+                    $va        = explode(":", $value['duration']);
+                    $nominal   = 0;
+                    $h         = $va[0];
+                    $incentive = HairstylistGroupOvertimeDefault::leftJoin('hairstylist_group_overtimes', function ($join) use ($hs) {
+                        $join->on('hairstylist_group_overtimes.id_hairstylist_group_default_overtimes', 'hairstylist_group_default_overtimes.id_hairstylist_group_default_overtimes')
+                            ->where('id_hairstylist_group', $hs->id_hairstylist_group);
+                    })
+                        ->select('hairstylist_group_default_overtimes.hours',
+                            DB::raw('
+                                               CASE WHEN
+                                               hairstylist_group_overtimes.value IS NOT NULL THEN hairstylist_group_overtimes.value ELSE hairstylist_group_default_overtimes.value
+                                               END as value
+                                            '),
+                        )->orderby('hours', 'DESC')->get();
+                    foreach ($incentive as $valu) {
+                        if ($valu['hours'] <= (int) $h) {
+                            $nominal = $valu['value'];
+                            break;
+                        }
+                        $nominal = $valu['value'];
+                    }
+                    $hsIncome->hairstylist_income_details()->updateOrCreate([
+                        'source'    => "Overtime",
+                        'reference' => $value['id_hairstylist_overtime'],
+                    ],
+                        [
+                            'id_outlet' => $value['id_outlet'],
+                            'amount'    => $nominal,
+                        ]);
+                    $total = $total + $nominal;
                 }
-                $nominal = $valu['value'];
-            }
-            $hsIncome->hairstylist_income_details()->updateOrCreate([
-                'source'    => "Overtime",
-                'reference' => $value['id_hairstylist_overtime'],
-            ],
-                [
-                    'id_outlet' => $value['id_outlet'],
-                    'amount'    => $nominal,
-                ]);
-            $total = $total + $nominal;
-        }
+                
+        //Fixed Incentive
         $fixed = self::calculateFixedIncentive($hs, $startDate, $endDate,$outlet,$incomeDefault);
         foreach ($fixed as $value) {
+            if ($value['status'] == 'incentive') {
+                $total = $total + $value['value'];
+                $typess = "Incentive";
+            } else {
+                $total = $total - $value['value'];
+                $typess = "Salary Cut";
+            }
             $hsIncome->hairstylist_income_details()->updateOrCreate([
                 'source'    => "Fixed Incentive",
                 'reference' => $value['id_hairstylist_group_default_fixed_incentive'],
@@ -374,14 +438,66 @@ class HairstylistIncome extends Model
                 [
                     'id_outlet' => $value['id_outlet'],
                     'amount'    => $value['value'],
+                    'type'        => $typess,
+                    'name_income' => $value['name'],
+                    'value_detail'=> json_encode($value),
                 ]);
-            if ($value['status'] == 'incentive') {
-                $total = $total + $value['value'];
-            } else {
-                $total = $total - $value['value'];
-            }
+            
 
+        }        
+        //Proteksi Attendance
+      $proteksi = self::calculateGenerateIncomeProteksi($hs, $startDate, $endDate, $outlet);
+        foreach ($proteksi as $value) {
+            $hsIncome->hairstylist_income_details()->updateOrCreate([
+                        'source'    => "Proteksi Attendace",
+                        'reference' => $value['id_hairstylist_group_default_proteksi_attendance'],
+                    ],
+                    [
+                        'id_outlet'   => $outlet,
+                        'amount'      => $value['value'],
+                        'type'        => "Incentive",
+                        'name_income' => $value['id_hairstylist_group_default_proteksi_attendance'],
+                        'value_detail'=> json_encode($value),
+                    ]);
+            $total = $total + $value['value'];
+        } 
+        
+        //overtime Day
+        $day = self::calculateGenerateIncomeOvertimeDay($hs, $startDate, $endDate,$outlet,$jml_overtime);
+        if($day['id']){
+        $hsIncome->hairstylist_income_details()->updateOrCreate([
+            'source'    => "Overtime Not Schedule",
+            'reference' => $day['id'],
+        ],
+            [
+                'id_outlet'   => $outlet,
+                'amount'      => $day['value'],
+                'type'        => "Incentive",
+                'name_income' => "Overtime Not Schedule",
+                'value_detail'=> json_encode($day),
+            ]);
+        $total = $total + $day['value']; 
         }
+        
+          //Lateness
+        $late = self::calculateGenerateIncomeLateness($hs, $startDate, $endDate, $outlet);
+        foreach ($late as $value) {
+            $hsIncome->hairstylist_income_details()->updateOrCreate([
+                'source'    => "Lateness Hairstylist",
+                'reference' => $value['id_hairstylist_group_default_late'],
+            ],
+            [
+                'id_outlet'   => $outlet,
+                'amount'      => $value['value'],
+                'type'        => "Salary Cut",
+                'name_income' => "Lateness Hairstylist",
+                'value_detail'=> json_encode($value),
+            ]);
+            $total = $total - $value['value'];
+        } 
+        
+        
+        //loan
         $loan = self::calculateLoan($hs, $startDate, $endDate);
         foreach ($loan as $value) {
             
@@ -408,6 +524,9 @@ class HairstylistIncome extends Model
                     [
                         'id_outlet' => $value['id_outlet'],
                         'amount'    => $value['value'],
+                        'type'        => "Salary Cut",
+                        'name_income' => $value['name'],
+                        'value_detail'=> json_encode($value),
                     ]);
                 $loan_return = HairstylistLoanReturn::where('id_hairstylist_loan_return', $value['id_hairstylist_loan_return'])
                     ->update([
@@ -423,6 +542,9 @@ class HairstylistIncome extends Model
                         [
                             'id_outlet' => $value['id_outlet'],
                             'amount'    => $value['value'],
+                            'type'        => "Salary Cut",
+                            'name_income' => $value['name'],
+                            'value_detail'=> json_encode($value),
                         ]);
                     $loan_return = HairstylistLoanReturn::where('id_hairstylist_loan_return', $value['id_hairstylist_loan_return'])
                         ->update([
@@ -434,6 +556,7 @@ class HairstylistIncome extends Model
                 $total = $total + $value['value'];
                 break;
             }
+        }
         }
         $hsIncome->update([
             'status' => 'Pending',
@@ -1093,6 +1216,42 @@ class HairstylistIncome extends Model
         return $array;
         
     }
+    public static function calculateGenerateIncomeOvertimeDay(UserHairStylist $hs, $startDate, $endDate, $id_outlets, $overtimes_day)
+    {
+        $total          = 0;
+//        $overtime = count($overtimes_day[$hs->id_user_hair_stylist]??[]);
+        $nominal = 0;
+        $data = array();
+        $id = null;
+       $incentive = HairstylistGroupOvertimeDayDefault::leftJoin('hairstylist_group_overtime_days', function ($join) use ($hs) {
+                $join->on('hairstylist_group_overtime_days.id_hairstylist_group_default_overtime_day', 'hairstylist_group_default_overtime_days.id_hairstylist_group_default_overtime_day')
+                    ->where('id_hairstylist_group', $hs->id_hairstylist_group);
+            })
+                ->select('hairstylist_group_default_overtime_days.id_hairstylist_group_default_overtime_day','hairstylist_group_default_overtime_days.days',
+                    DB::raw('
+                                       CASE WHEN
+                                       hairstylist_group_overtime_days.value IS NOT NULL THEN hairstylist_group_overtime_days.value ELSE hairstylist_group_default_overtime_days.value
+                                       END as value
+                                    '),
+                )->orderby('days', 'DESC')->get();
+            foreach ($incentive as $valu) {
+                if ($valu['days'] <= (int) $overtimes_day) {
+                    $nominal = $valu['value'];
+                    $id = $valu['id_hairstylist_group_default_overtime_day'];
+                    $data = $valu;
+                    break;
+                }
+            }
+        $array = array(
+            "name"              => "Overtime Not Schedule",
+            'id'                => $id,
+            "value"             => $nominal,
+            'data'              => $data,
+            'total_overtime'    => $overtimes_day
+        );
+        return $array;
+        
+    }
     public static function calculateIncomeLateness(UserHairStylist $hs, $startDate, $endDate, $id_outlet)
     {
         $total          = 0;
@@ -1113,7 +1272,7 @@ class HairstylistIncome extends Model
             $date3            = date_create($clock_in_requirement);
             $date4            = date_create($clock_in);
             $diff             = date_diff($date3, $date4);
-            $minute = $diff->h * 12 + $diff->i;
+            $minute = $diff->h * 60 + $diff->i;
            $data[] = array(
                'attendance_date'=>$value['attendance_date'],
                'clock_in_requirement'=>$clock_in_requirement,
@@ -1145,6 +1304,66 @@ class HairstylistIncome extends Model
             "value" => $nominal,
 
         );
+        return $array;
+        
+    }
+    public static function calculateGenerateIncomeLateness(UserHairStylist $hs, $startDate, $endDate, $id_outlet)
+    {
+        $total          = 0;
+        $nominal = 0;
+        $array = array();
+        $total_late = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) use ($hs, $id_outlet) {
+                $join->on('hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+                    ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+                    ->where('id_outlet', $id_outlet);
+            })
+                ->whereNotNull('clock_in')
+                ->where('is_on_time', 0)
+                ->whereBetween('hairstylist_attendances.attendance_date', [$startDate, $endDate])
+                ->get();
+        foreach ($total_late as $value) {
+            $clock_in_requirement = date('Y-m-d H:i:s', strtotime($value['attendance_date'].' '.$value['clock_in_requirement'].'+'.$value['clock_in_tolerance'].' minutes'));
+            $clock_in = date('Y-m-d H:i:s', strtotime($value['attendance_date'].' '.$value['clock_in']));
+            $date3            = date_create($clock_in_requirement);
+            $date4            = date_create($clock_in);
+            $diff             = date_diff($date3, $date4);
+            $minute = $diff->h * 60 + $diff->i;
+           
+          $incentive = HairstylistGroupLateDefault::leftJoin('hairstylist_group_lates', function ($join) use ($hs) {
+                $join->on('hairstylist_group_lates.id_hairstylist_group_default_late', 'hairstylist_group_default_lates.id_hairstylist_group_default_late')
+                    ->where('id_hairstylist_group', $hs->id_hairstylist_group);
+            })
+                ->select('hairstylist_group_default_lates.id_hairstylist_group_default_late','hairstylist_group_default_lates.range',
+                    DB::raw('
+                                       CASE WHEN
+                                       hairstylist_group_lates.value IS NOT NULL THEN hairstylist_group_lates.value ELSE hairstylist_group_default_lates.value
+                                       END as value
+                                    '),
+                )->orderby('range', 'DESC')->get();
+            $nominals = 0;
+            foreach ($incentive as $valu) {
+                if ($valu['range'] <= (int) $minute) {
+                    $nominals = $valu['value'];
+                    $data = array(
+                                'id_hairstylist_group_default_late'=>$value['id_hairstylist_group_default_late'],
+                                'id_hairstylist_schedule_date'=>$value['id_hairstylist_schedule_date'],
+                                'attendance_date'=>$value['attendance_date'],
+                                'clock_in_requirement'=>$clock_in_requirement,
+                                'clock_in'=>$clock_in,
+                                'minute'=>$minute,
+                                'range'=>$valu['range'],
+                                'nominal'=>$nominals
+                            );
+                    $array[] = array(
+                        'id_hairstylist_group_default_late'=>$value['id_hairstylist_group_default_late'],
+                        "name"  => "Lateness Hairstylist",
+                        "value" => $nominals,
+                        "data" => $data,
+                    );
+                    break;
+                }
+            }
+        }
         return $array;
         
     }
@@ -1245,6 +1464,108 @@ class HairstylistIncome extends Model
             "value" => $nominal,
 
         );
+        return $array;
+        
+    }
+     public static function calculateGenerateIncomeProteksi(UserHairStylist $hs, $startDate, $endDate, $id_outlet)
+    {
+          
+          $date_end         = (int) MyHelper::setting('hs_income_cut_off_end_date', 'value')??null;
+          $date_start         = (int)$date_end+1;
+          $start_date =  date('Y-m-'.$date_start, strtotime($startDate));
+          $end_date = date('Y-m-'.$date_end, strtotime($start_date.'+1 months'));
+          $starts = $startDate;
+          $ends = $endDate;
+          if(!$date_end){
+              return array();
+          }
+          $ar = array();
+          $s = 2;
+          for($i=1;$i<$s;$i){
+              if($starts>=$start_date){
+               $e = date('Y-m-'.$date_end, strtotime($starts.'+1 months'));
+              }else{
+               $e = date('Y-m-'.$date_end, strtotime($starts));  
+              }
+              if($e >=$endDate){
+                  $e = $endDate;
+                  $ar[]= array(
+                  'start'=>$starts,
+                  'end'=>$e,
+                  'periode'=>date('m', strtotime($e))
+                );
+                  break;
+              }
+              $ar[]= array(
+                  'start'=>$starts,
+                  'end'=>$e,
+                  'periode'=>date('m', strtotime($e))
+              );
+              $starts = date('Y-m-d', strtotime($e.'+1 days'));
+          }
+        $total          = 0;
+        $nominal = 0;
+        $data = array();
+        $array = array();
+        foreach ($ar as $value) {
+        $total_attend = HairstylistScheduleDate::leftJoin('hairstylist_attendances', function ($join) use ($hs, $id_outlet) {
+                $join->on('hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+                    ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+                    ->where('id_outlet', $id_outlet);
+            })
+                ->whereNotNull('clock_in')
+                ->whereBetween('hairstylist_attendances.attendance_date', [$value['start'], $value['end']])
+                ->count();
+            $incentive = HairstylistGroupProteksiAttendanceDefault::leftJoin('hairstylist_group_proteksi_attendances', function ($join) use ($hs) {
+                $join->on('hairstylist_group_proteksi_attendances.id_hairstylist_group_default_proteksi_attendance', 'hairstylist_group_default_proteksi_attendances.id_hairstylist_group_default_proteksi_attendance')
+                    ->where('id_hairstylist_group', $hs->id_hairstylist_group);
+            })
+                 ->where('month', $value['periode'])
+                ->select('hairstylist_group_default_proteksi_attendances.id_hairstylist_group_default_proteksi_attendance','hairstylist_group_default_proteksi_attendances.month',
+                    DB::raw('
+                        CASE WHEN
+                        hairstylist_group_proteksi_attendances.value IS NOT NULL THEN hairstylist_group_proteksi_attendances.value ELSE hairstylist_group_default_proteksi_attendances.value
+                        END as value
+                     '),
+                DB::raw('
+                    CASE WHEN
+                    hairstylist_group_proteksi_attendances.amount IS NOT NULL THEN hairstylist_group_proteksi_attendances.amount ELSE hairstylist_group_default_proteksi_attendances.amount
+                    END as amount
+                 '),
+                DB::raw('
+                    CASE WHEN
+                    hairstylist_group_proteksi_attendances.amount_day IS NOT NULL THEN hairstylist_group_proteksi_attendances.amount_day ELSE hairstylist_group_default_proteksi_attendances.amount_day
+                    END as amount_day
+                 '),
+                )->first();
+            $nominals = 0;
+            if($total_attend>0){
+                if($total_attend>=$incentive->value){
+                    $nominals = $incentive->amount;
+                }else{
+                    $nominals = $total_attend * $incentive->amount_day; 
+                }
+            }
+//            $nominal = $nominal+$nominals;
+            $data = array(
+                'id_hairstylist_group_default_proteksi_attendance'=>$incentive->id_hairstylist_group_default_proteksi_attendance,
+                'start'=>$value['start'],
+                'end'=>$value['end'],
+                'periode'=>$value['periode'],
+                'month'=>$incentive->month,
+                'value'=>$incentive->value,
+                'amount'=>$incentive->amount,
+                'amount_day'=>$incentive->amount_day,
+                'total_attend'=>$total_attend,
+                'nominals'=>$nominals,
+            );
+            $array[]= array(
+                'id_hairstylist_group_default_proteksi_attendance'=>$incentive->id_hairstylist_group_default_proteksi_attendance,
+                "name"  => "Proteksi Attendance",
+                "value" => $nominals,
+                "data" => $data,
+            );
+        }
         return $array;
         
     }

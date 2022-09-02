@@ -144,7 +144,7 @@ class ApiMitraOutletService extends Controller
 
 			$resData[] = [
 				'id_transaction_product_service' => $val['id_transaction_product_service'],
-				'order_id' => $val['order_id'] ?? null,
+				'order_id' => $val['transaction_receipt_number'] ?? null,
 				'transaction_receipt_number' => $val['transaction_receipt_number'],
 				'customer_name' => $val['customer_name'],
 				'schedule_date' => $scheduleDate,
@@ -1519,7 +1519,7 @@ class ApiMitraOutletService extends Controller
 				'service_end' => date('H:i', strtotime($item->completed_at)),
 				'customer_name' => $item->customer_name,
 				'product_name' => $item->product_name,
-				'order_id' => $item->order_id,
+				'order_id' => $item->transaction_receipt_number,
 				'outlet_name' => $item->outlet_name,
 				'hairstylist_name' => $user->fullname,
 				'schedule_time' => date('H:i', strtotime($item->schedule_time)),

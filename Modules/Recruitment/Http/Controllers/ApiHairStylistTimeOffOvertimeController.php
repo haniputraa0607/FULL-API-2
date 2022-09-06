@@ -733,6 +733,8 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
             }
             if(isset($post['time_start']) && isset($post['time_end'])){
                 $data_update['not_schedule'] = 1;
+            }else{
+                $data_update['not_schedule'] = 0;
             }
             if(isset($post['shift'])){
                 $data_update['shift'] = $post['shift'];

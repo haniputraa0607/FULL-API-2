@@ -723,18 +723,19 @@ class ApiEmployeeAttendanceController extends Controller
         if(isset($data['date']) && !empty($data['date'])){
             if(date('Y-m-d') < date('Y-m-d',strtotime($data['date']))){
                 $check = false;
-            }
-        }
-        if(isset($data['clock_in']) && !empty($data['clock_in'])){
-            $clock_in = MyHelper::reverseAdjustTimezone($data['clock_in'], $timeZone, 'H:i', true);
-            if(date('H:i') < date('H:i',strtotime($clock_in))){
-                $check = false;
-            }
-        }
-        if(isset($data['clock_out']) && !empty($data['clock_out'])){
-            $clock_out = MyHelper::reverseAdjustTimezone($data['clock_out'], $timeZone, 'H:i', true);
-            if(date('H:i') < date('H:i',strtotime($clock_out))){
-                $check = false;
+            }elseif(date('Y-m-d') == date('Y-m-d',strtotime($data['date']))){
+                if(isset($data['clock_in']) && !empty($data['clock_in'])){
+                    $clock_in = MyHelper::reverseAdjustTimezone($data['clock_in'], $timeZone, 'H:i', true);
+                    if(date('H:i') < date('H:i',strtotime($clock_in))){
+                        $check = false;
+                    }
+                }
+                if(isset($data['clock_out']) && !empty($data['clock_out'])){
+                    $clock_out = MyHelper::reverseAdjustTimezone($data['clock_out'], $timeZone, 'H:i', true);
+                    if(date('H:i') < date('H:i',strtotime($clock_out))){
+                        $check = false;
+                    }
+                }
             }
         }
         return $check;

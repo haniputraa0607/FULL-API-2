@@ -1695,7 +1695,7 @@ class HairstylistIncome extends Model
                 )->first();
             $nominals = 0;
             if($total_attend>0){
-                if($total_attend>=$incentive->amount){
+                if($total_attend>=$incentive->value){
                     $nominals = $incentive->amount;
                     $incentives = HairstylistGroupOvertimeDayDefault::leftJoin('hairstylist_group_overtime_days', function ($join) use ($hs) {
                 $join->on('hairstylist_group_overtime_days.id_hairstylist_group_default_overtime_day', 'hairstylist_group_default_overtime_days.id_hairstylist_group_default_overtime_day')
@@ -1708,7 +1708,7 @@ class HairstylistIncome extends Model
                                        END as value
                                     '),
                 )->orderby('days', 'DESC')->get();
-                $overtime = $total_attend - $incentive->amount;
+                $overtime = $total_attend - $incentive->value;
                 if($overtime>0){
                     foreach ($incentives as $valu) {
                     if ($valu['days'] <= (int) $overtime) {

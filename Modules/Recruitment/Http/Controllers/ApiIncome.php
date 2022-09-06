@@ -88,7 +88,7 @@ class ApiIncome extends Controller
         $hs = UserHairStylist::get();
         $type = 'end';
         foreach ($hs as $value) {
-          $income = $this->schedule_income($value['id_user_hair_stylist'], $type);
+         $income = $this->schedule_income($value['id_user_hair_stylist'], $type);
         }
         $log->success('success');
             return response()->json(['success']);
@@ -537,18 +537,18 @@ class ApiIncome extends Controller
                     $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
                     $total_income += $values['value'];
                 }
-
-                $response = HairstylistIncome::calculateIncomeOvertime($hs, $request->start_date,$request->end_date, [$id_outlet], $all_overtimes);
-                foreach ($response as $values) {
-                    $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
-                    $total_income += $values['value'];
-                }
-               $response = HairstylistIncome::calculateIncomeOvertimeDay($hs, $request->start_date,$request->end_date, [$id_outlet], $overtimes_day);
-                foreach ($response as $values) {
-                    $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
-                    $total_income += $values['value'];
-                }
+                
+//               $response = HairstylistIncome::calculateIncomeOvertimeDay($hs, $request->start_date,$request->end_date, [$id_outlet], $overtimes_day);
+//                foreach ($response as $values) {
+//                    $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
+//                    $total_income += $values['value'];
+//                }
                 $response = HairstylistIncome::calculateIncomeProteksi($hs, $request->start_date,$request->end_date,$id_outlet);
+                foreach ($response as $values) {
+                    $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
+                    $total_income += $values['value'];
+                }
+                $response = HairstylistIncome::calculateIncomeOvertime($hs, $request->start_date,$request->end_date, [$id_outlet], $all_overtimes);
                 foreach ($response as $values) {
                     $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
                     $total_income += $values['value'];

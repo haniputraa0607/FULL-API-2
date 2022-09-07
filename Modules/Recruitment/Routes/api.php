@@ -20,6 +20,8 @@ Route::group(['middleware' => ['auth:api', 'scopes:be'], 'prefix' => 'hairstylis
     Route::post('category/delete', 'ApiHairStylistController@deleteCategory');
     Route::post('export-payroll', 'ApiIncome@export_income2');
     Route::post('income-end', 'ApiIncome@cron_end');
+    Route::post('income-mid', 'ApiIncome@cron_middle');
+    Route::post('generate', 'ApiIncome@generate');
 });
 
 Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'recruitment'], function () {

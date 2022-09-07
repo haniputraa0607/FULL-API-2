@@ -44,6 +44,7 @@ class ApiHairStylistGroupProteksiAttendanceController extends Controller
                 ])->update([
                     "value"   =>  $request->value,
                     "amount"   =>  $request->amount,
+                    "amount_proteksi"   =>  $request->amount_proteksi,
                     "amount_day"   =>  $request->amount_day,
                 ]);
             }else{
@@ -53,12 +54,13 @@ class ApiHairStylistGroupProteksiAttendanceController extends Controller
                 ])->delete();
             }
         }else{
-            if(isset($request->value)||isset($request->amount)||isset($request->amount_day)){
+            if(isset($request->value)||isset($request->amount)||isset($request->amount_day)||isset($request->amount_proteksi)){
                 $store = HairstylistGroupProteksiAttendance::create([
                     "id_hairstylist_group"   =>  $request->id_hairstylist_group,
                     "id_hairstylist_group_default_proteksi_attendance"   =>  $request->id_hairstylist_group_default_proteksi_attendance,
                     "value"   =>  $request->value,
                     "amount"   =>  $request->amount,
+                    "amount_proteksi"   =>  $request->amount_proteksi,
                     "amount_day"   =>  $request->amount_day,
                 ]);
             }else{
@@ -115,6 +117,8 @@ class ApiHairStylistGroupProteksiAttendanceController extends Controller
                 $value['amount_default']    = 0;
                 $value['default_amount_day'] = $value['amount_day'];
                 $value['amount_day_default']    = 0;
+                $value['default_amount_proteksi'] = $value['amount_proteksi'];
+                $value['amount_proteksi_default']    = 0;
                 if(isset($insen->value)){
                    $value['value']      = $insen->value; 
                    $value['default']    = 1;
@@ -126,6 +130,10 @@ class ApiHairStylistGroupProteksiAttendanceController extends Controller
                 if(isset($insen->amount_day)){
                    $value['default_amount_day']      = $insen->amount_day; 
                    $value['amount_day_default']    = 1;
+                }
+                if(isset($insen->amount_proteksi)){
+                   $value['default_amount_proteksi']      = $insen->amount_proteksi; 
+                   $value['amount_proteksi_default']    = 1;
                 }
                 array_push($data,$value);
             }
@@ -159,12 +167,14 @@ class ApiHairStylistGroupProteksiAttendanceController extends Controller
             $store->value = $request->value;
             $store->amount = $request->amount;
             $store->amount_day = $request->amount_day;
+            $store->amount_proteksi = $request->amount_proteksi;
             $store->save();
         }else{
             $store = HairstylistGroupProteksiAttendanceDefault::create([
                     "month"   => $request->month,
                     "value"   =>  $request->value,
                     "amount"   =>  $request->amount,
+                    "amount_proteksi"   =>  $request->amount_proteksi,
                     "amount_day"   =>  $request->amount_day,
                 ]);
         }
@@ -217,6 +227,7 @@ class ApiHairStylistGroupProteksiAttendanceController extends Controller
                 'name_month'=> date('M', strtotime($d)),
                 'value'=>$m->value??null,
                 'amount'=>$m->amount??null,
+                'amount_proteksi'=>$m->amount_proteksi??null,
                 'amount_day'=>$m->amount_day??null
             );
             array_push($data, $b);

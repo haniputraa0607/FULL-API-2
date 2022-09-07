@@ -50,6 +50,7 @@ use Modules\Transaction\Entities\TransactionBreakdown;
 use Modules\Recruitment\Entities\HairstylistOverTime;
 use Modules\Recruitment\Entities\HairstylistLoan;
 use Modules\Recruitment\Entities\HairstylistGroupProteksi;
+use Modules\Recruitment\Entities\HairStylistTimeOff;
 
 class ApiIncome extends Controller
 {
@@ -66,9 +67,12 @@ class ApiIncome extends Controller
         Return $attandance;
        
     }
+    public function generate() {
+       return $hs = UserHairStylist::where('user_hair_stylist_status','Active')->select('join_date','id_user_hair_stylist')->get();
+        
+    }
     public function cron_middle() {
-        return Config::get('app.income_date_middle');
-       $log = MyHelper::logCron('Cron Income HS middle month');
+         $log = MyHelper::logCron('Cron Income HS middle month');
         try {
         $hs = UserHairStylist::get();
         $type = 'middle';
@@ -362,7 +366,7 @@ class ApiIncome extends Controller
         $transactionBreakdownsGroupByTrxProduct = $transactionBreakdowns->groupBy('id_transaction_product');
 
         $transactionsByHS = $transactions->groupBy('id_user_hair_stylist');
-        $hairstylists = UserHairStylist::where(function($query) use ($transactions, $request) {
+       $hairstylists = UserHairStylist::where(function($query) use ($transactions, $request) {
                 $query->whereIn('id_user_hair_stylist', $transactions->pluck('id_user_hair_stylist')->unique())
                     ->orWhereIn('id_outlet', $request->id_outlet);
             })
@@ -420,9 +424,19 @@ class ApiIncome extends Controller
             ->map(function ($item) {
                 return $item->groupBy('id_outlet');
             });
-        
+      $all_timeoff = HairStylistTimeOff::whereNotNull('approve_at')
+            ->whereNull('reject_at')
+            ->whereDate('date', '>=', $request->start_date)
+            ->whereDate('date', '<=', $request->end_date)
+            ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
+            ->groupBy('id_outlet', 'id_user_hair_stylist')
+            ->get()
+            ->groupBy('id_user_hair_stylist')
+            ->map(function ($item) {
+                return $item->keyBy('id_outlet');
+            });
         $minOvertimeMinutes = MyHelper::setting('overtime_hs', 'value', 45);
-        $overtimes = HairstylistOverTime::wherenotnull('approve_at')
+       $overtimes = HairstylistOverTime::wherenotnull('approve_at')
             ->wherenull('reject_at')
             ->where('not_schedule',0)
             ->whereDate('date', '>=', $request->start_date)
@@ -498,8 +512,8 @@ class ApiIncome extends Controller
                 
                 $outlet = $outlets[$id_outlet];
                 $data['Outlet'] = $outlet['outlet_name'];
-
                 $total_attend = $all_attends[$hs->id_user_hair_stylist][$id_outlet]['total'] ?? '0';
+                $total_timeoff = $all_timeoff[$hs->id_user_hair_stylist][$id_outlet]['total'] ?? '0';
                 $total_late = $all_lates[$hs->id_user_hair_stylist][$id_outlet]['total'] ?? '0';
                 $total_absen = $all_absens[$hs->id_user_hair_stylist][$id_outlet]['total'] ?? '0';
                 $total_overtimes = $all_overtimes[$hs->id_user_hair_stylist][$id_outlet] ?? '0';
@@ -518,6 +532,7 @@ class ApiIncome extends Controller
 
                 $data['Tambahan jam'] = (string) optional(optional($overtimes[$hs->id_user_hair_stylist][$id_outlet] ?? null)->values())->sum() ?? '0';
 
+                $data['Total Izin/Cuti'] = (string) $total_timeoff;
                 $data['Potongan telat'] = (string) $total_late;
 
                 $response = HairstylistIncome::calculateFixedIncentive($hs, $request->start_date,$request->end_date,$outlet,$incomeDefault);

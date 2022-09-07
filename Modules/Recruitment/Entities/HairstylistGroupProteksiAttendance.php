@@ -21,6 +21,7 @@ class HairstylistGroupProteksiAttendance extends Model
 		'value',
 		'amount',
 		'amount_day',
+		'amount_proteksi',
                 'created_at',   
                 'updated_at'
 	];

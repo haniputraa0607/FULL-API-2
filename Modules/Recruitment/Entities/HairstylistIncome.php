@@ -1671,6 +1671,12 @@ class HairstylistIncome extends Model
             ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
             ->groupBy('id_outlet', 'id_user_hair_stylist')
             ->count();
+         $total_timeoff = HairStylistTimeOff::whereNotNull('approve_at')
+            ->whereNull('reject_at')
+            ->whereDate('date', '>=', $value['start'])
+            ->whereDate('date', '<=', $value['end'])
+            ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+            ->count();
             $incentive = HairstylistGroupProteksiAttendanceDefault::leftJoin('hairstylist_group_proteksi_attendances', function ($join) use ($hs) {
                 $join->on('hairstylist_group_proteksi_attendances.id_hairstylist_group_default_proteksi_attendance', 'hairstylist_group_default_proteksi_attendances.id_hairstylist_group_default_proteksi_attendance')
                     ->where('id_hairstylist_group', $hs->id_hairstylist_group);
@@ -1689,14 +1695,23 @@ class HairstylistIncome extends Model
                  '),
                 DB::raw('
                     CASE WHEN
+                    hairstylist_group_proteksi_attendances.amount_proteksi IS NOT NULL THEN hairstylist_group_proteksi_attendances.amount_proteksi ELSE hairstylist_group_default_proteksi_attendances.amount_proteksi
+                    END as amount_proteksi
+                 '),
+                DB::raw('
+                    CASE WHEN
                     hairstylist_group_proteksi_attendances.amount_day IS NOT NULL THEN hairstylist_group_proteksi_attendances.amount_day ELSE hairstylist_group_default_proteksi_attendances.amount_day
                     END as amount_day
                  '),
                 )->first();
             $nominals = 0;
+            $total_attend = $total_attend+$total_timeoff;
             if($total_attend>0){
                 if($total_attend>=$incentive->value){
                     $nominals = $incentive->amount;
+                    if($total_timeoff>0){
+                    $nominals = $incentive->amount_proteksi;    
+                    }
                     $incentives = HairstylistGroupOvertimeDayDefault::leftJoin('hairstylist_group_overtime_days', function ($join) use ($hs) {
                 $join->on('hairstylist_group_overtime_days.id_hairstylist_group_default_overtime_day', 'hairstylist_group_default_overtime_days.id_hairstylist_group_default_overtime_day')
                     ->where('id_hairstylist_group', $hs->id_hairstylist_group);
@@ -1799,6 +1814,12 @@ class HairstylistIncome extends Model
             ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
             ->groupBy('id_outlet', 'id_user_hair_stylist')
             ->count();
+        $total_timeoff = HairStylistTimeOff::whereNotNull('approve_at')
+            ->whereNull('reject_at')
+            ->whereDate('date', '>=', $value['start'])
+            ->whereDate('date', '<=', $value['end'])
+            ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+            ->count();
             $incentive = HairstylistGroupProteksiAttendanceDefault::leftJoin('hairstylist_group_proteksi_attendances', function ($join) use ($hs) {
                 $join->on('hairstylist_group_proteksi_attendances.id_hairstylist_group_default_proteksi_attendance', 'hairstylist_group_default_proteksi_attendances.id_hairstylist_group_default_proteksi_attendance')
                     ->where('id_hairstylist_group', $hs->id_hairstylist_group);
@@ -1817,14 +1838,23 @@ class HairstylistIncome extends Model
                  '),
                 DB::raw('
                     CASE WHEN
+                    hairstylist_group_proteksi_attendances.amount_proteksi IS NOT NULL THEN hairstylist_group_proteksi_attendances.amount_proteksi ELSE hairstylist_group_default_proteksi_attendances.amount_proteksi
+                    END as amount_proteksi
+                 '),
+                DB::raw('
+                    CASE WHEN
                     hairstylist_group_proteksi_attendances.amount_day IS NOT NULL THEN hairstylist_group_proteksi_attendances.amount_day ELSE hairstylist_group_default_proteksi_attendances.amount_day
                     END as amount_day
                  '),
                 )->first();
             $nominals = 0;
+            $total_attend = $total_attend+$total_timeoff;
             if($total_attend>0){
                 if($total_attend>=$incentive->value){
                     $nominals = $incentive->amount;
+                    if($total_timeoff>0){
+                        $nominals = $incentive->amount_proteksi;    
+                    }
                     $incentives = HairstylistGroupOvertimeDayDefault::leftJoin('hairstylist_group_overtime_days', function ($join) use ($hs) {
                             $join->on('hairstylist_group_overtime_days.id_hairstylist_group_default_overtime_day', 'hairstylist_group_default_overtime_days.id_hairstylist_group_default_overtime_day')
                                 ->where('id_hairstylist_group', $hs->id_hairstylist_group);

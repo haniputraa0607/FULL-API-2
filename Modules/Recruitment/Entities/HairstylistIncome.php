@@ -1524,7 +1524,7 @@ class HairstylistIncome extends Model
         foreach ($total_late as $value) {
             $clock_in_requirement = date('Y-m-d H:i:s', strtotime($value['attendance_date'].' '.$value['clock_in_requirement'].'+'.$value['clock_in_tolerance'].' minutes'));
             $clock_in = date('Y-m-d H:i:s', strtotime($value['attendance_date'].' '.$value['clock_in']));
-            $clock_out_requirement = date('Y-m-d H:i:s', strtotime($value['attendance_date'].' '.$value['clock_out_requirement'].'-'.$value['clock_out_tolerance'].' minutes'));
+            $clock_out_requirement = date('Y-m-d H:i:s', strtotime($value['attendance_date'].' '.$value['clock_out_requirement']));
             $clock_out = date('Y-m-d H:i:s', strtotime($value['attendance_date'].' '.$value['clock_out']));
             $date3            = date_create($clock_in_requirement);
             $date4            = date_create($clock_in);
@@ -1596,7 +1596,7 @@ class HairstylistIncome extends Model
         foreach ($total_late as $value) {
            $clock_in_requirement = date('Y-m-d H:i:s', strtotime($value['attendance_date'].' '.$value['clock_in_requirement'].'+'.$value['clock_in_tolerance'].' minutes'));
             $clock_in = date('Y-m-d H:i:s', strtotime($value['attendance_date'].' '.$value['clock_in']));
-            $clock_out_requirement = date('Y-m-d H:i:s', strtotime($value['attendance_date'].' '.$value['clock_out_requirement'].'-'.$value['clock_out_tolerance'].' minutes'));
+            $clock_out_requirement = date('Y-m-d H:i:s', strtotime($value['attendance_date'].' '.$value['clock_out_requirement']));
             $clock_out = date('Y-m-d H:i:s', strtotime($value['attendance_date'].' '.$value['clock_out']));
             $date3            = date_create($clock_in_requirement);
             $date4            = date_create($clock_in);

@@ -1524,16 +1524,24 @@ class HairstylistIncome extends Model
         foreach ($total_late as $value) {
             $clock_in_requirement = date('Y-m-d H:i:s', strtotime($value['attendance_date'].' '.$value['clock_in_requirement'].'+'.$value['clock_in_tolerance'].' minutes'));
             $clock_in = date('Y-m-d H:i:s', strtotime($value['attendance_date'].' '.$value['clock_in']));
+            $clock_out_requirement = date('Y-m-d H:i:s', strtotime($value['attendance_date'].' '.$value['clock_out_requirement'].'-'.$value['clock_out_tolerance'].' minutes'));
+            $clock_out = date('Y-m-d H:i:s', strtotime($value['attendance_date'].' '.$value['clock_out']));
             $date3            = date_create($clock_in_requirement);
             $date4            = date_create($clock_in);
             $diff             = date_diff($date3, $date4);
-            $minute = $diff->h * 60 + $diff->i;
-           $data[] = array(
-               'attendance_date'=>$value['attendance_date'],
-               'clock_in_requirement'=>$clock_in_requirement,
-               'clock_in'=>$clock_in,
-               'minute'=>$minute,
-           );
+            $date5            = date_create($clock_out_requirement);
+			$date6            = date_create($clock_out);
+            $diffs             = date_diff($date5, $date6);
+            $minute = 0;
+            if(strtotime($clock_in_requirement) < strtotime($clock_in)){
+                $s = $diff->h * 60 + $diff->i;
+                $minute = $minute + $s;
+            }
+            if(strtotime($clock_out_requirement) > strtotime($clock_out)){
+                $s = $diffs->h * 60 + $diffs->i;
+                $minute = $minute + $s;
+            }
+            
           $incentive = HairstylistGroupLateDefault::leftJoin('hairstylist_group_lates', function ($join) use ($hs) {
                 $join->on('hairstylist_group_lates.id_hairstylist_group_default_late', 'hairstylist_group_default_lates.id_hairstylist_group_default_late')
                     ->where('id_hairstylist_group', $hs->id_hairstylist_group);
@@ -1549,6 +1557,15 @@ class HairstylistIncome extends Model
             foreach ($incentive as $valu) {
                 if ($valu['range'] <= (int) $minute) {
                     $nominals = $valu['value'];
+//                     $data[] = array(
+//                        'attendance_date'=>$value['attendance_date'],
+//                        'clock_in_requirement'=>$clock_in_requirement,
+//                        'clock_out_requirement'=>$clock_out_requirement,
+//                        'clock_in'=>$clock_in,
+//                        'clock_out'=>$clock_out,
+//                        'minute'=>$minute,
+//                        'value'=>$valu
+//                    );
                     break;
                 }
             }
@@ -1577,13 +1594,25 @@ class HairstylistIncome extends Model
                 ->whereBetween('hairstylist_attendances.attendance_date', [$startDate, $endDate])
                 ->get();
         foreach ($total_late as $value) {
-            $clock_in_requirement = date('Y-m-d H:i:s', strtotime($value['attendance_date'].' '.$value['clock_in_requirement'].'+'.$value['clock_in_tolerance'].' minutes'));
+           $clock_in_requirement = date('Y-m-d H:i:s', strtotime($value['attendance_date'].' '.$value['clock_in_requirement'].'+'.$value['clock_in_tolerance'].' minutes'));
             $clock_in = date('Y-m-d H:i:s', strtotime($value['attendance_date'].' '.$value['clock_in']));
+            $clock_out_requirement = date('Y-m-d H:i:s', strtotime($value['attendance_date'].' '.$value['clock_out_requirement'].'-'.$value['clock_out_tolerance'].' minutes'));
+            $clock_out = date('Y-m-d H:i:s', strtotime($value['attendance_date'].' '.$value['clock_out']));
             $date3            = date_create($clock_in_requirement);
             $date4            = date_create($clock_in);
             $diff             = date_diff($date3, $date4);
-            $minute = $diff->h * 60 + $diff->i;
-           
+            $date5            = date_create($clock_out_requirement);
+			$date6            = date_create($clock_out);
+            $diffs             = date_diff($date5, $date6);
+            $minute = 0;
+            if(strtotime($clock_in_requirement) < strtotime($clock_in)){
+                $s = $diff->h * 60 + $diff->i;
+                $minute = $minute + $s;
+            }
+            if(strtotime($clock_out_requirement) > strtotime($clock_out)){
+                $s = $diffs->h * 60 + $diffs->i;
+                $minute = $minute + $s;
+            }
         $incentive = HairstylistGroupLateDefault::leftJoin('hairstylist_group_lates', function ($join) use ($hs) {
                 $join->on('hairstylist_group_lates.id_hairstylist_group_default_late', 'hairstylist_group_default_lates.id_hairstylist_group_default_late')
                     ->where('id_hairstylist_group', $hs->id_hairstylist_group);
@@ -1604,7 +1633,9 @@ class HairstylistIncome extends Model
                                 'id_hairstylist_schedule_date'=>$value['id_hairstylist_schedule_date'],
                                 'attendance_date'=>$value['attendance_date'],
                                 'clock_in_requirement'=>$clock_in_requirement,
+                                'clock_out_requirement'=>$clock_out_requirement,
                                 'clock_in'=>$clock_in,
+                                'clock_out'=>$clock_out,
                                 'minute'=>$minute,
                                 'range'=>$valu['range'],
                                 'nominal'=>$nominals

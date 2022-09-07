@@ -17,6 +17,7 @@ class HairstylistGroupProteksiAttendanceDefault extends Model
         'month',
 	'amount',
 	'amount_day',
+	'amount_proteksi',
         'value',
         'created_at',   
         'updated_at',

@@ -1699,9 +1699,8 @@ class HairstylistIncome extends Model
             ->whereDate('hairstylist_attendances.attendance_date', '>=', $value['start'])
             ->whereDate('hairstylist_attendances.attendance_date', '<=', $value['end'])
             ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
-            ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
-            ->groupBy('id_outlet', 'id_user_hair_stylist')
-            ->count();
+			->where('id_outlet', $id_outlet)
+			->count();
          $total_timeoff = HairStylistTimeOff::whereNotNull('approve_at')
             ->whereNull('reject_at')
             ->whereDate('date', '>=', $value['start'])
@@ -1715,8 +1714,8 @@ class HairstylistIncome extends Model
             ->whereDate('hairstylist_attendances.attendance_date', '>=', $value['start'])
             ->whereDate('hairstylist_attendances.attendance_date', '<=', $value['end'])
             ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
-            ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
-            ->groupBy('id_outlet', 'id_user_hair_stylist')
+            ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+			->where('id_outlet', $id_outlet)
             ->count();
         //absensi
         $total_absen = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
@@ -1724,8 +1723,8 @@ class HairstylistIncome extends Model
             ->whereDate('hairstylist_attendances.attendance_date', '>=', $value['start'])
             ->whereDate('hairstylist_attendances.attendance_date', '<=', $value['end'])
             ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
-            ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
-            ->groupBy('id_outlet', 'id_user_hair_stylist')
+            ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+			->where('id_outlet', $id_outlet)
             ->count();
             $incentive = HairstylistGroupProteksiAttendanceDefault::leftJoin('hairstylist_group_proteksi_attendances', function ($join) use ($hs) {
                 $join->on('hairstylist_group_proteksi_attendances.id_hairstylist_group_default_proteksi_attendance', 'hairstylist_group_default_proteksi_attendances.id_hairstylist_group_default_proteksi_attendance')

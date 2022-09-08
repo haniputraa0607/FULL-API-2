@@ -252,16 +252,24 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
                 Route::post('default/delete', ['middleware' => 'feature_control:425','uses' =>'ApiSalaryCutController@delete_default']);
             });
     Route::group(['prefix' => 'loan'], function () {
-                Route::post('category/create', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@createCategory']);
-                Route::post('category/list', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@listCategory']);
-                Route::post('category/delete', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@deleteCategory']);
-                Route::post('hs', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@hs']);
-                Route::post('create', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@create']);
-                Route::post('/', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@index']);
-                Route::post('/sales', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@index_sales_payment']);
-                Route::post('/sales/detail', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@detail_sales_payment']);
-                Route::post('/sales/create', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@create_sales_payment']);
-            });
+        Route::post('category/create', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@createCategory']);
+        Route::post('category/list', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@listCategory']);
+        Route::post('category/delete', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@deleteCategory']);
+        Route::post('hs', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@hs']);
+        Route::post('create', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@create']);
+        Route::post('/', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@index']);
+        Route::post('/sales', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@index_sales_payment']);
+        Route::post('/sales/detail', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@detail_sales_payment']);
+        Route::post('/sales/create', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@create_sales_payment']);
+    });
+
+    Route::group(['prefix' => 'request'], function()
+    {
+        Route::post('create', ['middleware' => 'feature_control:537', 'uses' => 'ApiRequestEmployeeController@store']);
+        Route::post('detail', ['middleware' => 'feature_control:539', 'uses' => 'ApiRequestEmployeeController@detail']);
+        Route::post('update', ['middleware' => 'feature_control:540', 'uses' => 'ApiRequestEmployeeController@update']);
+        Route::post('list-employee', ['middleware' => 'feature_control:539', 'uses' => 'ApiRequestEmployeeController@listEmployeeOutlet']);
+    });
 });
 
 Route::group([ 'middleware' => ['log_activities', 'auth:api','auth_client','scopes:landing-page'], 'prefix' => 'employee'], function () {

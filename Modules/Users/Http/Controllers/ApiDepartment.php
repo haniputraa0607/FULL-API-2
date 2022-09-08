@@ -264,4 +264,10 @@ class ApiDepartment extends Controller
             $log->fail($e->getMessage());
         } 
     }
+
+    public function listDepartment(Request $request){
+        $post = $request->all();
+        $department = Department::get()->toArray();
+        return MyHelper::checkGet($department);
+    }
 }

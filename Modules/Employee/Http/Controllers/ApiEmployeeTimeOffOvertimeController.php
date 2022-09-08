@@ -484,19 +484,68 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
         return MyHelper::checkGet($send);
     }
 
+    public function getBetweenDates($start, $end){
+        $rangArray = [];
+            
+        $start = strtotime($start);
+        $end = strtotime($end);
+             
+        for ($currentDate = $start; $currentDate <= $end; $currentDate += (86400)) {                  
+            $date = date('Y-m-d', $currentDate);
+            $rangArray[] = $date;
+        }
+  
+        return $rangArray;
+    }
+
     public function storeTimeOffEmployee(EmployeeTimeOffCreate $request){
         $post = $request->all();
         $employee = $request->user()->id;
         $office = $request->user()->id_outlet;
-        $array_date = explode('-',$post['date']);
+
+        if(strtotime($post['start_date']) > strtotime($post['end_date'])){
+            return response()->json([
+                'status'=>'fail',
+                'messages'=>['Tanggal mulai cuti tidak bisa melebihi tanggal selesai cuti']
+            ]); 
+        }
+
+        //cek date
+        if(date('Y-m-d', strtotime($post['start_date'])) < date('Y-m-d') || date('Y-m-d', strtotime($post['end_date'])) < date('Y-m-d')){
+            return response()->json(['status' => 'fail', 'messages' => ['Minimal tanggal pengajuan cuti adalah hari ini']]);
+        }   
+        
+        $array_dates = $this->getBetweenDates($post['start_date'],$post['end_date']);
+
         $type = Setting::where('key','employee_time_off_type')->get('value_text')->first();
         $type_time_off = [];
         if($type){
             $type_time_off = json_decode($type['value_text']??'' , true);
         }
-        $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$employee)->first();
-        $schedule_month = EmployeeSchedule::where('id',$employee)->where('schedule_month',$array_date[1])->where('schedule_year',$array_date[0])->first();
 
+        //cek_time_off
+        $time_off = EmployeeTimeOff::where('id_employee',$employee)->where('id_outlet',$office)
+        ->where(function($w) use($post){$w->whereDate('start_date','>=',$post['start_date'])->whereDate('end_date','<=',$post['end_date']);})
+        ->orWhere(function($w2) use($post){$w2->whereDate('start_date','<=',$post['start_date'])->whereDate('end_date','>=',$post['start_date'])->whereDate('end_date','<=',$post['end_date']);})
+        ->orWhere(function($w2) use($post){$w2->whereDate('start_date','>=',$post['start_date'])->whereDate('start_date','<=',$post['end_date'])->whereDate('end_date','>=',$post['end_date']);})
+        ->orWhere(function($w2) use($post){$w2->whereDate('start_date','<=',$post['start_date'])->whereDate('end_date','>=',$post['end_date']);})->get()->toArray();
+        if($time_off){
+            //disetujui tdk bisa lagi mengajukan
+            foreach($time_off as $tf){
+                if(isset($tf['approve_by']) && !isset($tf['reject_at'])){
+                    return response()->json(['status' => 'fail', 'messages' => ['Sudah ada pengajuan cuti yang disetujui pada tanggal '.MyHelper::indonesian_date_v2($tf['start_date'],'d F Y').' sampai '.MyHelper::indonesian_date_v2($tf['end_date'],'d F Y')]]);
+                }
+            }
+            //pending
+            foreach($time_off as $tf){
+                if(!isset($tf['approve_by']) && !isset($tf['reject_at'])){
+                    return response()->json(['status' => 'fail', 'messages' => ['Sudah ada pengajuan cuti yang dan sedang menunggu persetujuan pada tanggal '.MyHelper::indonesian_date_v2($tf['start_date'],'d F Y').' sampai '.MyHelper::indonesian_date_v2($tf['end_date'],'d F Y')]]);
+                }
+            }
+        }
+
+        $date_close = 0;
+        $type_shift = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$employee)->first();
         if(empty($type_shift['office_hour_type'])){
             $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
             if($setting_default){
@@ -511,77 +560,71 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
             }
         }
         $type_shift = $type_shift['office_hour_type'];
-        
-        //cek date
-        if(date('Y-m-d', strtotime($post['date'])) < date('Y-m-d')){
-            return response()->json(['status' => 'fail', 'messages' => ['Minimal tanggal pengajuan cuti adalah hari ini']]);
-        }
 
-        //cek_time_off
-        $time_off = EmployeeTimeOff::where('id_employee',$employee)->where('id_outlet',$office)->whereDate('date', $post['date'])->get()->toArray();
-        if($time_off){
-            //disetujui tdk bisa lagi mengajukan
-            foreach($time_off as $tf){
-                if(isset($tf['approve_by']) && !isset($tf['reject_at'])){
-                    return response()->json(['status' => 'fail', 'messages' => ['Sudah ada pengajuan cuti yang disetujui pada tanggal ini']]);
+        foreach($array_dates ?? [] as $val_date){
+            $array_date = explode('-',$val_date);
+            $schedule_month = EmployeeSchedule::where('id',$employee)->where('schedule_month',$array_date[1])->where('schedule_year',$array_date[0])->first();
+    
+            
+    
+            //closed
+            $outletClosed = Outlet::join('users','users.id_outlet','outlets.id_outlet')->with(['outlet_schedules'])->where('users.id',$employee)->first();
+            $outletSchedule = [];
+            foreach ($outletClosed['outlet_schedules'] as $s) {
+                $outletSchedule[$s['day']] = [
+                    'is_closed' => $s['is_closed'],
+                    'time_start' => $s['open'],
+                    'time_end' => $s['close'],
+                ];
+            }
+    
+            $day = date('l, F j Y', strtotime($val_date));
+            $hari = MyHelper::indonesian_date_v2($val_date, 'l');
+            $hari = str_replace('Jum\'at', 'Jumat', $hari);
+            
+            if($outletSchedule[$hari]['is_closed'] == 1){
+                $date_close = $date_close + 1;
+            }
+    
+            //holiday
+            $holidays = Holiday::leftJoin('outlet_holidays', 'holidays.id_holiday', 'outlet_holidays.id_holiday')
+                                ->leftJoin('date_holidays', 'holidays.id_holiday', 'date_holidays.id_holiday')
+                                ->where('id_outlet', $office)
+                                ->where(function($p1) use($val_date, $array_date) {
+                                    $p1->whereDate('date_holidays.date', $val_date)
+                                        ->orWhere(function($p2) use($array_date){
+                                            $p2->where('holidays.yearly', '1')
+                                                ->whereDay('date_holidays.date', $array_date[2])
+                                                ->whereMonth('date_holidays.date', $array_date[1]);
+                                        });
+                                })
+                                ->get()->toArray();
+            if($holidays){
+                $date_close = $date_close + 1;
+            }
+            
+            //employee with shift
+            if((!$schedule_month && $type_shift == 'Use Shift') || (isset($schedule_month['id_office_hour_shift']))){
+                $schedule_date = EmployeeScheduleDate::join('employee_schedules','employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule')
+                                                        ->join('users','users.id','employee_schedules.id')
+                                                        ->where('users.id', $employee)
+                                                        ->where('employee_schedules.schedule_month', $array_date[1])
+                                                        ->where('employee_schedules.schedule_year', $array_date[0])
+                                                        ->whereDate('employee_schedule_dates.date', $val_date)
+                                                        ->first();
+                if(!$schedule_date){
+                    return response()->json(['status' => 'fail', 'messages' => ['Jadwal karyawan pada tanggal ini belum dibuat']]);
                 }
             }
-            //pending
-            foreach($time_off as $tf){
-                if(!isset($tf['approve_by']) && !isset($tf['reject_at'])){
-                    return response()->json(['status' => 'fail', 'messages' => ['Sudah ada pengajuan cuti yang dan sedang menunggu persetujuan']]);
-                }
-            }
         }
-
-        //closed
-        $outletClosed = Outlet::join('users','users.id_outlet','outlets.id_outlet')->with(['outlet_schedules'])->where('users.id',$employee)->first();
-        $outletSchedule = [];
-        foreach ($outletClosed['outlet_schedules'] as $s) {
-            $outletSchedule[$s['day']] = [
-                'is_closed' => $s['is_closed'],
-                'time_start' => $s['open'],
-                'time_end' => $s['close'],
-            ];
-        }
-
-        $day = date('l, F j Y', strtotime($post['date']));
-        $hari = MyHelper::indonesian_date_v2($post['date'], 'l');
-        $hari = str_replace('Jum\'at', 'Jumat', $hari);
         
-        if($outletSchedule[$hari]['is_closed'] == 1){
-            return response()->json(['status' => 'fail', 'messages' => ['Kantor tutup pada tanggal ini']]);
-        }
-
-        //holiday
-        $holidays = Holiday::leftJoin('outlet_holidays', 'holidays.id_holiday', 'outlet_holidays.id_holiday')
-                            ->leftJoin('date_holidays', 'holidays.id_holiday', 'date_holidays.id_holiday')
-                            ->where('id_outlet', $office)
-                            ->where(function($p1) use($post, $array_date) {
-                                $p1->whereDate('date_holidays.date', $post['date'])
-                                    ->orWhere(function($p2) use($array_date){
-                                        $p2->where('holidays.yearly', '1')
-                                            ->whereDay('date_holidays.date', $array_date[2])
-                                            ->whereMonth('date_holidays.date', $array_date[1]);
-                                    });
-                            })
-                            ->get()->toArray();
-        if($holidays){
-            return response()->json(['status' => 'fail', 'messages' => ['Kantor libur pada tanggal ini']]);
-        }
-
-        //employee with shift
-        if($type_shift == 'Use Shift' || isset($schedule_month['id_office_hour_shift'])){
-            $schedule_date = EmployeeScheduleDate::join('employee_schedules','employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule')
-                                                    ->join('users','users.id','employee_schedules.id')
-                                                    ->where('users.id', $employee)
-                                                    ->where('employee_schedules.schedule_month', $array_date[1])
-                                                    ->where('employee_schedules.schedule_year', $array_date[0])
-                                                    ->whereDate('employee_schedule_dates.date', $post['date'])
-                                                    ->first();
-            if(!$schedule_date){
-                return response()->json(['status' => 'fail', 'messages' => ['Jadwal karyawan pada tanggal ini belum dibuat']]);
-            }
+        $diff = strtotime($post['end_date']) - strtotime($post['start_date']);
+        $diff = ($diff / 60 / 60 / 24) + 1 - $date_close;
+        if($diff > 7){
+            return response()->json([
+                'status'=>'fail',
+                'messages'=>['Maksimal durasi cuti adalah 7 hari']
+            ]); 
         }
 
         $data_time_off = [
@@ -589,7 +632,8 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
             'id_outlet'   => $office,
             'type'        => $post['type'],
             'request_by'  => $employee,
-            'date'        => date('Y-m-d 00:00:00', strtotime($post['date'])),
+            'start_date'  => date('Y-m-d 00:00:00', strtotime($post['start_date'])),
+            'end_date'    => date('Y-m-d 00:00:00', strtotime($post['end_date'])),
             'request_at'  => date('Y-m-d'),
             'notes'       => $post['notes'],
             'use_quota_time_off' => $type_time_off[$post['type']]['use_quota_time_off'] ?? 1,
@@ -654,7 +698,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                     'name_employee' => $employee['name'],
                     'phone_employee' => $employee['phone'],
                     'name_office' => $outlet['outlet_name'],
-                    'time_off_date' => date('d F Y', strtotime($post['date'])),
+                    'time_off_date' => date('d F Y', strtotime($post['start_date'])),
                     'categore' => 'Time Off',
                     'id_time_off' => $store['id_employee_time_off']
                 ], null, false, false, 'employee'

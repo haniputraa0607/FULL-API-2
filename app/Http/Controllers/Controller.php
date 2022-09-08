@@ -265,7 +265,9 @@ class Controller extends BaseController
                 'delivery_product' => $this->delivery_product(),      
                 'hairstylist_request_update' => $this->hairstylist_request_update(),      
                 'request_hairstylist' => $this->request_hairstylist(),      
+                'employee_recruitment' => $this->employee_recruitment(),      
                 'employee_candidate' => $this->employee_candidate(),      
+                'list_request_employee' => $this->list_request_employee(),      
     		],
     	];
     }
@@ -285,12 +287,17 @@ class Controller extends BaseController
                          $this->employee_attendance()+
                          $this->employee_attendance_outlet()+
                          $this->employee_timeoff_overtime()+
-                         $this->employee_candidate();
+                         $this->employee_recruitment();
                 if($total==0){
                     $total = null;
                 }
                 return $total;
 	}
+
+    public function employee_recruitment(){
+        $total =  $this->employee_candidate()+$this->list_request_employee();
+        return $total;
+    }
     public function employee_candidate()
 	{
                 $total = User::where(array(
@@ -623,6 +630,14 @@ class Controller extends BaseController
 
     public function request_hairstylist(){
         $total = \Modules\Recruitment\Entities\RequestHairStylist::where('status','Request')->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+
+    public function list_request_employee(){
+        $total = \Modules\Employee\Entities\RequestEmployee::where('status','Request')->count();
         if($total==0){
             $total = null;
         }

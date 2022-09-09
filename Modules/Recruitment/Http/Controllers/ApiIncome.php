@@ -68,6 +68,31 @@ class ApiIncome extends Controller
        
     }
     public function generate() {
+      $periode = array(
+           '2022-02',
+           '2022-03',
+           '2022-04',
+           '2022-05',
+           '2022-06',
+           '2022-07',
+           '2022-08',
+       );
+      $array = array();
+      foreach($periode as $key){
+            $mid         = (int) MyHelper::setting('hs_income_cut_off_mid_date', 'value');
+           $end         = (int) MyHelper::setting('hs_income_cut_off_end_date', 'value');
+           $start = date('Y-m-'.$end,strtotime($key.'+1 day'.'-1 month'));
+         $array[]=array(
+             'startDate'=>date('Y-m-d',strtotime($start.'+1 day')),
+             'endDate'=>date('Y-m-'.$mid,strtotime($key)),
+         );
+         $start = date('Y-m-'.$mid,strtotime($key.'+1 day'));
+         $array[]=array(
+             'startDate'=>date('Y-m-d',strtotime($start.'+1 day')),
+             'endDate'=>date('Y-m-'.$end,strtotime($key)),
+         );
+      }
+      return $array;
        return $hs = UserHairStylist::where('user_hair_stylist_status','Active')->select('join_date','id_user_hair_stylist')->get();
         
     }
@@ -349,12 +374,19 @@ class ApiIncome extends Controller
         }
         $transactions = Transaction::join('transaction_products', function ($join) use ($request) {
                 $join->on('transactions.id_transaction', 'transaction_products.id_transaction')
-                    ->whereDate('transaction_products.transaction_product_completed_at', '>=', $request->start_date)
-                    ->whereDate('transaction_products.transaction_product_completed_at', '<=', $request->end_date);
+                    ->whereDate('transactions.transaction_date', '>=', $request->start_date)
+                    ->whereDate('transactions.transaction_date', '<=', $request->end_date)
+                    ->where('transaction_payment_status','Completed');
             })
             ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
             ->whereIn('transactions.id_outlet', $request->id_outlet)->get();
-
+//            $transactions = Transaction::join('transaction_products', function ($join) use ($request) {
+//                $join->on('transactions.id_transaction', 'transaction_products.id_transaction')
+//                    ->whereDate('transaction_products.transaction_product_completed_at', '>=', $request->start_date)
+//                    ->whereDate('transaction_products.transaction_product_completed_at', '<=', $request->end_date);
+//            })
+//            ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+//            ->whereIn('transactions.id_outlet', $request->id_outlet)->get();
         if ($transactions->count() == 0) {
             return [
                 'status' => 'fail',
@@ -568,7 +600,7 @@ class ApiIncome extends Controller
                     $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
                     $total_income += $values['value'];
                 }
-               $response = HairstylistIncome::calculateIncomeLateness($hs, $request->start_date,$request->end_date,$id_outlet);
+              $response = HairstylistIncome::calculateIncomeLateness($hs, $request->start_date,$request->end_date,$id_outlet);
                 foreach ($response as $values) {
                     $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
                     $total_income -= $values['value'];

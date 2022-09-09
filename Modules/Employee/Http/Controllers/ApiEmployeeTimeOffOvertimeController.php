@@ -166,19 +166,34 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
 
                             $detail = EmployeeScheduleDate::where('id_employee_schedule',$id_schedule)->get()->toArray();
                             if($detail){
+                                $listDate = MyHelper::getListDate($post['month'], $post['year']);
                                 $send = [];
                                 foreach($detail as $key => $data){
                                     if($data['date'] >= date('Y-m-d 00:00:00')){
-                                        $send[$key]['id_employee_schedule'] = $schedule['id_employee_schedule'];
-                                        $send[$key]['date'] = $data['date'];
-                                        $send[$key]['date_format'] = date('d F Y', strtotime($data['date']));
-                                        $send[$key]['time_start'] = $data['time_start'] ? MyHelper::adjustTimezone($data['time_start'], $timeZone, 'H:i') : null;
-                                        $send[$key]['time_end'] = $data['time_end'] ? MyHelper::adjustTimezone($data['time_end'], $timeZone, 'H:i') : null;
+                                        $send[date('Y-m-d',strtotime($data['date']))]['id_employee_schedule'] = $schedule['id_employee_schedule'];
+                                        $send[date('Y-m-d',strtotime($data['date']))]['date'] = $data['date'];
+                                        $send[date('Y-m-d',strtotime($data['date']))]['date_format'] = date('d F Y', strtotime($data['date']));
+                                        $send[date('Y-m-d',strtotime($data['date']))]['time_start'] = $data['time_start'] ? MyHelper::adjustTimezone($data['time_start'], $timeZone, 'H:i') : null;
+                                        $send[date('Y-m-d',strtotime($data['date']))]['time_end'] = $data['time_end'] ? MyHelper::adjustTimezone($data['time_end'], $timeZone, 'H:i') : null;
+                                    }
+                                }
+                                $result = [];
+                                foreach($listDate as $date){
+                                    if(date('Y-m-d 00:00:00',strtotime($date)) >= date('Y-m-d 00:00:00') && isset($send[$date])){
+                                        $result[] = $send[$date];
+                                    }elseif(date('Y-m-d 00:00:00',strtotime($date)) >= date('Y-m-d 00:00:00') && !isset($send[$date])){
+                                        $result[] = [
+                                            'id_employee_schedule' => null,
+                                            'date' => date('Y-m-d 00:00:00',strtotime($date)),
+                                            'date_format' => date('d F Y', strtotime($date)),
+                                            'time_start' => null,
+                                            'time_end' => null,
+                                        ];
                                     }
                                 }
                                 return response()->json([
                                     'status' => 'success', 
-                                    'result' => $send
+                                    'result' => $post['type_request'] == 'time_off' ? $result : $send
                                 ]);
                             }
                         
@@ -213,13 +228,21 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                                 $hari = MyHelper::indonesian_date_v2($list_date, 'l');
                                 $hari = str_replace('Jum\'at', 'Jumat', $hari);
                                 
-                                if($outletSchedule[$hari]['is_closed'] != 1){
-                                    if(!isset($holidays[$list_date]) && isset($outletSchedule[$hari])) {
-                                        $send[$key]['id_employee_schedule'] = $schedule['id_employee_schedule'];
-                                        $send[$key]['date'] = $list_date;
-                                        $send[$key]['date_format'] = date('d F Y', strtotime($list_date));
-                                        $send[$key]['time_start'] = $cek_employee['office_hour_start'] ? MyHelper::adjustTimezone($cek_employee['office_hour_start'], $timeZone, 'H:i') : null;
-                                        $send[$key]['time_end'] = $cek_employee['office_hour_end'] ? MyHelper::adjustTimezone($cek_employee['office_hour_end'], $timeZone, 'H:i') : null;
+                                if($post['type_request'] == 'time_off'){
+                                    $send[$key]['id_employee_schedule'] = $schedule['id_employee_schedule'];
+                                    $send[$key]['date'] = $list_date;
+                                    $send[$key]['date_format'] = date('d F Y', strtotime($list_date));
+                                    $send[$key]['time_start'] = $cek_employee['office_hour_start'] ? MyHelper::adjustTimezone($cek_employee['office_hour_start'], $timeZone, 'H:i') : null;
+                                    $send[$key]['time_end'] = $cek_employee['office_hour_end'] ? MyHelper::adjustTimezone($cek_employee['office_hour_end'], $timeZone, 'H:i') : null;
+                                }else{
+                                    if($outletSchedule[$hari]['is_closed'] != 1){
+                                        if(!isset($holidays[$list_date]) && isset($outletSchedule[$hari])) {
+                                            $send[$key]['id_employee_schedule'] = $schedule['id_employee_schedule'];
+                                            $send[$key]['date'] = $list_date;
+                                            $send[$key]['date_format'] = date('d F Y', strtotime($list_date));
+                                            $send[$key]['time_start'] = $cek_employee['office_hour_start'] ? MyHelper::adjustTimezone($cek_employee['office_hour_start'], $timeZone, 'H:i') : null;
+                                            $send[$key]['time_end'] = $cek_employee['office_hour_end'] ? MyHelper::adjustTimezone($cek_employee['office_hour_end'], $timeZone, 'H:i') : null;
+                                        }
                                     }
                                 }
                             }
@@ -332,8 +355,11 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
             }else{
                 $data_update['id_outlet'] = $get_data['id_outlet'];
             }
-            if(isset($post['date'])){
-                $data_update['date'] = $post['date'];
+            if(isset($post['start_date'])){
+                $data_update['start_date'] = $post['start_date'];
+            }
+            if(isset($post['end_date'])){
+                $data_update['end_date'] = $post['end_date'];
             }
             if(isset($post['approve_notes'])){
                 $data_update['approve_notes'] = $post['approve_notes'];
@@ -359,6 +385,17 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                     ]);
                 }
                 if(isset($post['approve'])){
+
+                    if(strtotime($data_update['start_date']) > strtotime($data_update['end_date'])){
+                        DB::rollBack();
+                        return response()->json([
+                            'status'=>'fail',
+                            'messages'=>['Start date cant be greater than end date']
+                        ]); 
+                    }
+
+                    $array_dates = $this->getBetweenDates($data_update['start_date'],$data_update['end_date']);
+
                     $data_not_avail = [
                         "id_outlet" => $data_update['id_outlet'],
                         "id_employee" => $data_update['id_employee'],
@@ -562,10 +599,9 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
         $type_shift = $type_shift['office_hour_type'];
 
         foreach($array_dates ?? [] as $val_date){
+            $closeOrHoliday = false;
             $array_date = explode('-',$val_date);
             $schedule_month = EmployeeSchedule::where('id',$employee)->where('schedule_month',$array_date[1])->where('schedule_year',$array_date[0])->first();
-    
-            
     
             //closed
             $outletClosed = Outlet::join('users','users.id_outlet','outlets.id_outlet')->with(['outlet_schedules'])->where('users.id',$employee)->first();
@@ -584,6 +620,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
             
             if($outletSchedule[$hari]['is_closed'] == 1){
                 $date_close = $date_close + 1;
+                $closeOrHoliday = true;
             }
     
             //holiday
@@ -601,6 +638,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                                 ->get()->toArray();
             if($holidays){
                 $date_close = $date_close + 1;
+                $closeOrHoliday = true;
             }
             
             //employee with shift
@@ -612,7 +650,8 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                                                         ->where('employee_schedules.schedule_year', $array_date[0])
                                                         ->whereDate('employee_schedule_dates.date', $val_date)
                                                         ->first();
-                if(!$schedule_date){
+                
+                if(!$schedule_date && !$schedule_month){
                     return response()->json(['status' => 'fail', 'messages' => ['Jadwal karyawan pada tanggal ini belum dibuat']]);
                 }
             }

@@ -69,7 +69,7 @@ class ApiRequestEmployeeController extends Controller
 
         if(isset($post['id_request_employee']) && !empty($post['id_request_employee'])){
             $req_employee = RequestEmployee::with(['outlet_request','applicant_request','department_request'])->where('id_request_employee', $post['id_request_employee'])->first();
-            $req_employee['id_employee'] = json_decode($req_employee['id_employee']??'' , true)['id_employee'];
+            $req_employee['id_employee'] = json_decode($req_employee['id_employee']??'' , true)['id'];
             return response()->json(['status' => 'success', 'result' => [
                 'request_employee' => $req_employee,
             ]]);
@@ -125,5 +125,117 @@ class ApiRequestEmployeeController extends Controller
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }
+    }
+
+    public function index(Request $request){
+        $post = $request->all();
+        
+        $post = $request->all();
+        $request_employee = RequestEmployee::with(['outlet_request','department_request','applicant_request']);
+        if(isset($post['conditions']) && !empty($post['conditions'])){
+            $rule = 'and';
+            if(isset($post['rule'])){
+                $rule = $post['rule'];
+            }
+            if($rule == 'and'){
+                foreach ($post['conditions'] as $condition){
+                    if(isset($condition['subject'])){      
+
+                        if($condition['subject']=='status'){
+                            $condition['parameter'] = $condition['operator'];
+                            $condition['operator'] = '=';
+                        }elseif($condition['subject']=='outlet_name'){
+                            if(!MyHelper::isJoined($request_employee,'outlets')){
+                                $request_employee = $request_employee->join('outlets','outlets.id_outlet','=','request_employees.id_outlet');
+                            }
+                            $condition['subject'] = 'outlets.outlet_name';
+                        }elseif($condition['subject']=='department_name'){
+                            if(!MyHelper::isJoined($request_employee,'departments')){
+                                $request_employee = $request_employee->join('departments','departments.id_department','=','request_employees.id_department');
+                            }
+                            $condition['subject'] = 'departments.department_name';
+                        }
+                        
+                        if($condition['operator'] == '='){
+                            $request_employee = $request_employee->where($condition['subject'], $condition['parameter']);
+                        }else{
+                            $request_employee = $request_employee->where($condition['subject'], 'like', '%'.$condition['parameter'].'%');
+                        }
+                    }
+                }
+            }else{
+                $request_employee = $request_employee->where(function ($q) use ($post, $request_employee){
+                    foreach ($post['conditions'] as $condition){
+                        if(isset($condition['subject'])){
+
+                            if($condition['subject']=='status'){
+                                $condition['parameter'] = $condition['operator'];
+                                $condition['operator'] = '=';
+                            }elseif($condition['subject']=='outlet_name'){
+                                if(!MyHelper::isJoined($request_employee,'outlets')){
+                                    $request_employee = $request_employee->join('outlets','outlets.id_outlet','=','request_employees.id_outlet');
+                                }
+                                $condition['subject'] = 'outlets.outlet_name';
+                            }elseif($condition['subject']=='department_name'){
+                                if(!MyHelper::isJoined($request_employee,'departments')){
+                                    $request_employee = $request_employee->join('departments','departments.id_department','=','request_employees.id_department');
+                                }
+                                $condition['subject'] = 'departments.department_name';
+                            }
+
+                            if($condition['operator'] == '='){
+                                $q->orWhere($condition['subject'], $condition['parameter']);
+                            }else{
+                                $q->orWhere($condition['subject'], 'like', '%'.$condition['parameter'].'%');
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        if(isset($post['order']) && isset($post['order_type'])){
+            if($post['order']=='outlet_name'){
+                if(!MyHelper::isJoined($request_employee,'outlets')){
+                    $request_employee = $request_employee->join('outlets','outlets.id_outlet','=','request_employees.id_outlet');
+                }
+                $request_employee = $request_employee->select('request_employees.*');
+                if(isset($post['page'])){
+                    $request_employee = $request_employee->orderBy('outlets.outlet_name', $post['order_type'])->paginate($request->length ?: 10);
+                }else{
+                    $request_employee = $request_employee->orderBy('outlets.outlet_name', $post['order_type'])->get()->toArray();
+                }
+            }elseif($post['order']=='department_name'){
+                if(!MyHelper::isJoined($request_employee,'departments')){
+                    $request_employee = $request_employee->join('departments','departments.id_department','=','request_employees.id_department');
+                }
+                $request_employee = $request_employee->select('request_employees.*');
+                if(isset($post['page'])){
+                    $request_employee = $request_employee->orderBy('departments.department_name', $post['order_type'])->paginate($request->length ?: 10);
+                }else{
+                    $request_employee = $request_employee->orderBy('departments.department_name', $post['order_type'])->get()->toArray();
+                }
+            }else{
+                $request_employee = $request_employee->select('request_employees.*');
+                if(isset($post['page'])){
+                    $request_employee = $request_employee->orderBy('request_employees.'.$post['order'], $post['order_type'])->paginate($request->length ?: 10);
+                }else{
+                    $request_employee = $request_employee->orderBy('request_employees.'.$post['order'], $post['order_type'])->get()->toArray();
+                }
+            }
+        }else{
+            if(isset($post['page'])){
+                $request_employee = $request_employee->orderBy('request_employees.created_at', 'desc')->paginate($request->length ?: 10);
+            }else{
+                $request_employee = $request_employee->orderBy('request_employees.created_at', 'desc')->get()->toArray();
+            }
+        }
+        return MyHelper::checkGet($request_employee);
+    }
+
+    public function delete(Request $request)
+    {
+        $id_request_employee  = $request->json('id_request_employee');
+        $delete = RequestEmployee::where('id_request_employee', $id_request_employee)->delete();
+        return MyHelper::checkDelete($delete);
     }
 }

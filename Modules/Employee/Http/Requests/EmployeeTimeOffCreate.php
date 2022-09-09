@@ -15,7 +15,8 @@ class EmployeeTimeOffCreate extends FormRequest
     {
         return [
             "type"          => "required|string",
-            "date"          => "required|date_format:Y-m-d",
+            "start_date"          => "required|date_format:Y-m-d",
+            "end_date"          => "required|date_format:Y-m-d",
             "notes"          => "required|string",
             "attachment.*"  => "mimes:jpeg,jpg,bmp,png,pdf|max:2000"
         ];

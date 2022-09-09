@@ -45,7 +45,9 @@ class ApiRequestHairStylistController extends Controller
                             $condition['parameter'] = $condition['operator'];
                             $condition['operator'] = '=';
                         }elseif($condition['subject']=='outlet_name'){
-                            $request_mitra = $request_mitra->join('outlets','outlets.id_outlet','=','request_hair_stylists.id_outlet');
+                            if(!MyHelper::isJoined($request_mitra,'outlets')){
+                                $request_mitra = $request_mitra->join('outlets','outlets.id_outlet','=','request_hair_stylists.id_outlet');
+                            }
                             $condition['subject'] = 'outlets.outlet_name';
                         }
                         
@@ -57,13 +59,18 @@ class ApiRequestHairStylistController extends Controller
                     }
                 }
             }else{
-                $request_mitra = $request_mitra->where(function ($q) use ($post){
+                $request_mitra = $request_mitra->where(function ($q) use ($post,$request_mitra){
                     foreach ($post['conditions'] as $condition){
                         if(isset($condition['subject'])){
 
                             if($condition['subject']=='status'){
                                 $condition['parameter'] = $condition['operator'];
                                 $condition['operator'] = '=';
+                            }elseif($condition['subject']=='outlet_name'){
+                                if(!MyHelper::isJoined($request_mitra,'outlets')){
+                                    $request_mitra = $request_mitra->join('outlets','outlets.id_outlet','=','request_hair_stylists.id_outlet');
+                                }    
+                                $condition['subject'] = 'outlets.outlet_name';
                             }
 
                             if($condition['operator'] == '='){
@@ -78,13 +85,17 @@ class ApiRequestHairStylistController extends Controller
         }
         if(isset($post['order']) && isset($post['order_type'])){
             if($post['order']=='outlet_name'){
-                $request_mitra = $request_mitra->join('outlets','outlets.id_outlet','=','request_hair_stylists.id_outlet');
+                if(!MyHelper::isJoined($request_mitra,'outlets')){
+                    $request_mitra = $request_mitra->join('outlets','outlets.id_outlet','=','request_hair_stylists.id_outlet');
+                }
+                $request_mitra = $request_mitra->select('request_hair_stylists.*');
                 if(isset($post['page'])){
                     $request_mitra = $request_mitra->orderBy('outlets.outlet_name', $post['order_type'])->paginate($request->length ?: 10);
                 }else{
                     $request_mitra = $request_mitra->orderBy('outlets.outlet_name', $post['order_type'])->get()->toArray();
                 }
             }else{
+                $request_mitra = $request_mitra->select('request_hair_stylists.*');
                 if(isset($post['page'])){
                     $request_mitra = $request_mitra->orderBy('request_hair_stylists.'.$post['order'], $post['order_type'])->paginate($request->length ?: 10);
                 }else{

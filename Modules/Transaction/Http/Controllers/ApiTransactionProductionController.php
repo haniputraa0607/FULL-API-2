@@ -356,13 +356,13 @@ class ApiTransactionProductionController extends Controller
         }
     }
 
-    public function CronBreakdownCommission(Request $request){
+    public function CronBreakdownCommission($date = null){
         $log = MyHelper::logCron('Check Schedule Hair Stylist');
         try{
             DB::beginTransaction();
 
             $fail = false;
-            $date_trans = date('Y-m-d', strtotime('-1 days'));
+            $date_trans = date('Y-m-d', strtotime($date ?: '-1 days'));
             $transactions = Transaction::join('transaction_products','transaction_products.id_transaction','transactions.id_transaction')
             ->whereDate('transactions.transaction_date', '>=', $date_trans)->whereDate('transactions.transaction_date', '<=', $date_trans)
             ->get()->toArray();

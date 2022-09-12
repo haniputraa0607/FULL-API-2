@@ -31,6 +31,7 @@ class EmployeeTimeOff extends Model
 		'approve_at',
 		'reject_at',
 		'use_quota_time_off',
+		'range',
 		'read'
 
 	];

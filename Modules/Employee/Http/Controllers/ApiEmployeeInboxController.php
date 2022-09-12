@@ -532,7 +532,7 @@ class ApiEmployeeInboxController extends Controller
                             ],
                             [
                                 'label' => 'Tanggal',
-                                'value' => date('d/m/Y', strtotime($val['date']))
+                                'value' => MyHelper::dateFormatInd($val['start_date'], true, false, false).' - '.MyHelper::dateFormatInd($val['end_date'], true, false, false)
                             ],
                             [
                                 'label' => 'Keterangan',

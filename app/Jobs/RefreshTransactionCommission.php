@@ -52,7 +52,7 @@ class RefreshTransactionCommission implements ShouldQueue
         $lastDate = date('Y-m-d', strtotime($end_date));
         while ($curDate <= $lastDate && $curDate != date('Y-m-d')) {
             app('Modules\Transaction\Http\Controllers\ApiTransactionProductionController')->CronBreakdownCommission($curDate);
-            $curDate = date('Y-m-d', strtotime($start_date . ' +1day'));
+            $curDate = date('Y-m-d', strtotime($curDate . ' +1day'));
         }
         Setting::where('key', 'Refresh Commission Transaction')->update(['value' => 'finished']);
     }

@@ -488,9 +488,10 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
     public function listTimeOffEmployee(Request $request){
         $post = $request->all();
         $user = $request->user()->id;
-        $time_off = EmployeeTimeOff::where('id_employee', $user)->whereMonth('date', $post['month'])->whereYear('date', $post['year'])->select('id_employee_time_off', 'type', 'date', 'notes', 'reject_at', 'approve_by')->get()->toArray();
+        $time_off = EmployeeTimeOff::where('id_employee', $user)->whereMonth('start_date', $post['month'])->whereYear('start_date', $post['year'])->select('id_employee_time_off', 'type', 'start_date', 'end_date', 'notes', 'reject_at', 'approve_by')->get()->toArray();
         $time_off = array_map(function($data){
-            $data['date'] = MyHelper::dateFormatInd($data['date'], true, false, false);
+            $data['start_date'] = MyHelper::dateFormatInd($data['start_date'], true, false, false);
+            $data['end_date'] = MyHelper::dateFormatInd($data['end_date'], true, false, false);
             if(isset($data['reject_at'])){
                 $data['status'] = 'Ditolak';
             }elseif(isset($data['approve_by'])){

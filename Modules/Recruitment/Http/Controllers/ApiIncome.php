@@ -394,7 +394,7 @@ class ApiIncome extends Controller
             ];
         }
 
-        $transactionBreakdowns = TransactionBreakdown::whereIn('id_transaction_product', $transactions->pluck('id_transaction_product'))->get();
+        $transactionBreakdowns = TransactionBreakdown::whereIn('id_transaction_product', $transactions->pluck('id_transaction_product'))->where('type', 'fee_hs')->get();
         $transactionBreakdownsGroupByTrxProduct = $transactionBreakdowns->groupBy('id_transaction_product');
 
         $transactionsByHS = $transactions->groupBy('id_user_hair_stylist');

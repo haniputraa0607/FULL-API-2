@@ -447,21 +447,21 @@ class ApiEmployeeController extends Controller
         }
 
         //timee off quota
-        $time_off_this_employee = EmployeeTimeOff::where('id_employee', $employee)->whereNotNull('approve_by')->whereNull('reject_at')->whereYear('date',$post['year'])->where('use_quota_time_off', 1)->count();
+        $time_off_this_employee = EmployeeTimeOff::where('id_employee', $employee)->whereNotNull('approve_by')->whereNull('reject_at')->whereYear('start_date',$post['year'])->where('use_quota_time_off', 1)->sum('range');
         $time_off_quota = $time_off_quota - $time_off_this_employee;
 
 
-        $time_off = EmployeeTimeOff::join('users','users.id','employee_time_off.id_employee')->where('employee_time_off.id_outlet',$office)->whereNotNull('employee_time_off.approve_by')->whereNull('employee_time_off.reject_at')->whereMonth('employee_time_off.date',$post['month'])->whereYear('employee_time_off.date',$post['year'])->select('users.name','employee_time_off.*')->orderBy('employee_time_off.date')->get()->toArray();
+        $time_off = EmployeeTimeOff::join('users','users.id','employee_time_off.id_employee')->where('employee_time_off.id_outlet',$office)->whereNotNull('employee_time_off.approve_by')->whereNull('employee_time_off.reject_at')->whereMonth('employee_time_off.start_date',$post['month'])->whereYear('employee_time_off.start_date',$post['year'])->select('users.name','employee_time_off.*')->orderBy('employee_time_off.start_date')->get()->toArray();
         $data_time_off = [];
         foreach($time_off as $to){
             if(isset($data_time_off[$to['name'].'_'.$to['type']])){
                 $data_time_off[$to['name'].'_'.$to['type']]['name_employee'] = $to['name'];
-                $data_time_off[$to['name'].'_'.$to['type']]['date'][] = MyHelper::dateFormatInd($to['date'], true, false, true);
+                $data_time_off[$to['name'].'_'.$to['type']]['date'][] = MyHelper::dateFormatInd($to['start_date'], true, false, true).' - '.MyHelper::dateFormatInd($to['end_date'], true, false, true);
                 $data_time_off[$to['name'].'_'.$to['type']]['total'] = $data_time_off[$to['name'].'_'.$to['type']]['total'] + 1;
             }else{
                 $data_time_off[$to['name'].'_'.$to['type']]['name_employee'] = $to['name'];
                 $data_time_off[$to['name'].'_'.$to['type']]['type'] = $to['type'];
-                $data_time_off[$to['name'].'_'.$to['type']]['date'][] = MyHelper::dateFormatInd($to['date'], true, false, true);
+                $data_time_off[$to['name'].'_'.$to['type']]['date'][] = MyHelper::dateFormatInd($to['start_date'], true, false, true).' - '.MyHelper::dateFormatInd($to['end_date'], true, false, true);
                 $data_time_off[$to['name'].'_'.$to['type']]['total'] = 1; 
             }
         }

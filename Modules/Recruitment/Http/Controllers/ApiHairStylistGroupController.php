@@ -119,7 +119,7 @@ class ApiHairStylistGroupController extends Controller
     {
         $data = array();
         if($request->id_hairstylist_group){
-            $store = Product::select(['products.id_product','product_name'])->get();
+            $store = Product::with(['brands'])->select(['products.id_product','product_name'])->get();
             foreach ($store as $value) {
                 $global = Product::where(array('products.id_product'=>$value['id_product']))->join('product_global_price','product_global_price.id_product','products.id_product')->first();
                 $cek = HairstylistGroupCommission::where(array('id_product'=>$value['id_product'],'id_hairstylist_group'=>$request->id_hairstylist_group))->first();

@@ -357,7 +357,7 @@ class ApiTransactionProductionController extends Controller
     }
 
     public function CronBreakdownCommission($date = null){
-        $log = MyHelper::logCron('Check Schedule Hair Stylist');
+        $log = MyHelper::logCron('Check Commission Hair Stylist');
         try{
             DB::beginTransaction();
 

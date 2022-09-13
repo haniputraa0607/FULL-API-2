@@ -51,6 +51,14 @@ use Modules\Recruitment\Entities\HairstylistOverTime;
 use Modules\Recruitment\Entities\HairstylistLoan;
 use Modules\Recruitment\Entities\HairstylistGroupProteksi;
 use Modules\Recruitment\Entities\HairStylistTimeOff;
+use Modules\Recruitment\Entities\HairstylistIncomeDetail;
+use Modules\Recruitment\Entities\HairstylistGroupFixedIncentive;
+use Modules\Recruitment\Entities\HairstylistGroupFixedIncentiveDefault;
+use Modules\Recruitment\Entities\HairstylistGroupProteksiAttendanceDefault;
+use Modules\Recruitment\Entities\HairstylistGroupOvertimeDayDefault;
+use Modules\Recruitment\Entities\HairstylistGroupOvertimeDefault;
+use Modules\Recruitment\Entities\HairstylistGroupLateDefault;
+use Modules\Recruitment\Entities\HairstylistLoanReturn;
 
 class ApiIncome extends Controller
 {

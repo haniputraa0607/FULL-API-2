@@ -372,21 +372,21 @@ class ApiIncome extends Controller
                 'messages' => ['No outlet selected']
             ];
         }
+        // $transactions = Transaction::join('transaction_products', function ($join) use ($request) {
+        //         $join->on('transactions.id_transaction', 'transaction_products.id_transaction')
+        //             ->whereDate('transactions.transaction_date', '>=', $request->start_date)
+        //             ->whereDate('transactions.transaction_date', '<=', $request->end_date)
+        //             ->where('transaction_payment_status','Completed');
+        //     })
+        //     ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+        //     ->whereIn('transactions.id_outlet', $request->id_outlet)->get();
         $transactions = Transaction::join('transaction_products', function ($join) use ($request) {
-                $join->on('transactions.id_transaction', 'transaction_products.id_transaction')
-                    ->whereDate('transactions.transaction_date', '>=', $request->start_date)
-                    ->whereDate('transactions.transaction_date', '<=', $request->end_date)
-                    ->where('transaction_payment_status','Completed');
+               $join->on('transactions.id_transaction', 'transaction_products.id_transaction')
+                   ->whereDate('transaction_products.transaction_product_completed_at', '>=', $request->start_date)
+                   ->whereDate('transaction_products.transaction_product_completed_at', '<=', $request->end_date);
             })
             ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
             ->whereIn('transactions.id_outlet', $request->id_outlet)->get();
-//            $transactions = Transaction::join('transaction_products', function ($join) use ($request) {
-//                $join->on('transactions.id_transaction', 'transaction_products.id_transaction')
-//                    ->whereDate('transaction_products.transaction_product_completed_at', '>=', $request->start_date)
-//                    ->whereDate('transaction_products.transaction_product_completed_at', '<=', $request->end_date);
-//            })
-//            ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
-//            ->whereIn('transactions.id_outlet', $request->id_outlet)->get();
         if ($transactions->count() == 0) {
             return [
                 'status' => 'fail',

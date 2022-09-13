@@ -69,6 +69,7 @@ class ApiIncome extends Controller
     }
     public function generate() {
       $periode = array(
+           '2022-01',
            '2022-02',
            '2022-03',
            '2022-04',
@@ -76,6 +77,7 @@ class ApiIncome extends Controller
            '2022-06',
            '2022-07',
            '2022-08',
+           '2022-09',
        );
       $array = array();
       foreach($periode as $key){
@@ -85,16 +87,369 @@ class ApiIncome extends Controller
          $array[]=array(
              'startDate'=>date('Y-m-d',strtotime($start.'+1 day')),
              'endDate'=>date('Y-m-'.$mid,strtotime($key)),
+             'start'=>date('Y-m-01',strtotime($key)),
+             'end'=>date('Y-m-t',strtotime($key)),
+             'type' => 'middle',
+             'key'=>$key
          );
          $start = date('Y-m-'.$mid,strtotime($key.'+1 day'));
          $array[]=array(
              'startDate'=>date('Y-m-d',strtotime($start.'+1 day')),
              'endDate'=>date('Y-m-'.$end,strtotime($key)),
+             'start'=>date('Y-m-01',strtotime($key)),
+             'end'=>date('Y-m-t',strtotime($key)),
+             'type' => 'end',
+             'key'=>$key
          );
       }
-      return $array;
-       return $hs = UserHairStylist::where('user_hair_stylist_status','Active')->select('join_date','id_user_hair_stylist')->get();
-        
+      $b = array();
+       $hs = UserHairStylist::where('user_hair_stylist_status','Active')->get();
+       foreach ($array as $value) {
+           $startDate = $value['startDate'];
+           $endDate = $value['endDate'];
+           $all_attends = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+            ->whereNotNull('clock_in')
+            ->whereDate('hairstylist_attendances.attendance_date', '>=', $startDate)
+            ->whereDate('hairstylist_attendances.attendance_date', '<=', $endDate)
+            ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
+            ->groupBy('id_outlet', 'id_user_hair_stylist')
+            ->get()
+            ->groupBy('id_user_hair_stylist')
+            ->map(function ($item) {
+                return $item->keyBy('id_outlet');
+            });
+
+       $all_lates = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+            ->whereNotNull('clock_in')
+            ->where('is_on_time', 0)
+            ->whereDate('hairstylist_attendances.attendance_date', '>=', $startDate)
+            ->whereDate('hairstylist_attendances.attendance_date', '<=', $endDate)
+            ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
+            ->groupBy('id_outlet', 'id_user_hair_stylist')
+            ->get()
+            ->groupBy('id_user_hair_stylist')
+            ->map(function ($item) {
+                return $item->keyBy('id_outlet');
+            });
+
+        $all_absens = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+            ->whereNull('clock_in')
+            ->whereDate('hairstylist_attendances.attendance_date', '>=', $startDate)
+            ->whereDate('hairstylist_attendances.attendance_date', '<=', $endDate)
+            ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
+            ->groupBy('id_outlet', 'id_user_hair_stylist')
+            ->get()
+            ->groupBy('id_user_hair_stylist')
+            ->map(function ($item) {
+                return $item->keyBy('id_outlet');
+            });
+
+        $all_overtimes = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+            ->whereNotNull('clock_in')
+            ->where('is_overtime',1)
+            ->whereDate('hairstylist_attendances.attendance_date', '>=', $startDate)
+            ->whereDate('hairstylist_attendances.attendance_date', '<=', $endDate)
+            ->select('date','id_outlet', 'id_user_hair_stylist')
+            ->groupBy('id_outlet', 'id_user_hair_stylist')
+            ->get()
+            ->groupBy('id_user_hair_stylist')
+            ->map(function ($item) {
+                return $item->groupBy('id_outlet');
+            });
+           foreach ($hs as $va) {
+            $list_attendance = array();
+            $incomes = array();
+            $salary_cuts = array();
+            $total_incomes = 0;
+            $total_salary_cuts = 0;
+            $data = HairstylistIncome::where('id_user_hair_stylist',$va['id_user_hair_stylist'])->whereDate('periode', '>=', $value['start'])
+                        ->whereDate('periode', '<=',$value['end'])->first();
+             if($data){
+                 if(empty($data->value_detail)){
+                $income_detail_outlet = HairstylistIncomeDetail::where('id_hairstylist_income',$data->id_hairstylist_income)->groupby('id_outlet')->select('id_outlet')->get();
+                 foreach ($income_detail_outlet as $vas) {
+                    $outlet_name = Outlet::where('id_outlet',$vas['id_outlet'])->first();
+                    $income_detail = HairstylistIncomeDetail::where('id_hairstylist_income',$data->id_hairstylist_income)
+                                        ->where('id_outlet',$vas['id_outlet'])
+                                        ->get();
+                    $list_income = array();
+                    $list_salary_cut = array();
+                    $price_salary_cut = 0;
+                    $price_income = 0;
+                    $total_attend = $all_attends[$va['id_user_hair_stylist']][$vas['id_outlet']]['total'] ?? '0';
+                    $total_late = $all_lates[$va['id_user_hair_stylist']][$vas['id_outlet']]['total'] ?? '0';
+                    $total_absen = $all_absens[$va['id_user_hair_stylist']][$vas['id_outlet']]['total'] ?? '0';
+                    $total_overtimes = $all_overtimes[$va['id_user_hair_stylist']][$vas['id_outlet']] ?? '0';
+                    $list_attendance[] = array(
+                        'header_title' => "Outlet",
+                        'header_content' => $outlet_name->outlet_name,
+                        'footer_title' => null,
+                        'footer_content' => null,
+                        'contents'=>array(
+                            array(
+                               'title'=>"Hari Masuk",
+                               'content' => $total_attend,
+                            ),
+                            array(
+                               'title'=>"Total Terlambat",
+                               'content' => $total_late,
+                            ),
+                            array(
+                               'title'=>"Tidak Masuk",
+                               'content' => $total_absen,
+                            ),
+                            array(
+                               'title'=>"Tambahan Jam",
+                               'content' => $total_overtimes,
+                            ),
+                        )
+                    );
+                 foreach($income_detail as $v){
+                     if($v['source']=='product_commission'){
+                         $v['type']="Incentive";
+                         $v['name_income']="Product Comission";
+                         $v->save();
+                          $list_income[] = array(
+                                'list'=>"Product Commission",
+                                'content'=>$v['amount']
+                            );
+                            $total_incomes = $total_incomes + $v['amount'];
+                            $price_income = $price_income + $v['amount'];
+                     }elseif(strpos($v['source'], 'incentive_') === 0){
+                         $code = str_replace('incentive_', '', $v['source']);
+                         $v['type']="Incentive";
+                         $v['name_income']=ucfirst(str_replace('_', ' ', $code));
+                         $v->save();
+                         $list_income[] = array(
+                                'list'=>ucfirst(str_replace('_', ' ', $code)),
+                                'content'=>$v['amount']
+                            );
+                            $total_incomes = $total_incomes + $v['amount'];
+                            $price_income = $price_income + $v['amount'];
+                     }elseif(strpos($v['source'], 'salary_cut_') === 0){
+                         $code      = str_replace('incentive_', '', $v['source']);
+                         $v['type']="Salary Cut";
+                         $v['name_income']=ucfirst(str_replace('_', ' ', $code));
+                         $v->save();
+                         $list_salary_cut[] = array(
+                                'list'=>ucfirst(str_replace('_', ' ', $code)),
+                                'content'=>$v['amount']
+                            );
+                        $total_salary_cuts = $total_salary_cuts + $v['amount'];
+                        $price_salary_cut = $price_salary_cut + $v['amount'];
+                     }elseif($v['source']=='Fixed Incentive'){
+                       $fixed = HairstylistGroupFixedIncentiveDefault::where('id_hairstylist_group_default_fixed_incentive',$v['reference'])->first();
+                       if($fixed){
+                        if($fixed['status']=='incentive'){
+                            $v['type']="Incentive";
+                            $v['name_income']=$fixed['name_fixed_incentive'];
+                            $v->save();
+                            $list_income[] = array(
+                                'list'=>$fixed['name_fixed_incentive'],
+                                'content'=>$v['amount']
+                            );
+                            $total_incomes = $total_incomes + $v['amount'];
+                            $price_income = $price_income + $v['amount'];
+                        }else{
+                            $v['type']="Salary Cut";
+                            $v['name_income']=$fixed['name_fixed_incentive'];
+                            $v->save();
+                            $list_salary_cut[] = array(
+                                'list'=>$fixed['name_fixed_incentive'],
+                                'content'=>$v['amount']
+                            );
+                            $total_salary_cuts = $total_salary_cuts + $v['amount'];
+                            $price_salary_cut = $price_salary_cut + $v['amount'];
+                        }
+                       }else{
+                           $v['type']="Incentive";
+                            $v['name_income']="Fixed Incentive";
+                            $v->save();
+                            $list_income[] = array(
+                                'list'=>"Fixed Incentive",
+                                'content'=>$v['amount']
+                            );
+                            $total_incomes = $total_incomes + $v['amount'];
+                            $price_income = $price_income + $v['amount'];
+                       } 
+                       
+                     }elseif($v['source']=='Proteksi Attendance'){
+                        $v['type']="Incentive";
+                        $v['name_income']='Proteksi Attendance';
+                        $v->save();
+                        $list_income[] = array(
+                                'list'=>'Proteksi Attendance',
+                                'content'=>$v['amount']
+                            );
+                        $total_incomes = $total_incomes + $v['amount'];
+                        $price_income = $price_income + $v['amount'];
+                     }elseif($v['source']=='Overtime Not Schedule'){
+                        $v['type']="Incentive";
+                        $v['name_income']='Overtime Not Schedule';
+                        $v->save();
+                        $list_income[] = array(
+                                'list'=>'Overtime Not Schedule',
+                                'content'=>$v['amount']
+                            );
+                        $total_incomes = $total_incomes + $v['amount'];
+                        $price_income = $price_income + $v['amount'];
+                     }elseif($v['source']=='Overtime'){
+                         $v['type']="Incentive";
+                        $v['name_income']='Overtime';
+                        $v->save();
+                        $list_income[] = array(
+                                'list'=>'Overtime',
+                                'content'=>$v['amount']
+                            );
+                        $total_incomes = $total_incomes + $v['amount'];
+                        $price_income = $price_income + $v['amount'];
+                     }elseif($v['source']=='Lateness Hairstylist'){
+                        $v['type']="Salary Cut";
+                        $v['name_income']="Keterlambatan";
+                        $v->save();
+                        $list_salary_cut[] = array(
+                                'list'=>"Keterlambatan",
+                                'content'=>$v['amount']
+                            );
+                            $total_salary_cuts = $total_salary_cuts + $v['amount'];
+                            $price_salary_cut = $price_salary_cut + $v['amount'];
+                     }elseif($v['source']=='Hairstylist Loan'){
+                         $loan = HairstylistLoan::join('hairstylist_category_loans', 'hairstylist_category_loans.id_hairstylist_category_loan', 'hairstylist_loans.id_hairstylist_category_loan')
+                            ->join('hairstylist_loan_returns', function ($join) use ($v) {
+                                $join->on('hairstylist_loan_returns.id_hairstylist_loan', 'hairstylist_loans.id_hairstylist_loan')
+                                    ->where('hairstylist_loan_returns.id_hairstylist_loan_return', $v['reference']);
+                            })
+                            ->first();
+                            if($loan){
+                                $v['type']="Salary Cut";
+                                $v['name_income']=$loan->name_category_loan;
+                                $v->save();
+                                $list_salary_cut[] = array(
+                                'list'=>$loan->name_category_loan,
+                                'content'=>$v['amount']
+                            );
+                            }else{
+                                $v['type']="Salary Cut";
+                                $v['name_income']='Hairstylist Loan';
+                                $v->save();
+                                $list_salary_cut[] = array(
+                                        'list'=>'Hairstylist Loan',
+                                        'content'=>$v['amount']
+                                    );
+                            }
+                        
+                        $total_salary_cuts = $total_salary_cuts + $v['amount'];
+                        $price_salary_cut = $price_salary_cut + $v['amount'];
+                     }
+                 }
+                 $incomes[] = array(
+                'header_title' => "Outlet",
+                'header_content' => $outlet_name->outlet_name,
+                'footer_title' => "Total",
+                'footer_content' => $price_income,
+                'contents'=>$list_income
+                ); 
+                $salary_cuts[] = array(
+                    'header_title' => "Outlet",
+                    'header_content' => $outlet_name->outlet_name,
+                    'footer_title' => "Total",
+                    'footer_content' => $price_salary_cut,
+                    'contents'=>$list_salary_cut
+                ); 
+               }
+                if ($data->type == 'middle') {
+                $response_income = array(
+                    'name' => 'Tengah Bulan',
+                    'icon' => 'half',
+                    'footer' => array(
+                        'title_title' => 'Penerimaan Tengah Bulan',
+                        'title_content' => $total_incomes,
+                        'subtitle_title' => 'Ditransfer',
+                        'subtitle_content' => date('d M Y', strtotime($data['periode'])),
+                    ),
+                    'list'=>$incomes
+                    );
+                $response_salary_cut = array(
+                    'name' => 'Tengah Bulan',
+                    'icon' => 'half',
+                    'footer' => array(
+                        'title_title' => 'Total Potongan',
+                        'title_content' => $total_salary_cuts,
+                        'subtitle_title' => null,
+                        'subtitle_content' => null,
+                    ),
+                    'list'=>$salary_cuts
+                    );
+                $attendances = array(
+                    'name' => 'Tengah Bulan',
+                    'icon' => 'half',
+                    'footer' => null,
+                    'list'=>$list_attendance
+                    );
+                }else{
+                 $attendances = array(
+                    'name' => 'Akhir Bulan',
+                    'icon' => 'end',
+                    'footer' => null,
+                    'list'=>$list_attendance
+                    );   
+                 $response_income = array(
+                    'name' => 'Akhir Bulan',
+                    'icon' => 'end',
+                    'footer' => array(
+                        'title_title' => 'Penerimaan Akhir Bulan',
+                        'title_content' => $total_incomes,
+                        'subtitle_title' => 'Ditransfer',
+                        'subtitle_content' => date('d M Y', strtotime($data['periode'])),
+                    ),
+                    'list'=>$incomes
+                    );
+                 $response_salary_cut = array(
+                    'name' => 'Akhir Bulan',
+                    'icon' => 'end',
+                    'footer' => array(
+                        'title_title' => 'Total Potongan',
+                        'title_content' => $total_salary_cuts,
+                        'subtitle_title' => null,
+                        'subtitle_content' => null,
+                    ),
+                    'list'=>$salary_cuts
+                    );
+                }
+                $hairstylist_bank = UserHairStylist::leftjoin('bank_accounts','bank_accounts.id_bank_account','user_hair_stylist.id_bank_account')
+                ->leftjoin('bank_name','bank_name.id_bank_name','bank_accounts.id_bank_name')
+                ->select(
+                        'id_user_hair_stylist',
+                        'id_outlet',
+                        'id_hairstylist_group',
+                        'bank_accounts.id_bank_account',
+                        'beneficiary_name',
+                        'beneficiary_account',
+                        'bank_name'
+                        )
+                ->where('id_user_hair_stylist',$data->id_user_hair_stylist)
+                ->first();
+                $response = array(
+                     'month' => date('Y-m-d', strtotime($data['periode'])),
+                     'type' => $data->type,
+                     'bank_name' => $hairstylist_bank->bank_name??null,
+                     'account_number' => $hairstylist_bank->beneficiary_account??null,
+                     'account_name' => $hairstylist_bank->beneficiary_name??null,
+                     'footer' => array(
+                         'footer_title' => 'Total diterima bulan ini setelah potongan',
+                         'footer_content' => $data->amount??0,
+                     ),
+                     'incomes'=>$response_income,
+                     'attendances'=>$attendances,
+                     'salary_cuts'=>$response_salary_cut,
+                 );
+                $data->value_detail = json_encode($response);
+                $data->save();
+             }
+             }
+           }
+       }
+        return array('Success');
     }
     public function cron_middle() {
          $log = MyHelper::logCron('Cron Income HS middle month');

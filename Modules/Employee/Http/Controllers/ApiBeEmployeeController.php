@@ -9,6 +9,7 @@ use App\Lib\MyHelper;
 use App\Http\Models\Setting;
 use Modules\Users\Entities\Role;
 use Modules\Employee\Entities\Employee;
+use Modules\Employee\Entities\EmployeeCustomLink;
 use Modules\Employee\Entities\EmployeeDocuments;
 use Modules\Employee\Entities\EmployeeFamily;
 use Modules\Employee\Entities\EmployeeEducation;
@@ -179,6 +180,7 @@ class ApiBeEmployeeController extends Controller
                     ->with([
                         'employee',
                         'employee.documents',
+                        'employee.custom_links',
                         'employee.city_ktp',
                         'employee.city_domicile',
                         'employee_family',
@@ -187,7 +189,7 @@ class ApiBeEmployeeController extends Controller
                         'employee_education.city',
                         'employee_education_non_formal',
                         'employee_job_experience',
-                        'employee_emergency_call'])
+                        'employee_emergency_call',])
                     ->first();
             $category = CategoryQuestion::get();
             $array = array();
@@ -673,4 +675,27 @@ class ApiBeEmployeeController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
         }
    }
+
+    public function deleteCustomLink(Request $request){
+        $post = $request->all();
+        $delete = EmployeeCustomLink::where('id_employee_custom_link', $post['id_employee_custom_link'])->delete();      
+        return MyHelper::checkDelete($delete);
+    }
+
+    public function addCustomLink(Request $request){
+        $post = $request->all();
+        
+        if(isset($post['id_employee']) && !empty($post['id_employee'])){
+            DB::beginTransaction();
+            $store = EmployeeCustomLink::create($post);
+            if(!$store) {
+                DB::rollback();
+                return response()->json(['status' => 'fail', 'messages' => ['Failed']]);
+            }
+            DB::commit();
+            return response()->json(MyHelper::checkCreate($store));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    }
 }

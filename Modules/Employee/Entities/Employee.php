@@ -60,6 +60,10 @@ class Employee extends Model
 	{
 		return $this->hasMany(\Modules\Employee\Entities\EmployeeDocuments::class, 'id_employee');
 	}
+    public function custom_links()
+	{
+		return $this->hasMany(\Modules\Employee\Entities\EmployeeCustomLink::class, 'id_employee');
+	}
     public function city_ktp()
 	{
 		return $this->belongsTo(\App\Http\Models\City::class, 'id_city_ktp','id_city');

@@ -67,7 +67,7 @@ class OutletDisplayController extends Controller
                     ->where('id_user_hair_stylist', $hairstylist->id_user_hair_stylist)
                     ->first();
 
-                $queue = TransactionProductService::select('users.name', 'schedule_time')->join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
+                $queue = TransactionProductService::select('transaction_outlet_services.customer_name', 'schedule_time')->join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
                         ->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
                         ->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
                         ->join('products', 'transaction_products.id_product', 'products.id_product')
@@ -87,7 +87,7 @@ class OutletDisplayController extends Controller
                         ->get()
                         ->transform(function ($item) {
                             return [
-                                'name' => $item->name,
+                                'name' => $item->customer_name,
                                 'schedule_time' => MyHelper::adjustTimezone($item->schedule_time, $outlet['city']['province']['time_zone_utc'] ?? null, 'H:i')
                             ];
                         });
@@ -99,7 +99,7 @@ class OutletDisplayController extends Controller
                 'box_name' => $item['outlet_box_name'],
                 'hairstylist_photo' => $hairstylist['user_hair_stylist_photo'] ?? null,
                 'hairstylist_name' => ($hairstylist['fullname'] ?? null) . ' (' . ($hairstylist['nickname'] ?? null) . ')',
-                'current_customer' => $serviceInProgress['name'] ?? null,
+                'current_customer' => $serviceInProgress['customer_name'] ?? null,
                 'queue' => $queue
             ];
         });

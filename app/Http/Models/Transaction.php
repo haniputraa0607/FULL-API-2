@@ -121,6 +121,7 @@ class Transaction extends Model
         'reject_type',
         'reject_reason',
         'refund_requirement',
+        'customer_name',
 	];
 
 	public $manual_refund = 0;

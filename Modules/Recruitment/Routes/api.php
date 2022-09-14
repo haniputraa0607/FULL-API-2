@@ -115,6 +115,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
             Route::post('hs', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@hs']);
             Route::post('invite_hs', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@invite_hs']);
             Route::post('commission', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@commission']);
+            Route::post('commission/delete', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@commissionDeleteProduct']);
             Route::post('list_hs', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@list_hs']);
             Route::any('list_group', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@list_group']);
             Route::any('list_default_insentif', ['middleware' => 'feature_control:396','uses' =>'ApiHairStylistGroupController@list_default_insentif']);

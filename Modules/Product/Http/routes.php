@@ -59,6 +59,7 @@ Route::group(['prefix' => 'api/product','middleware' => ['log_activities','auth:
     Route::any('be/commission', 'ApiProductController@commission');
     Route::any('be/commission/create', 'ApiProductController@commission_create');
     Route::any('be/commission/delete', 'ApiProductController@deleteCommission');
+    Route::any('be/commission/delete-product', 'ApiProductController@deleteProductCommission');
     Route::post('be/available-hs', 'ApiProductController@outletServiceAvailableHs');
     /* photo */
     Route::group(['prefix' => 'photo'], function() {

@@ -51,6 +51,8 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('create', 'ApiBeEmployeeController@create');
         Route::post('candidate', 'ApiBeEmployeeController@candidate');
         Route::post('detail', 'ApiBeEmployeeController@candidateDetail');
+        Route::post('delete-custom-link', 'ApiBeEmployeeController@deleteCustomLink');
+        Route::post('add-custom-link', 'ApiBeEmployeeController@addCustomLink');
         Route::post('update', 'ApiBeEmployeeController@update');
         Route::post('complement', 'ApiBeEmployeeController@complement');
         Route::post('manager', 'ApiBeEmployeeController@manager');

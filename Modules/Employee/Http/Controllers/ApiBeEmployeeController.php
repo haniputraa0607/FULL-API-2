@@ -132,6 +132,7 @@ class ApiBeEmployeeController extends Controller
                 }
             }
             $detail['question'] = $array;
+            $detail['duration_probation'] = Setting::where('key', 'duration_month_probation_employee')->first()['value'] ?? '3';
             return response()->json(MyHelper::checkGet($detail));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
@@ -215,6 +216,7 @@ class ApiBeEmployeeController extends Controller
                 }
             }
             $detail['question'] = $category;
+            $detail['duration_probation'] = Setting::where('key', 'duration_month_probation_employee')->first()['value'] ?? '3';
             return response()->json(MyHelper::checkGet($detail));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);

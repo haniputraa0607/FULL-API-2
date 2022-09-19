@@ -80,6 +80,14 @@ class HairstylistIncome extends Model
         if (date('m', strtotime($endDate)) != $month) {
             $endDate = date('Y-m-d', ("$year-" . ($month + 1) . "-01 -1 days"));
         }
+        $jadwal = HairstylistSchedule::where(array(
+            'id_user_hair_stylist'=>$hs->id_user_hair_stylist,
+            'schedule_month'=>$month,
+            'schedule_year'=>$year
+        ))->first();
+        if(!$jadwal){
+            return false;
+        }
         $hsIncome = static::updateOrCreate([
             'id_user_hair_stylist' => $hs->id_user_hair_stylist,
             'type'                 => $type,
@@ -336,7 +344,7 @@ class HairstylistIncome extends Model
                                 'id_outlet' => $outl,
                                 'amount'    => $amount,
                                 'type'        => "Incentive",
-                                'name_income' => $calculation,
+                                'name_income' => ucfirst(str_replace('_', ' ', $code)),
                                 'value_detail'=> json_encode($incentive),
                             ]);
                         $list_income[] = array(
@@ -391,7 +399,7 @@ class HairstylistIncome extends Model
                                 'id_outlet' => $outl,
                                 'amount'    => $amount,
                                 'type'        => "Salary Cut",
-                                'name_income' => $calculation,
+                                'name_income' => ucfirst(str_replace('_', ' ', $code)),
                                 'value_detail'=> json_encode($salary_cut),
                             ]);
                         $list_salary_cut[] = array(
@@ -444,7 +452,7 @@ class HairstylistIncome extends Model
                             $join->on('hairstylist_group_overtimes.id_hairstylist_group_default_overtimes', 'hairstylist_group_default_overtimes.id_hairstylist_group_default_overtimes')
                                 ->where('id_hairstylist_group', $hairst->id_hairstylist_group);
                         })
-                            ->select('hairstylist_group_default_overtimes.hours',
+                            ->select('hairstylist_group_default_overtimes.id_hairstylist_group_default_overtimes','hairstylist_group_default_overtimes.hours',
                                 DB::raw('
                                                    CASE WHEN
                                                    hairstylist_group_overtimes.value IS NOT NULL THEN hairstylist_group_overtimes.value ELSE hairstylist_group_default_overtimes.value
@@ -460,7 +468,7 @@ class HairstylistIncome extends Model
                         }
                         $hsIncome->hairstylist_income_details()->updateOrCreate([
                             'source'    => "Overtime",
-                            'reference' => $value['id_hairstylist_overtime'],
+                            'reference' => $value['id_hairstylist_group_default_overtimes'],
                         ],
                             [
                                 'id_outlet' => $value['id_outlet'],
@@ -735,7 +743,7 @@ class HairstylistIncome extends Model
                 'title_title' => 'Penerimaan Tengah Bulan',
                 'title_content' => $total_incomes,
                 'subtitle_title' => 'Ditransfer',
-                'subtitle_content' => date('d M Y', strtotime($endDate)),
+                'subtitle_content' => date('d M Y', strtotime("$year-$month-$date")),
             ),
             'list'=>$incomes
             );
@@ -770,7 +778,7 @@ class HairstylistIncome extends Model
                 'title_title' => 'Penerimaan Akhir Bulan',
                 'title_content' => $total_incomes,
                 'subtitle_title' => 'Ditransfer',
-                'subtitle_content' => date('d M Y', strtotime($endDate)),
+                'subtitle_content' => date('d M Y', strtotime("$year-$month-$date")),
             ),
             'list'=>$incomes
             );

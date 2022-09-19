@@ -311,6 +311,7 @@ class ApiBeEmployeeController extends Controller
                 $dtHs->level = "Admin";
                 $dtHs->id_outlet = $post['id_outlet']??null;
                 $dtHs->id_role = $post['id_role']??null;
+                $role = Role::where('id_role',$post['id_role'])->first();
                 $dtHs->save();
                 $number = $this->number();
                 if(!empty($post['data_document'])){
@@ -335,7 +336,7 @@ class ApiBeEmployeeController extends Controller
                     "code"=>$number['code'],
                     'start_date'=>$post['start_date'],
                     'end_date'=>$post['end_date'],
-                    'id_department'=>$post['id_department'],
+                    'id_department'=>$role['id_department']??null,
                     'id_manager'=>$post['id_manager']??null,
                     'status_employee' => $post['status_employee'],
                         ]);
@@ -349,7 +350,7 @@ class ApiBeEmployeeController extends Controller
                     $companyType = $outlet['location_outlet']['company_type']??'';
                     $companyType = str_replace('PT ', '', $companyType);
                     $number = $employee['number'];
-                    if($employee['status_employee']==1){
+                    if($employee['status_employee']=='Permanent'){
                      $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor('template_contract_employee_tetap.docx');   
                     }else{
                      $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor('template_contract_employee_kontrak.docx');
@@ -666,10 +667,10 @@ class ApiBeEmployeeController extends Controller
     }
    public function manager(Request $request) {
        $post = $request->json()->all();
-        if(isset($post['id_outlet']) && !empty($post['id_department'])){
-             $detail = Employee::join('users','users.id','employees.id_user')
-                     ->where('id_outlet',$post['id_outlet'])
-                     ->where('id_department',$post['id_department'])
+        if(isset($post['id_outlet']) && !empty($post['id_role'])){
+             $detail = Employee::join('users','users.id','employees.id_user')->join('roles','roles.id_role','users.id_role')
+                     ->where('users.id_outlet',$post['id_outlet'])
+                     ->where('roles.id_role',$post['id_role'])
                      ->select('users.id','users.name')
                      ->get();
             return response()->json(MyHelper::checkGet($detail));

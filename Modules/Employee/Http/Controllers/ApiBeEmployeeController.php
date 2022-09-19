@@ -100,12 +100,14 @@ class ApiBeEmployeeController extends Controller
     public function detail(Request $request) {
        $post = $request->json()->all();
         if(isset($post['id_employee']) && !empty($post['id_employee'])){
-             $detail = User::join('cities','cities.id_city','users.id_city')
+             return $detail = User::join('cities','cities.id_city','users.id_city')
                     ->join('employees','employees.id_user','users.id')
                     ->where('employees.id_employee',$post['id_employee'])
                     ->with([
                         'employee',
                         'employee.documents',
+                        'employee.custom_links',
+                        'employee.form_evaluation',
                         'employee.city_ktp',
                         'employee.city_domicile',
                         'employee_family',
@@ -182,6 +184,7 @@ class ApiBeEmployeeController extends Controller
                         'employee',
                         'employee.documents',
                         'employee.custom_links',
+                        'employee.form_evaluation',
                         'employee.city_ktp',
                         'employee.city_domicile',
                         'employee_family',
@@ -670,6 +673,8 @@ class ApiBeEmployeeController extends Controller
         if(isset($post['id_outlet']) && !empty($post['id_role'])){
              $detail = Employee::join('users','users.id','employees.id_user')->join('roles','roles.id_role','users.id_role')
                      ->where('users.id_outlet',$post['id_outlet'])
+                     ->where('employees.status','active')
+                     ->where('employees.status_employee','Permanent')
                      ->where('roles.id_role',$post['id_role'])
                      ->select('users.id','users.name')
                      ->get();

@@ -10,6 +10,7 @@ use App\Http\Models\Setting;
 use Modules\Users\Entities\Role;
 use Modules\Employee\Entities\Employee;
 use Modules\Employee\Entities\EmployeeCustomLink;
+use Modules\Employee\Entities\EmployeeFormEvaluation;
 use Modules\Employee\Entities\EmployeeDocuments;
 use Modules\Employee\Entities\EmployeeFamily;
 use Modules\Employee\Entities\EmployeeEducation;
@@ -702,6 +703,58 @@ class ApiBeEmployeeController extends Controller
             }
             DB::commit();
             return response()->json(MyHelper::checkCreate($store));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    }
+
+    public function employeeEvaluation(Request $request) {
+        $request->validate([
+            'id_employee' => 'integer|required',
+            'work_productivity' => 'required|string',
+            'work_quality' => 'required|string',
+            'knwolege_task' => 'required|string',
+            'relationship' => 'required|string',
+            'cooperation' => 'required|string',
+            'discipline' => 'required|string',
+            'initiative' => 'required|string',
+            'expandable' => 'required|string',
+            'update_status' => 'required|string',
+            'status_form' => 'required|string',
+        ]);
+        $post = $request->json()->all();
+
+        if(isset($post['id_employee']) && !empty($post['id_employee'])){
+            
+            $data_update = $post;
+            if($post['status_form'] == 'approve_manager'){
+                $data_update['id_manager'] = $request->user()->id;
+                $data_update['update_manager'] = date('Y-m-d H:i:s');
+            }
+
+            if($post['update_status'] == 'Extension'){
+                $request->validate([
+                    'current_extension' => 'integer|required',
+                    'time_extension' => 'required|string',
+                ]);
+            }else{
+                $data_update['current_extension'] = null;
+                $data_update['time_extension'] = null;
+            }
+            
+            unset($data_update['id_employee']);
+            DB::beginTransaction();
+
+            $updateCreate = EmployeeFormEvaluation::updateOrCreate([
+                'id_employee' => $post['id_employee'],
+            ],$data_update);
+            if(!$updateCreate){
+                DB::rollback();
+                return response()->json(['status' => 'fail', 'messages' => ['Failed']]);
+            }
+            DB::commit();
+            return response()->json(MyHelper::checkCreate($updateCreate));
+
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
         }

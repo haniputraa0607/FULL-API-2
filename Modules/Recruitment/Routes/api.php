@@ -22,6 +22,14 @@ Route::group(['middleware' => ['auth:api', 'scopes:be'], 'prefix' => 'hairstylis
     Route::post('income-end', 'ApiIncome@cron_end');
     Route::post('income-mid', 'ApiIncome@cron_middle');
     Route::post('generate', 'ApiIncome@generate');
+    
+    Route::group(['prefix' => 'holiday'], function () {
+        Route::post('/', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiHairStylistHolidayController@index']);
+        Route::get('generate', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiHairStylistHolidayController@generate']);
+        Route::post('create', ['middleware' => 'feature_control:429', 'uses' => 'ApiHairStylistHolidayController@create']);
+        Route::post('delete', ['middleware' => 'feature_control:429', 'uses' => 'ApiHairStylistHolidayController@delete']);
+        Route::post('update', ['middleware' => 'feature_control:430', 'uses' => 'ApiHairStylistHolidayController@update']);
+    });
 });
 
 Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'recruitment'], function () {

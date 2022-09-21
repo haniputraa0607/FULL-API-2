@@ -480,7 +480,7 @@ class ApiIncome extends Controller
         $hs = UserHairStylist::get();
         $type = 'end';
         foreach ($hs as $value) {
-         $income = $this->schedule_income($value['id_user_hair_stylist'], $type);
+         return $income = $this->schedule_income($value['id_user_hair_stylist'], $type);
         }
         $log->success('success');
             return response()->json(['success']);

@@ -72,6 +72,10 @@ class Employee extends Model
 	{
 		return $this->belongsTo(\App\Http\Models\City::class, 'id_city_domicile','id_city');
 	}
+    public function form_evaluation()
+	{
+		return $this->hasOne(\Modules\Employee\Entities\EmployeeFormEvaluation::class, 'id_employee');
+	}
 
     public function businessPartner($id_business_partner = null){
         $data_send['employee'] = Employee::join('users','users.id','employees.id_user')->where('id_employee',$this->id_employee)->first();

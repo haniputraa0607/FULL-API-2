@@ -10,6 +10,7 @@ use App\Http\Models\Setting;
 use Modules\Users\Entities\Role;
 use Modules\Employee\Entities\Employee;
 use Modules\Employee\Entities\EmployeeCustomLink;
+use Modules\Employee\Entities\EmployeeFormEvaluation;
 use Modules\Employee\Entities\EmployeeDocuments;
 use Modules\Employee\Entities\EmployeeFamily;
 use Modules\Employee\Entities\EmployeeEducation;
@@ -101,12 +102,14 @@ class ApiBeEmployeeController extends Controller
     public function detail(Request $request) {
        $post = $request->json()->all();
         if(isset($post['id_employee']) && !empty($post['id_employee'])){
-             $detail = User::join('cities','cities.id_city','users.id_city')
+             return $detail = User::join('cities','cities.id_city','users.id_city')
                     ->join('employees','employees.id_user','users.id')
                     ->where('employees.id_employee',$post['id_employee'])
                     ->with([
                         'employee',
                         'employee.documents',
+                        'employee.custom_links',
+                        'employee.form_evaluation',
                         'employee.city_ktp',
                         'employee.city_domicile',
                         'employee_family',
@@ -183,6 +186,7 @@ class ApiBeEmployeeController extends Controller
                         'employee',
                         'employee.documents',
                         'employee.custom_links',
+                        'employee.form_evaluation',
                         'employee.city_ktp',
                         'employee.city_domicile',
                         'employee_family',
@@ -671,6 +675,8 @@ class ApiBeEmployeeController extends Controller
         if(isset($post['id_outlet']) && !empty($post['id_role'])){
              $detail = Employee::join('users','users.id','employees.id_user')->join('roles','roles.id_role','users.id_role')
                      ->where('users.id_outlet',$post['id_outlet'])
+                     ->where('employees.status','active')
+                     ->where('employees.status_employee','Permanent')
                      ->where('roles.id_role',$post['id_role'])
                      ->select('users.id','users.name')
                      ->get();
@@ -702,6 +708,108 @@ class ApiBeEmployeeController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
         }
     }
+
+    public function employeeEvaluation(Request $request) {
+        $request->validate([
+            'status_form' => 'required|string',
+            'id_employee' => 'integer|required',
+        ]);
+
+        $post = $request->json()->all();
+
+        if(isset($post['id_employee']) && !empty($post['id_employee'])){
+            $is_done = false;
+            $data_update = $post;
+            if($post['status_form'] == 'approve_manager'){
+                $request->validate([
+                    'work_productivity' => 'required|string',
+                    'work_quality' => 'required|string',
+                    'knwolege_task' => 'required|string',
+                    'relationship' => 'required|string',
+                    'cooperation' => 'required|string',
+                    'discipline' => 'required|string',
+                    'initiative' => 'required|string',
+                    'expandable' => 'required|string',
+                    'update_status' => 'required|string',
+                ]);
+                $data_update['id_manager'] = $request->user()->id;
+                $data_update['update_manager'] = date('Y-m-d H:i:s');
+            }elseif($post['status_form'] == 'reject_hr'){
+                $data_update['id_hrga'] = $request->user()->id;
+                $data_update['update_hrga'] = date('Y-m-d H:i:s');
+            }elseif($post['status_form'] == 'approve_hr'){
+                $request->validate([
+                    'update_status' => 'required|string',
+                ]);
+                $data_update['id_hrga'] = $request->user()->id;
+                $data_update['update_hrga'] = date('Y-m-d H:i:s');
+            }elseif($post['status_form'] == 'reject_director'){
+                $data_update['id_director'] = $request->user()->id;
+                $data_update['update_director'] = date('Y-m-d H:i:s');
+            }elseif($post['status_form'] == 'approve_director'){
+                $data_update['id__director'] = $request->user()->id;
+                $data_update['update__director'] = date('Y-m-d H:i:s');
+                $is_done = true;
+            }
+
+            if(isset($post['update_status']) && !empty($post['update_status'])){
+                if($post['update_status'] == 'Extension'){
+                    $request->validate([
+                        'current_extension' => 'integer|required',
+                        'time_extension' => 'required|string',
+                    ]);
+                }else{
+                    $data_update['current_extension'] = null;
+                    $data_update['time_extension'] = null;
+                }
+            }
+            
+            unset($data_update['id_employee']);
+            DB::beginTransaction();
+            
+            $updateCreate = EmployeeFormEvaluation::updateOrCreate([
+                'id_employee' => $post['id_employee'],
+            ],$data_update);
+            
+            if(!$updateCreate){
+                DB::rollback();
+                return response()->json(['status' => 'fail', 'messages' => ['Failed']]);
+            }
+
+            if($is_done && $updateCreate['update_status'] != 'Not Change'){
+                $employee = Employee::where('id_employee', $post['id_employee'])->first();
+                $employee_update = [];
+                if($employee){
+                    if($updateCreate['update_status'] == 'Terminated'){
+                        $employee_update['status'] = 'inactive';
+                    }elseif($updateCreate['update_status'] == 'Permanent'){
+                        $employee_update['status_employee'] = 'Permanent';
+                        $employee_update['start_date'] = $employee['end_date'];
+                        $employee_update['end_date'] = null;
+                    }elseif($updateCreate['update_status'] == 'Extension'){
+                        $employee_update['status_employee'] = 'Contract';
+                        $employee_update['start_date'] = $employee['end_date'];
+                        $extension = ' + '.$updateCreate['current_extension'].' '.($updateCreate['time_extension'] == 'Month' ? 'months' : 'years');
+                        $employee_update['end_date'] = date('Y-m-d', strtotime($employee['end_date'].$extension));
+                    }
+
+                    $update_employee = Employee::where('id_employee', $post['id_employee'])->update($employee_update);
+                    if(!$update_employee){
+                        DB::rollback();
+                        return response()->json(['status' => 'fail', 'messages' => ['Failed']]);
+                    }
+                }
+            }
+
+            DB::commit();
+            return response()->json(MyHelper::checkCreate($updateCreate));
+
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    
+    }
+
     public function generateContract(Request $request){
         $post = $request->id_employee??null;
         $employee = Employee::where('id_employee', $post)

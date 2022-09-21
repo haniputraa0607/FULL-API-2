@@ -808,7 +808,7 @@ class HairstylistIncome extends Model
                 ->first();
         $footer_title = 'Total diterima bulan ini setelah potongan';
         if ($type == 'end') {
-            $proteksion = self::calculateGenerateIncomeProtec($hs, $startDate, $endDate);
+          $proteksion = self::calculateGenerateIncomeProtec($hs, $startDate, $endDate);
             if($total<$proteksion['value']){
                 $hsIncome->hairstylist_income_details()->updateOrCreate([
                         'source'    => "Proteksi",
@@ -825,7 +825,7 @@ class HairstylistIncome extends Model
                     $footer_title = 'Total diterima bulan ini mendapat '.$proteksion['name'];
             }
         }
-        return $response = array(
+      $response = array(
             'month' => date('Y-m-d', strtotime("$year-$month-$date")),
             'type' => $type,
             'bank_name' => $hairstylist_bank->bank_name??null,
@@ -1951,11 +1951,13 @@ class HairstylistIncome extends Model
             $nominals = 0;
              //proteksi
                 $proteksi_outlet = array();
-                return $proteksi = Setting::where('key','proteksi_hs')->first();
+                $proteksi = Setting::where('key','proteksi_hs')->first();
                 if($proteksi){
-                    $outlet = Outlet::where('id_outlet',$hs->id_outlet)->first();
+                $outlet = Outlet::where('id_outlet',$hs->id_outlet)->first();
+                $outlet = Outlet::join('locations','locations.id_location','outlets.id_location')->where('id_outlet',$hs->id_outlet)->first();
+                if(isset($outlet->start_date)){
                 $nominals = $incentive->amount_proteksi;
-                $proteksi_outlet = json_decode($proteksi['value_text']??[],true);
+                $proteksi_outlet = json_decode($proteksi['value_text'],true);
                 $group = HairstylistGroupProteksi::where(array('id_hairstylist_group'=>$hs->id_hairstylist_group))->first();
                 if(isset($group['value'])){
                     $proteksi_outlet['value'] = $group['value'];
@@ -1969,6 +1971,7 @@ class HairstylistIncome extends Model
                         $total_proteksi = $proteksi_outlet['value'];
                         $nama_proteksi = "Protection Outlet";
                     }
+                }
                 }
                 
             $total_attend = $total_attend+$total_timeoff;
@@ -2131,8 +2134,9 @@ class HairstylistIncome extends Model
                 $proteksi_outlet = array();
                 $proteksi = Setting::where('key','proteksi_hs')->first();
                 if($proteksi){
-                $outlet = Outlet::leftjoin('locations','locations.id_location','outlets.id_location')->where('id_outlet',$hs->id_outlet)->first();
-                $nominals = $incentive->amount_proteksi;
+                $outlet = Outlet::join('locations','locations.id_location','outlets.id_location')->where('id_outlet',$hs->id_outlet)->first();
+                if(isset($outlet->start_date)){
+                   $nominals = $incentive->amount_proteksi;
                 $proteksi_outlet = json_decode($proteksi['value_text']??[],true);
                 $group = HairstylistGroupProteksi::where(array('id_hairstylist_group'=>$hs->id_hairstylist_group))->first();
                 if(isset($group['value'])){
@@ -2146,7 +2150,8 @@ class HairstylistIncome extends Model
                         $id_proteksi =  $proteksi->id_setting;
                         $total_proteksi = $proteksi_outlet['value'];
                         $nama_proteksi = "Protection Outlet";
-                    }
+                    } 
+                }
                 }
                 
             $total_attend = $total_attend+$total_timeoff;

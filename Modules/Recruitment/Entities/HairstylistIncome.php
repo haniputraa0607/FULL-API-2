@@ -48,9 +48,9 @@ class HairstylistIncome extends Model
             $date         = (int) MyHelper::setting('hs_income_cut_off_end_date', 'value');
             $calculations = json_decode(MyHelper::setting('hs_income_calculation_end', 'value_text', '[]'), true) ?? [];
         }
-        if (!$calculations) {
-            throw new \Exception('No calculation for current periode. Check setting!');
-        }
+//        if (!$calculations) {
+//            throw new \Exception('No calculation for current periode. Check setting!');
+//        }
 
         $year = date('Y');
         if ($date >= date('d')) {
@@ -853,9 +853,6 @@ class HairstylistIncome extends Model
         $calculation_mid = json_decode(MyHelper::setting('hs_income_calculation_mid', 'value_text', '[]'), true) ?? [];
         $calculation_end = json_decode(MyHelper::setting('hs_income_calculation_end', 'value_text', '[]'), true) ?? [];
         $calculations    = array_unique(array_merge($calculation_mid, $calculation_end));
-        if (!$calculations) {
-            throw new \Exception('No calculation for income. Check setting!');
-        }
         $total_attend   = 0;
         $total_late     = 0;
         $total_absen    = 0;

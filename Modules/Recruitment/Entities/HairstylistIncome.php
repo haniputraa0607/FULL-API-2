@@ -85,9 +85,9 @@ class HairstylistIncome extends Model
             'schedule_month'=>$month,
             'schedule_year'=>$year
         ))->first();
-        if(!$jadwal){
-            return false;
-        }
+//        if(!$jadwal){
+//            return false;
+//        }
         $hsIncome = static::updateOrCreate([
             'id_user_hair_stylist' => $hs->id_user_hair_stylist,
             'type'                 => $type,
@@ -485,7 +485,6 @@ class HairstylistIncome extends Model
                             'content'=>$amount
                         );
                 }
-                
                 //Fixed Incentive
                 if($hs->id_outlet == $outl){
                 $fixed = self::calculateFixedIncentive($hs, $startDate, $endDate,$outl,$incomeDefault);
@@ -807,14 +806,33 @@ class HairstylistIncome extends Model
                         )
                 ->where('id_user_hair_stylist',$hs->id_user_hair_stylist)
                 ->first();
-       $response = array(
+        $footer_title = 'Total diterima bulan ini setelah potongan';
+        if ($type == 'end') {
+          $proteksion = self::calculateGenerateIncomeProtec($hs, $startDate, $endDate);
+            if($total<$proteksion['value']){
+                $hsIncome->hairstylist_income_details()->updateOrCreate([
+                        'source'    => "Proteksi",
+                        'reference' => $proteksion['id'],
+                    ],
+                    [
+                        'id_outlet'   => $hs->id_outlet,
+                        'amount'      => $proteksion['value'],
+                        'type'        => "Incentive",
+                        'name_income' => $proteksion['name'],
+                        'value_detail'=> json_encode($proteksion),
+                    ]);
+                    $total = $proteksion['value'];
+                    $footer_title = 'Total diterima bulan ini mendapat '.$proteksion['name'];
+            }
+        }
+      $response = array(
             'month' => date('Y-m-d', strtotime("$year-$month-$date")),
             'type' => $type,
             'bank_name' => $hairstylist_bank->bank_name??null,
             'account_number' => $hairstylist_bank->beneficiary_account??null,
             'account_name' => $hairstylist_bank->beneficiary_name??null,
             'footer' => array(
-                'footer_title' => 'Total diterima bulan ini setelah potongan',
+                'footer_title' => $footer_title,
                 'footer_content' => $total,
             ),
             'incomes'=>$response_income,
@@ -1766,9 +1784,9 @@ class HairstylistIncome extends Model
             if($total_attend>0){
                 if($total_attend>=$incentive->value){
                     $nominals = $incentive->amount_proteksi;
-                   if($total_timeoff>0||$total_late>0||$total_absen>0){
-                        $nominals = $incentive->amount;
-                    }
+//                   if($total_timeoff>0||$total_late>0||$total_absen>0){
+//                        $nominals = $incentive->amount;
+//                    }
                     $incentives = HairstylistGroupOvertimeDayDefault::leftJoin('hairstylist_group_overtime_days', function ($join) use ($hs) {
                 $join->on('hairstylist_group_overtime_days.id_hairstylist_group_default_overtime_day', 'hairstylist_group_default_overtime_days.id_hairstylist_group_default_overtime_day')
                     ->where('id_hairstylist_group', $hs->id_hairstylist_group);
@@ -1865,7 +1883,11 @@ class HairstylistIncome extends Model
         $data = array();
         $array = array();
         $overtime = array();
+        $protec = array();
         foreach ($ar as $value) {
+            $id_proteksi = 0;
+            $total_proteksi = 0;
+            $nama_proteksi = "No Protection";
         $total_attend = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
             ->whereNotNull('clock_in')
             ->whereDate('hairstylist_attendances.attendance_date', '>=', $value['start'])
@@ -1927,12 +1949,42 @@ class HairstylistIncome extends Model
                  '),
                 )->first();
             $nominals = 0;
+             //proteksi
+                $proteksi_outlet = array();
+                $proteksi = Setting::where('key','proteksi_hs')->first();
+                if($proteksi){
+                $outlet = Outlet::where('id_outlet',$hs->id_outlet)->first();
+                $outlet = Outlet::join('locations','locations.id_location','outlets.id_location')->where('id_outlet',$hs->id_outlet)->first();
+                if(isset($outlet->start_date)){
+                $nominals = $incentive->amount_proteksi;
+                $proteksi_outlet = json_decode($proteksi['value_text'],true);
+                $group = HairstylistGroupProteksi::where(array('id_hairstylist_group'=>$hs->id_hairstylist_group))->first();
+                if(isset($group['value'])){
+                    $proteksi_outlet['value'] = $group['value'];
+                }
+                $date3      = date_create(date('Y-m-d', strtotime($outlet->start_date)));
+                $date4      = date_create($value['end']);
+                $diff       = date_diff($date3, $date4);
+                $outlet_age = $diff->y * 12 + $diff->m;
+                    if($outlet_age < $proteksi_outlet['range']){
+                        $id_proteksi =  $proteksi->id_setting;
+                        $total_proteksi = $proteksi_outlet['value'];
+                        $nama_proteksi = "Protection Outlet";
+                    }
+                }
+                }
+                
             $total_attend = $total_attend+$total_timeoff;
             if($total_attend>0){
                 if($total_attend>=$incentive->value){
-                    $nominals = $incentive->amount_proteksi;
+                   
                     if($total_timeoff>0||$total_late>0||$total_absen>0){
                         $nominals = $incentive->amount;    
+                        if($incentive->amount > $total_proteksi){
+                            $id_proteksi = $incentive->id_hairstylist_group_default_proteksi_attendance;
+                            $total_proteksi = $incentive->amount;
+                            $nama_proteksi = "Protection Attendance";
+                        }
                     }
                     $incentives = HairstylistGroupOvertimeDayDefault::leftJoin('hairstylist_group_overtime_days', function ($join) use ($hs) {
                             $join->on('hairstylist_group_overtime_days.id_hairstylist_group_default_overtime_day', 'hairstylist_group_default_overtime_days.id_hairstylist_group_default_overtime_day')
@@ -1985,10 +2037,141 @@ class HairstylistIncome extends Model
                 "value" => $nominals,
                 "data" => $data,
             );
+            $protec[] = array(
+                'id'=>$id_proteksi,
+                'name'=>$nama_proteksi,
+                'value'=>$total_proteksi,
+            );
         }
         return array(
             'proteksi'=>$array,
-            'overtime'=>$overtime
+            'overtime'=>$overtime,
+            'proteksi_fee' => $protec
+        );
+        
+    }
+     public static function calculateGenerateIncomeProtec(UserHairStylist $hs, $startDate, $endDate)
+    {
+          
+          $date_end         = (int) MyHelper::setting('hs_income_cut_off_end_date', 'value')??null;
+          $date_start         = (int)$date_end+1;
+          $start_date =  date('Y-m-'.$date_start, strtotime($startDate));
+          $end_date = date('Y-m-'.$date_end, strtotime($start_date.'+1 months'));
+          $starts = $startDate;
+          $ends = $endDate;
+          $periode = date('m', strtotime($endDate));
+        $total          = 0;
+        $nominal = 0;
+        $data = array();
+        $array = array();
+        $overtime = array();
+        $protec = array();
+            $id_proteksi = 0;
+            $total_proteksi = 0;
+            $nama_proteksi = "No Protection";
+        $total_attend = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+            ->whereNotNull('clock_in')
+            ->whereDate('hairstylist_attendances.attendance_date', '>=', $starts)
+            ->whereDate('hairstylist_attendances.attendance_date', '<=', $ends)
+            ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+            ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
+            ->groupBy('id_outlet', 'id_user_hair_stylist')
+            ->count();
+        $total_timeoff = HairStylistTimeOff::whereNotNull('approve_at')
+            ->whereNull('reject_at')
+            ->whereDate('date', '>=',$starts)
+            ->whereDate('date', '<=', $ends)
+            ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+            ->count();
+        //terlambat
+        $total_late = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+            ->whereNotNull('clock_in')
+            ->where('is_on_time', 0)
+            ->whereDate('hairstylist_attendances.attendance_date', '>=',$starts)
+            ->whereDate('hairstylist_attendances.attendance_date', '<=',$ends)
+            ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+            ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
+            ->groupBy('id_outlet', 'id_user_hair_stylist')
+            ->count();
+        //absensi
+        $total_absen = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+            ->whereNull('clock_in')
+            ->whereDate('hairstylist_attendances.attendance_date', '>=',$starts)
+            ->whereDate('hairstylist_attendances.attendance_date', '<=', $ends)
+            ->where('id_user_hair_stylist', $hs->id_user_hair_stylist)
+            ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
+            ->groupBy('id_outlet', 'id_user_hair_stylist')
+            ->count();
+            $incentive = HairstylistGroupProteksiAttendanceDefault::leftJoin('hairstylist_group_proteksi_attendances', function ($join) use ($hs) {
+                $join->on('hairstylist_group_proteksi_attendances.id_hairstylist_group_default_proteksi_attendance', 'hairstylist_group_default_proteksi_attendances.id_hairstylist_group_default_proteksi_attendance')
+                    ->where('id_hairstylist_group', $hs->id_hairstylist_group);
+            })
+                 ->where('month', $periode)
+                ->select('hairstylist_group_default_proteksi_attendances.id_hairstylist_group_default_proteksi_attendance','hairstylist_group_default_proteksi_attendances.month',
+                    DB::raw('
+                        CASE WHEN
+                        hairstylist_group_proteksi_attendances.value IS NOT NULL THEN hairstylist_group_proteksi_attendances.value ELSE hairstylist_group_default_proteksi_attendances.value
+                        END as value
+                     '),
+                DB::raw('
+                    CASE WHEN
+                    hairstylist_group_proteksi_attendances.amount IS NOT NULL THEN hairstylist_group_proteksi_attendances.amount ELSE hairstylist_group_default_proteksi_attendances.amount
+                    END as amount
+                 '),
+                DB::raw('
+                    CASE WHEN
+                    hairstylist_group_proteksi_attendances.amount_proteksi IS NOT NULL THEN hairstylist_group_proteksi_attendances.amount_proteksi ELSE hairstylist_group_default_proteksi_attendances.amount_proteksi
+                    END as amount_proteksi
+                 '),
+                DB::raw('
+                    CASE WHEN
+                    hairstylist_group_proteksi_attendances.amount_day IS NOT NULL THEN hairstylist_group_proteksi_attendances.amount_day ELSE hairstylist_group_default_proteksi_attendances.amount_day
+                    END as amount_day
+                 '),
+                )->first();
+            $nominals = 0;
+             //proteksi
+                $proteksi_outlet = array();
+                $proteksi = Setting::where('key','proteksi_hs')->first();
+                if($proteksi){
+                $outlet = Outlet::join('locations','locations.id_location','outlets.id_location')->where('id_outlet',$hs->id_outlet)->first();
+                if(isset($outlet->start_date)){
+                   $nominals = $incentive->amount_proteksi;
+                $proteksi_outlet = json_decode($proteksi['value_text']??[],true);
+                $group = HairstylistGroupProteksi::where(array('id_hairstylist_group'=>$hs->id_hairstylist_group))->first();
+                if(isset($group['value'])){
+                    $proteksi_outlet['value'] = $group['value'];
+                }
+                $date3      = date_create(date('Y-m-d', strtotime($outlet->start_date)));
+                $date4      = date_create($ends);
+                $diff       = date_diff($date3, $date4);
+                $outlet_age = $diff->y * 12 + $diff->m;
+                    if($outlet_age < $proteksi_outlet['range']){
+                        $id_proteksi =  $proteksi->id_setting;
+                        $total_proteksi = $proteksi_outlet['value'];
+                        $nama_proteksi = "Protection Outlet";
+                    } 
+                }
+                }
+                
+            $total_attend = $total_attend+$total_timeoff;
+            if($total_attend>0){
+                if($total_attend>=$incentive->value){
+                    if($total_timeoff>0||$total_late>0||$total_absen>0){
+                        $nominals = $incentive->amount;    
+                        if($incentive->amount > $total_proteksi){
+                            $id_proteksi = $incentive->id_hairstylist_group_default_proteksi_attendance;
+                            $total_proteksi = $incentive->amount;
+                            $nama_proteksi = "Protection Attendance";
+                        }
+                    }
+                   
+                }
+            }
+        return array(
+            'id'=>$id_proteksi,
+            'name'=>$nama_proteksi,
+            'value'=>$total_proteksi,
         );
         
     }

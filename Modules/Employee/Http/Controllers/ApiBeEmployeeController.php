@@ -30,6 +30,7 @@ use File;
 use Storage;
 use Modules\Employee\Entities\CategoryQuestion;
 use Modules\Employee\Entities\QuestionEmployee;
+use Modules\Employee\Entities\EmployeeRoleBasicSalary;
 
 class ApiBeEmployeeController extends Controller
 {
@@ -806,5 +807,63 @@ class ApiBeEmployeeController extends Controller
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
         }
+    
+    }
+
+    public function generateContract(Request $request){
+        $post = $request->id_employee??null;
+        $employee = Employee::where('id_employee', $post)
+                                ->join('users','users.id','employees.id_user')
+                                ->join('roles','roles.id_role','users.id_role')
+                                ->join('cities','cities.id_city','employees.id_city_domicile')
+                                ->join('departments','departments.id_department','employees.id_department')
+                                ->first();
+        if(!$employee){
+            return array("Not Found");
+        }
+        $outlet = Outlet::where('id_outlet', $employee['id_outlet'])->with('location_outlet')->first();
+        $outletName = $outlet['outlet_name']??'';
+        $companyType = $outlet['location_outlet']['company_type']??'';
+        $companyType = str_replace('PT ', '', $companyType);
+        $number = $employee['number'];
+        if($employee['status_employee']=='Probation'){
+            $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor('Employee_Probation.docx');
+        }else{
+            $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor('Employee_Contract.docx');
+        }
+        $basic = Setting::where('key','basic_salary_employee')->first();
+            $basics = number_format($basic['value']??0??0,0,',','.');
+            $group = EmployeeRoleBasicSalary::where(array('id_role'=>$request->id_role))->first();
+            $overtime['default_value']    = 0;
+            if(isset($group)){
+                $basics = number_format($group['value']??0,0,',','.');
+            }
+       $ttl = $employee['birthplace'].', '.MyHelper::dateFormatInd($employee['birthday'], true, false);
+        $templateProcessor->setValue('name', $employee['name']);
+        $templateProcessor->setValue('address',$employee['address_domicile'].' Kota '.$employee['city_name'].', '.$employee['postcode_domicile']);
+        $templateProcessor->setValue('end_date', MyHelper::dateFormatInd($employee['end_date'], true, false));
+        $templateProcessor->setValue('start_date', MyHelper::dateFormatInd($employee['start_date'], true, false));
+        $templateProcessor->setValue('ktp', $employee['card_number']);
+        $templateProcessor->setValue('npwp', $employee['npwp']);
+        $templateProcessor->setValue('jabatan', $employee['role_name']);
+        $templateProcessor->setValue('lokasi', $outletName);
+        $templateProcessor->setValue('departmen', $employee['department_name']);
+        $templateProcessor->setValue('golongan', $employee['name']);
+        $templateProcessor->setValue('basic_salary', 'Rp '.$basics);
+        $templateProcessor->setValue('now', MyHelper::dateFormatInd(date('Y-m-d'), true, false));
+        $templateProcessor->setValue('ttl', $ttl);
+        if(!File::exists(public_path().'/employee_contract')){
+                File::makeDirectory(public_path().'/employee_contract');
+            }
+            $directory = 'employee_contract/employee_'.$employee['status_employee']."_".$employee['code'].'.docx';
+            $templateProcessor->saveAs($directory);
+        if(config('configs.STORAGE') != 'local'){
+            $contents = File::get(public_path().'/'.$directory);
+            $store = Storage::disk(config('configs.STORAGE'))->put($directory,$contents, 'public');
+            if($store){
+                File::delete(public_path().'/'.$directory);
+            }
+        }
+        return public_path().'/'.$directory;
     }
 }

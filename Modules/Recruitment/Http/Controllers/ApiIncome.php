@@ -490,6 +490,64 @@ class ApiIncome extends Controller
              return response()->json($e->getMessage());
         }
     }
+    public function export_periode(Request $request) {
+            $request->validate([
+                'id_outlet'         => 'required|array',
+                'start_date'        => 'required|date_format:Y-m',
+                'end_date'          => 'required|date_format:Y-m',
+            ]);
+          $startDate = $request->start_date;
+          $endDate   = $request->end_date;
+          $date_end         = (int) MyHelper::setting('hs_income_cut_off_end_date', 'value')??null;
+          $date_start         = (int)$date_end+1;
+          $start_date =  date('Y-m-'.$date_start, strtotime($startDate."-1 months"));
+          $end_date = date('Y-m-'.$date_end, strtotime($start_date.'+1 months'));
+          $sta = date('Y-m-'.$date_start, strtotime($startDate));
+          $starts = date('Y-m-d', strtotime($sta."-1 months"));
+          $ends = date('Y-m-'.$date_end, strtotime($endDate));
+          if(!$date_end){
+              return array();
+          }
+          $ar = array();
+          $s = 2;
+          for($i=1;$i<$s;$i){
+              if($starts>=$start_date){
+               $e = date('Y-m-'.$date_end, strtotime($starts.'+1 months'));
+              }else{
+               $e = date('Y-m-'.$date_end, strtotime($starts));  
+              }
+              if($e >= $ends){
+                  $e = $ends;
+                  $ar[]= array(
+                  'start'=>$starts,
+                  'end'=>$e,
+                  'periode'=>date('m', strtotime($e))
+                );
+                  break;
+              }
+              $ar[]= array(
+                  'start'=>$starts,
+                  'end'=>$e,
+                  'periode'=>date('m', strtotime($e))
+              );
+              $starts = date('Y-m-d', strtotime($e.'+1 days'));
+          }
+          $array = array();
+          foreach ($ar as $value) {
+              $req = array(
+                  'id_outlet'=>$request->id_outlet,
+                  'start_date'=>$value['start'],
+                  'end_date'=>$value['end'],
+              );
+             $data = $this->export_income2($req);
+              if(isset($data['status'])&& $data['status']=='fail'){
+                  continue;
+              }else{
+                  $array[] = $data;
+              }
+          }
+          return MyHelper::checkGet($array);
+    }
     public function schedule_income($id,$type = 'end') {
        $b = new HairstylistIncome();
        $hs = UserHairStylist::where('id_user_hair_stylist',$id)->first();
@@ -719,16 +777,11 @@ class ApiIncome extends Controller
     return $data_schedule_outlet;
     }
 
-    public function export_income2(Request $request)
+    public function export_income2($request)
     {
-        $request->validate([
-            'id_outlet'         => 'required|array',
-            'start_date'        => 'required|date_format:Y-m-d',
-            'end_date'          => 'required|date_format:Y-m-d',
-        ]);
-        $start_date = $request->start_date;
-        $end_date = $request->end_date;
-        $outlets = Outlet::whereIn('id_outlet', $request->id_outlet)->join('locations','locations.id_location','outlets.id_location')->get()->keyBy('id_outlet');
+        $start_date = $request['start_date'];
+        $end_date = $request['end_date'];
+        $outlets = Outlet::whereIn('id_outlet', $request['id_outlet'])->join('locations','locations.id_location','outlets.id_location')->get()->keyBy('id_outlet');
         if ($outlets->count() == 0) {
             return [
                 'status' => 'fail',
@@ -737,19 +790,19 @@ class ApiIncome extends Controller
         }
         // $transactions = Transaction::join('transaction_products', function ($join) use ($request) {
         //         $join->on('transactions.id_transaction', 'transaction_products.id_transaction')
-        //             ->whereDate('transactions.transaction_date', '>=', $request->start_date)
-        //             ->whereDate('transactions.transaction_date', '<=', $request->end_date)
+        //             ->whereDate('transactions.transaction_date', '>=', $request['start_date'])
+        //             ->whereDate('transactions.transaction_date', '<=', $request['end_date'])
         //             ->where('transaction_payment_status','Completed');
         //     })
         //     ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
-        //     ->whereIn('transactions.id_outlet', $request->id_outlet)->get();
+        //     ->whereIn('transactions.id_outlet', $request['id_outlet'])->get();
         $transactions = Transaction::join('transaction_products', function ($join) use ($request) {
                $join->on('transactions.id_transaction', 'transaction_products.id_transaction')
-                   ->whereDate('transaction_products.transaction_product_completed_at', '>=', $request->start_date)
-                   ->whereDate('transaction_products.transaction_product_completed_at', '<=', $request->end_date);
+                   ->whereDate('transaction_products.transaction_product_completed_at', '>=', $request['start_date'])
+                   ->whereDate('transaction_products.transaction_product_completed_at', '<=', $request['end_date']);
             })
             ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
-            ->whereIn('transactions.id_outlet', $request->id_outlet)->get();
+            ->whereIn('transactions.id_outlet', $request['id_outlet'])->get();
         if ($transactions->count() == 0) {
             return [
                 'status' => 'fail',
@@ -763,7 +816,7 @@ class ApiIncome extends Controller
         $transactionsByHS = $transactions->groupBy('id_user_hair_stylist');
        $hairstylists = UserHairStylist::where(function($query) use ($transactions, $request) {
                 $query->whereIn('id_user_hair_stylist', $transactions->pluck('id_user_hair_stylist')->unique())
-                    ->orWhereIn('id_outlet', $request->id_outlet);
+                    ->orWhereIn('id_outlet', $request['id_outlet']);
             })
             ->where('user_hair_stylist_status', 'Active')
             ->orderBy('fullname')
@@ -772,8 +825,8 @@ class ApiIncome extends Controller
 
         $all_attends = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
             ->whereNotNull('clock_in')
-            ->whereDate('hairstylist_attendances.attendance_date', '>=', $request->start_date)
-            ->whereDate('hairstylist_attendances.attendance_date', '<=', $request->end_date)
+            ->whereDate('hairstylist_attendances.attendance_date', '>=', $request['start_date'])
+            ->whereDate('hairstylist_attendances.attendance_date', '<=', $request['end_date'])
             ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
             ->groupBy('id_outlet', 'id_user_hair_stylist')
             ->get()
@@ -785,8 +838,8 @@ class ApiIncome extends Controller
        $all_lates = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
             ->whereNotNull('clock_in')
             ->where('is_on_time', 0)
-            ->whereDate('hairstylist_attendances.attendance_date', '>=', $request->start_date)
-            ->whereDate('hairstylist_attendances.attendance_date', '<=', $request->end_date)
+            ->whereDate('hairstylist_attendances.attendance_date', '>=', $request['start_date'])
+            ->whereDate('hairstylist_attendances.attendance_date', '<=', $request['end_date'])
             ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
             ->groupBy('id_outlet', 'id_user_hair_stylist')
             ->get()
@@ -797,8 +850,8 @@ class ApiIncome extends Controller
 
         $all_absens = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
             ->whereNull('clock_in')
-            ->whereDate('hairstylist_attendances.attendance_date', '>=', $request->start_date)
-            ->whereDate('hairstylist_attendances.attendance_date', '<=', $request->end_date)
+            ->whereDate('hairstylist_attendances.attendance_date', '>=', $request['start_date'])
+            ->whereDate('hairstylist_attendances.attendance_date', '<=', $request['end_date'])
             ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
             ->groupBy('id_outlet', 'id_user_hair_stylist')
             ->get()
@@ -810,8 +863,8 @@ class ApiIncome extends Controller
         $all_overtimes = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
             ->whereNotNull('clock_in')
             ->where('is_overtime',1)
-            ->whereDate('hairstylist_attendances.attendance_date', '>=', $request->start_date)
-            ->whereDate('hairstylist_attendances.attendance_date', '<=', $request->end_date)
+            ->whereDate('hairstylist_attendances.attendance_date', '>=', $request['start_date'])
+            ->whereDate('hairstylist_attendances.attendance_date', '<=', $request['end_date'])
             ->select('date','id_outlet', 'id_user_hair_stylist')
             ->groupBy('id_outlet', 'id_user_hair_stylist')
             ->get()
@@ -821,8 +874,8 @@ class ApiIncome extends Controller
             });
       $all_timeoff = HairStylistTimeOff::whereNotNull('approve_at')
             ->whereNull('reject_at')
-            ->whereDate('date', '>=', $request->start_date)
-            ->whereDate('date', '<=', $request->end_date)
+            ->whereDate('date', '>=', $request['start_date'])
+            ->whereDate('date', '<=', $request['end_date'])
             ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
             ->groupBy('id_outlet', 'id_user_hair_stylist')
             ->get()
@@ -834,8 +887,8 @@ class ApiIncome extends Controller
        $overtimes = HairstylistOverTime::wherenotnull('approve_at')
             ->wherenull('reject_at')
             ->where('not_schedule',0)
-            ->whereDate('date', '>=', $request->start_date)
-            ->whereDate('date', '<=', $request->end_date)
+            ->whereDate('date', '>=', $request['start_date'])
+            ->whereDate('date', '<=', $request['end_date'])
             ->select('duration', 'id_user_hair_stylist', 'id_outlet', \DB::raw('DATE(date) as datex'))
             ->get()
             ->groupBy('id_user_hair_stylist')
@@ -858,8 +911,8 @@ class ApiIncome extends Controller
         $overtimes_day = HairstylistOverTime::wherenotnull('approve_at')
             ->wherenull('reject_at')
             ->where('not_schedule',1)
-            ->whereDate('date', '>=', $request->start_date)
-            ->whereDate('date', '<=', $request->end_date)
+            ->whereDate('date', '>=', $request['start_date'])
+            ->whereDate('date', '<=', $request['end_date'])
             ->select('duration', 'id_user_hair_stylist', 'id_outlet', \DB::raw('DATE(date) as datex'))
             ->get()
             ->groupBy('id_user_hair_stylist');
@@ -930,68 +983,52 @@ class ApiIncome extends Controller
                 $data['Total Izin/Cuti'] = (string) $total_timeoff;
                 $data['Potongan telat'] = (string) $total_late;
 
-                $response = HairstylistIncome::calculateFixedIncentive($hs, $request->start_date,$request->end_date,$outlet,$incomeDefault);
+                $response = HairstylistIncome::calculateFixedIncentive($hs, $request['start_date'],$request['end_date'],$outlet,$incomeDefault);
                 foreach ($response as $valu) {
                     $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
                 }
                 if ($allLoans[$hs->id_user_hair_stylist] ?? false) {
-                    $response = HairstylistIncome::calculateSalaryCuts($hs, $request->start_date,$request->end_date, $allLoans[$hs->id_user_hair_stylist]);
+                    $response = HairstylistIncome::calculateSalaryCuts($hs, $request['start_date'],$request['end_date'], $allLoans[$hs->id_user_hair_stylist]);
                     foreach ($response as $valu) {
                         $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
                         $total_income += $valu['value'];
                     }
                 }
 
-                $response = HairstylistIncome::calculateIncomeExport($hs, $request->start_date, $request->end_date, [$id_outlet], $all_attends, $all_lates, $all_absens, $all_overtimes);
+                $response = HairstylistIncome::calculateIncomeExport($hs, $request['start_date'], $request['end_date'], [$id_outlet], $all_attends, $all_lates, $all_absens, $all_overtimes);
                 foreach ($response as $values) {
                     $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
                     $total_income += $values['value'];
                 }
                 
-//               $response = HairstylistIncome::calculateIncomeOvertimeDay($hs, $request->start_date,$request->end_date, [$id_outlet], $overtimes_day);
+//               $response = HairstylistIncome::calculateIncomeOvertimeDay($hs, $request['start_date'],$request['end_date'], [$id_outlet], $overtimes_day);
 //                foreach ($response as $values) {
 //                    $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
 //                    $total_income += $values['value'];
 //                }
-                $response = HairstylistIncome::calculateIncomeProteksi($hs, $request->start_date,$request->end_date,$id_outlet);
+                $response = HairstylistIncome::calculateIncomeProteksi($hs, $request['start_date'],$request['end_date'],$id_outlet);
                 foreach ($response as $values) {
                     $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
                     $total_income += $values['value'];
                 }
-                $response = HairstylistIncome::calculateIncomeOvertime($hs, $request->start_date,$request->end_date, [$id_outlet], $all_overtimes);
+                $response = HairstylistIncome::calculateIncomeOvertime($hs, $request['start_date'],$request['end_date'], [$id_outlet], $all_overtimes);
                 foreach ($response as $values) {
                     $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
                     $total_income += $values['value'];
                 }
-              $response = HairstylistIncome::calculateIncomeLateness($hs, $request->start_date,$request->end_date,$id_outlet);
+              $response = HairstylistIncome::calculateIncomeLateness($hs, $request['start_date'],$request['end_date'],$id_outlet);
                 foreach ($response as $values) {
                     $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
                     $total_income -= $values['value'];
                 }
-
-                $diff     = date_diff(date_create(date('Y-m-d')), date_create(date('Y-m-d', strtotime($outlet->start_date))));
-                $proteksi = Setting::where('key', 'proteksi_hs')->first()['value_text'] ?? [];
-                if ($proteksi) {
-                    $overtime = json_decode($proteksi, true);
+                $proteksi = HairstylistIncome::calculateGenerateIncomeProtec($hs, $request['start_date'],$request['end_date'],$id_outlet);
+                if ($total_income<$proteksi['value']) {
+                    $keterangan = $proteksi['name'];
+                    $total_income = $proteksi['value'];
                 } else {
-                    $overtime = array(
-                        'range' => 0,
-                        'value' => 0,
-                    );
-                }
-                $group                     = $hsGroup[$hs->id_hairstylist_group] ?? null;
-                $overtime['default_value'] = 0;
-                if (isset($group['value'])) {
-                    $overtime['value'] = $group['value'];
-                }
-                if ($diff->m >= $overtime['range']) {
                     $keterangan = "Non Proteksi";
-                } else {
-                    $keterangan = "Proteksi";
-                    $total_income = $overtime['value'];
                 }
-
-
+                
                 $data['Total imbal jasa'] = (string) $total_income;
                 $data['Keterangan'] = $keterangan;
 
@@ -1022,12 +1059,12 @@ class ApiIncome extends Controller
             array_push($body,$isi);
         }
         $response = array(
-            'start_date'=>$request->start_date,
-            'end_date'=>$request->end_date,
+            'start_date'=>$request['start_date'],
+            'end_date'=>$request['end_date'],
             'head'=> $head,
             'body'=> $body,
         );
-        return MyHelper::checkGet($response);
+        return $response;
     }
 
     public function export_income(Export_Outlet $request) {
@@ -1038,7 +1075,7 @@ class ApiIncome extends Controller
                 ->leftjoin('hairstylist_categories','hairstylist_categories.id_hairstylist_category','user_hair_stylist.id_hairstylist_category')
                 ->leftjoin('bank_name','bank_name.id_bank_name','bank_accounts.id_bank_name')
                 ->leftjoin('hairstylist_groups','hairstylist_groups.id_hairstylist_group','user_hair_stylist.id_hairstylist_group')
-                ->wherein('user_hair_stylist.id_outlet',$request->id_outlet)
+                ->wherein('user_hair_stylist.id_outlet',$request['id_outlet'])
                 ->get();
         foreach ($hairstyllist as $value) {
             $hs = UserHairStylist::where('id_user_hair_stylist',$value->id_user_hair_stylist)->first();
@@ -1052,35 +1089,35 @@ class ApiIncome extends Controller
                 'Join Date'=>date('d-M-Y',strtotime($hs->join_date))??'',
                 'Outlet'=>$value->outlet_name??'',
             );
-           $response = $b->calculateIncomeGross($hs, $request->start_date,$request->end_date);
+           $response = $b->calculateIncomeGross($hs, $request['start_date'],$request['end_date']);
             foreach ($response as $valu) {
                 $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
             }
-            $response = $b->calculateIncomeProductCode($hs, $request->start_date,$request->end_date);
+            $response = $b->calculateIncomeProductCode($hs, $request['start_date'],$request['end_date']);
             foreach ($response as $values) {
                 $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
             }
-            $response = $b->calculateTambahanJam($hs, $request->start_date,$request->end_date);
+            $response = $b->calculateTambahanJam($hs, $request['start_date'],$request['end_date']);
             foreach ($response as $values) {
                 $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
             }
-            $response = $b->calculateFixedIncentive($hs, $request->start_date,$request->end_date);
+            $response = $b->calculateFixedIncentive($hs, $request['start_date'],$request['end_date']);
             foreach ($response as $valu) {
                 $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
             }
-            $response = $b->calculateSalaryCuts($hs, $request->start_date,$request->end_date);
+            $response = $b->calculateSalaryCuts($hs, $request['start_date'],$request['end_date']);
             foreach ($response as $valu) {
                 $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
             }
-            $response = $b->calculateIncomeExport($hs, $request->start_date,$request->end_date);
+            $response = $b->calculateIncomeExport($hs, $request['start_date'],$request['end_date']);
             foreach ($response as $values) {
                 $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
             }
-            $response = $b->calculateIncomeOvertime($hs, $request->start_date,$request->end_date);
+            $response = $b->calculateIncomeOvertime($hs, $request['start_date'],$request['end_date']);
             foreach ($response as $values) {
                 $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
             }
-           $response = $b->calculateIncomeTotal($hs, $request->start_date,$request->end_date);
+           $response = $b->calculateIncomeTotal($hs, $request['start_date'],$request['end_date']);
             foreach ($response as $valu) {
                 $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
             }
@@ -1108,8 +1145,8 @@ class ApiIncome extends Controller
             array_push($body,$isi);
         }
         $response = array(
-            'start_date'=>$request->start_date,
-            'end_date'=>$request->end_date,
+            'start_date'=>$request['start_date'],
+            'end_date'=>$request['end_date'],
             'head'=> $head,
             'body'=> $body,
         );

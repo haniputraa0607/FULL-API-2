@@ -103,9 +103,58 @@ class ApiHairStylistHolidayController extends Controller
                 
             }
         }
-        return response()->json(MyHelper::checkUpdate(1));
+        $start = $year.'-01-01';
+        $end = $year.'-12-31';
+        $date = array();
+        for($i=1;$i<2;$i){
+            if($start<$end){
+                 $day = date('D', strtotime($start));
+                    if ($day === "Sun") {
+                        $month = date('m', strtotime($start));
+                        $year = date('Y', strtotime($start));
+                        $name = "Hari Libur Sabtu";
+                        $first = HairstylistHoliday::where([
+                            "holiday_date"=>$start,
+                            "holiday_name"=>$name,
+                            "month"=> $month,
+                            "year"=> $year,
+                        ])->first();
+                        if(!$first){
+                            $save = HairstylistHoliday::create([
+                            "holiday_date"=>$start,
+                            "holiday_name"=>$name,
+                            "month"=> $month,
+                            "year"=> $year,
+                        ]);   
+                        }
+                    } elseif($day === "Sat") {
+                        $month = date('m', strtotime($start));
+                        $year = date('Y', strtotime($start));
+                        $name = "Hari Libur Minggu";
+                        $first = HairstylistHoliday::where([
+                            "holiday_date"=>$start,
+                            "holiday_name"=>$name,
+                            "month"=> $month,
+                            "year"=> $year,
+                        ])->first();
+                        if(!$first){
+                            $save = HairstylistHoliday::create([
+                            "holiday_date"=>$start,
+                            "holiday_name"=>$name,
+                            "month"=> $month,
+                            "year"=> $year,
+                        ]);   
+                        }
+                    }
+                    $start= date('Y-m-d', strtotime($start.'+1 days'));
+            }else{
+                break;
+            }
+        }
+        return response()->json(MyHelper::checkCreate(1));
       
     }
+    
     public function index(Request $request){
         $year = date('Y');
         $post = $request->json()->all();
@@ -114,7 +163,7 @@ class ApiHairStylistHolidayController extends Controller
                     ->first();
         }else{
             $data = HairstylistHoliday::where('year', $year)
-                    ->orderby('month','asc')
+                    ->orderby('holiday_date','asc')
                     ->get()
                     ->groupby('month');
         }

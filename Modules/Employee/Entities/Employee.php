@@ -56,6 +56,10 @@ class Employee extends Model
         'created_at',
         'updated_at',
     ];
+    public function user()
+	{
+		return $this->belongsTo(\App\Http\Models\User::class, 'id_user','id');
+	}
     public function documents()
 	{
 		return $this->hasMany(\Modules\Employee\Entities\EmployeeDocuments::class, 'id_employee');

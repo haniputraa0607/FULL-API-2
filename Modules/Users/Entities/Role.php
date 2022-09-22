@@ -24,4 +24,14 @@ class Role extends Model
 	public function office_hour(){
         return $this->belongsTo(\Modules\Employee\Entities\EmployeeOfficeHour::class, 'id_employee_office_hour', 'id_employee_office_hour');
     }
+
+    public function department()
+    {
+        return $this->belongsTo(\Modules\Users\Entities\Department::class, 'id_department');
+    }
+
+    public function job()
+    {
+        return $this->belongsTo(\Modules\Users\Entities\JobLevel::class, 'id_job_level');
+    }
 }

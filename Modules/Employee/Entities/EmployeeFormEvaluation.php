@@ -31,12 +31,28 @@ class EmployeeFormEvaluation extends Model
         'id_director',
         'update_director',
         'status_form',
+        'directory',
         'created_at',
         'updated_at',
     ];
 
     public function employee()
 	{
-		return $this->belongsTo(\Modules\Employee\Employee::class, 'id_employee','id_employee');
+		return $this->belongsTo(\Modules\Employee\Entities\Employee::class, 'id_employee','id_employee');
+	}
+
+    public function manager()
+	{
+		return $this->belongsTo(\App\Http\Models\User::class, 'id_manager','id');
+	}
+
+    public function hrga()
+	{
+		return $this->belongsTo(\App\Http\Models\User::class, 'id_hrga','id');
+	}
+
+    public function director()
+	{
+		return $this->belongsTo(\App\Http\Models\User::class, 'id_director','id');
 	}
 }

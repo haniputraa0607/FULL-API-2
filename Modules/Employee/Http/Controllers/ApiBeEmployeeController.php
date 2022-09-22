@@ -764,6 +764,7 @@ class ApiBeEmployeeController extends Controller
                 }
             }
             
+            $employee_before = Employee::with(['user'])->where('id_employee', $post['id_employee'])->first();
             unset($data_update['id_employee']);
             DB::beginTransaction();
             
@@ -801,6 +802,113 @@ class ApiBeEmployeeController extends Controller
                 }
             }
 
+            $data_employee = EmployeeFormEvaluation::with(['employee.user.role.department','employee.user.role.job','manager','hrga', 'director'])->where('id_employee_form_evaluation', $updateCreate['id_employee_form_evaluation'])->first();
+            
+            $value = [
+                'pp' => $data_employee['work_productivity'] == 'Perfect' ? 'yes' : '',
+                'pg' => $data_employee['work_productivity'] == 'Good' ? 'yes' : '',
+                'pe' => $data_employee['work_productivity'] == 'Enough' ? 'yes' : '',
+                'pb' => $data_employee['work_productivity'] == 'Bad' ? 'yes' : '',
+                'qp' => $data_employee['work_quality'] == 'Perfect' ? 'yes' : '',
+                'qg' => $data_employee['work_quality'] == 'Good' ? 'yes' : '',
+                'qe' => $data_employee['work_quality'] == 'Enough' ? 'yes' : '',
+                'qb' => $data_employee['work_quality'] == 'Bad' ? 'yes' : '',
+                'kp' => $data_employee['knwolege_task'] == 'Perfect' ? 'yes' : '',
+                'kg' => $data_employee['knwolege_task'] == 'Good' ? 'yes' : '',
+                'ke' => $data_employee['knwolege_task'] == 'Enough' ? 'yes' : '',
+                'kb' => $data_employee['knwolege_task'] == 'Bad' ? 'yes' : '',
+                'rp' => $data_employee['relationship'] == 'Perfect' ? 'yes' : '',
+                'rg' => $data_employee['relationship'] == 'Good' ? 'yes' : '',
+                're' => $data_employee['relationship'] == 'Enough' ? 'yes' : '',
+                'rb' => $data_employee['relationship'] == 'Bad' ? 'yes' : '',
+                'cp' => $data_employee['cooperation'] == 'Perfect' ? 'yes' : '',
+                'cg' => $data_employee['cooperation'] == 'Good' ? 'yes' : '',
+                'ce' => $data_employee['cooperation'] == 'Enough' ? 'yes' : '',
+                'cb' => $data_employee['cooperation'] == 'Bad' ? 'yes' : '',
+                'dp' => $data_employee['discipline'] == 'Perfect' ? 'yes' : '',
+                'dg' => $data_employee['discipline'] == 'Good' ? 'yes' : '',
+                'de' => $data_employee['discipline'] == 'Enough' ? 'yes' : '',
+                'db' => $data_employee['discipline'] == 'Bad' ? 'yes' : '',
+                'ip' => $data_employee['initiative'] == 'Perfect' ? 'yes' : '',
+                'ig' => $data_employee['initiative'] == 'Good' ? 'yes' : '',
+                'ie' => $data_employee['initiative'] == 'Enough' ? 'yes' : '',
+                'ib' => $data_employee['initiative'] == 'Bad' ? 'yes' : '',
+                'ep' => $data_employee['expandable'] == 'Perfect' ? 'yes' : '',
+                'eg' => $data_employee['expandable'] == 'Good' ? 'yes' : '',
+                'ee' => $data_employee['expandable'] == 'Enough' ? 'yes' : '',
+                'eb' => $data_employee['expandable'] == 'Bad' ? 'yes' : '',
+            ];
+
+            $status = [
+                's1'=> $data_employee['update_status'] == 'Permanent' ? 'yes' : '',
+                's2'=> $data_employee['update_status'] == 'Terminated' ? 'yes' : '',
+                's3'=> $data_employee['update_status'] == 'Extension' ? 'yes' : '',
+            ];
+
+            if($data_employee['update_status'] == 'Extension'){
+                $extend = $data_employee['current_extension'].' '.($data_employee['time_extension'] == 'Month' ? 'bulan' : 'tahun');
+            }else{
+                $exted = '-';
+            }
+
+            if(isset($employee_before['start_date'])){
+                $start_date = MyHelper::dateFormatInd($employee_before['start_date'], true, false, false);
+            }else{
+                $start_date = '-';
+            }
+            if(isset($employee_before['end_date'])){
+                $end_date = MyHelper::dateFormatInd($employee_before['end_date'], true, false, false);
+            }else{
+                $end_date = '-';
+            }
+            
+            $template = new \PhpOffice\PhpWord\TemplateProcessor('employee_form_evaluation.docx');
+            $template->setValue('name', $data_employee['employee']['user']['name']??'');
+            $template->setValue('start_date', $start_date);
+            $template->setValue('end_date', $end_date);
+            $template->setValue('position', $data_employee['employee']['user']['role']['job']['job_level_name']??'');
+            $template->setValue('role', $data_employee['employee']['user']['role']['role_name']??'');
+            $template->setValue('department', $data_employee['employee']['user']['role']['department']['department_name']??'');
+            foreach($value ?? [] as $key => $val){
+                $template->setValue($key, $val);
+            }
+            $template->setValue('comment', $data_employee['comment']??'');
+            foreach($status ?? [] as $key_2 => $stat){
+                $template->setValue($key_2, $stat);
+            }
+            $template->setValue('name_manager', $data_employee['manager']['name']??'');
+            $template->setValue('manager_date', MyHelper::dateFormatInd($data_employee['update_manager'], true, false, false));
+            if($updateCreate['status_form']!='approve_manager' && $updateCreate['status_form']!='reject_hr'){
+                $template->setValue('name_hrga', $data_employee['hrga']['name']??'');
+                $template->setValue('hrga_date', MyHelper::dateFormatInd($data_employee['update_hrga'], true, false, false));
+            }else{
+                $template->setValue('name_hrga', '');
+                $template->setValue('hrga_date', '');
+            }
+            if($updateCreate['status_form']=='approve_director'){
+                $template->setValue('name_director', $data_employee['director']['name']??'');
+                $template->setValue('director_date', MyHelper::dateFormatInd($data_employee['update_director'], true, false, false));
+            }else{
+                $template->setValue('name_director', '');
+                $template->setValue('director_date', '');
+            }
+
+            if(!File::exists(public_path().'/employee_form_evaluation')){
+                File::makeDirectory(public_path().'/employee_form_evaluation');
+            }
+            $directory = 'employee_form_evaluation/employee_'.$data_employee['update_status']."_".$data_employee['employee']['code'].'.docx';
+            $template->saveAs($directory);
+            if(config('configs.STORAGE') != 'local'){
+                $contents = File::get(public_path().'/'.$directory);
+                $store = Storage::disk(config('configs.STORAGE'))->put($directory,$contents, 'public');
+                if($store){
+                    // File::delete(public_path().'/'.$directory);
+                }else{
+                    DB::rollback();
+                    return response()->json(['status' => 'fail', 'messages' => ['Failed']]);
+                }
+            }
+            
             DB::commit();
             return response()->json(MyHelper::checkCreate($updateCreate));
 

@@ -57,7 +57,7 @@ class OutletDisplayController extends Controller
     			return null;
     		}else{
                     $log = HairstylistAttendanceLog::where(array('id_hairstylist_attendance'=>$attendance->id_hairstylist_attendance))->orderby('id_hairstylist_attendance_log','desc')->first();
-                    if($log->type != 'clock_in'){
+                    if(optional($log)->type != 'clock_in'){
                         return null;
                     }
                 }

@@ -78,7 +78,7 @@ class Employee extends Model
 	}
     public function form_evaluation()
 	{
-		return $this->hasOne(\Modules\Employee\Entities\EmployeeFormEvaluation::class, 'id_employee');
+		return $this->hasMany(\Modules\Employee\Entities\EmployeeFormEvaluation::class, 'id_employee');
 	}
 
     public function businessPartner($id_business_partner = null){

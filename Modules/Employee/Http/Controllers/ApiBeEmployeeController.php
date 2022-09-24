@@ -109,7 +109,9 @@ class ApiBeEmployeeController extends Controller
                         'employee',
                         'employee.documents',
                         'employee.custom_links',
-                        'employee.form_evaluation',
+                        'employee.form_evaluation'=>function($eval){
+                            $eval->orderBy('updated_at','desc');
+                        },
                         'employee.city_ktp',
                         'employee.city_domicile',
                         'employee_family',
@@ -186,7 +188,9 @@ class ApiBeEmployeeController extends Controller
                         'employee',
                         'employee.documents',
                         'employee.custom_links',
-                        'employee.form_evaluation',
+                        'employee.form_evaluation'=>function($eval){
+                            $eval->orderBy('updated_at','desc');
+                        },
                         'employee.city_ktp',
                         'employee.city_domicile',
                         'employee_family',
@@ -222,6 +226,9 @@ class ApiBeEmployeeController extends Controller
             }
             $detail['question'] = $category;
             $detail['duration_probation'] = Setting::where('key', 'duration_month_probation_employee')->first()['value'] ?? '3';
+            foreach($detail['employee']['form_evaluation'] ?? [] as $key_eval => $eval){
+                $detail['employee']['form_evaluation'][$key_eval]['directory'] = env('STORAGE_URL_API').$eval['directory'];
+            }
             return response()->json(MyHelper::checkGet($detail));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
@@ -711,13 +718,12 @@ class ApiBeEmployeeController extends Controller
 
     public function employeeEvaluation(Request $request) {
         $request->validate([
-            'status_form' => 'required|string',
-            'id_employee' => 'integer|required',
+            'status_form' => 'required|string'
         ]);
 
         $post = $request->json()->all();
 
-        if(isset($post['id_employee']) && !empty($post['id_employee'])){
+        if((isset($post['id_employee_form_evaluation']) && !empty($post['id_employee_form_evaluation'])) || (isset($post['id_employee']) && !empty($post['id_employee']))){
             $is_done = false;
             $data_update = $post;
             if($post['status_form'] == 'approve_manager'){
@@ -764,21 +770,25 @@ class ApiBeEmployeeController extends Controller
                 }
             }
             
-            $employee_before = Employee::with(['user'])->where('id_employee', $post['id_employee'])->first();
-            unset($data_update['id_employee']);
             DB::beginTransaction();
-            
-            $updateCreate = EmployeeFormEvaluation::updateOrCreate([
-                'id_employee' => $post['id_employee'],
-            ],$data_update);
+            if(isset($post['id_employee_form_evaluation']) && !empty($post['id_employee_form_evaluation'])){
+                unset($data_update['id_employee_form_evaluation']);
+                $updateCreate = EmployeeFormEvaluation::updateOrCreate([
+                    'id_employee_form_evaluation' => $post['id_employee_form_evaluation'],
+                ],$data_update);
+            }else{
+                $data_update['code'] = $this->genereateCodeFormEval();
+                $updateCreate = EmployeeFormEvaluation::create($data_update);
+            }
+
             
             if(!$updateCreate){
                 DB::rollback();
                 return response()->json(['status' => 'fail', 'messages' => ['Failed']]);
             }
-
+            $employee_before = Employee::with(['user'])->where('id_employee', $updateCreate['id_employee'])->first();
             if($is_done && $updateCreate['update_status'] != 'Not Change'){
-                $employee = Employee::where('id_employee', $post['id_employee'])->first();
+                $employee = Employee::where('id_employee', $updateCreate['id_employee'])->first();
                 $employee_update = [];
                 if($employee){
                     if($updateCreate['update_status'] == 'Terminated'){
@@ -794,7 +804,7 @@ class ApiBeEmployeeController extends Controller
                         $employee_update['end_date'] = date('Y-m-d', strtotime($employee['end_date'].$extension));
                     }
 
-                    $update_employee = Employee::where('id_employee', $post['id_employee'])->update($employee_update);
+                    $update_employee = Employee::where('id_employee', $updateCreate['id_employee'])->update($employee_update);
                     if(!$update_employee){
                         DB::rollback();
                         return response()->json(['status' => 'fail', 'messages' => ['Failed']]);
@@ -896,12 +906,19 @@ class ApiBeEmployeeController extends Controller
             if(!File::exists(public_path().'/employee_form_evaluation')){
                 File::makeDirectory(public_path().'/employee_form_evaluation');
             }
-            $directory = 'employee_form_evaluation/employee_'.$data_employee['update_status']."_".$data_employee['employee']['code'].'.docx';
+            $directory = 'employee_form_evaluation/employee_'.$data_employee['update_status']."_".$data_employee['employee']['code']."_".$data_employee['code'].'.docx';
             $template->saveAs($directory);
             if(config('configs.STORAGE') != 'local'){
                 $contents = File::get(public_path().'/'.$directory);
                 $store = Storage::disk(config('configs.STORAGE'))->put($directory,$contents, 'public');
                 if($store){
+                    // $update_directory = EmployeeFormEvaluation::where('id_employee_form_evaluation', $data_employee['id_employee_form_evaluation'])->update(['directory' => $directory]);
+                    $update_directory = EmployeeFormEvaluation::updateOrCreate(['id_employee_form_evaluation' => $data_employee['id_employee_form_evaluation']],['directory' => $directory]);
+                    if(!$update_directory){
+                        DB::rollback();
+                        return response()->json(['status' => 'fail', 'messages' => ['Failed']]);
+                    }
+
                     // File::delete(public_path().'/'.$directory);
                 }else{
                     DB::rollback();
@@ -973,5 +990,22 @@ class ApiBeEmployeeController extends Controller
             }
         }
         return public_path().'/'.$directory;
+    }
+
+    public function employeeEvaluationDelete(Request $request){
+        $post = $request->all();
+        $delete = EmployeeFormEvaluation::where('id_employee_form_evaluation', $post['id_employee_form_evaluation'])->delete();      
+        return MyHelper::checkDelete($delete);
+    }
+
+    public function genereateCodeFormEval(){
+        $date = date('ymd');
+        $random = rand(1000,9999);
+        $code = 'EVAL-'.$date.$random;
+        $cek_code = EmployeeFormEvaluation::where('code',$code)->first();
+        if($cek_code){
+            $this->codeGenerate();
+        }
+        return $code;
     }
 }

@@ -58,6 +58,7 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('evaluation', 'ApiBeEmployeeController@employeeEvaluation');
         Route::post('evaluation/delete', 'ApiBeEmployeeController@employeeEvaluationDelete');
         Route::post('manager', 'ApiBeEmployeeController@manager');
+        Route::post('cron', 'ApiBeEmployeeController@cronInputFormEval');
         Route::post('create-business-partner', 'ApiBeEmployeeController@createBusinessPartner');
     });
     Route::group(['prefix' => 'be/question'], function(){

@@ -199,6 +199,7 @@ class ApiEmployeeScheduleController extends Controller
                     $schedule_date_before = EmployeeScheduleDate::where('id_employee_schedule',$schedue_before['id_employee_schedule'])->get()->toArray();
                     
                     if($schedule_date_before){
+                        $listDate = MyHelper::getListDate($schedue_now['schedule_month'], $schedue_now['schedule_year']);
                         foreach($schedule_date_before as $sch){
                             $date = explode('-',$sch['date']);
                             $date[1] = $schedue_now['schedule_month'];
@@ -210,7 +211,7 @@ class ApiEmployeeScheduleController extends Controller
                                                 ->where('outlet_holidays.id_outlet', $employee['id_outlet'])
                                                 ->whereDate('date_holidays.date', $date)
                                                 ->get()->toArray();
-                            if(!$holiday){
+                            if(!$holiday && in_array($date,$listDate)){
                             //create schedule date 
                                 if($sch['is_overtime'] == 1){
                                     if(!isset($employee['id_employee_office_hour']) && empty($employee['id_employee_office_hour'])){

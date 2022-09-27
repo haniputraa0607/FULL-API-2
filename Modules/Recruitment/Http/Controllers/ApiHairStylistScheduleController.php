@@ -537,66 +537,69 @@ class ApiHairStylistScheduleController extends Controller
 
                                     $create_schedule = HairstylistSchedule::create($array_hs);
                                     if($create_schedule){
+                                        $listDate = MyHelper::getListDate($create_schedule->schedule_month, $create_schedule->schedule_year);
                                         foreach($schedule_before as $new){
                                             $date = explode('-',$new['date']);
                                             $date[1] = $schedule_month;
                                             $date[0] = $schedule_year;
                                             $date =  date('Y-m-d', strtotime(implode('-',$date)));
-
-                                            if($new['is_overtime'] == 1){
-                                                $day = date('D', strtotime($date));
-                                                switch($day){
-                                                    case 'Sun':
-                                                        $day = "Minggu";
-                                                    break;
-                                            
-                                                    case 'Mon':			
-                                                        $day = "Senin";
-                                                    break;
-                                            
-                                                    case 'Tue':
-                                                        $day = "Selasa";
-                                                    break;
-                                            
-                                                    case 'Wed':
-                                                        $day = "Rabu";
-                                                    break;
-                                            
-                                                    case 'Thu':
-                                                        $day = "Kamis";
-                                                    break;
-                                            
-                                                    case 'Fri':
-                                                        $day = "Jumat";
-                                                    break;
-                                            
-                                                    case 'Sat':
-                                                        $day = "Sabtu";
-                                                    break;
-                                                    
-                                                    default:
-                                                        $day = "Undefined";		
-                                                    break;
+                                            if(in_array($date,$listDate)){
+                                                
+                                                if($new['is_overtime'] == 1){
+                                                    $day = date('D', strtotime($date));
+                                                    switch($day){
+                                                        case 'Sun':
+                                                            $day = "Minggu";
+                                                        break;
+                                                
+                                                        case 'Mon':			
+                                                            $day = "Senin";
+                                                        break;
+                                                
+                                                        case 'Tue':
+                                                            $day = "Selasa";
+                                                        break;
+                                                
+                                                        case 'Wed':
+                                                            $day = "Rabu";
+                                                        break;
+                                                
+                                                        case 'Thu':
+                                                            $day = "Kamis";
+                                                        break;
+                                                
+                                                        case 'Fri':
+                                                            $day = "Jumat";
+                                                        break;
+                                                
+                                                        case 'Sat':
+                                                            $day = "Sabtu";
+                                                        break;
+                                                        
+                                                        default:
+                                                            $day = "Undefined";		
+                                                        break;
+                                                    }
+    
+                                                    $get_original = OutletSchedule::join('outlet_time_shift','outlet_time_shift.id_outlet_schedule','=','outlet_schedules.id_outlet_schedule')
+                                                                                ->where('outlet_schedules.id_outlet', $hs['id_outlet'])
+                                                                                ->where('outlet_schedules.day', $day)
+                                                                                ->where('outlet_time_shift.shift', $new['shift'])->first();
+                                                 
+                                                    $new['time_start'] = $get_original['shift_time_start'];
+                                                    $new['time_end'] = $get_original['shift_time_end'];
                                                 }
-
-                                                $get_original = OutletSchedule::join('outlet_time_shift','outlet_time_shift.id_outlet_schedule','=','outlet_schedules.id_outlet_schedule')
-                                                                            ->where('outlet_schedules.id_outlet', $hs['id_outlet'])
-                                                                            ->where('outlet_schedules.day', $day)
-                                                                            ->where('outlet_time_shift.shift', $new['shift'])->first();
-                                             
-                                                $new['time_start'] = $get_original['shift_time_start'];
-                                                $new['time_end'] = $get_original['shift_time_end'];
+    
+                                                $create_schedule_date = HairstylistScheduleDate::create([
+                                                    'id_hairstylist_schedule' => $create_schedule['id_hairstylist_schedule'],
+                                                    'date' => $date,
+                                                    'shift' => $new['shift'],
+                                                    'request_by' => $new['request_by'],
+                                                    'is_overtime' =>  0,
+                                                    'time_start' => $new['time_start'],
+                                                    'time_end' => $new['time_end'],
+                                                ]);
                                             }
-
-                                            $create_schedule_date = HairstylistScheduleDate::create([
-                                                'id_hairstylist_schedule' => $create_schedule['id_hairstylist_schedule'],
-                                                'date' => $date,
-                                                'shift' => $new['shift'],
-                                                'request_by' => $new['request_by'],
-                                                'is_overtime' =>  0,
-                                                'time_start' => $new['time_start'],
-                                                'time_end' => $new['time_end'],
-                                            ]);
                                         }
                                     }else{
                                         DB::rollback();

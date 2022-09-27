@@ -12,6 +12,7 @@ class EmployeeFormEvaluation extends Model
     
     protected $fillable = [
         'id_employee',
+        'code',
         'work_productivity',
         'work_quality',
         'knwolege_task',

@@ -4866,6 +4866,42 @@ class FeaturesTableSeeder extends Seeder
                 'created_at'     => date('Y-m-d H:00:00'),
                 'updated_at'     => date('Y-m-d H:00:00'),
             ),
+            541 => array(
+                'id_feature'     => 543,
+                'feature_type'   => 'List',
+                'feature_module' => 'Employee Change Shift',
+                'show_hide'      => 1,
+                'order'          => 181,
+                'created_at'     => date('Y-m-d H:00:00'),
+                'updated_at'     => date('Y-m-d H:00:00'),
+            ),
+            542 => array(
+                'id_feature'     => 544,
+                'feature_type'   => 'Detail',
+                'feature_module' => 'Employee Change Shift',
+                'show_hide'      => 1,
+                'order'          => 181,
+                'created_at'     => date('Y-m-d H:00:00'),
+                'updated_at'     => date('Y-m-d H:00:00'),
+            ),
+            543 => array(
+                'id_feature'     => 545,
+                'feature_type'   => 'Update',
+                'feature_module' => 'Employee Change Shift',
+                'show_hide'      => 1,
+                'order'          => 181,
+                'created_at'     => date('Y-m-d H:00:00'),
+                'updated_at'     => date('Y-m-d H:00:00'),
+            ),
+            544 => array(
+                'id_feature'     => 546,
+                'feature_type'   => 'Update',
+                'feature_module' => 'Approve Employee Change Shift',
+                'show_hide'      => 1,
+                'order'          => 182,
+                'created_at'     => date('Y-m-d H:00:00'),
+                'updated_at'     => date('Y-m-d H:00:00'),
+            ),
         );
 
         foreach ($rows as $row) {

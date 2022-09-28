@@ -112,7 +112,7 @@ class ApiHairStylistHolidayController extends Controller
                     if ($day === "Sun") {
                         $month = date('m', strtotime($start));
                         $year = date('Y', strtotime($start));
-                        $name = "Hari Libur Sabtu";
+                        $name = "Hari Libur Minggu";
                         $first = HairstylistHoliday::where([
                             "holiday_date"=>$start,
                             "holiday_name"=>$name,
@@ -130,7 +130,7 @@ class ApiHairStylistHolidayController extends Controller
                     } elseif($day === "Sat") {
                         $month = date('m', strtotime($start));
                         $year = date('Y', strtotime($start));
-                        $name = "Hari Libur Minggu";
+                        $name = "Hari Libur Sabtu";
                         $first = HairstylistHoliday::where([
                             "holiday_date"=>$start,
                             "holiday_name"=>$name,

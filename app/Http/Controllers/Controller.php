@@ -404,7 +404,9 @@ class Controller extends BaseController
         $total = \Modules\Employee\Entities\EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')
                ->join('product_icounts','product_icounts.id_product_icount','employee_reimbursements.id_product_icount')
                ->join('employees','employees.id_user','employee_reimbursements.id_user')
-               ->where('employee_reimbursements.status','Pending')
+               ->where('employee_reimbursements.status','!=','Successed')
+               ->where('employee_reimbursements.status','!=','Approved')
+               ->where('employee_reimbursements.status','!=','Rejected')
                 ->count();
         if($total==0){
             $total = null;

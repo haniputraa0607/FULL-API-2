@@ -25,7 +25,7 @@ class Create extends FormRequest
 			'price'                         => 'required|integer',
                         'qty'                         => 'required|integer',
 			'notes'                         => 'required',
-			'attachment'                    => 'required|max:5000',
+			'attachment'                    => 'required|mimes:jpeg,jpg,bmp,png|max:5000',
         ];
     }
 

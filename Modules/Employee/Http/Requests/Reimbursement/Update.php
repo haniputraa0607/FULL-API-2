@@ -33,7 +33,7 @@ class Update extends FormRequest
 		return [
 			'id_employee_reimbursement'     => 'required|reimbursement',
 			'date_reimbursement'		=> 'date_format:"Y-m-d"',
-			'attachment'                    => 'max:5000',
+			'attachment'                    => 'mimes:jpeg,jpg,bmp,png|max:5000',
         ];
     }
 

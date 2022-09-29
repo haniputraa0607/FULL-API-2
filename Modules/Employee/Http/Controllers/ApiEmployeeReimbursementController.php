@@ -84,6 +84,8 @@ class ApiEmployeeReimbursementController extends Controller
                     ];
                     return $result;
                 }
+            }else{
+                unset($post['attachment']);
             }
        $reimbursement = EmployeeReimbursement::where(array('id_employee_reimbursement'=>$request->id_employee_reimbursement))->update($post);
        $reimbursement = EmployeeReimbursement::where(array('id_employee_reimbursement'=>$request->id_employee_reimbursement))->first();

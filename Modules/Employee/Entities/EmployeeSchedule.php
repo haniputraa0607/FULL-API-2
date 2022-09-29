@@ -71,8 +71,8 @@ class EmployeeSchedule extends Model
 		
 		$this->employee_schedule_dates->each(function ($item) use ($schedules, $prov) {
 			$item->update([
-				'time_start' => MyHelper::reverseAdjustTimezone($schedules[$item->shift]['time_start'] ?? '00:00:00', $prov['time_zone_utc'], 'H:i', true),
-				'time_end' => MyHelper::reverseAdjustTimezone($schedules[$item->shift]['time_end'] ?? '00:00:00', $prov['time_zone_utc'], 'H:i', true),
+				'time_start' => $schedules[$item->shift]['time_start'] ?? '00:00:00',
+				'time_end' => $schedules[$item->shift]['time_end'] ?? '00:00:00',
 			]);
 		});
 

@@ -19,6 +19,7 @@ class EmployeeChangeShift extends Model
         'status',
         'id_approve',
         'approve_date',
+        'read',
         'created_at',
         'updated_at',
     ];

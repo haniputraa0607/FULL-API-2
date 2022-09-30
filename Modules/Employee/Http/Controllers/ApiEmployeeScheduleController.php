@@ -134,8 +134,8 @@ class ApiEmployeeScheduleController extends Controller
                             'id_employee_schedule' => $schedule['id_employee_schedule'],
                             'date' => date('Y-m-d'),
                             'is_overtime' => 0,
-                            'time_start' => MyHelper::reverseAdjustTimezone($employee['office_hour_start'] ?? null, $prov['time_zone_utc'], 'H:i', true),
-                            'time_end' => MyHelper::reverseAdjustTimezone($employee['office_hour_end'] ?? null, $prov['time_zone_utc'], 'H:i', true),
+                            'time_start' => $employee['office_hour_start'] ?? null,
+                            'time_end' => $employee['office_hour_end'] ?? null,
                         ]);
                     }             
                 }  

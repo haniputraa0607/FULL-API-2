@@ -785,7 +785,7 @@ class ApiBeEmployeeController extends Controller
                 $data_update['code'] = $this->genereateCodeFormEval();
                 $updateCreate = EmployeeFormEvaluation::create($data_update);
             }
-
+            
             
             if(!$updateCreate){
                 DB::rollback();
@@ -943,7 +943,7 @@ class ApiBeEmployeeController extends Controller
             }
 
             if($post['status_form'] == 'approve_manager'){
-                $crm_title = 'Manager Has been Approve An Evaluation Forms';
+                $crm_title = 'Manager Has been Approve An Evaluation Form';
                 $crm_receipt = User::with(['employee'])->where(function($where){
                     $where->where('level','Super Admin');
                     $where->orWhere(function($whereOr){
@@ -978,12 +978,12 @@ class ApiBeEmployeeController extends Controller
                 $crm_title = 'Director Has been Approve An Evaluation Form';
                 $crm_receipt = User::with(['employee'])->where('id', $data_employee['employee']['user']['id'])->get()->toArray();
             }
-
+            
             foreach($crm_receipt ?? [] as $key_crm => $receipt){
                 if (\Module::collections()->has('Autocrm')) {
                     $autocrm = app($this->autocrm)->SendAutoCRM(
                         $crm_title,
-                        $receipt->phone,
+                        $receipt['phone'],
                         [], null, null, null, null, null, null, null, null,
                     );
                     if(!$autocrm){

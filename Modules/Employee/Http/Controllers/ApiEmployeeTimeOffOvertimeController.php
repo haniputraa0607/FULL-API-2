@@ -560,7 +560,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                                 'user_update'=> $approve_by ? $approve_by['name'] : $request->user()->name,
                                 'time_off_date'=> $user_employee['date'],
                                 'name_office'=> $office['name_outlet'],
-                                'categore' => 'Time Off',
+                                'category' => 'Time Off',
                             ], null, false, false, $recipient_type = 'employee', null, true
                         );
                         if (!$autocrm) {
@@ -606,7 +606,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                         'user_update'=> $reject_by ? $reject_by['name'] : $request->user()->name,
                         'time_off_date'=> $user_employee['date'],
                         'name_office'=> $office['name_outlet'],
-                        'categore' => 'Time Off',
+                        'category' => 'Time Off',
                     ], null, false, false, $recipient_type = 'employee', null, true
                 );
                 if (!$autocrm) {
@@ -869,6 +869,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
         $user_sends = User::join('roles_features','roles_features.id_role', 'users.id_role')->where('id_feature',
         510)->get()->toArray();
         $outlet = Outlet::where('id_outlet',$office)->first();
+        $employee = $request->user();
         foreach($user_sends ?? [] as $user_send){
             $autocrm = app($this->autocrm)->SendAutoCRM(
                 'Employee Request Time Off',
@@ -878,7 +879,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                     'phone_employee' => $employee['phone'],
                     'name_office' => $outlet['outlet_name'],
                     'time_off_date' => date('d F Y', strtotime($post['start_date'])),
-                    'categore' => 'Time Off',
+                    'category' => 'Time Off',
                     'id_time_off' => $store['id_employee_time_off']
                 ], null, false, false, 'employee'
             );
@@ -1778,7 +1779,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                                 'user_update'=>'Admin',
                                 'time_off_date'=> $user_employee['date'],
                                 'name_office'=> $office['name_outlet'],
-                                'categore' => 'Time Off',
+                                'category' => 'Time Off',
                             ], null, false, false, $recipient_type = 'employee', null, true
                         );
                         if (!$autocrm) {
@@ -1847,7 +1848,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                         //         'user_update'=>'Admin',
                         //         'time_off_date'=> $user_employee['date'],
                         //         'name_office'=> $office['name_outlet'],
-                        //         'categore' => 'Time Off',
+                        //         'category' => 'Time Off',
                         //     ], null, false, false, $recipient_type = 'employee', null, true
                         // );
                         // if (!$autocrm) {

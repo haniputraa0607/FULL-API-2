@@ -69,13 +69,73 @@ class EmployeeSchedule extends Model
 			];
 		});
 		
-		$this->employee_schedule_dates->each(function ($item) use ($schedules, $prov) {
+		$id_user = $this->id;
+
+		$this->employee_schedule_dates->each(function ($item) use ($schedules, $prov, $id_user) {
+
+			$new_start_shift = $schedules[$item->shift]['time_start'] ?? '00:00:00';
+			$new_end_shift = $schedules[$item->shift]['time_end'] ?? '00:00:00';
+
+			if($item->is_overtime == 1){
+				$overtime = EmployeeOvertime::where('id_employee',$id_user)->whereDate('date',$item->date)->whereNotNull('approve_by')->whereNull('reject_at')->first();
+
+				$duration = $overtime['duration'];
+				if(isset($overtime['rest_before']) && isset($overtime['rest_after'])){
+					$duration_rest = $this->getDuration($overtime['rest_after'],$overtime['rest_before']);
+					$secs = strtotime($duration_rest)-strtotime("00:00:00");
+					$duration = date("H:i:s",strtotime($duration)+$secs);
+				}
+
+				if($overtime['time']=='after'){
+					$new_end_shift = $this->getDuration2($new_end_shift,$duration);
+					if(isset($overtime['rest_before']) && isset($overtime['rest_after'])){
+						$duration_rest_before = $this->getDuration($item->time_end,$overtime['rest_before']);
+						$duration_rest_after = $this->getDuration($item->time_end,$overtime['rest_after']);
+						$new_rest_before = $this->getDuration($new_end_shift,$duration_rest_before);
+						$new_rest_after = $this->getDuration($new_end_shift,$duration_rest_after);
+					}
+				}elseif($overtime['time']=='before'){
+					$new_start_shift = $this->getDuration($new_start_shift,$duration);
+					if(isset($overtime['rest_before']) && isset($overtime['rest_after'])){
+						$duration_rest_before = $this->getDuration($overtime['rest_before'],$item->time_start);
+						$duration_rest_after = $this->getDuration($overtime['rest_after'],$item->time_start);
+						$new_rest_before = $this->getDuration2($new_start_shift,$duration_rest_before);
+						$new_rest_after = $this->getDuration2($new_start_shift,$duration_rest_after);
+					}
+				}
+
+			}
+
 			$item->update([
-				'time_start' => $schedules[$item->shift]['time_start'] ?? '00:00:00',
-				'time_end' => $schedules[$item->shift]['time_end'] ?? '00:00:00',
+				'time_start' => $new_start_shift,
+				'time_end' => $new_end_shift,
 			]);
+
+			if(isset($item->is_overtime) && $item->is_overtime==1){
+				if(isset($overtime['rest_before']) && isset($overtime['rest_after'])){
+					$update_ovt = EmployeeOvertime::where('id_employee',$id_user)->whereDate('date',$item->date)->whereNotNull('approve_by')->whereNull('reject_at')->update([
+						'rest_before' => date('H:i:s',strtotime($new_rest_before)),
+						'rest_after' => date('H:i:s',strtotime($new_rest_after)),
+					]);
+				}
+			}
 		});
 
 		return true;
 	}
+
+	public function getDuration($start_time, $end_time){
+        $duration = strtotime($end_time);
+        $start = strtotime($start_time);
+        $diff = $start - $duration;
+        $hour = floor($diff / (60*60));
+        $minute = floor(($diff - ($hour*60*60))/(60));
+        $second = floor(($diff - ($hour*60*60))%(60));
+        return $new_time =  date('H:i:s', strtotime($hour.':'.$minute.':'.$second));
+    }
+
+    public function getDuration2($start_time,$end_time){
+        $secs = strtotime($end_time)-strtotime("00:00:00");
+        return $new_time = date("H:i:s",strtotime($start_time)+$secs);
+    }
 }

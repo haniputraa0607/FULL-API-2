@@ -141,8 +141,9 @@ class ApiEmployeeChangeShiftController extends Controller
             'id_employee_office_hour_shift' => 'numeric|required',
             'reason' => 'string|required',
         ]);
-
         $post = $request->all();
+        $office = $request->user()->outlet()->first();
+        $user_employee = $request->user();
         $employee = $request->user()->role()->first();
         
         if(strtotime($post['date'])<strtotime(date('Y-m-d'))){
@@ -189,6 +190,22 @@ class ApiEmployeeChangeShiftController extends Controller
                 'status' => 'fail', 
                 'messages' => ['Gagal mengajukan permintaan atur shift']
             ]);
+        }
+        $user_sends = User::join('roles_features','roles_features.id_role', 'users.id_role')->where('id_feature',
+        546)->get()->toArray();
+        foreach($user_sends ?? [] as $user_send){
+            $autocrm = app($this->autocrm)->SendAutoCRM(
+                'Employee Request Change Shift',
+                $user_send['phone'],
+                [
+                    'name_employee' => $user_employee['name'],
+                    'phone_employee' => $user_employee['phone'],
+                    'name_office' => $office->outlet_name,
+                    'change_shift_date' => date('d F Y', strtotime($dataStore['change_shift_date'])),
+                    'category' => 'Change Shift',
+                    'id_change_shift' => $store['id_employee_time_off']
+                ], null, false, false, 'employee'
+            );
         }
         
         DB::commit();
@@ -288,24 +305,24 @@ class ApiEmployeeChangeShiftController extends Controller
             }
             $user_employee = User::join('employee_change_shifts','employee_change_shifts.id_user','users.id')->where('employee_change_shifts.id_employee_change_shift',$post['id_employee_change_shift'])->first();
             $office = Outlet::where('id_outlet',$user_employee['id_outlet'])->first();
-            // if (\Module::collections()->has('Autocrm')) {
-            //     $autocrm = app($this->autocrm)->SendAutoCRM(
-            //         'Employee Request Time Off Rejected', 
-            //         $user_employee['phone'] ?? null,
-            //         [
-            //             'user_update'=> $reject_by ? $reject_by['name'] : $request->user()->name,
-            //             'change_shift_date'=> $user_employee['date'],
-            //             'name_office'=> $office['name_outlet'],
-            //             'categore' => 'Time Off',
-            //         ], null, false, false, $recipient_type = 'employee', null, true
-            //     );
-            //     if (!$autocrm) {
-            //         return response()->json([
-            //             'status'    => 'fail',
-            //             'messages'  => ['Failed to send']
-            //         ]);
-            //     }
-            // }
+            if (\Module::collections()->has('Autocrm')) {
+                $autocrm = app($this->autocrm)->SendAutoCRM(
+                    'Employee Request Change Shift Rejected', 
+                    $user_employee['phone'] ?? null,
+                    [
+                        'user_update'=> $reject_by ? $reject_by['name'] : $request->user()->name,
+                        'change_shift_date'=> $user_employee['date'],
+                        'name_office'=> $office['name_outlet'],
+                        'categore' => 'Change Shift',
+                    ], null, false, false, $recipient_type = 'employee', null, true
+                );
+                if (!$autocrm) {
+                    return response()->json([
+                        'status'    => 'fail',
+                        'messages'  => ['Failed to send']
+                    ]);
+                }
+            }
             return response()->json(['status' => 'success']);
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
@@ -592,6 +609,32 @@ class ApiEmployeeChangeShiftController extends Controller
                                     'messages' => ['Failed to updated a request employee change shift']
                                 ]);
                             }
+                        }
+                    }
+
+                    $user_employee = User::join('employee_change_shifts','employee_change_shifts.id_employee','users.id')->where('employee_change_shifts.id_employee_change_shift',$post['id_employee_change_shift'])->first();
+                    $office = Outlet::where('id_outlet',$user_employee['id_outlet'])->first();
+                    $approve_by = null;
+                    if(isset($data_update['id_approve']) && !empty($data_update['id_approve'])){
+                        $approve_by = User::where('id',$data_update['id_approve'])->first() ?? null;
+                    }
+                    if (\Module::collections()->has('Autocrm')) {
+                        $autocrm = app($this->autocrm)->SendAutoCRM(
+                            'Employee Request Change Shift Approved', 
+                            $user_employee['phone'] ?? null,
+                            [
+                                'user_update'=> $approve_by ? $approve_by['name'] : $request->user()->name,
+                                'change_shift_date'=> $user_employee['date'],
+                                'name_office'=> $office['name_outlet'],
+                                'category' => 'Change Shift',
+                            ], null, false, false, $recipient_type = 'employee', null, true
+                        );
+                        if (!$autocrm) {
+                            DB::rollBack();
+                            return response()->json([
+                                'status'    => 'fail',
+                                'messages'  => ['Failed to send']
+                            ]);
                         }
                     }
 

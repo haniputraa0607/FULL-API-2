@@ -819,12 +819,18 @@ class ApiEmployeeScheduleController extends Controller
         		$oldData[$date] = [
         			'request_by' => $val['request_by'],
         			'created_at' => $val['created_at'],
+                    'is_overtime' => $val['is_overtime'] ?? null,
+                    'time_start' => $val['time_start'],
+                    'time_end' => $val['time_end'],
         			'shift' => 'Full'
         		];
         	} else {
         		$oldData[$date] = [
         			'request_by' => $val['request_by'],
         			'created_at' => $val['created_at'],
+                    'is_overtime' => $val['is_overtime'] ?? null,
+                    'time_start' => $val['time_start'],
+                    'time_end' => $val['time_end'],
         			'shift' => $val['shift']
         		];
         	}
@@ -835,6 +841,7 @@ class ApiEmployeeScheduleController extends Controller
         $fixedScheduleDate = $fixedSchedule->pluck('date')->map(function($item) {return date('Y-m-d', strtotime($item));});
 
         $newData = [];
+        $key_new = 0;
         foreach ($post['schedule'] as $key => $val) {
         	if (empty($val)) {
         		continue;
@@ -847,33 +854,53 @@ class ApiEmployeeScheduleController extends Controller
         	$request_by = 'Admin';
         	$created_at = date('Y-m-d H:i:s');
         	$updated_at = date('Y-m-d H:i:s');
-        	if (isset($oldData[$key]) && $oldData[$key]['shift'] == $val) {
-        		$request_by = $oldData[$key]['request_by'];
-        		$created_at = $oldData[$key]['created_at'];
+        	if (isset($oldData[date('Y-m-j', strtotime($key))]) && $oldData[date('Y-m-j', strtotime($key))]['shift'] == $val) {
+        		$request_by = $oldData[date('Y-m-j', strtotime($key))]['request_by'];
+        		$created_at = $oldData[date('Y-m-j', strtotime($key))]['created_at'];
         	}
+            
         	if ($val == 'Full') {
                 $shifts = EmployeeOfficeHourShift::join('employee_office_hours','employee_office_hours.id_employee_office_hour','employee_office_hour_shift.id_employee_office_hour')->where('employee_office_hours.id_employee_office_hour', $post['id_employee_office_hour'])->get()->toArray();
                 
                 foreach($shifts ?? [] as $shift){
-                    $newData[] = [
+                    $newData[$key_new] = [
                         'id_employee_schedule' => $post['id_employee_schedule'],
                         'date' => $key,
                         'shift' => $shift['shift_name'],
                         'request_by' => $request_by,
                         'created_at' => $created_at,
-                        'updated_at' => $updated_at
+                        'updated_at' => $updated_at,
+                        'is_overtime' => null,
+                        'time_start' => null,
+                        'time_end' => null,
                     ];
+                    if(isset($oldData[date('Y-m-j', strtotime($key))]) && isset($oldData[date('Y-m-j', strtotime($key))]['is_overtime']) && $oldData[date('Y-m-j', strtotime($key))]['is_overtime'] == 1){
+                        $newData[$key_new]['is_overtime'] = 1;
+                        $newData[$key_new]['time_start'] = $oldData[date('Y-m-j', strtotime($key))]['time_start'];
+                        $newData[$key_new]['time_end'] = $oldData[date('Y-m-j', strtotime($key))]['time_end'];
+                    }
+                    $key_new++;
                 }
         	} else {
-	        	$newData[] = [
+	        	$newData[$key_new] = [
 	        		'id_employee_schedule' => $post['id_employee_schedule'],
 	        		'date' => $key,
 	        		'shift' => $val,
 	        		'request_by' => $request_by,
 	        		'created_at' => $created_at,
-	        		'updated_at' => $updated_at
+	        		'updated_at' => $updated_at,
+                    'is_overtime' => null,
+                    'time_start' => null,
+                    'time_end' => null,
 	        	];
+                if(isset($oldData[date('Y-m-j', strtotime($key))]) && isset($oldData[date('Y-m-j', strtotime($key))]['is_overtime']) && $oldData[date('Y-m-j', strtotime($key))]['is_overtime'] == 1){
+                    $newData[$key_new]['is_overtime'] = 1;
+                    $newData[$key_new]['time_start'] = $oldData[date('Y-m-j', strtotime($key))]['time_start'];
+                    $newData[$key_new]['time_end'] = $oldData[date('Y-m-j', strtotime($key))]['time_end'];
+                }
+                $key_new++;
         	}
+            
         }
 
         DB::beginTransaction();

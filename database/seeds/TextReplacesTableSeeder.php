@@ -671,6 +671,18 @@ class TextReplacesTableSeeder extends Seeder
                 'created_at' => NULL,
                 'updated_at' => NULL,
             ),
+            55 => 
+            array (
+                'id_text_replace' => 58,
+                'keyword' => '%change_shift_date%',
+                'reference' => 'variables',
+                'type' => 'String',
+                'default_value' =>NULL,
+                'custom_rule' => NULL,
+                'status' => 'Activated',
+                'created_at' => NULL,
+                'updated_at' => NULL,
+            ),
 
         ));
         

@@ -396,12 +396,18 @@ class ApiHairStylistScheduleController extends Controller
         		$oldData[$date] = [
         			'request_by' => $val['request_by'],
         			'created_at' => $val['created_at'],
+                    'is_overtime' => $val['is_overtime'] ?? null,
+                    'time_start' => $val['time_start'],
+                    'time_end' => $val['time_end'],
         			'shift' => 'Full'
         		];
         	} else {
         		$oldData[$date] = [
         			'request_by' => $val['request_by'],
         			'created_at' => $val['created_at'],
+                    'is_overtime' => $val['is_overtime'] ?? null,
+                    'time_start' => $val['time_start'],
+                    'time_end' => $val['time_end'],
         			'shift' => $val['shift']
         		];
         	}
@@ -412,6 +418,7 @@ class ApiHairStylistScheduleController extends Controller
         $fixedScheduleDate = $fixedSchedule->pluck('date')->map(function($item) {return date('Y-m-d', strtotime($item));});
 
         $newData = [];
+        $key_new = 0;
         foreach ($post['schedule'] as $key => $val) {
         	if (empty($val)) {
         		continue;
@@ -424,53 +431,88 @@ class ApiHairStylistScheduleController extends Controller
         	$request_by = 'Admin';
         	$created_at = date('Y-m-d H:i:s');
         	$updated_at = date('Y-m-d H:i:s');
-        	if (isset($oldData[$key]) && $oldData[$key]['shift'] == $val) {
-        		$request_by = $oldData[$key]['request_by'];
-        		$created_at = $oldData[$key]['created_at'];
+        	if (isset($oldData[date('Y-m-j', strtotime($key))]) && $oldData[date('Y-m-j', strtotime($key))]['shift'] == $val) {
+        		$request_by = $oldData[date('Y-m-j', strtotime($key))]['request_by'];
+        		$created_at = $oldData[date('Y-m-j', strtotime($key))]['created_at'];
         	}
         	if ($val == 'Full') {
-        		$newData[] = [
+        		$newData[$key_new] = [
 	        		'id_hairstylist_schedule' => $post['id_hairstylist_schedule'],
 	        		'date' => $key,
 	        		'shift' => 'Morning',
 	        		'request_by' => $request_by,
 	        		'created_at' => $created_at,
-	        		'updated_at' => $updated_at
+	        		'updated_at' => $updated_at,
+                    'is_overtime' => null,
+                    'time_start' => null,
+                    'time_end' => null,
 	        	];
+                if(isset($oldData[date('Y-m-j', strtotime($key))]) && isset($oldData[date('Y-m-j', strtotime($key))]['is_overtime']) && $oldData[date('Y-m-j', strtotime($key))]['is_overtime'] == 1){
+                    $newData[$key_new]['is_overtime'] = 1;
+                    $newData[$key_new]['time_start'] = $oldData[date('Y-m-j', strtotime($key))]['time_start'];
+                    $newData[$key_new]['time_end'] = $oldData[date('Y-m-j', strtotime($key))]['time_end'];
+                }
+                $key_new++;
 
-	        	$newData[] = [
+	        	$newData[$key_new] = [
 	        		'id_hairstylist_schedule' => $post['id_hairstylist_schedule'],
 	        		'date' => $key,
 	        		'shift' => 'Tengah',
 	        		'request_by' => $request_by,
 	        		'created_at' => $created_at,
-	        		'updated_at' => $updated_at
+	        		'updated_at' => $updated_at,
+                    'is_overtime' => null,
+                    'time_start' => null,
+                    'time_end' => null,
 	        	];
+                if(isset($oldData[date('Y-m-j', strtotime($key))]) && isset($oldData[date('Y-m-j', strtotime($key))]['is_overtime']) && $oldData[date('Y-m-j', strtotime($key))]['is_overtime'] == 1){
+                    $newData[$key_new]['is_overtime'] = 1;
+                    $newData[$key_new]['time_start'] = $oldData[date('Y-m-j', strtotime($key))]['time_start'];
+                    $newData[$key_new]['time_end'] = $oldData[date('Y-m-j', strtotime($key))]['time_end'];
+                }
+                $key_new++;
 
-	        	$newData[] = [
+	        	$newData[$key_new] = [
 	        		'id_hairstylist_schedule' => $post['id_hairstylist_schedule'],
 	        		'date' => $key,
 	        		'shift' => 'Evening',
 	        		'request_by' => $request_by,
 	        		'created_at' => $created_at,
-	        		'updated_at' => $updated_at
+	        		'updated_at' => $updated_at,
+                    'is_overtime' => null,
+                    'time_start' => null,
+                    'time_end' => null,
 	        	];
+                if(isset($oldData[date('Y-m-j', strtotime($key))]) && isset($oldData[date('Y-m-j', strtotime($key))]['is_overtime']) && $oldData[date('Y-m-j', strtotime($key))]['is_overtime'] == 1){
+                    $newData[$key_new]['is_overtime'] = 1;
+                    $newData[$key_new]['time_start'] = $oldData[date('Y-m-j', strtotime($key))]['time_start'];
+                    $newData[$key_new]['time_end'] = $oldData[date('Y-m-j', strtotime($key))]['time_end'];
+                }
+                $key_new++;
         	} else {
-	        	$newData[] = [
+	        	$newData[$key_new] = [
 	        		'id_hairstylist_schedule' => $post['id_hairstylist_schedule'],
 	        		'date' => $key,
 	        		'shift' => $val,
 	        		'request_by' => $request_by,
 	        		'created_at' => $created_at,
-	        		'updated_at' => $updated_at
+	        		'updated_at' => $updated_at,
+                    'is_overtime' => null,
+                    'time_start' => null,
+                    'time_end' => null,
 	        	];
+                if(isset($oldData[date('Y-m-j', strtotime($key))]) && isset($oldData[date('Y-m-j', strtotime($key))]['is_overtime']) && $oldData[date('Y-m-j', strtotime($key))]['is_overtime'] == 1){
+                    $newData[$key_new]['is_overtime'] = 1;
+                    $newData[$key_new]['time_start'] = $oldData[date('Y-m-j', strtotime($key))]['time_start'];
+                    $newData[$key_new]['time_end'] = $oldData[date('Y-m-j', strtotime($key))]['time_end'];
+                }
+                $key_new++;
         	}
         }
 
         DB::beginTransaction();
-
         $update = HairstylistSchedule::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->update(['last_updated_by' => $request->user()->id]);
-        $delete = HairstylistScheduleDate::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->whereDate('date', '>=', date('Y-m-d'))->whereNotIn('id_hairstylist_schedule_date', $fixedScheduleDateId)->delete();
+        $delete = HairstylistScheduleDate::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->whereDate('date', '>=', date('Y-m-d'))->whereNotIn('id_hairstylist_schedule_date', $fixedScheduleDateId)->delete();;
         $save 	= HairstylistScheduleDate::insert($newData);
     	HairstylistSchedule::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->first()->refreshTimeShift();
 

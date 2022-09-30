@@ -377,6 +377,7 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
 
     Route::group(['prefix' => 'change-shift'], function () {
         Route::any('/','ApiEmployeeChangeShiftController@index');
+        Route::post('/date','ApiEmployeeChangeShiftController@sendDate');
         Route::any('/create','ApiEmployeeChangeShiftController@create');
     });
 

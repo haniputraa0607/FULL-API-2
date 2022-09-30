@@ -100,14 +100,46 @@ class HairstylistSchedule extends Model
 			];
 		});
 
-		$this->hairstylist_schedule_dates->each(function ($item) use ($schedules, $oneDay) {
+		$id_user = $this->id_user_hair_stylist;
+		$this->hairstylist_schedule_dates->each(function ($item) use ($schedules, $oneDay, $id_user) {
 			$daycode = $oneDay[strtolower(date('l', strtotime($item->date)))];
+
+			$new_start_shift = $schedules[$daycode][$item->shift]['time_start'] ?? '00:00:00';
+			$new_end_shift = $schedules[$daycode][$item->shift]['time_end'] ?? '00:00:00';
+
+			if($item->is_overtime == 1){
+				$overtime = HairstylistOverTime::where('id_user_hair_stylist',$id_user)->whereDate('date',$item->date)->whereNotNull('approve_by')->whereNull('reject_at')->first();
+
+				$duration = $overtime['duration'];
+				if($overtime['time']=='after'){
+					$new_end_shift = $this->getDuration2($new_end_shift,$duration);
+				}elseif($overtime['time']=='before'){
+					$new_start_shift = $this->getDuration($new_start_shift,$duration);
+				}
+
+			}
+
 			$item->update([
-				'time_start' => $schedules[$daycode][$item->shift]['time_start'] ?? '00:00:00',
-				'time_end' => $schedules[$daycode][$item->shift]['time_end'] ?? '00:00:00',
+				'time_start' => $new_start_shift,
+				'time_end' => $new_end_shift,
 			]);
 		});
 
 		return true;
 	}
+
+	public function getDuration($start_time, $end_time){
+        $duration = strtotime($end_time);
+        $start = strtotime($start_time);
+        $diff = $start - $duration;
+        $hour = floor($diff / (60*60));
+        $minute = floor(($diff - ($hour*60*60))/(60));
+        $second = floor(($diff - ($hour*60*60))%(60));
+        return $new_time =  date('H:i:s', strtotime($hour.':'.$minute.':'.$second));
+    }
+
+    public function getDuration2($start_time,$end_time){
+        $secs = strtotime($end_time)-strtotime("00:00:00");
+        return $new_time = date("H:i:s",strtotime($start_time)+$secs);
+    }
 }

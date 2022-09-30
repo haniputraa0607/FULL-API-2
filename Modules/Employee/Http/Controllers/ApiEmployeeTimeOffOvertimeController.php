@@ -23,6 +23,7 @@ use App\Http\Models\Setting;
 use Modules\Employee\Http\Requests\EmployeeTimeOffCreate;
 use Modules\Employee\Entities\EmployeeOfficeHour;
 use Modules\Employee\Entities\EmployeeOfficeHourShift;
+use Modules\Employee\Entities\EmployeeChangeShift;
 
 class ApiEmployeeTimeOffOvertimeController extends Controller
 {
@@ -559,7 +560,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                                 'user_update'=> $approve_by ? $approve_by['name'] : $request->user()->name,
                                 'time_off_date'=> $user_employee['date'],
                                 'name_office'=> $office['name_outlet'],
-                                'categore' => 'Time Off',
+                                'category' => 'Time Off',
                             ], null, false, false, $recipient_type = 'employee', null, true
                         );
                         if (!$autocrm) {
@@ -605,7 +606,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                         'user_update'=> $reject_by ? $reject_by['name'] : $request->user()->name,
                         'time_off_date'=> $user_employee['date'],
                         'name_office'=> $office['name_outlet'],
-                        'categore' => 'Time Off',
+                        'category' => 'Time Off',
                     ], null, false, false, $recipient_type = 'employee', null, true
                 );
                 if (!$autocrm) {
@@ -868,6 +869,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
         $user_sends = User::join('roles_features','roles_features.id_role', 'users.id_role')->where('id_feature',
         510)->get()->toArray();
         $outlet = Outlet::where('id_outlet',$office)->first();
+        $employee = $request->user();
         foreach($user_sends ?? [] as $user_send){
             $autocrm = app($this->autocrm)->SendAutoCRM(
                 'Employee Request Time Off',
@@ -877,7 +879,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                     'phone_employee' => $employee['phone'],
                     'name_office' => $outlet['outlet_name'],
                     'time_off_date' => date('d F Y', strtotime($post['start_date'])),
-                    'categore' => 'Time Off',
+                    'category' => 'Time Off',
                     'id_time_off' => $store['id_employee_time_off']
                 ], null, false, false, 'employee'
             );
@@ -1137,7 +1139,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
         }
 
         //cekavail
-        $notAvail = EmployeeNotAvailable::join('employee_time_off', 'employee_time_off.id_employee_time_off', 'employee_not_available.id_employee_time_off')->where('employee_not_available.id_employee',$employee)->where('employee_not_available.id_outlet', $office)->whereDate('employee_time_off.date', $date)->first();
+        $notAvail = EmployeeNotAvailable::join('employee_time_off', 'employee_time_off.id_employee_time_off', 'employee_not_available.id_employee_time_off')->where('employee_not_available.id_employee',$employee)->where('employee_not_available.id_outlet', $office)->whereDate('employee_time_off.start_date','<=' ,$date)->whereDate('employee_time_off.end_date','>=' ,$date)->first();
         if($notAvail){
             return ['status' => 'fail', 'messages' => ['Karyawan akan mengambil cuti pada tanggal ini']];
         }
@@ -1760,7 +1762,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
     }
 
     public function checkTimeOffOvertime(){
-        $log = MyHelper::logCron('Check Request Employee Time Off and Overtime');
+        $log = MyHelper::logCron('Check Request Employee Time Off, Overtime, Change Shift');
         try{
             DB::beginTransaction();
             $data_time_off = EmployeeTimeOff::whereNull('reject_at')->whereNull('approve_at')->whereDate('request_at','<',date('Y-m-d'))->get()->toArray();
@@ -1777,7 +1779,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                                 'user_update'=>'Admin',
                                 'time_off_date'=> $user_employee['date'],
                                 'name_office'=> $office['name_outlet'],
-                                'categore' => 'Time Off',
+                                'category' => 'Time Off',
                             ], null, false, false, $recipient_type = 'employee', null, true
                         );
                         if (!$autocrm) {
@@ -1831,6 +1833,34 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                     }
                 }
             }
+
+            $data_changeshift = EmployeeChangeShift::where('status','Pending')->whereDate('created_at','<',date('Y-m-d'))->get()->toArray();
+            if($data_changeshift){
+                foreach($data_changeshift as $changeshift){
+                    $update = EmployeeChangeShift::where('id_employee_change_shift', $changeshift['id_employee_change_shift'])->update(['status'=>'Rejected']);
+                    $user_employee = User::join('employee_change_shifts','employee_change_shifts.id_user','users.id')->where('employee_change_shifts.id_employee_change_shift',$time_off['id_employee_change_shift'])->first();
+                    $office = Outlet::where('id_outlet',$user_employee['id_outlet'])->first();
+                    if (\Module::collections()->has('Autocrm')) {
+                        // $autocrm = app($this->autocrm)->SendAutoCRM(
+                        //     'Employee Request Time Off Rejected', 
+                        //     $user_employee['phone'] ?? null,
+                        //     [
+                        //         'user_update'=>'Admin',
+                        //         'time_off_date'=> $user_employee['date'],
+                        //         'name_office'=> $office['name_outlet'],
+                        //         'category' => 'Time Off',
+                        //     ], null, false, false, $recipient_type = 'employee', null, true
+                        // );
+                        // if (!$autocrm) {
+                        //     return response()->json([
+                        //         'status'    => 'fail',
+                        //         'messages'  => ['Failed to send']
+                        //     ]);
+                        // }
+                    }
+                }
+            }
+
             DB::commit();
             $log->success('success');
             return response()->json(['status' => 'success']);

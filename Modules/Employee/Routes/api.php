@@ -184,6 +184,14 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('list-date', 'ApiEmployeeChangeShiftController@listDate');
         Route::post('list-shift', 'ApiEmployeeChangeShiftController@listShift');
     });
+
+    Route::group(['prefix' => 'design-request'], function () {
+        Route::post('list', 'ApiDesignRequestController@listDesignRequest');
+        Route::post('create', 'ApiDesignRequestController@storeDesignRequest');
+        Route::post('update', 'ApiDesignRequestController@updateDesignRequest');
+        Route::post('detail', 'ApiDesignRequestController@detailDesignRequest');
+        Route::post('delete', 'ApiEmployeeTimeOffOvertimeController@deleteOvertime');
+    });
     
     Route::group(['prefix' => 'be/reimbursement'], function () {
         Route::post('/','ApiBeEmployeeReimbursementController@index');

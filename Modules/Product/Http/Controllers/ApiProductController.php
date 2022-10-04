@@ -76,6 +76,7 @@ use Modules\Product\Entities\ProductCatalogDetail;
 use Modules\Product\Entities\ProductIcountOutletStockLog;
 use Modules\Product\Entities\UnitIcount;
 use Modules\Product\Entities\UnitIcountConversion;
+use Modules\Brand\Entities\BrandOutlet;
 
 class ApiProductController extends Controller
 {
@@ -978,6 +979,12 @@ class ApiProductController extends Controller
                 $product = Product::with(['category', 'discount', 'product_detail']);
             }else{
                 $product = Product::with(['category', 'discount','product_icount_use_ima' => function($ima){$ima->where('company_type','ima');},'product_icount_use_ims' => function($ims){$ims->where('company_type','ims');}]);
+            }
+
+            if ($post['outlet_id'] ?? false) {
+                $outletBrand = BrandOutlet::where('id_outlet', $post['outlet_id'])->pluck('id_brand');
+                $productsId = BrandProduct::whereIn('id_brand', $outletBrand)->pluck('id_product');
+                $product->whereIn('id_product', $productsId);
             }
 		}
 

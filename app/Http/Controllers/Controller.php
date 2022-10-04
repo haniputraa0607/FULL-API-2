@@ -255,6 +255,7 @@ class Controller extends BaseController
                 'employee_attendance_outlet_request' => $this->employee_attendance_outlet_request(),      
                 'employee_time_off' => $this->employee_time_off(),      
                 'employee_overtime' => $this->employee_overtime(),      
+                'employee_changeshift' => $this->employee_changeshift(),      
                 'hairstylist_schedule' => $this->hairstylist_schedule(),      
                 'hairstylist_attendance_pending' => $this->hairstylist_attendance_pending(),      
                 'hairstylist_time_off' => $this->hairstylist_time_off(),      
@@ -488,7 +489,7 @@ class Controller extends BaseController
     }
 
     public function employee_timeoff_overtime(){
-        $total = +$this->employee_time_off()+$this->employee_overtime();
+        $total = +$this->employee_time_off()+$this->employee_overtime()+$this->employee_changeshift();
         if($total==0){
             $total = null;
         }
@@ -549,6 +550,14 @@ class Controller extends BaseController
 
     public function employee_overtime(){
         $total = \Modules\Employee\Entities\EmployeeOvertime::whereNull('reject_at')->whereNull('approve_by')->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+
+    public function employee_changeshift(){
+        $total = \Modules\Employee\Entities\EmployeeChangeShift::where('status','Pending')->count();
         if($total==0){
             $total = null;
         }

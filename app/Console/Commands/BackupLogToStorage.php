@@ -63,7 +63,7 @@ class BackupLogToStorage extends Command
                     continue;
                 }
 
-                $foundRecord = \DB::connection('mysql2')->table($table)->where('created_at', '<', date('Y-m-d H:i:s', strtotime('-30days')))->count();
+                $foundRecord = \DB::connection('mysql2')->table($table)->whereDate('created_at', '<', date('Y-m-d', strtotime('-7days')))->count();
                 $this->line('>' . ($foundRecord ?: 'No') . ' records found');
                 if ($table && $foundRecord < 1) {
                     continue;
@@ -89,7 +89,7 @@ class BackupLogToStorage extends Command
                 $run_mysql->mustRun();
 
                 if ($this->option('truncate') && $table) {
-                    \DB::connection('mysql2')->table($table)->where('created_at', '<', date('Y-m-d H:i:s', strtotime('-30days')))->limit($totalRow)->delete();
+                    \DB::connection('mysql2')->table($table)->whereDate('created_at', '<', date('Y-m-d', strtotime('-7days')))->limit($totalRow)->delete();
                 }
 
                 $gzip_process = Process::fromShellCommandline($gzip_command);

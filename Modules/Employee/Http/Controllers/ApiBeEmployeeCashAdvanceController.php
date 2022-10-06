@@ -16,24 +16,24 @@ use Modules\Employee\Entities\EmployeeEducation;
 use Modules\Employee\Entities\EmployeeEducationNonFormal;
 use Modules\Employee\Entities\EmployeeJobExperience;
 use Modules\Employee\Entities\EmployeeQuestions;
-use Modules\Employee\Http\Requests\Reimbursement\Create;
-use Modules\Employee\Http\Requests\Reimbursement\Detail;
-use Modules\Employee\Http\Requests\Reimbursement\Update;
-use Modules\Employee\Http\Requests\Reimbursement\Delete;
-use Modules\Employee\Http\Requests\Reimbursement\BE\Approved;
+use Modules\Employee\Http\Requests\CashAdvance\Create;
+use Modules\Employee\Http\Requests\CashAdvance\Detail;
+use Modules\Employee\Http\Requests\CashAdvance\Update;
+use Modules\Employee\Http\Requests\CashAdvance\Delete;
+use Modules\Employee\Http\Requests\CashAdvance\BE\Approved;
 use App\Http\Models\User;
 use Session;
 use Modules\Employee\Entities\QuestionEmployee;
-use Modules\Employee\Entities\EmployeeReimbursement;
+use Modules\Employee\Entities\EmployeeCashAdvance;
 use App\Lib\Icount;
 use App\Http\Models\Outlet;
 use Modules\Product\Entities\ProductIcount;
-use Modules\Employee\Http\Requests\Reimbursement\BE\CallbackIcountReimbursement;
+use Modules\Employee\Http\Requests\CashAdvance\BE\CallbackIcountCashAdvance;
 use Validator;
-use Modules\Employee\Entities\EmployeeReimbursementIcount;
-use Modules\Employee\Entities\EmployeeReimbursementDocument;
+use Modules\Employee\Entities\EmployeeCashAdvanceIcount;
+use Modules\Employee\Entities\EmployeeCashAdvanceDocument;
 
-class ApiBeEmployeeReimbursementController extends Controller
+class ApiBeEmployeeCashAdvanceController extends Controller
 {
     public function __construct()
     {
@@ -41,18 +41,17 @@ class ApiBeEmployeeReimbursementController extends Controller
         if (\Module::collections()->has('Autocrm')) {
             $this->autocrm  = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
         }
-        $this->saveFile = "document/employee/reimbursement/"; 
+        $this->saveFile = "document/employee/cash_advance/"; 
     }
     public function index(Request $request) {
       $post = $request->all();
-      $employee = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')
-               ->join('product_icounts','product_icounts.id_product_icount','employee_reimbursements.id_product_icount')
-               ->join('employees','employees.id_user','employee_reimbursements.id_user')
-               ->where('employee_reimbursements.status','!=','Successed')
-               ->where('employee_reimbursements.status','!=','Approved')
-               ->where('employee_reimbursements.status','!=','Rejected')
-               ->orderby('employee_reimbursements.created_at','desc')
-               ->select('employee_reimbursements.*','users.name as user_name','users.email','employees.code','product_icounts.name as name_product');
+      $employee = EmployeeCashAdvance::join('users','users.id','employee_cash_advances.id_user')
+               ->join('employees','employees.id_user','employee_cash_advances.id_user')
+               ->where('employee_cash_advances.status','!=','Successed')
+               ->where('employee_cash_advances.status','!=','Approved')
+               ->where('employee_cash_advances.status','!=','Rejected')
+               ->orderby('employee_cash_advances.created_at','desc')
+               ->select('employee_cash_advances.*','users.name as user_name','users.email','employees.code','title');
        if(isset($post['rule']) && !empty($post['rule'])){
             $rule = 'and';
             if(isset($post['operator'])){
@@ -84,18 +83,16 @@ class ApiBeEmployeeReimbursementController extends Controller
    public function manager(Request $request) {
       $post = $request->all();
       if(Auth::user()->level == "Admin"){
-      $employee = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')
-               ->join('product_icounts','product_icounts.id_product_icount','employee_reimbursements.id_product_icount')
-               ->join('employees','employees.id_user','employee_reimbursements.id_user')
+      $employee = EmployeeCashAdvance::join('users','users.id','employee_cash_advances.id_user')
+               ->join('employees','employees.id_user','employee_cash_advances.id_user')
                ->where('id_manager',Auth::user()->id)
-               ->where('employee_reimbursements.status','Pending')
-                ->select('employee_reimbursements.*','users.name as user_name','users.email','employees.code','product_icounts.name as name_product');    
+               ->where('employee_cash_advances.status','Pending')
+                ->select('employee_cash_advances.*','users.name as user_name','users.email','employees.code','title');    
       }else{
-      $employee = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')
-               ->join('product_icounts','product_icounts.id_product_icount','employee_reimbursements.id_product_icount')
-               ->join('employees','employees.id_user','employee_reimbursements.id_user')
-               ->where('employee_reimbursements.status','Pending')
-               ->select('employee_reimbursements.*','users.name as user_name','users.email','employees.code','product_icounts.name as name_product');    
+      $employee = EmployeeCashAdvance::join('users','users.id','employee_cash_advances.id_user')
+               ->join('employees','employees.id_user','employee_cash_advances.id_user')
+               ->where('employee_cash_advances.status','Pending')
+               ->select('employee_cash_advances.*','users.name as user_name','users.email','employees.code','title');    
       }
        if(isset($post['rule']) && !empty($post['rule'])){
             $rule = 'and';
@@ -127,12 +124,11 @@ class ApiBeEmployeeReimbursementController extends Controller
    }
     public function list(Request $request) {
       $post = $request->all();
-      $employee = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')
-               ->join('employees','employees.id_user','employee_reimbursements.id_user')
-               ->join('product_icounts','product_icounts.id_product_icount','employee_reimbursements.id_product_icount')
-               ->where('employee_reimbursements.status','!=','Pending')
-               ->join('users as users_approved','users_approved.id','employee_reimbursements.id_user_approved')
-               ->select('employee_reimbursements.*','users.name as user_name','users.email','employees.code','users_approved.name as user_approved','product_icounts.name as name_product');
+      $employee = EmployeeCashAdvance::join('users','users.id','employee_cash_advances.id_user')
+               ->join('employees','employees.id_user','employee_cash_advances.id_user')
+               ->where('employee_cash_advances.status','!=','Pending')
+               ->join('users as users_approved','users_approved.id','employee_cash_advances.id_user_approved')
+               ->select('employee_cash_advances.*','users.name as user_name','users.email','employees.code','users_approved.name as user_approved','title');
        if(isset($post['rule']) && !empty($post['rule'])){
             $rule = 'and';
             if(isset($post['operator'])){
@@ -163,17 +159,16 @@ class ApiBeEmployeeReimbursementController extends Controller
    }
 //   public function list(Request $request) {
 //       $post = $request->all();
-//        $employee = EmployeeReimbursement::orderBy('created_at', 'desc')->paginate($request->length ?: 10);
+//        $employee = EmployeeCashAdvance::orderBy('created_at', 'desc')->paginate($request->length ?: 10);
 //        return MyHelper::checkGet($employee);
 //   }
    public function detail(Request $request) {
-       if(isset($request->id_employee_reimbursement)){
-         $employee = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')
-               ->join('employees','employees.id_user','employee_reimbursements.id_user')
-                 ->join('product_icounts','product_icounts.id_product_icount','employee_reimbursements.id_product_icount')
-               ->where('id_employee_reimbursement', $request->id_employee_reimbursement)
-               ->leftjoin('users as users_approved','users_approved.id','employee_reimbursements.id_user_approved')
-               ->select('employee_reimbursements.*','users.name as user_name','users.email','employees.code','users_approved.name as user_approved','product_icounts.name as name_product','id_manager')
+       if(isset($request->id_employee_cash_advance)){
+         $employee = EmployeeCashAdvance::join('users','users.id','employee_cash_advances.id_user')
+               ->join('employees','employees.id_user','employee_cash_advances.id_user')
+               ->where('id_employee_cash_advance', $request->id_employee_cash_advance)
+               ->leftjoin('users as users_approved','users_approved.id','employee_cash_advances.id_user_approved')
+               ->select('employee_cash_advances.*','users.name as user_name','users.email','employees.code','users_approved.name as user_approved','title','id_manager')
                ->with(['document'])
                ->first();
          if($employee){
@@ -185,10 +180,10 @@ class ApiBeEmployeeReimbursementController extends Controller
    public function update(Request $request) {
        $post = $request->json()->all();
         $update = array();
-        if(isset($post['id_employee_reimbursement']) && !empty($post['id_employee_reimbursement'])){
-              $getData = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')->where('id_employee_reimbursement', $post['id_employee_reimbursement'])->first();
+        if(isset($post['id_employee_cash_advance']) && !empty($post['id_employee_cash_advance'])){
+              $getData = EmployeeCashAdvance::join('users','users.id','employee_cash_advances.id_user')->where('id_employee_cash_advance', $post['id_employee_cash_advance'])->first();
                 if(!empty($post['data_document']['attachment'])){
-                    $upload = MyHelper::uploadFile($post['data_document']['attachment'], 'document/employee/', $post['data_document']['ext'], $post['id_employee_reimbursement'].'_'.str_replace(" ","_", $post['data_document']['document_type']));
+                    $upload = MyHelper::uploadFile($post['data_document']['attachment'], 'document/employee/', $post['data_document']['ext'], $post['id_employee_cash_advance'].'_'.str_replace(" ","_", $post['data_document']['document_type']));
                     if (isset($upload['status']) && $upload['status'] == "success") {
                         $path = $upload['path'];
                     }else {
@@ -198,14 +193,14 @@ class ApiBeEmployeeReimbursementController extends Controller
                 $update = array();
                 
                     if(isset($post['update_type'])){
-                     $update = EmployeeReimbursement::where('id_employee_reimbursement', $post['id_employee_reimbursement'])->update([
+                     $update = EmployeeCashAdvance::where('id_employee_cash_advance', $post['id_employee_cash_advance'])->update([
                          'status' => $post['update_type'],
                              ]);
                      }
                   
                 if(!empty($post['data_document'])){
-                    $createDoc = EmployeeReimbursementDocument::create([
-                        'id_employee_reimbursement' => $post['id_employee_reimbursement'],
+                    $createDoc = EmployeeCashAdvanceDocument::create([
+                        'id_employee_cash_advance' => $post['id_employee_cash_advance'],
                         'document_type' => $post['data_document']['document_type'],
                         'process_date' => date('Y-m-d H:i:s'),
                         'id_approved' => Auth::user()->id??null,
@@ -226,39 +221,39 @@ class ApiBeEmployeeReimbursementController extends Controller
        $post = $request->all();
        $post['date_validation'] = date('Y-m-d H:i:s');
        $post['id_user_approved'] =  $post['id_user_approved'] ?? Auth::user()->id;
-       $reimbursement = EmployeeReimbursement::where(array('id_employee_reimbursement'=>$request->id_employee_reimbursement))->update($post);
-       $reimbursement = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')->where(array('id_employee_reimbursement'=>$request->id_employee_reimbursement))->first();
+       $cash_advance = EmployeeCashAdvance::where(array('id_employee_cash_advance'=>$request->id_employee_cash_advance))->update($post);
+       $cash_advance = EmployeeCashAdvance::join('users','users.id','employee_cash_advances.id_user')->where(array('id_employee_cash_advance'=>$request->id_employee_cash_advance))->first();
        if($post['status'] == "Approved"){
             $data_send = [
-                    "reimbursement" => EmployeeReimbursement::where(array('id_employee_reimbursement'=>$request->id_employee_reimbursement))->first(),
-                    "employee" => Employee::where('id_user',$reimbursement['id_user'])->first(),
-                    "item"=> ProductIcount::where('id_product_icount',$reimbursement['id_product_icount'])->first(),
-                    "outlet" => Outlet::where('id_outlet',$reimbursement["id_outlet"])->first(),
-                    "location" => Outlet::leftjoin('locations','locations.id_location','outlets.id_location')->where('id_outlet',$reimbursement["id_outlet"])->first(),
+                    "cash_advance" => EmployeeCashAdvance::where(array('id_employee_cash_advance'=>$request->id_employee_cash_advance))->first(),
+                    "employee" => Employee::where('id_user',$cash_advance['id_user'])->first(),
+                    "item"=> ProductIcount::where('id_product_icount',$cash_advance['id_product_icount'])->first(),
+                    "outlet" => Outlet::where('id_outlet',$cash_advance["id_outlet"])->first(),
+                    "location" => Outlet::leftjoin('locations','locations.id_location','outlets.id_location')->where('id_outlet',$cash_advance["id_outlet"])->first(),
                 ];
-              $initBranch = Icount::EmployeeReimbursement($data_send, $data_send['location']['company_type']??null);
+              $initBranch = Icount::EmployeeCashAdvance($data_send, $data_send['location']['company_type']??null);
                if($initBranch['response']['Status']=='1' && $initBranch['response']['Message']=='success'){
                    $initBranch = $initBranch['response']['Data'][0];
-                   $update = EmployeeReimbursement::where(array('id_employee_reimbursement'=>$request->id_employee_reimbursement))->update([
+                   $update = EmployeeCashAdvance::where(array('id_employee_cash_advance'=>$request->id_employee_cash_advance))->update([
                        'id_purchase_invoice'=>$initBranch['PurchaseInvoiceID'],
                        'value_detail'=> json_encode($initBranch)
                    ]);
                }
        }
-       return MyHelper::checkGet($reimbursement);
+       return MyHelper::checkGet($cash_advance);
    }
-   public function callbackreimbursement(CallbackIcountReimbursement $request){
+   public function callbackcash_advance(CallbackIcountCashAdvance $request){
         if($request->status == "Success"){
             $request->status = "Success";
         }else{
             $request->status = "Failed";
         }
-        $data = EmployeeReimbursement::where(array('id_purchase_invoice'=>$request->PurchaseInvoiceID))->update([
+        $data = EmployeeCashAdvance::where(array('id_purchase_invoice'=>$request->PurchaseInvoiceID))->update([
             'status'=>$request->status,
             'date_disburse'=>$request->date_disburse,
-            'date_send_reimbursement'=>date('Y-m-d H:i:s')
+            'date_send_cash_advance'=>date('Y-m-d H:i:s')
         ]);
-        EmployeeReimbursementIcount::create([
+        EmployeeCashAdvanceIcount::create([
             'status'=>$request->status,
             'value_detail'=>json_encode($request->all()),
             'id_purchase_invoice'=>$request->PurchaseInvoiceID

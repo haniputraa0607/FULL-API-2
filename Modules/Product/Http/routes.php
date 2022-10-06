@@ -25,6 +25,7 @@ Route::group(['prefix' => 'api/product','middleware' => ['log_activities','auth:
 
 Route::group(['prefix' => 'api/product','middleware' => ['log_activities','auth:api', 'scopes:be'], 'namespace' => 'Modules\Product\Http\Controllers'], function()
 {
+    Route::any('be/setting_service', 'ApiProductController@setting_service');
     Route::any('be/list', 'ApiProductController@listProduct');
     Route::any('be/icount/list', 'ApiProductController@listProductIcount');
     Route::any('be/sync', 'ApiProductController@syncIcount');

@@ -232,6 +232,12 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     //total
     Route::get('total-date-hs', 'ApiSetting@total_date_hs');
     Route::post('total-date-hs-create', 'ApiSetting@total_date_hs_create');
+    
+    Route::get('haircut-service', 'ApiSetting@haircut_service');
+    Route::post('haircut-service-create', 'ApiSetting@haircut_service_create');
+    
+    Route::get('other-service', 'ApiSetting@other_service');
+    Route::post('other-service-create', 'ApiSetting@other_service_create');
 });
 
 Route::group(['prefix' => 'api/timesetting', 'namespace' => 'Modules\Setting\Http\Controllers'], function()

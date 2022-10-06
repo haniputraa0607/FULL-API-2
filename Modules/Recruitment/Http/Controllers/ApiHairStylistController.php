@@ -30,6 +30,11 @@ use Modules\Transaction\Entities\TransactionProductService;
 use App\Http\Models\Transaction;
 use File;
 use Storage;
+use Modules\Recruitment\Entities\HairstylistGroupProteksiAttendanceDefault;
+use Modules\Recruitment\Entities\HairstylistGroupOvertimeDayDefault;
+use Modules\Recruitment\Entities\HairstylistGroupLateDefault;
+use App\Http\Models\Product;
+use Modules\Product\Entities\ProductCommissionDefault;
 
 class ApiHairStylistController extends Controller
 {
@@ -572,7 +577,7 @@ class ApiHairStylistController extends Controller
                     $companyType = str_replace('PT ', '', $companyType);
                     $number = UserHairStylist::whereYear('join_date', date('Y'))->count();
 
-                    $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor('template_contract_hs.docx');
+                    $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor('hs_contract.docx');
                     $templateProcessor->setValue('number', $number);
                     $templateProcessor->setValue('company_type', $companyType);
                     $templateProcessor->setValue('roman_month', MyHelper::numberToRomanRepresentation(date('n')));
@@ -586,14 +591,225 @@ class ApiHairStylistController extends Controller
                     $templateProcessor->setValue('id_card_number', (empty($dtHs['id_card_number']) ? '':$dtHs['id_card_number']));
                     $templateProcessor->setValue('join_date', MyHelper::dateFormatInd($dtHs['join_date'], true, false));
                     $templateProcessor->setValue('outlet_name', $outletName);
-
-
+                    $proteksi = HairstylistGroupProteksiAttendanceDefault::leftJoin('hairstylist_group_proteksi_attendances', function ($join) use ($dtHs) {
+                        $join->on('hairstylist_group_proteksi_attendances.id_hairstylist_group_default_proteksi_attendance', 'hairstylist_group_default_proteksi_attendances.id_hairstylist_group_default_proteksi_attendance')
+                            ->where('id_hairstylist_group', $dtHs->id_hairstylist_group);
+                    })
+                         ->where('month', date('m'))
+                        ->select('hairstylist_group_default_proteksi_attendances.id_hairstylist_group_default_proteksi_attendance','hairstylist_group_default_proteksi_attendances.month',
+                            DB::raw('
+                                CASE WHEN
+                                hairstylist_group_proteksi_attendances.value IS NOT NULL THEN hairstylist_group_proteksi_attendances.value ELSE hairstylist_group_default_proteksi_attendances.value
+                                END as value
+                             '),
+                        DB::raw('
+                            CASE WHEN
+                            hairstylist_group_proteksi_attendances.amount IS NOT NULL THEN hairstylist_group_proteksi_attendances.amount ELSE hairstylist_group_default_proteksi_attendances.amount
+                            END as amount
+                         '),
+                        DB::raw('
+                            CASE WHEN
+                            hairstylist_group_proteksi_attendances.amount_proteksi IS NOT NULL THEN hairstylist_group_proteksi_attendances.amount_proteksi ELSE hairstylist_group_default_proteksi_attendances.amount_proteksi
+                            END as amount_proteksi
+                         '),
+                        DB::raw('
+                            CASE WHEN
+                            hairstylist_group_proteksi_attendances.amount_day IS NOT NULL THEN hairstylist_group_proteksi_attendances.amount_day ELSE hairstylist_group_default_proteksi_attendances.amount_day
+                            END as amount_day
+                         '),
+                        )->first();
+                    $overtime = HairstylistGroupOvertimeDayDefault::leftJoin('hairstylist_group_overtime_days', function ($join) use ($dtHs) {
+                            $join->on('hairstylist_group_overtime_days.id_hairstylist_group_default_overtime_day', 'hairstylist_group_default_overtime_days.id_hairstylist_group_default_overtime_day')
+                                ->where('id_hairstylist_group', $dtHs->id_hairstylist_group);
+                        })
+                            ->select('hairstylist_group_default_overtime_days.id_hairstylist_group_default_overtime_day','hairstylist_group_default_overtime_days.days',
+                                DB::raw('
+                                                   CASE WHEN
+                                                   hairstylist_group_overtime_days.value IS NOT NULL THEN hairstylist_group_overtime_days.value ELSE hairstylist_group_default_overtime_days.value
+                                                   END as value
+                                                '),
+                            )->orderby('days', 'asc')->first();
+                    $templateProcessor->setValue('proteksi', number_format($proteksi->amount??0,0,',','.'));
+                    $templateProcessor->setValue('amount_value', $proteksi->value??0);
+                    $templateProcessor->setValue('amount_proteksi', number_format($proteksi->amount_proteksi??0,0,',','.'));
+                    $templateProcessor->setValue('amount_hari', number_format($proteksi->amount_proteksi??0,0,',','.'));
+                    $templateProcessor->setValue('overtime', number_format($overtime->value??0,0,',','.'));
+                    
+                    //lateness
+                    $lateness1 = HairstylistGroupLateDefault::leftJoin('hairstylist_group_lates', function ($join) use ($dtHs) {
+                                    $join->on('hairstylist_group_lates.id_hairstylist_group_default_late', 'hairstylist_group_default_lates.id_hairstylist_group_default_late')
+                                        ->where('id_hairstylist_group', $dtHs->id_hairstylist_group);
+                                })
+                                    ->select('hairstylist_group_default_lates.id_hairstylist_group_default_late','hairstylist_group_default_lates.range',
+                                        DB::raw('
+                                                           CASE WHEN
+                                                           hairstylist_group_lates.value IS NOT NULL THEN hairstylist_group_lates.value ELSE hairstylist_group_default_lates.value
+                                                           END as value
+                                                        '),
+                                    )->orderby('range', 'asc')->first();
+                    $lateness2 = HairstylistGroupLateDefault::leftJoin('hairstylist_group_lates', function ($join) use ($dtHs) {
+                                    $join->on('hairstylist_group_lates.id_hairstylist_group_default_late', 'hairstylist_group_default_lates.id_hairstylist_group_default_late')
+                                        ->where('id_hairstylist_group', $dtHs->id_hairstylist_group);
+                                })
+                                    ->select('hairstylist_group_default_lates.id_hairstylist_group_default_late','hairstylist_group_default_lates.range',
+                                        DB::raw('
+                                                           CASE WHEN
+                                                           hairstylist_group_lates.value IS NOT NULL THEN hairstylist_group_lates.value ELSE hairstylist_group_default_lates.value
+                                                           END as value
+                                                        '),
+                                    )->orderby('range', 'DESC')->first();
+                                
+                    $templateProcessor->setValue('amount_late_time1', $lateness1->range??0);
+                    $templateProcessor->setValue('amount_late_time2', $lateness2->range??0);
+                    $templateProcessor->setValue('amount_late1', number_format($lateness1->value??0,0,',','.'));
+                    $templateProcessor->setValue('amount_late2', number_format($lateness2->value??0,0,',','.'));
+                    $haircut = Setting::where('key','haircut_service')->first()['value']??0;
+                    $other = Setting::where('key','other_service')->first()['value']??0;
+                    //commision 
+                    $product = Product::where(array('id_product'=>$haircut))->first();
+                        $commission = ProductCommissionDefault::where(array('id_product'=>$product->id_product??0))->with(['dynamic_rule'=> function($d){$d->orderBy('qty','desc');}])->first();
+                        if($commission && ($commission['dynamic_rule'])){
+                            $dynamic_rule = [];
+                            $count = count($commission['dynamic_rule']) - 1;
+                            foreach($commission['dynamic_rule'] as $key => $value){
+                                if($count==$key || $count==0){
+                                    $for_null = $value['qty']-1;
+                                    if($count!=0){
+                                        $dynamic_rule[] = [
+                                            'id_product_commission_default_dynamic' => $value['id_product_commission_default_dynamic'],
+                                            'qty' => $value['qty'].' - '.($commission['dynamic_rule'][$key-1]['qty']-1),
+                                            'value' => $value['value']
+                                        ];
+                                    }else{
+                                        $dynamic_rule[] = [
+                                            'id_product_commission_default_dynamic' => $value['id_product_commission_default_dynamic'],
+                                            'qty' => '>= '.$value['qty'],
+                                            'value' => $value['value']
+                                        ];
+                                    }
+                                    if($value['qty']!=1){
+                                        $dynamic_rule[] = [
+                                            'id_product_commission_default_dynamic' => null,
+                                            'qty' => '0 - '.$for_null,
+                                            'value' => 0
+                                        ];
+                                    }
+                                }else{
+                                    if($key==0){
+                                        $dynamic_rule[] = [
+                                            'id_product_commission_default_dynamic' => $value['id_product_commission_default_dynamic'],
+                                            'qty' => '>= '.$value['qty'],
+                                            'value' => $value['value']
+                                        ];
+                                    }else{
+                                        $before = $commission['dynamic_rule'][$key-1]['qty'] - 1;
+                                        if($before == $value['qty']){
+                                            $qty = $value['qty'];
+                                        }else{
+                                            $qty = $value['qty'].' - '.$before;
+                                        }
+                                        $dynamic_rule[] = [
+                                            'id_product_commission_default_dynamic' => $value['id_product_commission_default_dynamic'],
+                                            'qty' => $qty,
+                                            'value' => $value['value']
+                                        ];
+                                    }
+                                }
+                            }
+                            $commission['dynamic_rule_list'] = $dynamic_rule;
+                        }
+                        $commissions = '-';
+                        if($commission){
+                            
+                            if($commission->dynamic){
+                                $commissions = "Dinamic";
+                                foreach($commission->dynamic_rule_list as $com){
+                                    $commissions .= "\n".$com['qty'].' Kepala : Rp. '.number_format($com['value']??0,0,',','.');
+                                }
+                            }else{
+                                if($commission->percent){
+                                    $commissions = "Static \nCommission : ".$commission->commission."%";
+                                }else{
+                                    $commissions = "Static \nCommission : Rp. ".number_format($commission->commission??0,0,',','.');
+                                }
+                            }
+                        }
+                    //other
+                        $product = Product::where(array('id_product'=>$other))->first();
+                        $other = ProductCommissionDefault::where(array('id_product'=>$product->id_product??0))->with(['dynamic_rule'=> function($d){$d->orderBy('qty','desc');}])->first();
+                        if($other && ($other['dynamic_rule'])){
+                            $dynamic_rule = [];
+                            $count = count($other['dynamic_rule']) - 1;
+                            foreach($other['dynamic_rule'] as $key => $value){
+                                if($count==$key || $count==0){
+                                    $for_null = $value['qty']-1;
+                                    if($count!=0){
+                                        $dynamic_rule[] = [
+                                            'id_product_commission_default_dynamic' => $value['id_product_commission_default_dynamic'],
+                                            'qty' => $value['qty'].' - '.($other['dynamic_rule'][$key-1]['qty']-1),
+                                            'value' => $value['value']
+                                        ];
+                                    }else{
+                                        $dynamic_rule[] = [
+                                            'id_product_commission_default_dynamic' => $value['id_product_commission_default_dynamic'],
+                                            'qty' => '>= '.$value['qty'],
+                                            'value' => $value['value']
+                                        ];
+                                    }
+                                    if($value['qty']!=1){
+                                        $dynamic_rule[] = [
+                                            'id_product_commission_default_dynamic' => null,
+                                            'qty' => '0 - '.$for_null,
+                                            'value' => 0
+                                        ];
+                                    }
+                                }else{
+                                    if($key==0){
+                                        $dynamic_rule[] = [
+                                            'id_product_commission_default_dynamic' => $value['id_product_commission_default_dynamic'],
+                                            'qty' => '>= '.$value['qty'],
+                                            'value' => $value['value']
+                                        ];
+                                    }else{
+                                        $before = $other['dynamic_rule'][$key-1]['qty'] - 1;
+                                        if($before == $value['qty']){
+                                            $qty = $value['qty'];
+                                        }else{
+                                            $qty = $value['qty'].' - '.$before;
+                                        }
+                                        $dynamic_rule[] = [
+                                            'id_product_commission_default_dynamic' => $value['id_product_commission_default_dynamic'],
+                                            'qty' => $qty,
+                                            'value' => $value['value']
+                                        ];
+                                    }
+                                }
+                            }
+                            $other['dynamic_rule_list'] = $dynamic_rule;
+                        }
+                        $others = '-';
+                        if($other){
+                            if($other->dynamic){
+                                $others = "Dinamic\n";
+                                foreach($other->dynamic_rule_list as $oth){
+                                    $others .= "\n".$oth['qty'].' Kepala : Rp. '.number_format($oth['value']??0,0,',','.');
+                                }
+                            }else{
+                                if($other->percent){
+                                    $others = "Static \nCommission : ".$other->commission."%";
+                                }else{
+                                    $others = "Static \nCommission : Rp. ".number_format($other->commission??0,0,',','.');
+                                }
+                            }
+                        }
+                    
+                    $templateProcessor->setValue('haircut', $commissions);
+                    $templateProcessor->setValue('other', $others);
                     if(!File::exists(public_path().'/hs_contract')){
                         File::makeDirectory(public_path().'/hs_contract');
                     }
                     $directory = 'hs_contract/hs_'.$data['user_hair_stylist_code'].'.docx';
                     $templateProcessor->saveAs($directory);
-
                     if(config('configs.STORAGE') != 'local'){
                         $contents = File::get(public_path().'/'.$directory);
                         $store = Storage::disk(config('configs.STORAGE'))->put($directory,$contents, 'public');
@@ -601,7 +817,6 @@ class ApiHairStylistController extends Controller
                             File::delete(public_path().'/'.$directory);
                         }
                     }
-
                     if($templateProcessor){
                         UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])->update(['file_contract' => $directory]);
                     }

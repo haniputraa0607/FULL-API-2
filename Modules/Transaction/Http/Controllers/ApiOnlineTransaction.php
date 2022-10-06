@@ -142,7 +142,7 @@ class ApiOnlineTransaction extends Controller
         $this->promo_trx = "Modules\Transaction\Http\Controllers\ApiPromoTransaction";
     }
 
-    public function newTransaction(NewTransaction $request) {
+   public function newTransaction(NewTransaction $request) {
         $post = $request->json()->all();
         if(!Auth::user()->custom_name){
             if(!empty($post['customer_name'])){
@@ -665,7 +665,7 @@ class ApiOnlineTransaction extends Controller
             'void_date'                   => null,
             'transaction_from'            => $post['transaction_from'],
             'scope'                       => $scopeUser??null,
-            'customer_name'               => $post['customer_name']??null
+            'customer_name'               => $post['customer_name']??$user['name']
         ];
 
         if($request->user()->complete_profile == 1){
@@ -710,7 +710,7 @@ class ApiOnlineTransaction extends Controller
         if($post['transaction_from'] == 'outlet-service'){
             $createOutletService = TransactionOutletService::create([
                 'id_transaction' => $insertTransaction['id_transaction'],
-                'customer_name' => $post['customer']['name'],
+                'customer_name' => $post['customer_name']??$user['name'],
                 'customer_email' => $post['customer']['email'],
                 'customer_domicile' => $post['customer']['domicile'],
                 'customer_birtdate' => $post['customer']['birthdate'],

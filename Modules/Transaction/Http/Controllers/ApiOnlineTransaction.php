@@ -395,8 +395,8 @@ class ApiOnlineTransaction extends Controller
         if(empty($post['customer']) || empty($post['customer']['name'])){
             $post['customer'] = [
                 "name" => $post['customer_name']??$user['name'],
-                "email" => $user['email'],
-                "domicile" => $user['city_name'],
+                "email" => $post['customer_name']??$user['email'],
+                "domicile" => $post['customer_name']??$user['city_name'],
                 "birthdate" => date('Y-m-d', strtotime($user['birthday'])),
                 "gender" => $user['gender'],
             ];
@@ -711,10 +711,10 @@ class ApiOnlineTransaction extends Controller
             $createOutletService = TransactionOutletService::create([
                 'id_transaction' => $insertTransaction['id_transaction'],
                 'customer_name' => $post['customer_name']??$user['name'],
-                'customer_email' => $post['customer']['email'],
-                'customer_domicile' => $post['customer']['domicile'],
-                'customer_birtdate' => $post['customer']['birthdate'],
-                'customer_gender' => $post['customer']['gender']
+                'customer_email' => $post['customer']['email']??$user['email'],
+                'customer_domicile' => $post['customer']['domicile']??$user['domicile'],
+                'customer_birtdate' => $post['customer']['birthdate']??$user['birthdate'],
+                'customer_gender' => $post['customer']['gender']??$user['gender']
             ]);
             if (!$createOutletService) {
                 DB::rollback();

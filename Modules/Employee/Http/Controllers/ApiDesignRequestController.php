@@ -185,7 +185,6 @@ class ApiDesignRequestController extends Controller
                 $data_update['id_approve'] = null;
                 $data_update['update_status_date'] = null;
                 $data_update['estimated_date'] = null;
-                $delete = MyHelper::deleteFile($this->saveFile.'/Design-Request-'.$post['id_design_request']);
                 $data_update['design_path'] = null;
                 $data_update['finished_note'] = null;
             }

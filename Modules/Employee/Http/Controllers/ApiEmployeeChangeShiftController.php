@@ -333,7 +333,7 @@ class ApiEmployeeChangeShiftController extends Controller
     {
         $post = $request->all();
         if(isset($post['id_employee_change_shift']) && !empty($post['id_employee_change_shift'])){
-            $change_shift = EmployeeChangeShift::where('id_employee_change_shift', $post['id_employee_change_shift'])->with(['user.outlet','approve'])->first();
+            $change_shift = EmployeeChangeShift::where('id_employee_change_shift', $post['id_employee_change_shift'])->with(['user.outlet','approve','office_hour_shift'])->first();
             
             if($change_shift==null){
                 return response()->json(['status' => 'success', 'result' => [

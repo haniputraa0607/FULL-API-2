@@ -1995,7 +1995,7 @@ class HairstylistIncome extends Model
                                                 '),
                             )->orderby('days', 'DESC')->get();
                         foreach ($incentives as $valu) {
-                            $overtimes_day = $total_attend-$incentive->value;
+                            $overtimes_day = $total_attend-$incentives->value;
                             if($overtimes_day>0){
                                 if ($valu['days'] <= (int) $overtimes_day) {
                                     $id = $valu['id_hairstylist_group_default_overtime_day'];

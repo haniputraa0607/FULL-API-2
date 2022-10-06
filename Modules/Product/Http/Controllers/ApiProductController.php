@@ -3716,4 +3716,16 @@ class ApiProductController extends Controller
         DB::commit();
         return true;
     }
+      public function setting_service(Request $request){
+     
+        $product = Product::where(
+                array(
+                    'product_type'=>'service',
+                    'product_visibility'=>'Visible',
+                    ))
+                ->select('id_product','product_name')
+                ->get();
+           
+        return MyHelper::checkGet($product);
+    }
 }

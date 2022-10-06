@@ -175,23 +175,6 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('create', 'ApiEmployeeTimeOffOvertimeController@createOvertime');
         Route::post('delete', 'ApiEmployeeTimeOffOvertimeController@deleteOvertime');
     });
-
-    Route::group(['prefix' => 'change-shift'], function () {
-        Route::post('list', 'ApiEmployeeChangeShiftController@listChangeShift');
-        Route::post('delete', 'ApiEmployeeChangeShiftController@deleteChangeShift');
-        Route::post('detail', 'ApiEmployeeChangeShiftController@detailChangeShift');
-        Route::post('update', 'ApiEmployeeChangeShiftController@updateChangeShift');
-        Route::post('list-date', 'ApiEmployeeChangeShiftController@listDate');
-        Route::post('list-shift', 'ApiEmployeeChangeShiftController@listShift');
-    });
-
-    Route::group(['prefix' => 'design-request'], function () {
-        Route::post('list', 'ApiDesignRequestController@listDesignRequest');
-        Route::post('create', 'ApiDesignRequestController@storeDesignRequest');
-        Route::post('update', 'ApiDesignRequestController@updateDesignRequest');
-        Route::post('detail', 'ApiDesignRequestController@detailDesignRequest');
-        Route::post('delete', 'ApiEmployeeTimeOffOvertimeController@deleteOvertime');
-    });
     
     Route::group(['prefix' => 'be/reimbursement'], function () {
         Route::post('/','ApiBeEmployeeReimbursementController@index');
@@ -201,6 +184,15 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('/list','ApiBeEmployeeReimbursementController@list');
         Route::post('/detail','ApiBeEmployeeReimbursementController@detail');
         Route::post('/approved','ApiBeEmployeeReimbursementController@approved');
+         });
+    Route::group(['prefix' => 'be/cash-advance'], function () {
+        Route::post('/','ApiBeEmployeeCashAdvanceController@index');
+        Route::post('/manager','ApiBeEmployeeCashAdvanceController@manager');
+        Route::post('/update','ApiBeEmployeeCashAdvanceController@update');
+        Route::post('/manager/detail','ApiBeEmployeeCashAdvanceController@detail');
+        Route::post('/list','ApiBeEmployeeCashAdvanceController@list');
+        Route::post('/detail','ApiBeEmployeeCashAdvanceController@detail');
+        Route::post('/approved','ApiBeEmployeeCashAdvanceController@approved');
          });
     Route::group(['prefix' => 'role'], function () {
             Route::any('/', ['middleware' => 'feature_control:393','uses' =>'ApiRoleController@index']);
@@ -329,6 +321,13 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         Route::post('pending','ApiEmployeeReimbursementController@pending');
         Route::post('history','ApiEmployeeReimbursementController@history');
     });
+    Route::group(['prefix' => 'cash-advance'], function () {
+        Route::post('create','ApiEmployeeCashAdvanceController@create');
+        Route::post('detail','ApiEmployeeCashAdvanceController@detail');
+        Route::post('update','ApiEmployeeCashAdvanceController@update');
+        Route::post('pending','ApiEmployeeCashAdvanceController@pending');
+        Route::post('history','ApiEmployeeCashAdvanceController@history');
+    });
     Route::group(['prefix' => 'office'], function () {
         Route::get('/total-employee','ApiEmployeeProfileController@total_employee');
         Route::get('/list-employee','ApiEmployeeProfileController@list_employee');
@@ -381,12 +380,6 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         Route::get('create','ApiEmployeeTimeOffOvertimeController@createOvertimeEmployee');
         Route::post('check','ApiEmployeeTimeOffOvertimeController@checkOvertimeEmployee');
         Route::post('create','ApiEmployeeTimeOffOvertimeController@storeOvertimeEmployee');
-    });
-
-    Route::group(['prefix' => 'change-shift'], function () {
-        Route::any('/','ApiEmployeeChangeShiftController@index');
-        Route::post('/date','ApiEmployeeChangeShiftController@sendDate');
-        Route::any('/create','ApiEmployeeChangeShiftController@create');
     });
 
     Route::post('calender','ApiEmployeeController@calender');

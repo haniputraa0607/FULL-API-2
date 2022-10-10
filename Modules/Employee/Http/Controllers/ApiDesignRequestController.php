@@ -45,6 +45,22 @@ class ApiDesignRequestController extends Controller
                 DB::rollback();
                 return response()->json(['status' => 'fail', 'messages' => ['Failed add design request']]);
             }   
+
+            $user_sends = User::join('roles_features','roles_features.id_role', 'users.id_role')->where('id_feature',
+            552)->get()->toArray();
+            $employee = $request->user();
+            foreach($user_sends ?? [] as $user_send){
+                $autocrm = app($this->autocrm)->SendAutoCRM(
+                    'A New Design Request Created',
+                    $user_send['phone'],
+                    [
+                        'name_employee' => $employee['name'],
+                        'phone_employee' => $employee['phone'],
+                        'name_office' => $outlet['outlet_name'],
+                    ], null, false, false, 'employee'
+                );
+            }
+
             DB::commit();
             return response()->json(MyHelper::checkCreate($store));
         } else {
@@ -166,6 +182,7 @@ class ApiDesignRequestController extends Controller
                 if($data_update['status'] == 'Approved'){
                     $data_update['design_path'] = null;
                     $data_update['finished_note'] = null;
+                    $autocrm_title = 'A Design Request Has Been Approved';
                 }elseif($data_update['status'] == 'Finished' || $data_update['status'] == 'Done Finished'){
                     if (isset($post['finished_note'])) {
                         $data_update['finished_note'] =  $post['finished_note'];
@@ -180,6 +197,13 @@ class ApiDesignRequestController extends Controller
                             return response()->json(['status' => 'fail', 'messages' => ['Failed to update design request']]);
                         }
                     }
+                    if($data_update['status'] == 'Done Finished'){
+                        $autocrm_title = 'A Design Request Has Been Finished';
+                    }
+                }elseif($data_update['status'] == 'Provided'){
+                    $autocrm_title = 'A Design Request Has Been Rejected';
+                }elseif($data_update['status'] == 'Reject'){
+                    $autocrm_title = 'A Design Request Has Been Provided';
                 }
             }else{
                 $data_update['id_approve'] = null;
@@ -194,6 +218,55 @@ class ApiDesignRequestController extends Controller
                 DB::rollback();
                 return response()->json(['status' => 'fail', 'messages' => ['Failed update design request']]);
             }
+
+            $user_employee = User::join('design_requests','design_requests.id_request','users.id')->where('design_requests.id_design_request',$post['id_design_request'])->first();
+            $office = Outlet::where('id_outlet',$user_employee['id_outlet'])->first();
+            if($data_update['status'] != 'Pending' && $data_update['status'] != 'Provided'){
+                $approve_by = null;
+                if(isset($data_update['id_approve']) && !empty($data_update['id_approve'])){
+                    $approve_by = User::where('id',$data_update['id_approve'])->first() ?? null;
+                }
+                if (\Module::collections()->has('Autocrm')) {
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        $autocrm_title, 
+                        $user_employee['phone'] ?? null,
+                        [
+                            'name_employee' => $user_employee['name'],
+                            'phone_employee' => $user_employee['phone'],
+                            'name_office' => $office['outlet_name'],
+                        ], null, false, false, $recipient_type = 'employee', null, true
+                    );
+                    if (!$autocrm) {
+                        DB::rollBack();
+                        return response()->json([
+                            'status'    => 'fail',
+                            'messages'  => ['Failed to send']
+                        ]);
+                    }
+                }
+            }elseif($data_update['status'] == 'Provided'){
+                $user_sends = User::join('roles_features','roles_features.id_role', 'users.id_role')->where('id_feature',
+                552)->get()->toArray();
+                foreach($user_sends ?? [] as $user_send){
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        $autocrm_title,
+                        $user_send['phone'],
+                        [
+                            'name_employee' => $user_employee['name'],
+                            'phone_employee' => $user_employee['phone'],
+                            'name_office' => $office['outlet_name'],
+                        ], null, false, false, 'employee'
+                    );
+                    if (!$autocrm) {
+                        DB::rollBack();
+                        return response()->json([
+                            'status'    => 'fail',
+                            'messages'  => ['Failed to send']
+                        ]);
+                    }
+                }
+            }
+
             DB::commit();
             return response()->json(['status' => 'success']);
         }else{

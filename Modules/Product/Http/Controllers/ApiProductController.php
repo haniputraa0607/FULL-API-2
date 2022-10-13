@@ -2570,7 +2570,7 @@ class ApiProductController extends Controller
                     $close = date('H:i', strtotime($outletSchedules[$getTime]['close'] . "+ $diffTimeZone hour"));
                     $times = [];
                     $tmpTime = $open;
-                    if(strtotime($date.' '.$open) > strtotime($today.' '.$currentTime)) {
+                    if(strtotime($date.' '.$open) > strtotime($today.' '.$currentTime . "+ $diffTimeZone hour")) {
                         $times[] = $open;
                     }
                     while(strtotime($tmpTime) < strtotime($close)) {
@@ -2580,7 +2580,7 @@ class ApiProductController extends Controller
                         }
 
                         $timeConvert = date('H:i', strtotime("+".$processingTime." minutes", strtotime($tmpTime)));
-                        if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime) && $close!=$timeConvert){
+                        if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime . "+ $diffTimeZone hour") && $close!=$timeConvert){
                             $times[] = $timeConvert;
                         }
                         $tmpTime = $timeConvert;
@@ -2604,7 +2604,7 @@ class ApiProductController extends Controller
                 $close = date('H:i', strtotime($outletSchedules[$getTime]['close'] . "+ $diffTimeZone hour"));
                 $times = [];
                 $tmpTime = $open;
-                if(strtotime($date.' '.$open) > strtotime($today.' '.$currentTime)) {
+                if(strtotime($date.' '.$open) > strtotime($today.' '.$currentTime . "+ $diffTimeZone hour")) {
                     $times[] = $open;
                 }
                 while(strtotime($tmpTime) < strtotime($close)) {
@@ -2614,7 +2614,7 @@ class ApiProductController extends Controller
                     }
 
                     $timeConvert = date('H:i', strtotime("+".$processingTime." minutes", strtotime($tmpTime)));
-                    if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime) && $close!=$timeConvert){
+                    if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime . "+ $diffTimeZone hour") && $close!=$timeConvert){
                         $times[] = $timeConvert;
                     }
                     $tmpTime = $timeConvert;

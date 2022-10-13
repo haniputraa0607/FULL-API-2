@@ -665,7 +665,11 @@ class ApiOnlineTransaction extends Controller
             'void_date'                   => null,
             'transaction_from'            => $post['transaction_from'],
             'scope'                       => $scopeUser??null,
-            'customer_name'               => $post['customer_name']??$user['name']
+            'customer_name'               => $post['customer_name']??$user['name'],
+                'customer_email' => $post['customer']['email']??$user['email'],
+                'customer_domicile' => $post['customer']['domicile']??$user['domicile'],
+                'customer_birtdate' => $post['customer']['birthdate']??$user['birthdate'],
+                'customer_gender' => $post['customer']['gender']??$user['gender']
         ];
 
         if($request->user()->complete_profile == 1){

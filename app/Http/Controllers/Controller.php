@@ -239,6 +239,7 @@ class Controller extends BaseController
                 'academy_student_notif' =>($sutendAllNotif == 0 ? null : $sutendAllNotif),
                 'request-employee-perubahan-data'=> $this->request_employee_perubahan_data(),
                 'employee-reimbursement'=> $this->request_employee_reimbursement(),
+                'employee-cash-advance'=> $this->request_employee_cash_advance(),
                 'partners'=> $this->partners(),
                 'candidate-partners'=> $this->candidate_partners(),
                 'request-update-partners'=> $this->request_update_partners(),
@@ -285,6 +286,7 @@ class Controller extends BaseController
                 $total = $this->asset_inventory()+
                          $this->request_employee_perubahan_data()+
                          $this->request_employee_reimbursement()+
+                         $this->request_employee_cash_advance()+
                          $this->employee_attendance()+
                          $this->employee_attendance_outlet()+
                          $this->employee_timeoff_overtime()+
@@ -409,6 +411,19 @@ class Controller extends BaseController
                ->where('employee_reimbursements.status','!=','Approved')
                ->where('employee_reimbursements.status','!=','Rejected')
                 ->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+    public function request_employee_cash_advance(){
+        $total = \Modules\Employee\Entities\EmployeeCashAdvance::join('users','users.id','employee_cash_advances.id_user')
+               ->join('employees','employees.id_user','employee_cash_advances.id_user')
+              ->join('product_icounts','product_icounts.id_product_icount','employee_cash_advances.id_product_icount') 
+              ->where('employee_cash_advances.status','!=','Success')
+               ->where('employee_cash_advances.status','!=','Approve')
+               ->where('employee_cash_advances.status','!=','Rejected')
+               ->count();
         if($total==0){
             $total = null;
         }

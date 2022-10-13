@@ -22,6 +22,7 @@ class Update extends FormRequest
     {
         return [
             'reimbursement' => 'Update failed, :attribute not found or status not Pending',
+             'cek' => 'Product icount tidak ada ',
         ];
     }
     public function authorize()
@@ -34,6 +35,7 @@ class Update extends FormRequest
 			'id_employee_reimbursement'     => 'required|reimbursement',
 			'date_reimbursement'		=> 'date_format:"Y-m-d"',
 			'attachment'                    => 'mimes:jpeg,jpg,bmp,png|max:5000',
+                        'id_product_icount'		=> 'required|cek',
         ];
     }
 

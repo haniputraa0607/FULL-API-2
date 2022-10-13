@@ -283,5 +283,6 @@ Route::group(['prefix' => 'api/transaction', 'middleware' => ['log_activities', 
 Route::group(['prefix' => 'api/icount/disburse', 'namespace' => 'Modules\Transaction\Http\Controllers'], function() {
     Route::post('/callback','ApiTransaction@callbacksharing')->middleware('auth_pos2:PurchaseInvoiceID,status,date_disburse');
     Route::post('/signature','ApiTransaction@signature');
+    Route::post('/signature/cash-advance','ApiTransaction@signature_cash_advance');
     Route::post('/signature/loan','ApiTransaction@signature_loan');
 });

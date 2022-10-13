@@ -14,7 +14,7 @@ class EmployeeCashAdvance extends Model
         'id_user',
         'id_user_approved',
         'date_cash_advance',
-        'title',
+        'id_product_icount',
         'price',
         'status',
         'notes',
@@ -37,6 +37,9 @@ class EmployeeCashAdvance extends Model
 		return $this->belongsTo(\App\Http\Models\User::class, 'id_user_approved','id');
 	}
         public function document() {
-            return $this->hasMany(EmployeeCashAdvanceDocument::class,'id_employee_cash_advance','id_employee_cash_advance'); 
+            return $this->hasMany(EmployeeCashAdvanceDocument::class,'id_employee_cash_advance','id_employee_cash_advance')->join('users','users.id','employee_cash_advance_documents.id_approved'); 
+        }    
+        public function icount() {
+            return $this->hasOne(EmployeeCashAdvanceIcount::class,'id_employee_cash_advance','id_employee_cash_advance')->orderby('created_at','desc'); 
         }    
 }

@@ -69,80 +69,67 @@ class ApiEmployeeAttendaceOutletController extends Controller
     public function liveAttendance(Request $request)
     {
         $post = $request->all();
-        if(isset($post['id_outlet']) && !empty($post['id_outlet'])){
-            $today = date('Y-m-d');
-            $employee = $request->user();
-            $outlet = Outlet::select('outlet_name', 'outlet_latitude', 'outlet_longitude', 'id_city')->where('id_outlet', $post['id_outlet'])->first();
-            if(!$outlet){
-                return [
-                    'status' => 'fail',
-                    'messages' => ['Outlet tidak valid'],
-                ];
-            }
-            $shift = false;
-            $outlet->setHidden(['call', 'url']);
-            $schedule_month = EmployeeSchedule::where('id',$employee->id)->where('schedule_month',date('m'))->where('schedule_year',date('Y'))->first();
-            // get current schedule
-            $todaySchedule = $employee->employee_schedules()
-                ->selectRaw('date, min(time_start) as start_shift, max(time_end) as end_shift, shift')
-                ->join('employee_schedule_dates', 'employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule');
-            
-            if($employee->role->office_hour['office_hour_type'] == 'Use Shift' || isset($schedule_month['id_office_hour_shift'])){
-                $todaySchedule = $todaySchedule->whereNotNull('approve_at');
-                $shift = true;
-            }else{
-                $shift = false;
-            }
-            
-            $todaySchedule = $todaySchedule->where([
-                    'schedule_month' => date('m'),
-                    'schedule_year' => date('Y')
-                ])
-                ->whereDate('date', date('Y-m-d'))
-                ->first();
-            if (!$todaySchedule || !$todaySchedule->date) {
-                return [
-                    'status' => 'fail',
-                    'messages' => ['Tidak ada kehadiran dibutuhkan untuk hari ini']
-                ];
-            }
-    
-            $attendance = $employee->getAttendanceByDateOutlet($post['id_outlet'], $todaySchedule, $shift);
-    
-            $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
-            ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
-    
-            $default = Setting::where('key', 'employee_office_hour_default')->first()['value'] ?? null;
-            $office_hour_name = isset($employee->role->office_hour['office_hour_name']) ? $employee->role->office_hour['office_hour_name'] : (isset($schedule_month['id_office_hour_shift']) ? EmployeeOfficeHour::where('id_employee_office_hour',$schedule_month['id_office_hour_shift'])->first()['office_hour_name'] : EmployeeOfficeHour::where('id_employee_office_hour',$default)->first()['office_hour_name']);
-    
-            $result = [
-                'timezone' => $timeZone,
-                'start_shift' => MyHelper::adjustTimezone($todaySchedule->start_shift, $timeZone, 'H:i', true),
-                'end_shift' => MyHelper::adjustTimezone($todaySchedule->end_shift, $timeZone, 'H:i', true),
-                'shift_name' => $todaySchedule->shift ? $office_hour_name.' ('.$todaySchedule->shift.')' : $office_hour_name,
-                'outlet' => $outlet,
-                'logs' => $attendance->logs()->get()->transform(function($item) use($timeZone) {
-                    return [
-                        'location_name' => $item->location_name,
-                        'latitude' => $item->latitude,
-                        'longitude' => $item->longitude,
-                        'longitude' => $item->longitude,
-                        'type' => ucwords(str_replace('_', ' ',$item->type)),
-                        'photo' => $item->photo_path ? config('url.storage_url_api') . $item->photo_path : null,
-                        'date' => MyHelper::adjustTimezone($item->datetime, $timeZone, 'l, d F Y', true),
-                        'time' => MyHelper::adjustTimezone($item->datetime, $timeZone, 'H:i'),
-                        'notes' => $item->notes ?: '',
-                    ];
-                }),
-            ];
-    
-            return MyHelper::checkGet($result);
+        $today = date('Y-m-d');
+        $employee = $request->user();
+        $outlet = Outlet::select('outlet_name', 'outlet_latitude', 'outlet_longitude', 'id_city')->where('id_outlet', $post['id_outlet'])->first();
+        $shift = false;
+        $outlet->setHidden(['call', 'url']);
+        $schedule_month = EmployeeSchedule::where('id',$employee->id)->where('schedule_month',date('m'))->where('schedule_year',date('Y'))->first();
+        // get current schedule
+        $todaySchedule = $employee->employee_schedules()
+            ->selectRaw('date, min(time_start) as start_shift, max(time_end) as end_shift, shift')
+            ->join('employee_schedule_dates', 'employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule');
+        
+        if($employee->role->office_hour['office_hour_type'] == 'Use Shift' || isset($schedule_month['id_office_hour_shift'])){
+            $todaySchedule = $todaySchedule->whereNotNull('approve_at');
+            $shift = true;
         }else{
+            $shift = false;
+        }
+        
+        $todaySchedule = $todaySchedule->where([
+                'schedule_month' => date('m'),
+                'schedule_year' => date('Y')
+            ])
+            ->whereDate('date', date('Y-m-d'))
+            ->first();
+        if (!$todaySchedule || !$todaySchedule->date) {
             return [
                 'status' => 'fail',
-                'messages' => ['Mohon untuk memilih outlet'],
+                'messages' => ['Tidak ada kehadiran dibutuhkan untuk hari ini']
             ];
         }
+
+        $attendance = $employee->getAttendanceByDateOutlet($post['id_outlet'], $todaySchedule, $shift);
+
+        $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+        ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+
+        $default = Setting::where('key', 'employee_office_hour_default')->first()['value'] ?? null;
+        $office_hour_name = isset($employee->role->office_hour['office_hour_name']) ? $employee->role->office_hour['office_hour_name'] : (isset($schedule_month['id_office_hour_shift']) ? EmployeeOfficeHour::where('id_employee_office_hour',$schedule_month['id_office_hour_shift'])->first()['office_hour_name'] : EmployeeOfficeHour::where('id_employee_office_hour',$default)->first()['office_hour_name']);
+
+        $result = [
+            'timezone' => $timeZone,
+            'start_shift' => MyHelper::adjustTimezone($todaySchedule->start_shift, $timeZone, 'H:i', true),
+            'end_shift' => MyHelper::adjustTimezone($todaySchedule->end_shift, $timeZone, 'H:i', true),
+            'shift_name' => $todaySchedule->shift ? $office_hour_name.' ('.$todaySchedule->shift.')' : $office_hour_name,
+            'outlet' => $outlet,
+            'logs' => $attendance->logs()->get()->transform(function($item) use($timeZone) {
+                return [
+                    'location_name' => $item->location_name,
+                    'latitude' => $item->latitude,
+                    'longitude' => $item->longitude,
+                    'longitude' => $item->longitude,
+                    'type' => ucwords(str_replace('_', ' ',$item->type)),
+                    'photo' => $item->photo_path ? config('url.storage_url_api') . $item->photo_path : null,
+                    'date' => MyHelper::adjustTimezone($item->datetime, $timeZone, 'l, d F Y', true),
+                    'time' => MyHelper::adjustTimezone($item->datetime, $timeZone, 'H:i'),
+                    'notes' => $item->notes ?: '',
+                ];
+            }),
+        ];
+
+        return MyHelper::checkGet($result);
     }
 
     public function storeLiveAttendance(Request $request)
@@ -152,7 +139,6 @@ class ApiEmployeeAttendaceOutletController extends Controller
             'latitude' => 'required|numeric',
             'longitude' => 'required|numeric',
             'location_name' => 'string|nullable|sometimes',
-            'id_outlet' => 'integer|required',
             'photo' => 'string|required',
         ]);
         $employee = $request->user();
@@ -163,13 +149,8 @@ class ApiEmployeeAttendaceOutletController extends Controller
         }else{
             $shift = false;
         }
+        
         $outlet = Outlet::where('id_outlet', $request['id_outlet'])->first();
-        if(!$outlet){
-            return [
-                'status' => 'fail',
-                'messages' => ['Outlet tidak valid'],
-            ];
-        }
         $office = $employee->outlet;
         $role = $employee->role;
         $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
@@ -265,16 +246,45 @@ class ApiEmployeeAttendaceOutletController extends Controller
             ->leftJoin('employee_outlet_attendances', 'employee_outlet_attendances.id_employee_schedule_date', 'employee_schedule_dates.id_employee_schedule_date')
             ->where('employee_outlet_attendances.id_outlet',$request['id_outlet'])
             ->get() ?? null;
+
         $numOfDays = cal_days_in_month(CAL_GREGORIAN, $request->month, $request->year);
         
+        $office_sch = OutletSchedule::where('id_outlet', $request['id_outlet'])->get()->toArray();
+        $outletSchedule = [];
+        foreach ($office_sch as $s) {
+        	$outletSchedule[$s['day']] = [
+        		'is_closed' => $s['is_closed'],
+        		'time_start' => $s['open'],
+        		'time_end' => $s['close'],
+        	];
+        }
+
+        $holidays = Holiday::leftJoin('outlet_holidays', 'holidays.id_holiday', 'outlet_holidays.id_holiday')
+        ->leftJoin('date_holidays', 'holidays.id_holiday', 'date_holidays.id_holiday')
+        ->where('id_outlet', $request['id_outlet'])
+        ->whereMonth('date_holidays.date', $request['month'])
+        ->where(function($q) use ($request) {
+            $q->whereYear('date_holidays.date', $request['year'])
+                ->orWhere('yearly', '1');
+        })
+        ->get()
+        ->keyBy('date');
+
         $histories = [];
         for ($i = 1; $i <= $numOfDays; $i++) { 
             $date = "{$request->year}-{$request->month}-$i";
+            $hari = MyHelper::indonesian_date_v2($date, 'l');
+        	$hari = str_replace('Jum\'at', 'Jumat', $hari);
+            $isClosed = $outletSchedule[$hari]['is_closed'] ?? '1';
+            if (isset($holidays[$date]) && isset($outletSchedule[$hari])) {
+        		$isClosed = '1';
+        	}
+
             $histories[$i] = [
                 'date' => MyHelper::adjustTimezone($date, null, 'd M', true),
                 'clock_in' => null,
                 'clock_out' => null,
-                'is_holiday' => true,
+                'is_holiday' => $isClosed == '1' ? true : false,
                 'breakdown' => [],
             ];
         }
@@ -283,7 +293,6 @@ class ApiEmployeeAttendaceOutletController extends Controller
             $history = &$histories[(int)date('d', strtotime($schedule->date))];
             $history['clock_in'] = $schedule->clock_in ? MyHelper::adjustTimezone($schedule->clock_in, $timeZone, 'H:i') : null;
             $history['clock_out'] = $schedule->clock_out ? MyHelper::adjustTimezone($schedule->clock_out, $timeZone, 'H:i') : null;
-            $history['is_holiday'] = false;
             if ($schedule->is_overtime) {
                 $history['breakdown'][] = [
                     'name' => 'Lembur',

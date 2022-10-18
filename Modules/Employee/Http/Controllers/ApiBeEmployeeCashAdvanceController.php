@@ -89,13 +89,17 @@ class ApiBeEmployeeCashAdvanceController extends Controller
                ->join('employees','employees.id_user','employee_cash_advances.id_user')
               ->join('product_icounts','product_icounts.id_product_icount','employee_cash_advances.id_product_icount') 
               ->where('id_manager',Auth::user()->id)
-               ->where('employee_cash_advances.status','Pending')
+               ->where('employee_cash_advances.status','!=','Success')
+               ->where('employee_cash_advances.status','!=','Approve')
+               ->where('employee_cash_advances.status','!=','Rejected')
                 ->select('employee_cash_advances.*','users.name as user_name','users.email','employees.code','product_icounts.name as name');    
       }else{
       $employee = EmployeeCashAdvance::join('users','users.id','employee_cash_advances.id_user')
                ->join('employees','employees.id_user','employee_cash_advances.id_user')
               ->join('product_icounts','product_icounts.id_product_icount','employee_cash_advances.id_product_icount') 
-              ->where('employee_cash_advances.status','Pending')
+              ->where('employee_cash_advances.status','!=','Success')
+               ->where('employee_cash_advances.status','!=','Approve')
+               ->where('employee_cash_advances.status','!=','Rejected')
                ->select('employee_cash_advances.*','users.name as user_name','users.email','employees.code','product_icounts.name as name');    
       }
        if(isset($post['rule']) && !empty($post['rule'])){

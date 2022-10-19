@@ -211,14 +211,42 @@ class ApiEmployeeAttendanceController extends Controller
        
         $numOfDays = cal_days_in_month(CAL_GREGORIAN, $request->month, $request->year);
         
+        $office_sch = OutletSchedule::where('id_outlet', $outlet['id_outlet'])->get()->toArray();
+        $outletSchedule = [];
+        foreach ($office_sch as $s) {
+        	$outletSchedule[$s['day']] = [
+        		'is_closed' => $s['is_closed'],
+        		'time_start' => $s['open'],
+        		'time_end' => $s['close'],
+        	];
+        }
+        
+        $holidays = Holiday::leftJoin('outlet_holidays', 'holidays.id_holiday', 'outlet_holidays.id_holiday')
+        ->leftJoin('date_holidays', 'holidays.id_holiday', 'date_holidays.id_holiday')
+        ->where('id_outlet', $outlet['id_outlet'])
+        ->whereMonth('date_holidays.date', $request['month'])
+        ->where(function($q) use ($request) {
+            $q->whereYear('date_holidays.date', $request['year'])
+                ->orWhere('yearly', '1');
+        })
+        ->get()
+        ->keyBy('date');
+
         $histories = [];
         for ($i = 1; $i <= $numOfDays; $i++) { 
             $date = "{$request->year}-{$request->month}-$i";
+            $hari = MyHelper::indonesian_date_v2($date, 'l');
+        	$hari = str_replace('Jum\'at', 'Jumat', $hari);
+            $isClosed = $outletSchedule[$hari]['is_closed'] ?? '1';
+            if (isset($holidays[$date]) && isset($outletSchedule[$hari])) {
+        		$isClosed = '1';
+        	}
+
             $histories[$i] = [
                 'date' => MyHelper::adjustTimezone($date, null, 'd M', true),
                 'clock_in' => null,
                 'clock_out' => null,
-                'is_holiday' => true,
+                'is_holiday' => $isClosed == '1' ? true : false,
                 'breakdown' => [],
             ];
         }
@@ -227,7 +255,6 @@ class ApiEmployeeAttendanceController extends Controller
             $history = &$histories[(int)date('d', strtotime($schedule->date))];
             $history['clock_in'] = $schedule->clock_in ? MyHelper::adjustTimezone($schedule->clock_in, $timeZone, 'H:i') : null;
             $history['clock_out'] = $schedule->clock_out ? MyHelper::adjustTimezone($schedule->clock_out, $timeZone, 'H:i') : null;
-            $history['is_holiday'] = false;
             if ($schedule->is_overtime) {
                 $history['breakdown'][] = [
                     'name' => 'Lembur',

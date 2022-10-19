@@ -26,6 +26,8 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use App\Lib\MyHelper;
 use Modules\Recruitment\Entities\HairstylistSalesPayment;
 use Modules\Employee\Entities\EmployeePerubahanData;
+use Modules\Employee\Entities\DesingRequest;
+
 class Controller extends BaseController
 {
     use AuthorizesRequests, DispatchesJobs, ValidatesRequests;
@@ -270,6 +272,7 @@ class Controller extends BaseController
                 'employee_recruitment' => $this->employee_recruitment(),      
                 'employee_candidate' => $this->employee_candidate(),      
                 'list_request_employee' => $this->list_request_employee(),      
+                'design_request' => $this->design_request(),      
     		],
     	];
     }
@@ -664,6 +667,14 @@ class Controller extends BaseController
 
     public function list_request_employee(){
         $total = \Modules\Employee\Entities\RequestEmployee::where('status','Request')->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+
+    public function design_request(){
+        $total = DesingRequest::where('status','<>','Provided')->count();
         if($total==0){
             $total = null;
         }

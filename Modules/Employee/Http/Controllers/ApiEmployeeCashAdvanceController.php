@@ -100,13 +100,14 @@ class ApiEmployeeCashAdvanceController extends Controller
            $start = date('Y-m-01');
            $end = date('Y-m-t');
        }
-       $saldo = EmployeeCashAdvance::wherebetween(
+       $saldo = EmployeeCashAdvance::join('product_icounts','product_icounts.id_product_icount','employee_cash_advances.id_product_icount')
+               ->wherebetween(
                "date_cash_advance",[$start,$end]
        )->where(array(
            'id_user'=>Auth::user()->id,
            'status'=>"Pending"
        ))->select(
-              'employee_cash_advances.id_employee_cash_advance','title','date_cash_advance','employee_cash_advances.notes','status','price'
+              'employee_cash_advances.id_employee_cash_advance','product_icounts.name as name','date_cash_advance','employee_cash_advances.notes','status','price'
        )->orderby('date_cash_advance','desc')->paginate(10);
        return MyHelper::checkGet($saldo);
    }
@@ -123,8 +124,31 @@ class ApiEmployeeCashAdvanceController extends Controller
        )->where(array(
            'id_user'=>Auth::user()->id
        ))->where('status','!=','Pending')->select(
-              'employee_cash_advances.id_employee_cash_advance','title','date_cash_advance','employee_cash_advances.notes','status','price'
+              'employee_cash_advances.id_employee_cash_advance','product_icounts.name as name','date_cash_advance','employee_cash_advances.notes','status','price'
        )->orderby('date_cash_advance','desc')->paginate(10);
        return MyHelper::checkGet($saldo);
+   }
+   public function name_cash_advance() {
+       $post =  Auth::user();
+       $outlet = Outlet::leftjoin('locations','locations.id_location','outlets.id_location')->where('id_outlet',$post["id_outlet"])->select('company_type')->first();
+       if($outlet['company_type']??''=="PT IMA"){
+           $company = 'ima';
+       }else{
+           $company = 'ims';
+       }
+       $data = ProductIcount::join('employee_cash_advance_product_icounts','employee_cash_advance_product_icounts.id_product_icount','product_icounts.id_product_icount')
+               ->where([
+           'is_buyable'=>'true',
+           'is_sellable'=>'true',
+           'is_deleted'=>'false',
+           'is_suspended'=>'false',
+           'is_actived'=>'true',
+           'company_type'=>$company
+       ])->select([
+           'product_icounts.id_product_icount',
+           'product_icounts.name',
+           'product_icounts.code'
+       ])->get();
+       return MyHelper::checkGet($data);
    }
 }

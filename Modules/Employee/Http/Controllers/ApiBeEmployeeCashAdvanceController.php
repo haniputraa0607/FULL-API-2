@@ -32,6 +32,7 @@ use Modules\Employee\Http\Requests\CashAdvance\BE\CallbackIcountCashAdvance;
 use Validator;
 use Modules\Employee\Entities\EmployeeCashAdvanceIcount;
 use Modules\Employee\Entities\EmployeeCashAdvanceDocument;
+use Modules\Employee\Entities\EmployeeCashAdvanceProductIcount;
 
 class ApiBeEmployeeCashAdvanceController extends Controller
 {
@@ -47,11 +48,12 @@ class ApiBeEmployeeCashAdvanceController extends Controller
       $post = $request->all();
       $employee = EmployeeCashAdvance::join('users','users.id','employee_cash_advances.id_user')
                ->join('employees','employees.id_user','employee_cash_advances.id_user')
-               ->where('employee_cash_advances.status','!=','Successed')
-               ->where('employee_cash_advances.status','!=','Approved')
+              ->join('product_icounts','product_icounts.id_product_icount','employee_cash_advances.id_product_icount') 
+              ->where('employee_cash_advances.status','!=','Success')
+               ->where('employee_cash_advances.status','!=','Approve')
                ->where('employee_cash_advances.status','!=','Rejected')
                ->orderby('employee_cash_advances.created_at','desc')
-               ->select('employee_cash_advances.*','users.name as user_name','users.email','employees.code','title');
+               ->select('employee_cash_advances.*','users.name as user_name','users.email','employees.code','product_icounts.name as name');
        if(isset($post['rule']) && !empty($post['rule'])){
             $rule = 'and';
             if(isset($post['operator'])){
@@ -85,14 +87,20 @@ class ApiBeEmployeeCashAdvanceController extends Controller
       if(Auth::user()->level == "Admin"){
       $employee = EmployeeCashAdvance::join('users','users.id','employee_cash_advances.id_user')
                ->join('employees','employees.id_user','employee_cash_advances.id_user')
-               ->where('id_manager',Auth::user()->id)
-               ->where('employee_cash_advances.status','Pending')
-                ->select('employee_cash_advances.*','users.name as user_name','users.email','employees.code','title');    
+              ->join('product_icounts','product_icounts.id_product_icount','employee_cash_advances.id_product_icount') 
+              ->where('id_manager',Auth::user()->id)
+               ->where('employee_cash_advances.status','!=','Success')
+               ->where('employee_cash_advances.status','!=','Approve')
+               ->where('employee_cash_advances.status','!=','Rejected')
+                ->select('employee_cash_advances.*','users.name as user_name','users.email','employees.code','product_icounts.name as name');    
       }else{
       $employee = EmployeeCashAdvance::join('users','users.id','employee_cash_advances.id_user')
                ->join('employees','employees.id_user','employee_cash_advances.id_user')
-               ->where('employee_cash_advances.status','Pending')
-               ->select('employee_cash_advances.*','users.name as user_name','users.email','employees.code','title');    
+              ->join('product_icounts','product_icounts.id_product_icount','employee_cash_advances.id_product_icount') 
+              ->where('employee_cash_advances.status','!=','Success')
+               ->where('employee_cash_advances.status','!=','Approve')
+               ->where('employee_cash_advances.status','!=','Rejected')
+               ->select('employee_cash_advances.*','users.name as user_name','users.email','employees.code','product_icounts.name as name');    
       }
        if(isset($post['rule']) && !empty($post['rule'])){
             $rule = 'and';
@@ -126,9 +134,10 @@ class ApiBeEmployeeCashAdvanceController extends Controller
       $post = $request->all();
       $employee = EmployeeCashAdvance::join('users','users.id','employee_cash_advances.id_user')
                ->join('employees','employees.id_user','employee_cash_advances.id_user')
-               ->where('employee_cash_advances.status','!=','Pending')
+              ->join('product_icounts','product_icounts.id_product_icount','employee_cash_advances.id_product_icount') 
+              ->where('employee_cash_advances.status','!=','Pending')
                ->join('users as users_approved','users_approved.id','employee_cash_advances.id_user_approved')
-               ->select('employee_cash_advances.*','users.name as user_name','users.email','employees.code','users_approved.name as user_approved','title');
+               ->select('employee_cash_advances.*','users.name as user_name','users.email','employees.code','users_approved.name as user_approved','product_icounts.name as name');
        if(isset($post['rule']) && !empty($post['rule'])){
             $rule = 'and';
             if(isset($post['operator'])){
@@ -166,10 +175,11 @@ class ApiBeEmployeeCashAdvanceController extends Controller
        if(isset($request->id_employee_cash_advance)){
          $employee = EmployeeCashAdvance::join('users','users.id','employee_cash_advances.id_user')
                ->join('employees','employees.id_user','employee_cash_advances.id_user')
+               ->join('product_icounts','product_icounts.id_product_icount','employee_cash_advances.id_product_icount')
                ->where('id_employee_cash_advance', $request->id_employee_cash_advance)
                ->leftjoin('users as users_approved','users_approved.id','employee_cash_advances.id_user_approved')
-               ->select('employee_cash_advances.*','users.name as user_name','users.email','employees.code','users_approved.name as user_approved','title','id_manager')
-               ->with(['document'])
+               ->select('employee_cash_advances.*','users.name as user_name','users.email','employees.code','users_approved.name as user_approved','product_icounts.name as name','id_manager')
+               ->with(['document','icount'])
                ->first();
          if($employee){
             return response()->json(['status' => 'success','result'=>$employee]);
@@ -191,7 +201,6 @@ class ApiBeEmployeeCashAdvanceController extends Controller
                     }
                 }
                 $update = array();
-                
                     if(isset($post['update_type'])){
                      $update = EmployeeCashAdvance::where('id_employee_cash_advance', $post['id_employee_cash_advance'])->update([
                          'status' => $post['update_type'],
@@ -204,26 +213,31 @@ class ApiBeEmployeeCashAdvanceController extends Controller
                         'document_type' => $post['data_document']['document_type'],
                         'process_date' => date('Y-m-d H:i:s'),
                         'id_approved' => Auth::user()->id??null,
-                        'process_notes' => $post['data_document']['process_notes'],
+                        'process_notes' => $post['data_document']['process_notes']??null,
                         'attachment' => $path??null
                     ]);
                     if(!$createDoc){
                         return response()->json(MyHelper::checkCreate($createDoc));
                     }
                 }
-                
-                return response()->json(MyHelper::checkUpdate($update));
+                if($post['update_type'] == "Finance Approval"){
+                    $update = EmployeeCashAdvance::where('id_employee_cash_advance', $post['id_employee_cash_advance'])->update([
+                         'status' => $post['update_type'],
+                         'id_user_approved' => $post['id_user_approved'],
+                             ]);
+                    $icount = $this->approved($request);
+                }
+                return response()->json(MyHelper::checkUpdate($post));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
         }
    }
-   public function approved(Approved $request) {
+   public function approved($request) {
        $post = $request->all();
        $post['date_validation'] = date('Y-m-d H:i:s');
        $post['id_user_approved'] =  $post['id_user_approved'] ?? Auth::user()->id;
-       $cash_advance = EmployeeCashAdvance::where(array('id_employee_cash_advance'=>$request->id_employee_cash_advance))->update($post);
        $cash_advance = EmployeeCashAdvance::join('users','users.id','employee_cash_advances.id_user')->where(array('id_employee_cash_advance'=>$request->id_employee_cash_advance))->first();
-       if($post['status'] == "Approved"){
+       if($post['update_type'] == "Finance Approval"){
             $data_send = [
                     "cash_advance" => EmployeeCashAdvance::where(array('id_employee_cash_advance'=>$request->id_employee_cash_advance))->first(),
                     "employee" => Employee::where('id_user',$cash_advance['id_user'])->first(),
@@ -235,29 +249,139 @@ class ApiBeEmployeeCashAdvanceController extends Controller
                if($initBranch['response']['Status']=='1' && $initBranch['response']['Message']=='success'){
                    $initBranch = $initBranch['response']['Data'][0];
                    $update = EmployeeCashAdvance::where(array('id_employee_cash_advance'=>$request->id_employee_cash_advance))->update([
-                       'id_purchase_invoice'=>$initBranch['PurchaseInvoiceID'],
-                       'value_detail'=> json_encode($initBranch)
+                       'id_purchase_deposit_request'=>$initBranch['PurchaseDepositRequestID'],
+                       'value_detail'=> json_encode($initBranch),
+                       'status' => "Realisasi",
                    ]);
                }
        }
-       return MyHelper::checkGet($cash_advance);
+       return $cash_advance;
+   }
+   public function icount(Request $request) {
+       $post = $request->all();
+       if(isset($request->id_employee_cash_advance)){
+            $post['date_validation'] = date('Y-m-d H:i:s');
+            $post['id_user_approved'] =  $post['id_user_approved'] ?? Auth::user()->id;
+            $cash_advance = EmployeeCashAdvance::join('users','users.id','employee_cash_advances.id_user')->where(array('id_employee_cash_advance'=>$request->id_employee_cash_advance))->first();
+            if($cash_advance){
+                 $data_send = [
+                         "cash_advance" => EmployeeCashAdvance::where(array('id_employee_cash_advance'=>$request->id_employee_cash_advance))->first(),
+                         "employee" => Employee::where('id_user',$cash_advance['id_user'])->first(),
+                         "item"=> ProductIcount::where('id_product_icount',$cash_advance['id_product_icount'])->first(),
+                         "outlet" => Outlet::where('id_outlet',$cash_advance["id_outlet"])->first(),
+                         "location" => Outlet::leftjoin('locations','locations.id_location','outlets.id_location')->where('id_outlet',$cash_advance["id_outlet"])->first(),
+                     ];
+                   $initBranch = Icount::EmployeeCashAdvance($data_send, $data_send['location']['company_type']??null);
+                    if($initBranch['response']['Status']=='1' && $initBranch['response']['Message']=='success'){
+                        $initBranch = $initBranch['response']['Data'][0];
+                        $update = EmployeeCashAdvance::where(array('id_employee_cash_advance'=>$request->id_employee_cash_advance))->update([
+                            'id_purchase_deposit_request'=>$initBranch['PurchaseDepositRequestID'],
+                            'value_detail'=> json_encode($initBranch),
+                            'status' => "Realisasi",
+                        ]);
+                        return response()->json(MyHelper::checkUpdate($update));
+                    }else{
+                         return response()->json(['status' => 'fail', 'messages' => [$initBranch['response']['Message']??'Failed send request to icount']]);
+                    }
+            }
+       }
+        return response()->json(['status' => 'fail', 'messages' => ['Data not found']]);
    }
    public function callbackcash_advance(CallbackIcountCashAdvance $request){
         if($request->status == "Success"){
             $request->status = "Success";
+            $datas = EmployeeCashAdvance::where(array('id_purchase_deposit_request'=>$request->PurchaseDepositRequestID,'status'=>'Success'))->first();
+            if($datas){
+             return response()->json(['status' => 'success','code'=>1]);   
+            }
+            $datas = EmployeeCashAdvance::where(array('id_purchase_deposit_request'=>$request->PurchaseDepositRequestID,'status'=>'Realisasi'))->first();
+            if($datas){
+                 $data = EmployeeCashAdvance::where(array('id_purchase_deposit_request'=>$request->PurchaseDepositRequestID))->update([
+                'status'=>$request->status,
+                'date_disburse'=>$request->date_disburse,
+                'date_send_cash_advance'=>date('Y-m-d H:i:s')
+            ]);
+                    EmployeeCashAdvanceIcount::create([
+                   'id_employee_cash_advance'=>$datas->id_employee_cash_advance,
+                   'status'=>$request->status,
+                   'value_detail'=>json_encode($request->all()),
+                   'id_purchase_deposit_request'=>$request->PurchaseDepositRequestID
+               ]);
+                    return response()->json(['status' => 'success','code'=>$data]);
+            }
         }else{
             $request->status = "Failed";
         }
-        $data = EmployeeCashAdvance::where(array('id_purchase_invoice'=>$request->PurchaseInvoiceID))->update([
-            'status'=>$request->status,
-            'date_disburse'=>$request->date_disburse,
-            'date_send_cash_advance'=>date('Y-m-d H:i:s')
-        ]);
-        EmployeeCashAdvanceIcount::create([
-            'status'=>$request->status,
-            'value_detail'=>json_encode($request->all()),
-            'id_purchase_invoice'=>$request->PurchaseInvoiceID
-        ]);
+        $datas = EmployeeCashAdvance::where(array('id_purchase_deposit_request'=>$request->PurchaseDepositRequestID))->first();
+           $data = 0;
+        if($datas){
+             EmployeeCashAdvanceIcount::create([
+                'id_employee_cash_advance'=>$datas->id_employee_cash_advance,
+                'status'=>$request->status,
+                'value_detail'=>json_encode($request->all()),
+                'id_purchase_deposit_request'=>$request->PurchaseDepositRequestID
+            ]);
+        }
         return response()->json(['status' => 'success','code'=>$data]); 
     }
+    public function reject(Request $request) {
+       $post = $request->json()->all();
+        if(isset($post['id_employee_cash_advance']) && !empty($post['id_employee_cash_advance'])){
+             $detail = EmployeeCashAdvance::where('id_employee_cash_advance',$post['id_employee_cash_advance'])
+                        ->update([
+                            'status'=>'Rejected'
+                        ]);
+            return response()->json(MyHelper::checkGet($detail));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+   }
+     public function dropdown() {
+       $data = ProductIcount::leftjoin('employee_cash_advance_product_icounts','employee_cash_advance_product_icounts.id_product_icount','product_icounts.id_product_icount')
+                ->where([
+                    'is_buyable'=>'true',
+                    'is_sellable'=>'true',
+                    'is_deleted'=>'false',
+                    'is_suspended'=>'false',
+                    'is_actived'=>'true'
+                ])
+               ->wherenull('employee_cash_advance_product_icounts.id_product_icount')
+               ->select([
+                    'product_icounts.id_product_icount',
+                    'name',
+                    'code'
+                ])->get();
+       return MyHelper::checkGet($data);
+   }
+    public function list_dropdown(Request $request) {
+       
+       $data = EmployeeCashAdvanceProductIcount::join('product_icounts','product_icounts.id_product_icount','employee_cash_advance_product_icounts.id_product_icount')
+                ->select([
+                    'id_employee_cash_advance_product_icount',
+                    'product_icounts.id_product_icount',
+                    'product_icounts.name',
+                    'product_icounts.code',
+                    'product_icounts.company_type',
+                ])->paginate($request->length ?: 10);
+       return MyHelper::checkGet($data);
+   }
+    public function create_dropdown(Request $request) {
+       
+       $data = null;
+       if(isset($request->id_product_icount)){
+           $data = EmployeeCashAdvanceProductIcount::where(['id_product_icount'=>$request->id_product_icount])->first();
+           if(!$data){
+            $data = EmployeeCashAdvanceProductIcount::create(['id_product_icount'=>$request->id_product_icount]);    
+           }
+       }
+       return MyHelper::checkGet($data);
+   }
+    public function delete_dropdown(Request $request) {
+       
+       $data = null;
+       if(isset($request->id_employee_cash_advance_product_icount)){
+           $data = EmployeeCashAdvanceProductIcount::where(['id_employee_cash_advance_product_icount'=>$request->id_employee_cash_advance_product_icount])->delete();
+       }
+       return MyHelper::checkGet($data);
+   }
 }

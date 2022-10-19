@@ -110,7 +110,7 @@ class ApiEmployeeReimbursementController extends Controller
            'company_type'=>$company
        ])->select([
            'product_icounts.id_product_icount',
-           'product_icounts.name',
+           'employee_reimbursement_product_icounts.name',
            'product_icounts.code'
        ])->get();
        return MyHelper::checkGet($data);
@@ -121,7 +121,7 @@ class ApiEmployeeReimbursementController extends Controller
            'status'=>"Approved"
        ))->select(DB::raw('
                         sum(CASE WHEN
-                   status = "Approved"  THEN price*qty ELSE 0
+                   status = "Approved"  THEN price ELSE 0
                    END) as saldo
                 ')
             )->first();

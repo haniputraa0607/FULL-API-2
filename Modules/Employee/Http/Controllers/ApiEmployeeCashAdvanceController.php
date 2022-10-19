@@ -146,7 +146,7 @@ class ApiEmployeeCashAdvanceController extends Controller
            'company_type'=>$company
        ])->select([
            'product_icounts.id_product_icount',
-           'product_icounts.name',
+           'employee_cash_advance_product_icounts.name',
            'product_icounts.code'
        ])->get();
        return MyHelper::checkGet($data);

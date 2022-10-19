@@ -12,6 +12,12 @@ class EmployeeReimbursementProductIcount extends Model
     
     protected $fillable = [
         'id_product_icount',
+        'name',
+        'max_approve_date',
+        'value',
+        'value_text',
+        'type',
+        'month',
         'created_at',
         'updated_at',
     ];

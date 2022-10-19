@@ -203,6 +203,8 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('/dropdown','ApiBeEmployeeReimbursementController@dropdown');
         Route::post('/list_dropdown','ApiBeEmployeeReimbursementController@list_dropdown');
         Route::post('/dropdown/create','ApiBeEmployeeReimbursementController@create_dropdown');
+        Route::post('/dropdown/update','ApiBeEmployeeReimbursementController@update_dropdown');
+        Route::post('/dropdown/detail','ApiBeEmployeeReimbursementController@detail_dropdown');
         Route::post('/dropdown/delete','ApiBeEmployeeReimbursementController@delete_dropdown');
          });
     Route::group(['prefix' => 'be/cash-advance'], function () {

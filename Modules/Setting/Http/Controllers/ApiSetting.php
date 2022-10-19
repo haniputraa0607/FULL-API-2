@@ -2587,4 +2587,31 @@ class ApiSetting extends Controller
         }
         return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
     }
+     public function balance_global_reimbursement(){
+        $data = Setting::where('key','balance_global_reimbursement')->first();
+         return response()->json($data);
+    }
+  
+    public function balance_global_reimbursement_create(Request $request){
+        $post = $request->json()->all();
+        if(isset($post['value_text'])&&isset($post['value'])){
+             $salary_formula = Setting::where('key','balance_global_reimbursement')->first();
+             if($salary_formula){
+                 $data = Setting::where('key','balance_global_reimbursement')->update([
+                     
+                    'value'=>$post['value'],
+                    'value_text'=>$post['value_text']
+             ]);
+             }else{
+                 $data = Setting::create([
+                 'key'=>'balance_global_reimbursement',
+                 'value'=>$post['value'],
+                 'value_text'=>$post['value_text']
+                    
+             ]);
+             }
+              return response()->json(MyHelper::checkCreate($data));
+        }
+        return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
+    }
 }

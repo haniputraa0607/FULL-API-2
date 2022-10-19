@@ -12,6 +12,7 @@ class EmployeeCashAdvanceProductIcount extends Model
     
     protected $fillable = [
         'id_product_icount',
+        'name',
         'created_at',
         'updated_at',
     ];

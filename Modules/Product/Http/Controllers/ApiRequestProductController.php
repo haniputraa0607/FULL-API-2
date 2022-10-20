@@ -957,6 +957,11 @@ class ApiRequestProductController extends Controller
                     $autocrm = app($this->autocrm)->SendAutoCRM(
                         'Product Request Approved by Finance',
                         $user_req['phone'],
+                        [
+                            'user_update' => $user_approve['name'],
+                            'code' => $data_req['code'],
+                            'category' => 'Request Product'
+                        ], null, false, false, 'employee'
                     );
                     // return $autocrm;
                     if (!$autocrm) {
@@ -987,6 +992,11 @@ class ApiRequestProductController extends Controller
                     $autocrm = app($this->autocrm)->SendAutoCRM(
                         'Product Request Rejected by Finance',
                         $user_req['phone'],
+                        [
+                            'user_update' => $user_approve['name'],
+                            'code' => $data_req['code'],
+                            'category' => 'Request Product'
+                        ], null, false, false, 'employee'
                     );
                     // return $autocrm;
                     if (!$autocrm) {

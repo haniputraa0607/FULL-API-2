@@ -34,7 +34,9 @@ class CreateBalance extends FormRequest
 			'max_approve_date'                  => 'required',
 			'id_product_icount'                 => 'required',
 			'name'                              => 'required',
-			'type'                              => 'required'
+			'type'                              => 'required',
+			'reset_date'                        => 'required',
+			'value_text'                        => 'required',
                     ];
                 
                 if(isset($this->month)){

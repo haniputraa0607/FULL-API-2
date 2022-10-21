@@ -14,7 +14,7 @@ class EmployeeReimbursementProductIcount extends Model
         'id_product_icount',
         'name',
         'max_approve_date',
-        'value',
+        'reset_date',
         'value_text',
         'type',
         'month',

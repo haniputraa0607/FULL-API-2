@@ -35,6 +35,8 @@ class UpdateBalance extends FormRequest
 			'id_product_icount'                 => 'required',
 			'name'                              => 'required',
 			'type'                              => 'required',
+                        'reset_date'                        => 'required',
+			'value_text'                        => 'required',
                     ];
                 if(isset($this->month)){
                     $data['month'] = 'required';

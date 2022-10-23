@@ -615,6 +615,28 @@ class Icount
             }
         return self::sendRequest('POST', '/purchase/create_reimbursement', $data, $company, $logType, $orderId);
     }
+    public static function EmployeeCashAdvance($request, $company = null, $logType = null, $orderId = null){
+        $data = [
+            "VoucherNo" => "[AUTO]",
+            "TransDate" => $request['cash_advance']['date_cash_advance'],
+            "DueDate" =>  $request['cash_advance']['tax_date'],
+            "BranchID" => '013',
+            "BusinessPartnerID" => $request['employee']['id_business_partner'],
+            "amount" => $request['cash_advance']['price_realisasi']??0,
+            "ChartOfAccountID" => '',
+            "ReferenceNo" => '',
+            'Tax'=>0,
+            'TaxNo'=>'',
+            "Notes" => $request['cash_advance']['notes'],
+           
+        ];
+        if($company=='PT IMA'){
+                if(isset($request['employee']['id_business_partner_ima']) && !empty($request['employee']['id_business_partner_ima'])){
+                    $data['BusinessPartnerID'] = $request['employee']['id_business_partner_ima'];
+                }
+            }
+        return self::sendRequest('POST', '/purchase/cash_advance_request', $data, $company, $logType, $orderId);
+    }
 
     public static function searchBusinessPartner($id_business_partner, $cluster = '011', $company = null, $logType = null, $orderId = null){
         return self::sendRequest('GET', '/business_partner/list?ID='.$id_business_partner.'&ClusterID='.$cluster, $request, $logType, $orderId);

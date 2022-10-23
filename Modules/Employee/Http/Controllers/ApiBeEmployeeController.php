@@ -604,6 +604,12 @@ class ApiBeEmployeeController extends Controller
         if(isset($data['npwp_address'])){
             $employee->npwp_address = $data['npwp_address'];
         }
+        if(isset($data['bpjs_ketenagakerjaan'])){
+            $employee->bpjs_ketenagakerjaan = $data['bpjs_ketenagakerjaan'];
+        }
+        if(isset($data['bpjs_kesehatan'])){
+            $employee->bpjs_kesehatan = $data['bpjs_kesehatan'];
+        }
         if(isset($data['contact_person'])){
             $employee->contact_person = $data['contact_person'];
         }
@@ -785,7 +791,7 @@ class ApiBeEmployeeController extends Controller
                 $data_update['code'] = $this->genereateCodeFormEval();
                 $updateCreate = EmployeeFormEvaluation::create($data_update);
             }
-            
+
             
             if(!$updateCreate){
                 DB::rollback();
@@ -943,7 +949,7 @@ class ApiBeEmployeeController extends Controller
             }
 
             if($post['status_form'] == 'approve_manager'){
-                $crm_title = 'Manager Has been Approve An Evaluation Form';
+                $crm_title = 'Manager Has been Approve An Evaluation Forms';
                 $crm_receipt = User::with(['employee'])->where(function($where){
                     $where->where('level','Super Admin');
                     $where->orWhere(function($whereOr){
@@ -978,12 +984,12 @@ class ApiBeEmployeeController extends Controller
                 $crm_title = 'Director Has been Approve An Evaluation Form';
                 $crm_receipt = User::with(['employee'])->where('id', $data_employee['employee']['user']['id'])->get()->toArray();
             }
-            
+
             foreach($crm_receipt ?? [] as $key_crm => $receipt){
                 if (\Module::collections()->has('Autocrm')) {
                     $autocrm = app($this->autocrm)->SendAutoCRM(
                         $crm_title,
-                        $receipt['phone'],
+                        $receipt->phone,
                         [], null, null, null, null, null, null, null, null,
                     );
                     if(!$autocrm){

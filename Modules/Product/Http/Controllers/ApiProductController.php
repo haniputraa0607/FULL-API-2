@@ -76,6 +76,7 @@ use Modules\Product\Entities\ProductCatalogDetail;
 use Modules\Product\Entities\ProductIcountOutletStockLog;
 use Modules\Product\Entities\UnitIcount;
 use Modules\Product\Entities\UnitIcountConversion;
+use Modules\Brand\Entities\BrandOutlet;
 
 class ApiProductController extends Controller
 {
@@ -978,6 +979,12 @@ class ApiProductController extends Controller
                 $product = Product::with(['category', 'discount', 'product_detail']);
             }else{
                 $product = Product::with(['category', 'discount','product_icount_use_ima' => function($ima){$ima->where('company_type','ima');},'product_icount_use_ims' => function($ims){$ims->where('company_type','ims');}]);
+            }
+
+            if ($post['outlet_id'] ?? false) {
+                $outletBrand = BrandOutlet::where('id_outlet', $post['outlet_id'])->pluck('id_brand');
+                $productsId = BrandProduct::whereIn('id_brand', $outletBrand)->pluck('id_product');
+                $product->whereIn('id_product', $productsId);
             }
 		}
 
@@ -2563,7 +2570,7 @@ class ApiProductController extends Controller
                     $close = date('H:i', strtotime($outletSchedules[$getTime]['close'] . "+ $diffTimeZone hour"));
                     $times = [];
                     $tmpTime = $open;
-                    if(strtotime($date.' '.$open) > strtotime($today.' '.$currentTime)) {
+                    if(strtotime($date.' '.$open) > strtotime($today.' '.$currentTime . "+ $diffTimeZone hour")) {
                         $times[] = $open;
                     }
                     while(strtotime($tmpTime) < strtotime($close)) {
@@ -2573,7 +2580,7 @@ class ApiProductController extends Controller
                         }
 
                         $timeConvert = date('H:i', strtotime("+".$processingTime." minutes", strtotime($tmpTime)));
-                        if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime) && $close!=$timeConvert){
+                        if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime . "+ $diffTimeZone hour") && $close!=$timeConvert){
                             $times[] = $timeConvert;
                         }
                         $tmpTime = $timeConvert;
@@ -2597,7 +2604,7 @@ class ApiProductController extends Controller
                 $close = date('H:i', strtotime($outletSchedules[$getTime]['close'] . "+ $diffTimeZone hour"));
                 $times = [];
                 $tmpTime = $open;
-                if(strtotime($date.' '.$open) > strtotime($today.' '.$currentTime)) {
+                if(strtotime($date.' '.$open) > strtotime($today.' '.$currentTime . "+ $diffTimeZone hour")) {
                     $times[] = $open;
                 }
                 while(strtotime($tmpTime) < strtotime($close)) {
@@ -2607,7 +2614,7 @@ class ApiProductController extends Controller
                     }
 
                     $timeConvert = date('H:i', strtotime("+".$processingTime." minutes", strtotime($tmpTime)));
-                    if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime) && $close!=$timeConvert){
+                    if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime . "+ $diffTimeZone hour") && $close!=$timeConvert){
                         $times[] = $timeConvert;
                     }
                     $tmpTime = $timeConvert;
@@ -3708,5 +3715,17 @@ class ApiProductController extends Controller
         }
         DB::commit();
         return true;
+    }
+      public function setting_service(Request $request){
+     
+        $product = Product::where(
+                array(
+                    'product_type'=>'service',
+                    'product_visibility'=>'Visible',
+                    ))
+                ->select('id_product','product_name')
+                ->get();
+           
+        return MyHelper::checkGet($product);
     }
 }

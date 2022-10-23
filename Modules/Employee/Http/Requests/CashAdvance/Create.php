@@ -1,10 +1,11 @@
 <?php
 
-namespace Modules\Employee\Http\Requests\Reimbursement;
+namespace Modules\Employee\Http\Requests\CashAdvance;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Modules\Employee\Entities\EmployeeReimbursementProductIcount;
 use Modules\Product\Entities\ProductIcount;
 use App\Http\Models\Outlet;
 use Illuminate\Support\Facades\Auth;
@@ -20,6 +21,16 @@ class Create extends FormRequest
     {
         return true;
     }
+    public function rules()
+	{
+		return [
+			'id_product_icount'		=> 'required|cek',
+			'date_cash_advance'		=> 'required|date_format:"Y-m-d"',
+			'price'                         => 'required|integer',
+			'notes'                         => 'required',
+			'attachment'                    => 'required|mimes:jpeg,jpg,bmp,png|max:5000',
+        ];
+    }
     public function withValidator($validator)
     {
         $validator->addExtension('cek', function ($attribute, $value, $parameters, $validator) {
@@ -30,7 +41,7 @@ class Create extends FormRequest
             }else{
                 $company = 'ims';
             }
-          $survey = $data = ProductIcount::join('employee_reimbursement_product_icounts','employee_reimbursement_product_icounts.id_product_icount','product_icounts.id_product_icount')
+          $survey = $data = ProductIcount::join('employee_cash_advance_product_icounts','employee_cash_advance_product_icounts.id_product_icount','product_icounts.id_product_icount')
                ->where([
            'is_buyable'=>'true',
            'is_sellable'=>'true',
@@ -38,7 +49,7 @@ class Create extends FormRequest
            'is_suspended'=>'false',
            'is_actived'=>'true',
            'company_type'=>$company,
-           'employee_reimbursement_product_icounts.id_product_icount'=>$value        
+           'employee_cash_advance_product_icounts.id_product_icount'=>$value        
        ])->select([
            'product_icounts.id_product_icount',
            'product_icounts.name',
@@ -49,17 +60,6 @@ class Create extends FormRequest
          } return false;
         }); 
 
-    }
-    public function rules()
-	{
-		return [
-			'id_product_icount'		=> 'required|cek',
-			'date_reimbursement'		=> 'required|date_format:"Y-m-d"',
-			'price'                         => 'required|integer',
-                        'qty'                         => 'required|integer',
-			'notes'                         => 'required',
-			'attachment'                    => 'required|mimes:jpeg,jpg,bmp,png|max:5000',
-        ];
     }
     public function messages()
     {

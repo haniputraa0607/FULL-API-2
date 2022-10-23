@@ -201,7 +201,7 @@ class ApiEmployeeChangeShiftController extends Controller
                     'name_employee' => $user_employee['name'],
                     'phone_employee' => $user_employee['phone'],
                     'name_office' => $office->outlet_name,
-                    'change_shift_date' => date('d F Y', strtotime($dataStore['change_shift_date'])),
+                    'change_shift_date' => MyHelper::dateFormatInd($dataStore['change_shift_date'], true, false, false),
                     'category' => 'Change Shift',
                     'id_change_shift' => $store['id_employee_time_off']
                 ], null, false, false, 'employee'
@@ -305,15 +305,16 @@ class ApiEmployeeChangeShiftController extends Controller
             }
             $user_employee = User::join('employee_change_shifts','employee_change_shifts.id_user','users.id')->where('employee_change_shifts.id_employee_change_shift',$post['id_employee_change_shift'])->first();
             $office = Outlet::where('id_outlet',$user_employee['id_outlet'])->first();
+            $data_change_shift = EmployeeChangeShift::where('id_employee_change_shift', $post['id_employee_change_shift'])->first();
             if (\Module::collections()->has('Autocrm')) {
                 $autocrm = app($this->autocrm)->SendAutoCRM(
                     'Employee Request Change Shift Rejected', 
                     $user_employee['phone'] ?? null,
                     [
                         'user_update'=> $reject_by ? $reject_by['name'] : $request->user()->name,
-                        'change_shift_date'=> $user_employee['date'],
+                        'change_shift_date'=> MyHelper::dateFormatInd($data_change_shift['change_shift_date'], true, false, false),
                         'name_office'=> $office['name_outlet'],
-                        'categore' => 'Change Shift',
+                        'category' => 'Change Shift',
                     ], null, false, false, $recipient_type = 'employee', null, true
                 );
                 if (!$autocrm) {
@@ -333,7 +334,7 @@ class ApiEmployeeChangeShiftController extends Controller
     {
         $post = $request->all();
         if(isset($post['id_employee_change_shift']) && !empty($post['id_employee_change_shift'])){
-            $change_shift = EmployeeChangeShift::where('id_employee_change_shift', $post['id_employee_change_shift'])->with(['user.outlet','approve'])->first();
+            $change_shift = EmployeeChangeShift::where('id_employee_change_shift', $post['id_employee_change_shift'])->with(['user.outlet','approve','office_hour_shift'])->first();
             
             if($change_shift==null){
                 return response()->json(['status' => 'success', 'result' => [
@@ -624,7 +625,7 @@ class ApiEmployeeChangeShiftController extends Controller
                             $user_employee['phone'] ?? null,
                             [
                                 'user_update'=> $approve_by ? $approve_by['name'] : $request->user()->name,
-                                'change_shift_date'=> $user_employee['date'],
+                                'change_shift_date'=> MyHelper::dateFormatInd($data_update['change_shift_date'], true, false, false),
                                 'name_office'=> $office['name_outlet'],
                                 'category' => 'Change Shift',
                             ], null, false, false, $recipient_type = 'employee', null, true

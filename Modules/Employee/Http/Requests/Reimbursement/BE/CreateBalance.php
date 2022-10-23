@@ -1,17 +1,17 @@
 <?php
 
-namespace Modules\Employee\Http\Requests\Reimbursement;
+namespace Modules\Employee\Http\Requests\Reimbursement\BE;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Modules\Employee\Entities\EmployeeReimbursement;
-class Update extends FormRequest
+class CreateBalance extends FormRequest
 {
       public function withValidator($validator)
     {
         $validator->addExtension('reimbursement', function ($attribute, $value, $parameters, $validator) {
-         $survey = EmployeeReimbursement::where(array('id_employee_reimbursement'=>$value,'status'=>"Pending"))->count();
+         $survey = EmployeeReimbursement::where(array('id_employee_reimbursement'=>$value,'status'=>"Fat Dept Approved"))->count();
          if($survey != 0){
              return true;
          } return false;
@@ -21,8 +21,7 @@ class Update extends FormRequest
     public function messages()
     {
         return [
-            'reimbursement' => 'Update failed, :attribute not found or status not Pending',
-             'cek' => 'Product icount tidak ada ',
+            'reimbursement' => 'Update failed, :attribute not found or Finance Department not approved',
         ];
     }
     public function authorize()
@@ -31,12 +30,19 @@ class Update extends FormRequest
     }
     public function rules()
 	{
-		return [
-			'id_employee_reimbursement'     => 'required|reimbursement',
-			'date_reimbursement'		=> 'date_format:"Y-m-d"',
-			'attachment'                    => 'mimes:jpeg,jpg,bmp,png|max:5000',
-                        'id_product_icount'		=> 'required|cek',
-        ];
+		$data =  [
+			'max_approve_date'                  => 'required',
+			'id_product_icount'                 => 'required',
+			'name'                              => 'required',
+			'type'                              => 'required',
+			'reset_date'                        => 'required',
+			'value_text'                        => 'required',
+                    ];
+                
+                if(isset($this->month)){
+                    $data['month'] = 'required';
+                }
+                return $data;
     }
 
     protected function failedValidation(Validator $validator)
@@ -46,6 +52,6 @@ class Update extends FormRequest
 
     protected function validationData()
     {
-        return $this->all();
+        return $this->json()->all();
     }
 }

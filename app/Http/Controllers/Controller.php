@@ -26,6 +26,8 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use App\Lib\MyHelper;
 use Modules\Recruitment\Entities\HairstylistSalesPayment;
 use Modules\Employee\Entities\EmployeePerubahanData;
+use Modules\Employee\Entities\DesingRequest;
+
 class Controller extends BaseController
 {
     use AuthorizesRequests, DispatchesJobs, ValidatesRequests;
@@ -239,6 +241,7 @@ class Controller extends BaseController
                 'academy_student_notif' =>($sutendAllNotif == 0 ? null : $sutendAllNotif),
                 'request-employee-perubahan-data'=> $this->request_employee_perubahan_data(),
                 'employee-reimbursement'=> $this->request_employee_reimbursement(),
+                'employee-cash-advance'=> $this->request_employee_cash_advance(),
                 'partners'=> $this->partners(),
                 'candidate-partners'=> $this->candidate_partners(),
                 'request-update-partners'=> $this->request_update_partners(),
@@ -255,6 +258,7 @@ class Controller extends BaseController
                 'employee_attendance_outlet_request' => $this->employee_attendance_outlet_request(),      
                 'employee_time_off' => $this->employee_time_off(),      
                 'employee_overtime' => $this->employee_overtime(),      
+                'employee_changeshift' => $this->employee_changeshift(),      
                 'hairstylist_schedule' => $this->hairstylist_schedule(),      
                 'hairstylist_attendance_pending' => $this->hairstylist_attendance_pending(),      
                 'hairstylist_time_off' => $this->hairstylist_time_off(),      
@@ -268,6 +272,7 @@ class Controller extends BaseController
                 'employee_recruitment' => $this->employee_recruitment(),      
                 'employee_candidate' => $this->employee_candidate(),      
                 'list_request_employee' => $this->list_request_employee(),      
+                'design_request' => $this->design_request(),      
     		],
     	];
     }
@@ -284,6 +289,7 @@ class Controller extends BaseController
                 $total = $this->asset_inventory()+
                          $this->request_employee_perubahan_data()+
                          $this->request_employee_reimbursement()+
+                         $this->request_employee_cash_advance()+
                          $this->employee_attendance()+
                          $this->employee_attendance_outlet()+
                          $this->employee_timeoff_overtime()+
@@ -413,6 +419,19 @@ class Controller extends BaseController
         }
         return $total;
     }
+    public function request_employee_cash_advance(){
+        $total = \Modules\Employee\Entities\EmployeeCashAdvance::join('users','users.id','employee_cash_advances.id_user')
+               ->join('employees','employees.id_user','employee_cash_advances.id_user')
+              ->join('product_icounts','product_icounts.id_product_icount','employee_cash_advances.id_product_icount') 
+              ->where('employee_cash_advances.status','!=','Success')
+               ->where('employee_cash_advances.status','!=','Approve')
+               ->where('employee_cash_advances.status','!=','Rejected')
+               ->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
     public function partners(){
         $total = $this->request_update_partners()+$this->candidate_partners();
         if($total==0){
@@ -488,7 +507,7 @@ class Controller extends BaseController
     }
 
     public function employee_timeoff_overtime(){
-        $total = +$this->employee_time_off()+$this->employee_overtime();
+        $total = +$this->employee_time_off()+$this->employee_overtime()+$this->employee_changeshift();
         if($total==0){
             $total = null;
         }
@@ -549,6 +568,14 @@ class Controller extends BaseController
 
     public function employee_overtime(){
         $total = \Modules\Employee\Entities\EmployeeOvertime::whereNull('reject_at')->whereNull('approve_by')->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+
+    public function employee_changeshift(){
+        $total = \Modules\Employee\Entities\EmployeeChangeShift::where('status','Pending')->count();
         if($total==0){
             $total = null;
         }
@@ -640,6 +667,14 @@ class Controller extends BaseController
 
     public function list_request_employee(){
         $total = \Modules\Employee\Entities\RequestEmployee::where('status','Request')->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+
+    public function design_request(){
+        $total = DesingRequest::where('status','<>','Provided')->count();
         if($total==0){
             $total = null;
         }

@@ -879,7 +879,7 @@ class ApiAutoCrm extends Controller
                             }
 							if (isset($variables['id_attendance'])) {
 								$inbox['inboxes_id_reference'] = $variables['id_attendance'];
-                                $inbox['inboxes_clickto'] = $variables['autocrm_inbox_clickto'];
+                                $inbox['inboxes_clickto'] = $crm['autocrm_inbox_clickto'];
 							} else {
 								$inbox['inboxes_id_reference'] = 0;
                                 $inbox['inboxes_clickto'] = 0;
@@ -892,7 +892,7 @@ class ApiAutoCrm extends Controller
                             }
 							if (isset($variables['id_outlet'])) {
 								$inbox['id_reference'] = $variables['id_outlet'];
-                                $inbox['inboxes_clickto'] = $variables['autocrm_inbox_clickto'];
+                                $inbox['inboxes_clickto'] = $crm['autocrm_inbox_clickto'];
 							} else {
 								$inbox['id_reference'] = 0;
                                 $inbox['inboxes_clickto'] = 0;
@@ -909,7 +909,7 @@ class ApiAutoCrm extends Controller
                             }
 							if (isset($variables['id_time_off'])) {
 								$inbox['inboxes_id_reference'] = $variables['id_time_off'];
-                                $inbox['inboxes_clickto'] = $variables['autocrm_inbox_clickto'];
+                                $inbox['inboxes_clickto'] = $crm['autocrm_inbox_clickto'];
 							} else {
 								$inbox['inboxes_id_reference'] = 0;
                                 $inbox['inboxes_clickto'] = 0;
@@ -919,7 +919,7 @@ class ApiAutoCrm extends Controller
 							if (isset($variables['category'])) {
                                 $inbox['inboxes_category'] = $variables['category'];
                             }
-							$inbox['inboxes_clickto'] = $variables['autocrm_inbox_clickto'];
+							$inbox['inboxes_clickto'] = $crm['autocrm_inbox_clickto'];
 							break;
 						case 'approval_overtime' :
 							if (isset($variables['category'])) {
@@ -927,7 +927,19 @@ class ApiAutoCrm extends Controller
                             }
 							if (isset($variables['id_overtime'])) {
 								$inbox['inboxes_id_reference'] = $variables['id_overtime'];
-                                $inbox['inboxes_clickto'] = $variables['autocrm_inbox_clickto'];
+                                $inbox['inboxes_clickto'] = $crm['autocrm_inbox_clickto'];
+							} else {
+								$inbox['inboxes_id_reference'] = 0;
+                                $inbox['inboxes_clickto'] = 0;
+							}
+							break;
+						case 'request_product' :
+							if (isset($variables['category'])) {
+                                $inbox['inboxes_category'] = $variables['category'];
+                            }
+							if (isset($variables['id_request_product'])) {
+								$inbox['inboxes_id_reference'] = $variables['id_request_product'];
+                                $inbox['inboxes_clickto'] = $crm['autocrm_inbox_clickto'];
 							} else {
 								$inbox['inboxes_id_reference'] = 0;
                                 $inbox['inboxes_clickto'] = 0;
@@ -937,7 +949,7 @@ class ApiAutoCrm extends Controller
 							if (isset($variables['category'])) {
                                 $inbox['inboxes_category'] = $variables['category'];
                             }
-							$inbox['inboxes_clickto'] = $variables['autocrm_inbox_clickto'];
+							$inbox['inboxes_clickto'] = $crm['autocrm_inbox_clickto'];
 							break;
                         default :
                             $inbox['inboxes_clickto'] = 'Default';

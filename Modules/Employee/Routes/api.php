@@ -232,6 +232,9 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
             Route::post('/basic-salary', ['middleware' => 'feature_control:393','uses' =>'ApiRoleController@basic_salary']);
             Route::post('/basic-salary-create', ['middleware' => 'feature_control:393','uses' =>'ApiRoleController@basic_salary_create']);
             
+            Route::post('/reimbursement', ['middleware' => 'feature_control:393','uses' =>'ApiRoleController@reimbursement']);
+            Route::post('/reimbursement-create', ['middleware' => 'feature_control:393','uses' =>'ApiRoleController@reimbursement_create']);
+            
        });
     Route::group(['prefix' => 'role/overtime'], function () {
            Route::post('create', ['middleware' => 'feature_control:394','uses' =>'ApiOvertimeController@create']);

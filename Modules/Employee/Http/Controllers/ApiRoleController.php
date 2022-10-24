@@ -21,6 +21,9 @@ use Modules\Employee\Entities\EmployeeRoleIncentiveDefault;
 use Modules\Employee\Entities\EmployeeRoleSalaryCut;
 use Modules\Employee\Entities\EmployeeRoleSalaryCutDefault;
 use Modules\Employee\Entities\EmployeeRoleBasicSalary;
+use Modules\Employee\Entities\EmployeeReimbursementProductIcount;
+use Modules\Employee\Entities\EmployeeRoleReimbursementProductIcount;
+
 class ApiRoleController extends Controller
 {
     
@@ -301,6 +304,49 @@ class ApiRoleController extends Controller
         $store = EmployeeRoleBasicSalary::create([
                     "id_role"   =>  $request->id_role,
                     "value"   =>  $request->value,
+                ]);
+        }
+        return response()->json(MyHelper::checkCreate($store));
+    
+    }
+    public function reimbursement(Request $request) {
+         if($request->id_role){
+             $list = array();
+             $data = EmployeeReimbursementProductIcount::all();
+             foreach ($data as $value) {
+                 $cek = EmployeeRoleReimbursementProductIcount::where(array(
+                     'id_role'=>$request->id_role,
+                     'id_employee_reimbursement_product_icount'=>$value['id_employee_reimbursement_product_icount']
+                      ))->first();
+                 $value['default']   = 0;
+                 if($cek){
+                     $value['value_text']   = $cek->value_text;
+                     $value['default']   = 1;
+                 }
+                 array_push($list,$value);
+             }
+             return MyHelper::checkGet($list);
+        }
+        return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+    
+    }
+    public function reimbursement_create(Request $request) {
+         $data = EmployeeRoleReimbursementProductIcount::where([
+                    "id_role"   =>  $request->id_role,
+                    "id_employee_reimbursement_product_icount"   =>  $request->id_employee_reimbursement_product_icount,
+                ])->first();
+        if($data){
+            $store = EmployeeRoleReimbursementProductIcount::where([
+                    "id_role"   =>  $request->id_role,
+                    "id_employee_reimbursement_product_icount"   =>  $request->id_employee_reimbursement_product_icount,
+                    ])->update([
+                    "value_text"   =>  $request->value_text,
+                ]);
+        }else{
+        $store = EmployeeRoleReimbursementProductIcount::create([
+                    "id_role"   =>  $request->id_role,
+                    "id_employee_reimbursement_product_icount"   =>  $request->id_employee_reimbursement_product_icount,
+                    "value_text"   =>  $request->value_text,
                 ]);
         }
         return response()->json(MyHelper::checkCreate($store));

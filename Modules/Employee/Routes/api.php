@@ -84,6 +84,9 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('/detail', 'ApiBeEmployeeProfileController@detail_perubahan_data');
         Route::post('/list', 'ApiBeEmployeeProfileController@perubahan_data_list');
         Route::post('/update', 'ApiBeEmployeeProfileController@update_perubahan_data');
+        Route::get('/users-column', 'ApiBeEmployeeProfileController@getColumn');
+        Route::get('/category', 'ApiBeEmployeeProfileController@categoryUpdateData');
+        Route::post('/category/create', 'ApiBeEmployeeProfileController@createCategoryUpdateData');
       });
      Route::group(['prefix' => 'faq'], function(){
         Route::post('/', 'ApiBeEmployeeProfileController@faq');

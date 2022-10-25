@@ -1332,6 +1332,14 @@ class SettingsTableSeeder extends Seeder
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s'),
                 ),
+            137 =>
+                array (
+                    'key' => 'request-perubahan-data-employee',
+                    'value' => NULL,
+                    'value_text' => '[]',
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ),
         );
 
         foreach ($settings as $setting) {

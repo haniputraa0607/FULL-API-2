@@ -112,11 +112,18 @@ class ApiBeEmployeeAssetInventoryController extends Controller
     }
     public function detail_loan(Request $request) {
         $user = AssetInventoryLog::join('asset_inventorys','asset_inventorys.id_asset_inventory','asset_inventory_logs.id_asset_inventory')
+                ->join('asset_inventory_loans','asset_inventory_loans.id_asset_inventory_log','asset_inventory_logs.id_asset_inventory_log')
                 ->join('asset_inventory_categorys','asset_inventory_categorys.id_asset_inventory_category','asset_inventorys.id_asset_inventory_category')
                 ->leftjoin('users','users.id','asset_inventory_logs.id_approved')
                 ->where([
-            'id_asset_inventory_log'=>$request->id_asset_inventory_log,
-        ])->first();
+                    'asset_inventory_logs.id_asset_inventory_log'=>$request->id_asset_inventory_log,
+                ])->select('asset_inventory_logs.*',
+                    'asset_inventorys.*',
+                    'asset_inventory_loans.*',
+                    'asset_inventory_categorys.*',
+                    'users.*',
+                    'asset_inventory_logs.attachment as attachment_logs',)
+                ->first();
         return MyHelper::checkGet($user);
     }
     public function approve_loan(ApproveLoan $request) {

@@ -71,6 +71,7 @@ class ApiEmployeeAssetInventoryController extends Controller
    }
    public function available_asset(Request $request) {
        $user = AssetInventory::leftjoin('asset_inventory_loans','asset_inventory_loans.id_asset_inventory','asset_inventorys.id_asset_inventory')
+                ->leftjoin('asset_inventory_logs','asset_inventory_logs.id_asset_inventory','asset_inventorys.id_asset_inventory')
                 ->where([
                     'id_asset_inventory_category'=>$request->id_asset_inventory_category
                 ])->select([
@@ -79,19 +80,13 @@ class ApiEmployeeAssetInventoryController extends Controller
                     'asset_inventorys.code',
                     'asset_inventorys.id_asset_inventory_category',
                     'asset_inventorys.qty',
-                    DB::raw('
-                        sum(
-                            CASE WHEN
-                            asset_inventory_loans.status_loan = "Active" THEN 1 ELSE 0
-                            END
-                        ) as jumlah
-                    ')
+                    'asset_inventorys.available'
                 ])
                 ->groupby('asset_inventorys.id_asset_inventory')
                 ->get();
         $available = array();
         foreach ($user as $value) {
-            if($value['qty'] > $value['jumlah']){
+            if($value['available'] > 0){
                 $available[]=$value;
             }
         }
@@ -119,13 +114,20 @@ class ApiEmployeeAssetInventoryController extends Controller
             'id_user'=>Auth::user()->id,
             'id_asset_inventory'=>$request->id_asset_inventory,
         ]);
+        
         $loan = AssetInventoryLoan::create([
             'id_asset_inventory_log'=>$logs->id_asset_inventory_log,
             'id_asset_inventory'=>$request->id_asset_inventory,
             'long'=>$request->long,
             'long_loan'=>$request->long_loan,
             'notes'=>$request->notes,
-            'attachment'=>$attachment
+            'attachment'=>$attachment??null
+        ]);
+        $inven = AssetInventory::where('id_asset_inventory',$request->id_asset_inventory)->first();
+        $qty = $request->qty_loan??1;
+        $ava = $inven->available-$qty;
+        $inven = AssetInventory::where('id_asset_inventory',$request->id_asset_inventory)->update([
+            'available'=>$ava
         ]);
         $available = AssetInventoryLog::leftjoin('asset_inventory_loans','asset_inventory_loans.id_asset_inventory_log','asset_inventory_logs.id_asset_inventory_log')
                 ->where(array('asset_inventory_logs.id_asset_inventory_log'=>$logs->id_asset_inventory_log))

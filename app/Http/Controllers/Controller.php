@@ -327,14 +327,10 @@ class Controller extends BaseController
 	{
                 $total = \Modules\Employee\Entities\AssetInventoryLog::join('asset_inventorys','asset_inventorys.id_asset_inventory','asset_inventory_logs.id_asset_inventory')
                 ->join('asset_inventory_categorys','asset_inventory_categorys.id_asset_inventory_category','asset_inventorys.id_asset_inventory_category')
-                ->join('asset_inventory_returns','asset_inventory_returns.id_asset_inventory','asset_inventorys.id_asset_inventory')
                 ->where([
-                        'type_asset_inventory'=>"Return",
-                    ])->with(['user'])
-                    ->where([
                         'status_asset_inventory'=>"Pending",
                         'type_asset_inventory'=>"Return",
-                    ])->count();
+                    ])->with(['user'])->count();
                 if($total==0){
                     $total = null;
                 }

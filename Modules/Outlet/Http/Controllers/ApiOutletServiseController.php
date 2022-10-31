@@ -129,7 +129,7 @@ class ApiOutletServiseController extends Controller
             $diffTimeZone = $timeZone - 7;
             $date = date('Y-m-d H:i:s');
             // $date = date('Y-m-d H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($date)));
-            // $currentDate = date('Y-m-d', strtotime($date));
+             $currentDate = date('Y-m-d', strtotime($date));
             $currentHour = date('H:i:s', strtotime($date));
             $isClose = false;
             if(empty($val['today']['open']) || empty( $val['today']['close'])){

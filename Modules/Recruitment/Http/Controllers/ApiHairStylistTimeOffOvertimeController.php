@@ -619,14 +619,30 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                         $order = 'time_start';
                         $order_att = 'clock_in_requirement';
                     }
+
+                    //check another ovt
+                    $check_another = HairstylistOverTime::whereNot('id_hairstylist_overtime', $post['id_hairstylist_overtime'])
+                    ->where('id_user_hair_stylist',$check['id_user_hair_stylist'])
+                    ->whereDate('date',$get_schedule_date['date'])
+                    ->WhereNotNull('approve_at')->whereNotNull('approve_by')->whereNull('reject_at')
+                    ->get()->toArray();
+
+                    if($check_another){
+                        $is_overtime = 1;
+                    }else{
+                        $is_overtime = 0;
+                    }
+
+
                     if($get_schedule_date['is_overtime']==1){
-                        $update_schedule = HairstylistScheduleDate::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->update([$order => $new_time,  'is_overtime' => 0, 'id_outlet_box' => null]);
+                        $update_schedule = HairstylistScheduleDate::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->update([$order => $new_time,  'is_overtime' => $is_overtime, 'id_outlet_box' => null]);
                         if(!$update_schedule){
                             DB::rollBack();
                             return response()->json([
                                 'status' => 'fail'
                             ]);
                         }
+
                     }
                     
                     $attendance = HairstylistAttendance::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->where('id_user_hair_stylist', $check['id_user_hair_stylist'])->where('attendance_date',$check['date'])->update([$order_att => $new_time]);

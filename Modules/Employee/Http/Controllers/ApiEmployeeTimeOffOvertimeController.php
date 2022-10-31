@@ -1691,8 +1691,22 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                         $order = 'time_start';
                         $order_att = 'clock_in_requirement';
                     }
+
+                    //check anothet ovt
+                    $check_another = EmployeeOvertime::whereNot('id_employee_overtime', $post['id_employee_overtime'])
+                    ->where('id_employee',$check['id_employee'])
+                    ->whereDate('date',$get_schedule_date['date'])
+                    ->WhereNotNull('approve_at')->whereNotNull('approve_by')->whereNull('reject_at')
+                    ->get()->toArray();
+
+                    if($check_another){
+                        $is_overtime = 1;
+                    }else{
+                        $is_overtime = 0;
+                    }
+
                     if($get_schedule_date['is_overtime']==1){
-                        $update_schedule = EmployeeScheduleDate::where('id_employee_schedule_date',$get_schedule_date['id_employee_schedule_date'])->update([$order => $new_time,  'is_overtime' => 0]);
+                        $update_schedule = EmployeeScheduleDate::where('id_employee_schedule_date',$get_schedule_date['id_employee_schedule_date'])->update([$order => $new_time,  'is_overtime' => $is_overtime]);
                     }
                    
                     if(!$update_schedule){
@@ -1702,7 +1716,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                         ]);
                     }
                     
-                    $attendance = EmployeeAttendance::where('id_employee_schedule_date',$get_schedule_date['id_employee_schedule_date'])->where('id', $check['id'])->where('attendance_date',$check['date'])->update([$order_att => $new_time]);
+                    $attendance = EmployeeAttendance::where('id_employee_schedule_date',$get_schedule_date['id_employee_schedule_date'])->where('id', $check['id_employee'])->where('attendance_date',$check['date'])->update([$order_att => $new_time]);
 
                 }
                 $update = ['reject_at' => date('Y-m-d')];

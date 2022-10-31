@@ -7,6 +7,7 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Modules\Employee\Entities\CategoryAssetInventory;
 use Modules\Employee\Entities\AssetInventory;
+use Modules\Employee\Entities\AssetInventoryLog;
 use Modules\Employee\Entities\AssetInventoryLoan;
 use DB;
 class CreateReturn extends FormRequest
@@ -14,17 +15,26 @@ class CreateReturn extends FormRequest
     public function withValidator($validator)
     {
         $validator->addExtension('cek', function ($attribute, $value, $parameters, $validator) {
-        $asset = AssetInventoryLoan::where('id_asset_inventory_loan',$value)->count();
-                if($asset != 0){
-                   return true;
+        $asset = AssetInventoryLoan::where('id_asset_inventory_loan',$value)->where('status_loan','Active')->first();
+        if(!$asset){
+                   return false;
                 }
-                return false;
+        $asset = AssetInventoryLog::where('id_asset_inventory',$asset->id_asset_inventory)
+                ->orderby('created_at','desc')
+                ->first();
+            if($asset){
+               if($asset->status_asset_inventory == "Pending" && $asset->type_asset_inventory == "Return"){
+                   return false;
+               }
+            }
+            return true;
         }); 
+        
     }
     public function messages()
     {
         return [
-            'cek' => 'Loan not available',
+            'cek' => 'Loan not available or Loan in request return'
         ];
     }
     public function authorize()

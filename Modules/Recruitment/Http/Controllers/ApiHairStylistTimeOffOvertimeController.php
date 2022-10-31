@@ -636,12 +636,13 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
 
                     if($get_schedule_date['is_overtime']==1){
                         $update_schedule = HairstylistScheduleDate::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->update([$order => $new_time,  'is_overtime' => $is_overtime, 'id_outlet_box' => null]);
-                    }
-                    if(!$update_schedule){
-                        DB::rollBack();
-                        return response()->json([
-                            'status' => 'fail'
-                        ]);
+                        if(!$update_schedule){
+                            DB::rollBack();
+                            return response()->json([
+                                'status' => 'fail'
+                            ]);
+                        }
+
                     }
                     
                     $attendance = HairstylistAttendance::where('id_hairstylist_schedule_date',$get_schedule_date['id_hairstylist_schedule_date'])->where('id_user_hair_stylist', $check['id_user_hair_stylist'])->where('attendance_date',$check['date'])->update([$order_att => $new_time]);

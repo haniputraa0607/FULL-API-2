@@ -621,7 +621,7 @@ class ApiHairStylistTimeOffOvertimeController extends Controller
                     }
 
                     //check another ovt
-                    $check_another = HairstylistOverTime::whereNot('id_hairstylist_overtime', $post['id_hairstylist_overtime'])
+                    $check_another = HairstylistOverTime::where('id_hairstylist_overtime', '<>',$post['id_hairstylist_overtime'])
                     ->where('id_user_hair_stylist',$check['id_user_hair_stylist'])
                     ->whereDate('date',$get_schedule_date['date'])
                     ->WhereNotNull('approve_at')->whereNotNull('approve_by')->whereNull('reject_at')

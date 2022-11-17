@@ -1781,9 +1781,9 @@ class HairstylistIncome extends Model
             if($total_attend>0){
                 if($total_attend>=$incentive->value){
                     $nominals = $incentive->amount_proteksi;
-//                   if($total_timeoff>0||$total_late>0||$total_absen>0){
-//                        $nominals = $incentive->amount;
-//                    }
+                   if($total_timeoff>0||$total_late>0||$total_absen>0){
+                        $nominals = $incentive->amount;
+                    }
                     $incentives = HairstylistGroupOvertimeDayDefault::leftJoin('hairstylist_group_overtime_days', function ($join) use ($hs) {
                 $join->on('hairstylist_group_overtime_days.id_hairstylist_group_default_overtime_day', 'hairstylist_group_default_overtime_days.id_hairstylist_group_default_overtime_day')
                     ->where('id_hairstylist_group', $hs->id_hairstylist_group);
@@ -2161,10 +2161,18 @@ class HairstylistIncome extends Model
                             $total_proteksi = $incentive->amount;
                             $nama_proteksi = "Protection Attendance";
                         }
-                    }
+                    }else{
+						$id_proteksi = $incentive->id_hairstylist_group_default_proteksi_attendance;
+                            $total_proteksi = $incentive->amount;
+						$nama_proteksi = "Protection Amount";
+					}
                    
                 }
-            }
+            }else{
+				$id_proteksi = $incentive->id_hairstylist_group_default_proteksi_attendance;
+                            $total_proteksi = $incentive->amount;
+				$nama_proteksi = "Amount Perday";
+			}
         return array(
             'id'=>$id_proteksi,
             'name'=>$nama_proteksi,

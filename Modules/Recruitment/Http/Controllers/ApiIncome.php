@@ -1022,10 +1022,10 @@ class ApiIncome extends Controller
                     $total_income -= $values['value'];
                 }
                $proteksi = HairstylistIncome::calculateGenerateIncomeProtec($hs, $request['start_date'],$request['end_date'],$id_outlet);
-                $keterangan = "Non Protect";
-				if($proteksi['name']){
-					 $keterangan = $proteksi['name'];
-				}
+                $keterangan = "Non Protection";
+                if($proteksi['name']){
+                         $keterangan = $proteksi['name'];
+                }
                 
                 $data['Total imbal jasa'] = (string) $total_income;
                 $data['Keterangan'] = $keterangan;

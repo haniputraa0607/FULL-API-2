@@ -89,13 +89,17 @@ class ApiBeEmployeeCashAdvanceController extends Controller
                ->join('employees','employees.id_user','employee_cash_advances.id_user')
               ->join('product_icounts','product_icounts.id_product_icount','employee_cash_advances.id_product_icount') 
               ->where('id_manager',Auth::user()->id)
-               ->where('employee_cash_advances.status','Pending')
+               ->where('employee_cash_advances.status','!=','Success')
+               ->where('employee_cash_advances.status','!=','Approve')
+               ->where('employee_cash_advances.status','!=','Rejected')
                 ->select('employee_cash_advances.*','users.name as user_name','users.email','employees.code','product_icounts.name as name');    
       }else{
       $employee = EmployeeCashAdvance::join('users','users.id','employee_cash_advances.id_user')
                ->join('employees','employees.id_user','employee_cash_advances.id_user')
               ->join('product_icounts','product_icounts.id_product_icount','employee_cash_advances.id_product_icount') 
-              ->where('employee_cash_advances.status','Pending')
+              ->where('employee_cash_advances.status','!=','Success')
+               ->where('employee_cash_advances.status','!=','Approve')
+               ->where('employee_cash_advances.status','!=','Rejected')
                ->select('employee_cash_advances.*','users.name as user_name','users.email','employees.code','product_icounts.name as name');    
       }
        if(isset($post['rule']) && !empty($post['rule'])){
@@ -344,7 +348,7 @@ class ApiBeEmployeeCashAdvanceController extends Controller
                ->wherenull('employee_cash_advance_product_icounts.id_product_icount')
                ->select([
                     'product_icounts.id_product_icount',
-                    'name',
+                    'product_icounts.name',
                     'code'
                 ])->get();
        return MyHelper::checkGet($data);
@@ -354,8 +358,9 @@ class ApiBeEmployeeCashAdvanceController extends Controller
        $data = EmployeeCashAdvanceProductIcount::join('product_icounts','product_icounts.id_product_icount','employee_cash_advance_product_icounts.id_product_icount')
                 ->select([
                     'id_employee_cash_advance_product_icount',
+                    'employee_cash_advance_product_icounts.name',
                     'product_icounts.id_product_icount',
-                    'product_icounts.name',
+                    'product_icounts.name as name_icount',
                     'product_icounts.code',
                     'product_icounts.company_type',
                 ])->paginate($request->length ?: 10);
@@ -364,10 +369,10 @@ class ApiBeEmployeeCashAdvanceController extends Controller
     public function create_dropdown(Request $request) {
        
        $data = null;
-       if(isset($request->id_product_icount)){
+       if(isset($request->id_product_icount)&&isset($request->name)){
            $data = EmployeeCashAdvanceProductIcount::where(['id_product_icount'=>$request->id_product_icount])->first();
            if(!$data){
-            $data = EmployeeCashAdvanceProductIcount::create(['id_product_icount'=>$request->id_product_icount]);    
+            $data = EmployeeCashAdvanceProductIcount::create(['id_product_icount'=>$request->id_product_icount,'name'=>$request->name]);    
            }
        }
        return MyHelper::checkGet($data);

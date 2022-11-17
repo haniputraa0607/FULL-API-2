@@ -443,9 +443,6 @@ class ApiHairStylistScheduleController extends Controller
 	        		'request_by' => $request_by,
 	        		'created_at' => $created_at,
 	        		'updated_at' => $updated_at,
-                    'is_overtime' => null,
-                    'time_start' => null,
-                    'time_end' => null,
 	        	];
                 if(isset($oldData[date('Y-m-j', strtotime($key))]) && isset($oldData[date('Y-m-j', strtotime($key))]['is_overtime']) && $oldData[date('Y-m-j', strtotime($key))]['is_overtime'] == 1){
                     $newData[$key_new]['is_overtime'] = 1;
@@ -461,9 +458,6 @@ class ApiHairStylistScheduleController extends Controller
 	        		'request_by' => $request_by,
 	        		'created_at' => $created_at,
 	        		'updated_at' => $updated_at,
-                    'is_overtime' => null,
-                    'time_start' => null,
-                    'time_end' => null,
 	        	];
                 if(isset($oldData[date('Y-m-j', strtotime($key))]) && isset($oldData[date('Y-m-j', strtotime($key))]['is_overtime']) && $oldData[date('Y-m-j', strtotime($key))]['is_overtime'] == 1){
                     $newData[$key_new]['is_overtime'] = 1;
@@ -479,9 +473,6 @@ class ApiHairStylistScheduleController extends Controller
 	        		'request_by' => $request_by,
 	        		'created_at' => $created_at,
 	        		'updated_at' => $updated_at,
-                    'is_overtime' => null,
-                    'time_start' => null,
-                    'time_end' => null,
 	        	];
                 if(isset($oldData[date('Y-m-j', strtotime($key))]) && isset($oldData[date('Y-m-j', strtotime($key))]['is_overtime']) && $oldData[date('Y-m-j', strtotime($key))]['is_overtime'] == 1){
                     $newData[$key_new]['is_overtime'] = 1;
@@ -497,9 +488,6 @@ class ApiHairStylistScheduleController extends Controller
 	        		'request_by' => $request_by,
 	        		'created_at' => $created_at,
 	        		'updated_at' => $updated_at,
-                    'is_overtime' => null,
-                    'time_start' => null,
-                    'time_end' => null,
 	        	];
                 if(isset($oldData[date('Y-m-j', strtotime($key))]) && isset($oldData[date('Y-m-j', strtotime($key))]['is_overtime']) && $oldData[date('Y-m-j', strtotime($key))]['is_overtime'] == 1){
                     $newData[$key_new]['is_overtime'] = 1;

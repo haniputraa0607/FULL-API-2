@@ -84,6 +84,9 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('/detail', 'ApiBeEmployeeProfileController@detail_perubahan_data');
         Route::post('/list', 'ApiBeEmployeeProfileController@perubahan_data_list');
         Route::post('/update', 'ApiBeEmployeeProfileController@update_perubahan_data');
+        Route::get('/users-column', 'ApiBeEmployeeProfileController@getColumn');
+        Route::get('/category', 'ApiBeEmployeeProfileController@categoryUpdateData');
+        Route::post('/category/create', 'ApiBeEmployeeProfileController@createCategoryUpdateData');
       });
      Route::group(['prefix' => 'faq'], function(){
         Route::post('/', 'ApiBeEmployeeProfileController@faq');
@@ -203,6 +206,8 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('/dropdown','ApiBeEmployeeReimbursementController@dropdown');
         Route::post('/list_dropdown','ApiBeEmployeeReimbursementController@list_dropdown');
         Route::post('/dropdown/create','ApiBeEmployeeReimbursementController@create_dropdown');
+        Route::post('/dropdown/update','ApiBeEmployeeReimbursementController@update_dropdown');
+        Route::post('/dropdown/detail','ApiBeEmployeeReimbursementController@detail_dropdown');
         Route::post('/dropdown/delete','ApiBeEmployeeReimbursementController@delete_dropdown');
          });
     Route::group(['prefix' => 'be/cash-advance'], function () {
@@ -229,6 +234,9 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
             Route::any('list-default-salary-cut', ['middleware' => 'feature_control:396','uses' =>'ApiRoleController@list_default_salary_cut']);
             Route::post('/basic-salary', ['middleware' => 'feature_control:393','uses' =>'ApiRoleController@basic_salary']);
             Route::post('/basic-salary-create', ['middleware' => 'feature_control:393','uses' =>'ApiRoleController@basic_salary_create']);
+            
+            Route::post('/reimbursement', ['middleware' => 'feature_control:393','uses' =>'ApiRoleController@reimbursement']);
+            Route::post('/reimbursement-create', ['middleware' => 'feature_control:393','uses' =>'ApiRoleController@reimbursement_create']);
             
        });
     Route::group(['prefix' => 'role/overtime'], function () {
@@ -466,9 +474,9 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
     });
 });
 
-Route::group([ 'middleware' => ['auth_client', 'scopes:employee-apps'], 'prefix' => 'employee'], function () {
-    Route::get('splash','ApiEmployeeAppController@splash');
-});
+// Route::group([ 'middleware' => ['auth_client', 'scopes:employee-apps'], 'prefix' => 'employee'], function () {
+//     Route::get('splash','ApiEmployeeAppController@splash');
+// });
 
 Route::group(['prefix' => '/icount/reimbursement'], function() {
     Route::post('/callback','ApiBeEmployeeReimbursementController@callbackreimbursement')->middleware('auth_pos2:PurchaseInvoiceID,status,date_disburse');

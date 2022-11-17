@@ -26,6 +26,8 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use App\Lib\MyHelper;
 use Modules\Recruitment\Entities\HairstylistSalesPayment;
 use Modules\Employee\Entities\EmployeePerubahanData;
+use Modules\Employee\Entities\DesingRequest;
+
 class Controller extends BaseController
 {
     use AuthorizesRequests, DispatchesJobs, ValidatesRequests;
@@ -273,7 +275,7 @@ class Controller extends BaseController
                 'list_request_employee' => $this->list_request_employee(),      
                 'design_request' => $this->design_request(),      
             ];
-            Cache::put('sidebar_badge', $result, now()->addMinutes(10));
+            Cache::put('sidebar_badge', $result, now()->addMinutes(1));
         }
 
         return [
@@ -332,14 +334,10 @@ class Controller extends BaseController
 	{
                 $total = \Modules\Employee\Entities\AssetInventoryLog::join('asset_inventorys','asset_inventorys.id_asset_inventory','asset_inventory_logs.id_asset_inventory')
                 ->join('asset_inventory_categorys','asset_inventory_categorys.id_asset_inventory_category','asset_inventorys.id_asset_inventory_category')
-                ->join('asset_inventory_returns','asset_inventory_returns.id_asset_inventory','asset_inventorys.id_asset_inventory')
                 ->where([
-                        'type_asset_inventory'=>"Return",
-                    ])->with(['user'])
-                    ->where([
                         'status_asset_inventory'=>"Pending",
                         'type_asset_inventory'=>"Return",
-                    ])->count();
+                    ])->with(['user'])->count();
                 if($total==0){
                     $total = null;
                 }

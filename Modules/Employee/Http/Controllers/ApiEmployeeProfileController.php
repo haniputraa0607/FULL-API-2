@@ -253,7 +253,12 @@ class ApiEmployeeProfileController extends Controller
    public function category_perubahan_data() {
        $data = Setting::where('key','request-perubahan-data-employee')->first();
        if($data){
-           $data = json_decode($data['value_text']);
+           $data = (array)json_decode($data['value_text']??'',true);
+           $send_data = [];
+           foreach($data ?? [] as $value){
+               $send_data[] = $value;       
+           }
+           $data = $send_data;
        }
        return MyHelper::checkGet($data);
    }

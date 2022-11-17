@@ -238,6 +238,14 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     
     Route::get('other-service', 'ApiSetting@other_service');
     Route::post('other-service-create', 'ApiSetting@other_service_create');
+    
+    //categori file upload
+    Route::get('category-employee-file', 'ApiSetting@category_employee_file');
+    Route::post('category-employee-file-create', 'ApiSetting@category_employee_file_create');
+    
+    //balance_global_reimbursement
+    Route::get('balance-global-reimbursement', 'ApiSetting@balance_global_reimbursement');
+    Route::post('balance-global-reimbursement-create', 'ApiSetting@balance_global_reimbursement_create');
 });
 
 Route::group(['prefix' => 'api/timesetting', 'namespace' => 'Modules\Setting\Http\Controllers'], function()

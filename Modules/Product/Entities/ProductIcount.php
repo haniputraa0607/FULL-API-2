@@ -132,7 +132,7 @@ class ProductIcount extends Model
                     foreach($get_product_uses as $key_use => $get_product_use){
                         if($get_product_use['id_product_icount'] == $id_product_icount){
                             $cek_service = ProductIcount::where('id_product_icount',$get_product_use['id_product_icount'])->first();
-                            if($cek_service['item_group'] == 'Service'){
+                            if($cek_service['item_group'] == 'Service' || $get_product_use['qty'] == 0){
                                 if($service){
                                     $service = true;
                                 }
@@ -157,7 +157,7 @@ class ProductIcount extends Model
                             }
                         }else{
                             $cek_service = ProductIcount::where('id_product_icount',$get_product_use['id_product_icount'])->first();
-                            if($cek_service['item_group'] == 'Service'){
+                            if($cek_service['item_group'] == 'Service' || $get_product_use['qty'] == 0){
                                 if($service){
                                     $service = true;
                                 }

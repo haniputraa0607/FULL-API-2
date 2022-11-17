@@ -552,14 +552,15 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                     if(isset($post['id_approve']) && !empty($post['id_approve'])){
                         $approve_by = User::where('id',$post['id_approve'])->first() ?? null;
                     }
+                    
                     if (\Module::collections()->has('Autocrm')) {
                         $autocrm = app($this->autocrm)->SendAutoCRM(
                             'Employee Request Time Off Approved', 
                             $user_employee['phone'] ?? null,
                             [
                                 'user_update'=> $approve_by ? $approve_by['name'] : $request->user()->name,
-                                'time_off_date'=> $user_employee['date'],
-                                'name_office'=> $office['name_outlet'],
+                                'time_off_date'=> MyHelper::dateFormatInd($data_update['start_date'], true, false, false).' - '.MyHelper::dateFormatInd($data_update['end_date'], true, false, false),
+                                'name_office'=> $office['outlet_name'],
                                 'category' => 'Time Off',
                             ], null, false, false, $recipient_type = 'employee', null, true
                         );
@@ -598,14 +599,15 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
             $delete_hs_not_avail = EmployeeNotAvailable::where('id_employee_time_off', $post['id_employee_time_off'])->delete();
             $user_employee = User::join('employee_time_off','employee_time_off.id_employee','users.id')->where('employee_time_off.id_employee_time_off',$post['id_employee_time_off'])->first();
             $office = Outlet::where('id_outlet',$user_employee['id_outlet'])->first();
+            $data_time_off =EmployeeTimeOff::where('id_employee_time_off', $post['id_employee_time_off'])->first();
             if (\Module::collections()->has('Autocrm')) {
                 $autocrm = app($this->autocrm)->SendAutoCRM(
                     'Employee Request Time Off Rejected', 
                     $user_employee['phone'] ?? null,
                     [
                         'user_update'=> $reject_by ? $reject_by['name'] : $request->user()->name,
-                        'time_off_date'=> $user_employee['date'],
-                        'name_office'=> $office['name_outlet'],
+                        'time_off_date'=> MyHelper::dateFormatInd($data_time_off['start_date'], true, false, false).' - '.MyHelper::dateFormatInd($data_time_off['end_date'], true, false, false),
+                        'name_office'=> $office['outlet_name'],
                         'category' => 'Time Off',
                     ], null, false, false, $recipient_type = 'employee', null, true
                 );
@@ -878,7 +880,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                     'name_employee' => $employee['name'],
                     'phone_employee' => $employee['phone'],
                     'name_office' => $outlet['outlet_name'],
-                    'time_off_date' => date('d F Y', strtotime($post['start_date'])),
+                    'time_off_date' => MyHelper::dateFormatInd($post['start_date'], true, false, false).' - '.MyHelper::dateFormatInd($post['end_date'], true, false, false),
                     'category' => 'Time Off',
                     'id_time_off' => $store['id_employee_time_off']
                 ], null, false, false, 'employee'
@@ -1092,7 +1094,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                         'phone_employee' => $employee_overtime['phone'],
                         'name_assign' => $request->user()->name,
                         'name_office' => $data_office['outlet_name'],
-                        'overtime_date' => date('d F Y', strtotime($data_overtime['date'])),
+                        'overtime_date' => MyHelper::dateFormatInd($data_overtime['date'], true, false, false),
                         'start_overtime' => date('H:i', strtotime($post['start_time_off'])),
                         'end_overtime' => date('H:i', strtotime($post['end_time_off'])),
                         'category' => 'Overtime',
@@ -1106,7 +1108,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                     $employee_overtime['phone'],
                     [
                         'name_office' => $data_office['outlet_name'],
-                        'overtime_date' => date('d F Y', strtotime($data_overtime['date'])),
+                        'overtime_date' => MyHelper::dateFormatInd($data_overtime['date'], true, false, false),
                         'name_assign' => $request->user()->name,
                         'category' => 'Overtime',
                     ], null, false, false, 'employee'
@@ -1519,9 +1521,9 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                             $user_assign['phone'] ?? null,
                             [
                                 'user_update'=> $approve_by ? $approve_by['name'] : $request->user()->name,
-                                'overtime_date' => date('d F Y', strtotime($user_assign['date'])),
+                                'overtime_date' => MyHelper::dateFormatInd($data_update['date'], true, false, false),
                                 'name_employee' => $employee_overtime['name'],
-                                'name_office' => $office['name_outlet'],
+                                'name_office' => $office['outlet_name'],
                                 'category' => 'Overtime',
                             ], null, false, false, $recipient_type = 'employee', null, true
                         );
@@ -1539,7 +1541,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                             $employee_overtime['phone'],
                             [
                                 'name_office' => $office['outlet_name'],
-                                'overtime_date' => date('d F Y', strtotime($user_assign['date'])),
+                                'overtime_date' => MyHelper::dateFormatInd($data_update['date'], true, false, false),
                                 'name_assign' => $user_assign['name'],
                                 'user_update' => $approve_by ? $approve_by['name'] : $request->user()->name,
                                 'category' => 'Overtime',
@@ -1689,8 +1691,22 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                         $order = 'time_start';
                         $order_att = 'clock_in_requirement';
                     }
+
+                    //check anothet ovt
+                    $check_another = EmployeeOvertime::whereNot('id_employee_overtime', $post['id_employee_overtime'])
+                    ->where('id_employee',$check['id_employee'])
+                    ->whereDate('date',$get_schedule_date['date'])
+                    ->WhereNotNull('approve_at')->whereNotNull('approve_by')->whereNull('reject_at')
+                    ->get()->toArray();
+
+                    if($check_another){
+                        $is_overtime = 1;
+                    }else{
+                        $is_overtime = 0;
+                    }
+
                     if($get_schedule_date['is_overtime']==1){
-                        $update_schedule = EmployeeScheduleDate::where('id_employee_schedule_date',$get_schedule_date['id_employee_schedule_date'])->update([$order => $new_time,  'is_overtime' => 0]);
+                        $update_schedule = EmployeeScheduleDate::where('id_employee_schedule_date',$get_schedule_date['id_employee_schedule_date'])->update([$order => $new_time,  'is_overtime' => $is_overtime]);
                     }
                    
                     if(!$update_schedule){
@@ -1700,7 +1716,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                         ]);
                     }
                     
-                    $attendance = EmployeeAttendance::where('id_employee_schedule_date',$get_schedule_date['id_employee_schedule_date'])->where('id', $check['id'])->where('attendance_date',$check['date'])->update([$order_att => $new_time]);
+                    $attendance = EmployeeAttendance::where('id_employee_schedule_date',$get_schedule_date['id_employee_schedule_date'])->where('id', $check['id_employee'])->where('attendance_date',$check['date'])->update([$order_att => $new_time]);
 
                 }
                 $update = ['reject_at' => date('Y-m-d')];
@@ -1723,9 +1739,9 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                         $user_assign['phone'] ?? null,
                         [
                             'user_update'=> $reject_by ? $reject_by['name'] : $request->user()->name,
-                            'overtime_date' => date('d F Y', strtotime($check['date'])),
+                            'overtime_date' => MyHelper::dateFormatInd($check['date'], true, false, false),
                             'name_employee' => $employee_overtime['name'],
-                            'name_office' => $office['name_outlet'],
+                            'name_office' => $office['outlet_name'],
                             'category' => 'Overtime',
                         ], null, false, false, $recipient_type = 'employee', null, true
                     );
@@ -1743,7 +1759,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                         $employee_overtime['phone'],
                         [
                             'name_office' => $office['outlet_name'],
-                            'overtime_date' => date('d F Y', strtotime($check['date'])),
+                            'overtime_date' => MyHelper::dateFormatInd($check['date'], true, false, false),
                             'name_assign' => $user_assign['name'],
                             'user_update' => $reject_by ? $reject_by['name'] : $request->user()->name,
                             'category' => 'Overtime',
@@ -1777,8 +1793,8 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                             $user_employee['phone'] ?? null,
                             [
                                 'user_update'=>'Admin',
-                                'time_off_date'=> $user_employee['date'],
-                                'name_office'=> $office['name_outlet'],
+                                'time_off_date'=> MyHelper::dateFormatInd($data_time_off['start_date'], true, false, false).' - '.MyHelper::dateFormatInd($data_time_off['end_date'], true, false, false),
+                                'name_office'=> $office['outlet_name'],
                                 'category' => 'Time Off',
                             ], null, false, false, $recipient_type = 'employee', null, true
                         );
@@ -1805,9 +1821,9 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                             $user_assign['phone'] ?? null,
                             [
                                 'user_update'=>'Admin',
-                                'overtime_date' => date('d F Y', strtotime($user_assign['date'])),
+                                'overtime_date' => MyHelper::dateFormatInd($overtime['date'], true, false, false),
                                 'name_employee' => $employee_overtime['name'],
-                                'name_office' => $office['name_outlet'],
+                                'name_office' => $office['outlet_name'],
                                 'category' => 'Overtime',
                             ], null, false, false, $recipient_type = 'employee', null, true
                         );
@@ -1824,7 +1840,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                             $employee_overtime['phone'],
                             [
                                 'name_office' => $office['outlet_name'],
-                                'overtime_date' => date('d F Y', strtotime($user_assign['date'])),
+                                'overtime_date' => MyHelper::dateFormatInd($overtime['date'], true, false, false),
                                 'name_assign' => $user_assign['name'],
                                 'user_update' => 'Admin',
                                 'category' => 'Overtime',
@@ -1838,25 +1854,25 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
             if($data_changeshift){
                 foreach($data_changeshift as $changeshift){
                     $update = EmployeeChangeShift::where('id_employee_change_shift', $changeshift['id_employee_change_shift'])->update(['status'=>'Rejected']);
-                    $user_employee = User::join('employee_change_shifts','employee_change_shifts.id_user','users.id')->where('employee_change_shifts.id_employee_change_shift',$time_off['id_employee_change_shift'])->first();
+                    $user_employee = User::join('employee_change_shifts','employee_change_shifts.id_user','users.id')->where('employee_change_shifts.id_employee_change_shift',$changeshift['id_employee_change_shift'])->first();
                     $office = Outlet::where('id_outlet',$user_employee['id_outlet'])->first();
                     if (\Module::collections()->has('Autocrm')) {
-                        // $autocrm = app($this->autocrm)->SendAutoCRM(
-                        //     'Employee Request Time Off Rejected', 
-                        //     $user_employee['phone'] ?? null,
-                        //     [
-                        //         'user_update'=>'Admin',
-                        //         'time_off_date'=> $user_employee['date'],
-                        //         'name_office'=> $office['name_outlet'],
-                        //         'category' => 'Time Off',
-                        //     ], null, false, false, $recipient_type = 'employee', null, true
-                        // );
-                        // if (!$autocrm) {
-                        //     return response()->json([
-                        //         'status'    => 'fail',
-                        //         'messages'  => ['Failed to send']
-                        //     ]);
-                        // }
+                        $autocrm = app($this->autocrm)->SendAutoCRM(
+                            'Employee Request Change Shift Rejected', 
+                            $user_employee['phone'] ?? null,
+                            [
+                                'user_update'=> 'Admin',
+                                'change_shift_date'=> MyHelper::dateFormatInd($changeshift['change_shift_date'], true, false, false),
+                                'name_office'=> $office['outlet_name'],
+                                'category' => 'Change Shift',
+                            ], null, false, false, $recipient_type = 'employee', null, true
+                        );
+                        if (!$autocrm) {
+                            return response()->json([
+                                'status'    => 'fail',
+                                'messages'  => ['Failed to send']
+                            ]);
+                        }
                     }
                 }
             }

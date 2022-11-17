@@ -224,13 +224,14 @@ class Controller extends BaseController
 
     public function getSidebarBadge(Request $request)
     {
-        $academySchedule = $this->academy_student_schedule();
-        $academyDayOff = $this->academy_student_day_off();
-        $sutendAllNotif = $academySchedule + $academyDayOff;
-    	return [
-    		'status' => 'success',
-    		'result' => [
-    		'total_sales_payment' => $this->total_sales_payment(),
+        $result = Cache::get('sidebar_badge');
+        if (!$result) {
+            $academySchedule = $this->academy_student_schedule();
+            $academyDayOff = $this->academy_student_day_off();
+            $sutendAllNotif = $academySchedule + $academyDayOff;
+
+            $result = [
+                'total_sales_payment' => $this->total_sales_payment(),
                 'employee'            => $this->employee(),
                 'asset_inventory'     => $this->asset_inventory(),
                 'asset_inventory_return_pending'=>$this->asset_inventory_return_pending(),
@@ -273,8 +274,14 @@ class Controller extends BaseController
                 'employee_candidate' => $this->employee_candidate(),      
                 'list_request_employee' => $this->list_request_employee(),      
                 'design_request' => $this->design_request(),      
-    		],
-    	];
+            ];
+            Cache::put('sidebar_badge', $result, now()->addMinutes(1));
+        }
+
+        return [
+            'status' => 'success',
+            'result' => $result,
+        ];
     }
     public function total_sales_payment()
 	{

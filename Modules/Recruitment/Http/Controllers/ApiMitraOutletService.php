@@ -475,7 +475,7 @@ class ApiMitraOutletService extends Controller
     		];
     	}
 
-    	DB::beginTransaction();
+    	// DB::beginTransaction();
     	try {
     		$action = ($service->service_status == 'Stopped') ? 'Resume' : 'Start';
     		TransactionProductServiceLog::create([
@@ -496,11 +496,11 @@ class ApiMitraOutletService extends Controller
     		}
 
 
-    		DB::commit();
+    		// DB::commit();
     	} catch (\Exception $e) {
 
     		\Log::error($e->getMessage());
-    		DB::rollback();
+    		// DB::rollback();
     		return [
     			'status' => 'fail',
     			'messages' => ['Gagal memulai layanan']
@@ -701,7 +701,7 @@ class ApiMitraOutletService extends Controller
     		];
     	}
 
-    	DB::beginTransaction();
+    	// DB::beginTransaction();
     	try {
     		TransactionProductServiceLog::create([
     			'id_transaction_product_service' => $request->id_transaction_product_service,
@@ -715,11 +715,11 @@ class ApiMitraOutletService extends Controller
 
     		$box->update(['outlet_box_use_status' => 0]);
 
-    		DB::commit();
+    		// DB::commit();
     	} catch (\Exception $e) {
 
     		\Log::error($e->getMessage());
-    		DB::rollback();
+    		// DB::rollback();
     		return [
     			'status' => 'fail',
     			'messages' => ['Gagal menghentikan layanan']
@@ -856,7 +856,7 @@ class ApiMitraOutletService extends Controller
     	$extended = new DateTime("+".  $newTime ." seconds");
     	$extendedTime = $extended->format('H:i:s');
 
-    	DB::beginTransaction();
+    	// DB::beginTransaction();
     	try {
 
     		TransactionProductServiceLog::create([
@@ -883,11 +883,11 @@ class ApiMitraOutletService extends Controller
     			$conflict->update(['is_conflict' => 1]);
     		}
 
-    		DB::commit();
+    		// DB::commit();
     	} catch (\Exception $e) {
 
     		\Log::error($e->getMessage());
-    		DB::rollback();
+    		// DB::rollback();
     		return [
     			'status' => 'fail',
     			'messages' => ['Gagal memperpanjang waktu layanan']
@@ -985,7 +985,7 @@ class ApiMitraOutletService extends Controller
     		];
     	}
 
-    	DB::beginTransaction();
+    	// DB::beginTransaction();
     	try {
     		$trx = Transaction::where('id_transaction', $service->id_transaction)->with('outlet', 'user')->first();
     		TransactionProductServiceLog::create([
@@ -1046,7 +1046,7 @@ class ApiMitraOutletService extends Controller
 						if($this_qty != 0){
 							$update_stock = $product_icount->find($product_use['id_product_icount'])->addLogStockProductIcount($this_qty,$product_use['unit'],'Transaction Outlet Service',$service['id_transaction_product_service']);
 							if(!$update_stock){
-								DB::rollback();
+								// DB::rollback();
 							}
 						}
 					}
@@ -1082,11 +1082,11 @@ class ApiMitraOutletService extends Controller
 
     		$this->completeTransaction($service->id_transaction);
 
-    		DB::commit();
+    		// DB::commit();
     	} catch (\Exception $e) {
 
     		\Log::error($e->getMessage());
-    		DB::rollback();
+    		// DB::rollback();
     		return [
     			'status' => 'fail',
     			'messages' => ['Gagal menyelesaikan layanan']
@@ -1680,7 +1680,7 @@ class ApiMitraOutletService extends Controller
     			];
     		}
     	}
-    	DB::beginTransaction();
+    	// DB::beginTransaction();
     	try {
 
     		HairstylistScheduleDate::where('id_hairstylist_schedule_date', $schedule->id_hairstylist_schedule_date)
@@ -1693,11 +1693,11 @@ class ApiMitraOutletService extends Controller
     			'note' => null
     		]);
 
-    		DB::commit();
+    		// DB::commit();
     	} catch (\Exception $e) {
 
     		\Log::error($e->getMessage());
-    		DB::rollback();
+    		// DB::rollback();
     		return [
     			'status' => 'fail',
     			'messages' => ['Gagal memilih box']

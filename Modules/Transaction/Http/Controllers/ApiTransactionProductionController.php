@@ -359,7 +359,7 @@ class ApiTransactionProductionController extends Controller
     public function CronBreakdownCommission($date = null){
         $log = MyHelper::logCron('Check Commission Hair Stylist');
         try{
-            DB::beginTransaction();
+            // DB::beginTransaction();
 
             $fail = false;
             $date_trans = date('Y-m-d', strtotime($date ?: '-1 days'));
@@ -472,16 +472,16 @@ class ApiTransactionProductionController extends Controller
             }
 
             if($fail){
-                DB::rollback();
+                // DB::rollback();
             }else{
-                DB::commit();
+                // DB::commit();
             }
 
             $log->success('success');
             return response()->json(['status' => 'success']);
 
         }catch (\Exception $e) {
-            DB::rollBack();
+            // DB::rollBack();
             $log->fail($e->getMessage());
         }  
         

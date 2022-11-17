@@ -1827,7 +1827,7 @@ class HairstylistIncome extends Model
         }
 //        return $data;
         $array[] = array(
-            "name"  => "Proteksi Attendance",
+            "name"  => "Attendance",
             "value" => $nominal,
 
         );

@@ -2157,27 +2157,27 @@ class HairstylistIncome extends Model
             if($total_attend>0){
                 if($total_attend>=$incentive->value){
                     if($total_timeoff==0&&$total_late==0&&$total_absen==0){
-                        $nama_proteksi = "Protection Amount";
-						if($proteksi){
-							$outlet = Outlet::join('locations','locations.id_location','outlets.id_location')->where('id_outlet',$hs->id_outlet)->first();
-							if(isset($outlet->start_date)){
-								$nominals = $incentive->amount_proteksi;
-								$proteksi_outlet = json_decode($proteksi['value_text']??[],true);
-								$group = HairstylistGroupProteksi::where(array('id_hairstylist_group'=>$hs->id_hairstylist_group))->first();
-								if(isset($group['value'])){
-									$proteksi_outlet['value'] = $group['value'];
-								}
-								$date3      = date_create(date('Y-m-d', strtotime($outlet->start_date)));
-								$date4      = date_create($ends);
-								$diff       = date_diff($date3, $date4);
-								$outlet_age = $diff->y * 12 + $diff->m;
-								if($outlet_age < $proteksi_outlet['range']){
-									if($proteksi_outlet['value']>$incentive->amount_proteksi){
-										$nama_proteksi = "Protection Outlet";
-									}
-								} 
-							}
-						}
+                        $nama_proteksi = "Protection Attendance";
+                            if($proteksi){
+                                    $outlet = Outlet::join('locations','locations.id_location','outlets.id_location')->where('id_outlet',$hs->id_outlet)->first();
+                                    if(isset($outlet->start_date)){
+                                            $nominals = $incentive->amount_proteksi;
+                                            $proteksi_outlet = json_decode($proteksi['value_text']??[],true);
+                                            $group = HairstylistGroupProteksi::where(array('id_hairstylist_group'=>$hs->id_hairstylist_group))->first();
+                                            if(isset($group['value'])){
+                                                    $proteksi_outlet['value'] = $group['value'];
+                                            }
+                                            $date3      = date_create(date('Y-m-d', strtotime($outlet->start_date)));
+                                            $date4      = date_create($ends);
+                                            $diff       = date_diff($date3, $date4);
+                                            $outlet_age = $diff->y * 12 + $diff->m;
+                                            if($outlet_age < $proteksi_outlet['range']){
+                                                    if($proteksi_outlet['value']>$incentive->amount_proteksi){
+                                                            $nama_proteksi = "Protection Outlet";
+                                                    }
+                                            } 
+                                    }
+                            }
                     }
                 }
             }

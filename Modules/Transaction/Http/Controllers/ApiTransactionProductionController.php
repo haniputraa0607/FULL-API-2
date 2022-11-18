@@ -363,15 +363,18 @@ class ApiTransactionProductionController extends Controller
 
             $fail = false;
             $date_trans = date('Y-m-d', strtotime($date ?: '-1 days'));
-            $transactions = Transaction::join('transaction_products','transaction_products.id_transaction','transactions.id_transaction')
-            ->whereDate('transactions.transaction_date', '>=', $date_trans)->whereDate('transactions.transaction_date', '<=', $date_trans)
-            ->get()->toArray();
+            $transactions = Transaction::select('transaction_products.id_transaction_product', 'transaction_products.id_product', 'transaction_product_services.id_user_hair_stylist', 'transaction_product_subtotal')
+                ->join('transaction_products','transaction_products.id_transaction','transactions.id_transaction')
+                ->join('transaction_product_services','transaction_products.id_transaction_product','transaction_product_services.id_transaction_product')
+                ->whereDate('transaction_product_services.completed_at', $date_trans)
+                ->get()
+                ->toArray();
 
             $transactions = array_map(function($val){
                 if(!isset($val['id_user_hair_stylist']) && empty($val['id_user_hair_stylist'])){
                     $val['id_user_hair_stylist'] = TransactionProductService::where('id_transaction_product',$val['id_transaction_product'])->first()['id_user_hair_stylist'] ?? null;
-                    return $val;
                 }
+                return $val;
             },$transactions);
 
             $data = [];

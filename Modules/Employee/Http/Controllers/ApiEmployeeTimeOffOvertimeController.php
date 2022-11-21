@@ -1693,7 +1693,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                     }
 
                     //check anothet ovt
-                    $check_another = EmployeeOvertime::whereNot('id_employee_overtime', $post['id_employee_overtime'])
+                    $check_another = EmployeeOvertime::where('id_employee_overtime', '<>',$post['id_employee_overtime'])
                     ->where('id_employee',$check['id_employee'])
                     ->whereDate('date',$get_schedule_date['date'])
                     ->WhereNotNull('approve_at')->whereNotNull('approve_by')->whereNull('reject_at')

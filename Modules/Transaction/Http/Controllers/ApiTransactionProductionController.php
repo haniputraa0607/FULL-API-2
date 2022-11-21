@@ -360,7 +360,7 @@ class ApiTransactionProductionController extends Controller
         $log = MyHelper::logCron('Check Commission Hair Stylist');
         try{
             DB::beginTransaction();
-            
+
             $fail = false;
             $date_trans = date('Y-m-d', strtotime($date ?: '-1 days'));
             $transactions = Transaction::select('transaction_products.id_transaction_product', 'transaction_products.id_product', 'transaction_product_services.id_user_hair_stylist', 'transaction_product_subtotal')
@@ -516,7 +516,7 @@ class ApiTransactionProductionController extends Controller
             return response()->json(['status' => 'success']);
 
         }catch (\Exception $e) {
-            DB::rollBack();
+            // DB::rollBack();
             $log->fail($e->getMessage());
         }  
         

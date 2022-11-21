@@ -1021,12 +1021,10 @@ class ApiIncome extends Controller
                     $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
                     $total_income -= $values['value'];
                 }
-                $proteksi = HairstylistIncome::calculateGenerateIncomeProtec($hs, $request['start_date'],$request['end_date'],$id_outlet);
-                if ($total_income<$proteksi['value']) {
-                    $keterangan = $proteksi['name'];
-                    $total_income = $proteksi['value'];
-                } else {
-                    $keterangan = "Non Proteksi";
+               $proteksi = HairstylistIncome::calculateGenerateIncomeProtec($hs, $request['start_date'],$request['end_date'],$id_outlet);
+                $keterangan = "Non Protection";
+                if($proteksi['name']){
+                         $keterangan = $proteksi['name'];
                 }
                 
                 $data['Total imbal jasa'] = (string) $total_income;

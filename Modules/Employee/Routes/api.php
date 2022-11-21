@@ -339,8 +339,6 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
 
 Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_agent', 'scopes:employee-apps'], 'prefix' => 'employee'], function () {
     Route::get('announcement','ApiEmployeeAnnouncementController@announcementList');
-    Route::get('splash','ApiEmployeeController@splash');
-
     Route::group(['prefix' => 'attendance'], function () {
         Route::get('live','ApiEmployeeAttendanceController@liveAttendance');
         Route::post('live','ApiEmployeeAttendanceController@storeLiveAttendance');
@@ -474,9 +472,9 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
     });
 });
 
-// Route::group([ 'middleware' => ['auth_client', 'scopes:employee-apps'], 'prefix' => 'employee'], function () {
-//     Route::get('splash','ApiEmployeeAppController@splash');
-// });
+ Route::group([ 'middleware' => ['log_activities_employee_apps','auth_client', 'scopes:employee-apps'], 'prefix' => 'employee'], function () {
+     Route::get('splash','ApiEmployeeAppController@splash');
+ });
 
 Route::group(['prefix' => '/icount/reimbursement'], function() {
     Route::post('/callback','ApiBeEmployeeReimbursementController@callbackreimbursement')->middleware('auth_pos2:PurchaseInvoiceID,status,date_disburse');

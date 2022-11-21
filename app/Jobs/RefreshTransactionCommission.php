@@ -35,19 +35,19 @@ class RefreshTransactionCommission implements ShouldQueue
     {
         $start_date  = $this->data['start_date'];
         $end_date    = $this->data['end_date'];
-        $transactions = Transaction::whereNotNull('id_outlet')
-            ->with('transaction_products')
-            ->whereNotNull('id_user')
-            ->whereDate('transaction_date', '>=', $start_date)
-            ->whereDate('transaction_date', '<=', $end_date)
-            ->get();
+        // $transactions = Transaction::whereNotNull('id_outlet')
+        //     ->with('transaction_products')
+        //     ->whereNotNull('id_user')
+        //     ->whereDate('transaction_date', '>=', $start_date)
+        //     ->whereDate('transaction_date', '<=', $end_date)
+        //     ->get();
         Setting::where('key', 'Refresh Commission Transaction')->update(['value' => 'process']);
-        foreach ($transactions ?? [] as $key => $val) {
-            $transaction_products = $val->transaction_products;
-            foreach ($transaction_products ?? [] as $key => $trx) {
-                $trx->breakdown();
-            }
-        }
+        // foreach ($transactions ?? [] as $key => $val) {
+        //     $transaction_products = $val->transaction_products;
+        //     foreach ($transaction_products ?? [] as $key => $trx) {
+        //         $trx->breakdown();
+        //     }
+        // }
         $curDate = date('Y-m-d', strtotime($start_date));
         $lastDate = date('Y-m-d', strtotime($end_date));
         while ($curDate <= $lastDate && $curDate != date('Y-m-d')) {

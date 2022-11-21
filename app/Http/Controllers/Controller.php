@@ -27,6 +27,7 @@ use App\Lib\MyHelper;
 use Modules\Recruitment\Entities\HairstylistSalesPayment;
 use Modules\Employee\Entities\EmployeePerubahanData;
 use Modules\Employee\Entities\DesingRequest;
+use Cache;
 
 class Controller extends BaseController
 {

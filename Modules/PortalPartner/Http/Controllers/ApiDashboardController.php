@@ -32,8 +32,8 @@ class ApiDashboardController extends Controller
                        ->where('transactions.reject_at', NULL)
                        ->where('transactions.transaction_payment_status', 'Completed')
                        ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
-                       ->join('transaction_product_services', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
                        ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+                       ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
                        ->join('products','products.id_product','transaction_products.id_product')
                       ->groupby('transaction_products.id_product')
                        ->select('products.product_name as network','products.product_code',
@@ -190,7 +190,7 @@ class ApiDashboardController extends Controller
                        ->where('transactions.transaction_payment_status', 'Completed')
                        ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
                        ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
-                       ->join('transaction_product_services', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
+                        ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
                        ->select('transaction_product_services.id_user_hair_stylist')
                        ->distinct()
                        ->get();
@@ -200,8 +200,8 @@ class ApiDashboardController extends Controller
                        ->where('transactions.reject_at', NULL)
                        ->where('transactions.transaction_payment_status', 'Completed')
                        ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
-                       ->join('transaction_product_services', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
                        ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+                       ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
                        ->select(DB::raw('
                                         sum(
                                        CASE WHEN
@@ -242,16 +242,16 @@ class ApiDashboardController extends Controller
                    $date_lastyear_awal = date('Y-m-01',strtotime('+'.$i.'month'.'- 1 year'.$request->dari));
 		   $date_lastyear_akhir = date('Y-m-t',strtotime('+'.$i.'month'.'- 1 year'.$request->dari));
                    
-                   if($i==0){
-                   $date_now_awal = date('Y-m-d',strtotime('+'.$i.'month'.$request->dari));
-                   $date_before_awal = date('Y-m-d',strtotime('+'.$i.'month'.'- 1 month'.$request->dari));
-                   $date_lastyear_awal = date('Y-m-d',strtotime('+'.$i.'month'.'- 1 year'.$request->dari));
-		   }
-                   if($dates == date('M Y',strtotime($request->sampai))){
-                       $date_now_akhir = date('Y-m-d',strtotime($request->sampai));
-                       $date_before_akhir = date('Y-m-d',strtotime('- 1 month'.$request->sampai));
-                       $date_lastyear_akhir = date('Y-m-d',strtotime('- 1 year'.$request->sampai));
-                   }
+//                   if($i==0){
+//                   $date_now_awal = date('Y-m-d',strtotime('+'.$i.'month'.$request->dari));
+//                   $date_before_awal = date('Y-m-d',strtotime('+'.$i.'month'.'- 1 month'.$request->dari));
+//                   $date_lastyear_awal = date('Y-m-d',strtotime('+'.$i.'month'.'- 1 year'.$request->dari));
+//		   }
+//                   if($dates == date('M Y',strtotime($request->sampai))){
+//                       $date_now_akhir = date('Y-m-d',strtotime($request->sampai));
+//                       $date_before_akhir = date('Y-m-d',strtotime('- 1 month'.$request->sampai));
+//                       $date_lastyear_akhir = date('Y-m-d',strtotime('- 1 year'.$request->sampai));
+//                   }
                    $n_now = Transaction::where(array('transactions.id_outlet'=>$request->id_outlet))
                        ->whereDate('transactions.transaction_date', '>=', $date_now_awal)->whereDate('transactions.transaction_date', '<=', $date_now_akhir)
                        ->where('transaction_outlet_services.reject_at', NULL)

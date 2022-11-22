@@ -276,6 +276,10 @@ class ApiEmployeeScheduleController extends Controller
                     $create_schedule = EmployeeSchedule::create($array_hs);
                     if(!$create_schedule){
                         DB::rollback();
+                        return response()->json([
+                            'status' => 'fail', 
+                            'messages' => 'Failed to create'
+                        ]);
                     }
                     if(isset($hs['id_employee_office_hour']) && !empty($hs['id_employee_office_hour'])){
                         $shift = EmployeeOfficeHour::join('roles','roles.id_employee_office_hour','employee_office_hours.id_employee_office_hour')
@@ -287,6 +291,12 @@ class ApiEmployeeScheduleController extends Controller
                         $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
                         if($setting_default){
                             $default_office = EmployeeOfficeHour::where('id_employee_office_hour',$setting_default['value'])->first();
+                        }else{
+                            DB::rollback();
+                            return response()->json([
+                                'status' => 'fail', 
+                                'messages' => 'Cant find employee office hour, please set employee office hour first'
+                            ]);
                         }
                     }
                    

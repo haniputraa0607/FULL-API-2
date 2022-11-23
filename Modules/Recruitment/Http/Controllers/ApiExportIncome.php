@@ -108,12 +108,12 @@ class ApiExportIncome extends Controller
                 $dataExport = $data['result'];
                 $store = (new PayrollExport($dataExport))->store($directory); 
                 if ($store) {
-                    $path = storage_path('app/'.$directory);
-                    $contents = File::get($path);
-                    if(config('configs.STORAGE') != 'local'){
-                        $store = Storage::disk(config('configs.STORAGE'))->put($directory, $contents, 'public');
-                        $delete = File::delete($path);
-                    }
+//                    $path = storage_path('app/'.$directory);
+//                    $contents = File::get($path);
+//                    if(config('configs.STORAGE') != 'local'){
+//                        $store = Storage::disk(config('configs.STORAGE'))->put($directory, $contents, 'public');
+//                        $delete = File::delete($path);
+//                    }
                     ExportPayrollQueue::where('id_export_payroll_queue', $id)->update(['url_export' => $directory, 'status_export' => 'Ready']);
                 }
 

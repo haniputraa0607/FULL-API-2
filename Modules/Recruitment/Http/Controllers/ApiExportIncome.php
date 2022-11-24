@@ -106,14 +106,8 @@ class ApiExportIncome extends Controller
                $excelFile = 'Export_'.strtotime(date('Y-m-d H:i:s')).mt_rand(0, 1000).time().'.xlsx';
                 $directory = 'hairstylist/export-payroll/'.$excelFile;
                 $dataExport = $data['result'];
-                $store = (new PayrollExport($dataExport))->store($directory); 
+                $store = (new PayrollExport($dataExport))->store($directory, null, null, ['visibility' => 'public']);
                 if ($store) {
-//                    $path = storage_path('app/'.$directory);
-//                    $contents = File::get($path);
-//                    if(config('configs.STORAGE') != 'local'){
-//                        $store = Storage::disk(config('configs.STORAGE'))->put($directory, $contents, 'public');
-//                        $delete = File::delete($path);
-//                    }
                     ExportPayrollQueue::where('id_export_payroll_queue', $id)->update(['url_export' => $directory, 'status_export' => 'Ready']);
                 }
 
@@ -121,30 +115,6 @@ class ApiExportIncome extends Controller
         }else{
             return false;
         }
-//    	 $excelFile = 'Transaction_['.$start.'_'.$end.']['.$getOutlet['outlet_code'].']_'.mt_rand(0, 1000).time().'.xlsx';
-//                $directory = 'franchise/report/transaction/'.$excelFile;
-//                $store  = (new MultipleSheetExport([
-//                    "Summary" => $summary,
-//                    "Calculation Fee" => $dataDisburse,
-//                    "Detail Transaction" => $generateTrx
-//                ]))->store($directory);
-//
-//
-//                if ($store) {
-//                	$path = storage_path('app/public/'.$directory);
-//                    $contents = File::get($path);
-//	                if(config('configs.STORAGE') != 'local'){
-//	                    $store = Storage::disk(config('configs.STORAGE'))->put($directory, $contents, 'public');
-//	                }
-//	                $delete = File::delete($path);
-//                    ExportFranchiseQueue::where('id_export_franchise_queue', $queue['id_export_franchise_queue'])->update(['url_export' => $directory, 'status_export' => 'Ready']);
-//                }
-//            }
-//
-//            return 'success';
-//        }else{
-//            return 'Outlet Not Found';
-//        }
     }
     public function deleteExport($id) {
         $queue = ExportPayrollQueue::where('id_export_payroll_queue', $id)->delete();

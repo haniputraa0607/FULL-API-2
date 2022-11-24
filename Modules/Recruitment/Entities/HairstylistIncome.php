@@ -2068,9 +2068,9 @@ class HairstylistIncome extends Model
         );
         
     }
-     public static function calculateGenerateIncomeProtec(UserHairStylist $hs, $startDate, $endDate,$total_income)
+     public static function calculateGenerateIncomeProtec(UserHairStylist $hs, $startDate, $endDate)
     {
-          
+          $total_income = 0;
           $date_end         = (int) MyHelper::setting('hs_income_cut_off_end_date', 'value')??null;
           $date_start         = (int)$date_end+1;
           $start_date =  date('Y-m-'.$date_start, strtotime($startDate));

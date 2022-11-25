@@ -194,7 +194,7 @@ class ApiPartnersController extends Controller
 
                         $data_loc = [
                             "name"   => $location['name'],
-                            "email"   => $location['email'],
+                            "email"   => $store['email'] ?? null,
                             "address"   => $location['address'],
                             "id_city"   => $location['id_city'],
                             "latitude"   => $location['latitude'],

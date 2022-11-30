@@ -259,6 +259,10 @@ class ApiPartnersController extends Controller
             $no = '0'.$no;
         }
         $no = $yearMonth.$no;
+        $check = Partner::where('code','like', $no)->get()->toArray();
+        if($check){
+            $this->partnerCode();
+        }
         return $no;
     }
 

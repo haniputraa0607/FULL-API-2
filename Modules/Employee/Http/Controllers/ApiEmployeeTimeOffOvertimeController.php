@@ -1070,6 +1070,10 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                 'notes'       => $post['notes']
             ];
 
+            if(!isset($data_overtime['notes']) && empty($data_overtime['notes'])){
+                return response()->json(['status' => 'fail', 'messages' => ['Keterangan wajib diisi']]);
+            }
+
             DB::beginTransaction();
             $store = EmployeeOvertime::create($data_overtime);
             

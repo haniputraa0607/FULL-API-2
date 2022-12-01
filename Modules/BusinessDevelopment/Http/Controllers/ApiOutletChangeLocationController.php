@@ -261,7 +261,7 @@ class ApiOutletChangeLocationController extends Controller
                 if($initBranch['response']['Status']=='1' && $initBranch['response']['Message']=='success'){
                     $data_init = $initBranch['response']['Data'][0];
                     $partner_init = [
-                        "id_business_partner" => $data_init['BusinessPartner']['BusinessPartnerID'],
+                        "id_business_partner" => $data_init['Branch']['OutletPartnerID'],
                         "id_company" => $data_init['BusinessPartner']['CompanyID'],
                         "id_sales_order" => $data_init['SalesOrderID'],
                         "voucher_no" => $data_init['VoucherNo'],

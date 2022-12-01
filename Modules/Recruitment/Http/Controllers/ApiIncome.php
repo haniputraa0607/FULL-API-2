@@ -490,14 +490,10 @@ class ApiIncome extends Controller
              return response()->json($e->getMessage());
         }
     }
-    public function export_periode(Request $request) {
-            $request->validate([
-                'id_outlet'         => 'required|array',
-                'start_date'        => 'required|date_format:Y-m',
-                'end_date'          => 'required|date_format:Y-m',
-            ]);
-          $startDate = $request->start_date;
-          $endDate   = $request->end_date;
+    public function export_periode($request) {
+         
+          $startDate = $request['start_date'];
+          $endDate   = $request['end_date'];
           $date_end         = (int) MyHelper::setting('hs_income_cut_off_end_date', 'value')??null;
           $date_start         = (int)$date_end+1;
           $start_date =  date('Y-m-'.$date_start, strtotime($startDate."-1 months"));
@@ -535,7 +531,7 @@ class ApiIncome extends Controller
           $array = array();
           foreach ($ar as $value) {
               $req = array(
-                  'id_outlet'=>$request->id_outlet,
+                  'id_outlet'=>$request['id_outlet'],
                   'start_date'=>$value['start'],
                   'end_date'=>$value['end'],
               );
@@ -1021,10 +1017,13 @@ class ApiIncome extends Controller
                     $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
                     $total_income -= $values['value'];
                 }
-               $proteksi = HairstylistIncome::calculateGenerateIncomeProtec($hs, $request['start_date'],$request['end_date'],$id_outlet);
+		$proteksi = HairstylistIncome::calculateGenerateIncomeProtec($hs, $request['start_date'],$request['end_date'],$id_outlet);
                 $keterangan = "Non Protection";
                 if($proteksi['name']){
                          $keterangan = $proteksi['name'];
+                }
+                if($proteksi['total_income']>$total_income){
+                         $total_income = $proteksi['total_income'];
                 }
                 
                 $data['Total imbal jasa'] = (string) $total_income;

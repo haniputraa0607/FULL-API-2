@@ -194,7 +194,7 @@ class ApiPartnersController extends Controller
 
                         $data_loc = [
                             "name"   => $location['name'],
-                            "email"   => $location['email'],
+                            "email"   => $store['email'] ?? null,
                             "address"   => $location['address'],
                             "id_city"   => $location['id_city'],
                             "latitude"   => $location['latitude'],
@@ -1057,7 +1057,7 @@ class ApiPartnersController extends Controller
                     }
                     $data_init = $initBranch['response']['Data'][0];
                     $partner_init = [
-                        "id_business_partner" => $data_init['BusinessPartner']['BusinessPartnerID'],
+                        "id_business_partner" => $data_init['Branch']['OutletPartnerID'],
                         "id_company" => $data_init['BusinessPartner']['CompanyID'],
                         "voucher_no" => $data_init['VoucherNo'],
                     ];
@@ -1073,7 +1073,7 @@ class ApiPartnersController extends Controller
                             "tax_value" => $data_init_ims['TaxValue'],
                             "netto" => $data_init_ims['Netto'],
                         ];
-                        $partner_init['id_business_partner_ima'] = $data_init_ims['BusinessPartner']['BusinessPartnerID'];
+                        $partner_init['id_business_partner_ima'] = $data_init_ims['Branch']['OutletPartnerID'];
                         $partner_init['id_sales_order'] = $data_init_ims['SalesOrderID'];
                         $partner_init['id_sales_order_detail'] = $data_init_ims['Detail'][0]['SalesOrderDetailID'];
                         $location_init['id_branch_ima'] = $data_init_ims['Branch']['BranchID'];
@@ -1815,7 +1815,7 @@ class ApiPartnersController extends Controller
 
                         if(!isset($data_send['partner']['id_business_partner_ima'])){
                             $partner_init['id_business_partner_ima'] = $data_send['partner']['id_business_partner'];
-                            $partner_init['id_business_partner'] = $data_init['BusinessPartner']['BusinessPartnerID'];
+                            $partner_init['id_business_partner'] = $data_init['Branch']['OutletPartnerID'];
                         }
 
                         $partner_init['id_sales_order'] = $data_init_ims['SalesOrderID'];

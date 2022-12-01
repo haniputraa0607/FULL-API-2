@@ -3416,4 +3416,7 @@ class MyHelper{
     	$formula = preg_replace('/([a-zA-Z][a-zA-Z0-9_]*)/', '$$1', $formula);
         return 'return '. $formula . ';';
     }
+    public static function getNameFromNumber($num) {
+      return \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($num);
+  }
 }

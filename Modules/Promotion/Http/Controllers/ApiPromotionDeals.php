@@ -949,7 +949,7 @@ class ApiPromotionDeals extends Controller
 		        }
 	    	}
     	}
-
+		
     	if ( $deals['is_offline'] == 1)
     	{
     		if ( empty($deals['deals_promo_id_type']) && empty($deals['deals_promo_id']) )
@@ -960,7 +960,7 @@ class ApiPromotionDeals extends Controller
 	    	}
     	}
 
-    	if ( empty($deals['deals_promotion_content']) || empty($deals['deals_description'])) {
+    	if (empty($deals['deals_description'])) {
     		$step = 3;
 	    	$errors = 'Deals Promotion not complete';
     		return false;

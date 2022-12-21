@@ -4,6 +4,7 @@ namespace Modules\Employee\Entities;
 
 use App\Http\Models\User;
 use App\Http\Models\Outlet;
+use Modules\Employee\Entities\EmployeeOvertimeDocument;
 use Illuminate\Database\Eloquent\Model;
 
 class EmployeeOvertime extends Model
@@ -31,8 +32,8 @@ class EmployeeOvertime extends Model
 		'approve_at',
 		'reject_at',
 		'id_assign',
-		'read'
-
+		'read',
+		'status'
 	];
 
     public function employee(){
@@ -50,4 +51,8 @@ class EmployeeOvertime extends Model
     public function request(){
         return $this->belongsTo(User::class, 'request_by');
     }
+
+	public function documents(){
+		return $this->hasMany(EmployeeOvertimeDocument::class, 'id_employee_overtime');
+	}
 }

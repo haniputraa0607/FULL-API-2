@@ -659,7 +659,7 @@ class ApiHairStylistScheduleController extends Controller
         $this_month = date('m');
 
         if($post['year'] >= (int)$this_year){
-            if($post['month'] >= $this_month){
+            if($post['month'] >= $this_month || ($post['month'] < $this_month && $post['year'] > (int)$this_year)){
                 $check_schedule = HairstylistSchedule::where('id_user_hair_stylist',$post['id_hs'])->where('schedule_month',$post['month'])->where('schedule_year',$post['year'])->first();
                 if(!$check_schedule){
                     $hs = UserHairStylist::where('id_user_hair_stylist',$post['id_hs'])->first();

@@ -4,6 +4,7 @@ namespace Modules\Employee\Entities;
 
 use App\Http\Models\User;
 use App\Http\Models\Outlet;
+use Modules\Employee\Entities\EmployeeTimeOffDocument;
 use Illuminate\Database\Eloquent\Model;
 
 class EmployeeTimeOff extends Model
@@ -32,7 +33,8 @@ class EmployeeTimeOff extends Model
 		'reject_at',
 		'use_quota_time_off',
 		'range',
-		'read'
+		'read',
+		'status'
 
 	];
 
@@ -51,4 +53,8 @@ class EmployeeTimeOff extends Model
     public function request(){
         return $this->belongsTo(User::class, 'request_by');
     }
+
+	public function documents(){
+		return $this->hasMany(EmployeeTimeOffDocument::class, 'id_employee_time_off');
+	}
 }

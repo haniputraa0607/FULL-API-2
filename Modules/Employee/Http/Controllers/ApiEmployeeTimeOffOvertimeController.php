@@ -320,7 +320,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
     {
         $post = $request->all();
         if(isset($post['id_employee_time_off']) && !empty($post['id_employee_time_off'])){
-            $time_off = EmployeeTimeOff::where('id_employee_time_off', $post['id_employee_time_off'])->with(['employee','outlet','approve','request'])->first();
+            $time_off = EmployeeTimeOff::where('id_employee_time_off', $post['id_employee_time_off'])->with(['employee','outlet','approve','request','documents'])->first();
             
             if($time_off==null){
                 return response()->json(['status' => 'success', 'result' => [
@@ -1069,6 +1069,10 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                 'request_at'  => date('Y-m-d'),
                 'notes'       => $post['notes']
             ];
+
+            if(!isset($data_overtime['notes']) && empty($data_overtime['notes'])){
+                return response()->json(['status' => 'fail', 'messages' => ['Keterangan wajib diisi']]);
+            }
 
             DB::beginTransaction();
             $store = EmployeeOvertime::create($data_overtime);

@@ -846,6 +846,10 @@ class ApiLocationsController extends Controller
             $no = '0'.$no;
         }
         $no = $yearMonth.$no;
+        $check = Location::where('code','like', $no)->get()->toArray();
+        if($check){
+            $this->locationCode();
+        }
         return $no;
     }
 

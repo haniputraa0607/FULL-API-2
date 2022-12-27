@@ -187,6 +187,7 @@ class ApiBeEmployeeProfileController extends Controller
                ->update([
                    $data->key => $data->change_data,
                ]);
+
            $update_icount = app('\Modules\Employee\Http\Controllers\ApiBeEmployeeController')->update_icount($data->id_user);
        }
        
@@ -325,7 +326,20 @@ class ApiBeEmployeeProfileController extends Controller
     }
 
     public function getColumn(){
-        $data = Schema::getColumnListing('users'); // users table
+        $data = [
+            'name',
+            'email',
+            'gender',
+            'birthday',
+            'birthplace',
+            'email',
+            'marital_status',
+            'religion',
+            'card_number',
+            'address_ktp',
+            'address_domicile',
+            'blood_type',
+        ];
         return MyHelper::checkGet($data);
     }
 

@@ -613,7 +613,7 @@ class ApiEmployeeChangeShiftController extends Controller
                         }
                     }
 
-                    $user_employee = User::join('employee_change_shifts','employee_change_shifts.id_employee','users.id')->where('employee_change_shifts.id_employee_change_shift',$post['id_employee_change_shift'])->first();
+                    $user_employee = User::join('employee_change_shifts','employee_change_shifts.id_user','users.id')->where('employee_change_shifts.id_employee_change_shift',$post['id_employee_change_shift'])->first();
                     $office = Outlet::where('id_outlet',$user_employee['id_outlet'])->first();
                     $approve_by = null;
                     if(isset($data_update['id_approve']) && !empty($data_update['id_approve'])){

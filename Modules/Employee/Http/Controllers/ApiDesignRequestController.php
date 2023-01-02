@@ -49,6 +49,13 @@ class ApiDesignRequestController extends Controller
             $user_sends = User::join('roles_features','roles_features.id_role', 'users.id_role')->where('id_feature',
             552)->get()->toArray();
             $employee = $request->user();
+            
+            if(isset($employee['id_outlet']) && !empty($employee['id_outlet'])){
+                $outlet = Outlet::where('id_outlet',$employee['id_outlet'])->first();
+            }else{
+                $outlet = [];
+            }
+            
             foreach($user_sends ?? [] as $user_send){
                 $autocrm = app($this->autocrm)->SendAutoCRM(
                     'A New Design Request Created',
@@ -56,7 +63,7 @@ class ApiDesignRequestController extends Controller
                     [
                         'name_employee' => $employee['name'],
                         'phone_employee' => $employee['phone'],
-                        'name_office' => $outlet['outlet_name'],
+                        'name_office' => $outlet['outlet_name']??'No Outlet',
                     ], null, false, false, 'employee'
                 );
             }
@@ -221,7 +228,7 @@ class ApiDesignRequestController extends Controller
 
             $user_employee = User::join('design_requests','design_requests.id_request','users.id')->where('design_requests.id_design_request',$post['id_design_request'])->first();
             $office = Outlet::where('id_outlet',$user_employee['id_outlet'])->first();
-            if($data_update['status'] != 'Pending' && $data_update['status'] != 'Provided'){
+            if($data_update['status'] != 'Pending' && $data_update['status'] != 'Provided' && $data_update['status'] != 'Finished'){
                 $approve_by = null;
                 if(isset($data_update['id_approve']) && !empty($data_update['id_approve'])){
                     $approve_by = User::where('id',$data_update['id_approve'])->first() ?? null;

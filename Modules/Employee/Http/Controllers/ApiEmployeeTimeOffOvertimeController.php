@@ -13,6 +13,7 @@ use DB;
 use App\Lib\MyHelper;
 use Modules\Employee\Entities\EmployeetAttendance;
 use Modules\Employee\Entities\EmployeeTimeOff;
+use Modules\Employee\Entities\EmployeeTimeOffDocument;
 use Modules\Employee\Entities\EmployeeTimeOffImage;
 use Modules\Employee\Entities\EmployeeOvertime;
 use Modules\Employee\Entities\EmployeeNotAvailable;
@@ -33,6 +34,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
             $this->autocrm  = "Modules\Autocrm\Http\Controllers\ApiAutoCrm";
         }
         $this->time_off = "img/employee/time_off/";
+        $this->time_off_approve = "img/employee/time_off_approve/";
     }
 
     public function listTimeOff(Request $request)
@@ -353,11 +355,6 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
             if(isset($post['id_employee'])){
                 $data_update['id_employee'] = $post['id_employee'];
             }
-            if(isset($post['id_outlet'])){
-                $data_update['id_outlet'] = $post['id_outlet'];
-            }else{
-                $data_update['id_outlet'] = $get_data['id_outlet'];
-            }
             if(isset($post['start_date'])){
                 $data_update['start_date'] = $post['start_date'];
             }
@@ -367,20 +364,61 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
             if(isset($post['approve_notes'])){
                 $data_update['approve_notes'] = $post['approve_notes'];
             }
+            if(isset($post['type'])){
+                $data_update['status'] = $post['type'];
+
+                if($post['type'] == 'Manager Approved'){
+                    if(isset($post['use_quota_time_off'])){
+                        $data_update['use_quota_time_off'] = 1;
+                    }else{
+                        $data_update['use_quota_time_off'] = 0;
+                    }
+                    if(isset($post['id_outlet'])){
+                        $data_update['id_outlet'] = $post['id_outlet'];
+                    }else{
+                        $data_update['id_outlet'] = $get_data['id_outlet'];
+                    }
+                }
+            }
             if(isset($post['approve'])){
                 $data_update['approve_by'] = $post['id_approve'] ?? auth()->user()->id;
                 $data_update['approve_at'] = date('Y-m-d');
             }
-            if(isset($post['use_quota_time_off'])){
-                $data_update['use_quota_time_off'] = 1;
-            }else{
-                $data_update['use_quota_time_off'] = 0;
-            }
+            
             
             if($data_update){
                 DB::beginTransaction();
                 $update = EmployeeTimeOff::where('id_employee_time_off',$post['id_employee_time_off'])->update($data_update);
                 if(!$update){
+                    DB::rollBack();
+                    return response()->json([
+                        'status' => 'success', 
+                        'messages' => ['Failed to updated a request employee time off']
+                    ]);
+                }
+                //doc
+                $dataDoc = [
+                    'id_user_approved' => $post['id_approve'] ?? auth()->user()->id,
+                    'date' => date('Y-m-d')
+                ];
+                if(isset($post['notes'])){
+                    $dataDoc['notes'] = $post['notes'];
+                }
+                if (isset($post['attachment']) && !empty($post['attachment'])) {
+                    $upload = MyHelper::uploadFile($post['attachment'], $this->time_off_approve, 'pdf');
+                    if (isset($upload['status']) && $upload['status'] == "success") {
+                        $dataDoc['attachment'] = $upload['path'];
+                    } else {
+                        $result = [
+                            'error'    => 1,
+                            'status'   => 'fail',
+                            'messages' => ['fail upload file']
+                        ];
+                        return $result;
+                    }
+                }
+                $storeDoc = EmployeeTimeOffDocument::updateOrCreate(['id_employee_time_off' => $post['id_employee_time_off'], 'type' => $post['type']],$dataDoc);
+                if(!$storeDoc){
                     DB::rollBack();
                     return response()->json([
                         'status' => 'success', 
@@ -579,6 +617,25 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                 ]);
             }
             
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+        }
+    }
+
+    public function rejectTimeOff(Request $request){
+        $post = $request->all();
+        if($post['type'] == 'Director Approved'){
+            $updateData = [
+                'status' => 'Pending'
+            ];
+        }elseif($post['type'] == 'HRGA Approved'){
+            $updateData = [
+                'status' => 'Manager Approved'
+            ];
+        }
+        $update = EmployeeTimeOff::where('id_employee_time_off', $post['id_employee_time_off'])->update($updateData);
+        if($update){
+            return response()->json(['status' => 'success']);
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }

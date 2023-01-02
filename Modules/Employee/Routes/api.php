@@ -165,6 +165,7 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('list', 'ApiEmployeeTimeOffOvertimeController@listTimeOff');
         Route::post('delete', 'ApiEmployeeTimeOffOvertimeController@deleteTimeOff');
         Route::post('detail', 'ApiEmployeeTimeOffOvertimeController@detailTimeOff');
+        Route::post('reject', 'ApiEmployeeTimeOffOvertimeController@rejectTimeOff');
         Route::post('update', 'ApiEmployeeTimeOffOvertimeController@updateTimeOff');
         Route::post('create', 'ApiEmployeeTimeOffOvertimeController@createTimeOff');
         Route::post('list-employee', 'ApiEmployeeTimeOffOvertimeController@listEmployee');

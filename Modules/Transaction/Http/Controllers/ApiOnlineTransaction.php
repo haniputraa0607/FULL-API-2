@@ -10,7 +10,7 @@ use App\Jobs\FraudJob;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
-
+use Auth;
 use App\Http\Models\Setting;
 use App\Http\Models\Product;
 use App\Http\Models\ProductPrice;
@@ -142,8 +142,16 @@ class ApiOnlineTransaction extends Controller
         $this->promo_trx = "Modules\Transaction\Http\Controllers\ApiPromoTransaction";
     }
 
-    public function newTransaction(NewTransaction $request) {
+   public function newTransaction(NewTransaction $request) {
         $post = $request->json()->all();
+        if(!Auth::user()->custom_name){
+            if(!empty($post['customer_name'])){
+                return response()->json([
+                    'status'    => 'fail',
+                    'messages'  => ['Outlet Account is not custom name type']
+                ]);
+            }
+        }
         if(empty($post['transaction_from'])){
             return response()->json([
                 'status'    => 'fail',
@@ -386,14 +394,13 @@ class ApiOnlineTransaction extends Controller
         //check data customer
         if(empty($post['customer']) || empty($post['customer']['name'])){
             $post['customer'] = [
-                "name" => $user['name'],
-                "email" => $user['email'],
-                "domicile" => $user['city_name'],
+                "name" => $post['customer_name']??$user['name'],
+                "email" => $post['customer_name']??$user['email'],
+                "domicile" => $post['customer_name']??$user['city_name'],
                 "birthdate" => date('Y-m-d', strtotime($user['birthday'])),
                 "gender" => $user['gender'],
             ];
         }
-
         $config_fraud_use_queue = Configs::where('config_name', 'fraud use queue')->first()->is_active;
 
         if (count($user['memberships']) > 0) {
@@ -657,7 +664,12 @@ class ApiOnlineTransaction extends Controller
             'longitude'                   => $post['longitude']??null,
             'void_date'                   => null,
             'transaction_from'            => $post['transaction_from'],
-            'scope'                       => $scopeUser??null
+            'scope'                       => $scopeUser??null,
+            'customer_name'               => $post['customer_name']??$user['name'],
+                'customer_email' => $post['customer']['email']??$user['email'],
+                'customer_domicile' => $post['customer']['domicile']??$user['domicile'],
+                'customer_birtdate' => $post['customer']['birthdate']??$user['birthdate'],
+                'customer_gender' => $post['customer']['gender']??$user['gender']
         ];
 
         if($request->user()->complete_profile == 1){
@@ -702,13 +714,12 @@ class ApiOnlineTransaction extends Controller
         if($post['transaction_from'] == 'outlet-service'){
             $createOutletService = TransactionOutletService::create([
                 'id_transaction' => $insertTransaction['id_transaction'],
-                'customer_name' => $post['customer']['name'],
-                'customer_email' => $post['customer']['email'],
-                'customer_domicile' => $post['customer']['domicile'],
-                'customer_birtdate' => $post['customer']['birthdate'],
-                'customer_gender' => $post['customer']['gender']
+                'customer_name' => $post['customer_name']??$user['name'],
+                'customer_email' => $post['customer']['email']??$user['email'],
+                'customer_domicile' => $post['customer']['domicile']??$user['domicile'],
+                'customer_birtdate' => $post['customer']['birthdate']??$user['birthdate'],
+                'customer_gender' => $post['customer']['gender']??$user['gender']
             ]);
-
             if (!$createOutletService) {
                 DB::rollback();
                 return response()->json([
@@ -1071,6 +1082,10 @@ class ApiOnlineTransaction extends Controller
      * @return View                    [description]
      */
     public function checkTransaction(Request $request) {
+        $result['custom_name'] = false;
+        if(Auth::user()->custom_name){
+            $result['custom_name'] = true;
+        }
         $post = $request->json()->all();
         if(empty($post['transaction_from'])){
             return response()->json([
@@ -2015,7 +2030,6 @@ class ApiOnlineTransaction extends Controller
                 unset($post['item_service'][$key]);
                 continue;
             }
-
             $allUse = ($tempStock[$service['id_product']]??0) + 1;
             $tempStock[$service['id_product']] = $allUse;
             if(!is_null($getProductDetail['product_detail_stock_item']) && $allUse > $getProductDetail['product_detail_stock_item']){
@@ -2023,7 +2037,6 @@ class ApiOnlineTransaction extends Controller
                 unset($post['item_service'][$key]);
                 continue;
             }
-
             if($outlet['outlet_different_price'] == 1){
                 $service['product_price'] = ProductSpecialPrice::where('id_product', $item['id_product'])
                     ->where('id_outlet', $outlet['id_outlet'])->first()['product_special_price']??0;
@@ -2041,7 +2054,7 @@ class ApiOnlineTransaction extends Controller
             }
 
             $bookTime = date('Y-m-d H:i', strtotime(date('Y-m-d', strtotime($item['booking_date'])).' '.date('H:i', strtotime($item['booking_time']))));
-
+            
             //check available hs
             $hs = UserHairStylist::where('id_user_hair_stylist', $item['id_user_hair_stylist'])->where('user_hair_stylist_status', 'Active')->first();
             if(empty($hs)){
@@ -2056,7 +2069,6 @@ class ApiOnlineTransaction extends Controller
                 unset($post['item_service'][$key]);
                 continue;
             }
-
             if(strtotime($currentDate) > strtotime($bookTime)){
                 $errorBookTime[] = $item['user_hair_stylist_name']." (".MyHelper::dateFormatInd($bookTime).')';
                 unset($post['item_service'][$key]);
@@ -4338,7 +4350,7 @@ class ApiOnlineTransaction extends Controller
         $shiftStart = date('H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($shift['time_start'])));
         $shiftEnd = date('H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($shift['time_end'])));
 
-        if($data['booking_date'] == date('Y-m-d') && strtotime($data['booking_time']) >= strtotime($shiftStart) && strtotime($data['booking_time']) < strtotime($shiftEnd)){
+        if($data['booking_date'] == date('Y-m-d') && strtotime($data['booking_time']) < strtotime($shiftEnd)){
             $clockInOut = HairstylistAttendance::where('id_user_hair_stylist', $data['id_user_hair_stylist'])
                 ->where('id_hairstylist_schedule_date', $shift['id_hairstylist_schedule_date'])->orderBy('updated_at', 'desc')->first();
 

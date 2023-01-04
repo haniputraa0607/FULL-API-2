@@ -3,7 +3,7 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefi
     Route::post('/', ['middleware'=>['scopes:be'],'uses' => 'ApiTransaction@exportTransaction']);
 });
 Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefix' => 'api/cobapoo', 'namespace' => 'Modules\Transaction\Http\Controllers'], function() {
-    Route::post('/', ['middleware'=>['scopes:be'],'uses' => 'ApiTransaction@CronHomeServiceICountPOO']);
+    Route::post('/', ['middleware'=>['scopes:be'],'uses' => 'ApiTransactionProductionController@CronBreakdownCommission']);
 });
 Route::group(['middleware' => ['auth:api'],'prefix' => 'api/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
     Route::any('hs-location', 'ApiTransactionHomeService@getHSLocation');
@@ -283,5 +283,6 @@ Route::group(['prefix' => 'api/transaction', 'middleware' => ['log_activities', 
 Route::group(['prefix' => 'api/icount/disburse', 'namespace' => 'Modules\Transaction\Http\Controllers'], function() {
     Route::post('/callback','ApiTransaction@callbacksharing')->middleware('auth_pos2:PurchaseInvoiceID,status,date_disburse');
     Route::post('/signature','ApiTransaction@signature');
+    Route::post('/signature/cash-advance','ApiTransaction@signature_cash_advance');
     Route::post('/signature/loan','ApiTransaction@signature_loan');
 });

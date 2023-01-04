@@ -51,9 +51,14 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('create', 'ApiBeEmployeeController@create');
         Route::post('candidate', 'ApiBeEmployeeController@candidate');
         Route::post('detail', 'ApiBeEmployeeController@candidateDetail');
+        Route::post('delete-custom-link', 'ApiBeEmployeeController@deleteCustomLink');
+        Route::post('add-custom-link', 'ApiBeEmployeeController@addCustomLink');
         Route::post('update', 'ApiBeEmployeeController@update');
         Route::post('complement', 'ApiBeEmployeeController@complement');
+        Route::post('evaluation', 'ApiBeEmployeeController@employeeEvaluation');
+        Route::post('evaluation/delete', 'ApiBeEmployeeController@employeeEvaluationDelete');
         Route::post('manager', 'ApiBeEmployeeController@manager');
+        Route::post('cron', 'ApiBeEmployeeController@cronInputFormEval');
         Route::post('create-business-partner', 'ApiBeEmployeeController@createBusinessPartner');
     });
     Route::group(['prefix' => 'be/question'], function(){
@@ -79,6 +84,9 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('/detail', 'ApiBeEmployeeProfileController@detail_perubahan_data');
         Route::post('/list', 'ApiBeEmployeeProfileController@perubahan_data_list');
         Route::post('/update', 'ApiBeEmployeeProfileController@update_perubahan_data');
+        Route::get('/users-column', 'ApiBeEmployeeProfileController@getColumn');
+        Route::get('/category', 'ApiBeEmployeeProfileController@categoryUpdateData');
+        Route::post('/category/create', 'ApiBeEmployeeProfileController@createCategoryUpdateData');
       });
      Route::group(['prefix' => 'faq'], function(){
         Route::post('/', 'ApiBeEmployeeProfileController@faq');
@@ -157,6 +165,7 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('list', 'ApiEmployeeTimeOffOvertimeController@listTimeOff');
         Route::post('delete', 'ApiEmployeeTimeOffOvertimeController@deleteTimeOff');
         Route::post('detail', 'ApiEmployeeTimeOffOvertimeController@detailTimeOff');
+        Route::post('reject', 'ApiEmployeeTimeOffOvertimeController@rejectTimeOff');
         Route::post('update', 'ApiEmployeeTimeOffOvertimeController@updateTimeOff');
         Route::post('create', 'ApiEmployeeTimeOffOvertimeController@createTimeOff');
         Route::post('list-employee', 'ApiEmployeeTimeOffOvertimeController@listEmployee');
@@ -170,6 +179,22 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('create', 'ApiEmployeeTimeOffOvertimeController@createOvertime');
         Route::post('delete', 'ApiEmployeeTimeOffOvertimeController@deleteOvertime');
     });
+
+    Route::group(['prefix' => 'change-shift'], function () {	
+        Route::post('list', 'ApiEmployeeChangeShiftController@listChangeShift');	
+        Route::post('delete', 'ApiEmployeeChangeShiftController@deleteChangeShift');	
+        Route::post('detail', 'ApiEmployeeChangeShiftController@detailChangeShift');	
+        Route::post('update', 'ApiEmployeeChangeShiftController@updateChangeShift');	
+        Route::post('list-date', 'ApiEmployeeChangeShiftController@listDate');	
+        Route::post('list-shift', 'ApiEmployeeChangeShiftController@listShift');	
+    });	
+    Route::group(['prefix' => 'design-request'], function () {	
+        Route::post('list', 'ApiDesignRequestController@listDesignRequest');	
+        Route::post('create', 'ApiDesignRequestController@storeDesignRequest');	
+        Route::post('update', 'ApiDesignRequestController@updateDesignRequest');	
+        Route::post('detail', 'ApiDesignRequestController@detailDesignRequest');	
+        Route::post('delete', 'ApiEmployeeTimeOffOvertimeController@deleteOvertime');	
+    });
     
     Route::group(['prefix' => 'be/reimbursement'], function () {
         Route::post('/','ApiBeEmployeeReimbursementController@index');
@@ -179,6 +204,27 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('/list','ApiBeEmployeeReimbursementController@list');
         Route::post('/detail','ApiBeEmployeeReimbursementController@detail');
         Route::post('/approved','ApiBeEmployeeReimbursementController@approved');
+        Route::post('/dropdown','ApiBeEmployeeReimbursementController@dropdown');
+        Route::post('/list_dropdown','ApiBeEmployeeReimbursementController@list_dropdown');
+        Route::post('/dropdown/create','ApiBeEmployeeReimbursementController@create_dropdown');
+        Route::post('/dropdown/update','ApiBeEmployeeReimbursementController@update_dropdown');
+        Route::post('/dropdown/detail','ApiBeEmployeeReimbursementController@detail_dropdown');
+        Route::post('/dropdown/delete','ApiBeEmployeeReimbursementController@delete_dropdown');
+         });
+    Route::group(['prefix' => 'be/cash-advance'], function () {
+        Route::post('/','ApiBeEmployeeCashAdvanceController@index');
+        Route::post('/manager','ApiBeEmployeeCashAdvanceController@manager');
+        Route::post('/update','ApiBeEmployeeCashAdvanceController@update');
+        Route::post('/manager/detail','ApiBeEmployeeCashAdvanceController@detail');
+        Route::post('/list','ApiBeEmployeeCashAdvanceController@list');
+        Route::post('/detail','ApiBeEmployeeCashAdvanceController@detail');
+        Route::post('/approved','ApiBeEmployeeCashAdvanceController@approved');
+        Route::post('/reject','ApiBeEmployeeCashAdvanceController@reject');
+        Route::post('/icount','ApiBeEmployeeCashAdvanceController@icount');
+        Route::post('/dropdown','ApiBeEmployeeCashAdvanceController@dropdown');
+        Route::post('/list_dropdown','ApiBeEmployeeCashAdvanceController@list_dropdown');
+        Route::post('/dropdown/create','ApiBeEmployeeCashAdvanceController@create_dropdown');
+        Route::post('/dropdown/delete','ApiBeEmployeeCashAdvanceController@delete_dropdown');
          });
     Route::group(['prefix' => 'role'], function () {
             Route::any('/', ['middleware' => 'feature_control:393','uses' =>'ApiRoleController@index']);
@@ -189,6 +235,9 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
             Route::any('list-default-salary-cut', ['middleware' => 'feature_control:396','uses' =>'ApiRoleController@list_default_salary_cut']);
             Route::post('/basic-salary', ['middleware' => 'feature_control:393','uses' =>'ApiRoleController@basic_salary']);
             Route::post('/basic-salary-create', ['middleware' => 'feature_control:393','uses' =>'ApiRoleController@basic_salary_create']);
+            
+            Route::post('/reimbursement', ['middleware' => 'feature_control:393','uses' =>'ApiRoleController@reimbursement']);
+            Route::post('/reimbursement-create', ['middleware' => 'feature_control:393','uses' =>'ApiRoleController@reimbursement_create']);
             
        });
     Route::group(['prefix' => 'role/overtime'], function () {
@@ -252,16 +301,26 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
                 Route::post('default/delete', ['middleware' => 'feature_control:425','uses' =>'ApiSalaryCutController@delete_default']);
             });
     Route::group(['prefix' => 'loan'], function () {
-                Route::post('category/create', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@createCategory']);
-                Route::post('category/list', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@listCategory']);
-                Route::post('category/delete', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@deleteCategory']);
-                Route::post('hs', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@hs']);
-                Route::post('create', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@create']);
-                Route::post('/', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@index']);
-                Route::post('/sales', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@index_sales_payment']);
-                Route::post('/sales/detail', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@detail_sales_payment']);
-                Route::post('/sales/create', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@create_sales_payment']);
-            });
+        Route::post('category/create', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@createCategory']);
+        Route::post('category/list', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@listCategory']);
+        Route::post('category/delete', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@deleteCategory']);
+        Route::post('hs', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@hs']);
+        Route::post('create', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@create']);
+        Route::post('/', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@index']);
+        Route::post('/sales', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@index_sales_payment']);
+        Route::post('/sales/detail', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@detail_sales_payment']);
+        Route::post('/sales/create', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiLoanController@create_sales_payment']);
+    });
+
+    Route::group(['prefix' => 'request'], function()
+    {
+        Route::post('list', ['middleware' => 'feature_control:537', 'uses' => 'ApiRequestEmployeeController@index']);
+        Route::post('create', ['middleware' => 'feature_control:537', 'uses' => 'ApiRequestEmployeeController@store']);
+        Route::post('detail', ['middleware' => 'feature_control:539', 'uses' => 'ApiRequestEmployeeController@detail']);
+        Route::post('update', ['middleware' => 'feature_control:540', 'uses' => 'ApiRequestEmployeeController@update']);
+        Route::post('delete', ['middleware' => 'feature_control:540', 'uses' => 'ApiRequestEmployeeController@delete']);
+        Route::post('list-employee', ['middleware' => 'feature_control:539', 'uses' => 'ApiRequestEmployeeController@listEmployeeOutlet']);
+    });
 });
 
 Route::group([ 'middleware' => ['log_activities', 'auth:api','auth_client','scopes:landing-page'], 'prefix' => 'employee'], function () {
@@ -281,8 +340,6 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
 
 Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_agent', 'scopes:employee-apps'], 'prefix' => 'employee'], function () {
     Route::get('announcement','ApiEmployeeAnnouncementController@announcementList');
-    Route::get('splash','ApiEmployeeController@splash');
-
     Route::group(['prefix' => 'attendance'], function () {
         Route::get('live','ApiEmployeeAttendanceController@liveAttendance');
         Route::post('live','ApiEmployeeAttendanceController@storeLiveAttendance');
@@ -296,6 +353,14 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         Route::post('saldo_reimbursement','ApiEmployeeReimbursementController@saldo_reimbursement');
         Route::post('pending','ApiEmployeeReimbursementController@pending');
         Route::post('history','ApiEmployeeReimbursementController@history');
+    });
+    Route::group(['prefix' => 'cash-advance'], function () {
+        Route::post('create','ApiEmployeeCashAdvanceController@create');
+        Route::post('detail','ApiEmployeeCashAdvanceController@detail');
+        Route::post('update','ApiEmployeeCashAdvanceController@update');
+        Route::post('pending','ApiEmployeeCashAdvanceController@pending');
+        Route::post('history','ApiEmployeeCashAdvanceController@history');
+         Route::get('name','ApiEmployeeCashAdvanceController@name_cash_advance');
     });
     Route::group(['prefix' => 'office'], function () {
         Route::get('/total-employee','ApiEmployeeProfileController@total_employee');
@@ -351,6 +416,12 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         Route::post('create','ApiEmployeeTimeOffOvertimeController@storeOvertimeEmployee');
     });
 
+    Route::group(['prefix' => 'change-shift'], function () {	
+        Route::any('/','ApiEmployeeChangeShiftController@index');	
+        Route::post('/date','ApiEmployeeChangeShiftController@sendDate');	
+        Route::any('/create','ApiEmployeeChangeShiftController@create');	
+    });
+
     Route::post('calender','ApiEmployeeController@calender');
     Route::group(['prefix' => 'attendance-outlet'], function () {
         Route::post('list-outlet','ApiEmployeeAttendaceOutletController@listOutlet');
@@ -402,12 +473,15 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
     });
 });
 
-Route::group([ 'middleware' => ['auth_client', 'scopes:employee-apps'], 'prefix' => 'employee'], function () {
-    Route::get('splash','ApiEmployeeAppController@splash');
-});
+ Route::group([ 'middleware' => ['log_activities_employee_apps','auth_client', 'scopes:employee-apps'], 'prefix' => 'employee'], function () {
+     Route::get('splash','ApiEmployeeAppController@splash');
+ });
 
 Route::group(['prefix' => '/icount/reimbursement'], function() {
     Route::post('/callback','ApiBeEmployeeReimbursementController@callbackreimbursement')->middleware('auth_pos2:PurchaseInvoiceID,status,date_disburse');
+});
+Route::group(['prefix' => '/icount/cash-advance'], function() {
+    Route::post('/callback','ApiBeEmployeeCashAdvanceController@callbackcash_advance')->middleware('auth_pos2:PurchaseDepositRequestID,status,date_disburse');
 });
 
 

@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
 
-class AddHsLoanStatus extends Migration
+class EditOvertimeHsHours extends Migration
 {
     public function __construct()
     {
@@ -12,8 +12,8 @@ class AddHsLoanStatus extends Migration
     } 
     public function up()
     {
-       Schema::table('hairstylist_loans', function (Blueprint $table) {
-            $table->enum('status_loan',['Success','Reject'])->default('Success');
+       Schema::table('hairstylist_group_default_overtimes', function (Blueprint $table) {
+            $table->renameColumn('days','hours')->nullable();
         });
     }
     /**
@@ -23,8 +23,8 @@ class AddHsLoanStatus extends Migration
      */
     public function down()
     {
-        Schema::table('hairstylist_loans', function (Blueprint $table) {
-            $table->dropColumn('status_loan',['Success','Reject'])->nullable();
+        Schema::table('hairstylist_group_default_overtimes', function (Blueprint $table) {
+            $table->renameColumn('hours','days')->nullable();
         });
     }
 }

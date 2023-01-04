@@ -396,12 +396,18 @@ class ApiHairStylistScheduleController extends Controller
         		$oldData[$date] = [
         			'request_by' => $val['request_by'],
         			'created_at' => $val['created_at'],
+                    'is_overtime' => $val['is_overtime'] ?? null,
+                    'time_start' => $val['time_start'],
+                    'time_end' => $val['time_end'],
         			'shift' => 'Full'
         		];
         	} else {
         		$oldData[$date] = [
         			'request_by' => $val['request_by'],
         			'created_at' => $val['created_at'],
+                    'is_overtime' => $val['is_overtime'] ?? null,
+                    'time_start' => $val['time_start'],
+                    'time_end' => $val['time_end'],
         			'shift' => $val['shift']
         		];
         	}
@@ -412,6 +418,7 @@ class ApiHairStylistScheduleController extends Controller
         $fixedScheduleDate = $fixedSchedule->pluck('date')->map(function($item) {return date('Y-m-d', strtotime($item));});
 
         $newData = [];
+        $key_new = 0;
         foreach ($post['schedule'] as $key => $val) {
         	if (empty($val)) {
         		continue;
@@ -424,53 +431,76 @@ class ApiHairStylistScheduleController extends Controller
         	$request_by = 'Admin';
         	$created_at = date('Y-m-d H:i:s');
         	$updated_at = date('Y-m-d H:i:s');
-        	if (isset($oldData[$key]) && $oldData[$key]['shift'] == $val) {
-        		$request_by = $oldData[$key]['request_by'];
-        		$created_at = $oldData[$key]['created_at'];
+        	if (isset($oldData[date('Y-m-j', strtotime($key))]) && $oldData[date('Y-m-j', strtotime($key))]['shift'] == $val) {
+        		$request_by = $oldData[date('Y-m-j', strtotime($key))]['request_by'];
+        		$created_at = $oldData[date('Y-m-j', strtotime($key))]['created_at'];
         	}
         	if ($val == 'Full') {
-        		$newData[] = [
+        		$newData[$key_new] = [
 	        		'id_hairstylist_schedule' => $post['id_hairstylist_schedule'],
 	        		'date' => $key,
 	        		'shift' => 'Morning',
 	        		'request_by' => $request_by,
 	        		'created_at' => $created_at,
-	        		'updated_at' => $updated_at
+	        		'updated_at' => $updated_at,
 	        	];
+                if(isset($oldData[date('Y-m-j', strtotime($key))]) && isset($oldData[date('Y-m-j', strtotime($key))]['is_overtime']) && $oldData[date('Y-m-j', strtotime($key))]['is_overtime'] == 1){
+                    $newData[$key_new]['is_overtime'] = 1;
+                    $newData[$key_new]['time_start'] = $oldData[date('Y-m-j', strtotime($key))]['time_start'];
+                    $newData[$key_new]['time_end'] = $oldData[date('Y-m-j', strtotime($key))]['time_end'];
+                }
+                $key_new++;
 
-	        	$newData[] = [
+	        	$newData[$key_new] = [
 	        		'id_hairstylist_schedule' => $post['id_hairstylist_schedule'],
 	        		'date' => $key,
 	        		'shift' => 'Tengah',
 	        		'request_by' => $request_by,
 	        		'created_at' => $created_at,
-	        		'updated_at' => $updated_at
+	        		'updated_at' => $updated_at,
 	        	];
+                if(isset($oldData[date('Y-m-j', strtotime($key))]) && isset($oldData[date('Y-m-j', strtotime($key))]['is_overtime']) && $oldData[date('Y-m-j', strtotime($key))]['is_overtime'] == 1){
+                    $newData[$key_new]['is_overtime'] = 1;
+                    $newData[$key_new]['time_start'] = $oldData[date('Y-m-j', strtotime($key))]['time_start'];
+                    $newData[$key_new]['time_end'] = $oldData[date('Y-m-j', strtotime($key))]['time_end'];
+                }
+                $key_new++;
 
-	        	$newData[] = [
+	        	$newData[$key_new] = [
 	        		'id_hairstylist_schedule' => $post['id_hairstylist_schedule'],
 	        		'date' => $key,
 	        		'shift' => 'Evening',
 	        		'request_by' => $request_by,
 	        		'created_at' => $created_at,
-	        		'updated_at' => $updated_at
+	        		'updated_at' => $updated_at,
 	        	];
+                if(isset($oldData[date('Y-m-j', strtotime($key))]) && isset($oldData[date('Y-m-j', strtotime($key))]['is_overtime']) && $oldData[date('Y-m-j', strtotime($key))]['is_overtime'] == 1){
+                    $newData[$key_new]['is_overtime'] = 1;
+                    $newData[$key_new]['time_start'] = $oldData[date('Y-m-j', strtotime($key))]['time_start'];
+                    $newData[$key_new]['time_end'] = $oldData[date('Y-m-j', strtotime($key))]['time_end'];
+                }
+                $key_new++;
         	} else {
-	        	$newData[] = [
+	        	$newData[$key_new] = [
 	        		'id_hairstylist_schedule' => $post['id_hairstylist_schedule'],
 	        		'date' => $key,
 	        		'shift' => $val,
 	        		'request_by' => $request_by,
 	        		'created_at' => $created_at,
-	        		'updated_at' => $updated_at
+	        		'updated_at' => $updated_at,
 	        	];
+                if(isset($oldData[date('Y-m-j', strtotime($key))]) && isset($oldData[date('Y-m-j', strtotime($key))]['is_overtime']) && $oldData[date('Y-m-j', strtotime($key))]['is_overtime'] == 1){
+                    $newData[$key_new]['is_overtime'] = 1;
+                    $newData[$key_new]['time_start'] = $oldData[date('Y-m-j', strtotime($key))]['time_start'];
+                    $newData[$key_new]['time_end'] = $oldData[date('Y-m-j', strtotime($key))]['time_end'];
+                }
+                $key_new++;
         	}
         }
 
         DB::beginTransaction();
-
         $update = HairstylistSchedule::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->update(['last_updated_by' => $request->user()->id]);
-        $delete = HairstylistScheduleDate::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->whereDate('date', '>=', date('Y-m-d'))->whereNotIn('id_hairstylist_schedule_date', $fixedScheduleDateId)->delete();
+        $delete = HairstylistScheduleDate::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->whereDate('date', '>=', date('Y-m-d'))->whereNotIn('id_hairstylist_schedule_date', $fixedScheduleDateId)->delete();;
         $save 	= HairstylistScheduleDate::insert($newData);
     	HairstylistSchedule::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->first()->refreshTimeShift();
 
@@ -537,66 +567,69 @@ class ApiHairStylistScheduleController extends Controller
 
                                     $create_schedule = HairstylistSchedule::create($array_hs);
                                     if($create_schedule){
+                                        $listDate = MyHelper::getListDate($create_schedule->schedule_month, $create_schedule->schedule_year);
                                         foreach($schedule_before as $new){
                                             $date = explode('-',$new['date']);
                                             $date[1] = $schedule_month;
                                             $date[0] = $schedule_year;
                                             $date =  date('Y-m-d', strtotime(implode('-',$date)));
-
-                                            if($new['is_overtime'] == 1){
-                                                $day = date('D', strtotime($date));
-                                                switch($day){
-                                                    case 'Sun':
-                                                        $day = "Minggu";
-                                                    break;
-                                            
-                                                    case 'Mon':			
-                                                        $day = "Senin";
-                                                    break;
-                                            
-                                                    case 'Tue':
-                                                        $day = "Selasa";
-                                                    break;
-                                            
-                                                    case 'Wed':
-                                                        $day = "Rabu";
-                                                    break;
-                                            
-                                                    case 'Thu':
-                                                        $day = "Kamis";
-                                                    break;
-                                            
-                                                    case 'Fri':
-                                                        $day = "Jumat";
-                                                    break;
-                                            
-                                                    case 'Sat':
-                                                        $day = "Sabtu";
-                                                    break;
-                                                    
-                                                    default:
-                                                        $day = "Undefined";		
-                                                    break;
+                                            if(in_array($date,$listDate)){
+                                                
+                                                if($new['is_overtime'] == 1){
+                                                    $day = date('D', strtotime($date));
+                                                    switch($day){
+                                                        case 'Sun':
+                                                            $day = "Minggu";
+                                                        break;
+                                                
+                                                        case 'Mon':			
+                                                            $day = "Senin";
+                                                        break;
+                                                
+                                                        case 'Tue':
+                                                            $day = "Selasa";
+                                                        break;
+                                                
+                                                        case 'Wed':
+                                                            $day = "Rabu";
+                                                        break;
+                                                
+                                                        case 'Thu':
+                                                            $day = "Kamis";
+                                                        break;
+                                                
+                                                        case 'Fri':
+                                                            $day = "Jumat";
+                                                        break;
+                                                
+                                                        case 'Sat':
+                                                            $day = "Sabtu";
+                                                        break;
+                                                        
+                                                        default:
+                                                            $day = "Undefined";		
+                                                        break;
+                                                    }
+    
+                                                    $get_original = OutletSchedule::join('outlet_time_shift','outlet_time_shift.id_outlet_schedule','=','outlet_schedules.id_outlet_schedule')
+                                                                                ->where('outlet_schedules.id_outlet', $hs['id_outlet'])
+                                                                                ->where('outlet_schedules.day', $day)
+                                                                                ->where('outlet_time_shift.shift', $new['shift'])->first();
+                                                 
+                                                    $new['time_start'] = $get_original['shift_time_start'];
+                                                    $new['time_end'] = $get_original['shift_time_end'];
                                                 }
-
-                                                $get_original = OutletSchedule::join('outlet_time_shift','outlet_time_shift.id_outlet_schedule','=','outlet_schedules.id_outlet_schedule')
-                                                                            ->where('outlet_schedules.id_outlet', $hs['id_outlet'])
-                                                                            ->where('outlet_schedules.day', $day)
-                                                                            ->where('outlet_time_shift.shift', $new['shift'])->first();
-                                             
-                                                $new['time_start'] = $get_original['shift_time_start'];
-                                                $new['time_end'] = $get_original['shift_time_end'];
+    
+                                                $create_schedule_date = HairstylistScheduleDate::create([
+                                                    'id_hairstylist_schedule' => $create_schedule['id_hairstylist_schedule'],
+                                                    'date' => $date,
+                                                    'shift' => $new['shift'],
+                                                    'request_by' => $new['request_by'],
+                                                    'is_overtime' =>  0,
+                                                    'time_start' => $new['time_start'],
+                                                    'time_end' => $new['time_end'],
+                                                ]);
                                             }
-
-                                            $create_schedule_date = HairstylistScheduleDate::create([
-                                                'id_hairstylist_schedule' => $create_schedule['id_hairstylist_schedule'],
-                                                'date' => $date,
-                                                'shift' => $new['shift'],
-                                                'request_by' => $new['request_by'],
-                                                'is_overtime' =>  0,
-                                                'time_start' => $new['time_start'],
-                                                'time_end' => $new['time_end'],
-                                            ]);
                                         }
                                     }else{
                                         DB::rollback();
@@ -626,7 +659,7 @@ class ApiHairStylistScheduleController extends Controller
         $this_month = date('m');
 
         if($post['year'] >= (int)$this_year){
-            if($post['month'] >= $this_month){
+            if($post['month'] >= $this_month || ($post['month'] < $this_month && $post['year'] > (int)$this_year)){
                 $check_schedule = HairstylistSchedule::where('id_user_hair_stylist',$post['id_hs'])->where('schedule_month',$post['month'])->where('schedule_year',$post['year'])->first();
                 if(!$check_schedule){
                     $hs = UserHairStylist::where('id_user_hair_stylist',$post['id_hs'])->first();

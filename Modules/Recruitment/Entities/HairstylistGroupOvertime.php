@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 class HairstylistGroupOvertime extends Model
 {
 	protected $table = 'hairstylist_group_overtimes';
-	protected $primaryKey = 'id_hairstylist_group_overtime';
+	protected $primaryKey = 'id_hairstylist_group_overtimes';
 
 
 	protected $fillable = [

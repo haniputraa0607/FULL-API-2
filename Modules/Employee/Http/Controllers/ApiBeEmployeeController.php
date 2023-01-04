@@ -9,6 +9,8 @@ use App\Lib\MyHelper;
 use App\Http\Models\Setting;
 use Modules\Users\Entities\Role;
 use Modules\Employee\Entities\Employee;
+use Modules\Employee\Entities\EmployeeCustomLink;
+use Modules\Employee\Entities\EmployeeFormEvaluation;
 use Modules\Employee\Entities\EmployeeDocuments;
 use Modules\Employee\Entities\EmployeeFamily;
 use Modules\Employee\Entities\EmployeeEducation;
@@ -28,6 +30,7 @@ use File;
 use Storage;
 use Modules\Employee\Entities\CategoryQuestion;
 use Modules\Employee\Entities\QuestionEmployee;
+use Modules\Employee\Entities\EmployeeRoleBasicSalary;
 
 class ApiBeEmployeeController extends Controller
 {
@@ -105,6 +108,10 @@ class ApiBeEmployeeController extends Controller
                     ->with([
                         'employee',
                         'employee.documents',
+                        'employee.custom_links',
+                        'employee.form_evaluation'=>function($eval){
+                            $eval->orderBy('updated_at','desc');
+                        },
                         'employee.city_ktp',
                         'employee.city_domicile',
                         'employee_family',
@@ -131,6 +138,11 @@ class ApiBeEmployeeController extends Controller
                 }
             }
             $detail['question'] = $array;
+            $detail['duration_probation'] = Setting::where('key', 'duration_month_probation_employee')->first()['value'] ?? '3';
+            $detail['surat_perjanjian'] = isset($detail['surat_perjanjian']) ? env('STORAGE_URL_API').$detail['surat_perjanjian'] : null; 
+            foreach($detail['employee']['form_evaluation'] ?? [] as $key_eval => $eval){
+                $detail['employee']['form_evaluation'][$key_eval]['directory'] = isset($eval['directory']) ? env('STORAGE_URL_API').$eval['directory'] : null; 
+            }
             return response()->json(MyHelper::checkGet($detail));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
@@ -179,6 +191,10 @@ class ApiBeEmployeeController extends Controller
                     ->with([
                         'employee',
                         'employee.documents',
+                        'employee.custom_links',
+                        'employee.form_evaluation'=>function($eval){
+                            $eval->orderBy('updated_at','desc');
+                        },
                         'employee.city_ktp',
                         'employee.city_domicile',
                         'employee_family',
@@ -187,7 +203,7 @@ class ApiBeEmployeeController extends Controller
                         'employee_education.city',
                         'employee_education_non_formal',
                         'employee_job_experience',
-                        'employee_emergency_call'])
+                        'employee_emergency_call',])
                     ->first();
             $category = CategoryQuestion::get();
             $array = array();
@@ -213,6 +229,11 @@ class ApiBeEmployeeController extends Controller
                 }
             }
             $detail['question'] = $category;
+            $detail['duration_probation'] = Setting::where('key', 'duration_month_probation_employee')->first()['value'] ?? '3';
+            $detail['surat_perjanjian'] = isset($detail['surat_perjanjian']) ? env('STORAGE_URL_API').$detail['surat_perjanjian'] : null; 
+            foreach($detail['employee']['form_evaluation'] ?? [] as $key_eval => $eval){
+                $detail['employee']['form_evaluation'][$key_eval]['directory'] = isset($eval['directory']) ? env('STORAGE_URL_API').$eval['directory'] : null; 
+            }
             return response()->json(MyHelper::checkGet($detail));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
@@ -307,6 +328,7 @@ class ApiBeEmployeeController extends Controller
                 $dtHs->level = "Admin";
                 $dtHs->id_outlet = $post['id_outlet']??null;
                 $dtHs->id_role = $post['id_role']??null;
+                $role = Role::where('id_role',$post['id_role'])->first();
                 $dtHs->save();
                 $number = $this->number();
                 if(!empty($post['data_document'])){
@@ -331,7 +353,7 @@ class ApiBeEmployeeController extends Controller
                     "code"=>$number['code'],
                     'start_date'=>$post['start_date'],
                     'end_date'=>$post['end_date'],
-                    'id_department'=>$post['id_department'],
+                    'id_department'=>$role['id_department']??null,
                     'id_manager'=>$post['id_manager']??null,
                     'status_employee' => $post['status_employee'],
                         ]);
@@ -345,7 +367,7 @@ class ApiBeEmployeeController extends Controller
                     $companyType = $outlet['location_outlet']['company_type']??'';
                     $companyType = str_replace('PT ', '', $companyType);
                     $number = $employee['number'];
-                    if($employee['status_employee']==1){
+                    if($employee['status_employee']=='Permanent'){
                      $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor('template_contract_employee_tetap.docx');   
                     }else{
                      $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor('template_contract_employee_kontrak.docx');
@@ -582,6 +604,12 @@ class ApiBeEmployeeController extends Controller
         if(isset($data['npwp_address'])){
             $employee->npwp_address = $data['npwp_address'];
         }
+        if(isset($data['bpjs_ketenagakerjaan'])){
+            $employee->bpjs_ketenagakerjaan = $data['bpjs_ketenagakerjaan'];
+        }
+        if(isset($data['bpjs_kesehatan'])){
+            $employee->bpjs_kesehatan = $data['bpjs_kesehatan'];
+        }
         if(isset($data['contact_person'])){
             $employee->contact_person = $data['contact_person'];
         }
@@ -662,10 +690,12 @@ class ApiBeEmployeeController extends Controller
     }
    public function manager(Request $request) {
        $post = $request->json()->all();
-        if(isset($post['id_outlet']) && !empty($post['id_department'])){
-             $detail = Employee::join('users','users.id','employees.id_user')
-                     ->where('id_outlet',$post['id_outlet'])
-                     ->where('id_department',$post['id_department'])
+        if(isset($post['id_outlet']) && !empty($post['id_role'])){
+             $detail = Employee::join('users','users.id','employees.id_user')->join('roles','roles.id_role','users.id_role')
+                     ->where('users.id_outlet',$post['id_outlet'])
+                     ->where('employees.status','active')
+                     ->where('employees.status_employee','Permanent')
+                     ->where('roles.id_role',$post['id_role'])
                      ->select('users.id','users.name')
                      ->get();
             return response()->json(MyHelper::checkGet($detail));
@@ -673,4 +703,414 @@ class ApiBeEmployeeController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
         }
    }
+
+    public function deleteCustomLink(Request $request){
+        $post = $request->all();
+        $delete = EmployeeCustomLink::where('id_employee_custom_link', $post['id_employee_custom_link'])->delete();      
+        return MyHelper::checkDelete($delete);
+    }
+
+    public function addCustomLink(Request $request){
+        $post = $request->all();
+        
+        if(isset($post['id_employee']) && !empty($post['id_employee'])){
+            DB::beginTransaction();
+            $store = EmployeeCustomLink::create($post);
+            if(!$store) {
+                DB::rollback();
+                return response()->json(['status' => 'fail', 'messages' => ['Failed']]);
+            }
+            DB::commit();
+            return response()->json(MyHelper::checkCreate($store));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    }
+
+    public function employeeEvaluation(Request $request) {
+        $request->validate([
+            'status_form' => 'required|string'
+        ]);
+
+        $post = $request->json()->all();
+
+        if((isset($post['id_employee_form_evaluation']) && !empty($post['id_employee_form_evaluation'])) || (isset($post['id_employee']) && !empty($post['id_employee']))){
+            $is_done = false;
+            $data_update = $post;
+            if($post['status_form'] == 'approve_manager'){
+                $request->validate([
+                    'work_productivity' => 'required|string',
+                    'work_quality' => 'required|string',
+                    'knwolege_task' => 'required|string',
+                    'relationship' => 'required|string',
+                    'cooperation' => 'required|string',
+                    'discipline' => 'required|string',
+                    'initiative' => 'required|string',
+                    'expandable' => 'required|string',
+                    'update_status' => 'required|string',
+                ]);
+                $data_update['id_manager'] = $request->user()->id;
+                $data_update['update_manager'] = date('Y-m-d H:i:s');
+            }elseif($post['status_form'] == 'reject_hr'){
+                $data_update['id_hrga'] = $request->user()->id;
+                $data_update['update_hrga'] = date('Y-m-d H:i:s');
+            }elseif($post['status_form'] == 'approve_hr'){
+                $request->validate([
+                    'update_status' => 'required|string',
+                ]);
+                $data_update['id_hrga'] = $request->user()->id;
+                $data_update['update_hrga'] = date('Y-m-d H:i:s');
+            }elseif($post['status_form'] == 'reject_director'){
+                $data_update['id_director'] = $request->user()->id;
+                $data_update['update_director'] = date('Y-m-d H:i:s');
+            }elseif($post['status_form'] == 'approve_director'){
+                $data_update['id_director'] = $request->user()->id;
+                $data_update['update_director'] = date('Y-m-d H:i:s');
+                $is_done = true;
+            }
+
+            if(isset($post['update_status']) && !empty($post['update_status'])){
+                if($post['update_status'] == 'Extension'){
+                    $request->validate([
+                        'current_extension' => 'integer|required',
+                        'time_extension' => 'required|string',
+                    ]);
+                }else{
+                    $data_update['current_extension'] = null;
+                    $data_update['time_extension'] = null;
+                }
+            }
+            
+            DB::beginTransaction();
+            if(isset($post['id_employee_form_evaluation']) && !empty($post['id_employee_form_evaluation'])){
+                unset($data_update['id_employee_form_evaluation']);
+                $updateCreate = EmployeeFormEvaluation::updateOrCreate([
+                    'id_employee_form_evaluation' => $post['id_employee_form_evaluation'],
+                ],$data_update);
+            }else{
+                $data_update['code'] = $this->genereateCodeFormEval();
+                $updateCreate = EmployeeFormEvaluation::create($data_update);
+            }
+
+            
+            if(!$updateCreate){
+                DB::rollback();
+                return response()->json(['status' => 'fail', 'messages' => ['Failed']]);
+            }
+            $employee_before = Employee::with(['user'])->where('id_employee', $updateCreate['id_employee'])->first();
+            if($is_done && $updateCreate['update_status'] != 'Not Change'){
+                $employee = Employee::where('id_employee', $updateCreate['id_employee'])->first();
+                $employee_update = [];
+                if($employee){
+                    if($updateCreate['update_status'] == 'Terminated'){
+                        $employee_update['status'] = 'inactive';
+                    }elseif($updateCreate['update_status'] == 'Permanent'){
+                        $employee_update['status_employee'] = 'Permanent';
+                        $employee_update['start_date'] = $employee['end_date'];
+                        $employee_update['end_date'] = null;
+                    }elseif($updateCreate['update_status'] == 'Extension'){
+                        $employee_update['status_employee'] = 'Contract';
+                        $employee_update['start_date'] = $employee['end_date'];
+                        $extension = ' + '.$updateCreate['current_extension'].' '.($updateCreate['time_extension'] == 'Month' ? 'months' : 'years');
+                        $employee_update['end_date'] = date('Y-m-d', strtotime($employee['end_date'].$extension));
+                    }
+
+                    $update_employee = Employee::where('id_employee', $updateCreate['id_employee'])->update($employee_update);
+                    if(!$update_employee){
+                        DB::rollback();
+                        return response()->json(['status' => 'fail', 'messages' => ['Failed']]);
+                    }
+                    $newGenerateCode = $this->generateContract(New Request(['id_employee' => $updateCreate['id_employee'],'form_eval' => true]));
+                    $update_employee_file = Employee::where('id_employee', $updateCreate['id_employee'])->update(['surat_perjanjian' => $newGenerateCode]);
+                    if(!$update_employee){
+                        DB::rollback();
+                        return response()->json(['status' => 'fail', 'messages' => ['Failed']]);
+                    }
+
+                }
+            }
+
+            $data_employee = EmployeeFormEvaluation::with(['employee.user.role.department','employee.user.role.job','manager','hrga', 'director'])->where('id_employee_form_evaluation', $updateCreate['id_employee_form_evaluation'])->first();
+            
+            $value = [
+                'pp' => $data_employee['work_productivity'] == 'Perfect' ? 'V' : '',
+                'pg' => $data_employee['work_productivity'] == 'Good' ? 'V' : '',
+                'pe' => $data_employee['work_productivity'] == 'Enough' ? 'V' : '',
+                'pb' => $data_employee['work_productivity'] == 'Bad' ? 'V' : '',
+                'qp' => $data_employee['work_quality'] == 'Perfect' ? 'V' : '',
+                'qg' => $data_employee['work_quality'] == 'Good' ? 'V' : '',
+                'qe' => $data_employee['work_quality'] == 'Enough' ? 'V' : '',
+                'qb' => $data_employee['work_quality'] == 'Bad' ? 'V' : '',
+                'kp' => $data_employee['knwolege_task'] == 'Perfect' ? 'V' : '',
+                'kg' => $data_employee['knwolege_task'] == 'Good' ? 'V' : '',
+                'ke' => $data_employee['knwolege_task'] == 'Enough' ? 'V' : '',
+                'kb' => $data_employee['knwolege_task'] == 'Bad' ? 'V' : '',
+                'rp' => $data_employee['relationship'] == 'Perfect' ? 'V' : '',
+                'rg' => $data_employee['relationship'] == 'Good' ? 'V' : '',
+                're' => $data_employee['relationship'] == 'Enough' ? 'V' : '',
+                'rb' => $data_employee['relationship'] == 'Bad' ? 'V' : '',
+                'cp' => $data_employee['cooperation'] == 'Perfect' ? 'V' : '',
+                'cg' => $data_employee['cooperation'] == 'Good' ? 'V' : '',
+                'ce' => $data_employee['cooperation'] == 'Enough' ? 'V' : '',
+                'cb' => $data_employee['cooperation'] == 'Bad' ? 'V' : '',
+                'dp' => $data_employee['discipline'] == 'Perfect' ? 'V' : '',
+                'dg' => $data_employee['discipline'] == 'Good' ? 'V' : '',
+                'de' => $data_employee['discipline'] == 'Enough' ? 'V' : '',
+                'db' => $data_employee['discipline'] == 'Bad' ? 'V' : '',
+                'ip' => $data_employee['initiative'] == 'Perfect' ? 'V' : '',
+                'ig' => $data_employee['initiative'] == 'Good' ? 'V' : '',
+                'ie' => $data_employee['initiative'] == 'Enough' ? 'V' : '',
+                'ib' => $data_employee['initiative'] == 'Bad' ? 'V' : '',
+                'ep' => $data_employee['expandable'] == 'Perfect' ? 'V' : '',
+                'eg' => $data_employee['expandable'] == 'Good' ? 'V' : '',
+                'ee' => $data_employee['expandable'] == 'Enough' ? 'V' : '',
+                'eb' => $data_employee['expandable'] == 'Bad' ? 'V' : '',
+            ];
+
+            $status = [
+                's1'=> $data_employee['update_status'] == 'Permanent' ? 'V' : '',
+                's2'=> $data_employee['update_status'] == 'Terminated' ? 'V' : '',
+                's3'=> $data_employee['update_status'] == 'Extension' ? 'V' : '',
+            ];
+
+            if($data_employee['update_status'] == 'Extension'){
+                $extend = $data_employee['current_extension'].' '.($data_employee['time_extension'] == 'Month' ? 'bulan' : 'tahun');
+            }else{
+                $exted = '-';
+            }
+
+            if(isset($employee_before['start_date'])){
+                $start_date = MyHelper::dateFormatInd($employee_before['start_date'], true, false, false);
+            }else{
+                $start_date = '-';
+            }
+            if(isset($employee_before['end_date'])){
+                $end_date = MyHelper::dateFormatInd($employee_before['end_date'], true, false, false);
+            }else{
+                $end_date = '-';
+            }
+            
+            $template = new \PhpOffice\PhpWord\TemplateProcessor('employee_form_evaluation.docx');
+            $template->setValue('name', $data_employee['employee']['user']['name']??'');
+            $template->setValue('start_date', $start_date);
+            $template->setValue('end_date', $end_date);
+            $template->setValue('position', $data_employee['employee']['user']['role']['job']['job_level_name']??'');
+            $template->setValue('role', $data_employee['employee']['user']['role']['role_name']??'');
+            $template->setValue('department', $data_employee['employee']['user']['role']['department']['department_name']??'');
+            foreach($value ?? [] as $key => $val){
+                $template->setValue($key, $val);
+            }
+            $template->setValue('comment', $data_employee['comment']??'');
+            foreach($status ?? [] as $key_2 => $stat){
+                $template->setValue($key_2, $stat);
+            }
+            $template->setValue('name_manager', $data_employee['manager']['name']??'');
+            $template->setValue('manager_date', MyHelper::dateFormatInd($data_employee['update_manager'], true, false, false));
+            if($updateCreate['status_form']!='approve_manager' && $updateCreate['status_form']!='reject_hr'){
+                $template->setValue('name_hrga', $data_employee['hrga']['name']??'');
+                $template->setValue('hrga_date', MyHelper::dateFormatInd($data_employee['update_hrga'], true, false, false));
+            }else{
+                $template->setValue('name_hrga', '');
+                $template->setValue('hrga_date', '');
+            }
+            if($updateCreate['status_form']=='approve_director'){
+                $template->setValue('name_director', $data_employee['director']['name']??'');
+                $template->setValue('director_date', MyHelper::dateFormatInd($data_employee['update_director'], true, false, false));
+            }else{
+                $template->setValue('name_director', '');
+                $template->setValue('director_date', '');
+            }
+
+            if(!File::exists(public_path().'/employee_form_evaluation')){
+                File::makeDirectory(public_path().'/employee_form_evaluation');
+            }
+            $directory = 'employee_form_evaluation/employee_form_evaluation_'.$data_employee['employee']['code']."_".$data_employee['code'].'.docx';
+            $template->saveAs($directory);
+            if(config('configs.STORAGE') != 'local'){
+                $contents = File::get(public_path().'/'.$directory);
+                $store = Storage::disk(config('configs.STORAGE'))->put($directory,$contents, 'public');
+                if($store){
+                    if($updateCreate['update_status'] != 'Not Change'){
+                        $update_directory = EmployeeFormEvaluation::updateOrCreate(['id_employee_form_evaluation' => $data_employee['id_employee_form_evaluation']],['directory' => $directory]);
+                    }else{
+                        $update_directory = EmployeeFormEvaluation::updateOrCreate(['id_employee_form_evaluation' => $data_employee['id_employee_form_evaluation']],['directory' => null]);
+                        File::delete(public_path().'/'.$directory);
+                    }
+                    if(!$update_directory){
+                        DB::rollback();
+                        return response()->json(['status' => 'fail', 'messages' => ['Failed']]);
+                    }
+
+                    File::delete(public_path().'/'.$directory);
+                }else{
+                    DB::rollback();
+                    return response()->json(['status' => 'fail', 'messages' => ['Failed']]);
+                }
+            }
+
+            if($post['status_form'] == 'approve_manager'){
+                $crm_title = 'Manager Has been Approve An Evaluation Forms';
+                $crm_receipt = User::with(['employee'])->where(function($where){
+                    $where->where('level','Super Admin');
+                    $where->orWhere(function($whereOr){
+                        $whereOr->whereHas('role.roles_features',function($rf){$rf->where('id_feature',529);});
+                    });
+                })->where('users.id_outlet', $data_employee['employee']['user']['id_outlet'])->get()->toArray();
+
+
+            }elseif($post['status_form'] == 'reject_hr'){
+                $crm_title = 'HRGA Has been Reject An Evaluation Form';
+                $crm_receipt = User::with(['employee'])->where('id',$data_employee['employee']['id_manager'])->get()->toArray();
+
+            }elseif($post['status_form'] == 'approve_hr'){
+                $crm_title = 'HRGA Has been Approve An Evaluation Form';
+                $crm_receipt = User::with(['employee'])->where(function($where){
+                    $where->where('level','Super Admin');
+                    $where->orWhere(function($whereOr){
+                        $whereOr->whereHas('role.roles_features',function($rf){$rf->where('id_feature',528);});
+                    });
+                })->get()->toArray();
+
+            }elseif($post['status_form'] == 'reject_director'){
+                $crm_title = 'Director Has been Reject An Evaluation Form';
+                $crm_receipt = User::with(['employee'])->where(function($where){
+                    $where->where('level','Super Admin');
+                    $where->orWhere(function($whereOr){
+                        $whereOr->whereHas('role.roles_features',function($rf){$rf->where('id_feature',529);});
+                    });
+                })->where('users.id_outlet', $data_employee['employee']['user']['id_outlet'])->get()->toArray();
+
+            }elseif($post['status_form'] == 'approve_director'){
+                $crm_title = 'Director Has been Approve An Evaluation Form';
+                $crm_receipt = User::with(['employee'])->where('id', $data_employee['employee']['user']['id'])->get()->toArray();
+            }
+
+            foreach($crm_receipt ?? [] as $key_crm => $receipt){
+                if (\Module::collections()->has('Autocrm')) {
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        $crm_title,
+                        $receipt->phone,
+                        [], null, null, null, null, null, null, null, null,
+                    );
+                    if(!$autocrm){
+                        DB::rollback();
+                        return response()->json(['status' => 'fail', 'messages' => ['Failed']]);
+                    }
+                }
+            }
+            
+            DB::commit();
+            return response()->json(MyHelper::checkCreate($updateCreate));
+
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+    
+    }
+
+    public function generateContract(Request $request){
+        $post = $request->id_employee??null;
+        $form_eval = $request->form_eval??false;
+        $employee = Employee::where('id_employee', $post)
+                                ->join('users','users.id','employees.id_user')
+                                ->join('roles','roles.id_role','users.id_role')
+                                ->join('cities','cities.id_city','employees.id_city_domicile')
+                                ->join('departments','departments.id_department','employees.id_department')
+                                ->first();
+        if(!$employee){
+            return array("Not Found");
+        }
+        $outlet = Outlet::where('id_outlet', $employee['id_outlet'])->with('location_outlet')->first();
+        $outletName = $outlet['outlet_name']??'';
+        $companyType = $outlet['location_outlet']['company_type']??'';
+        $companyType = str_replace('PT ', '', $companyType);
+        $number = $employee['number'];
+        if($employee['status_employee']=='Probation'){
+            $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor('Employee_Probation.docx');
+        }else{
+            $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor('Employee_Contract.docx');
+        }
+        $basic = Setting::where('key','basic_salary_employee')->first();
+            $basics = number_format($basic['value']??0??0,0,',','.');
+            $group = EmployeeRoleBasicSalary::where(array('id_role'=>$request->id_role))->first();
+            $overtime['default_value']    = 0;
+            if(isset($group)){
+                $basics = number_format($group['value']??0,0,',','.');
+            }
+       $ttl = $employee['birthplace'].', '.MyHelper::dateFormatInd($employee['birthday'], true, false);
+        $templateProcessor->setValue('name', $employee['name']);
+        $templateProcessor->setValue('address',$employee['address_domicile'].' Kota '.$employee['city_name'].', '.$employee['postcode_domicile']);
+        $templateProcessor->setValue('end_date', MyHelper::dateFormatInd($employee['end_date'], true, false));
+        $templateProcessor->setValue('start_date', MyHelper::dateFormatInd($employee['start_date'], true, false));
+        $templateProcessor->setValue('ktp', $employee['card_number']);
+        $templateProcessor->setValue('npwp', $employee['npwp']);
+        $templateProcessor->setValue('jabatan', $employee['role_name']);
+        $templateProcessor->setValue('lokasi', $outletName);
+        $templateProcessor->setValue('departmen', $employee['department_name']);
+        $templateProcessor->setValue('golongan', $employee['name']);
+        $templateProcessor->setValue('basic_salary', 'Rp '.$basics);
+        $templateProcessor->setValue('now', MyHelper::dateFormatInd(date('Y-m-d'), true, false));
+        $templateProcessor->setValue('ttl', $ttl);
+        if(!File::exists(public_path().'/employee_contract')){
+                File::makeDirectory(public_path().'/employee_contract');
+            }
+            $directory = 'employee_contract/employee_'.$employee['status_employee']."_".$employee['code'].'.docx';
+            $templateProcessor->saveAs($directory);
+        if(config('configs.STORAGE') != 'local'){
+            $contents = File::get(public_path().'/'.$directory);
+            $store = Storage::disk(config('configs.STORAGE'))->put($directory,$contents, 'public');
+            if($store){
+                File::delete(public_path().'/'.$directory);
+            }
+        }
+        if($form_eval){
+            return $directory;
+        }else{
+            return public_path().'/'.$directory;
+        }
+    }
+
+    public function employeeEvaluationDelete(Request $request){
+        $post = $request->all();
+        $delete = EmployeeFormEvaluation::where('id_employee_form_evaluation', $post['id_employee_form_evaluation'])->delete();      
+        return MyHelper::checkDelete($delete);
+    }
+
+    public function genereateCodeFormEval(){
+        $date = date('ymd');
+        $random = rand(1000,9999);
+        $code = 'EVAL-'.$date.$random;
+        $cek_code = EmployeeFormEvaluation::where('code',$code)->first();
+        if($cek_code){
+            $this->codeGenerate();
+        }
+        return $code;
+    }
+
+    public function cronInputFormEval(){
+        $log = MyHelper::logCron('Manager Make An Evaluation Form');
+        try{
+            $current_date = date('Y-m-d');
+            $employees = Employee::where(function($where1){$where1->where('status_employee','Probation')->orWhere('status_employee','Contract');})->whereNotNull('end_date')->get()->toArray();
+            foreach($employees ?? [] as $key => $employee){
+                $check = date('Y-m-d', strtotime($employee['end_date']. ' - 10 days')); 
+                if($current_date == $check){
+                    $manager = User::with(['employee'])->where('id',$employee['id_manager'])->first();
+                    if (\Module::collections()->has('Autocrm')) {
+                        $autocrm = app($this->autocrm)->SendAutoCRM(
+                            'Make An Evaluation Form For Employees',
+                            $manager->phone,
+                            [], null, null, null, null, null, null, null, null,
+                        );
+                    }
+                }
+            }
+
+            $log->success('success');
+
+        }catch (\Exception $e) {
+            $log->fail($e->getMessage());
+        }   
+
+    }
 }

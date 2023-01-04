@@ -476,7 +476,7 @@ class EmployeeIncome extends Model
                     $loan_return = EmployeeLoanReturn::where('id_employee_loan_return', $value['id_employee_loan_return'])
                         ->update([
                             'status_return' => "Success",
-                            'date_pay'      => date('Y-m-d H:i:s'),
+                            'return_date'      => date('Y-m-d H:i:s'),
                         ]);
             } else {
                 $total = $total + $value['value'];

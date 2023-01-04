@@ -15,6 +15,7 @@ class AssetInventory extends Model
         'name_asset_inventory',
         'code',
         'qty',
+        'available',
         'created_at',
         'updated_at',
     ];

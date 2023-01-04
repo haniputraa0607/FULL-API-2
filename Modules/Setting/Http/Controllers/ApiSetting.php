@@ -57,6 +57,8 @@ use Image;
 use JmesPath\Env;
 use Illuminate\Support\Facades\Storage;
 use Config;
+use Modules\Setting\Entities\GlobalCommissionProductDynamic;
+
 class ApiSetting extends Controller
 {
 
@@ -1948,7 +1950,62 @@ class ApiSetting extends Controller
         return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
     }
     public function global_commission_product_setting(){
+        $dynamic = Setting::where('key','global_commission_product_dynamic')->first()['value']??0;
         $data = Setting::where('key','global_commission_product')->first();
+        if($data){
+            $data['dynamic'] = $dynamic;
+            if($dynamic==1){
+                $data['dynamic_rule'] = GlobalCommissionProductDynamic::orderBy('qty','desc')->get()->toArray();
+                $dynamic_rule = [];
+                $count = count($data['dynamic_rule']) - 1;
+                foreach($data['dynamic_rule'] as $key => $value){
+                    if($count==$key || $count==0){
+                        $for_null = $value['qty']-1;
+                        if($count!=0){
+                            $dynamic_rule[] = [
+                                'id_global_commission_product_dynamics' => $value['id_global_commission_product_dynamics'],
+                                'qty' => $value['qty'].' - '.($data['dynamic_rule'][$key-1]['qty']-1),
+                                'value' => $value['value']
+                            ];
+                        }else{
+                            $dynamic_rule[] = [
+                                'id_global_commission_product_dynamics' => $value['id_global_commission_product_dynamics'],
+                                'qty' => '>= '.$value['qty'],
+                                'value' => $value['value']
+                            ];
+                        }
+                        if($value['qty']!=1){
+                            $dynamic_rule[] = [
+                                'id_global_commission_product_dynamics' => null,
+                                'qty' => '0 - '.$for_null,
+                                'value' => 0
+                            ];
+                        }
+                    }else{
+                        if($key==0){
+                            $dynamic_rule[] = [
+                                'id_global_commission_product_dynamics' => $value['id_global_commission_product_dynamics'],
+                                'qty' => '>= '.$value['qty'],
+                                'value' => $value['value']
+                            ];
+                        }else{
+                            $before = $data['dynamic_rule'][$key-1]['qty'] - 1;
+                            if($before == $value['qty']){
+                                $qty = $value['qty'];
+                            }else{
+                                $qty = $value['qty'].' - '.$before;
+                            }
+                            $dynamic_rule[] = [
+                                'id_global_commission_product_dynamics' => $value['id_global_commission_product_dynamics'],
+                                'qty' => $qty,
+                                'value' => $value['value']
+                            ];
+                        }
+                    }
+                }
+                $data['dynamic_rule_list'] = $dynamic_rule;
+            }
+        }
         $refresh = Setting::where('key' , 'Refresh Commission Transaction')->first();
         if($data){
             $data['status'] = $refresh['value'] ?? null;
@@ -1962,25 +2019,76 @@ class ApiSetting extends Controller
         }else{
             $percent = 0;
         }
-        if(isset($request->commission)){
-             $global_commission_product = Setting::where('key','global_commission_product')->first();
-             if($global_commission_product){
-                 $data = Setting::where('key','global_commission_product')->update([
-                  'value'=>$percent,
-                  'value_text'=>(int)$request->commission
+        DB::beginTransaction();
+        if(isset($request->type)){
+            if($request->type == 'Static'){
+                $dynamic = 0;
+            }else{
+                $dynamic = 1;
+            }
+            $global_commission_product = Setting::where('key','global_commission_product')->first();
+            if($global_commission_product){
+                $data = Setting::where('key','global_commission_product')->update([
+                    'value'=>$percent,
+                    'value_text'=>(int)$request->commission
                  
-             ]);
-             }else{
-                 $data = Setting::create([
-                 'key'=>'global_commission_product',
-                 'value'=>$percent,
-                 'value_text'=>(int)$request->commission
-                    
-             ]);
-             }
-              return response()->json(MyHelper::checkCreate($data));
+                ]);
+            }else{
+                $data = Setting::create([
+                    'key'=>'global_commission_product',
+                    'value'=>$percent,
+                    'value_text'=>(int)$request->commission
+                ]);
+            }
+            if(!$data){
+                DB::rollback();
+                return response()->json(['status' => 'fail', 'messages' => ['Failed update commission global']]);
+            }
+            $setting_dynamic = Setting::updateOrCreate(['key'=>'global_commission_product_dynamic'],['value'=>$dynamic]);
+            if(!$setting_dynamic){
+                DB::rollback();
+                return response()->json(['status' => 'fail', 'messages' => ['Failed update commission global']]);
+            }
+            if($dynamic==1){
+                $delete = GlobalCommissionProductDynamic::truncate();
+                $dynamic_rule = [];
+                $check_unique = [];
+                if(!isset($request->dynamic_rule) && empty($request->dynamic_rule)){
+                    DB::rollback();
+                    return response()->json(['status' => 'fail', 'messages' => ['Dynamic rule cant be null']]);
+                }
+                foreach($request->dynamic_rule ?? [] as $data_rule){
+                    $dynamic_rule[] = [
+                        'qty' => $data_rule['qty'],
+                        'value' => $data_rule['value'],
+                    ];
+                    if(isset($check_unique[$data_rule['qty']])){
+                        DB::rollback();
+                        return response()->json(['status' => 'fail', 'messages' => ['Duplicated range']]);
+                    }else{
+                        $check_unique[$data_rule['qty']] = $data_rule;
+                    }
+                }
+                
+                $create = GlobalCommissionProductDynamic::insert($dynamic_rule);
+            }else{
+                $delete = GlobalCommissionProductDynamic::truncate();
+            }
+            DB::commit();
+            return response()->json(MyHelper::checkCreate($data));
         }
-        return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
+        return response()->json(['status' => 'fail', 'message' => 'Data Incomplete']);
+    }
+    
+    public function global_commission_product_delete(Request $request){
+        $post = $request->all();
+        if(isset($post['id_global_commission_product_dynamics'])){
+            $delete = GlobalCommissionProductDynamic::where('id_global_commission_product_dynamics',$post['id_global_commission_product_dynamics'])->delete();
+            return response()->json([
+                'status'   => 'success',
+            ]);
+        }
+        return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
     }
 
     public function global_commission_product_refresh(Request $request){
@@ -2404,5 +2512,106 @@ class ApiSetting extends Controller
             }
             return response()->json(MyHelper::checkUpdate($save));
         }
+    }
+    public function haircut_service(){
+        $data = Setting::where('key','haircut_service')->first();
+         return response()->json($data);
+    }
+  
+    public function haircut_service_create(Request $request){
+        $post = $request->json()->all();
+        if(isset($post['value'])){
+             $salary_formula = Setting::where('key','haircut_service')->first();
+             if($salary_formula){
+                 $data = Setting::where('key','haircut_service')->update([
+                  'value'=>$post['value']
+                 
+             ]);
+             }else{
+                 $data = Setting::create([
+                 'key'=>'haircut_service',
+                 'value'=>$post['value']
+                    
+             ]);
+             }
+              return response()->json(MyHelper::checkCreate($data));
+        }
+        return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
+    }
+    public function other_service(){
+        $data = Setting::where('key','other_service')->first();
+         return response()->json($data);
+    }
+  
+    public function other_service_create(Request $request){
+        $post = $request->json()->all();
+        if(isset($post['value'])){
+             $salary_formula = Setting::where('key','other_service')->first();
+             if($salary_formula){
+                 $data = Setting::where('key','other_service')->update([
+                  'value'=>$post['value']
+                 
+             ]);
+             }else{
+                 $data = Setting::create([
+                 'key'=>'other_service',
+                 'value'=>$post['value']
+                    
+             ]);
+             }
+              return response()->json(MyHelper::checkCreate($data));
+        }
+        return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
+    }
+     public function category_employee_file(){
+        $data = Setting::where('key','file_employee')->first();
+         return response()->json($data);
+    }
+  
+    public function category_employee_file_create(Request $request){
+        $post = $request->json()->all();
+        if(isset($post['value_text'])){
+             $salary_formula = Setting::where('key','file_employee')->first();
+             if($salary_formula){
+                 $data = Setting::where('key','file_employee')->update([
+                 'value_text'=>json_encode($post['value_text'])
+             ]);
+             }else{
+                 $data = Setting::create([
+                 'key'=>'file_employee',
+                 'value_text'=>json_encode($post['value_text'])
+                    
+             ]);
+             }
+              return response()->json(MyHelper::checkCreate($data));
+        }
+        return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
+    }
+     public function balance_global_reimbursement(){
+        $data = Setting::where('key','balance_global_reimbursement')->first();
+         return response()->json($data);
+    }
+  
+    public function balance_global_reimbursement_create(Request $request){
+        $post = $request->json()->all();
+        if(isset($post['value_text'])&&isset($post['value'])){
+             $salary_formula = Setting::where('key','balance_global_reimbursement')->first();
+             if($salary_formula){
+                 $data = Setting::where('key','balance_global_reimbursement')->update([
+                     
+                    'value'=>$post['value'],
+                    'value_text'=>$post['value_text']
+             ]);
+             }else{
+                 $data = Setting::create([
+                 'key'=>'balance_global_reimbursement',
+                 'value'=>$post['value'],
+                 'value_text'=>$post['value_text']
+                    
+             ]);
+             }
+              return response()->json(MyHelper::checkCreate($data));
+        }
+        return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
     }
 }

@@ -38,6 +38,7 @@ use Modules\Employee\Entities\EmployeeEmergencyContact;
 use Modules\Employee\Entities\EmployeePerubahanData;
 use Modules\Employee\Entities\EmployeeFaq;
 use Modules\Employee\Entities\EmployeeFaqLog;
+use Schema;
 
 class ApiBeEmployeeProfileController extends Controller
 {
@@ -186,6 +187,7 @@ class ApiBeEmployeeProfileController extends Controller
                ->update([
                    $data->key => $data->change_data,
                ]);
+
            $update_icount = app('\Modules\Employee\Http\Controllers\ApiBeEmployeeController')->update_icount($data->id_user);
        }
        
@@ -297,4 +299,48 @@ class ApiBeEmployeeProfileController extends Controller
         }
         return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
     }
+
+    public function categoryUpdateData(){
+        $data = Setting::where('key','request-perubahan-data-employee')->first();
+        return response()->json($data);
+    }
+
+    public function createCategoryUpdateData(Request $request){
+        $post = $request->json()->all();
+        if(isset($post['value_text'])){
+            $salary_formula = Setting::where('key','request-perubahan-data-employee')->first();
+            if($salary_formula){
+                $data = Setting::where('key','request-perubahan-data-employee')->update([
+                    'value_text'=>json_encode($post['value_text'])
+                ]);
+            }else{
+                $data = Setting::create([
+                    'key'=>'request-perubahan-data-employee',
+                    'value_text'=>json_encode($post['value_text'])
+                ]);
+            }
+            return response()->json(MyHelper::checkCreate($data));
+            
+        }
+        return response()->json(['status' => 'fail', 'message' => 'Data Incomplete' ]);
+    }
+
+    public function getColumn(){
+        $data = [
+            'name',
+            'email',
+            'gender',
+            'birthday',
+            'birthplace',
+            'email',
+            'marital_status',
+            'religion',
+            'card_number',
+            'address_ktp',
+            'address_domicile',
+            'blood_type',
+        ];
+        return MyHelper::checkGet($data);
+    }
+
 }

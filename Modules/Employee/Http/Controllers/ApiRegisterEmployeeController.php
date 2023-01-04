@@ -116,7 +116,7 @@ class ApiRegisterEmployeeController extends Controller
    }
    public function detail(Request $request) {
        $post = $request->all();
-        $user = User::leftjoin('cities','cities.id_city','users.id_city')->where('id',Auth::id())->with(['employee','employee.city_ktp','employee.city_domicile','employee_family','employee_main_family','employee_education','employee_education.city','employee_education_non_formal','employee_job_experience'])->first();
+        $user = User::leftjoin('cities','cities.id_city','users.id_city')->where('id',Auth::id())->with(['employee','employee.city_ktp','employee.city_domicile','employee_family','employee_main_family','employee_education','employee_education.city','employee_education_non_formal','employee_job_experience','employee.custom_links'])->first();
         $array = array();
         if($user){
         $question = EmployeeQuestions::where(array('id_user'=>$user->id))->get();

@@ -26,6 +26,9 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use App\Lib\MyHelper;
 use Modules\Recruitment\Entities\HairstylistSalesPayment;
 use Modules\Employee\Entities\EmployeePerubahanData;
+use Modules\Employee\Entities\DesingRequest;
+use Cache;
+
 class Controller extends BaseController
 {
     use AuthorizesRequests, DispatchesJobs, ValidatesRequests;
@@ -222,13 +225,14 @@ class Controller extends BaseController
 
     public function getSidebarBadge(Request $request)
     {
-        $academySchedule = $this->academy_student_schedule();
-        $academyDayOff = $this->academy_student_day_off();
-        $sutendAllNotif = $academySchedule + $academyDayOff;
-    	return [
-    		'status' => 'success',
-    		'result' => [
-    		'total_sales_payment' => $this->total_sales_payment(),
+        $result = Cache::get('sidebar_badge');
+        if (!$result) {
+            $academySchedule = $this->academy_student_schedule();
+            $academyDayOff = $this->academy_student_day_off();
+            $sutendAllNotif = $academySchedule + $academyDayOff;
+
+            $result = [
+                'total_sales_payment' => $this->total_sales_payment(),
                 'employee'            => $this->employee(),
                 'asset_inventory'     => $this->asset_inventory(),
                 'asset_inventory_return_pending'=>$this->asset_inventory_return_pending(),
@@ -239,6 +243,7 @@ class Controller extends BaseController
                 'academy_student_notif' =>($sutendAllNotif == 0 ? null : $sutendAllNotif),
                 'request-employee-perubahan-data'=> $this->request_employee_perubahan_data(),
                 'employee-reimbursement'=> $this->request_employee_reimbursement(),
+                'employee-cash-advance'=> $this->request_employee_cash_advance(),
                 'partners'=> $this->partners(),
                 'candidate-partners'=> $this->candidate_partners(),
                 'request-update-partners'=> $this->request_update_partners(),
@@ -255,6 +260,7 @@ class Controller extends BaseController
                 'employee_attendance_outlet_request' => $this->employee_attendance_outlet_request(),      
                 'employee_time_off' => $this->employee_time_off(),      
                 'employee_overtime' => $this->employee_overtime(),      
+                'employee_changeshift' => $this->employee_changeshift(),      
                 'hairstylist_schedule' => $this->hairstylist_schedule(),      
                 'hairstylist_attendance_pending' => $this->hairstylist_attendance_pending(),      
                 'hairstylist_time_off' => $this->hairstylist_time_off(),      
@@ -265,9 +271,18 @@ class Controller extends BaseController
                 'delivery_product' => $this->delivery_product(),      
                 'hairstylist_request_update' => $this->hairstylist_request_update(),      
                 'request_hairstylist' => $this->request_hairstylist(),      
+                'employee_recruitment' => $this->employee_recruitment(),      
                 'employee_candidate' => $this->employee_candidate(),      
-    		],
-    	];
+                'list_request_employee' => $this->list_request_employee(),      
+                'design_request' => $this->design_request(),      
+            ];
+            Cache::put('sidebar_badge', $result, now()->addMinutes(1));
+        }
+
+        return [
+            'status' => 'success',
+            'result' => $result,
+        ];
     }
     public function total_sales_payment()
 	{
@@ -282,15 +297,21 @@ class Controller extends BaseController
                 $total = $this->asset_inventory()+
                          $this->request_employee_perubahan_data()+
                          $this->request_employee_reimbursement()+
+                         $this->request_employee_cash_advance()+
                          $this->employee_attendance()+
                          $this->employee_attendance_outlet()+
                          $this->employee_timeoff_overtime()+
-                         $this->employee_candidate();
+                         $this->employee_recruitment();
                 if($total==0){
                     $total = null;
                 }
                 return $total;
 	}
+
+    public function employee_recruitment(){
+        $total =  $this->employee_candidate()+$this->list_request_employee();
+        return $total;
+    }
     public function employee_candidate()
 	{
                 $total = User::where(array(
@@ -314,14 +335,10 @@ class Controller extends BaseController
 	{
                 $total = \Modules\Employee\Entities\AssetInventoryLog::join('asset_inventorys','asset_inventorys.id_asset_inventory','asset_inventory_logs.id_asset_inventory')
                 ->join('asset_inventory_categorys','asset_inventory_categorys.id_asset_inventory_category','asset_inventorys.id_asset_inventory_category')
-                ->join('asset_inventory_returns','asset_inventory_returns.id_asset_inventory','asset_inventorys.id_asset_inventory')
                 ->where([
-                        'type_asset_inventory'=>"Return",
-                    ])->with(['user'])
-                    ->where([
                         'status_asset_inventory'=>"Pending",
                         'type_asset_inventory'=>"Return",
-                    ])->count();
+                    ])->with(['user'])->count();
                 if($total==0){
                     $total = null;
                 }
@@ -397,8 +414,23 @@ class Controller extends BaseController
         $total = \Modules\Employee\Entities\EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')
                ->join('product_icounts','product_icounts.id_product_icount','employee_reimbursements.id_product_icount')
                ->join('employees','employees.id_user','employee_reimbursements.id_user')
-               ->where('employee_reimbursements.status','Pending')
+               ->where('employee_reimbursements.status','!=','Successed')
+               ->where('employee_reimbursements.status','!=','Approved')
+               ->where('employee_reimbursements.status','!=','Rejected')
                 ->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+    public function request_employee_cash_advance(){
+        $total = \Modules\Employee\Entities\EmployeeCashAdvance::join('users','users.id','employee_cash_advances.id_user')
+               ->join('employees','employees.id_user','employee_cash_advances.id_user')
+              ->join('product_icounts','product_icounts.id_product_icount','employee_cash_advances.id_product_icount') 
+              ->where('employee_cash_advances.status','!=','Success')
+               ->where('employee_cash_advances.status','!=','Approve')
+               ->where('employee_cash_advances.status','!=','Rejected')
+               ->count();
         if($total==0){
             $total = null;
         }
@@ -479,7 +511,7 @@ class Controller extends BaseController
     }
 
     public function employee_timeoff_overtime(){
-        $total = +$this->employee_time_off()+$this->employee_overtime();
+        $total = +$this->employee_time_off()+$this->employee_overtime()+$this->employee_changeshift();
         if($total==0){
             $total = null;
         }
@@ -540,6 +572,14 @@ class Controller extends BaseController
 
     public function employee_overtime(){
         $total = \Modules\Employee\Entities\EmployeeOvertime::whereNull('reject_at')->whereNull('approve_by')->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+
+    public function employee_changeshift(){
+        $total = \Modules\Employee\Entities\EmployeeChangeShift::where('status','Pending')->count();
         if($total==0){
             $total = null;
         }
@@ -623,6 +663,22 @@ class Controller extends BaseController
 
     public function request_hairstylist(){
         $total = \Modules\Recruitment\Entities\RequestHairStylist::where('status','Request')->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+
+    public function list_request_employee(){
+        $total = \Modules\Employee\Entities\RequestEmployee::where('status','Request')->count();
+        if($total==0){
+            $total = null;
+        }
+        return $total;
+    }
+
+    public function design_request(){
+        $total = DesingRequest::where('status','<>','Provided')->count();
         if($total==0){
             $total = null;
         }

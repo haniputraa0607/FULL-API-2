@@ -7,7 +7,10 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Modules\Employee\Entities\CategoryAssetInventory;
 use Modules\Employee\Entities\AssetInventory;
+use Modules\Employee\Entities\AssetInventoryLog;
 use DB;
+use Illuminate\Support\Facades\Auth;
+
 class CreateLoan extends FormRequest
 {
     public function withValidator($validator)
@@ -23,17 +26,26 @@ class CreateLoan extends FormRequest
                     'asset_inventorys.code',
                     'asset_inventorys.id_asset_inventory_category',
                     'asset_inventorys.qty',
-                    DB::raw('
-                        sum(
-                            CASE WHEN
-                            asset_inventory_logs.type_asset_inventory = "Loan" AND asset_inventory_loans.status_loan = "Active" OR asset_inventory_logs.status_asset_inventory != "Rejected" THEN 1 ELSE 0
-                            END
-                        ) as jumlah
-                    ')
+                    'asset_inventorys.available',
                 ])
                 ->groupby('id_asset_inventory')
                 ->first();
-                if($asset->qty>$asset->jumlah){
+                if($asset->available > 0){
+                   return true;
+                }
+                return false;
+        }); 
+        $validator->addExtension('cek_request', function ($attribute, $value, $parameters, $validator) {
+        $asset = AssetInventory::leftjoin('asset_inventory_loans','asset_inventory_loans.id_asset_inventory','asset_inventorys.id_asset_inventory')
+                ->leftjoin('asset_inventory_logs','asset_inventory_logs.id_asset_inventory','asset_inventorys.id_asset_inventory')
+                ->where([
+                    'asset_inventorys.id_asset_inventory'=>$value,
+                    'asset_inventory_logs.status_asset_inventory'=>"Pending",
+                    'asset_inventory_logs.type_asset_inventory'=>"Loan",
+                    'asset_inventory_logs.id_user'=> Auth::user()->id
+                ])
+                ->first();
+                if(!$asset){
                    return true;
                 }
                 return false;
@@ -43,6 +55,7 @@ class CreateLoan extends FormRequest
     {
         return [
             'cek' => 'Asset Inventory not available',
+            'cek_request' => 'Request asset inventory status still pending',
         ];
     }
     public function authorize()
@@ -52,7 +65,7 @@ class CreateLoan extends FormRequest
     public function rules()
 	{
 		return [
-			'id_asset_inventory'          => 'required|cek',
+			'id_asset_inventory'          => 'required|cek|cek_request',
 			'long'                        => 'required|integer',
 			'long_loan'                   => 'required|in:Day,Month,Year',
 			'notes'                       => 'required',

@@ -2108,7 +2108,8 @@ class ApiDeals extends Controller
         unset(
         	$data['deals_type'],
         	$data['deals_voucher_price_point'],
-        	$data['deals_voucher_price_cash']
+        	$data['deals_voucher_price_cash'],
+        	$data['total_deals_user']
         );
         $data['step_complete'] = 0;
         $data['last_updated_by'] = auth()->user()->id;

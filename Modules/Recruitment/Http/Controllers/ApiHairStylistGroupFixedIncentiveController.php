@@ -132,7 +132,7 @@ class ApiHairStylistGroupFixedIncentiveController extends Controller
                           );
                     }elseif(++$i === $last) {
                        $x--;
-                    $va['ranges'] = $va['range'].' - '.$x;
+                    $va['ranges'] = $x.' - '.$va['range'];
                     $va['range'] = $va['range'] - 1;
                     if($va['range']>=0){
                     $value['detail'][] = array(
@@ -254,7 +254,7 @@ class ApiHairStylistGroupFixedIncentiveController extends Controller
                           );
                     }elseif(++$i === $last) {
                        $x--;
-                    $value['ranges'] = $value['range'].' - '.$x;
+                    $value['ranges'] = $x.' - '.$value['range'];
                     $value['range'] = $value['range'] - 1;
                     if($value['range']>=0){
                     $data[] = array(

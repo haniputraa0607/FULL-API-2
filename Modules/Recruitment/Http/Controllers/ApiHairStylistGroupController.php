@@ -17,6 +17,7 @@ use Modules\Recruitment\Http\Requests\InviteHS;
 use Image;
 use Modules\Recruitment\Entities\HairstylistGroup;
 use Modules\Recruitment\Entities\HairstylistGroupCommission;
+use Modules\Recruitment\Entities\HairstylistGroupCommissionDynamic;
 use App\Http\Models\Product;
 use Modules\Recruitment\Entities\HairstylistGroupInsentifDefault;
 use Modules\Recruitment\Entities\HairstylistGroupOvertimeDefault;
@@ -26,6 +27,8 @@ use Modules\Recruitment\Entities\HairstylistGroupOvertime;
 use Modules\Recruitment\Entities\HairstylistGroupPotongan;
 use Modules\Recruitment\Entities\HairstylistGroupProteksi;
 use App\Http\Models\Setting;
+use DB;
+
 class ApiHairStylistGroupController extends Controller
 {
     public function __construct()
@@ -116,19 +119,20 @@ class ApiHairStylistGroupController extends Controller
     {
         $data = array();
         if($request->id_hairstylist_group){
-        $store = Product::select(['products.id_product','product_name'])->get();
-        foreach ($store as $value) {
-            $global = Product::where(array('products.id_product'=>$value['id_product']))->join('product_global_price','product_global_price.id_product','products.id_product')->first();
-            $cek = HairstylistGroupCommission::where(array('id_product'=>$value['id_product'],'id_hairstylist_group'=>$request->id_hairstylist_group))->first();
-            if(!$cek){
-                $value['price'] = 0;
-                if($global){
-                    $value['price'] = $global->product_global_price;
+            $store = Product::with(['brands'])->select(['products.id_product','product_name'])->get();
+            foreach ($store as $value) {
+                $global = Product::where(array('products.id_product'=>$value['id_product']))->join('product_global_price','product_global_price.id_product','products.id_product')->first();
+                $cek = HairstylistGroupCommission::where(array('id_product'=>$value['id_product'],'id_hairstylist_group'=>$request->id_hairstylist_group))->first();
+                if(!$cek){
+                    $value['price'] = 0;
+                    if($global){
+                        $value['price'] = $global->product_global_price;
+                    }
+                    array_push($data,$value);
                 }
-                array_push($data,$value);
             }
-        }}
-         return response()->json($data);
+        }
+        return response()->json($data);
     }
     public function hs(Request $request)
     {
@@ -162,12 +166,47 @@ class ApiHairStylistGroupController extends Controller
         }else{
             $percent = 0;
         }
+
+        if(isset($request->type)){
+            if($request->type == 'Static'){
+                $dynamic = 0;
+            }else{
+                $dynamic = 1;
+            }
+        }
+        DB::beginTransaction();
+
         $store = HairstylistGroupCommission::create([
-                    "id_hairstylist_group"   =>  $request->id_hairstylist_group,
-                    "id_product"   =>  $request->id_product,
-                    "commission_percent"   =>  $request->commission_percent,
-                    "percent"   =>  $percent,
-                ]);
+            "id_hairstylist_group"   =>  $request->id_hairstylist_group,
+            "id_product"   =>  $request->id_product,
+            "commission_percent"   =>  $request->commission_percent,
+            "percent"   =>  $percent,
+            "dynamic"   =>  $dynamic,
+        ]);
+        if(!$store){
+            DB::rollback();
+            return response()->json(['status' => 'fail', 'messages' => ['Failed update commission product']]);
+        }
+        if($dynamic==1){
+            $dynamic_rule = [];
+            $check_unique = [];
+            foreach($request->dynamic_rule ?? [] as $data_rule){
+                $dynamic_rule[] = [
+                    'id_hairstylist_group_commission' => $store->id_hairstylist_group_commission,
+                    'qty' => $data_rule['qty'],
+                    'value' => $data_rule['value'],
+                ];
+                if(isset($check_unique[$data_rule['qty']])){
+                    DB::rollback();
+                    return response()->json(['status' => 'fail', 'messages' => ['Duplicated range']]);
+                }else{
+                    $check_unique[$data_rule['qty']] = $data_rule;
+                }
+            }
+            
+            $create = HairstylistGroupCommissionDynamic::insert($dynamic_rule);
+        }
+        DB::commit();
         return response()->json(MyHelper::checkCreate($store));
     }
     public function update_commission(UpdateGroupCommission $request)
@@ -177,23 +216,137 @@ class ApiHairStylistGroupController extends Controller
         }else{
             $percent = 0;
         }
-       $store = HairstylistGroupCommission::where(array("id_hairstylist_group"=>  $request->id_hairstylist_group,"id_product"   =>  $request->id_product))->update([
-                    "commission_percent"   =>  $request->commission_percent,
+        
+        if(isset($request->type)){
+            if($request->type == 'Static'){
+                $dynamic = 0;
+            }else{
+                $dynamic = 1;
+            }
+        }
+        DB::beginTransaction();
+        $store = HairstylistGroupCommission::where(array("id_hairstylist_group_commission"=>  $request->id_hairstylist_group_commission))
+                ->update([
+                    "commission_percent"   =>  $dynamic == 0 ? $request->commission_percent : null,
                     "percent"   =>  $percent,
+                    "dynamic"   =>  $dynamic,
                 ]);
+
+        if(!$store){
+            DB::rollback();
+            return response()->json(['status' => 'fail', 'messages' => ['Failed update commission product']]);
+        }
+
+        if($dynamic==1){
+            $delete = HairstylistGroupCommissionDynamic::where('id_hairstylist_group_commission',$request->id_hairstylist_group_commission)->delete();
+            $dynamic_rule = [];
+            $check_unique = [];
+            foreach($request->dynamic_rule ?? [] as $data_rule){
+                $dynamic_rule[] = [
+                    'id_hairstylist_group_commission' => $request->id_hairstylist_group_commission,
+                    'qty' => $data_rule['qty'],
+                    'value' => $data_rule['value'],
+                ];
+                if(isset($check_unique[$data_rule['qty']])){
+                    DB::rollback();
+                    return response()->json(['status' => 'fail', 'messages' => ['Duplicated range']]);
+                }else{
+                    $check_unique[$data_rule['qty']] = $data_rule;
+                }
+            }
+            
+            $create = HairstylistGroupCommissionDynamic::insert($dynamic_rule);
+        }else{
+            $delete = HairstylistGroupCommissionDynamic::where('id_hairstylist_group_commission',$request->id_hairstylist_group_commission)->delete();
+        }
+        DB::commit();
         return response()->json(MyHelper::checkCreate($store));
     }
     public function detail_commission(Request $request)
     {
         if($request->id_hairstylist_group_commission!=''){
-           $data = HairstylistGroupCommission::where(array('id_hairstylist_group_commission'=>$request->id_hairstylist_group_commission))->join('products','products.id_product','hairstylist_group_commissions.id_product')->join('hairstylist_groups','hairstylist_groups.id_hairstylist_group','hairstylist_group_commissions.id_hairstylist_group')->first();
-           return MyHelper::checkGet($data);
+            $data = HairstylistGroupCommission::where(array('id_hairstylist_group_commission'=>$request->id_hairstylist_group_commission))->join('products','products.id_product','hairstylist_group_commissions.id_product')
+            ->leftJoin('brand_product','brand_product.id_product','products.id_product')->leftJoin('brands','brands.id_brand','brand_product.id_brand')
+            ->join('hairstylist_groups','hairstylist_groups.id_hairstylist_group','hairstylist_group_commissions.id_hairstylist_group')->with(['dynamic_rule'=> function($d){$d->orderBy('qty','desc');}])->first();
+            if($data){
+                $product = Product::where(array('products.id_product'=>$data['id_product']))->join('product_global_price','product_global_price.id_product','products.id_product')->first();
+                $data['product_price'] = 0;
+                if($product){
+                    $data['product_price'] = $product->product_global_price;
+                }
+                
+                if($data['dynamic_rule']){
+                    $dynamic_rule = [];
+                    $count = count($data['dynamic_rule']) - 1;
+                    foreach($data['dynamic_rule'] as $key => $value){
+                        if($count==$key || $count==0){
+                            $for_null = $value['qty']-1;
+                            if($count!=0){
+                                $dynamic_rule[] = [
+                                    'id_hairstylist_group_commission_dynamic' => $value['id_hairstylist_group_commission_dynamic'],
+                                    'qty' => $value['qty'].' - '.($data['dynamic_rule'][$key-1]['qty']-1),
+                                    'value' => $value['value']
+                                ];
+                            }else{
+                                $dynamic_rule[] = [
+                                    'id_hairstylist_group_commission_dynamic' => $value['id_hairstylist_group_commission_dynamic'],
+                                    'qty' => '>= '.$value['qty'],
+                                    'value' => $value['value']
+                                ];
+                            }
+                            if($value['qty']!=1){
+                                $dynamic_rule[] = [
+                                    'id_hairstylist_group_commission_dynamic' => null,
+                                    'qty' => '0 - '.$for_null,
+                                    'value' => 0
+                                ];
+                            }
+                        }else{
+                            if($key==0){
+                                $dynamic_rule[] = [
+                                    'id_hairstylist_group_commission_dynamic' => $value['id_hairstylist_group_commission_dynamic'],
+                                    'qty' => '>= '.$value['qty'],
+                                    'value' => $value['value']
+                                ];
+                            }else{
+                                $before = $data['dynamic_rule'][$key-1]['qty'] - 1;
+                                if($before == $value['qty']){
+                                    $qty = $value['qty'];
+                                }else{
+                                    $qty = $value['qty'].' - '.$before;
+                                }
+                                $dynamic_rule[] = [
+                                    'id_hairstylist_group_commission_dynamic' => $value['id_hairstylist_group_commission_dynamic'],
+                                    'qty' => $qty,
+                                    'value' => $value['value']
+                                ];
+                            }
+                        }
+                    }
+                    $data['dynamic_rule_list'] = $dynamic_rule;
+                }
+            }
+            return MyHelper::checkGet($data);
         }
         return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
     }
+
+    public function deleteCommission(Request $request){
+        $post = $request->all();
+        if(isset($post['id_hairstylist_group_commission_dynamic'])){
+            $delete = HairstylistGroupCommissionDynamic::where('id_hairstylist_group_commission_dynamic',$post['id_hairstylist_group_commission_dynamic'])->delete();
+            return response()->json([
+                'status'   => 'success',
+            ]);
+        }
+        return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+    }
+
     public function commission(Request $request) {
         $post = $request->json()->all();
-        $data = HairstylistGroupCommission::where(array('id_hairstylist_group'=>$request->id_hairstylist_group))->join('products','products.id_product','hairstylist_group_commissions.id_product')->select('id_hairstylist_group_commission','product_name','product_code','commission_percent','id_hairstylist_group','percent');
+        $data = HairstylistGroupCommission::where(array('id_hairstylist_group'=>$request->id_hairstylist_group))->join('products','products.id_product','hairstylist_group_commissions.id_product')
+        ->leftJoin('brand_product','brand_product.id_product','products.id_product')->leftJoin('brands','brands.id_brand','brand_product.id_brand')
+        ->select('id_hairstylist_group_commission','product_name','product_code','commission_percent','id_hairstylist_group','percent','dynamic','name_brand');
         if ($request->json('rule')){
              $this->filterListCommission($data,$request->json('rule'),$request->json('operator')??'and');
         }
@@ -351,6 +504,17 @@ class ApiHairStylistGroupController extends Controller
             }
         }
         return response()->json(MyHelper::checkCreate($store));
+    }
+
+    public function commissionDeleteProduct(Request $request){
+        $post = $request->all();
+        if(isset($post['id_hairstylist_group_commission'])){
+            $delete = HairstylistGroupCommission::where('id_hairstylist_group_commission',$post['id_hairstylist_group_commission'])->delete();
+            return response()->json([
+                'status'   => 'success',
+            ]);
+        }
+        return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
     }
     
 }

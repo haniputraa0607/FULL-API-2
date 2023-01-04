@@ -56,9 +56,17 @@ class Employee extends Model
         'created_at',
         'updated_at',
     ];
+    public function user()
+	{
+		return $this->belongsTo(\App\Http\Models\User::class, 'id_user','id');
+	}
     public function documents()
 	{
 		return $this->hasMany(\Modules\Employee\Entities\EmployeeDocuments::class, 'id_employee');
+	}
+    public function custom_links()
+	{
+		return $this->hasMany(\Modules\Employee\Entities\EmployeeCustomLink::class, 'id_employee');
 	}
     public function city_ktp()
 	{
@@ -67,6 +75,10 @@ class Employee extends Model
     public function city_domicile()
 	{
 		return $this->belongsTo(\App\Http\Models\City::class, 'id_city_domicile','id_city');
+	}
+    public function form_evaluation()
+	{
+		return $this->hasMany(\Modules\Employee\Entities\EmployeeFormEvaluation::class, 'id_employee');
 	}
 
     public function businessPartner($id_business_partner = null){

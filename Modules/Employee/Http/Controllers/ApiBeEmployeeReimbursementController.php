@@ -32,6 +32,9 @@ use Modules\Employee\Http\Requests\Reimbursement\BE\CallbackIcountReimbursement;
 use Validator;
 use Modules\Employee\Entities\EmployeeReimbursementIcount;
 use Modules\Employee\Entities\EmployeeReimbursementDocument;
+use Modules\Employee\Entities\EmployeeReimbursementProductIcount;
+use Modules\Employee\Http\Requests\Reimbursement\BE\CreateBalance;
+use Modules\Employee\Http\Requests\Reimbursement\BE\UpdateBalance;
 
 class ApiBeEmployeeReimbursementController extends Controller
 {
@@ -48,7 +51,6 @@ class ApiBeEmployeeReimbursementController extends Controller
       $employee = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')
                ->join('product_icounts','product_icounts.id_product_icount','employee_reimbursements.id_product_icount')
                ->join('employees','employees.id_user','employee_reimbursements.id_user')
-               ->where('employee_reimbursements.status','!=','Pending')
                ->where('employee_reimbursements.status','!=','Successed')
                ->where('employee_reimbursements.status','!=','Approved')
                ->where('employee_reimbursements.status','!=','Rejected')
@@ -250,9 +252,9 @@ class ApiBeEmployeeReimbursementController extends Controller
    }
    public function callbackreimbursement(CallbackIcountReimbursement $request){
         if($request->status == "Success"){
-            $request->status = "Successed";
+            $request->status = "Success";
         }else{
-            $request->status = "Rejected";
+            $request->status = "Failed";
         }
         $data = EmployeeReimbursement::where(array('id_purchase_invoice'=>$request->PurchaseInvoiceID))->update([
             'status'=>$request->status,
@@ -266,4 +268,87 @@ class ApiBeEmployeeReimbursementController extends Controller
         ]);
         return response()->json(['status' => 'success','code'=>$data]); 
     }
+    public function dropdown() {
+       $data = ProductIcount::leftjoin('employee_reimbursement_product_icounts','employee_reimbursement_product_icounts.id_product_icount','product_icounts.id_product_icount')
+                ->where([
+                    'is_buyable'=>'true',
+                    'is_sellable'=>'true',
+                    'is_deleted'=>'false',
+                    'is_suspended'=>'false',
+                    'is_actived'=>'true'
+                ])
+               ->wherenull('employee_reimbursement_product_icounts.id_product_icount')
+               ->select([
+                    'product_icounts.id_product_icount',
+                    'product_icounts.name',
+                    'code'
+                ])->get();
+       return MyHelper::checkGet($data);
+   }
+    public function list_dropdown(Request $request) {
+       
+       $data = EmployeeReimbursementProductIcount::join('product_icounts','product_icounts.id_product_icount','employee_reimbursement_product_icounts.id_product_icount')
+                ->select([
+                    'employee_reimbursement_product_icounts.*',
+                    'product_icounts.id_product_icount',
+                    'product_icounts.name as name_icount',
+                    'product_icounts.code',
+                    'product_icounts.company_type',
+                ])->paginate($request->length ?: 10);
+       return MyHelper::checkGet($data);
+   }
+    public function create_dropdown(CreateBalance $request) {
+       
+           $data = EmployeeReimbursementProductIcount::where(['id_product_icount'=>$request->id_product_icount])->first();
+           if(!$data){
+            $data = EmployeeReimbursementProductIcount::create([
+                'id_product_icount'=>$request->id_product_icount,
+                'name'=>$request->name,
+                'max_approve_date'=>$request->max_approve_date,
+                'reset_date'=>$request->reset_date,
+                'value_text'=>$request->value_text,
+                'type'=>$request->type,
+                'month'=>$request->month,
+                ]);    
+           }
+       return MyHelper::checkGet($data);
+   }
+    public function update_dropdown(UpdateBalance $request) {
+       
+            $data = EmployeeReimbursementProductIcount::where('id_employee_reimbursement_product_icount',$request->id_employee_reimbursement_product_icount)->update([
+                'id_product_icount'=>$request->id_product_icount,
+                'name'=>$request->name,
+                'max_approve_date'=>$request->max_approve_date,
+                'reset_date'=>$request->reset_date,
+                'value_text'=>$request->value_text,
+                'type'=>$request->type,
+                'month'=>$request->month,
+                ]);    
+       return MyHelper::checkGet($data);
+   }
+    public function detail_dropdown(Request $request) {
+       
+       $data = null;
+       if(isset($request->id_employee_reimbursement_product_icount)){
+           $data = EmployeeReimbursementProductIcount::where(['id_employee_reimbursement_product_icount'=>$request->id_employee_reimbursement_product_icount])
+                    ->join('product_icounts','product_icounts.id_product_icount','employee_reimbursement_product_icounts.id_product_icount')
+                ->select([
+                    'employee_reimbursement_product_icounts.*',
+                    'product_icounts.id_product_icount',
+                    'product_icounts.name as name_icount',
+                    'product_icounts.code',
+                    'product_icounts.company_type',
+                ])->first();
+       }
+       return MyHelper::checkGet($data);
+   }
+    public function delete_dropdown(Request $request) {
+       
+       $data = null;
+       if(isset($request->id_employee_reimbursement_product_icount)){
+           $data = EmployeeReimbursementProductIcount::where(['id_employee_reimbursement_product_icount'=>$request->id_employee_reimbursement_product_icount])->delete();
+       }
+       return MyHelper::checkGet($data);
+   }
+   
 }

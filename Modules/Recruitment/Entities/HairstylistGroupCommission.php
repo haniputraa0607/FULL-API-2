@@ -20,7 +20,12 @@ class HairstylistGroupCommission extends Model
 		'id_product',
 		'percent',
 		'commission_percent',
-                'created_at',   
-                'updated_at'
+        'created_at',   
+        'updated_at',
+		'dynamic'
 	];
+
+	public function dynamic_rule(){
+        return $this->hasMany(HairstylistGroupCommissionDynamic::class, 'id_hairstylist_group_commission');
+    }
 }

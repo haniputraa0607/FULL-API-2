@@ -2,14 +2,14 @@
 
 namespace App\Jobs;
 
+use App\Http\Models\Setting;
+use App\Http\Models\Transaction;
 use App\Http\Models\TransactionProduct;
 use Illuminate\Bus\Queueable;
-use App\Http\Models\Setting;
-use Illuminate\Queue\SerializesModels;
-use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
-use App\Http\Models\Transaction;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
 
 class RefreshTransactionCommission implements ShouldQueue
 {
@@ -23,7 +23,7 @@ class RefreshTransactionCommission implements ShouldQueue
      */
     public function __construct($data)
     {
-        $this->data=$data;
+        $this->data = $data;
     }
 
     /**
@@ -33,17 +33,27 @@ class RefreshTransactionCommission implements ShouldQueue
      */
     public function handle()
     {
-        $start_date = $this->data['start_date'];
-        $end_date = $this->data['end_date'];
-        $transaction = Transaction::whereNotNull('id_outlet')->whereNotNull('id_user')->whereDate('transaction_date', '>=', $start_date)->whereDate('transaction_date', '<=', $end_date)->get()->toArray();
-        Setting::where('key','Refresh Commission Transaction')->update(['value' => 'process']);
-        foreach($transaction ?? [] as $key => $val){
-            $transaction_products = TransactionProduct::where('id_transaction',$val['id_transaction'])->get()->toArray();
-            foreach($transaction_products ?? [] as $key => $transaction){
-                $trx = New TransactionProduct();
-                $trx = $trx->find($transaction['id_transaction_product'])->breakdown();
-            }
+        $start_date  = $this->data['start_date'];
+        $end_date    = $this->data['end_date'];
+        // $transactions = Transaction::whereNotNull('id_outlet')
+        //     ->with('transaction_products')
+        //     ->whereNotNull('id_user')
+        //     ->whereDate('transaction_date', '>=', $start_date)
+        //     ->whereDate('transaction_date', '<=', $end_date)
+        //     ->get();
+        Setting::where('key', 'Refresh Commission Transaction')->update(['value' => 'process']);
+        // foreach ($transactions ?? [] as $key => $val) {
+        //     $transaction_products = $val->transaction_products;
+        //     foreach ($transaction_products ?? [] as $key => $trx) {
+        //         $trx->breakdown();
+        //     }
+        // }
+        $curDate = date('Y-m-d', strtotime($start_date));
+        $lastDate = date('Y-m-d', strtotime($end_date));
+        while ($curDate <= $lastDate && $curDate != date('Y-m-d')) {
+            app('Modules\Transaction\Http\Controllers\ApiTransactionProductionController')->CronBreakdownCommission($curDate);
+            $curDate = date('Y-m-d', strtotime($curDate . ' +1day'));
         }
-        Setting::where('key','Refresh Commission Transaction')->update(['value' => 'finished']);
+        Setting::where('key', 'Refresh Commission Transaction')->update(['value' => 'finished']);
     }
 }

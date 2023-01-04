@@ -769,7 +769,6 @@ class ApiLocationsController extends Controller
 
             $data_loc = [
                 "name"   => $data_request['name'],
-                "email"   => $data_request['email'],
                 "address"   => $data_request['address'],
                 "id_city"   => $data_request['id_city'],
                 "latitude"   => $data_request['latitude'],
@@ -797,29 +796,34 @@ class ApiLocationsController extends Controller
             if (isset($post['submited_by']) && !empty($post['submited_by'])) {
                 $data_loc['submited_by'] = $post['submited_by'];
             }
+            if (isset($post['email']) && !empty($post['email'])) {
+                $data_loc['email'] = $post['email'];
+            }
 
             $store = Location::create($data_loc);
             if(!$store) {
                 DB::rollback();
                 return response()->json(['status' => 'fail', 'messages' => ['Failed add location']]);
             }
-            if (\Module::collections()->has('Autocrm')) {
-                $autocrm = app($this->autocrm)->SendAutoCRM(
-                    'Create A New Candidate Location',
-                    $data_loc['email'],
-                    [
-                        'name_location' => $data_loc['name'],
-                        'code' => $data_loc['code'],
-                        'pic_contact' => $data_loc['pic_contact']
-                    ], null, null, null, null, null, null, null, 1,
-                );
-                // return $autocrm;
-                if (!$autocrm) {
-                    DB::rollback();
-                    return response()->json([
-                        'status'    => 'fail',
-                        'messages'  => ['Failed to send']
-                    ]);
+            if(isset($data_loc['submited_by']) && isset($data_loc['email'])){
+                if (\Module::collections()->has('Autocrm')) {
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Create A New Candidate Location',
+                        $data_loc['email'],
+                        [
+                            'name_location' => $data_loc['name'],
+                            'code' => $data_loc['code'],
+                            'pic_contact' => $data_loc['pic_contact']
+                        ], null, null, null, null, null, null, null, 1,
+                    );
+                    // return $autocrm;
+                    if (!$autocrm) {
+                        DB::rollback();
+                        return response()->json([
+                            'status'    => 'fail',
+                            'messages'  => ['Failed to send']
+                        ]);
+                    }
                 }
             }
             DB::commit();
@@ -842,6 +846,10 @@ class ApiLocationsController extends Controller
             $no = '0'.$no;
         }
         $no = $yearMonth.$no;
+        $check = Location::where('code','like', $no)->get()->toArray();
+        if($check){
+            $this->locationCode();
+        }
         return $no;
     }
 

@@ -14,7 +14,7 @@ class UpdateDefaultOvertime extends FormRequest
     {
         return [
             'id_hairstylist_group_default_overtimes'        => 'required',
-            'hours'                                          => 'required|integer|unik',
+            'days'                                          => 'required|integer|unik',
             'value'                                         => 'required|integer',
            ]; 
     }
@@ -22,7 +22,7 @@ class UpdateDefaultOvertime extends FormRequest
     {
         $validator->addExtension('unik', function ($attribute, $value, $parameters, $validator) {
         $data = $validator->getData();
-        $survey = HairstylistGroupOvertimeDefault::where('id_hairstylist_group_default_overtimes','!=',$data['id_hairstylist_group_default_overtimes'])->where('hours',$value)->first();
+        $survey = HairstylistGroupOvertimeDefault::where('id_hairstylist_group_default_overtimes','!=',$data['id_hairstylist_group_default_overtimes'])->where('days',$value)->first();
          if($survey){
              return false;
          }return true;

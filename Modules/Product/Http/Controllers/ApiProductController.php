@@ -69,12 +69,14 @@ use App\Http\Models\OutletSchedule;
 use Modules\Product\Http\Requests\product\DeleteIcount;
 use Modules\ProductService\Entities\ProductServiceUse;
 use Modules\Product\Entities\ProductCommissionDefault;
+use Modules\Product\Entities\ProductCommissionDefaultDynamic;
 use Modules\Product\Http\Requests\product\Commission;
 use App\Jobs\SyncIcountItems;
 use Modules\Product\Entities\ProductCatalogDetail;
 use Modules\Product\Entities\ProductIcountOutletStockLog;
 use Modules\Product\Entities\UnitIcount;
 use Modules\Product\Entities\UnitIcountConversion;
+use Modules\Brand\Entities\BrandOutlet;
 
 class ApiProductController extends Controller
 {
@@ -977,6 +979,12 @@ class ApiProductController extends Controller
                 $product = Product::with(['category', 'discount', 'product_detail']);
             }else{
                 $product = Product::with(['category', 'discount','product_icount_use_ima' => function($ima){$ima->where('company_type','ima');},'product_icount_use_ims' => function($ims){$ims->where('company_type','ims');}]);
+            }
+
+            if ($post['outlet_id'] ?? false) {
+                $outletBrand = BrandOutlet::where('id_outlet', $post['outlet_id'])->pluck('id_brand');
+                $productsId = BrandProduct::whereIn('id_brand', $outletBrand)->pluck('id_product');
+                $product->whereIn('id_product', $productsId);
             }
 		}
 
@@ -2389,12 +2397,14 @@ class ApiProductController extends Controller
         }
 
         $messagesFailOutlet = '';
-        if(empty($outlet['today']) && $isClose == true){
-            $messagesFailOutlet = 'Maaf outlet belum buka.';
+        if ($outlet['today']['is_closed']) {
+            $messagesFailOutlet = 'Maaf, outlet tutup hari ini';
+        } elseif (empty($outlet['today']) && $isClose == true){
+            $messagesFailOutlet = 'Maaf, outlet belum buka.';
         }elseif(!empty($outlet['today']) && !empty($open) && !empty($close) && $isClose == true){
-            $messagesFailOutlet = 'Maaf outlet belum buka. Silahkan berkunjung kembali diantara pukul '.date('H:i', strtotime($open)).' sampai '.date('H:i', strtotime($close));
+            $messagesFailOutlet = 'Maaf, outlet belum buka. Silahkan berkunjung kembali diantara pukul '.MyHelper::adjustTimezone($open, $timeZone, 'H:i').' sampai '.MyHelper::adjustTimezone($close, $timeZone, 'H:i');
         }elseif(!empty($outlet['today']) && (empty($open) || empty($close)) && $isClose == true){
-            $messagesFailOutlet = 'Maaf outlet belum buka.';
+            $messagesFailOutlet = 'Maaf, outlet belum buka.';
         }
 
         $resOutlet = [
@@ -2560,7 +2570,7 @@ class ApiProductController extends Controller
                     $close = date('H:i', strtotime($outletSchedules[$getTime]['close'] . "+ $diffTimeZone hour"));
                     $times = [];
                     $tmpTime = $open;
-                    if(strtotime($date.' '.$open) > strtotime($today.' '.$currentTime)) {
+                    if(strtotime($date.' '.$open) > strtotime($today.' '.$currentTime . "+ $diffTimeZone hour")) {
                         $times[] = $open;
                     }
                     while(strtotime($tmpTime) < strtotime($close)) {
@@ -2570,7 +2580,7 @@ class ApiProductController extends Controller
                         }
 
                         $timeConvert = date('H:i', strtotime("+".$processingTime." minutes", strtotime($tmpTime)));
-                        if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime) && $close!=$timeConvert){
+                        if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime . "+ $diffTimeZone hour") && $close!=$timeConvert){
                             $times[] = $timeConvert;
                         }
                         $tmpTime = $timeConvert;
@@ -2594,7 +2604,7 @@ class ApiProductController extends Controller
                 $close = date('H:i', strtotime($outletSchedules[$getTime]['close'] . "+ $diffTimeZone hour"));
                 $times = [];
                 $tmpTime = $open;
-                if(strtotime($date.' '.$open) > strtotime($today.' '.$currentTime)) {
+                if(strtotime($date.' '.$open) > strtotime($today.' '.$currentTime . "+ $diffTimeZone hour")) {
                     $times[] = $open;
                 }
                 while(strtotime($tmpTime) < strtotime($close)) {
@@ -2604,7 +2614,7 @@ class ApiProductController extends Controller
                     }
 
                     $timeConvert = date('H:i', strtotime("+".$processingTime." minutes", strtotime($tmpTime)));
-                    if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime)){
+                    if(strtotime($date.' '.$timeConvert) > strtotime($today.' '.$currentTime . "+ $diffTimeZone hour") && $close!=$timeConvert){
                         $times[] = $timeConvert;
                     }
                     $tmpTime = $timeConvert;
@@ -2704,7 +2714,7 @@ class ApiProductController extends Controller
                 continue;
             }
 
-            if($bookDate == date('Y-m-d') && strtotime($bookTime) >= strtotime($shift['time_start']) && strtotime($bookTime) < strtotime($shift['time_end'])){
+            if($bookDate == date('Y-m-d') && strtotime($bookTime) < strtotime($shift['time_end'])){
                 $clockInOut = HairstylistAttendance::where('id_user_hair_stylist', $val['id_user_hair_stylist'])
                     ->where('id_hairstylist_schedule_date', $shift['id_hairstylist_schedule_date'])->orderBy('updated_at', 'desc')->first();
 
@@ -3468,11 +3478,61 @@ class ApiProductController extends Controller
     }
     public function commission(Request $request){
         if(isset($request->product_code)){
-         $product = Product::where(array('product_code'=>$request->product_code))->first();
-        
-        $commission = ProductCommissionDefault::where(array('id_product'=>$product->id_product))->first();
-         return MyHelper::checkGet($commission);
+            $product = Product::where(array('product_code'=>$request->product_code))->first();
+            $commission = ProductCommissionDefault::where(array('id_product'=>$product->id_product))->with(['dynamic_rule'=> function($d){$d->orderBy('qty','desc');}])->first();
+            if($commission && ($commission['dynamic_rule'])){
+                $dynamic_rule = [];
+                $count = count($commission['dynamic_rule']) - 1;
+                foreach($commission['dynamic_rule'] as $key => $value){
+                    if($count==$key || $count==0){
+                        $for_null = $value['qty']-1;
+                        if($count!=0){
+                            $dynamic_rule[] = [
+                                'id_product_commission_default_dynamic' => $value['id_product_commission_default_dynamic'],
+                                'qty' => $value['qty'].' - '.($commission['dynamic_rule'][$key-1]['qty']-1),
+                                'value' => $value['value']
+                            ];
+                        }else{
+                            $dynamic_rule[] = [
+                                'id_product_commission_default_dynamic' => $value['id_product_commission_default_dynamic'],
+                                'qty' => '>= '.$value['qty'],
+                                'value' => $value['value']
+                            ];
+                        }
+                        if($value['qty']!=1){
+                            $dynamic_rule[] = [
+                                'id_product_commission_default_dynamic' => null,
+                                'qty' => '0 - '.$for_null,
+                                'value' => 0
+                            ];
+                        }
+                    }else{
+                        if($key==0){
+                            $dynamic_rule[] = [
+                                'id_product_commission_default_dynamic' => $value['id_product_commission_default_dynamic'],
+                                'qty' => '>= '.$value['qty'],
+                                'value' => $value['value']
+                            ];
+                        }else{
+                            $before = $commission['dynamic_rule'][$key-1]['qty'] - 1;
+                            if($before == $value['qty']){
+                                $qty = $value['qty'];
+                            }else{
+                                $qty = $value['qty'].' - '.$before;
+                            }
+                            $dynamic_rule[] = [
+                                'id_product_commission_default_dynamic' => $value['id_product_commission_default_dynamic'],
+                                'qty' => $qty,
+                                'value' => $value['value']
+                            ];
+                        }
+                    }
+                }
+                $commission['dynamic_rule_list'] = $dynamic_rule;
+            }
+            return MyHelper::checkGet($commission);
         }
+
         return MyHelper::checkGet(null);
     }
     public function commission_create(Commission $request){
@@ -3481,26 +3541,92 @@ class ApiProductController extends Controller
         }else{
             $percent = 0;
         }
-        if(isset($request->product_code)){
-           $code = Product::where('product_code',$request->product_code)->first();
-           if($code){
-           $product = ProductCommissionDefault::where(array('id_product'=>$code->id_product))->first();
-           if($product){
-               $product->percent = $percent;
-               $product->commission = $request->commission;
-               $product->save();
-           }else{
-               $product = ProductCommissionDefault::create([
-                   'id_product'=>$code->id_product,
-                    'percent'=>$percent,
-                   'commission'=>$request->commission
-               ]);
-           }
-            return response()->json(MyHelper::checkCreate($product));
+        if(isset($request->type)){
+            if($request->type == 'Static'){
+                $dynamic = 0;
+            }else{
+                $dynamic = 1;
             }
         }
-          $result = ['status' => 'fail', 'messages' => ['failed to delete data']];
+        DB::beginTransaction();
+        if(isset($request->product_code)){
+            $code = Product::where('product_code',$request->product_code)->first();
+            if($code){
+                $product = ProductCommissionDefault::where(array('id_product'=>$code->id_product))->first();
+                if($product){
+                    $product->percent = $percent;
+                    $product->commission = $request->commission;
+                    $product->dynamic = $dynamic;
+                    $product->save();
+                }else{
+                    $product = ProductCommissionDefault::create([
+                        'id_product'=>$code->id_product,
+                        'percent'=>$percent,
+                        'commission'=>$request->commission,
+                        'dynamic'=>$dynamic
+                    ]);
+                }
+                if(!$product){
+                    DB::rollback();
+                    return response()->json(['status' => 'fail', 'messages' => ['Failed update commission product']]);
+                }
+
+                if($dynamic==1){
+                    $delete = ProductCommissionDefaultDynamic::where('id_product_commission_default',$product->id_product_commission_default)->delete();
+                    $dynamic_rule = [];
+                    $check_unique = [];
+                    if(!isset($request->dynamic_rule) && empty($request->dynamic_rule)){
+                        DB::rollback();
+                        return response()->json(['status' => 'fail', 'messages' => ['Dynamic rule cant be null']]);
+                    }
+                    foreach($request->dynamic_rule ?? [] as $data_rule){
+                        $dynamic_rule[] = [
+                            'id_product_commission_default' => $product->id_product_commission_default,
+                            'qty' => $data_rule['qty'],
+                            'value' => $data_rule['value'],
+                        ];
+                        if(isset($check_unique[$data_rule['qty']])){
+                            DB::rollback();
+                            return response()->json(['status' => 'fail', 'messages' => ['Duplicated range']]);
+                        }else{
+                            $check_unique[$data_rule['qty']] = $data_rule;
+                        }
+                    }
+                    
+                    $create = ProductCommissionDefaultDynamic::insert($dynamic_rule);
+                }else{
+                    $delete = ProductCommissionDefaultDynamic::where('id_product_commission_default',$product->id_product_commission_default)->delete();
+                }
+
+                DB::commit();
+                return response()->json(MyHelper::checkCreate($product));
+            }
+        }
+        DB::rollback();
+        $result = ['status' => 'fail', 'messages' => ['failed to delete data']];
         return response()->json($result);
+    }
+
+    public function deleteCommission(Request $request){
+        $post = $request->all();
+        if(isset($post['id_product_commission_default_dynamic'])){
+            $delete = ProductCommissionDefaultDynamic::where('id_product_commission_default_dynamic',$post['id_product_commission_default_dynamic'])->delete();
+            return response()->json([
+                'status'   => 'success',
+            ]);
+        }
+        return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
+    }
+
+    public function deleteProductCommission(Request $request){
+        $post = $request->all();
+        if(isset($post['id_product_commission_default'])){
+            $delete = ProductCommissionDefault::where('id_product_commission_default',$post['id_product_commission_default'])->delete();
+            return response()->json([
+                'status'   => 'success',
+            ]);
+        }
+        return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
     }
 
     public function unitDetailIcount(Request $request){
@@ -3589,5 +3715,17 @@ class ApiProductController extends Controller
         }
         DB::commit();
         return true;
+    }
+      public function setting_service(Request $request){
+     
+        $product = Product::where(
+                array(
+                    'product_type'=>'service',
+                    'product_visibility'=>'Visible',
+                    ))
+                ->select('id_product','product_name')
+                ->get();
+           
+        return MyHelper::checkGet($product);
     }
 }

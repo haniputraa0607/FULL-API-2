@@ -106,6 +106,7 @@ use App\Http\Models\OauthAccessToken;
 use Modules\BusinessDevelopment\Entities\Location;
 use Modules\Transaction\Http\Requests\Signature;
 use Modules\Transaction\Http\Requests\SignatureLoan;
+use Modules\Transaction\Http\Requests\SignatureCashAdvance;
 use Modules\Franchise\Entities\PromoCampaign;
 use Modules\PromoCampaign\Entities\TransactionPromo;
 use Modules\Product\Entities\ProductIcount;
@@ -6779,6 +6780,10 @@ class ApiTransaction extends Controller
     } 
     function signature(Signature $request) {
         $data = hash_hmac('sha256',$request->PurchaseInvoiceID.$request->status.$request->date_disburse,$request->api_secret);
+        return $data;
+    }
+    function signature_cash_advance(SignatureCashAdvance $request) {
+        $data = hash_hmac('sha256',$request->PurchaseDepositRequestID.$request->status.$request->date_disburse,$request->api_secret);
         return $data;
     }
     function signature_loan(SignatureLoan $request) {

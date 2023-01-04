@@ -15,6 +15,7 @@ class RequestHairStylist extends Model
 		'number_of_request',
 		'status',
 		'id_user',
+        'id_hs',
 		'notes',
 		'notes_om',
 	];

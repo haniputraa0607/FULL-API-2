@@ -28,6 +28,7 @@ use Modules\Employee\Entities\QuestionEmployee;
 use Modules\Employee\Entities\EmployeeReimbursement;
 use Modules\Product\Entities\ProductIcount;
 use App\Http\Models\Outlet;
+use Modules\Employee\Entities\EmployeeReimbursementProductIcount;
 
 class ApiEmployeeReimbursementController extends Controller
 {
@@ -84,6 +85,8 @@ class ApiEmployeeReimbursementController extends Controller
                     ];
                     return $result;
                 }
+            }else{
+                unset($post['attachment']);
             }
        $reimbursement = EmployeeReimbursement::where(array('id_employee_reimbursement'=>$request->id_employee_reimbursement))->update($post);
        $reimbursement = EmployeeReimbursement::where(array('id_employee_reimbursement'=>$request->id_employee_reimbursement))->first();
@@ -97,7 +100,8 @@ class ApiEmployeeReimbursementController extends Controller
        }else{
            $company = 'ims';
        }
-       $data = ProductIcount::where([
+       $data = ProductIcount::join('employee_reimbursement_product_icounts','employee_reimbursement_product_icounts.id_product_icount','product_icounts.id_product_icount')
+               ->where([
            'is_buyable'=>'true',
            'is_sellable'=>'true',
            'is_deleted'=>'false',
@@ -105,9 +109,9 @@ class ApiEmployeeReimbursementController extends Controller
            'is_actived'=>'true',
            'company_type'=>$company
        ])->select([
-           'id_product_icount',
-           'name',
-           'code'
+           'product_icounts.id_product_icount',
+           'employee_reimbursement_product_icounts.name',
+           'product_icounts.code'
        ])->get();
        return MyHelper::checkGet($data);
    }
@@ -117,7 +121,7 @@ class ApiEmployeeReimbursementController extends Controller
            'status'=>"Approved"
        ))->select(DB::raw('
                         sum(CASE WHEN
-                   status = "Approved"  THEN price*qty ELSE 0
+                   status = "Approved"  THEN price ELSE 0
                    END) as saldo
                 ')
             )->first();

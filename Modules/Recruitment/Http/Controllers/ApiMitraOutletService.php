@@ -144,7 +144,7 @@ class ApiMitraOutletService extends Controller
 
 			$resData[] = [
 				'id_transaction_product_service' => $val['id_transaction_product_service'],
-				'order_id' => $val['order_id'] ?? null,
+				'order_id' => $val['transaction_receipt_number'] ?? null,
 				'transaction_receipt_number' => $val['transaction_receipt_number'],
 				'customer_name' => $val['customer_name'],
 				'schedule_date' => $scheduleDate,
@@ -449,13 +449,13 @@ class ApiMitraOutletService extends Controller
     		];
     	}
 
-    	$shift = app($this->mitra)->getOutletShift($user->id_outlet);
-    	if (!$shift) {
-    		return [
-    			'status' => 'fail',
-    			'messages' => ['Shift outlet tidak ditemukan']
-    		];
-    	}
+    	// $shift = app($this->mitra)->getOutletShift($user->id_outlet);
+    	// if (!$shift) {
+    	// 	return [
+    	// 		'status' => 'fail',
+    	// 		'messages' => ['Shift outlet tidak ditemukan']
+    	// 	];
+    	// }
 
     	$usedBox = HairstylistSchedule::join(
     		'hairstylist_schedule_dates', 
@@ -464,7 +464,7 @@ class ApiMitraOutletService extends Controller
     	)
     	->where('id_user_hair_stylist', '!=', $user->id_user_hair_stylist)
     	->whereDate('date', date('Y-m-d'))
-    	->where('shift', $shift)
+    	// ->where('shift', $shift)
     	->where('id_outlet_box', $request->id_outlet_box)
     	->first();
 
@@ -475,7 +475,7 @@ class ApiMitraOutletService extends Controller
     		];
     	}
 
-    	DB::beginTransaction();
+    	// DB::beginTransaction();
     	try {
     		$action = ($service->service_status == 'Stopped') ? 'Resume' : 'Start';
     		TransactionProductServiceLog::create([
@@ -496,11 +496,11 @@ class ApiMitraOutletService extends Controller
     		}
 
 
-    		DB::commit();
+    		// DB::commit();
     	} catch (\Exception $e) {
 
     		\Log::error($e->getMessage());
-    		DB::rollback();
+    		// DB::rollback();
     		return [
     			'status' => 'fail',
     			'messages' => ['Gagal memulai layanan']
@@ -627,13 +627,13 @@ class ApiMitraOutletService extends Controller
     		];
     	}
 
-    	$shift = app($this->mitra)->getOutletShift($user->id_outlet);
-    	if (!$shift) {
-    		return [
-    			'status' => 'fail',
-    			'messages' => ['Shift outlet tidak ditemukan']
-    		];
-    	}
+    	// $shift = app($this->mitra)->getOutletShift($user->id_outlet);
+    	// if (!$shift) {
+    	// 	return [
+    	// 		'status' => 'fail',
+    	// 		'messages' => ['Shift outlet tidak ditemukan']
+    	// 	];
+    	// }
 
     	$usedBox = HairstylistSchedule::join(
     		'hairstylist_schedule_dates', 
@@ -642,7 +642,7 @@ class ApiMitraOutletService extends Controller
     	)
     	->where('id_user_hair_stylist', '!=', $user->id_user_hair_stylist)
     	->whereDate('date', date('Y-m-d'))
-    	->where('shift', $shift)
+    	// ->where('shift', $shift)
     	->where('id_outlet_box', $request->id_outlet_box)
     	->first();
 
@@ -701,7 +701,7 @@ class ApiMitraOutletService extends Controller
     		];
     	}
 
-    	DB::beginTransaction();
+    	// DB::beginTransaction();
     	try {
     		TransactionProductServiceLog::create([
     			'id_transaction_product_service' => $request->id_transaction_product_service,
@@ -715,11 +715,11 @@ class ApiMitraOutletService extends Controller
 
     		$box->update(['outlet_box_use_status' => 0]);
 
-    		DB::commit();
+    		// DB::commit();
     	} catch (\Exception $e) {
 
     		\Log::error($e->getMessage());
-    		DB::rollback();
+    		// DB::rollback();
     		return [
     			'status' => 'fail',
     			'messages' => ['Gagal menghentikan layanan']
@@ -856,7 +856,7 @@ class ApiMitraOutletService extends Controller
     	$extended = new DateTime("+".  $newTime ." seconds");
     	$extendedTime = $extended->format('H:i:s');
 
-    	DB::beginTransaction();
+    	// DB::beginTransaction();
     	try {
 
     		TransactionProductServiceLog::create([
@@ -883,11 +883,11 @@ class ApiMitraOutletService extends Controller
     			$conflict->update(['is_conflict' => 1]);
     		}
 
-    		DB::commit();
+    		// DB::commit();
     	} catch (\Exception $e) {
 
     		\Log::error($e->getMessage());
-    		DB::rollback();
+    		// DB::rollback();
     		return [
     			'status' => 'fail',
     			'messages' => ['Gagal memperpanjang waktu layanan']
@@ -985,7 +985,7 @@ class ApiMitraOutletService extends Controller
     		];
     	}
 
-    	DB::beginTransaction();
+    	// DB::beginTransaction();
     	try {
     		$trx = Transaction::where('id_transaction', $service->id_transaction)->with('outlet', 'user')->first();
     		TransactionProductServiceLog::create([
@@ -1046,7 +1046,7 @@ class ApiMitraOutletService extends Controller
 						if($this_qty != 0){
 							$update_stock = $product_icount->find($product_use['id_product_icount'])->addLogStockProductIcount($this_qty,$product_use['unit'],'Transaction Outlet Service',$service['id_transaction_product_service']);
 							if(!$update_stock){
-								DB::rollback();
+								// DB::rollback();
 							}
 						}
 					}
@@ -1082,11 +1082,11 @@ class ApiMitraOutletService extends Controller
 
     		$this->completeTransaction($service->id_transaction);
 
-    		DB::commit();
+    		// DB::commit();
     	} catch (\Exception $e) {
 
     		\Log::error($e->getMessage());
-    		DB::rollback();
+    		// DB::rollback();
     		return [
     			'status' => 'fail',
     			'messages' => ['Gagal menyelesaikan layanan']
@@ -1266,7 +1266,7 @@ class ApiMitraOutletService extends Controller
     	)
     	->where('id_user_hair_stylist', $user->id_user_hair_stylist)
     	->whereDate('date', date('Y-m-d'))
-    	->whereIn('shift', $shift ?? [])
+    	// ->whereIn('shift', $shift ?? [])
     	->first();
     	$overtime = HairstylistOverTime::where('id_user_hair_stylist', $user->id_user_hair_stylist)
     	->wheredate('date', date('Y-m-d'))
@@ -1303,8 +1303,6 @@ class ApiMitraOutletService extends Controller
     					$box = array();
     					foreach ($boxs as $value) {
     						$hs = HairstylistScheduleDate::whereDate('date', date('Y-m-d'))
-    						->whereTime('time_start', '<=' ,date('H:i:s'))
-    						->whereTime('time_end','>=',date('H:i:s'))
     						->where('id_outlet_box',$value['id_outlet_box'])
     						->join('hairstylist_attendances','hairstylist_attendances.id_hairstylist_schedule_date','hairstylist_schedule_dates.id_hairstylist_schedule_date')->first();
     						if(!$hs){
@@ -1521,7 +1519,7 @@ class ApiMitraOutletService extends Controller
 				'service_end' => date('H:i', strtotime($item->completed_at)),
 				'customer_name' => $item->customer_name,
 				'product_name' => $item->product_name,
-				'order_id' => $item->order_id,
+				'order_id' => $item->transaction_receipt_number,
 				'outlet_name' => $item->outlet_name,
 				'hairstylist_name' => $user->fullname,
 				'schedule_time' => date('H:i', strtotime($item->schedule_time)),
@@ -1583,12 +1581,12 @@ class ApiMitraOutletService extends Controller
     	}
 
     	$shift = app($this->mitra)->getOutletShift($user->id_outlet);
-    	if (!$shift) {
-    		return [
-    			'status' => 'fail',
-    			'messages' => ['Shift outlet tidak ditemukan']
-    		];
-    	}
+    	// if (!$shift) {
+    	// 	return [
+    	// 		'status' => 'fail',
+    	// 		'messages' => ['Shift outlet tidak ditemukan']
+    	// 	];
+    	// }
 
     	$usedBox = HairstylistSchedule::join(
     		'hairstylist_schedule_dates', 
@@ -1597,7 +1595,7 @@ class ApiMitraOutletService extends Controller
     	)
     	->where('id_user_hair_stylist', '!=', $user->id_user_hair_stylist)
     	->whereDate('date', date('Y-m-d'))
-    	->where('shift', $shift)
+    	// ->where('shift', $shift)
     	->where('id_outlet_box', $request->id_outlet_box)
     	->first();
 
@@ -1682,7 +1680,7 @@ class ApiMitraOutletService extends Controller
     			];
     		}
     	}
-    	DB::beginTransaction();
+    	// DB::beginTransaction();
     	try {
 
     		HairstylistScheduleDate::where('id_hairstylist_schedule_date', $schedule->id_hairstylist_schedule_date)
@@ -1695,11 +1693,11 @@ class ApiMitraOutletService extends Controller
     			'note' => null
     		]);
 
-    		DB::commit();
+    		// DB::commit();
     	} catch (\Exception $e) {
 
     		\Log::error($e->getMessage());
-    		DB::rollback();
+    		// DB::rollback();
     		return [
     			'status' => 'fail',
     			'messages' => ['Gagal memilih box']

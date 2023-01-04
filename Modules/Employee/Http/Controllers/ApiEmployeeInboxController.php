@@ -23,9 +23,13 @@ use Modules\Employee\Entities\EmployeeOvertime;
 use Modules\Employee\Entities\EmployeeReimbursement;
 use Modules\Employee\Entities\AssetInventoryLog;
 use Modules\Employee\Entities\EmployeeTimeOffImage;
+use Modules\Employee\Entities\EmployeeOfficeHour;
 use Modules\Product\Entities\RequestProduct;
 use Modules\Product\Entities\RequestProductDetail;
 use Modules\Product\Entities\RequestProductImage;
+use Modules\Employee\Entities\EmployeeChangeShift;
+use Modules\Employee\Entities\EmployeeSchedule;
+use Modules\Employee\Entities\EmployeeOfficeHourShift;
 use App\Http\Models\Province;
 use App\Http\Models\Outlet;
 use App\Http\Models\User;
@@ -210,6 +214,21 @@ class ApiEmployeeInboxController extends Controller
             $key++;
         }
 
+        if(in_array('546',$roles)){
+            $flag = 0;
+            $change_shift = EmployeeChangeShift::join('users','users.id','employee_change_shifts.id_user')->where('users.id_outlet',$id_outlet)->where('employee_change_shifts.status','Pending')->where('employee_change_shifts.read',0)->count();
+            if($change_shift>0){
+                $flag = $flag + $change_shift;
+                $flag_all = $flag_all + $change_shift;
+            }
+            $tab[$key] = [
+                'name' => 'Atur Shift',
+                'value' => 'change_shift',
+                'flag' => $flag,
+            ];
+            $key++;
+        }
+
         if(in_array('517',$roles)){
             $flag = 0;
             $reim = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')->where('users.id_outlet', $id_outlet)->where('employee_reimbursements.status', 'Pending')->where('read',0)->count();
@@ -290,6 +309,15 @@ class ApiEmployeeInboxController extends Controller
         $id_detail = null;
         $category = null;
 
+        $outlet = $request->user()->outlet()->first();
+        $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+        ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+        $time_zone = [
+            '7' => 'WIB',
+            '8' => 'WITA',
+            '9' => 'WIT',
+        ];
+        
         if(isset($post['id']) && !empty($post['id'])){
             $array_id = explode('-',$post['id']);
             $key_id = $array_id[0];
@@ -330,7 +358,7 @@ class ApiEmployeeInboxController extends Controller
                                 ],
                                 [
                                     'label' => 'Tanggal',
-                                    'value' => date('d/m/Y H:i', strtotime($val['datetime']))
+                                    'value' => MyHelper::dateFormatInd($val['datetime'], true, false, false)
                                 ],
                                 [
                                     'label' => 'Absensi',
@@ -432,7 +460,7 @@ class ApiEmployeeInboxController extends Controller
                                 ],
                                 [
                                     'label' => 'Tanggal',
-                                    'value' => date('d/m/Y H:i', strtotime($val['datetime']))
+                                    'value' => MyHelper::dateFormatInd($val['datetime'], true, false, false)
                                 ],
                                 [
                                     'label' => 'Absensi',
@@ -531,7 +559,7 @@ class ApiEmployeeInboxController extends Controller
                             ],
                             [
                                 'label' => 'Tanggal',
-                                'value' => date('d/m/Y', strtotime($val['date']))
+                                'value' => MyHelper::dateFormatInd($val['start_date'], true, false, false).' - '.MyHelper::dateFormatInd($val['end_date'], true, false, false)
                             ],
                             [
                                 'label' => 'Keterangan',
@@ -607,7 +635,7 @@ class ApiEmployeeInboxController extends Controller
                             ],
                             [
                                 'label' => 'Tanggal',
-                                'value' => date('d/m/Y', strtotime($val['date']))
+                                'value' => MyHelper::dateFormatInd($val['date'], true, false, false)
                             ],
                             [
                                 'label' => 'Keterangan',
@@ -623,6 +651,62 @@ class ApiEmployeeInboxController extends Controller
                         'value' => $shift['schedule_in'].' - '.$shift['schedule_out']
                     ];
                     $update_read = EmployeeOvertime::where('id_employee_overtime',$val['id_employee_overtime'])->update(['read'=>1]);
+                }
+
+                $send[] = $data;
+            }
+        }
+
+        if(in_array('546',$roles) && ($category=='change_shift' || $category == 'all' || $key_id == 'change_shift')){
+            $changeshift = EmployeeChangeShift::join('users','users.id','employee_change_shifts.id_user')
+            ->where('users.id_outlet',$id_outlet)->where('employee_change_shifts.status','Pending');
+            if($key_id == 'change_shift'){
+                $changeshift = $changeshift->where('employee_change_shifts.id_employee_change_shift', $id_detail);
+            }
+            $changeshift = $changeshift->select('employee_change_shifts.*','users.name')->get()->toArray();
+            foreach($changeshift ?? [] as $val){
+                $schedule_date = EmployeeSchedule::join('employee_schedule_dates','employee_schedule_dates.id_employee_schedule','employee_schedules.id_employee_schedule')
+                ->where('schedule_month',date('m',strtotime($val['change_shift_date'])))
+                ->where('schedule_year', date('Y',strtotime($val['change_shift_date'])))
+                ->Where('id',$val['id_user'])
+                ->whereDate('date',date('Y-m-d',strtotime($val['change_shift_date'])))
+                ->first();
+                $office_hour = EmployeeOfficeHourShift::where('id_employee_office_hour',$schedule_date['id_office_hour_shift'])->get()->keyBy('shift_name');
+                $new_shift = array_reduce($office_hour->toArray(), function ($found, $obj) use ($val) {
+                    return $obj['id_employee_office_hour_shift'] == $val['id_employee_office_hour_shift'] ? $obj : $found;
+                }, null);
+                $data = [
+                    'request_at' => MyHelper::dateFormatInd($val['created_at'], true, false, false),
+                    'type' => 'Ganti Shift',
+                    'important' => 0,
+                    'detail' => 'change_shift-'.$val['id_employee_change_shift'],
+                    'read' => $val['read'],
+                    'data' => [
+                        [
+                            'label' => 'Nama',
+                            'value' => $val['name']
+                        ],
+                        [
+                            'label' => 'Tanggal',
+                            'value' => MyHelper::dateFormatInd($val['change_shift_date'], true, false, false)
+                        ],
+                        [
+                            'label' => 'Shift Lama',
+                            'value' => $office_hour[$schedule_date['shift']]['shift_name'].' '.'('.MyHelper::adjustTimezone($office_hour[$schedule_date['shift']]['shift_start'], $timeZone, 'H:i', true).'-'.MyHelper::adjustTimezone($office_hour[$schedule_date['shift']]['shift_end'], $timeZone, 'H:i', true).' '.$time_zone[$timeZone].')'
+                        ],
+                        [
+                            'label' => 'Shift Baru',
+                            'value' => $new_shift['shift_name'].' '.'('.MyHelper::adjustTimezone($new_shift['shift_start'], $timeZone, 'H:i', true).'-'.MyHelper::adjustTimezone($new_shift['shift_end'], $timeZone, 'H:i', true).' '.$time_zone[$timeZone].')'
+                        ],
+                    ]
+                ];
+                
+                if(isset($id_detail)){
+                    $data['data'][] = [
+                        'label' => 'Alasan',
+                        'value' => $val['reason'],
+                    ];
+                    $update_read = EmployeeChangeShift::where('id_employee_change_shift',$val['id_employee_change_shift'])->update(['read'=>1]);
                 }
 
                 $send[] = $data;
@@ -653,7 +737,7 @@ class ApiEmployeeInboxController extends Controller
                             ],
                             [
                                 'label' => 'Tanggal',
-                                'value' => date('d/m/Y', strtotime($val['date_reimbursement']))
+                                'value' => MyHelper::dateFormatInd($val['date_reimbursement'], true, false, false)
                             ],
                             [
                                 'label' => 'Keterangan',
@@ -822,7 +906,7 @@ class ApiEmployeeInboxController extends Controller
                             ],
                             [
                                 'label' => 'Tanggal Pengembalian',
-                                'value' => date('d/m/Y', strtotime($val['date_return']))
+                                'value' => MyHelper::dateFormatInd($val['date_return'], true, false, false)
                             ],
                             [
                                 'label' => 'Keterangan',
@@ -900,7 +984,7 @@ class ApiEmployeeInboxController extends Controller
                             ],
                             [
                                 'label' => 'Tanggal Dibutuhkan',
-                                'value' => date('d/m/Y', strtotime($val['requirement_date']))
+                                'value' => MyHelper::dateFormatInd($val['requirement_date'], true, false, false)
                             ],
                             [
                                 'label' => 'Jumlah Produk',
@@ -973,6 +1057,18 @@ class ApiEmployeeInboxController extends Controller
         $array_date = explode('-', $date);
 
         $cek_employee = User::join('roles','roles.id_role','users.id_role')->join('employee_office_hours','employee_office_hours.id_employee_office_hour','roles.id_employee_office_hour')->where('id',$data['id_employee'])->first();
+        if(empty($cek_employee['office_hour_type'])){
+            $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
+            if($setting_default){
+                $cek_employee = EmployeeOfficeHour::where('id_employee_office_hour',$setting_default['value'])->first();
+                if(empty($cek_employee)){
+                    return response()->json([
+                        'status'=>'fail',
+                        'messages'=>['Jam kantor tidak ada ']
+                    ]);
+                }
+            }
+        }
         if($cek_employee['office_hour_type'] == 'Without Shift'){
             $schedule_date_without = EmployeeScheduleDate::join('employee_schedules','employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule')
                                 ->join('users','users.id','employee_schedules.id')
@@ -1003,6 +1099,23 @@ class ApiEmployeeInboxController extends Controller
 
         $time_off['schedule_in'] = $send['schedule_in'] ? MyHelper::adjustTimezone($send['schedule_in'], $timeZone, 'H:i') : null;
         $time_off['schedule_out'] = $send['schedule_out'] ? MyHelper::adjustTimezone($send['schedule_out'], $timeZone, 'H:i') : null;
+
+        if($data['time']=='before'){
+            $duration = strtotime($data['duration']);
+            $start = strtotime($time_off['schedule_in']);
+            $diff = $start - $duration;
+            $hour = floor($diff / (60*60));
+            $minute = floor(($diff - ($hour*60*60))/(60));
+            $second = floor(($diff - ($hour*60*60))%(60));
+            $new_time =  date('H:i', strtotime($hour.':'.$minute.':'.$second));
+            $time_off['schedule_out'] = $time_off['schedule_in'];
+            $time_off['schedule_in'] = $new_time;
+        }else{
+            $secs = strtotime($data['duration'])-strtotime("00:00:00");
+            $new_time = date("H:i",strtotime($time_off['schedule_out'])+$secs);
+            $time_off['schedule_in'] = $time_off['schedule_out'];
+            $time_off['schedule_out'] = $new_time;
+        }
         return $time_off;
     }
 
@@ -1027,7 +1140,8 @@ class ApiEmployeeInboxController extends Controller
             $data_update = [
                 'id_employee_attendance_log' => $id_detail,
                 'approve_notes' => $post['approve_notes'],
-                'status' => $post['status']
+                'status' => $post['status'],
+                'user_update' => $user['name']
             ];
             $update = app('\Modules\Employee\Http\Controllers\ApiEmployeeAttendanceController')->updatePending(New Request($data_update));
         }
@@ -1038,6 +1152,7 @@ class ApiEmployeeInboxController extends Controller
                 'approve_notes' => $post['approve_notes'],
                 'status' => $post['status'],
                 'id' => $id_employee,
+                'user_update' => $user['name']
             ];
             $update = app('\Modules\Employee\Http\Controllers\ApiEmployeeAttendanceController')->updateRequest(New Request($data_update));
         }
@@ -1046,7 +1161,8 @@ class ApiEmployeeInboxController extends Controller
             $data_update = [
                 'id_employee_outlet_attendance_log' => $id_detail,
                 'approve_notes' => $post['approve_notes'],
-                'status' => $post['status']
+                'status' => $post['status'],
+                'user_update' => $user['name']
             ];
             $update = app('\Modules\Employee\Http\Controllers\ApiEmployeeAttendaceOutletController')->updatePending(New Request($data_update));
         }
@@ -1057,6 +1173,7 @@ class ApiEmployeeInboxController extends Controller
                 'approve_notes' => $post['approve_notes'],
                 'status' => $post['status'],
                 'id' => $id_employee,
+                'user_update' => $user['name']
             ];
             $update = app('\Modules\Employee\Http\Controllers\ApiEmployeeAttendaceOutletController')->updateRequest(New Request($data_update));
         }
@@ -1090,6 +1207,22 @@ class ApiEmployeeInboxController extends Controller
                 $update = app('\Modules\Employee\Http\Controllers\ApiEmployeeTimeOffOvertimeController')->updateOvertime(New Request($data_update));
             }elseif($post['status']=='Reject'){
                 $update = app('\Modules\Employee\Http\Controllers\ApiEmployeeTimeOffOvertimeController')->deleteOvertime(New Request($data_update));
+            }
+        }
+
+        if($key_id == 'change_shift'){
+            $overtime = EmployeeChangeShift::where('id_employee_change_shift',$id_detail)->first();
+            // $shift = $this->getShiftForOvertime($overtime);
+            $data_update = [
+                'id_employee_change_shift' => $id_detail,
+                'approve_notes' => $post['approve_notes'],
+                'approve' => true,
+                'id_approve' => $id_employee,
+            ];
+            if($post['status']=='Approve'){
+                $update = app('\Modules\Employee\Http\Controllers\ApiEmployeeChangeShiftController')->updateChangeShift(New Request($data_update));
+            }elseif($post['status']=='Reject'){
+                return $update = app('\Modules\Employee\Http\Controllers\ApiEmployeeChangeShiftController')->deleteChangeShift(New Request($data_update));
             }
         }
 

@@ -25,6 +25,7 @@ Route::group(['prefix' => 'api/product','middleware' => ['log_activities','auth:
 
 Route::group(['prefix' => 'api/product','middleware' => ['log_activities','auth:api', 'scopes:be'], 'namespace' => 'Modules\Product\Http\Controllers'], function()
 {
+    Route::any('be/setting_service', 'ApiProductController@setting_service');
     Route::any('be/list', 'ApiProductController@listProduct');
     Route::any('be/icount/list', 'ApiProductController@listProductIcount');
     Route::any('be/sync', 'ApiProductController@syncIcount');
@@ -58,6 +59,8 @@ Route::group(['prefix' => 'api/product','middleware' => ['log_activities','auth:
     Route::get('list/ajax', 'ApiProductController@listProductAjaxSimple');
     Route::any('be/commission', 'ApiProductController@commission');
     Route::any('be/commission/create', 'ApiProductController@commission_create');
+    Route::any('be/commission/delete', 'ApiProductController@deleteCommission');
+    Route::any('be/commission/delete-product', 'ApiProductController@deleteProductCommission');
     Route::post('be/available-hs', 'ApiProductController@outletServiceAvailableHs');
     /* photo */
     Route::group(['prefix' => 'photo'], function() {

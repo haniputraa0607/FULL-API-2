@@ -134,8 +134,8 @@ class ApiEmployeeScheduleController extends Controller
                             'id_employee_schedule' => $schedule['id_employee_schedule'],
                             'date' => date('Y-m-d'),
                             'is_overtime' => 0,
-                            'time_start' => MyHelper::reverseAdjustTimezone($employee['office_hour_start'] ?? null, $prov['time_zone_utc'], 'H:i', true),
-                            'time_end' => MyHelper::reverseAdjustTimezone($employee['office_hour_end'] ?? null, $prov['time_zone_utc'], 'H:i', true),
+                            'time_start' => $employee['office_hour_start'] ?? null,
+                            'time_end' => $employee['office_hour_end'] ?? null,
                         ]);
                     }             
                 }  
@@ -199,6 +199,7 @@ class ApiEmployeeScheduleController extends Controller
                     $schedule_date_before = EmployeeScheduleDate::where('id_employee_schedule',$schedue_before['id_employee_schedule'])->get()->toArray();
                     
                     if($schedule_date_before){
+                        $listDate = MyHelper::getListDate($schedue_now['schedule_month'], $schedue_now['schedule_year']);
                         foreach($schedule_date_before as $sch){
                             $date = explode('-',$sch['date']);
                             $date[1] = $schedue_now['schedule_month'];
@@ -210,7 +211,7 @@ class ApiEmployeeScheduleController extends Controller
                                                 ->where('outlet_holidays.id_outlet', $employee['id_outlet'])
                                                 ->whereDate('date_holidays.date', $date)
                                                 ->get()->toArray();
-                            if(!$holiday){
+                            if(!$holiday && in_array($date,$listDate)){
                             //create schedule date 
                                 if($sch['is_overtime'] == 1){
                                     if(!isset($employee['id_employee_office_hour']) && empty($employee['id_employee_office_hour'])){
@@ -275,6 +276,10 @@ class ApiEmployeeScheduleController extends Controller
                     $create_schedule = EmployeeSchedule::create($array_hs);
                     if(!$create_schedule){
                         DB::rollback();
+                        return response()->json([
+                            'status' => 'fail', 
+                            'messages' => 'Failed to create'
+                        ]);
                     }
                     if(isset($hs['id_employee_office_hour']) && !empty($hs['id_employee_office_hour'])){
                         $shift = EmployeeOfficeHour::join('roles','roles.id_employee_office_hour','employee_office_hours.id_employee_office_hour')
@@ -286,6 +291,12 @@ class ApiEmployeeScheduleController extends Controller
                         $setting_default = Setting::where('key', 'employee_office_hour_default')->first();
                         if($setting_default){
                             $default_office = EmployeeOfficeHour::where('id_employee_office_hour',$setting_default['value'])->first();
+                        }else{
+                            DB::rollback();
+                            return response()->json([
+                                'status' => 'fail', 
+                                'messages' => 'Cant find employee office hour, please set employee office hour first'
+                            ]);
                         }
                     }
                    
@@ -818,12 +829,18 @@ class ApiEmployeeScheduleController extends Controller
         		$oldData[$date] = [
         			'request_by' => $val['request_by'],
         			'created_at' => $val['created_at'],
+                    'is_overtime' => $val['is_overtime'] ?? null,
+                    'time_start' => $val['time_start'],
+                    'time_end' => $val['time_end'],
         			'shift' => 'Full'
         		];
         	} else {
         		$oldData[$date] = [
         			'request_by' => $val['request_by'],
         			'created_at' => $val['created_at'],
+                    'is_overtime' => $val['is_overtime'] ?? null,
+                    'time_start' => $val['time_start'],
+                    'time_end' => $val['time_end'],
         			'shift' => $val['shift']
         		];
         	}
@@ -834,6 +851,7 @@ class ApiEmployeeScheduleController extends Controller
         $fixedScheduleDate = $fixedSchedule->pluck('date')->map(function($item) {return date('Y-m-d', strtotime($item));});
 
         $newData = [];
+        $key_new = 0;
         foreach ($post['schedule'] as $key => $val) {
         	if (empty($val)) {
         		continue;
@@ -846,33 +864,53 @@ class ApiEmployeeScheduleController extends Controller
         	$request_by = 'Admin';
         	$created_at = date('Y-m-d H:i:s');
         	$updated_at = date('Y-m-d H:i:s');
-        	if (isset($oldData[$key]) && $oldData[$key]['shift'] == $val) {
-        		$request_by = $oldData[$key]['request_by'];
-        		$created_at = $oldData[$key]['created_at'];
+        	if (isset($oldData[date('Y-m-j', strtotime($key))]) && $oldData[date('Y-m-j', strtotime($key))]['shift'] == $val) {
+        		$request_by = $oldData[date('Y-m-j', strtotime($key))]['request_by'];
+        		$created_at = $oldData[date('Y-m-j', strtotime($key))]['created_at'];
         	}
+            
         	if ($val == 'Full') {
                 $shifts = EmployeeOfficeHourShift::join('employee_office_hours','employee_office_hours.id_employee_office_hour','employee_office_hour_shift.id_employee_office_hour')->where('employee_office_hours.id_employee_office_hour', $post['id_employee_office_hour'])->get()->toArray();
                 
                 foreach($shifts ?? [] as $shift){
-                    $newData[] = [
+                    $newData[$key_new] = [
                         'id_employee_schedule' => $post['id_employee_schedule'],
                         'date' => $key,
                         'shift' => $shift['shift_name'],
                         'request_by' => $request_by,
                         'created_at' => $created_at,
-                        'updated_at' => $updated_at
+                        'updated_at' => $updated_at,
+                        'is_overtime' => null,
+                        'time_start' => null,
+                        'time_end' => null,
                     ];
+                    if(isset($oldData[date('Y-m-j', strtotime($key))]) && isset($oldData[date('Y-m-j', strtotime($key))]['is_overtime']) && $oldData[date('Y-m-j', strtotime($key))]['is_overtime'] == 1){
+                        $newData[$key_new]['is_overtime'] = 1;
+                        $newData[$key_new]['time_start'] = $oldData[date('Y-m-j', strtotime($key))]['time_start'];
+                        $newData[$key_new]['time_end'] = $oldData[date('Y-m-j', strtotime($key))]['time_end'];
+                    }
+                    $key_new++;
                 }
         	} else {
-	        	$newData[] = [
+	        	$newData[$key_new] = [
 	        		'id_employee_schedule' => $post['id_employee_schedule'],
 	        		'date' => $key,
 	        		'shift' => $val,
 	        		'request_by' => $request_by,
 	        		'created_at' => $created_at,
-	        		'updated_at' => $updated_at
+	        		'updated_at' => $updated_at,
+                    'is_overtime' => null,
+                    'time_start' => null,
+                    'time_end' => null,
 	        	];
+                if(isset($oldData[date('Y-m-j', strtotime($key))]) && isset($oldData[date('Y-m-j', strtotime($key))]['is_overtime']) && $oldData[date('Y-m-j', strtotime($key))]['is_overtime'] == 1){
+                    $newData[$key_new]['is_overtime'] = 1;
+                    $newData[$key_new]['time_start'] = $oldData[date('Y-m-j', strtotime($key))]['time_start'];
+                    $newData[$key_new]['time_end'] = $oldData[date('Y-m-j', strtotime($key))]['time_end'];
+                }
+                $key_new++;
         	}
+            
         }
 
         DB::beginTransaction();

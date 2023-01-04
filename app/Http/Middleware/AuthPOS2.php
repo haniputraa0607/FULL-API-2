@@ -53,7 +53,7 @@ class AuthPOS2
             ], 401);
         }
 
-        $expectedIds = ['PurchaseInvoiceID', 'PurchaseRequestID', 'DepartmentID', 'PurchaseInvoiceID', 'SalesInvoiceID'];
+        $expectedIds = ['PurchaseInvoiceID', 'PurchaseRequestID', 'DepartmentID', 'PurchaseInvoiceID', 'SalesInvoiceID','PurchaseDepositRequestID'];
         $reference_id = null;
         foreach ($expectedIds as $expectedId) {
             if ($request->$expectedId) {

@@ -128,7 +128,7 @@ class ApiMitra extends Controller
 				$q->where([
 					['schedule_month', $thisMonth],
 					['schedule_year', $thisYear],
-					['id_outlet', $user->id_outlet],
+					// ['id_outlet', $user->id_outlet],
 				]);
 			},
 			'hairstylist_schedules.hairstylist_schedule_dates' => function($q) {

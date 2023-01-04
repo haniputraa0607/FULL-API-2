@@ -13,11 +13,16 @@ class ProductCommissionDefault extends Model
         'percent',
         'commission',
         'created_at',
-        'updated_at'
+        'updated_at',
+        'dynamic'
     ];
 
     public function product(){
         return $this->belongsTo(App\Http\Models\Product::class, 'id_product');
+    }
+
+    public function dynamic_rule(){
+        return $this->hasMany(ProductCommissionDefaultDynamic::class, 'id_product_commission_default');
     }
 
 }

@@ -110,8 +110,8 @@ class BranchSync extends Command
                         continue;
                     }
 
-                    if (!$this->syncPartner($company, $item['BusinessPartnerID'])) {
-                        $this->error("Partner $item[BusinessPartnerID] not found");
+                    if (!$this->syncPartner($company, $item['OutletPartnerID'])) {
+                        $this->error("Partner $item[OutletPartnerID] not found");
                         continue;
                     }
 
@@ -134,7 +134,7 @@ class BranchSync extends Command
                         'address' => $item['Address'], 
                         'id_city' => 3173, 
                         'pic_contact' => $item['Phone'],
-                        'id_partner' => Partner::where($company == 'ima' ? 'id_business_partner_ima' : 'id_business_partner', $item['BusinessPartnerID'])->select('id_partner')->pluck('id_partner')->first(),
+                        'id_partner' => Partner::where($company == 'ima' ? 'id_business_partner_ima' : 'id_business_partner', $item['OutletPartnerID'])->select('id_partner')->pluck('id_partner')->first(),
                         'status' => 'Active',
                         'step_loc' => 'Approved',
                     ]);

@@ -178,6 +178,7 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('update', 'ApiEmployeeTimeOffOvertimeController@updateOvertime');
         Route::post('create', 'ApiEmployeeTimeOffOvertimeController@createOvertime');
         Route::post('delete', 'ApiEmployeeTimeOffOvertimeController@deleteOvertime');
+        Route::post('reject', 'ApiEmployeeTimeOffOvertimeController@rejectOvertime');
     });
 
     Route::group(['prefix' => 'change-shift'], function () {	

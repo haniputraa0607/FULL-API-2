@@ -161,4 +161,36 @@ class ApiManualRefundController extends Controller
         }
         return MyHelper::checkCreate($manual);
     }
+
+    public function detailManualRefund(Request $request){
+        $post = $request->all();
+        if (empty($post['id_transaction'])) {
+            return [
+                'status' => 'success',
+                'messages' => [
+                    'ID can not be empty'
+                ]
+            ];
+        }
+
+        $data = ManualRefund::join('transactions', 'manual_refunds.id_transaction', 'transactions.id_transaction')
+            ->join('users', 'users.id', 'transactions.id_user')
+            ->join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')
+            ->leftJoin('users as validator', 'validator.id', 'manual_refunds.created_by')
+            ->where('manual_refunds.id_transaction', $post['id_transaction'])
+            ->select('transactions.id_transaction',  'manual_refunds.*', 'validator.name as validator_name', 'validator.phone as validator_phone', 'manual_refunds.created_at as confirm_at', \DB::raw('transactions.refund_requirement as manual_refund_nominal'))
+            ->first();
+
+        if(!empty($data['images'])){
+            $imgs = [];
+            $decode = json_decode($data['images']);
+            if(!empty($decode)){
+                foreach ($decode as $img){
+                    $imgs[]= config('url.storage_url_api').$img;
+                }
+            }
+            $data['images'] = $imgs;
+        }
+        return MyHelper::checkGet($data);
+    }
 }

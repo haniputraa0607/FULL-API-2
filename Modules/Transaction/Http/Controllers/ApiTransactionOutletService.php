@@ -347,6 +347,8 @@ class ApiTransactionOutletService extends Controller
             'total_payment'                 => (int) $trxPayment['total_payment'],
             'timer_shopeepay'               => $trxPayment['timer_shopeepay'],
             'message_timeout_shopeepay'     => $trxPayment['message_timeout_shopeepay'],
+            'need_manual_void'              => $trx['need_manual_void'],
+            'reject_type'                   => $trx['reject_type'],
             'outlet'                        => [
                 'outlet_name'    => $trx['outlet']['outlet_name'],
                 'outlet_address' => $trx['outlet']['outlet_address']

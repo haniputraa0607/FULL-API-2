@@ -97,6 +97,7 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
 
     Route::post('failed-void-payment', 'ApiManualRefundController@listFailedVoidPayment');
     Route::post('failed-void-payment/confirm', 'ApiManualRefundController@confirmManualRefund');
+    Route::post('manual-refund/detail', 'ApiManualRefundController@detailManualRefund');
 
     Route::group(['prefix' => 'outlet-service'], function () {
 	    Route::post('/', 'ApiTransactionOutletService@listOutletService');

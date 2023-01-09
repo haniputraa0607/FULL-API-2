@@ -186,7 +186,12 @@ class ApiEmployeeInboxController extends Controller
 
         if(in_array('510',$roles)){
             $flag = 0;
-            $time_off = EmployeeTimeOff::where('id_outlet',$id_outlet)->whereNull('approve_by')->whereNull('reject_at')->where('read',0)->count();
+            if(in_array('529',$roles)){
+                $time_off = EmployeeTimeOff::where('employee_time_off.id_outlet',$id_outlet)->whereNull('employee_time_off.approve_by')->whereNull('employee_time_off.reject_at')->where('employee_time_off.status','Manager Approved')->where('employee_time_off.read',0)->count();
+            }else{
+                $time_off = EmployeeTimeOff::join('employees','employees.id_user','employee_time_off.id_employee')->where('employees.id_manager', $id_employee)->where('employee_time_off.id_outlet',$id_outlet)->whereNull('employee_time_off.approve_by')->whereNull('employee_time_off.reject_at')->where('employee_time_off.status','Pending')->where('employee_time_off.read',0)->count();
+            }
+            
             if($time_off>0){
                 $flag = $flag + $time_off;
                 $flag_all = $flag_all + $time_off;
@@ -201,7 +206,12 @@ class ApiEmployeeInboxController extends Controller
 
         if(in_array('514',$roles)){
             $flag = 0;
-            $overtime = EmployeeOvertime::where('id_outlet',$id_outlet)->whereNull('approve_by')->whereNull('reject_at')->where('read',0)->count();
+            if(in_array('529',$roles)){
+                $overtime = EmployeeOvertime::where('employee_overtime.id_outlet',$id_outlet)->whereNull('employee_overtime.approve_by')->whereNull('employee_overtime.reject_at')->where('employee_overtime.status','Manager Approved')->where('employee_overtime.read',0)->count();
+            }else{
+                $overtime = EmployeeOvertime::join('employees','employees.id_user','employee_overtime.id_employee')->where('employees.id_manager', $id_employee)->where('employee_overtime.id_outlet',$id_outlet)->whereNull('employee_overtime.approve_by')->whereNull('employee_overtime.reject_at')->where('employee_overtime.status','Pending')->where('employee_overtime.read',0)->count();
+            }
+
             if($overtime>0){
                 $flag = $flag + $overtime;
                 $flag_all = $flag_all + $overtime;
@@ -536,7 +546,11 @@ class ApiEmployeeInboxController extends Controller
         }
 
         if(in_array('510',$roles) && ($category=='time_off' || $category == 'all' || $key_id == 'time_off')){
-            $time_off = EmployeeTimeOff::join('users','users.id','employee_time_off.id_employee')->where('employee_time_off.id_outlet',$id_outlet)->whereNull('employee_time_off.approve_by')->whereNull('employee_time_off.reject_at');
+            if(in_array('529',$roles)){
+                $time_off = EmployeeTimeOff::join('users','users.id','employee_time_off.id_employee')->where('employee_time_off.id_outlet',$id_outlet)->whereNull('employee_time_off.approve_by')->whereNull('employee_time_off.reject_at')->where('employee_time_off.status','Manager Approved');
+            }else{
+                $time_off = EmployeeTimeOff::join('users','users.id','employee_time_off.id_employee')->join('employees','employees.id_user','employee_time_off.id_employee')->where('employees.id_manager', $id_employee)->where('employee_time_off.id_outlet',$id_outlet)->whereNull('employee_time_off.approve_by')->whereNull('employee_time_off.reject_at')->where('employee_time_off.status','Pending');
+            }
             if($key_id == 'time_off'){
                 $time_off = $time_off->where('employee_time_off.id_employee_time_off', $id_detail);
             }
@@ -612,7 +626,11 @@ class ApiEmployeeInboxController extends Controller
         }
 
         if(in_array('514',$roles) && ($category=='overtime' || $category == 'all' || $key_id == 'overtime')){
-            $overtime = EmployeeOvertime::join('users','users.id','employee_overtime.id_employee')->where('employee_overtime.id_outlet',$id_outlet)->whereNull('employee_overtime.approve_by')->whereNull('employee_overtime.reject_at');
+            if(in_array('529',$roles)){
+                $overtime = EmployeeOvertime::join('users','users.id','employee_overtime.id_employee')->where('employee_overtime.id_outlet',$id_outlet)->whereNull('employee_overtime.approve_by')->whereNull('employee_overtime.reject_at')->where('employee_overtime.status','Manager Approved');
+            }else{
+                $overtime = EmployeeOvertime::join('users','users.id','employee_overtime.id_employee')->join('employees','employees.id_user','employee_overtime.id_employee')->where('employees.id_manager', $id_employee)->where('employee_overtime.id_outlet',$id_outlet)->whereNull('employee_overtime.approve_by')->whereNull('employee_overtime.reject_at')->where('employee_overtime.status','Pending');
+            }
             if($key_id == 'overtime'){
                 $overtime = $overtime->where('employee_overtime.id_employee_overtime', $id_detail);
             }
@@ -1130,6 +1148,9 @@ class ApiEmployeeInboxController extends Controller
         $key_id = null;
         $id_detail = null;
 
+        $roles = RolesFeature::where('id_role', $user['id_role'])->select('id_feature')->get()->toArray();
+        $roles = array_pluck($roles, 'id_feature');
+
         if(isset($post['id']) && !empty($post['id'])){
             $array_id = explode('-',$post['id']);
             $key_id = $array_id[0];
@@ -1182,11 +1203,12 @@ class ApiEmployeeInboxController extends Controller
             $data_update = [
                 'id_employee_time_off' => $id_detail,
                 'approve_notes' => $post['approve_notes'],
-                'approve' => true,
-                'id_approve' => $id_employee
+                'approve' => in_array('529',$roles) ? true : false,
+                'id_approve' => $id_employee,
+                'type' => in_array('529',$roles) ? 'HRGA Approved' : 'Manager Approved'
             ];
             if($post['status']=='Approve'){
-                $update = app('\Modules\Employee\Http\Controllers\ApiEmployeeTimeOffOvertimeController')->updateTimeOff(New Request($data_update));
+                return $update = app('\Modules\Employee\Http\Controllers\ApiEmployeeTimeOffOvertimeController')->updateTimeOff(New Request($data_update));
             }elseif($post['status']=='Reject'){
                 $update = app('\Modules\Employee\Http\Controllers\ApiEmployeeTimeOffOvertimeController')->deleteTimeOff(New Request($data_update));
             }
@@ -1198,10 +1220,11 @@ class ApiEmployeeInboxController extends Controller
             $data_update = [
                 'id_employee_overtime' => $id_detail,
                 'approve_notes' => $post['approve_notes'],
-                'approve' => true,
+                'approve' => in_array('529',$roles) ? true : false,
                 'id_approve' => $id_employee,
                 'schedule_in' => $shift['schedule_in'],
                 'schedule_out' => $shift['schedule_out'],
+                'type' => in_array('529',$roles) ? 'HRGA Approved' : 'Manager Approved'
             ];
             if($post['status']=='Approve'){
                 $update = app('\Modules\Employee\Http\Controllers\ApiEmployeeTimeOffOvertimeController')->updateOvertime(New Request($data_update));

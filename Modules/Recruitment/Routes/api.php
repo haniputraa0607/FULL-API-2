@@ -57,6 +57,7 @@ Route::group(['middleware' => ['log_activities', 'user_agent'], 'prefix' => 'rec
         Route::post('setting-requirements', 'ApiHairStylistController@candidateSettingRequirements');
         Route::post('create-business-partner', 'ApiHairStylistController@createBusinessPartner');
         Route::post('bank-account/save', 'ApiHairStylistController@bankAccountSave');
+        Route::post('update-file', 'ApiHairStylistController@updateByExcel');
 
     	Route::group(['prefix' => 'schedule'], function () {
         	Route::post('list', 'ApiHairStylistScheduleController@list');

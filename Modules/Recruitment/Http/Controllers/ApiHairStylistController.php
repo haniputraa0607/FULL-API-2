@@ -1370,4 +1370,53 @@ class ApiHairStylistController extends Controller
             return response()->json(MyHelper::checkUpdate($update));
         }
     }
+
+    public function updateByExcel(Request $request){
+        $post = $request->all();
+        if(isset($post['data']) && !empty($post['data'])){
+            DB::beginTransaction();
+
+            foreach($post['data'] ?? [] as $data){
+                if(isset($data['no_hp']) && !empty($data['no_hp']) && isset($data['nik']) && !empty($data['nik'])){
+
+                    //cek code
+                    $check_code = UserHairStylist::where('user_hair_stylist_code', $data['nik'])->where('phone_number', '<>', $data['no_hp'])->get()->toArray();
+                    if(!$check_code){
+                        $check_hs = UserHairStylist::where('phone_number', $data['no_hp'])->first();
+                        if($check_hs){
+                            $update = UserHairStylist::where('phone_number', $data['no_hp'])->update(['user_hair_stylist_code' => $data['nik']]);
+                            if(!$update){
+                                DB::rollback();
+                                return [
+                                    'status' => 'fail',
+                                    'messages' => 'Failed',
+                                ];
+                            }
+                        }
+                    }else{
+                        DB::rollback();
+                        return [
+                            'status' => 'fail',
+                            'messages' => 'Failed',
+                        ];
+                    }
+                }else{
+                    DB::rollback();
+                    return [
+                        'status' => 'fail',
+                        'messages' => 'Failed',
+                    ];
+                }
+            }
+
+            DB::commit();
+            return [
+                'status' => 'success'
+            ];
+        }
+        return [
+            'status' => 'fail',
+            'messages' => 'Failed',
+        ];
+    }
 }

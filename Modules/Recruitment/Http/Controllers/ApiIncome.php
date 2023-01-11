@@ -535,7 +535,7 @@ class ApiIncome extends Controller
                   'start_date'=>$value['start'],
                   'end_date'=>$value['end'],
               );
-             $data = $this->export_income2($req);
+            $data = $this->export_income2($req);
               if(isset($data['status'])&& $data['status']=='fail'){
                   continue;
               }else{
@@ -773,7 +773,319 @@ class ApiIncome extends Controller
     return $data_schedule_outlet;
     }
 
+    //asli
     public function export_income2($request)
+    {
+        $start_date = $request['start_date'];
+        $end_date = $request['end_date'];
+        $outlets = Outlet::whereIn('id_outlet', $request['id_outlet'])->join('locations','locations.id_location','outlets.id_location')->get()->keyBy('id_outlet');
+        if ($outlets->count() == 0) {
+            return [
+                'status' => 'fail',
+                'messages' => ['No outlet selected']
+            ];
+        }
+        // $transactions = Transaction::join('transaction_products', function ($join) use ($request) {
+        //         $join->on('transactions.id_transaction', 'transaction_products.id_transaction')
+        //             ->whereDate('transactions.transaction_date', '>=', $request['start_date'])
+        //             ->whereDate('transactions.transaction_date', '<=', $request['end_date'])
+        //             ->where('transaction_payment_status','Completed');
+        //     })
+        //     ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+        //     ->whereIn('transactions.id_outlet', $request['id_outlet'])->get();
+        $transactions = Transaction::join('transaction_products', function ($join) use ($request) {
+               $join->on('transactions.id_transaction', 'transaction_products.id_transaction')
+                   ->whereDate('transaction_products.transaction_product_completed_at', '>=', $request['start_date'])
+                   ->whereDate('transaction_products.transaction_product_completed_at', '<=', $request['end_date']);
+            })
+            ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+            ->whereIn('transactions.id_outlet', $request['id_outlet'])->get();
+        if ($transactions->count() == 0) {
+            return [
+                'status' => 'fail',
+                'messages' => ['No transactions found in selected date range']
+            ];
+        }
+
+        $transactionBreakdowns = TransactionBreakdown::whereIn('id_transaction_product', $transactions->pluck('id_transaction_product'))->where('type', 'fee_hs')->get();
+        $transactionBreakdownsGroupByTrxProduct = $transactionBreakdowns->groupBy('id_transaction_product');
+
+        $transactionsByHS = $transactions->groupBy('id_user_hair_stylist');
+       $hairstylists = UserHairStylist::where(function($query) use ($transactions, $request) {
+                $query->whereIn('id_user_hair_stylist', $transactions->pluck('id_user_hair_stylist')->unique())
+                    ->orWhereIn('id_outlet', $request['id_outlet']);
+            })
+            ->where('user_hair_stylist_status', 'Active')
+            ->orderBy('fullname')
+            ->with('hairstylistCategory', 'bank_account')
+            ->get();
+
+        $all_attends = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+            ->whereNotNull('clock_in')
+            ->whereDate('hairstylist_attendances.attendance_date', '>=', $request['start_date'])
+            ->whereDate('hairstylist_attendances.attendance_date', '<=', $request['end_date'])
+            ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
+            ->groupBy('id_outlet', 'id_user_hair_stylist')
+            ->get()
+            ->groupBy('id_user_hair_stylist')
+            ->map(function ($item) {
+                return $item->keyBy('id_outlet');
+            });
+
+       $all_lates = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+            ->whereNotNull('clock_in')
+            ->where('is_on_time', 0)
+            ->whereDate('hairstylist_attendances.attendance_date', '>=', $request['start_date'])
+            ->whereDate('hairstylist_attendances.attendance_date', '<=', $request['end_date'])
+            ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
+            ->groupBy('id_outlet', 'id_user_hair_stylist')
+            ->get()
+            ->groupBy('id_user_hair_stylist')
+            ->map(function ($item) {
+                return $item->keyBy('id_outlet');
+            });
+
+        $all_absens = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+            ->whereNull('clock_in')
+            ->whereDate('hairstylist_attendances.attendance_date', '>=', $request['start_date'])
+            ->whereDate('hairstylist_attendances.attendance_date', '<=', $request['end_date'])
+            ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
+            ->groupBy('id_outlet', 'id_user_hair_stylist')
+            ->get()
+            ->groupBy('id_user_hair_stylist')
+            ->map(function ($item) {
+                return $item->keyBy('id_outlet');
+            });
+
+        $all_overtimes = HairstylistScheduleDate::leftJoin('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+            ->whereNotNull('clock_in')
+            ->where('is_overtime',1)
+            ->whereDate('hairstylist_attendances.attendance_date', '>=', $request['start_date'])
+            ->whereDate('hairstylist_attendances.attendance_date', '<=', $request['end_date'])
+            ->select('date','id_outlet', 'id_user_hair_stylist')
+            ->groupBy('id_outlet', 'id_user_hair_stylist')
+            ->get()
+            ->groupBy('id_user_hair_stylist')
+            ->map(function ($item) {
+                return $item->groupBy('id_outlet');
+            });
+      $all_timeoff = HairStylistTimeOff::whereNotNull('approve_at')
+            ->whereNull('reject_at')
+            ->whereDate('date', '>=', $request['start_date'])
+            ->whereDate('date', '<=', $request['end_date'])
+            ->selectRaw('count(*) as total, id_outlet, id_user_hair_stylist')
+            ->groupBy('id_outlet', 'id_user_hair_stylist')
+            ->get()
+            ->groupBy('id_user_hair_stylist')
+            ->map(function ($item) {
+                return $item->keyBy('id_outlet');
+            });
+        $minOvertimeMinutes = MyHelper::setting('overtime_hs', 'value', 45);
+       $overtimes = HairstylistOverTime::wherenotnull('approve_at')
+            ->wherenull('reject_at')
+            ->where('not_schedule',0)
+            ->whereDate('date', '>=', $request['start_date'])
+            ->whereDate('date', '<=', $request['end_date'])
+            ->select('duration', 'id_user_hair_stylist', 'id_outlet', \DB::raw('DATE(date) as datex'))
+            ->get()
+            ->groupBy('id_user_hair_stylist')
+            ->map(function ($item) use ($minOvertimeMinutes) {
+                $newItem = $item->groupBy('id_outlet');
+                return $newItem->map(function($item2) use ($minOvertimeMinutes) {
+                    $newItem2 = $item2->groupBy('datex');
+                    return $newItem2->map(function ($item3) use ($minOvertimeMinutes) {
+                        $duration = 0; // in second
+                        foreach ($item3 as $i) {
+                            $duration += strtotime($i['duration']) - strtotime('00:00:00');
+                        }
+                        $sisa = $duration % 3600; // sisa detik
+                        $overtime = floor($duration / 3600); // jam overtime awal
+                        $overtime += ($sisa / 60) >= $minOvertimeMinutes ? 1 : 0;
+                        return (int) $overtime;
+                    });
+                });
+            });
+        $overtimes_day = HairstylistOverTime::wherenotnull('approve_at')
+            ->wherenull('reject_at')
+            ->where('not_schedule',1)
+            ->whereDate('date', '>=', $request['start_date'])
+            ->whereDate('date', '<=', $request['end_date'])
+            ->select('duration', 'id_user_hair_stylist', 'id_outlet', \DB::raw('DATE(date) as datex'))
+            ->get()
+            ->groupBy('id_user_hair_stylist');
+        $allLoans = HairstylistLoan::join('hairstylist_category_loans', 'hairstylist_category_loans.id_hairstylist_category_loan', 'hairstylist_loans.id_hairstylist_category_loan')
+            ->join('hairstylist_loan_returns', function ($join) use ($start_date, $end_date) {
+                $join->on('hairstylist_loan_returns.id_hairstylist_loan', 'hairstylist_loans.id_hairstylist_loan')
+                    ->whereDate('hairstylist_loan_returns.date_pay', '>=', $start_date)
+                    ->whereDate('hairstylist_loan_returns.date_pay', '<=', $end_date)
+                    ->where('hairstylist_loan_returns.status_return', 'Success');
+            })
+            ->where('status_loan', 'Success')
+            ->select('hairstylist_category_loans.name_category_loan',
+                DB::raw('
+                               SUM(
+                                 CASE WHEN hairstylist_loan_returns.status_return = "Success" AND hairstylist_loan_returns.date_pay IS NOT NULL THEN hairstylist_loan_returns.amount_return
+                                         ELSE 0 END
+                                 ) as value
+                            '),
+            )
+            ->groupby('id_user_hair_stylist', 'hairstylist_category_loans.id_hairstylist_category_loan')
+            ->get()
+            ->groupBy('id_user_hair_stylist');
+
+
+        $incomeDefault = \Modules\Recruitment\Entities\HairstylistGroupFixedIncentiveDefault::with(['detail'])->get();
+        $hsGroup = HairstylistGroupProteksi::get()->groupBy('id_hairstylist_group');
+
+        $exportResults = [];
+        foreach ($hairstylists as $hairstylist) {
+            $hs = $hairstylist;
+            $data = array(
+                'NIK'               => $hairstylist->user_hair_stylist_code,
+                'NAMA LENGKAP'      => $hairstylist->fullname,
+                'Nama Panggilan'    => $hairstylist->nickname,
+                'Jabatan'           => $hairstylist->hairstylistCategory->hairstylist_category_name,
+                'Join Date'         => date('d-M-Y',strtotime($hairstylist->join_date)),
+            );
+            $hsTransactions = $transactionsByHS[$hairstylist->id_user_hair_stylist] ?? collect([]);
+            $hsTransactionsByOutlet = $hsTransactions->groupBy('id_outlet');
+            if ($hsTransactionsByOutlet->count() == 0) {
+                $hsTransactionsByOutlet = [$hairstylist->id_outlet => collect([])];
+            }
+            $hari_masuk = 0;
+            $total_gross_sale = 0;
+            $total_income = 0;
+            $total_commissions = 0;
+            $total_overtime_hs = 0;
+            $total_timeoff_hs = 0;
+            $total_late_hs = 0;
+            $outlet_hs = array();
+            foreach ($hsTransactionsByOutlet as $id_outlet => $outletTransactions) {
+                $outlet_hs[] = $id_outlet;
+                $outlet = $outlets[$id_outlet];
+                $total_attend = $all_attends[$hs->id_user_hair_stylist][$id_outlet]['total'] ?? '0';
+                $total_timeoff = $all_timeoff[$hs->id_user_hair_stylist][$id_outlet]['total'] ?? '0';
+                $total_late = $all_lates[$hs->id_user_hair_stylist][$id_outlet]['total'] ?? '0';
+                $total_absen = $all_absens[$hs->id_user_hair_stylist][$id_outlet]['total'] ?? '0';
+                $total_overtimes = $all_overtimes[$hs->id_user_hair_stylist][$id_outlet] ?? '0';
+                $hari_masuk = $hari_masuk + $total_attend;
+
+                $total_gross_sale = $total_gross_sale + $outletTransactions->sum('transaction_product_subtotal');
+
+                $total_commission = 0;
+                foreach ($outletTransactions as $trx) {
+                    $total_commission += optional($transactionBreakdownsGroupByTrxProduct[$trx->id_transaction_product] ?? null)->sum('value') ?? '0';
+                }
+
+                $total_commissions = $total_commissions + $total_commission;
+
+                $total_overtime_hs = $total_overtime_hs + optional(optional($overtimes[$hs->id_user_hair_stylist][$id_outlet] ?? null)->values())->sum() ?? '0';
+
+                $total_timeoff_hs = $total_timeoff_hs + $total_timeoff;
+                $total_late_hs = $total_late_hs + $total_late;
+            }
+            
+            $data['Hari Masuk'] = (string) $hari_masuk;
+
+            $data['Total gross sale'] = (string) $total_gross_sale;
+
+
+            $data['Total commission'] = (string) $total_commissions;
+            $total_income += $total_commissions;
+
+            $data['Tambahan jam'] = (string) $total_overtime_hs;
+
+            $data['Total Izin/Cuti'] = (string) $total_timeoff_hs;
+            $data['Potongan telat'] = (string) $total_late_hs;
+            $response = HairstylistIncome::calculateFixedIncentive($hs, $start_date,$end_date,$outlet_hs,$incomeDefault);
+            foreach ($response as $valu) {
+                $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
+                if($valu['status']=='salary_cut'){
+                    $total_income -= $valu['value'];
+                }else{
+                    $total_income += $valu['value']; 
+                }
+            }
+            if ($allLoans[$hs->id_user_hair_stylist] ?? false) {
+                $response = HairstylistIncome::calculateSalaryCuts($hs, $request['start_date'],$request['end_date'], $allLoans[$hs->id_user_hair_stylist]);
+                foreach ($response as $valu) {
+                    $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
+                    $total_income += $valu['value'];
+                }
+            }
+           $response = HairstylistIncome::calculateIncomeExport($hs, $request['start_date'], $request['end_date'], $outlet_hs, $all_attends, $all_lates, $all_absens, $all_overtimes);
+            foreach ($response as $values) {
+                $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
+                $total_income += $values['value'];
+            }
+                
+//               $response = HairstylistIncome::calculateIncomeOvertimeDay($hs, $request['start_date'],$request['end_date'], [$id_outlet], $overtimes_day);
+//                foreach ($response as $values) {
+//                    $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
+//                    $total_income += $values['value'];
+//                }
+                $response = HairstylistIncome::calculateIncomeProteksi($hs, $request['start_date'],$request['end_date'],$id_outlet);
+                foreach ($response as $values) {
+                    $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
+                    $total_income += $values['value'];
+                }
+                $response = HairstylistIncome::calculateIncomeOvertime($hs, $request['start_date'],$request['end_date'], [$id_outlet], $all_overtimes);
+                foreach ($response as $values) {
+                    $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
+                    $total_income += $values['value'];
+                }
+              $response = HairstylistIncome::calculateIncomeLateness($hs, $request['start_date'],$request['end_date'],$id_outlet);
+                foreach ($response as $values) {
+                    $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
+                    $total_income -= $values['value'];
+                }
+		$proteksi = HairstylistIncome::calculateGenerateIncomeProtec($hs, $request['start_date'],$request['end_date'],$id_outlet);
+                $keterangan = "Non Protection";
+                if($proteksi['name']){
+                         $keterangan = $proteksi['name'];
+                }
+                if($proteksi['total_income']>$total_income){
+                         $total_income =(string) $proteksi['total_income'];
+                }
+                
+                $data['Total imbal jasa'] = (string) $total_income;
+                $data['Keterangan'] = $keterangan;
+
+                $data['Bank'] = $hairstylist->bank_account->bank_name->bank_name??'';
+                $data['Bank account'] = $hairstylist->bank_account->beneficiary_name??'';
+                $data['Email'] = $hairstylist->email??'';
+
+                $exportResults[] = $data;
+        }
+
+        $b = array();
+        foreach ($exportResults as $key => $value) {
+            $b = array_merge($b,array_keys($value));
+        }
+        $head = array_unique($b);
+        $body = array();
+        $in_array = ["NIK","NAMA LENGKAP","Nama Panggilan","Jabatan","Join Date","Outlet","Keterangan","Bank","Bank account","Email"];
+        foreach ($exportResults as $vab) {
+            foreach($head as $v){
+            if (in_array($v, $in_array)){
+                $not = '';
+                }else{
+                $not = "0";
+                }
+                $isi[$v] = $vab[$v]??$not;
+            }
+            array_push($body,$isi);
+        }
+        $response = array(
+            'start_date'=>$request['start_date'],
+            'end_date'=>$request['end_date'],
+            'head'=> $head,
+            'body'=> $body,
+        );
+        return $response;
+    }
+
+    public function export_income($request)
     {
         $start_date = $request['start_date'];
         $end_date = $request['end_date'];
@@ -1062,91 +1374,5 @@ class ApiIncome extends Controller
             'body'=> $body,
         );
         return $response;
-    }
-
-    public function export_income(Export_Outlet $request) {
-        $array = array();
-        $b = new HairstylistIncome();
-        $hairstyllist = UserHairStylist::join('outlets','outlets.id_outlet','user_hair_stylist.id_outlet')
-                ->leftjoin('bank_accounts','bank_accounts.id_bank_account','user_hair_stylist.id_bank_account')
-                ->leftjoin('hairstylist_categories','hairstylist_categories.id_hairstylist_category','user_hair_stylist.id_hairstylist_category')
-                ->leftjoin('bank_name','bank_name.id_bank_name','bank_accounts.id_bank_name')
-                ->leftjoin('hairstylist_groups','hairstylist_groups.id_hairstylist_group','user_hair_stylist.id_hairstylist_group')
-                ->wherein('user_hair_stylist.id_outlet',$request['id_outlet'])
-                ->get();
-        foreach ($hairstyllist as $value) {
-            $hs = UserHairStylist::where('id_user_hair_stylist',$value->id_user_hair_stylist)->first();
-            $location = Outlet::where('id_outlet',$value->id_outlet)->join('locations','locations.id_location','outlets.id_location')->first();
-            
-            $data = array(
-                'NIK'=>$hs->user_hair_stylist_code??'',
-                'NAMA LENGKAP'=>$hs->fullname??'',
-                'Nama Panggilan'=>$hs->nickname??'',
-                'Jabatan'=>$value['hairstylist_category_name']??'',
-                'Join Date'=>date('d-M-Y',strtotime($hs->join_date))??'',
-                'Outlet'=>$value->outlet_name??'',
-            );
-           $response = $b->calculateIncomeGross($hs, $request['start_date'],$request['end_date']);
-            foreach ($response as $valu) {
-                $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
-            }
-            $response = $b->calculateIncomeProductCode($hs, $request['start_date'],$request['end_date']);
-            foreach ($response as $values) {
-                $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
-            }
-            $response = $b->calculateTambahanJam($hs, $request['start_date'],$request['end_date']);
-            foreach ($response as $values) {
-                $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
-            }
-            $response = $b->calculateFixedIncentive($hs, $request['start_date'],$request['end_date']);
-            foreach ($response as $valu) {
-                $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
-            }
-            $response = $b->calculateSalaryCuts($hs, $request['start_date'],$request['end_date']);
-            foreach ($response as $valu) {
-                $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
-            }
-            $response = $b->calculateIncomeExport($hs, $request['start_date'],$request['end_date']);
-            foreach ($response as $values) {
-                $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
-            }
-            $response = $b->calculateIncomeOvertime($hs, $request['start_date'],$request['end_date']);
-            foreach ($response as $values) {
-                $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
-            }
-           $response = $b->calculateIncomeTotal($hs, $request['start_date'],$request['end_date']);
-            foreach ($response as $valu) {
-                $data[ucfirst(str_replace('-', ' ', $valu['name']))]=(string)$valu['value'];
-            }
-            $data['Bank'] = $value->bank_name??'';
-            $data['Bank account'] = $value->beneficiary_name??'';
-            $data['Email'] = $value->email??'';
-            array_push($array,$data);
-        }
-        $b = array();
-        foreach ($array as $key => $value) {
-            $b = array_merge($b,array_keys($value));
-        }
-        $head = array_unique($b);
-        $body = array();
-        $in_array = ["NIK","NAMA LENGKAP","Nama Panggilan","Jabatan","Join Date","Outlet","Keterangan","Bank","Bank account","Email"];
-        foreach ($array as $vab) {
-            foreach($head as $v){
-            if (in_array($v, $in_array)){
-                $not = '';
-                }else{
-                $not = "0";
-                }
-                $isi[$v] = $vab[$v]??$not;
-            }
-            array_push($body,$isi);
-        }
-        $response = array(
-            'start_date'=>$request['start_date'],
-            'end_date'=>$request['end_date'],
-            'head'=> $head,
-            'body'=> $body,
-        );
-        return MyHelper::checkGet($response);
     }
 }

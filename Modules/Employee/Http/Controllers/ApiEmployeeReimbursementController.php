@@ -60,6 +60,20 @@ class ApiEmployeeReimbursementController extends Controller
                 }
             }
        $reimbursement = EmployeeReimbursement::create($post);
+       if (\Module::collections()->has('Autocrm')) {
+                           $autocrm = app($this->autocrm)->SendAutoCRM(
+                               'Employee Reimbursement Create',
+                               Auth::user()->phone,
+                               [], null, null, null, null, null, null, null, null,
+                           );
+                           // return $autocrm;
+                           if (!$autocrm) {
+                               return response()->json([
+                                   'status'    => 'fail',
+                                   'messages'  => ['Failed to send']
+                               ]);
+                           }
+                       }
        return MyHelper::checkGet($reimbursement);
    }
    public function detail(Detail $request) {

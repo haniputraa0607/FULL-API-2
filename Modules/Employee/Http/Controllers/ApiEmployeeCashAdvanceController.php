@@ -59,6 +59,20 @@ class ApiEmployeeCashAdvanceController extends Controller
                 }
             }
        $cash_advance = EmployeeCashAdvance::create($post);
+       if (\Module::collections()->has('Autocrm')) {
+                           $autocrm = app($this->autocrm)->SendAutoCRM(
+                               'Employee Cash Advance Create',
+                               Auth::user()->phone,
+                               [], null, null, null, null, null, null, null, null,
+                           );
+                           // return $autocrm;
+                           if (!$autocrm) {
+                               return response()->json([
+                                   'status'    => 'fail',
+                                   'messages'  => ['Failed to send']
+                               ]);
+                           }
+                       }
        return MyHelper::checkGet($cash_advance);
    }
    public function detail(Detail $request) {

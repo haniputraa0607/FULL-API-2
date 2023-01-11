@@ -201,6 +201,7 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('/','ApiBeEmployeeReimbursementController@index');
         Route::post('/manager','ApiBeEmployeeReimbursementController@manager');
         Route::post('/update','ApiBeEmployeeReimbursementController@update');
+         Route::post('/reject','ApiBeEmployeeReimbursementController@reject');
         Route::post('/manager/detail','ApiBeEmployeeReimbursementController@detail');
         Route::post('/list','ApiBeEmployeeReimbursementController@list');
         Route::post('/detail','ApiBeEmployeeReimbursementController@detail');

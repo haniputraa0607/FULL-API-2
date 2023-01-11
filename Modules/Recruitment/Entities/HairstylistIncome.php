@@ -487,7 +487,7 @@ class HairstylistIncome extends Model
                 }
                 //Fixed Incentive
                 if($hs->id_outlet == $outl){
-                $fixed = self::calculateFixedIncentive($hs, $startDate, $endDate,$outl,$incomeDefault);
+                $fixed = self::calculateFixedIncentive($hs, $startDate, $endDate,$incomeDefault);
                 foreach ($fixed as $value) {
                     if ($value['status'] == 'incentive') {
                         $total = $total + $value['value'];
@@ -2193,14 +2193,19 @@ class HairstylistIncome extends Model
         );
         
     }
-    public static function calculateFixedIncentive(UserHairStylist $hs, $startDate, $endDate, $outlet, $incomeDefault)
+    public static function calculateFixedIncentive(UserHairStylist $hs, $startDate, $endDate,$outlet, $incomeDefault)
     {
+        
         $array   = array();
         $tanggal = (int) MyHelper::setting('hs_income_cut_off_end_date', 'value') ?? 25;
         // Variable that store the date interval
         // of period 1 day
         $interval = new DateInterval('P1D');
-        $outlet = Outlet::where('id_outlet',$outlet)->first();
+        $outlet = Outlet::where('id_outlet',$hs->id_outlet)->join('locations','locations.id_location','outlets.id_location')
+                    ->select(
+                            'id_outlet',
+                            'start_date'
+                    )->first();
         $realEnd = new DateTime($endDate);
         $realEnd->add($interval);
 
@@ -2223,7 +2228,6 @@ class HairstylistIncome extends Model
         if (!$outlet) {
             return $array;
         }
-        
         $outlet_age = 0;
         $date3      = date_create(date('Y-m-d', strtotime($outlet->start_date)));
         $date4      = date_create($date_now);
@@ -2245,20 +2249,20 @@ class HairstylistIncome extends Model
         foreach ($overtime as $va) {
             $harga = 0;
             if (isset($va['detail'])) {
-                if ($va['type'] == "Multiple") {
-                    if ($va['formula'] == 'outlet_age') {
+                if ($va['type']??null == "Multiple") {
+                    if ($va['formula']??null == 'outlet_age') {
                         $h = $outlet_age;
-                    } elseif ($va['formula'] == 'years_of_service') {
+                    } elseif ($va['formula']??null == 'years_of_service') {
                         $h = $years_of_service;
                     } else {
                         break;
                     }
                     foreach ($va['detail'] as $valu) {
-                        if ($valu['range'] <= (int) $h) {
+                        if ($valu['range']??0 <= (int) $h) {
                             if ($valu['default'] == 1) {
-                                $harga = $valu['value'] * $total_date;
+                                $harga = (int)$valu['value']??0 * $total_date;
                             } else {
-                                $harga = $valu['default_value'] * $total_date;
+                                $harga = (int)$valu['default_value']??0 * $total_date;
                             }
                             break;
                         }
@@ -2266,21 +2270,21 @@ class HairstylistIncome extends Model
                 } else {
 
                     if ($va['detail']['0']['default'] == 1) {
-                        $harga = $va['detail']['0']['value'] * $total_date;
+                        $harga = (int)$va['detail']['0']['value']??0 * $total_date;
                     } else {
-                        $harga = $va['detail']['0']['default_value'] * $total_date;
+                        $harga = (int)$va['detail']['0']['default_value']??0 * $total_date;
                     }
                 }
             }
             $array[] = array(
-                "id_hairstylist_group_default_fixed_incentive" => $va['id_hairstylist_group_default_fixed_incentive'],
-                "name"                                         => $va['name_fixed_incentive'],
-                "value"                                        => $harga,
-                'status'                                       => $va['status'],
-                'id_outlet'                                    => $outlet['id_outlet'],
+                "id_hairstylist_group_default_fixed_incentive" => $va['id_hairstylist_group_default_fixed_incentive']??null,
+                "name"                                         => $va['name_fixed_incentive']??null,
+                "value"                                        => (int)$harga??0,
+                'status'                                       => $va['status']??null,
+                'id_outlet'                                    => $outlet['id_outlet']??null,
             );
         }
-
+        
         return $array;
     }
     public static function calculateSalaryCuts(UserHairStylist $hs, $startDate, $endDate, $loan)

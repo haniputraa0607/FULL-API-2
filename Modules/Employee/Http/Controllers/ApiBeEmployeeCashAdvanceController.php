@@ -205,6 +205,26 @@ class ApiBeEmployeeCashAdvanceController extends Controller
                      $update = EmployeeCashAdvance::where('id_employee_cash_advance', $post['id_employee_cash_advance'])->update([
                          'status' => $post['update_type'],
                              ]);
+                     $getData = EmployeeCashAdvance::join('users','users.id','employee_cash_advances.id_user')
+                        ->where('id_employee_cash_advance',$post['id_employee_cash_advance'])
+                        ->select('users.phone')
+                        ->first();
+                        if (\Module::collections()->has('Autocrm')) {
+                              $autocrm = app($this->autocrm)->SendAutoCRM(
+                                  'Employee Cash Advance Update',
+                                  $getData->phone,
+                                  [
+                                      'document_type'=> $post['update_type'],
+                                  ], null, null, null, null, null, null, null, null,
+                              );
+                              // return $autocrm;
+                              if (!$autocrm) {
+                                  return response()->json([
+                                      'status'    => 'fail',
+                                      'messages'  => ['Failed to send']
+                                  ]);
+                              }
+                          }
                      }
                   
                 if(!empty($post['data_document'])){
@@ -238,6 +258,10 @@ class ApiBeEmployeeCashAdvanceController extends Controller
        $post['id_user_approved'] =  $post['id_user_approved'] ?? Auth::user()->id;
        $cash_advance = EmployeeCashAdvance::join('users','users.id','employee_cash_advances.id_user')->where(array('id_employee_cash_advance'=>$request->id_employee_cash_advance))->first();
        if($post['update_type'] == "Finance Approval"){
+           $getData = EmployeeCashAdvance::join('users','users.id','employee_cash_advances.id_user')
+                        ->where('id_employee_cash_advance',$post['id_employee_cash_advance'])
+                        ->select('users.phone')
+                        ->first();
             $data_send = [
                     "cash_advance" => EmployeeCashAdvance::where(array('id_employee_cash_advance'=>$request->id_employee_cash_advance))->first(),
                     "employee" => Employee::where('id_user',$cash_advance['id_user'])->first(),
@@ -254,6 +278,22 @@ class ApiBeEmployeeCashAdvanceController extends Controller
                        'status' => "Realisasi",
                    ]);
                }
+               if (\Module::collections()->has('Autocrm')) {
+                        $autocrm = app($this->autocrm)->SendAutoCRM(
+                            'Employee Cash Advance Approved',
+                            $getData->phone,
+                            [
+                                'document_type'=> $post['update_type'],
+                            ], null, null, null, null, null, null, null, null,
+                        );
+                        // return $autocrm;
+                        if (!$autocrm) {
+                            return response()->json([
+                                'status'    => 'fail',
+                                'messages'  => ['Failed to send']
+                            ]);
+                        }
+                    }
        }
        return $cash_advance;
    }
@@ -327,10 +367,28 @@ class ApiBeEmployeeCashAdvanceController extends Controller
     public function reject(Request $request) {
        $post = $request->json()->all();
         if(isset($post['id_employee_cash_advance']) && !empty($post['id_employee_cash_advance'])){
+             $getData = EmployeeCashAdvance::join('users','users.id','employee_cash_advances.id_user')
+                        ->where('id_employee_cash_advance',$post['id_employee_cash_advance'])
+                        ->select('users.phone')
+                        ->first();
              $detail = EmployeeCashAdvance::where('id_employee_cash_advance',$post['id_employee_cash_advance'])
                         ->update([
                             'status'=>'Rejected'
                         ]);
+             if (\Module::collections()->has('Autocrm')) {
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Employee Cash Advance Rejected',
+                        $getData->phone,
+                        [], null, null, null, null, null, null, null, null,
+                    );
+                    // return $autocrm;
+                    if (!$autocrm) {
+                        return response()->json([
+                            'status'    => 'fail',
+                            'messages'  => ['Failed to send']
+                        ]);
+                    }
+                }
             return response()->json(MyHelper::checkGet($detail));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);

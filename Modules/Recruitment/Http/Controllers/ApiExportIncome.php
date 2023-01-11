@@ -106,10 +106,10 @@ class ApiExportIncome extends Controller
                $excelFile = 'Export_'.strtotime(date('Y-m-d H:i:s')).mt_rand(0, 1000).time().'.xlsx';
                 $directory = 'hairstylist/export-payroll/'.$excelFile;
                 $dataExport = $data['result'];
-                $store = (new PayrollExport($dataExport))->store($directory, null, null, ['visibility' => 'public']);
-                if ($store) {
-                    ExportPayrollQueue::where('id_export_payroll_queue', $id)->update(['url_export' => $directory, 'status_export' => 'Ready']);
-                }
+               $store = (new PayrollExport($dataExport))->store($directory, null, null, ['visibility' => 'public']);
+//                if ($store) {
+//                    ExportPayrollQueue::where('id_export_payroll_queue', $id)->update(['url_export' => $directory, 'status_export' => 'Ready']);
+//                }
 
             return 'success';
         }else{

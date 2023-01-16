@@ -321,6 +321,7 @@ Route::group([ 'middleware' => ['log_activities', 'auth:api','user_agent', 'scop
         Route::post('detail', ['middleware' => 'feature_control:539', 'uses' => 'ApiRequestEmployeeController@detail']);
         Route::post('update', ['middleware' => 'feature_control:540', 'uses' => 'ApiRequestEmployeeController@update']);
         Route::post('delete', ['middleware' => 'feature_control:540', 'uses' => 'ApiRequestEmployeeController@delete']);
+        Route::post('finish', ['middleware' => 'feature_control:540', 'uses' => 'ApiRequestEmployeeController@finish']);
         Route::post('list-employee', ['middleware' => 'feature_control:539', 'uses' => 'ApiRequestEmployeeController@listEmployeeOutlet']);
     });
 });

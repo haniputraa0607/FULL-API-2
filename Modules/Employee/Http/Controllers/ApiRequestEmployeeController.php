@@ -238,4 +238,17 @@ class ApiRequestEmployeeController extends Controller
         $delete = RequestEmployee::where('id_request_employee', $id_request_employee)->delete();
         return MyHelper::checkDelete($delete);
     }
+
+    public function finish(Request $request)
+    {
+        $id_request_employee  = $request->json('id_request_employee');
+        DB::beginTransaction();
+        $update = RequestEmployee::where('id_request_employee', $id_request_employee)->update(['status'=>'Finished']);
+        if($update){
+            DB::commit();
+            return response()->json(['status' => 'success']);
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['Failed']]);
+        }
+    }
 }

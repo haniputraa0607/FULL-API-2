@@ -178,7 +178,12 @@ class ApiEmployeeScheduleController extends Controller
             }    
                        
             foreach($list_employees ?? [] as $employee){
-                $schedue_before = EmployeeSchedule::where('id', $employee['id'])->where('schedule_month', date('m', strtotime('-1 months')))->where('schedule_year', date('Y'))->whereNotNull('id_office_hour_shift')->first();
+                if(date('m', strtotime('-1 months')) == 12){
+                    $bfr_year = date('Y', strtotime('-1 years'));
+                }else{
+                    $bfr_year = date('Y');
+                }
+                $schedue_before = EmployeeSchedule::where('id', $employee['id'])->where('schedule_month', date('m', strtotime('-1 months')))->where('schedule_year', $bfr_year)->whereNotNull('id_office_hour_shift')->first();
                 if($schedue_before){
                     $schedue_now = EmployeeSchedule::where('id', $employee['id'])->where('schedule_month', date('m'))->where('schedule_year', date('Y'))->whereNotNull('id_office_hour_shift')->first();
                     if(!$schedue_now){

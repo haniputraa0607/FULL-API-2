@@ -534,13 +534,20 @@ class ApiHairStylistScheduleController extends Controller
                     $sch = HairstylistSchedule::where('id_user_hair_stylist', $hs['id_user_hair_stylist'])->where('schedule_month', $this_date[1])->where('schedule_year', $this_date[0])->first();
 
                     if(!$sch){
-                        $sch_before = HairstylistSchedule::where('id_user_hair_stylist', $hs['id_user_hair_stylist'])->where('schedule_month', $this_date[1]-1)->where('schedule_year', $this_date[0])->first();
+                        if($this_date[1]-1== 0){
+                            $bfr = 12;
+                            $bfr_year = $this_date[0]-1;
+                        }else{
+                            $bfr = $this_date[1]-1;
+                            $bfr_year = $this_date[0];
+                        }
+                        $sch_before = HairstylistSchedule::where('id_user_hair_stylist', $hs['id_user_hair_stylist'])->where('schedule_month', $bfr)->where('schedule_year', $bfr_year)->first();
                         if($sch_before){
                             
                             $check = HairstylistScheduleDate::where('id_hairstylist_schedule',$sch_before['id_hairstylist_schedule'])->whereMonth('date', $this_date[1])->get()->toArray();
 
                             if(!$check){
-                                $month_before = $this_date[1]-1;
+                                $month_before = $bfr;
         
                                 $schedule_before =  HairstylistScheduleDate::where('id_hairstylist_schedule',$sch_before['id_hairstylist_schedule'])->whereMonth('date', $month_before)->get()->toArray();
 

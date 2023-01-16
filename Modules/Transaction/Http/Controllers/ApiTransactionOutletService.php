@@ -1326,7 +1326,8 @@ class ApiTransactionOutletService extends Controller
 
 		HairstylistNotAvailable::where('id_transaction_product_service', $request->id_transaction_product_service)->update([
 			'booking_start' => $bookStart,
-			'booking_end' => $bookEnd
+			'booking_end' => $bookEnd,
+            'id_user_hair_stylist' => $post['id_user_hair_stylist']
 		]);
 
 		$newTrx = $trx->find($tps->id_transaction);

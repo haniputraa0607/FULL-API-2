@@ -328,7 +328,7 @@ class ApiBeEmployeeController extends Controller
                 $dtHs->level = "Admin";
                 $dtHs->id_outlet = $post['id_outlet']??null;
                 $dtHs->id_role = $post['id_role']??null;
-                $role = Role::where('id_role',$post['id_role'])->first();
+               $role = Role::where('id_role',$post['id_role'])->first();
                 $dtHs->save();
                 $number = $this->number();
                 if(!empty($post['data_document'])){
@@ -344,7 +344,7 @@ class ApiBeEmployeeController extends Controller
                         return response()->json(MyHelper::checkCreate($createDoc));
                     }
                 }
-                $update = Employee::where('id_employee', $post['id_employee'])->update([
+               $update = Employee::where('id_employee', $post['id_employee'])->update([
                     'status_approved' => $post['update_type'],
                     'status' => 'active',
                     "id_cluster"=>"013",
@@ -361,32 +361,37 @@ class ApiBeEmployeeController extends Controller
                     $employee = Employee::where('id_employee', $post['id_employee'])
                                 ->join('users','users.id','employees.id_user')
                                 ->join('roles','roles.id_role','users.id_role')
+                                ->join('departments','departments.id_department','roles.id_department')
                                 ->first();
+                    $basic = Setting::where('key','basic_salary_employee')->first();
+                    $basic = $basic['value']??0;
+                    $group = EmployeeRoleBasicSalary::where(array('id_role'=>$employee->id_role))->first();
+                    if(isset($group)){
+                       $basic = $group['value'];
+                    }
                     $outlet = Outlet::where('id_outlet', $employee['id_outlet'])->with('location_outlet')->first();
                     $outletName = $outlet['outlet_name']??'';
                     $companyType = $outlet['location_outlet']['company_type']??'';
                     $companyType = str_replace('PT ', '', $companyType);
                     $number = $employee['number'];
-                    if($employee['status_employee']=='Permanent'){
-                     $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor('template_contract_employee_tetap.docx');   
-                    }else{
-                     $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor('template_contract_employee_kontrak.docx');
+                    if($employee['status_employee']=='Contract'){
+                     $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor('Employee_Contract.docx');
                      $templateProcessor->setValue('end_date', MyHelper::dateFormatInd($employee['end_date'], true, false));
+                    }else{
+                     $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor('Employee_Probation.docx');
                     }
-                    $templateProcessor->setValue('number', $number);
-                    $templateProcessor->setValue('company_type', $companyType);
-                    $templateProcessor->setValue('roman_month', MyHelper::numberToRomanRepresentation(date('n')));
-                    $templateProcessor->setValue('current_year', date('Y'));
-                    $templateProcessor->setValue('current_date', MyHelper::dateFormatInd(date('Y-m-d'), true, false));
-                    $templateProcessor->setValue('name', $employee['name']);
-                    $templateProcessor->setValue('gender', $employee['gender']);
-                    $templateProcessor->setValue('birthplace', $employee['birthplace']);
-                    $templateProcessor->setValue('birthdate', MyHelper::dateFormatInd($employee['birthday'], true, false));
-                    $templateProcessor->setValue('recent_address', $employee['address_domicile']);
-                    $templateProcessor->setValue('id_card_number', (empty($employee['card_number']) ? '':$employee['card_number']));
+                    
                     $templateProcessor->setValue('start_date', MyHelper::dateFormatInd($employee['start_date'], true, false));
-                    $templateProcessor->setValue('outlet_name', $outletName);
-                    $templateProcessor->setValue('role', $employee['role_name']);
+                    $templateProcessor->setValue('now', MyHelper::dateFormatInd(date('Y-m-d'), true, false));
+                    $templateProcessor->setValue('name', $employee['name']);
+                    $templateProcessor->setValue('ttl', $employee['birthplace'].", ".MyHelper::dateFormatInd($employee['birthday'], true, false));
+                    $templateProcessor->setValue('address', $employee['address_domicile']);
+                    $templateProcessor->setValue('ktp', (empty($employee['card_number']) ? '':$employee['card_number']));
+                    $templateProcessor->setValue('npwp', (empty($employee['npwp']) ? '':$employee['npwp']));
+                    $templateProcessor->setValue('lokasi', $outletName);
+                    $templateProcessor->setValue('jabatan', $employee['role_name']);
+                    $templateProcessor->setValue('departmen', $employee['department_name']);
+                    $templateProcessor->setValue('basic_salary', number_format($basic??0,0,',','.'));
 
 
                     if(!File::exists(public_path().'/employee_contract')){

@@ -20,6 +20,7 @@ class ExportPayrollQueue extends Eloquent
 		'start_date',
 		'end_date',
 		'url_export',
-		'status_export'
+		'status_export',
+                'type_export'
 	];
 }

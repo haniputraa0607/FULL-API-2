@@ -491,7 +491,6 @@ class ApiIncome extends Controller
         }
     }
     public function export_periode($request) {
-         
           $startDate = $request['start_date'];
           $endDate   = $request['end_date'];
           $date_end         = (int) MyHelper::setting('hs_income_cut_off_end_date', 'value')??null;
@@ -535,7 +534,11 @@ class ApiIncome extends Controller
                   'start_date'=>$value['start'],
                   'end_date'=>$value['end'],
               );
-            $data = $this->export_income2($req);
+            if($request['type_export']== "Combine"){
+                $data = $this->export_income2($req);
+            }else{
+                $data = $this->export_income($req);
+            }
               if(isset($data['status'])&& $data['status']=='fail'){
                   continue;
               }else{

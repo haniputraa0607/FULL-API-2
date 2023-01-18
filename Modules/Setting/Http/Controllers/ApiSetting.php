@@ -2298,6 +2298,19 @@ class ApiSetting extends Controller
   
     public function delivery_income_create(Request $request){
         if(isset($request->value)&&isset($request->value_text)){
+            $path = base_path('.env');
+            if (file_exists($path)) {
+                 $path1 = base_path('.env');
+                 if (getenv('DELIVERY_INCOME')) {
+                    file_put_contents($path1, str_replace(
+                        'DELIVERY_INCOME='.Config::get('app.delivery_income'), 'DELIVERY_INCOME='.$request->value,file_get_contents($path1)
+                    ));
+                 }else{
+                     $files   = file($path1);
+                    $files[] = "\r\nDELIVERY_INCOME=".$request->value;
+                    file_put_contents($path1, $files);
+                 }
+            }
              $salary_formula = Setting::where('key','delivery_income')->first();
              if($salary_formula){
                  $data = Setting::where('key','delivery_income')->update([

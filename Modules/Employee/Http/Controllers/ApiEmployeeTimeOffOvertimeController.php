@@ -245,7 +245,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                                             $send[$key]['id_employee_schedule'] = $schedule['id_employee_schedule'];
                                             $send[$key]['date'] = $list_date;
                                             $send[$key]['date_format'] = date('d F Y', strtotime($list_date));
-                                            $send[$key]['time_start'] = $cek_employee['office_hour_start'] ? MyHelper::adjustTimezone($cek_employee['office_hour_start'], $timeZone, 'H:i') : null;
+                                            $send[$key]['time_start'] = $cek_employee['office_hour_sptart'] ? MyHelper::adjustTimezone($cek_employee['office_hour_start'], $timeZone, 'H:i') : null;
                                             $send[$key]['time_end'] = $cek_employee['office_hour_end'] ? MyHelper::adjustTimezone($cek_employee['office_hour_end'], $timeZone, 'H:i') : null;
                                         }
                                     }
@@ -324,7 +324,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
     {
         $post = $request->all();
         if(isset($post['id_employee_time_off']) && !empty($post['id_employee_time_off'])){
-            $time_off = EmployeeTimeOff::where('id_employee_time_off', $post['id_employee_time_off'])->with(['employee','outlet','approve','request','documents'])->first();
+            $time_off = EmployeeTimeOff::where('id_employee_time_off', $post['id_employee_time_off'])->with(['employee.employee','outlet','approve','request','documents'])->first();
             
             if($time_off==null){
                 return response()->json(['status' => 'success', 'result' => [
@@ -1354,7 +1354,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
     {
         $post = $request->all();
         if(isset($post['id_employee_overtime']) && !empty($post['id_employee_overtime'])){
-            $time_off = EmployeeOvertime::where('id_employee_overtime', $post['id_employee_overtime'])->with(['employee','outlet','approve','request','documents'])->first();
+            $time_off = EmployeeOvertime::where('id_employee_overtime', $post['id_employee_overtime'])->with(['employee.employee','outlet','approve','request','documents'])->first();
             $data_outlet = Outlet::where('id_outlet', $time_off['id_outlet'])->first();
             $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
             ->where('id_city', $data_outlet['id_city'])->first()['time_zone_utc']??null;

@@ -360,8 +360,8 @@ class ApiBeEmployeeController extends Controller
                 if($update){
                     $employee = Employee::where('id_employee', $post['id_employee'])
                                 ->join('users','users.id','employees.id_user')
-                                ->join('roles','roles.id_role','users.id_role')
-                                ->join('departments','departments.id_department','roles.id_department')
+                                ->leftjoin('roles','roles.id_role','users.id_role')
+                                ->leftjoin('departments','departments.id_department','roles.id_department')
                                 ->first();
                     $basic = Setting::where('key','basic_salary_employee')->first();
                     $basic = $basic['value']??0;

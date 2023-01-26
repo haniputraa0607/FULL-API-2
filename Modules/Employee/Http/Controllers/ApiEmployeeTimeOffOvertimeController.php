@@ -245,7 +245,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                                             $send[$key]['id_employee_schedule'] = $schedule['id_employee_schedule'];
                                             $send[$key]['date'] = $list_date;
                                             $send[$key]['date_format'] = date('d F Y', strtotime($list_date));
-                                            $send[$key]['time_start'] = $cek_employee['office_hour_sptart'] ? MyHelper::adjustTimezone($cek_employee['office_hour_start'], $timeZone, 'H:i') : null;
+                                            $send[$key]['time_start'] = $cek_employee['office_hour_start'] ? MyHelper::adjustTimezone($cek_employee['office_hour_start'], $timeZone, 'H:i') : null;
                                             $send[$key]['time_end'] = $cek_employee['office_hour_end'] ? MyHelper::adjustTimezone($cek_employee['office_hour_end'], $timeZone, 'H:i') : null;
                                         }
                                     }

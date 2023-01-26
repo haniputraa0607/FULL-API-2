@@ -2948,7 +2948,6 @@ class ApiOnlineTransaction extends Controller
     public function mergeService($items){
         $new_items = [];
         $id_custom = [];
-
         // create unique array
         foreach ($items as $item) {
             $new_item = [
@@ -2958,11 +2957,13 @@ class ApiOnlineTransaction extends Controller
                 "product_code" => $item['product_code'],
                 "product_name" => $item['product_name'],
                 "product_price" => $item['product_price'],
-                "id_user_hair_stylist" => $item['id_user_hair_stylist'],
-                "user_hair_stylist_name" => $item['user_hair_stylist_name'],
+                "product_price_total" => $item['product_price_total']??null,
+                // "id_user_hair_stylist" => $item['id_user_hair_stylist'] ?? null,
+                // "user_hair_stylist_name" => $item['user_hair_stylist_name'] ?? null,
                 "booking_date" => $item['booking_date'],
                 "booking_date_display" => $item['booking_date_display'],
-                "booking_time" => $item['booking_time'],
+                // "booking_time" => $item['booking_time'] ?? null,
+                "qty" => $item['qty'],
                 "error_msg" => $item['error_msg']??""
             ];
             $pos = array_search($new_item, $new_items);
@@ -3809,7 +3810,7 @@ class ApiOnlineTransaction extends Controller
                 'messages'  => ['Outlet Not Found']
             ]);
         }
-
+        
         if($scopeUser == 'apps'){
             foreach ($grandTotal as $keyTotal => $valueTotal) {
                 if ($valueTotal == 'subtotal') {
@@ -3892,7 +3893,7 @@ class ApiOnlineTransaction extends Controller
                 }
             }
         }
-
+        
         $subTotalItem = 0;
         $continueCheckOut = true;
         foreach ($post['item'] as &$item) {
@@ -4094,7 +4095,7 @@ class ApiOnlineTransaction extends Controller
             'Sat' => 'Sabtu',
             'Sun' => 'Minggu'
         ];
-
+        
         $tempStock = [];
         foreach ($post['item_service']??[] as $key=>$item){
             $err = [];
@@ -4102,10 +4103,10 @@ class ApiOnlineTransaction extends Controller
             $outletSchedule = app($this->outlet)->getTimezone($outletSchedule, ($outlet['province_time_zone_utc']??7));
             $open = date('H:i:s', strtotime($outletSchedule['open']));
             $close = date('H:i:s', strtotime($outletSchedule['close']));
-            $currentHour = date('H:i:s', strtotime($item['booking_time']));
-            if(strtotime($currentHour) < strtotime($open) || strtotime($currentHour) > strtotime($close) || $outletSchedule['is_closed'] == 1){
-                $err[] = 'Outlet tutup pada '.MyHelper::dateFormatInd($item['booking_date'].' '.$item['booking_time']);
-            }
+            // $currentHour = date('H:i:s', strtotime($item['booking_time']));
+            // if(strtotime($currentHour) < strtotime($open) || strtotime($currentHour) > strtotime($close) || $outletSchedule['is_closed'] == 1){
+            //     $err[] = 'Outlet tutup pada '.MyHelper::dateFormatInd($item['booking_date'].' '.$item['booking_time']);
+            // }
 
             $holiday = Holiday::join('outlet_holidays', 'holidays.id_holiday', 'outlet_holidays.id_holiday')->join('date_holidays', 'holidays.id_holiday', 'date_holidays.id_holiday')
                 ->where('id_outlet', $outlet['id_outlet'])->whereDay('date_holidays.date', date('d', strtotime($item['booking_date'])))->whereMonth('date_holidays.date', date('m', strtotime($item['booking_date'])))->get();
@@ -4154,58 +4155,57 @@ class ApiOnlineTransaction extends Controller
             }
 
 
-            $bookTime = date('Y-m-d H:i', strtotime(date('Y-m-d', strtotime($item['booking_date'])).' '.date('H:i', strtotime($item['booking_time']))));
-            if(strtotime($currentDate) > strtotime($bookTime)){
-                $err[] = "Waktu pemesanan Anda tidak valid";
-            }
+            // $bookTime = date('Y-m-d H:i', strtotime(date('Y-m-d', strtotime($item['booking_date'])).' '.date('H:i', strtotime($item['booking_time']))));
+            // if(strtotime($currentDate) > strtotime($bookTime)){
+            //     $err[] = "Waktu pemesanan Anda tidak valid";
+            // }
 
-            //check available hs
-            $hs = UserHairStylist::where('id_user_hair_stylist', $item['id_user_hair_stylist'])->where('user_hair_stylist_status', 'Active')->first();
-            if(empty($hs)){
-                $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
-            }
+            // //check available hs
+            // $hs = UserHairStylist::where('id_user_hair_stylist', $item['id_user_hair_stylist'])->where('user_hair_stylist_status', 'Active')->first();
+            // if(empty($hs)){
+            //     $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
+            // }
 
-            $hsCat = ProductHairstylistCategory::where('id_product', $service['id_product'])->pluck('id_hairstylist_category')->toArray();
-            if(!empty($hsCat) && !in_array($hs['id_hairstylist_category'], $hsCat)){
-                $err[] = "Hair stylist tidak tersedia untuk service ".$service['product_name'];
-            }
+            // $hsCat = ProductHairstylistCategory::where('id_product', $service['id_product'])->pluck('id_hairstylist_category')->toArray();
+            // if(!empty($hsCat) && !in_array($hs['id_hairstylist_category'], $hsCat)){
+            //     $err[] = "Hair stylist tidak tersedia untuk service ".$service['product_name'];
+            // }
 
             //get hs schedule
-            $shift = HairstylistScheduleDate::leftJoin('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
-                    ->whereNotNull('approve_at')->where('id_user_hair_stylist', $item['id_user_hair_stylist'])
-                    ->whereDate('date', date('Y-m-d', strtotime($item['booking_date'])))
-                    ->first()['shift']??'';
-            if(empty($shift)){
-                $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
-            }
+            // $shift = HairstylistScheduleDate::leftJoin('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
+            //         ->whereNotNull('approve_at')->where('id_user_hair_stylist', $item['id_user_hair_stylist'])
+            //         ->whereDate('date', date('Y-m-d', strtotime($item['booking_date'])))
+            //         ->first()['shift']??'';
+            // if(empty($shift)){
+            //     $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
+            // }
 
             $item['time_zone'] = $outlet['province_time_zone_utc']??7;
-            $checkShift = $this->getCheckAvailableShift($item);
-            if($checkShift === false){
-                $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
-            }
+            // $checkShift = $this->getCheckAvailableShift($item);
+            // if($checkShift === false){
+            //     $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
+            // }
 
-            $processingTime = $service['processing_time_service'];
-            $bookTimeStart = date("Y-m-d H:i:s", strtotime($item['booking_date'].' '.$item['booking_time']));
-            $bookTimeEnd = date('Y-m-d H:i:s', strtotime("+".$processingTime." minutes", strtotime($bookTimeStart)));
-            $hsNotAvailable = HairstylistNotAvailable::where('id_outlet', $post['id_outlet'])
-                ->whereRaw('((booking_start >= "'.$bookTimeStart.'" AND booking_start < "'.$bookTimeEnd.'") 
-                            OR (booking_end > "'.$bookTimeStart.'" AND booking_end < "'.$bookTimeEnd.'"))')
-                ->where('id_user_hair_stylist', $item['id_user_hair_stylist'])
-                ->first();
+            // $processingTime = $service['processing_time_service'];
+            // $bookTimeStart = date("Y-m-d H:i:s", strtotime($item['booking_date'].' '.$item['booking_time']));
+            // $bookTimeEnd = date('Y-m-d H:i:s', strtotime("+".$processingTime." minutes", strtotime($bookTimeStart)));
+            // $hsNotAvailable = HairstylistNotAvailable::where('id_outlet', $post['id_outlet'])
+            //     ->whereRaw('((booking_start >= "'.$bookTimeStart.'" AND booking_start < "'.$bookTimeEnd.'") 
+            //                 OR (booking_end > "'.$bookTimeStart.'" AND booking_end < "'.$bookTimeEnd.'"))')
+            //     ->where('id_user_hair_stylist', $item['id_user_hair_stylist'])
+            //     ->first();
 
-            if(!empty($hsNotAvailable)){
-                $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
-            }
+            // if(!empty($hsNotAvailable)){
+            //     $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
+            // }
 
             //checking same time
-            foreach ($itemService as $s){
-                if($item['id_user_hair_stylist'] == $s['id_user_hair_stylist'] &&
-                    strtotime($bookTimeStart) >= strtotime($s['booking_start']) && strtotime($bookTimeStart) < strtotime($s['booking_end'])){
-                    $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
-                }
-            }
-
+            // foreach ($itemService as $s){
+            //     if($item['id_user_hair_stylist'] == $s['id_user_hair_stylist'] &&
+            //         strtotime($bookTimeStart) >= strtotime($s['booking_start']) && strtotime($bookTimeStart) < strtotime($s['booking_end'])){
+            //         $err[] = "Hair stylist tidak tersedia untuk ".MyHelper::dateFormatInd($bookTime);
+            //     }
+            // }
             $itemService[$key] = [
                 "id_custom" => $item['id_custom'],
                 "id_brand" => $service['id_brand'],
@@ -4213,21 +4213,17 @@ class ApiOnlineTransaction extends Controller
                 "product_code" => $service['product_code'],
                 "product_name" => $service['product_name'],
                 "product_price" => (int)$service['product_price'],
-                "id_user_hair_stylist" => $hs['id_user_hair_stylist'],
-                "user_hair_stylist_name" => $hs['fullname'],
+                "product_price_total" => (int)$service['product_price']*(int)$item['qty'],
                 "booking_date" => $item['booking_date'],
                 "booking_date_display" => MyHelper::dateFormatInd($item['booking_date'], true, false),
-                "booking_time" => $item['booking_time'],
-                "booking_start" => $bookTimeStart,
-                "booking_end" => $bookTimeEnd,
+                "qty" => $item['qty'],
                 "error_msg" => (empty($err)? null:implode(".", array_unique($err)))
             ];
-            $subTotalService = $subTotalService + $service['product_price'];
+            $subTotalService = $subTotalService + ($service['product_price']*$item['qty'] );
             if(!empty($err)){
                 $continueCheckOut = false;
             }
         }
-
         $mergeService = $this->mergeService($itemService);
 
         return [

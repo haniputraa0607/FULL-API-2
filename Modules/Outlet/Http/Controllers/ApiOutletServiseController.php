@@ -121,7 +121,7 @@ class ApiOutletServiseController extends Controller
             ->with(['brands', 'holidays.date_holidays', 'today'])
             ->orderBy('distance_in_km', 'asc');
 
-        if(isset($post['is_default']) && $post['is_default'] == 1){
+        if((isset($post['is_default']) && $post['is_default'] == 1) || !isset($post['is_default'])){
             $outlet = $outlet->limit($totalListOutlet);
             $outlet = $outlet->get()->toArray();
 
@@ -256,7 +256,7 @@ class ApiOutletServiseController extends Controller
         }
 
         
-        if(isset($post['is_default']) && $post['is_default'] == 1){
+        if((isset($post['is_default']) && $post['is_default'] == 1) || !isset($post['is_default'])){
             return response()->json(['status' => 'success', 'result' => $res]);
         }elseif(isset($post['is_default']) && $post['is_default'] == 0){
             return response()->json(['status' => 'success', 'result' => $outlet]);

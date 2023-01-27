@@ -251,7 +251,7 @@ class Kernel extends ConsoleKernel
         $schedule->call('Modules\Employee\Http\Controllers\ApiEmployeeTimeOffOvertimeController@checkTimeOffOvertime')->dailyAt(config('app.env') == 'staging' ? '05:44' : '00:12');
         
         $schedule->call('Modules\Recruitment\Http\Controllers\ApiIncome@cron_middle')->monthlyOn(config('app.income_date_middle')??11,config('app.env') == 'staging' ? '05:46' : '00:01');
-        $schedule->call('Modules\Recruitment\Http\Controllers\ApiIncome@cron_end')->monthlyOn(config('app.income_date_end')??25,config('app.env') == 'staging' ? '05:47' : '10:12');
+        $schedule->call('Modules\Recruitment\Http\Controllers\ApiIncome@cron_end')->monthlyOn(config('app.income_date_end')??25,config('app.env') == 'staging' ? '05:47' : '00:01');
         
         
         $schedule->call('Modules\Employee\Http\Controllers\ApiIncome@cron_end')->monthlyOn(config('app.delivery_income')??25,config('app.env') == 'staging' ? '05:48' : '00:01');

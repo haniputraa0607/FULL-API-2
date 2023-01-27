@@ -18,12 +18,12 @@ Route::group(['middleware' => ['auth:api', 'scopes:be'], 'prefix' => 'hairstylis
     Route::any('category', 'ApiHairStylistController@listCategory');
     Route::post('category/update', 'ApiHairStylistController@updateCategory');
     Route::post('category/delete', 'ApiHairStylistController@deleteCategory');
-//    Route::post('export-payroll', 'ApiIncome@export_periode');
+    //    Route::post('export-payroll', 'ApiIncome@export_periode');
     Route::post('income-end', 'ApiIncome@cron_end');
     Route::post('income-mid', 'ApiIncome@cron_middle');
     Route::post('generate', 'ApiIncome@generate');
     Route::post('export-payroll', 'ApiExportIncome@newExport');
-    Route::post('export-payroll/{id}', 'ApiExportIncome@exportExcel');
+    Route::post('export-payroll/{id}', 'ApiExportIncome@exportPayroll');
     Route::get('export-payroll/delete/{id}', 'ApiExportIncome@deleteExport');
     Route::get('export-payroll/list', 'ApiExportIncome@index');
     

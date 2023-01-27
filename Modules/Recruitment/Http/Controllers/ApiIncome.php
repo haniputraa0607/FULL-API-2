@@ -59,6 +59,8 @@ use Modules\Recruitment\Entities\HairstylistGroupOvertimeDayDefault;
 use Modules\Recruitment\Entities\HairstylistGroupOvertimeDefault;
 use Modules\Recruitment\Entities\HairstylistGroupLateDefault;
 use Modules\Recruitment\Entities\HairstylistLoanReturn;
+use Modules\Recruitment\Entities\HairstylistPayrollQueue;
+use App\Jobs\PayrollHs;
 
 class ApiIncome extends Controller
 {
@@ -77,15 +79,111 @@ class ApiIncome extends Controller
     }
     public function generate() {
       $periode = array(
-           '2022-01',
-           '2022-02',
-           '2022-03',
-           '2022-04',
-           '2022-05',
-           '2022-06',
-           '2022-07',
-           '2022-08',
            '2022-09',
+           '2022-10',
+           '2022-11',
+           '2022-12',
+       );
+      $array = array();
+      foreach($periode as $key){
+            $mid         = (int) MyHelper::setting('hs_income_cut_off_mid_date', 'value');
+           $end         = (int) MyHelper::setting('hs_income_cut_off_end_date', 'value');
+           $start = date('Y-m-'.$end,strtotime($key.'+1 day'.'-1 month'));
+         $array[]=array(
+             'startDate'=>date('Y-m-d',strtotime($start.'+1 day')),
+             'endDate'=>date('Y-m-'.$mid,strtotime($key)),
+             'start'=>date('Y-m-01',strtotime($key)),
+             'end'=>date('Y-m-t',strtotime($key)),
+             'type' => 'middle',
+             'key'=>$key
+         );
+         $start = date('Y-m-'.$mid,strtotime($key.'+1 day'));
+         $array[]=array(
+             'startDate'=>date('Y-m-d',strtotime($start.'+1 day')),
+             'endDate'=>date('Y-m-'.$end,strtotime($key)),
+             'start'=>date('Y-m-01',strtotime($key)),
+             'end'=>date('Y-m-t',strtotime($key)),
+             'type' => 'end',
+             'key'=>$key
+         );
+      }
+       foreach ($array as $value) {
+           if($value['type']=='middle'){
+              $date         = (int) MyHelper::setting('hs_income_cut_off_mid_date', 'value');    
+                $calculations = json_decode(MyHelper::setting('hs_income_calculation_mid', 'value_text', '[]'), true) ?? null;
+                if ($calculations) {
+                    $type = 'middle';
+                    $year = date('Y',strtotime($value['key']));
+                     if ($date >= date('d')) {
+                         $month = (int) date('m',strtotime($value['key'])) - 1;
+                         if (!$month) {
+                             $month = 12;
+                             $year -= 1;
+                         }
+                     } else {
+                         $month = (int) date('m',strtotime($value['key']));
+                     }
+                     $exists = HairstylistPayrollQueue::where([
+                         'month'=>$month,
+                         'year'=>$year,
+                         'type'=>'middle'
+                     ])->exists();
+                     if (!$exists) {
+                         $create = HairstylistPayrollQueue::create([
+                         'month'=>$month,
+                            'year'=>$year,
+                         'type'=>'middle',
+                         'status_export'=>'Running',
+                         'message'=>"Cron Income HS middle month"
+                     ]);
+                        if($create){
+                            PayrollHs::dispatch($create)->allOnConnection('database');
+                         } 
+                     }
+                }
+           }else{
+                $date         = (int) MyHelper::setting('hs_income_cut_off_end_date', 'value');    
+                $calculations = json_decode(MyHelper::setting('hs_income_calculation_end', 'value_text', '[]'), true) ?? null;
+                if ($calculations) {
+                    $type = 'end';
+                    $year = date('Y',strtotime($value['key']));
+                     if ($date >= date('d')) {
+                         $month = (int) date('m',strtotime($value['key'])) - 1;
+                         if (!$month) {
+                             $month = 12;
+                             $year -= 1;
+                         }
+                     } else {
+                         $month = (int) date('m',strtotime($value['key']));
+                     }
+                     $exists = HairstylistPayrollQueue::where([
+                         'month'=>$month,
+                         'year'=>$year,
+                         'type'=>'end'
+                     ])->exists();
+                     if (!$exists) {
+                        $create = HairstylistPayrollQueue::create([
+                         'month'=>$month,
+                         'year'=>$year,
+                         'type'=>'end',
+                         'status_export'=>'Running',
+                         'message'=>"Cron Income HS end month"
+                     ]);
+                        if($create){
+                            PayrollHs::dispatch($create)->allOnConnection('database');
+                         } 
+                     }
+                }
+           }
+       }
+        return array('Success');
+    }
+   
+    public function generate2() {
+      $periode = array(
+           '2022-10',
+           '2022-11',
+           '2022-12',
        );
       $array = array();
       foreach($periode as $key){
@@ -459,35 +557,109 @@ class ApiIncome extends Controller
        }
         return array('Success');
     }
-    public function cron_middle() {
-         $log = MyHelper::logCron('Cron Income HS middle month');
+    public function generatePayroll($data) {
+        $log = MyHelper::logCron($data['message']);
         try {
-        $hs = UserHairStylist::get();
-        $type = 'middle';
+        $hs = HairstylistSchedule::where(array(
+                'schedule_month'=>$data['month'],
+                'schedule_year'=>$data['year']
+               ))
+                ->groupby('id_user_hair_stylist')
+                ->select('id_user_hair_stylist')
+                ->get();
         foreach ($hs as $value) {
-            $income = $this->schedule_income($value['id_user_hair_stylist'], $type);
+          $income = $this->schedule_income($value['id_user_hair_stylist'], $data['type'],$data);
         }
         $log->success('success');
-            return response()->json(['success']);
+        return MyHelper::checkGet($income);
         } catch (\Exception $e) {
             DB::rollBack();
             $log->fail($e->getMessage());
         }
     }
-    public function cron_end() {
-       $log = MyHelper::logCron('Cron Income HS end month');
+    public function cron_middle() {
+//        $log = MyHelper::logCron('Cron Income HS middle month');
         try {
-        $hs = UserHairStylist::get();
-        $type = 'end';
-        foreach ($hs as $value) {
-         $income = $this->schedule_income($value['id_user_hair_stylist'], $type);
+        $date         = (int) MyHelper::setting('hs_income_cut_off_mid_date', 'value');    
+        $calculations = json_decode(MyHelper::setting('hs_income_calculation_mid', 'value_text', '[]'), true) ?? null;
+        if (!$calculations) {
+            throw new \Exception('No calculation for current periode. Check setting!');
         }
-        $log->success('success');
+        $type = 'middle';
+       $year = date('Y');
+        if ($date >= date('d')) {
+            $month = (int) date('m') - 1;
+            if (!$month) {
+                $month = 12;
+                $year -= 1;
+            }
+        } else {
+            $month = (int) date('m');
+        }
+        $exists = HairstylistPayrollQueue::where([
+            'month'=>$month,
+             'year'=>$year,
+            'type'=>'middle'
+        ])->exists();
+        if ($exists) {
+            throw new \Exception("Hairstylist income for periode $type $month/$year already exists for $hs->id_user_hair_stylist");
+        }
+       $create = HairstylistPayrollQueue::create([
+            'month'=>$month,
+             'year'=>$year,
+            'type'=>'middle',
+            'status_export'=>'Running',
+            'message'=>"Cron Income HS middle month"
+        ]);
+       if($create){
+           PayrollHs::dispatch($create)->allOnConnection('database');
+        }
+//        $log->success('success');
             return response()->json(['success']);
         } catch (\Exception $e) {
             DB::rollBack();
-            $log->fail($e->getMessage());
-             return response()->json($e->getMessage());
+//            $log->fail($e->getMessage());
+        }
+    }
+    public function cron_end() {
+//        $log = MyHelper::logCron('Cron Income HS end month');
+       try {
+           $type         = 'end';
+            $date         = (int) MyHelper::setting('hs_income_cut_off_end_date', 'value');
+           $type = 'middle';
+       $year = date('Y');
+        if ($date >= date('d')) {
+            $month = (int) date('m') - 1;
+            if (!$month) {
+                $month = 12;
+                $year -= 1;
+            }
+        } else {
+            $month = (int) date('m');
+        }
+        $exists = HairstylistPayrollQueue::where([
+            'month'=>$month,
+             'year'=>$year,
+            'type'=>'end',
+        ])->exists();
+        if ($exists) {
+            throw new \Exception("Hairstylist income for periode $type $month/$year already exists for $hs->id_user_hair_stylist");
+        }
+        $create = HairstylistPayrollQueue::create([
+            'month'=>$month,
+             'year'=>$year,
+            'type'=>'end',
+            'status_export'=>'Running',
+            'message'=>"Cron Income HS end month"
+        ]);
+        if($create){
+           PayrollHs::dispatch($create)->allOnConnection('database');
+        }
+//        $log->success('success');
+            return response()->json(['success']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+//            $log->fail($e->getMessage());
         }
     }
     public function export_periode($request) {
@@ -547,10 +719,10 @@ class ApiIncome extends Controller
           }
           return MyHelper::checkGet($array);
     }
-    public function schedule_income($id,$type = 'end') {
+    public function schedule_income($id,$type = 'end',$queue) {
        $b = new HairstylistIncome();
        $hs = UserHairStylist::where('id_user_hair_stylist',$id)->first();
-       $bro = $b->calculateIncome($hs, $type);
+       $bro = $b->calculateIncome($hs, $type,$queue);
        return $bro;
     }
     public function schedule($date,$hs) {

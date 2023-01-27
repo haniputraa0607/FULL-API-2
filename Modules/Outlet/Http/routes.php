@@ -127,7 +127,6 @@ Route::group(['prefix' => 'api/outlet', 'middleware' => ['log_activities', 'auth
 Route::group(['prefix' => 'api/outlet-service', 'middleware' => ['scopes:apps', 'log_activities', 'auth:api', 'user_agent'], 'namespace' => 'Modules\Outlet\Http\Controllers'], function()
 {
     Route::any('nearme', 'ApiOutletServiseController@getListNearOutlet');
-    Route::any('search', 'ApiOutletServiseController@getListSearch');
     Route::post('detail', 'ApiOutletServiseController@detailOutlet');
 });
 

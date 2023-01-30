@@ -204,6 +204,26 @@ class ApiBeEmployeeReimbursementController extends Controller
                      $update = EmployeeReimbursement::where('id_employee_reimbursement', $post['id_employee_reimbursement'])->update([
                          'status' => $post['update_type'],
                              ]);
+                     $getData = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')
+                        ->where('id_employee_reimbursement',$post['id_employee_reimbursement'])
+                        ->select('users.phone')
+                        ->first();
+                        if (\Module::collections()->has('Autocrm')) {
+                           $autocrm = app($this->autocrm)->SendAutoCRM(
+                               'Employee Reimbursement Update',
+                               $getData->phone,
+                               [
+                                   'document_type'=> $post['update_type'],
+                               ], null, null, null, null, null, null, null, null,
+                           );
+                           // return $autocrm;
+                           if (!$autocrm) {
+                               return response()->json([
+                                   'status'    => 'fail',
+                                   'messages'  => ['Failed to send']
+                               ]);
+                           }
+                       }
                      }
                   
                 if(!empty($post['data_document'])){
@@ -221,6 +241,36 @@ class ApiBeEmployeeReimbursementController extends Controller
                 }
                 
                 return response()->json(MyHelper::checkUpdate($update));
+        }else{
+            return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
+        }
+   }
+   public function reject(Request $request) {
+       $post = $request->json()->all();
+        if(isset($post['id_employee_reimbursement']) && !empty($post['id_employee_reimbursement'])){
+             $detail = EmployeeReimbursement::where('id_employee_reimbursement',$post['id_employee_reimbursement'])
+                        ->update([
+                            'status'=>'Rejected'
+                        ]);
+             if (\Module::collections()->has('Autocrm')) {
+                 $getData = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')
+                        ->where('id_employee_reimbursement',$post['id_employee_reimbursement'])
+                        ->select('users.phone')
+                        ->first();
+                    $autocrm = app($this->autocrm)->SendAutoCRM(
+                        'Employee Reimbursement Rejected',
+                        $getData->phone,
+                        [], null, null, null, null, null, null, null, null,
+                    );
+                    // return $autocrm;
+                    if (!$autocrm) {
+                        return response()->json([
+                            'status'    => 'fail',
+                            'messages'  => ['Failed to send']
+                        ]);
+                    }
+                }
+            return response()->json(MyHelper::checkGet($detail));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);
         }
@@ -247,6 +297,26 @@ class ApiBeEmployeeReimbursementController extends Controller
                        'value_detail'=> json_encode($initBranch)
                    ]);
                }
+               if (\Module::collections()->has('Autocrm')) {
+                   $getData = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')
+                        ->where('id_employee_reimbursement',$post['id_employee_reimbursement'])
+                        ->select('users.phone')
+                        ->first();
+                        $autocrm = app($this->autocrm)->SendAutoCRM(
+                            'Employee Reimbursement Approved',
+                            $getData->phone,
+                            [
+                                'document_type'=> $post['status'],
+                            ], null, null, null, null, null, null, null, null,
+                        );
+                        // return $autocrm;
+                        if (!$autocrm) {
+                            return response()->json([
+                                'status'    => 'fail',
+                                'messages'  => ['Failed to send']
+                            ]);
+                        }
+                    }
        }
        return MyHelper::checkGet($reimbursement);
    }

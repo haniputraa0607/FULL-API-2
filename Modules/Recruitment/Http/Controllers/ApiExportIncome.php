@@ -64,6 +64,7 @@ use App\Jobs\ExportPayrollJob;
 use App\Exports\PayrollExport;
 use File;
 use Illuminate\Support\Facades\Storage;
+use Modules\Recruitment\Entities\HairstylistPayrollQueue;
 
 class ApiExportIncome extends Controller
 {
@@ -81,7 +82,8 @@ class ApiExportIncome extends Controller
             'name_outlet' => json_encode($name_outlet),
             'start_date' => $post['start_date'],
             'end_date' => $post['end_date'],
-            'status_export' => 'Running'
+            'status_export' => 'Running',
+            'type_export' => $post['type_export']
         ];
         $create = ExportPayrollQueue::create($insertToQueue);
         if($create){
@@ -92,7 +94,6 @@ class ApiExportIncome extends Controller
     public function exportExcel($queue){
         $id = $queue;
     	$queue = ExportPayrollQueue::where('id_export_payroll_queue', $queue)->where('status_export', 'Running')->first();
-        
     	if (!$queue) {
     		return false;
     	}else{
@@ -101,12 +102,13 @@ class ApiExportIncome extends Controller
     	$data['start_date'] = $queue['start_date'];
     	$data['end_date'] = $queue['end_date'];
     	$data['id_outlet'] = json_decode($queue['id_outlet']);
+    	$data['type_export'] =  $queue['type_export'];
         $data = app('Modules\Recruitment\Http\Controllers\ApiIncome')->export_periode($data);
         if (isset($data['status']) && $data['status'] == "success") {
-               $excelFile = 'Export_'.strtotime(date('Y-m-d H:i:s')).mt_rand(0, 1000).time().'.xlsx';
+               $excelFile = 'Export_'.$queue['type_export'].'_'.strtotime(date('Y-m-d H:i:s')).mt_rand(0, 1000).time().'.xlsx';
                 $directory = 'hairstylist/export-payroll/'.$excelFile;
                 $dataExport = $data['result'];
-                $store = (new PayrollExport($dataExport))->store($directory, null, null, ['visibility' => 'public']);
+               $store = (new PayrollExport($dataExport))->store($directory, null, null, ['visibility' => 'public']);
                 if ($store) {
                     ExportPayrollQueue::where('id_export_payroll_queue', $id)->update(['url_export' => $directory, 'status_export' => 'Ready']);
                 }
@@ -125,4 +127,28 @@ class ApiExportIncome extends Controller
         $employee = ExportPayrollQueue::orderBy('created_at', 'desc')->paginate($request->length ?: 10);
         return MyHelper::checkGet($employee);
    }
+   public function exportPayroll(){
+    	$queue = HairstylistPayrollQueue::where('status_export', 'Running')->first();
+    	if (!$queue) {
+    		return false;
+    	}else{
+    		$queue = $queue->toArray();
+    	}
+    	$data['month'] = $queue['month'];
+    	$data['year'] = $queue['year'];
+    	$data['type'] =  $queue['type'];
+    	$data['message'] =  $queue['message'];
+        if($data['type'] == 'middle'){
+            $data['message'] = 'Cron Income HS middle month';
+        }else{
+             $data['message'] = 'Cron Income HS end month';
+        }
+       $data = app('Modules\Recruitment\Http\Controllers\ApiIncome')->generatePayroll($data);
+        if (isset($data['status']) && $data['status'] == "success") {
+            $queue = HairstylistPayrollQueue::where('id_hairstylist_payroll_queue', $queue['id_hairstylist_payroll_queue'])->update([ 'status_export' => 'Ready']);
+            return true;
+        }else{
+            return false;
+        }
+    }
 }

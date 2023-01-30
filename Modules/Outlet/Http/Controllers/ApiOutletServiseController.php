@@ -391,7 +391,7 @@ class ApiOutletServiseController extends Controller
             $diffTimeZone = $timeZone - 7;
             $date = date('Y-m-d H:i:s');
             // $date = date('Y-m-d H:i:s', strtotime("+".$diffTimeZone." hour", strtotime($date)));
-            $currentDate = date('Y-m-d', strtotime($date));
+             $currentDate = date('Y-m-d', strtotime($date));
             $currentHour = date('H:i:s', strtotime($date));
             $isClose = false;
             if(empty($val['today']['open']) || empty( $val['today']['close'])){
@@ -425,21 +425,29 @@ class ApiOutletServiseController extends Controller
                 $colorBrand = $val['brands'][0]['color_brand'];
             }
 
-            $val = [
+            if($val['distance_in_km'] < 1){
+                $distance = number_format($val['distance_in_km']*1000, 0, '.', '').' m';
+            }else{
+                $distance = number_format($val['distance_in_km'], 2, '.', '').' km';
+            }
+            $res[] = [
                 'is_close' => $isClose,
                 'id_outlet' => $val['id_outlet'],
                 'outlet_code' => $val['outlet_code'],
                 'outlet_name' => $val['outlet_name'],
+                'outlet_latitude' => $val['outlet_latitude'],
+                'outlet_longitude' => $val['outlet_longitude'],
                 'outlet_description' => (empty($val['outlet_description']) ? '':$val['outlet_description']),
                 'outlet_image' => $val['outlet_image'],
                 'outlet_address' => $val['outlet_address'],
+                'distance' => $distance,
                 'color' => $colorBrand,
                 'city_name' => $val['city_name'],
                 'brand' => $brand
             ];
         }
 
-        return response()->json(['status' => 'success', 'result' => $outlet]);   
+        return response()->json(['status' => 'success', 'result' => $res]);
     }
 
     public function detailOutlet(Request $request){

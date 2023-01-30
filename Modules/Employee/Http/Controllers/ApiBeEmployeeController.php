@@ -328,7 +328,7 @@ class ApiBeEmployeeController extends Controller
                 $dtHs->level = "Admin";
                 $dtHs->id_outlet = $post['id_outlet']??null;
                 $dtHs->id_role = $post['id_role']??null;
-                $role = Role::where('id_role',$post['id_role'])->first();
+               $role = Role::where('id_role',$post['id_role'])->first();
                 $dtHs->save();
                 $number = $this->number();
                 if(!empty($post['data_document'])){
@@ -344,7 +344,7 @@ class ApiBeEmployeeController extends Controller
                         return response()->json(MyHelper::checkCreate($createDoc));
                     }
                 }
-                $update = Employee::where('id_employee', $post['id_employee'])->update([
+               $update = Employee::where('id_employee', $post['id_employee'])->update([
                     'status_approved' => $post['update_type'],
                     'status' => 'active',
                     "id_cluster"=>"013",
@@ -360,33 +360,37 @@ class ApiBeEmployeeController extends Controller
                 if($update){
                     $employee = Employee::where('id_employee', $post['id_employee'])
                                 ->join('users','users.id','employees.id_user')
-                                ->join('roles','roles.id_role','users.id_role')
+                                ->leftjoin('roles','roles.id_role','users.id_role')
+                                ->leftjoin('departments','departments.id_department','roles.id_department')
                                 ->first();
+                    $basic = Setting::where('key','basic_salary_employee')->first();
+                    $basic = $basic['value']??0;
+                    $group = EmployeeRoleBasicSalary::where(array('id_role'=>$employee->id_role))->first();
+                    if(isset($group)){
+                       $basic = $group['value'];
+                    }
                     $outlet = Outlet::where('id_outlet', $employee['id_outlet'])->with('location_outlet')->first();
                     $outletName = $outlet['outlet_name']??'';
                     $companyType = $outlet['location_outlet']['company_type']??'';
                     $companyType = str_replace('PT ', '', $companyType);
                     $number = $employee['number'];
-                    if($employee['status_employee']=='Permanent'){
-                     $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor('template_contract_employee_tetap.docx');   
-                    }else{
-                     $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor('template_contract_employee_kontrak.docx');
+                    if($employee['status_employee']=='Contract'){
+                     $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor('Employee_Contract.docx');
                      $templateProcessor->setValue('end_date', MyHelper::dateFormatInd($employee['end_date'], true, false));
+                    }else{
+                     $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor('Employee_Probation.docx');
                     }
-                    $templateProcessor->setValue('number', $number);
-                    $templateProcessor->setValue('company_type', $companyType);
-                    $templateProcessor->setValue('roman_month', MyHelper::numberToRomanRepresentation(date('n')));
-                    $templateProcessor->setValue('current_year', date('Y'));
-                    $templateProcessor->setValue('current_date', MyHelper::dateFormatInd(date('Y-m-d'), true, false));
-                    $templateProcessor->setValue('name', $employee['name']);
-                    $templateProcessor->setValue('gender', $employee['gender']);
-                    $templateProcessor->setValue('birthplace', $employee['birthplace']);
-                    $templateProcessor->setValue('birthdate', MyHelper::dateFormatInd($employee['birthday'], true, false));
-                    $templateProcessor->setValue('recent_address', $employee['address_domicile']);
-                    $templateProcessor->setValue('id_card_number', (empty($employee['card_number']) ? '':$employee['card_number']));
                     $templateProcessor->setValue('start_date', MyHelper::dateFormatInd($employee['start_date'], true, false));
-                    $templateProcessor->setValue('outlet_name', $outletName);
-                    $templateProcessor->setValue('role', $employee['role_name']);
+                    $templateProcessor->setValue('now', MyHelper::dateFormatInd(date('Y-m-d'), true, false));
+                    $templateProcessor->setValue('name', $this->changeString($employee['name']??''));
+                    $templateProcessor->setValue('ttl', $employee['birthplace'].", ".MyHelper::dateFormatInd($employee['birthday'], true, false));
+                    $templateProcessor->setValue('address', $this->changeString($employee['address_domicile']??''));
+                    $templateProcessor->setValue('ktp', (empty($employee['card_number']) ? '':$employee['card_number']));
+                    $templateProcessor->setValue('npwp', (empty($employee['npwp']) ? '':$employee['npwp']));
+                    $templateProcessor->setValue('lokasi', $this->changeString($outletName));
+                    $templateProcessor->setValue('jabatan', $this->changeString($employee['role_name']??''));
+                    $templateProcessor->setValue('departmen', $this->changeString($$employee['department_name']??''));
+                    $templateProcessor->setValue('basic_salary','Rp '.number_format($basic??0,0,',','.'));
 
 
                     if(!File::exists(public_path().'/employee_contract')){
@@ -394,7 +398,6 @@ class ApiBeEmployeeController extends Controller
                     }
                     $directory = 'employee_contract/employee_'.$employee['code'].'.docx';
                     $templateProcessor->saveAs($directory);
-
                     if(config('configs.STORAGE') != 'local'){
                         $contents = File::get(public_path().'/'.$directory);
                         $store = Storage::disk(config('configs.STORAGE'))->put($directory,$contents, 'public');
@@ -891,30 +894,30 @@ class ApiBeEmployeeController extends Controller
             }
             
             $template = new \PhpOffice\PhpWord\TemplateProcessor('employee_form_evaluation.docx');
-            $template->setValue('name', $data_employee['employee']['user']['name']??'');
+            $template->setValue('name', $this->changeString($data_employee['employee']['user']['name']??''));
             $template->setValue('start_date', $start_date);
             $template->setValue('end_date', $end_date);
-            $template->setValue('position', $data_employee['employee']['user']['role']['job']['job_level_name']??'');
-            $template->setValue('role', $data_employee['employee']['user']['role']['role_name']??'');
-            $template->setValue('department', $data_employee['employee']['user']['role']['department']['department_name']??'');
+            $template->setValue('position', $this->changeString($data_employee['employee']['user']['role']['job']['job_level_name']??''));
+            $template->setValue('role', $this->changeString($data_employee['employee']['user']['role']['role_name']??''));
+            $template->setValue('department', $this->changeString($data_employee['employee']['user']['role']['department']['department_name']??''));
             foreach($value ?? [] as $key => $val){
-                $template->setValue($key, $val);
+                $template->setValue($key, $this->changeString($val??''));
             }
             $template->setValue('comment', $data_employee['comment']??'');
             foreach($status ?? [] as $key_2 => $stat){
-                $template->setValue($key_2, $stat);
+                $template->setValue($key_2, $this->changeString($stat??''));
             }
-            $template->setValue('name_manager', $data_employee['manager']['name']??'');
+            $template->setValue('name_manager', $this->changeString($data_employee['manager']['name']??''));
             $template->setValue('manager_date', MyHelper::dateFormatInd($data_employee['update_manager'], true, false, false));
             if($updateCreate['status_form']!='approve_manager' && $updateCreate['status_form']!='reject_hr'){
-                $template->setValue('name_hrga', $data_employee['hrga']['name']??'');
+                $template->setValue('name_hrga', $this->changeString($data_employee['hrga']['name']??''));
                 $template->setValue('hrga_date', MyHelper::dateFormatInd($data_employee['update_hrga'], true, false, false));
             }else{
                 $template->setValue('name_hrga', '');
                 $template->setValue('hrga_date', '');
             }
             if($updateCreate['status_form']=='approve_director'){
-                $template->setValue('name_director', $data_employee['director']['name']??'');
+                $template->setValue('name_director', $this->changeString($data_employee['director']['name']??''));
                 $template->setValue('director_date', MyHelper::dateFormatInd($data_employee['update_director'], true, false, false));
             }else{
                 $template->setValue('name_director', '');
@@ -1038,19 +1041,18 @@ class ApiBeEmployeeController extends Controller
                 $basics = number_format($group['value']??0,0,',','.');
             }
        $ttl = $employee['birthplace'].', '.MyHelper::dateFormatInd($employee['birthday'], true, false);
-        $templateProcessor->setValue('name', $employee['name']);
-        $templateProcessor->setValue('address',$employee['address_domicile'].' Kota '.$employee['city_name'].', '.$employee['postcode_domicile']);
+        $templateProcessor->setValue('name', $this->changeString($employee['name']??''));
+        $templateProcessor->setValue('address',$this->changeString($employee['address_domicile'].' Kota '.$employee['city_name'].', '.$employee['postcode_domicile']));
         $templateProcessor->setValue('end_date', MyHelper::dateFormatInd($employee['end_date'], true, false));
         $templateProcessor->setValue('start_date', MyHelper::dateFormatInd($employee['start_date'], true, false));
-        $templateProcessor->setValue('ktp', $employee['card_number']);
-        $templateProcessor->setValue('npwp', $employee['npwp']);
-        $templateProcessor->setValue('jabatan', $employee['role_name']);
-        $templateProcessor->setValue('lokasi', $outletName);
-        $templateProcessor->setValue('departmen', $employee['department_name']);
-        $templateProcessor->setValue('golongan', $employee['name']);
+        $templateProcessor->setValue('ktp', $this->changeString($employee['card_number']??''));
+        $templateProcessor->setValue('npwp', $this->changeString($employee['npwp']??''));
+        $templateProcessor->setValue('jabatan', $this->changeString($employee['role_name']??''));
+        $templateProcessor->setValue('lokasi', $this->changeString($outletName??''));
+        $templateProcessor->setValue('departmen', $this->changeString($employee['department_name']??''));
         $templateProcessor->setValue('basic_salary', 'Rp '.$basics);
         $templateProcessor->setValue('now', MyHelper::dateFormatInd(date('Y-m-d'), true, false));
-        $templateProcessor->setValue('ttl', $ttl);
+        $templateProcessor->setValue('ttl', $this->changeString($ttl));
         if(!File::exists(public_path().'/employee_contract')){
                 File::makeDirectory(public_path().'/employee_contract');
             }
@@ -1112,5 +1114,9 @@ class ApiBeEmployeeController extends Controller
             $log->fail($e->getMessage());
         }   
 
+    }
+	private function changeString($data){
+        $data = str_replace("&","dan",$data);
+        return $data;
     }
 }

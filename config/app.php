@@ -15,6 +15,7 @@ return [
     'name' => env('APP_NAME', 'Laravel'),
     'income_date_end' => env('DATE_END_INCOME', 25),
     'income_date_middle' => env('DATE_MIDDLE_INCOME', 11),
+    'delivery_income' => env('DELIVERY_INCOME', 25),
     /*
     |--------------------------------------------------------------------------
     | Application Environment

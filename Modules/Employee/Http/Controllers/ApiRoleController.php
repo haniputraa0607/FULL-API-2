@@ -278,7 +278,7 @@ class ApiRoleController extends Controller
     }
     public function basic_salary(Request $request) {
         if($request->id_role){
-            $basic = Setting::where('key','basic_salary_employee')->first();;
+            $basic = Setting::where('key','basic_salary_employee')->first();
             $overtime['value'] = $basic['value']??0;
             $group = EmployeeRoleBasicSalary::where(array('id_role'=>$request->id_role))->first();
             $overtime['default_value']    = 0;

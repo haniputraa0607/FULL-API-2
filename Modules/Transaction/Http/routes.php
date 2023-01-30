@@ -159,8 +159,11 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::post('/void', 'ApiTransaction@transactionVoid');
 
     Route::post('cart', 'ApiOnlineTransaction@cartTransaction');
+    Route::post('cartV2', 'ApiOnlineTransaction@cartV2Transaction');
     Route::post('/check', 'ApiOnlineTransaction@checkTransaction');
+    Route::post('/checkV2', 'ApiOnlineTransaction@checkTransactionV2');
     Route::post('/new', 'ApiOnlineTransaction@newTransaction')->middleware('decrypt_pin:pin,request');
+    Route::post('/newV2', 'ApiOnlineTransaction@newTransactionV2')->middleware('decrypt_pin:pin,request');
     Route::post('/confirm', 'ApiConfirm@confirmTransaction');
     Route::post('/cancel', 'ApiOnlineTransaction@cancelTransaction');
     Route::post('/prod/confirm', 'ApiTransactionProductionController@confirmTransaction2');

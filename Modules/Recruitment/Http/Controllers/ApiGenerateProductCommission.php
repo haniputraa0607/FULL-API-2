@@ -73,8 +73,8 @@ class ApiGenerateProductCommission extends Controller
     public function newGenerate(Request $request)
     {
         $post = $request->json()->all();
-        $start_date = date('Y-m-01',strtotime($post['start_date']));
-        $end_date = date('Y-m-t',strtotime($post['end_date']));
+        $start_date = date('Y-m-d',strtotime($post['start_date']));
+        $end_date = date('Y-m-d',strtotime($post['end_date']));
         $setting = Setting::where('key' , 'Refresh Commission Transaction')->first();
         if($setting){
             if($setting['value'] != 'finished'){

@@ -563,7 +563,7 @@ class Transaction extends Model
     {
     	\DB::beginTransaction();
     	// check complete allowed
-    	if ($this->transaction_payment_status != 'Pending') {
+    	if ($this->transaction_payment_status != 'Pending' && $this->trasaction_payment_type != "Cash") {
     		return $this->transaction_payment_status == 'Completed';
     	}
 

@@ -388,7 +388,8 @@ class ApiHairStylistScheduleController extends Controller
         }
 
         $schedule = HairstylistScheduleDate::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->get();
-
+        $scheduleMaster = HairstylistSchedule::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])
+        ->with('outlet', 'user_hair_stylist')->first();
         $oldData = [];
         foreach ($schedule as $val) {
         	$date = date('Y-m-j', strtotime($val['date']));
@@ -427,6 +428,9 @@ class ApiHairStylistScheduleController extends Controller
         	if (in_array(date('Y-m-d', strtotime($key)), $fixedScheduleDate->toArray()) || date('Y-m-d', strtotime($key)) < date('Y-m-d')) {
         		continue;
         	}
+            
+            $day = MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($key)), 'l');
+        	$day = str_replace('Jum\'at', 'Jumat', $day);
 
         	$request_by = 'Admin';
         	$created_at = date('Y-m-d H:i:s');
@@ -436,11 +440,15 @@ class ApiHairStylistScheduleController extends Controller
         		$created_at = $oldData[date('Y-m-j', strtotime($key))]['created_at'];
         	}
         	if ($val == 'Full') {
+
         		$newData[$key_new] = [
 	        		'id_hairstylist_schedule' => $post['id_hairstylist_schedule'],
 	        		'date' => $key,
 	        		'shift' => 'Morning',
 	        		'request_by' => $request_by,
+                    'is_overtime' => null,
+                    'time_start' => null,
+                    'time_end' => null,
 	        		'created_at' => $created_at,
 	        		'updated_at' => $updated_at,
 	        	];
@@ -454,8 +462,11 @@ class ApiHairStylistScheduleController extends Controller
 	        	$newData[$key_new] = [
 	        		'id_hairstylist_schedule' => $post['id_hairstylist_schedule'],
 	        		'date' => $key,
-	        		'shift' => 'Tengah',
+	        		'shift' => 'Middle',
 	        		'request_by' => $request_by,
+                    'is_overtime' => null,
+                    'time_start' => null,
+                    'time_end' => null,
 	        		'created_at' => $created_at,
 	        		'updated_at' => $updated_at,
 	        	];
@@ -471,6 +482,9 @@ class ApiHairStylistScheduleController extends Controller
 	        		'date' => $key,
 	        		'shift' => 'Evening',
 	        		'request_by' => $request_by,
+                    'is_overtime' => null,
+                    'time_start' => null,
+                    'time_end' => null,
 	        		'created_at' => $created_at,
 	        		'updated_at' => $updated_at,
 	        	];
@@ -481,11 +495,15 @@ class ApiHairStylistScheduleController extends Controller
                 }
                 $key_new++;
         	} else {
+
 	        	$newData[$key_new] = [
 	        		'id_hairstylist_schedule' => $post['id_hairstylist_schedule'],
 	        		'date' => $key,
 	        		'shift' => $val,
 	        		'request_by' => $request_by,
+                    'is_overtime' => null,
+                    'time_start' => null,
+                    'time_end' => null,
 	        		'created_at' => $created_at,
 	        		'updated_at' => $updated_at,
 	        	];
@@ -497,7 +515,7 @@ class ApiHairStylistScheduleController extends Controller
                 $key_new++;
         	}
         }
-
+        
         DB::beginTransaction();
         $update = HairstylistSchedule::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->update(['last_updated_by' => $request->user()->id]);
         $delete = HairstylistScheduleDate::where('id_hairstylist_schedule', $post['id_hairstylist_schedule'])->whereDate('date', '>=', date('Y-m-d'))->whereNotIn('id_hairstylist_schedule_date', $fixedScheduleDateId)->delete();;

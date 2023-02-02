@@ -701,6 +701,11 @@ class ApiOnlineTransaction extends Controller
             $transaction['transaction_device_type'] = $useragent;
         }
 
+        if (!empty($post['payment_type']) && $post['payment_type'] == 'Cash') {
+            $transaction['transaction_payment_status'] = 'Completed';
+            $transaction['completed_at'] = date('Y-m-d H:i:s');
+        }
+
         $insertTransaction = Transaction::create($transaction);
 
         if (!$insertTransaction) {
@@ -952,11 +957,18 @@ class ApiOnlineTransaction extends Controller
         }
 
         if (!empty($post['payment_type']) && $post['payment_type'] == 'Cash') {
-            $createTrxPyemntCash = TransactionPaymentCash::create([
+            
+            $datacreateTrxPyemntCash = [
                 'id_transaction' => $insertTransaction['id_transaction'],
                 'payment_code' => MyHelper::createrandom(4, null, strtotime(date('Y-m-d H:i:s'))),
                 'cash_nominal' => $insertTransaction['transaction_grandtotal']
-            ]);
+            ];
+            if(!empty($post['item_service'])){
+                $datacreateTrxPyemntCash['cash_received_by'] = $post['item_service'][0]['id_user_hair_stylist'] ?? null;
+            }   
+
+            $createTrxPyemntCash = TransactionPaymentCash::create($datacreateTrxPyemntCash);
+
             if (!$createTrxPyemntCash) {
                 DB::rollback();
                 return response()->json([

@@ -304,6 +304,12 @@ class Kernel extends ConsoleKernel
          */
         $schedule->call('Modules\Transaction\Http\Controllers\ApiTransactionProductionController@CronBreakdownCommission')->dailyAt(config('app.env') == 'staging' ? '06:20' : '00:20');
 
+        /**
+         * Clock Out HS
+         * run every 00:01 AM
+         */
+        $schedule->call('Modules\Recruitment\Http\Controllers\ApiMitraOutletService@cronClockOutHS')->dailyAt(config('app.env') == 'staging' ? '06:05' : '00:35');
+
     }
 
     /**

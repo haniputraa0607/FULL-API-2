@@ -21,7 +21,8 @@ class TransactionProductService extends Model
         'completed_at',
         'flag_update_schedule',
         'id_outlet_box',
-        'is_conflict'
+        'is_conflict',
+        'queue_code'
     ];
 
     public function transaction()

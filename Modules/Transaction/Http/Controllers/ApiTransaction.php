@@ -5741,10 +5741,10 @@ class ApiTransaction extends Controller
         }
 
         $paymentCashCode = null;
-        if ($detail['transaction_payment_status'] == 'Pending' && $detail['trasaction_payment_type'] == 'Cash') {
-            $paymentCash = TransactionPaymentCash::where('id_transaction', $detail['id_transaction'])->first();
-            $paymentCashCode = $paymentCash->payment_code;
-        }
+        // if ($detail['transaction_payment_status'] == 'Pending' && $detail['trasaction_payment_type'] == 'Cash') {
+        //     $paymentCash = TransactionPaymentCash::where('id_transaction', $detail['id_transaction'])->first();
+        //     $paymentCashCode = $paymentCash->payment_code;
+        // }
 
         $res = [
             'id_transaction' => $detail['id_transaction'],

@@ -7,6 +7,7 @@ use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 
 use App\Http\Models\Outlet;
+use App\Http\Models\Province;
 use App\Http\Models\Setting;
 use App\Http\Models\Transaction;
 use App\Http\Models\TransactionProduct;
@@ -127,10 +128,10 @@ class ApiMitraOutletService extends Controller
 
 			$buttonText = 'Layani';
 			$paymentCash = 0;
-			if ($val['transaction_payment_status'] == 'Pending' && $val['trasaction_payment_type'] == 'Cash') {
-				$buttonText = 'Pembayaran';
-				$paymentCash = 1;
-			}
+			// if ($val['transaction_payment_status'] == 'Pending' && $val['trasaction_payment_type'] == 'Cash') {
+			// 	$buttonText = 'Pembayaran';
+			// 	$paymentCash = 1;
+			// }
 
 			$disable = 0;
 			if ($serviceInProgress && $serviceInProgress['id_transaction_product_service'] != $val['id_transaction_product_service']) {
@@ -474,9 +475,23 @@ class ApiMitraOutletService extends Controller
     			'messages' => ['Box sudah dipilih oleh Hairstylist lain']
     		];
     	}
-
+		
     	// DB::beginTransaction();
     	try {
+			
+			if($checkQr['trasaction_payment_type'] == 'Cash'){
+				$updateCash = TransactionPaymentCash::where('id_transaction', $checkQr['id_transaction'])->update(['cash_received_by' => $user->id_user_hair_stylist]);
+				if($updateCash){
+					$dt = [
+						'id_user_hair_stylist'    => $user->id_user_hair_stylist,
+						'balance'                 => $checkQr['transaction_grandtotal'],
+						'id_reference'            => $checkQr['id_transaction'],
+						'source'                  => 'Receive Payment'
+					];
+					app($this->mitra_log_balance)->insertLogBalance($dt);
+				}
+			}
+
     		$action = ($service->service_status == 'Stopped') ? 'Resume' : 'Start';
     		TransactionProductServiceLog::create([
     			'id_transaction_product_service' => $request->id_transaction_product_service,
@@ -1733,4 +1748,53 @@ class ApiMitraOutletService extends Controller
     	])->get();
     	return $box;
     }
+
+	public function cronClockOutHS(){
+		$log = MyHelper::logCron('Clock Out HS');
+        try{
+            DB::beginTransaction();
+			$date_now = date('Y-m-d',strtotime('-1 days'));
+			$hari = MyHelper::indonesian_date_v2(date('l, F j Y', strtotime('-1 days')), 'l');
+        	$hari = str_replace('Jum\'at', 'Jumat', $hari);
+			$outlets = Outlet::join('outlet_schedules', 'outlet_schedules.id_outlet', 'outlets.id_outlet')
+				->where('outlet_schedules.day', $hari)->where('outlet_schedules.is_closed', 0)
+				->get()->toArray();
+			foreach($outlets ?? [] as $key => $outlet){
+				$timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+        			->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+				$hslists = UserHairStylist::join('hairstylist_schedules', 'hairstylist_schedules.id_user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist')
+					->join('hairstylist_schedule_dates', 'hairstylist_schedule_dates.id_hairstylist_schedule', 'hairstylist_schedules.id_hairstylist_schedule')
+					->join('hairstylist_attendances', 'hairstylist_attendances.id_hairstylist_schedule_date', 'hairstylist_schedule_dates.id_hairstylist_schedule_date')
+					->whereDate('hairstylist_schedule_dates.date', $date_now)
+					->where('user_hair_stylist.id_outlet', $outlet['id_outlet'])
+					->whereNotNull('hairstylist_attendances.clock_in')
+					->whereNull('hairstylist_attendances.clock_out')
+					->where('user_hair_stylist_status', 'Active')->get()->toArray();
+
+				foreach($hslists ?? [] as $hs){
+					$attendance = UserHairStylist::find($hs['id_user_hair_stylist'])->getAttendanceByDate(date('Y-m-d',strtotime('-1 days')));
+					$attendance->storeClock([
+						'type' => 'clock_out',
+						'datetime' => MyHelper::reverseAdjustTimezone(date('Y-m-d H:i:s', strtotime('-1 days')), $timeZone, 'Y-m-d H:i:s', true),
+						'latitude' => $hs['latitude'],
+						'longitude' => $hs['longitude'],
+						'location_name' => '',
+						'photo_path' => null,
+						'status' => 'Approved',
+						'approved_by' => null,
+						'notes' => null,
+					]);;
+				}
+			}
+			
+            DB::commit();
+
+            $log->success('success');
+            return response()->json(['status' => 'success']);
+
+        }catch (\Exception $e) {
+            DB::rollBack();
+            $log->fail($e->getMessage());
+        } 
+	}
 }

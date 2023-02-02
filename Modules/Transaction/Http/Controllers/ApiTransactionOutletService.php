@@ -1698,4 +1698,23 @@ class ApiTransactionOutletService extends Controller
 
     	return MyHelper::checkCreate($logTrx);
     }
+
+    public function cancelCashPayment(Request $request){
+		$post = $request->json()->all();
+        $transaction = Transaction::find($post['id_transaction']);
+        if(!$transaction){
+            return [
+                'status' => 'fail'
+            ];
+        }
+        $cancel = $transaction->triggerPaymentCancelled();
+        if(!$cancel){
+            return [
+                'status' => 'fail'
+            ];
+        }
+        return [
+            'status' => 'success'
+        ];
+    }
 }

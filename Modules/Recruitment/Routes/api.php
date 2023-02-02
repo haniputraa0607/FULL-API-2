@@ -18,14 +18,19 @@ Route::group(['middleware' => ['auth:api', 'scopes:be'], 'prefix' => 'hairstylis
     Route::any('category', 'ApiHairStylistController@listCategory');
     Route::post('category/update', 'ApiHairStylistController@updateCategory');
     Route::post('category/delete', 'ApiHairStylistController@deleteCategory');
-    //    Route::post('export-payroll', 'ApiIncome@export_periode');
+//        Route::post('export-payroll', 'ApiIncome@export_periode');
     Route::post('income-end', 'ApiIncome@cron_end');
     Route::post('income-mid', 'ApiIncome@cron_middle');
-    Route::post('generate', 'ApiIncome@generate');
+//    Route::post('generate', 'ApiIncome@generate');
     Route::post('export-payroll', 'ApiExportIncome@newExport');
-    Route::post('export-payroll/{id}', 'ApiExportIncome@exportPayroll');
+//    Route::post('export-payroll/{id}', 'ApiExportIncome@exportPayroll');
     Route::get('export-payroll/delete/{id}', 'ApiExportIncome@deleteExport');
     Route::get('export-payroll/list', 'ApiExportIncome@index');
+    
+    Route::get('generated-product-comission/list', 'ApiGenerateProductCommission@index');
+    Route::get('generated-product-comission/status', 'ApiGenerateProductCommission@status');
+    Route::post('generated-product-comission', 'ApiGenerateProductCommission@newGenerate');
+//    Route::post('generate', 'ApiGenerateProductCommission@exportGenerate');
     
     Route::group(['prefix' => 'holiday'], function () {
         Route::post('/', ['middleware' => 'feature_control:428,429', 'uses' => 'ApiHairStylistHolidayController@index']);

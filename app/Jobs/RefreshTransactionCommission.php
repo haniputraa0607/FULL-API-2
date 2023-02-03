@@ -48,5 +48,6 @@ class RefreshTransactionCommission implements ShouldQueue
             'end_date' => $end_date,
         ];
         RefreshIncomeHS::dispatch($send)->onConnection('refreshcommissionqueue');
+        Setting::where('key', 'Refresh Commission Transaction')->update(['value' => 'finished']);
     }
 }

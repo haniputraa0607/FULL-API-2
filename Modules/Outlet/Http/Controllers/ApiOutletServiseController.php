@@ -216,8 +216,18 @@ class ApiOutletServiseController extends Controller
                          + SIN(RADIANS(outlets.outlet_latitude))
                          * SIN(RADIANS('.$post['latitude'].')))))) AS distance_in_km' )
             ->where('outlets.outlet_status', 'Active')
-            ->where('outlet_service_status', 1)
-            ->whereNotNull('outlets.outlet_latitude')
+            ->where('outlet_service_status', 1);
+
+            if((isset($post['is_search']) && $post['is_search'] == 1)){
+                if(isset($post['outlet_name']) && !empty($post['outlet_name']) && $post['outlet_name'] != ""){
+                    $outlet = $outlet->where('outlet_name', 'like', '%'.$post['outlet_name'].'%');
+                }else{
+                    $outlet = $outlet->where('outlet_name',"");
+                }
+            }
+
+
+            $outlet = $outlet->whereNotNull('outlets.outlet_latitude')
             ->whereNotNull('outlets.outlet_longitude')
             ->whereHas('brands',function($query){
                 $query->where('brands.brand_active',1)->where('brands.brand_visibility',1);
@@ -225,7 +235,7 @@ class ApiOutletServiseController extends Controller
             ->with(['brands', 'holidays.date_holidays', 'today'])
             ->orderBy('distance_in_km', 'asc');
 
-        if((isset($post['is_default']) && $post['is_default'] == 1) || !isset($post['is_default'])){
+        if((isset($post['is_search']) && $post['is_search'] == 0) || !isset($post['is_search'])){
             $outlet = $outlet->limit($totalListOutlet);
             $outlet = $outlet->get()->toArray();
 
@@ -292,11 +302,11 @@ class ApiOutletServiseController extends Controller
                 ];
             }
             
-        }elseif(isset($post['is_default']) && $post['is_default'] == 0){
-
+        }elseif((isset($post['is_search']) && $post['is_search'] == 1)){
+            
             $outlet = $outlet->paginate(10)->toArray();
 
-            foreach ($outlet['data'] ?? [] as &$val){
+            $outlet['data'] = array_map(function($val){
                 $timeZone = (empty($val['time_zone_utc']) ? 7:$val['time_zone_utc']);
                 $diffTimeZone = $timeZone - 7;
                 $date = date('Y-m-d H:i:s');
@@ -356,13 +366,14 @@ class ApiOutletServiseController extends Controller
                     'city_name' => $val['city_name'],
                     'brand' => $brand
                 ];
-            }
+                return $val;
+            },$outlet['data']);
         }
 
         
-        if((isset($post['is_default']) && $post['is_default'] == 1) || !isset($post['is_default'])){
+        if((isset($post['is_search']) && $post['is_search'] == 0) || !isset($post['is_search'])){
             return response()->json(['status' => 'success', 'result' => $res]);
-        }elseif(isset($post['is_default']) && $post['is_default'] == 0){
+        }elseif(isset($post['is_search']) && $post['is_search'] == 1){
             return response()->json(['status' => 'success', 'result' => $outlet]);
         }
     }
@@ -372,9 +383,14 @@ class ApiOutletServiseController extends Controller
 
         $outlet = Outlet::join('cities', 'cities.id_city', 'outlets.id_city')
         ->join('provinces', 'provinces.id_province', 'cities.id_province')
-        ->selectRaw('cities.city_name, provinces.time_zone_utc, outlets.id_outlet, outlets.outlet_name, outlets.outlet_code,
+        ->selectRaw('cities.city_name, provinces.time_zone_utc, outlets.id_outlet, outlets.outlet_name, outlets.outlet_code, outlets.outlet_latitude, outlets.outlet_longitude,
                 outlets.outlet_address, 
-                outlets.outlet_description, outlets.outlet_image' )
+                outlets.outlet_description, outlets.outlet_image, 
+                (111.111 * DEGREES(ACOS(LEAST(1.0, COS(RADIANS(outlets.outlet_latitude))
+                         * COS(RADIANS('.$post['latitude'].'))
+                         * COS(RADIANS(outlets.outlet_longitude - '.$post['longitude'].'))
+                         + SIN(RADIANS(outlets.outlet_latitude))
+                         * SIN(RADIANS('.$post['latitude'].')))))) AS distance_in_km')
         ->where('outlets.outlet_status', 'Active')
         ->where('outlet_service_status', 1);
 
@@ -388,7 +404,7 @@ class ApiOutletServiseController extends Controller
             $query->where('brands.brand_active',1)->where('brands.brand_visibility',1);
         })
         ->with(['brands', 'holidays.date_holidays', 'today'])
-        ->orderBy('outlet_name', 'asc');
+        ->orderBy('distance_in_km', 'asc');
 
         if((!isset($post['outlet_name']) && empty($post['outlet_name'])) || (isset($post['outlet_name']) && $post['outlet_name'] == "")){
             $outlet = $outlet->get()->toArray();
@@ -432,14 +448,23 @@ class ApiOutletServiseController extends Controller
                     $colorBrand = $val['brands'][0]['color_brand'];
                 }
 
+                if($val['distance_in_km'] < 1){
+                    $distance = number_format($val['distance_in_km']*1000, 0, '.', '').' m';
+                }else{
+                    $distance = number_format($val['distance_in_km'], 2, '.', '').' km';
+                }
+
                 $res[] = [
                     'is_close' => $isClose,
                     'id_outlet' => $val['id_outlet'],
                     'outlet_code' => $val['outlet_code'],
                     'outlet_name' => $val['outlet_name'],
+                    'outlet_latitude' => $val['outlet_latitude'],
+                    'outlet_longitude' => $val['outlet_longitude'],
                     'outlet_description' => (empty($val['outlet_description']) ? '':$val['outlet_description']),
                     'outlet_image' => $val['outlet_image'],
                     'outlet_address' => $val['outlet_address'],
+                    'distance' => $distance,
                     'color' => $colorBrand,
                     'city_name' => $val['city_name'],
                     'brand' => $brand
@@ -450,7 +475,7 @@ class ApiOutletServiseController extends Controller
         }else{
             $outlet = $outlet->paginate(10)->toArray();
 
-            foreach ($outlet['data'] ?? [] as &$val){
+            $outlet['data'] = array_map(function($val){
                 $timeZone = (empty($val['time_zone_utc']) ? 7:$val['time_zone_utc']);
                 $diffTimeZone = $timeZone - 7;
                 $date = date('Y-m-d H:i:s');
@@ -489,19 +514,29 @@ class ApiOutletServiseController extends Controller
                     $colorBrand = $val['brands'][0]['color_brand'];
                 }
 
+                if($val['distance_in_km'] < 1){
+                    $distance = number_format($val['distance_in_km']*1000, 0, '.', '').' m';
+                }else{
+                    $distance = number_format($val['distance_in_km'], 2, '.', '').' km';
+                }
+
                 $val = [
                     'is_close' => $isClose,
                     'id_outlet' => $val['id_outlet'],
                     'outlet_code' => $val['outlet_code'],
                     'outlet_name' => $val['outlet_name'],
+                    'outlet_latitude' => $val['outlet_latitude'],
+                    'outlet_longitude' => $val['outlet_longitude'],
                     'outlet_description' => (empty($val['outlet_description']) ? '':$val['outlet_description']),
                     'outlet_image' => $val['outlet_image'],
                     'outlet_address' => $val['outlet_address'],
+                    'distance' => $distance,
                     'color' => $colorBrand,
                     'city_name' => $val['city_name'],
                     'brand' => $brand
                 ];
-            }
+                return $val;
+            },$outlet['data']);
 
             return response()->json(['status' => 'success', 'result' => $outlet]);
         }

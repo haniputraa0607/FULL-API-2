@@ -22,6 +22,7 @@ class TransactionProductService extends Model
         'flag_update_schedule',
         'id_outlet_box',
         'is_conflict',
+        'queue',
         'queue_code'
     ];
 

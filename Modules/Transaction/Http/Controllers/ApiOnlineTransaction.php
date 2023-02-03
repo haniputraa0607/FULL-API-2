@@ -1580,7 +1580,7 @@ class ApiOnlineTransaction extends Controller
                 'messages' => ['Invalid transaction']
             ];
         }
-        return $post;
+
         DB::beginTransaction();
         $transaction = [
             'id_outlet'                   => $post['id_outlet'],
@@ -1647,6 +1647,11 @@ class ApiOnlineTransaction extends Controller
             $transaction['transaction_device_type'] = $useragent;
         }
 
+        if (!empty($post['payment_type']) && $post['payment_type'] == 'Cash') {
+            $transaction['transaction_payment_status'] = 'Completed';
+            $transaction['completed_at'] = date('Y-m-d H:i:s');
+        }
+
         $insertTransaction = Transaction::create($transaction);
 
         if (!$insertTransaction) {
@@ -1698,7 +1703,7 @@ class ApiOnlineTransaction extends Controller
         $insertTransaction['transaction_receipt_number'] = $receipt;
         //process add product service
         if(!empty($post['item_service'])){
-            $insertService = $this->insertServiceProduct($post['item_service']??[], $insertTransaction, $outlet, $post, $productMidtrans, $userTrxProduct);
+            $insertService = $this->insertServiceProductV2($post['item_service']??[], $insertTransaction, $outlet, $post, $productMidtrans, $userTrxProduct);
             if(isset($insertService['status']) && $insertService['status'] == 'fail'){
                 return response()->json($insertService);
             }
@@ -1898,11 +1903,18 @@ class ApiOnlineTransaction extends Controller
         }
 
         if (!empty($post['payment_type']) && $post['payment_type'] == 'Cash') {
-            $createTrxPyemntCash = TransactionPaymentCash::create([
+            
+            $datacreateTrxPyemntCash = [
                 'id_transaction' => $insertTransaction['id_transaction'],
                 'payment_code' => MyHelper::createrandom(4, null, strtotime(date('Y-m-d H:i:s'))),
                 'cash_nominal' => $insertTransaction['transaction_grandtotal']
-            ]);
+            ];
+            if(!empty($post['item_service'])){
+                $datacreateTrxPyemntCash['cash_received_by'] = $post['item_service'][0]['id_user_hair_stylist'] ?? null;
+            }   
+
+            $createTrxPyemntCash = TransactionPaymentCash::create($datacreateTrxPyemntCash);
+            
             if (!$createTrxPyemntCash) {
                 DB::rollback();
                 return response()->json([
@@ -5131,6 +5143,170 @@ class ApiOnlineTransaction extends Controller
                 'last_trx_date' => $trx['transaction_date']
             ];
             array_push($userTrxProduct, $dataUserTrxProduct);
+        }
+
+        return [
+            'status'    => 'success'
+        ];
+    }
+
+    function insertServiceProductV2($data, $trx, $outlet, $post, &$productMidtrans, &$userTrxProduct){
+        $tempStock = [];
+        foreach ($data as $itemProduct){
+            for($i = 0; $i < $itemProduct['qty']; $i++){
+                $product = Product::leftJoin('brand_product', 'brand_product.id_product', 'products.id_product')
+                                ->where('products.id_product', $itemProduct['id_product'])
+                                ->where('product_type', 'service')
+                                ->select('products.*', 'brand_product.id_brand')->first();
+    
+                if (empty($product)) {
+                    DB::rollback();
+                    return [
+                        'status'    => 'fail',
+                        'messages'  => ['Product Service Not Found '.$itemProduct['product_name']]
+                    ];
+                }
+    
+                $getProductDetail = ProductDetail::where('id_product', $itemProduct['id_product'])->where('id_outlet', $post['id_outlet'])->first();
+                $product['visibility_outlet'] = $getProductDetail['product_detail_visibility']??null;
+    
+                if($product['visibility_outlet'] == 'Hidden' || (empty($product['visibility_outlet']) && $product['product_visibility'] == 'Hidden')){
+                    DB::rollback();
+                    return [
+                        'status'    => 'fail',
+                        'product_sold_out_status' => true,
+                        'messages'  => ['Product '.$itemProduct['product_name'].' tidak tersedia']
+                    ];
+                }
+    
+                $allUse = ($tempStock[$product['id_product']]??0) + 1;
+                $tempStock[$product['id_product']] = $allUse;
+                if(!is_null($getProductDetail['product_detail_stock_item']) && $allUse > $getProductDetail['product_detail_stock_item']){
+                    DB::rollback();
+                    return [
+                        'status'    => 'fail',
+                        'messages'  => ['Product use in service '.$itemProduct['product_name']. ' not available']
+                    ];
+                }
+    
+                if($outlet['outlet_different_price'] == 1){
+                    $price = ProductSpecialPrice::where('id_product', $product['id_product'])->where('id_outlet', $post['id_outlet'])->first()['product_special_price']??0;
+                }else{
+                    $price = ProductGlobalPrice::where('id_product', $product['id_product'])->first()['product_global_price']??0;
+                }
+    
+                $price = (int)$price??0;
+    
+                if(empty($price)){
+                    DB::rollback();
+                    return [
+                        'status'    => 'fail',
+                        'product_sold_out_status' => true,
+                        'messages'  => ['Invalid price for product '.$itemProduct['product_name']]
+                    ];
+                }
+    
+                $dataProduct = [
+                    'id_transaction'               => $trx['id_transaction'],
+                    'id_product'                   => $product['id_product'],
+                    'type'                         => 'Service',
+                    'id_brand'                     => $product['id_brand'],
+                    'id_outlet'                    => $trx['id_outlet'],
+                    'id_user'                      => $trx['id_user'],
+                    'transaction_product_qty'      => 1,
+                    'transaction_product_price'    => $price,
+                    'transaction_product_price_base'    => $price - ($itemProduct['product_tax'] ?? 0),
+                    'transaction_product_price_tax'    => ($itemProduct['product_tax'] ?? 0),
+                    'transaction_product_discount'   => 0,
+                    'transaction_product_discount_all'   => 0,
+                    'transaction_product_base_discount' => 0,
+                    'transaction_product_qty_discount'  => 0,
+                    'transaction_product_subtotal' => $price,
+                    'transaction_product_net' => $price,
+                    'transaction_product_note'     => null,
+                    'created_at'                   => date('Y-m-d', strtotime($trx['transaction_date'])).' '.date('H:i:s'),
+                    'updated_at'                   => date('Y-m-d H:i:s')
+                ];
+    
+                $trx_product = TransactionProduct::create($dataProduct);
+                if (!$trx_product) {
+                    DB::rollback();
+                    return [
+                        'status'    => 'fail',
+                        'messages'  => ['Insert Product Service Transaction Failed']
+                    ];
+                }
+    
+                //insert to transaction product service
+                $order_id = 'IXBX-'.substr(time(), 3).MyHelper::createrandom(2, 'Angka');
+                // $timeZone = $outlet['province_time_zone_utc'] - 7;
+                // $bookTime = date('H:i:s', strtotime('-'.$timeZone.' hours', strtotime($itemProduct['booking_time'])));
+                
+                $queue = TransactionProductService::whereDate('schedule_date', date('Y-m-d', strtotime($itemProduct['booking_date'])))->where('id_transaction', '<>', $trx['id_transaction'])->max('queue') + 1;
+                if($queue<10){
+                    $queue_code = '[00'.$queue.'] - '.$product['product_name'];
+                }elseif($queue<100){
+                    $queue_code = '[0'.$queue.'] - '.$product['product_name'];
+                }else{
+                    $queue_code = '['.$queue.'] - '.$product['product_name'];
+                }
+    
+                $product_service = TransactionProductService::create([
+                    'order_id' => $order_id,
+                    'id_transaction' => $trx['id_transaction'],
+                    'id_transaction_product' => $trx_product['id_transaction_product'],
+                    'schedule_date' => date('Y-m-d', strtotime($itemProduct['booking_date'])),
+                    'queue' => $queue,
+                    'queue_code' => $queue_code,
+                ]);
+                if (!$product_service) {
+                    DB::rollback();
+                    return [
+                        'status'    => 'fail',
+                        'messages'  => ['Insert Data Service Transaction Failed']
+                    ];
+                }
+    
+                $insertProductUse = [];
+                foreach ($product['product_service_use_detail'] as $stock){
+                    $insertProductUse[] = [
+                        'id_transaction' => $trx['id_transaction'],
+                        'id_transaction_product' => $trx_product['id_transaction_product'],
+                        'id_product' => $stock['id_product'],
+                        'quantity_use' => $stock['quantity_use'],
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s')
+                    ];
+                }
+    
+                if(!empty($insertProductUse)){
+                    $save = TransactionProductServiceUse::insert($insertProductUse);
+                    if(!$save){
+                        DB::rollback();
+                        return [
+                            'status'    => 'fail',
+                            'messages'  => ['Insert Data Product Service Use Transaction Failed']
+                        ];
+                    }
+                }
+    
+                $dataProductMidtrans = [
+                    'id'       => $product['id_product'],
+                    'price'    => $price,
+                    'name'     => $product['product_name'],
+                    'quantity' => 1,
+                ];
+                array_push($productMidtrans, $dataProductMidtrans);
+    
+                $dataUserTrxProduct = [
+                    'id_user'       => $trx['id_user'],
+                    'id_product'    => $product['id_product'],
+                    'product_qty'   => 1,
+                    'last_trx_date' => $trx['transaction_date']
+                ];
+                array_push($userTrxProduct, $dataUserTrxProduct);
+
+            }
         }
 
         return [

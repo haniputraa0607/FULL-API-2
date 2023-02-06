@@ -665,43 +665,37 @@ class ApiIncome extends Controller
     public function export_periode($request) {
           $startDate = $request['start_date'];
           $endDate   = $request['end_date'];
-          $date_end         = (int) MyHelper::setting('hs_income_cut_off_end_date', 'value')??null;
-          $date_start         = (int)$date_end+1;
-          $start_date =  date('Y-m-'.$date_start, strtotime($startDate."-1 months"));
-          $end_date = date('Y-m-'.$date_end, strtotime($start_date.'+1 months'));
-          $sta = date('Y-m-'.$date_start, strtotime($startDate));
-          $starts = date('Y-m-d', strtotime($sta."-1 months"));
-          $ends = date('Y-m-'.$date_end, strtotime($endDate));
+          $date_end         = (int) MyHelper::setting('hs_income_cut_off_mid_date', 'value')??null;
+          $cek_end         = (int) MyHelper::setting('hs_income_cut_off_end_date', 'value')??null;
+          if($cek_end){
+              $date_end = $cek_end;
+          }
+         $end_date = date('Y-m-'.$date_end, strtotime($startDate));
           if(!$date_end){
               return array();
           }
           $ar = array();
           $s = 2;
           for($i=1;$i<$s;$i){
-              if($starts>=$start_date){
-               $e = date('Y-m-'.$date_end, strtotime($starts.'+1 months'));
-              }else{
-               $e = date('Y-m-'.$date_end, strtotime($starts));  
+              if($startDate>=$end_date){
+               $end_date = date('Y-m-d', strtotime($end_date.'+1 months'));
               }
-              if($e >= $ends){
-                  $e = $ends;
-                  $ar[]= array(
-                  'start'=>$starts,
-                  'end'=>$e,
-                  'periode'=>date('m', strtotime($e))
-                );
-                  break;
+              if($end_date>=$endDate){
+                  $end_date = $endDate;
               }
               $ar[]= array(
-                  'start'=>$starts,
-                  'end'=>$e,
-                  'periode'=>date('m', strtotime($e))
+                  'start'=>$startDate,
+                  'end'=>$end_date,
               );
-              $starts = date('Y-m-d', strtotime($e.'+1 days'));
+              
+              if($end_date>=$endDate){
+                  break;
+              }
+              $startDate = date('Y-m-d', strtotime($end_date.'+1 days'));
           }
           $array = array();
           foreach ($ar as $value) {
-              $req = array(
+              return $req = array(
                   'id_outlet'=>$request['id_outlet'],
                   'start_date'=>$value['start'],
                   'end_date'=>$value['end'],

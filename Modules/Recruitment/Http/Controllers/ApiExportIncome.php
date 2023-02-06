@@ -80,8 +80,8 @@ class ApiExportIncome extends Controller
         $insertToQueue = [
             'id_outlet' => json_encode($post['id_outlet']),
             'name_outlet' => json_encode($name_outlet),
-            'start_date' => $post['start_date'],
-            'end_date' => $post['end_date'],
+            'start_date' => date('Y-m-d', strtotime($post['start_date'])),
+            'end_date' => date('Y-m-d', strtotime($post['end_date'])),
             'status_export' => 'Running',
             'type_export' => $post['type_export']
         ];

@@ -294,7 +294,9 @@ Route::group(['middleware' => ['log_activities_mitra_apps', 'user_agent'], 'pref
         	Route::post('customer/detail', 'ApiMitraOutletService@customerQueueDetail');
         	Route::post('customer/detailV2', 'ApiMitraOutletService@customerQueueDetailV2');
         	Route::post('check-start', 'ApiMitraOutletService@checkStartService');
+        	Route::post('check-startV2', 'ApiMitraOutletService@checkStartServiceV2');
         	Route::post('start', 'ApiMitraOutletService@startService');
+        	Route::post('startV2', 'ApiMitraOutletService@startServiceV2');
         	Route::post('stop', 'ApiMitraOutletService@stopService');
         	Route::post('check-extend', 'ApiMitraOutletService@checkExtendService');
         	Route::post('extend', 'ApiMitraOutletService@extendService');

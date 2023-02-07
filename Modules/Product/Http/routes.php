@@ -182,6 +182,7 @@ Route::group(['prefix' => 'api/outlet-service/product','middleware' => ['log_act
     Route::post('detail', 'ApiProductController@detail');
     Route::post('detail-service', 'ApiProductController@outletServiceDetailProductService');
     Route::post('available-hs', 'ApiProductController@outletServiceAvailableHs');
+    Route::post('available-hsV2', 'ApiProductController@outletServiceAvailableHsV2');
 });
 
 Route::group(['prefix' => 'api/webapp/outlet-service/product','middleware' => ['log_activities','auth_client', 'scopes:web-apps'], 'namespace' => 'Modules\Product\Http\Controllers'], function()

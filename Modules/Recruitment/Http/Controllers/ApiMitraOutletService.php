@@ -170,6 +170,122 @@ class ApiMitraOutletService extends Controller
 		return MyHelper::checkGet($res);
 	}
 
+	public function customerQueueV2(Request $request)
+	{
+		$user = $request->user();
+		
+		$queue = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
+		->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
+		->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+		->join('products', 'transaction_products.id_product', 'products.id_product')
+		->where(function($q) {
+			$q->whereNull('service_status');
+			$q->orWhere('service_status', '!=', 'Completed');
+		})
+		->where(function($q) use($user) {
+			$q->whereNull('transaction_product_services.id_user_hair_stylist');
+			$q->orWhere('transaction_product_services.id_user_hair_stylist', $user->id_user_hair_stylist);
+		})
+		// ->where('transaction_product_services.id_user_hair_stylist', $user->id_user_hair_stylist)
+		->whereDate('transaction_product_services.schedule_date','2023-02-06')
+		->where(function($q) {
+			$q->where('trasaction_payment_type', 'Cash')
+			->orWhere('transaction_payment_status', 'Completed');
+		})
+		->where('transaction_payment_status', '!=', 'Cancelled')
+		->wherenull('transaction_products.reject_at')
+		->orderBy('schedule_date', 'asc')
+		->orderBy('schedule_time', 'asc')
+		->paginate(10)
+		->toArray();
+		
+		$serviceInProgress = TransactionProductService::where('service_status', 'In Progress')
+		->where('id_user_hair_stylist', $user->id_user_hair_stylist)
+		->first();
+
+		$schedule = HairstylistSchedule::join(
+			'hairstylist_schedule_dates', 
+			'hairstylist_schedules.id_hairstylist_schedule', 
+			'hairstylist_schedule_dates.id_hairstylist_schedule'
+		)
+		->where('id_user_hair_stylist', $user->id_user_hair_stylist)
+		->whereDate('date', date('Y-m-d'))
+		->first();
+		
+		$resData = [];
+		$dateNow = new DateTime("now");
+		foreach ($queue['data'] ?? [] as $val) {
+			// $timerText = "";
+			// $dateSchedule = new DateTime($val['schedule_date'] . ' ' .$val['schedule_time']);
+			// $interval = $dateNow->diff($dateSchedule);
+			// $day = $interval->d;
+			// $hour = $interval->h;
+			// $minute = $interval->i;
+			// if ($day) {
+			// 	$timerText .= $day.' hari, '. $hour.' jam' ;
+			// } elseif ($hour) {
+			// 	$timerText .= $hour.' jam' ;
+			// } else {
+			// 	$timerText .= $minute.' menit' ;
+			// }
+
+			// $timerText .= (strtotime(date('Y-m-d H:i:s')) < strtotime($val['schedule_date'] . ' ' .$val['schedule_time'])) ? ' lagi' : ' lalu';
+			// $timerTextColor = (strtotime(date('Y-m-d')) == strtotime($val['schedule_date'])) ? '#FF2424' : '#121212';
+
+			$trx = Transaction::where('id_transaction', $val['id_transaction'])->first();
+			$trxPayment = app($this->trx_outlet_service)->transactionPayment($trx);
+			$paymentMethod = null;
+			foreach ($trxPayment['payment'] as $p) {
+				$paymentMethod = $p['name'];
+				if (strtolower($p['name']) != 'balance') {
+					break;
+				}
+			}
+
+			$buttonText = 'Layani';
+			$paymentCash = 0;
+			// if ($val['transaction_payment_status'] == 'Pending' && $val['trasaction_payment_type'] == 'Cash') {
+			// 	$buttonText = 'Pembayaran';
+			// 	$paymentCash = 1;
+			// }
+
+			$disable = 0;
+			if ($serviceInProgress && $serviceInProgress['id_transaction_product_service'] != $val['id_transaction_product_service']) {
+				$disable = 1;
+			}
+
+			$scheduleDate = app($this->mitra)->convertTimezoneMitra($val['schedule_date']);
+			$scheduleDate = MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($scheduleDate)), 'j F Y');
+			// $scheduleTime = app($this->mitra)->convertTimezoneMitra($val['schedule_time']);
+			// $scheduleTime = date('H:i', strtotime($scheduleTime));
+
+			$resData[] = [
+				'id_transaction_product_service' => $val['id_transaction_product_service'],
+				'order_id' => $val['transaction_receipt_number'] ?? null,
+				'transaction_receipt_number' => $val['transaction_receipt_number'],
+				'customer_name' => $val['customer_name'],
+				'schedule_date' => $scheduleDate,
+				// 'schedule_time' => $scheduleTime,
+				'service_status' => $val['service_status'],
+				'payment_method' => $paymentMethod,
+				'product_name' => $val['product_name'],
+				'price' => $val['transaction_product_net'],
+				// 'timer_text' => $timerText,
+				// 'timer_text_color' => $timerTextColor,
+				'button_text' => $buttonText,
+				'disable' => $disable,
+				'id_outlet_box' => $schedule->id_outlet_box ?? null,
+				'flag_update_schedule' => $val['flag_update_schedule'],
+				'is_conflict' => $val['is_conflict'],
+				'payment_cash' => $paymentCash 
+			];
+		}
+
+		$res = $queue;
+		$res['data'] = $resData;
+		return MyHelper::checkGet($res);
+	}
+
 	public function customerQueueDetail(DetailCustomerQueueRequest $request)
 	{
 		$user = $request->user();
@@ -298,6 +414,156 @@ class ApiMitraOutletService extends Controller
     		'payment_method' => $paymentMethod,
     		'product_name' => $queue['product_name'],
     		'timer_text' => $timerText,
+    		'button_text' => 'Layani',
+    		'disable' => $disable,
+    		'id_outlet_box' => $schedule->id_outlet_box ?? null,
+    		'flag_update_schedule' => $queue['flag_update_schedule'],
+    		'is_conflict' => $queue['is_conflict'],
+    		'outlet_name' => $outlet['outlet_name'],
+    		'hairstylist_nickname' => $user['nickname'],
+    		'hairstylist_fullname' => $user['fullname'],
+    		'outlet_box_code' => $box['outlet_box_code'] ?? null,
+    		'outlet_box_name' => $box['outlet_box_name'] ?? null,
+    		'processing_time_service' => $timeLeft,
+    		'extend_popup_time' => $extendPopup,
+    		'product_name' => $product_name,
+    		'product_icount_use' => $product_icounts
+    	];
+
+    	return MyHelper::checkGet($res);
+    }
+
+	public function customerQueueDetailV2(DetailCustomerQueueRequest $request)
+	{
+		$user = $request->user();
+
+		$queue = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
+		->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
+		->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+		->where(function($q) use($user) {
+			$q->whereNull('transaction_product_services.id_user_hair_stylist');
+			$q->orWhere('transaction_product_services.id_user_hair_stylist', $user->id_user_hair_stylist);
+		})
+		->where('id_transaction_product_service', $request->id_transaction_product_service)
+		->where('transaction_payment_status' ,'Completed')
+		->first();
+
+		if (!$queue) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Layanan tidak ditemukan']
+			];
+		}
+
+		$outlet = Outlet::with(['location_outlet'])->where('id_outlet', $user->id_outlet)->first();
+		if (!$outlet) {
+			return [
+				'status' => 'fail',
+				'messages' => ['Outlet tidak ditemukan']
+			];
+		}
+
+		$product_name = Product::where('id_product',$queue['id_product'])->select('product_name')->first()['product_name'];
+		$company_type = $outlet['location_outlet']['company_type'] == 'PT IMA' ? 'ima' : 'ims';
+		$product_icounts = ProductProductIcount::with(['product_icounts' => function($pi){$pi->select('id_product_icount','name');}])->where('company_type', $company_type)->where('id_product', $queue['id_product'])->select('id_product_product_icount','id_product_icount','unit','qty','optional')->get()->toArray();
+		foreach($product_icounts as $p => $product_icount){
+			$cek_optional = false;
+			if($product_icount['optional'] == 1){
+				$product_icounts[$p]['max_qty'] = ProductIcountOutletStock::where('id_outlet',$user->id_outlet)->where('id_product_icount',$product_icount['id_product_icount'])->where('unit',$product_icount['unit'])->first()['stock'];
+			}
+
+			$product_icounts[$p]['name_product_icount'] = $product_icount['product_icounts']['name'];
+			unset($product_icounts[$p]['product_icounts']);
+		}
+
+
+		$serviceInProgress = TransactionProductService::where('service_status', 'In Progress')
+		->where('id_user_hair_stylist', $user->id_user_hair_stylist)
+		->first();
+
+		$disable = 0;
+		if ($serviceInProgress) {
+			$disable = 1;
+		}
+
+		$schedule = HairstylistSchedule::join(
+			'hairstylist_schedule_dates', 
+			'hairstylist_schedules.id_hairstylist_schedule', 
+			'hairstylist_schedule_dates.id_hairstylist_schedule'
+		)
+		->where('id_user_hair_stylist', $user->id_user_hair_stylist)
+		->whereDate('date', date('Y-m-d'))
+		->first();
+
+		// $dateNow = new DateTime("now");
+		// $timerText = "";
+		// $dateSchedule = new DateTime($queue['schedule_date'] . ' ' .$queue['schedule_time']);
+		// $interval = $dateNow->diff($dateSchedule);
+		// $day = $interval->d;
+		// $hour = $interval->h;
+		// $minute = $interval->i;
+		// if ($day) {
+		// 	$timerText .= $day.' hari, '. $hour.' jam' ;
+		// } elseif ($hour) {
+		// 	$timerText .= $hour.' jam' ;
+		// } else {
+		// 	$timerText .= $minute.' menit' ;
+		// }
+
+		// $timerText .= (strtotime(date('Y-m-d H:i:s')) < strtotime($queue['schedule_date'] . ' ' .$queue['schedule_time'])) ? ' lagi' : ' lalu';
+
+		$trx = Transaction::where('id_transaction', $queue['id_transaction'])->first();
+		$trxPayment = app($this->trx_outlet_service)->transactionPayment($trx);
+		$paymentMethod = null;
+		foreach ($trxPayment['payment'] as $p) {
+			$paymentMethod = $p['name'];
+			if (strtolower($p['name']) != 'balance') {
+				break;
+			}
+		}
+
+		$box = OutletBox::where('id_outlet_box', $schedule['id_outlet_box'] ?? null)->first();
+
+		$logService = TransactionProductServiceLog::whereIn('action', ['Start', 'Extend'])
+		->where('id_transaction_product_service', $queue['id_transaction_product_service'])
+		->get()->keyBy('action');
+
+		$startTime = !empty($logService['Start']['created_at'])  ? date('Y-m-d H:i:s', strtotime($logService['Start']['created_at'])) : null;
+		$extendTime = !empty($logService['Extend']['created_at'])  ? date('Y-m-d H:i:s', strtotime($logService['Extend']['created_at'])) : null;
+		
+		$product_service = Product::where('id_product',$queue['id_product'])->first();
+    	$processingTime = ($product_service['processing_time_service'] ?? 30) * 60; //second
+
+    	$timeLeft = 0;
+    	if ($startTime) {
+    		$timeLeft = $processingTime - (strtotime(date('Y-m-d H:i:s')) - strtotime($startTime));
+    	}
+
+    	if ($extendTime) {
+    		$timeLeft = $timeLeft + $processingTime;
+    	}
+
+    	$timeLeft = ($timeLeft >= 1) ? $timeLeft : 0;
+
+    	$extendPopup = (Setting::where('key', 'outlet_service_extend_popup_time')->first()['value'] ?? 5) * 60;
+
+    	$scheduleDate = app($this->mitra)->convertTimezoneMitra($queue['schedule_date']);
+    	$scheduleDate = MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($scheduleDate)), 'j F Y');
+    	// $scheduleTime = app($this->mitra)->convertTimezoneMitra($queue['schedule_time']);
+    	// $scheduleTime = date('H:i', strtotime($scheduleTime));
+
+    	$res = [
+    		'id_transaction' => $queue['id_transaction'],
+    		'id_transaction_product_service' => $queue['id_transaction_product_service'],
+    		'order_id' => $queue['order_id'] ?? null,
+    		'transaction_receipt_number' => $queue['transaction_receipt_number'] ?? null,
+    		'customer_name' => $queue['customer_name'],
+    		'schedule_date' => $scheduleDate,
+    		// 'schedule_time' => $scheduleTime,
+    		'service_status' => $queue['service_status'],
+    		'payment_method' => $paymentMethod,
+    		'product_name' => $queue['product_name'],
+    		// 'timer_text' => $timerText,
     		'button_text' => 'Layani',
     		'disable' => $disable,
     		'id_outlet_box' => $schedule->id_outlet_box ?? null,

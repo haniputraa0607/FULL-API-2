@@ -44,6 +44,7 @@ class AuthServiceProvider extends ServiceProvider
                 'client' => 'Manage client scope',
                 'employee-apps' => 'Manage employee scope',
                 'employees' => 'Manage customer scope',
+                'pos-order' => 'Manage pos order scope',
             ]);
             Passport::routes(function ($router) {
                 return $router->forAccessTokens();

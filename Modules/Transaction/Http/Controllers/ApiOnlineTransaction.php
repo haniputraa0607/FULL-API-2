@@ -5242,7 +5242,7 @@ class ApiOnlineTransaction extends Controller
                 // $timeZone = $outlet['province_time_zone_utc'] - 7;
                 // $bookTime = date('H:i:s', strtotime('-'.$timeZone.' hours', strtotime($itemProduct['booking_time'])));
                 
-                $queue = TransactionProductService::whereDate('schedule_date', date('Y-m-d', strtotime($itemProduct['booking_date'])))->where('id_transaction', '<>', $trx['id_transaction'])->max('queue') + 1;
+                $queue = TransactionProductService::join('transactions','transactions.id_transaction','transaction_product_services.id_transaction')->whereDate('schedule_date', date('Y-m-d', strtotime($itemProduct['booking_date'])))->where('id_outlet',$trx['id_outlet'])->where('transaction_product_services.id_transaction', '<>', $trx['id_transaction'])->max('queue') + 1;
                 if($queue<10){
                     $queue_code = '[00'.$queue.'] - '.$product['product_name'];
                 }elseif($queue<100){

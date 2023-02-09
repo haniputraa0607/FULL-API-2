@@ -23,7 +23,8 @@ class HairstylistLogBalance extends Model
 		'source',
 		'grand_total',
 		'enc',
-        'transfer_status',
-        'transfer_code'
+                'transfer_status',
+                'transfer_code',
+                'type_log_balance',
 	];
 }

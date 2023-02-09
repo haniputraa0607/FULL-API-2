@@ -761,7 +761,7 @@ class ApiMitraOutletService extends Controller
                                             'id_reference'            => $product['id_transaction_product'],
                                             'source'                  => 'Receive Payment'
                                     ];
-                                    app($this->mitra_log_balance)->insertLogBalance($dt);
+                                    app($this->mitra_log_balance)->insertLogBalance($dt,'transaction_products');
 				}
 			}
     		$action = ($service->service_status == 'Stopped') ? 'Resume' : 'Start';

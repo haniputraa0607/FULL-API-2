@@ -45,6 +45,7 @@ class ApiMitraShopService extends Controller
         $this->mitra_outlet_service = "Modules\Recruitment\Http\Controllers\ApiMitraOutletService";
         $this->trx = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
         $this->trx_outlet_service = "Modules\Transaction\Http\Controllers\ApiTransactionOutletService";
+		$this->mitra_log_balance = "Modules\Recruitment\Http\Controllers\MitraLogBalance";
     }
 
     public function detailShopService(Request $request)
@@ -143,7 +144,7 @@ class ApiMitraShopService extends Controller
     	$trxProducts = TransactionProduct::where('id_transaction', $trx->id_transaction)
 						->where('type', 'Product')
 						->get();
-
+	
 		if (empty($trxProducts) || $trxProducts->isEmpty()) {
 			return ['status' => 'fail', 'messages' => ['Barang tidak ditemukan']];
 		}
@@ -155,7 +156,21 @@ class ApiMitraShopService extends Controller
     			'id_user_hair_stylist' => $user->id_user_hair_stylist
     		]);
     	}
-
+		if($trx['trasaction_payment_type'] == 'Cash'){
+			foreach ($trxProducts as $product) {
+				if($product){
+					$product->id_user_hair_stylist = $user->id_user_hair_stylist;
+					$product->save();
+					$dt = [
+						'id_user_hair_stylist'    => $user->id_user_hair_stylist,
+						'balance'                 => $product['transaction_product_price'],
+						'id_reference'            => $product['id_transaction_product'],
+						'source'                  => 'Receive Payment'
+					];
+					app($this->mitra_log_balance)->insertLogBalance($dt);
+				}
+			}
+		}
     	// log rating outlet
         UserRatingLog::updateOrCreate([
             'id_user' => $trx->id_user,

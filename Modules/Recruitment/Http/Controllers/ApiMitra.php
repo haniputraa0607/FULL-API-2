@@ -1001,7 +1001,7 @@ class ApiMitra extends Controller
 						'id_reference'            => $transferPayment['id_outlet_cash']
 					];
 
-					$update = app($this->mitra_log_balance)->insertLogBalance($dt);
+					$update = app($this->mitra_log_balance)->insertLogBalance($dt,'outlet_cash');
 
 					if($user->level == 'Supervisor'){
 						$update = OutletCash::where('id_outlet_cash', $transferPayment['id_outlet_cash'])

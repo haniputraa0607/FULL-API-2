@@ -114,7 +114,8 @@ class MitraLogBalance extends Controller
             'balance_before'                 => $check['balance_before'],
             'balance_after'                  => $check['balance_after'],
             'id_reference'                   => $check['id_reference'],
-            'source'                         => $check['source']
+            'source'                         => $check['source'],
+            'type_log_balance'               => $check['type_log_balance'],
         ];
 
         $encodeCheck = json_encode($dataHash);

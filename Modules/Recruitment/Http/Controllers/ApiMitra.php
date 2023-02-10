@@ -47,6 +47,7 @@ use Modules\Users\Http\Requests\users_forgot;
 use Modules\Users\Http\Requests\users_phone_pin_new_v2;
 use PharIo\Manifest\EmailTest;
 use Auth;
+use Modules\Transaction\Entities\TransactionPaymentCashDetail;
 
 class ApiMitra extends Controller
 {
@@ -900,7 +901,30 @@ class ApiMitra extends Controller
 				'currency' => 'Rp'
 			];
 		}
-
+		$listTransaction = TransactionProduct::join('hairstylist_log_balances', 'hairstylist_log_balances.id_reference', 'transaction_products.id_transaction_product')
+                ->join('transactions', 'transactions.id_transaction', 'transaction_products.id_transaction')   
+                ->join('products', 'products.id_product', 'transaction_products.id_product')   
+				->whereDate('hairstylist_log_balances.created_at', $date)
+				->where('type_log_balance', 'transaction_products')
+				->where('source', 'Receive Payment')
+				->where('transaction_products.id_user_hair_stylist', $user->id_user_hair_stylist)
+				->where('transfer_status', 0)
+				->where('transaction_products.id_outlet', $user->id_outlet)
+				->select('hairstylist_log_balances.created_at as date_receive_cash', 'transaction_products.id_transaction', 'transactions.transaction_receipt_number',
+					'hairstylist_log_balances.*','transactions.id_user','product_name')
+				->get()->toArray();
+		foreach ($listTransaction as $transaction){
+			$user = User::where('id', $transaction['id_user'])->select('name')->first();
+			$res[] = [
+				'id_transaction' => $transaction['id_transaction'],
+				'time' => date('H:i', strtotime($transaction['date_receive_cash'])),
+				'customer_name' => $user['name'],
+				'transaction_receipt_number' => $transaction['transaction_receipt_number'],
+				'transaction_grandtotal' => $transaction['balance'],
+				'product' => $transaction['product_name'],
+				'currency' => 'Rp'
+			];
+		}
 		return ['status' => 'success', 'result' => $res];
 	}
 
@@ -911,23 +935,38 @@ class ApiMitra extends Controller
 			return ['status' => 'fail', 'messages' => ['Date can not be empty']];
 		}
 		$date = date('Y-m-d', strtotime($post['date']));
-
-		$listCash = HairstylistLogBalance::join('transactions', 'hairstylist_log_balances.id_reference', 'transactions.id_transaction')
+		$listCash = array();
+		$listCashs = HairstylistLogBalance::join('transactions', 'hairstylist_log_balances.id_reference', 'transactions.id_transaction')
 		->whereDate('hairstylist_log_balances.created_at', $date)
 		->where('source', 'Receive Payment')
 		->where('id_user_hair_stylist', $user->id_user_hair_stylist)
 		->where('transfer_status', 0)
 		->where('id_outlet', $user->id_outlet)
 		->select('id_hairstylist_log_balance', 'balance', 'id_reference', 'id_user')->get()->toArray();
-
-		$idTransaction = array_column($listCash, 'id_reference');
+		foreach ($listCashs as $value) {
+			array_push($listCash,$value);
+		}
+		
+		$idTransaction = array_column($listCashs, 'id_reference');
+		$listCashs = HairstylistLogBalance::join('transaction_products', 'hairstylist_log_balances.id_reference', 'transaction_products.id_transaction_product')
+		->whereDate('hairstylist_log_balances.created_at', $date)
+		->where('type_log_balance', 'transaction_products')
+		->where('source', 'Receive Payment')
+		->where('transaction_products.id_user_hair_stylist', $user->id_user_hair_stylist)
+		->where('transfer_status', 0)
+		->where('id_outlet', $user->id_outlet)
+		->select('id_hairstylist_log_balance', 'balance', 'id_reference', 'id_user')->get()->toArray();
+		foreach ($listCashs as $value) {
+			array_push($listCash,$value);
+		}
+                $idTransactionProduct = array_column($listCashs, 'id_reference');
 		$idLogBalance = array_column($listCash, 'id_hairstylist_log_balance');
 		$totalWillTransfer = array_column($listCash, 'balance');
 		$totalWillTransfer = array_sum($totalWillTransfer);
 		if(empty($totalWillTransfer)){
 			return ['status' => 'fail', 'messages' => ['All cash already transfer']];
 		}
-
+		$update_product = null;
 		$update = HairstylistLogBalance::whereIn('id_hairstylist_log_balance', $idLogBalance)->update(['transfer_status' => 1]);
 		if($update){
 			$transferPayment = OutletCash::create([
@@ -939,8 +978,22 @@ class ApiMitra extends Controller
 			]);
 			if($transferPayment){
 				$update = TransactionPaymentCash::whereIn('id_transaction', $idTransaction)->update(['id_outlet_cash' => $transferPayment['id_outlet_cash']]);
-
-				if($update){
+                                foreach($idTransactionProduct as $value){
+                                        $transaction_product = TransactionProduct::where('id_transaction_product',$value)->first();
+                                        if($transaction_product){
+                                            $paymentcash = TransactionPaymentCash::where('id_transaction', $transaction_product->id_transaction)->first();
+                                            if($transaction_product){
+                                                $updates = TransactionPaymentCashDetail::create([
+                                                    'id_transaction_payment_cash'=>$paymentcash->id_transaction_payment_cash,
+                                                    'id_transaction_product'=>$transaction_product['id_transaction_product'],
+                                                    'id_outlet_cash'=>$transferPayment['id_outlet_cash'],
+                                                    'cash_received_by'=>$user->id_user_hair_stylist,
+                                                ]);
+                                                $update_product = 1;
+                                            }
+                                        }
+                                }
+				if($update||$update_product){
 					$dt = [
 						'id_user_hair_stylist'    => $user->id_user_hair_stylist,
 						'balance'                 => -$totalWillTransfer,

@@ -510,6 +510,17 @@ class ApiPosOrderController extends Controller
             'delivery_order' => $outlet['delivery_order'],
             'today' => $outlet['today']
         ];
+        
+        if(!empty($post['id_user']) || isset($post['id_user'])){
+            $user = User::where('id',$post['id_user'])->first();
+            $result['customer'] = [
+                "name" => $post['customer']['name']??"",
+                "phone" => $post['customer']['phone']??"",
+            ];
+        }else{
+            $result['customer'] = [];
+        }
+
         $result['subtotal_product_service'] = $itemServices['subtotal_service']??0;
         $post['subtotal'] = $result['subtotal_product_service'];
 
@@ -534,8 +545,8 @@ class ApiPosOrderController extends Controller
         $fake_request = new Request(['show_all' => 1,'pos_order'=> 1]);
         $result['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
         
-        if($request->user()){
-            $balance = app($this->balance)->balanceNow($request->user()->id);
+        if($result['customer']){
+            $balance = app($this->balance)->balanceNow($result['customer']->id);
             $result['points'] = (int) $balance;
             $result = app($this->promo_trx)->applyPromoCheckout($result,$post);
         }else{

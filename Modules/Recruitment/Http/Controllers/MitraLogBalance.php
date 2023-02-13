@@ -42,7 +42,7 @@ use DateTime;
 
 class MitraLogBalance extends Controller
 {
-    public function insertLogBalance($data)
+    public function insertLogBalance($data,$type = 'transactions')
     {
         // check balance data from hashed text
         $checkHashBefore = $this->checkHash($data['id_user_hair_stylist']);
@@ -59,7 +59,8 @@ class MitraLogBalance extends Controller
             'balance_before'                 => $balanceBefore,
             'balance_after'                  => $balanceBefore+$data['balance'],
             'id_reference'                   => $data['id_reference']??null,
-            'source'                         => $data['source']
+            'source'                         => $data['source'],
+            'type_log_balance'               => $type,
         ];
 
         $create = HairstylistLogBalance::updateOrCreate(['id_user_hair_stylist' => $logBalance['id_user_hair_stylist'], 'id_reference' => $logBalance['id_reference'], 'source' => $logBalance['source']], $logBalance);
@@ -72,7 +73,8 @@ class MitraLogBalance extends Controller
             'balance_before'                 => $dataLogBalance['balance_before'],
             'balance_after'                  => $dataLogBalance['balance_before']+$data['balance'],
             'id_reference'                   => $dataLogBalance['id_reference'],
-            'source'                         => $dataLogBalance['source']
+            'source'                         => $dataLogBalance['source'],
+            'type_log_balance'               => $type,
         ];
 
         $enc = MyHelper::encrypt2019(json_encode(($dataHashBalance)));
@@ -112,7 +114,8 @@ class MitraLogBalance extends Controller
             'balance_before'                 => $check['balance_before'],
             'balance_after'                  => $check['balance_after'],
             'id_reference'                   => $check['id_reference'],
-            'source'                         => $check['source']
+            'source'                         => $check['source'],
+            'type_log_balance'               => $check['type_log_balance'],
         ];
 
         $encodeCheck = json_encode($dataHash);

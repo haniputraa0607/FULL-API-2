@@ -2652,7 +2652,7 @@ class ApiOnlineTransaction extends Controller
         if (!isset($post['tax'])) {
             $post['tax'] = 0;
         }
-
+        
         // check service product
         $result['item_service'] = [];
         $totalItem = 0;
@@ -4291,12 +4291,20 @@ class ApiOnlineTransaction extends Controller
         $availablePayment = config('payment_method');
 
         $setting  = json_decode(MyHelper::setting('active_payment_methods', 'value_text', '[]'), true) ?? [];
-       $payments = [];
+        $payments = [];
+        
+        if(isset($request->pos_order) && !empty($request->pos_order) && $request->pos_order == 1){
+            $config = [
+                'credit_card_payment_gateway' => MyHelper::setting('credit_card_payment_gateway', 'value', 'Ipay88'),
+                'platform' => 'native'
+            ];
+        }else{
+            $config = [
+                'credit_card_payment_gateway' => MyHelper::setting('credit_card_payment_gateway', 'value', 'Ipay88'),
+                'platform' => request()->user()->tokenCan('apps') ? 'native' : 'webapps',
+            ];
+        }
 
-        $config = [
-            'credit_card_payment_gateway' => MyHelper::setting('credit_card_payment_gateway', 'value', 'Ipay88'),
-            'platform' => request()->user()->tokenCan('apps') ? 'native' : 'webapps',
-        ];
         $last_status = [];
         foreach ($setting as $value) {
             $payment = $availablePayment[$value['code'] ?? ''] ?? false;

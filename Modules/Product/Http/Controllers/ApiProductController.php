@@ -2771,11 +2771,9 @@ class ApiProductController extends Controller
         return response()->json(['status' => 'success', 'result' => $res]);
     }
 
-    public function outletServiceAvailableHsV2(AvailableHs $request){
+    public function outletServiceAvailableHsV2(Request $request){
         $post = $request->json()->all();
         $bookDate = date('Y-m-d', strtotime($post['booking_date']));
-        $bookTimeOrigin = date('H:i:s', strtotime($post['booking_time']));
-        $bookTime = date('H:i:s', strtotime($post['booking_time']));
 
         if(!empty($post['outlet_code'])){
             $outlet = Outlet::where('outlet_code', $post['outlet_code'])
@@ -2795,9 +2793,6 @@ class ApiProductController extends Controller
             return response()->json(['status' => 'fail', 'messages' => ['Outlet not found']]);
         }
 
-        $timeZone = (empty($outlet['province_time_zone_utc']) ? 7:$outlet['province_time_zone_utc']);
-        $diffTimeZone = $timeZone - 7;
-        $bookTime = date('H:i:s', strtotime($bookTime . "- $diffTimeZone hour"));
         $post['id_outlet'] = $outlet['id_outlet'];
 
         //product category hs
@@ -2820,10 +2815,6 @@ class ApiProductController extends Controller
         $idOutletSchedule = OutletSchedule::where('id_outlet', $outlet['id_outlet'])
                           ->where('day', $bookDay)->first()['id_outlet_schedule']??null;
 
-        $hsNotAvailable = HairstylistNotAvailable::where('id_outlet', $post['id_outlet'])
-                            ->where('booking_start', $bookDate.' '.$bookTimeOrigin)
-                            ->pluck('id_user_hair_stylist')->toArray();
-
         $listHs = UserHairStylist::where('id_outlet', $post['id_outlet'])
                     ->where('user_hair_stylist_status', 'Active')->get()->toArray();
 
@@ -2845,33 +2836,13 @@ class ApiProductController extends Controller
                 $clockInOut = HairstylistAttendance::where('id_user_hair_stylist', $val['id_user_hair_stylist'])
                     ->where('id_hairstylist_schedule_date', $shift['id_hairstylist_schedule_date'])->orderBy('updated_at', 'desc')->first();
 
-                if(!empty($clockInOut) && !empty($clockInOut['clock_in']) && strtotime($bookTime) >= strtotime($clockInOut['clock_in'])){
+                if(!empty($clockInOut) && !empty($clockInOut['clock_in'])){
                     $availableStatus = true;
                     $lastAction = HairstylistAttendanceLog::where('id_hairstylist_attendance', $clockInOut['id_hairstylist_attendance'])->orderBy('datetime', 'desc')->first();
-                    if(!empty($clockInOut['clock_out']) && $lastAction['type'] == 'clock_out' && strtotime($bookTime) > strtotime($clockInOut['clock_out'])){
+                    if(!empty($clockInOut['clock_out']) && $lastAction['type'] == 'clock_out'){
                         $availableStatus = false;
                     }
                 }
-            }elseif($bookDate > date('Y-m-d')){
-                $shiftTimeStart = date('H:i:s', strtotime($shift['time_start']));
-                $shiftTimeEnd = date('H:i:s', strtotime($shift['time_end']));
-                if(strtotime($bookTime) >= strtotime($shiftTimeStart) && strtotime($bookTime) < strtotime($shiftTimeEnd)){
-                    //check available in transaction
-                    $checkAvailable = array_search($val['id_user_hair_stylist'], $hsNotAvailable);
-                    if($checkAvailable === false){
-                        $availableStatus = true;
-                    }
-                }
-            }
-
-            $bookTimeOrigin = date('H:i:s', strtotime($bookTimeOrigin . "+ 1 minutes"));
-            $notAvailable = HairstylistNotAvailable::where('id_outlet', $post['id_outlet'])
-                ->whereRaw('"'.$bookDate.' '.$bookTimeOrigin. '" BETWEEN booking_start AND booking_end')
-                ->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
-                ->first();
-
-            if(!empty($notAvailable)){
-                $availableStatus = false;
             }
 
             if(!empty($hsCat) && !in_array($val['id_hairstylist_category'], $hsCat)){
@@ -2882,6 +2853,7 @@ class ApiProductController extends Controller
                 'id_user_hair_stylist' => $val['id_user_hair_stylist'],
                 'name' => "$val[fullname] ($val[nickname])",
                 'nickname' => $val['nickname'],
+                'shift_time' => date('H:i', strtotime($shift['time_start'])).' - '.date('H:i', strtotime($shift['time_end'])),
                 'photo' => (empty($val['user_hair_stylist_photo']) ? config('url.storage_url_api').'img/product/item/default.png':$val['user_hair_stylist_photo']),
                 'rating' => $val['total_rating'],
                 'available_status' => $availableStatus,

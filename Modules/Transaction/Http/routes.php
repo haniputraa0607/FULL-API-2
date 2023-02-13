@@ -16,12 +16,15 @@ Route::group(['middleware' => ['auth:api'],'prefix' => 'api/transaction', 'names
 
 Route::group(['middleware' => ['auth_client', 'scopes:web-apps'],'prefix' => 'api/webapp/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
     Route::post('cart', 'ApiOnlineTransaction@cartTransaction');
+    Route::post('cartV2', 'ApiOnlineTransaction@cartV2Transaction');
 });
 
 Route::group(['middleware' => ['auth:api', 'scopes:web-apps'],'prefix' => 'api/webapp/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
     Route::any('available-payment', 'ApiOnlineTransaction@availablePayment');
     Route::post('check', 'ApiOnlineTransaction@checkTransaction');
+    Route::post('checkV2', 'ApiOnlineTransaction@checkTransactionV2');
     Route::post('new', 'ApiOnlineTransaction@newTransaction')->middleware('decrypt_pin:pin,request');
+    Route::post('newV2', 'ApiOnlineTransaction@newTransactionV2')->middleware('decrypt_pin:pin,request');
     Route::post('confirm', 'ApiConfirm@confirmTransaction');
     Route::post('list', 'ApiTransaction@outletServiceList');
 	Route::post('detail', 'ApiTransaction@outletServiceDetail');

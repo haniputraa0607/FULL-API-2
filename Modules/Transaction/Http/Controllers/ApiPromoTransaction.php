@@ -283,6 +283,189 @@ class ApiPromoTransaction extends Controller
         return $result;
     }
 
+	public function availableVoucherV2($user, $data, $transaction_from = null, $id_outlet = null)
+    {
+    	$voucher = DealsUser::where('id_user', $user['id'])
+            ->whereIn('paid_status', ['Free', 'Completed'])
+            ->whereNull('used_at')
+            ->with(['dealVoucher', 'dealVoucher.deal', 'dealVoucher.deal.outlets.city', 'dealVoucher.deal.outlets.city'])
+            ->where('deals_users.voucher_expired_at', '>', date('Y-m-d H:i:s'));
+
+        if(isset($id_outlet)){
+            $voucher->join('deals_vouchers', 'deals_users.id_deals_voucher', 'deals_vouchers.id_deals_voucher')
+            ->join('deals', 'deals.id_deals', 'deals_vouchers.id_deals')
+            ->leftJoin('deals_outlets', 'deals.id_deals', 'deals_outlets.id_deals')
+            ->where(function ($query) use ($id_outlet) {
+                $query->where('deals_users.id_outlet', $id_outlet)
+                    ->orWhere('deals_outlets.id_outlet', $id_outlet)
+                    ->orWhere('deals.is_all_outlet','=',1);
+            })
+            ->select('deals_users.*')->distinct();
+        }
+
+        if(isset($transaction_from)){
+            $service = [
+                'outlet-service' => 'Outlet Service',
+                'home-service' => 'Home Service',
+                'shop' => 'Online Shop',
+                'academy' => 'Academy',
+            ];
+            if(!MyHelper::isJoined($voucher,'deals_vouchers')){
+                $voucher->leftJoin('deals_vouchers', 'deals_users.id_deals_voucher', 'deals_vouchers.id_deals_voucher');
+            }
+            if(!MyHelper::isJoined($voucher,'deals')){
+                $voucher->leftJoin('deals', 'deals.id_deals', 'deals_vouchers.id_deals');
+            }
+            $voucher->leftJoin('deals_services', 'deals.id_deals', 'deals_services.id_deals')
+            ->where('deals_services.service', $service[$transaction_from])
+            ->select('deals_users.*')->distinct();
+        }   
+
+        $voucher = $voucher->orderBy('deals_users.is_used', 'desc')
+            ->orderBy('deals_users.voucher_expired_at', 'asc')
+            ->get()
+            ->toArray();
+
+		$id_vouchers = [];
+
+		foreach($voucher ?? [] as $val_vou){
+			if(!in_array($val_vou['deal_voucher']['id_deals'],$id_vouchers)){
+				$id_vouchers[] = $val_vou['deal_voucher']['id_deals'];
+			}
+		}
+
+		$header_version = request()->header('User-Agent');
+        $new_version = true;
+        if(strpos($header_version,'ios') || (is_integer(strpos($header_version,'ios')) && strpos($header_version,'ios') >= 0)){
+			if(strpos($header_version,'0.0.7 ') || (is_integer(strpos($header_version,'0.0.7')) && strpos($header_version,'0.0.7') >= 0) || strpos($header_version,'1.0.5 ') || (is_integer(strpos($header_version,'1.0.5')) && strpos($header_version,'1.0.5') >= 0)){
+				$new_version = false;
+			}
+		}
+		if(strpos($header_version,'android') || (is_integer(strpos($header_version,'android')) && strpos($header_version,'android') >= 0)){
+			if(strpos($header_version,'0.0.7 ') || (is_integer(strpos($header_version,'0.0.7')) && strpos($header_version,'0.0.7') >= 0) || strpos($header_version,'1.0.4 ') || (is_integer(strpos($header_version,'1.0.4')) && strpos($header_version,'1.0.4') >= 0)){
+				$new_version = false;
+			}
+		}
+
+        if($new_version){
+            $deals_no_claim = (new Deal)->newQuery();
+            $deals_no_claim->where('deals_type', '!=','WelcomeVoucher');
+            $deals_no_claim->where( function($dc) {
+                $dc->where('deals_publish_start', '<=', date('Y-m-d H:i:s'))
+                ->where('deals_publish_end', '>=', date('Y-m-d H:i:s'))
+                ->where('deals_end', '>=', date('Y-m-d H:i:s'));
+            });
+            $deals_no_claim->where( function($dc) {
+                $dc->where('deals_voucher_type','Unlimited')
+                    ->orWhereRaw('(deals.deals_total_voucher - deals.deals_total_claimed) > 0 ');
+            });
+            $deals_no_claim->where('step_complete', '=', 1);
+            $deals_no_claim->whereNotIn('deals.id_deals', $id_vouchers);
+            $deals_no_claim->with(['outlets', 'outlets.city']);
+        
+            if(isset($id_outlet)){
+                $deals_no_claim->leftJoin('deals_outlets', 'deals.id_deals', 'deals_outlets.id_deals')
+                    ->where(function($query) use ($id_outlet){
+                        $query->where('id_outlet', $id_outlet)
+                                ->orWhere('deals.is_all_outlet','=',1);
+                    })
+                    ->addSelect('deals.*')->distinct();
+            }
+            if(isset($transaction_from)){
+                $service = [
+                    'outlet-service' => 'Outlet Service',
+                    'home-service' => 'Home Service',
+                    'shop' => 'Online Shop',
+                    'academy' => 'Academy',
+                ];
+                $deals_no_claim->leftJoin('deals_services', 'deals.id_deals', 'deals_services.id_deals')
+                ->where('deals_services.service', $service[$transaction_from])
+                ->select('deals.*')->distinct();
+            }
+            $deals_no_claim = $deals_no_claim->get()->toArray();
+        }
+
+        $result = array_map(function($var) {
+            return [
+                'id_deals' => $var['deal_voucher']['id_deals'],
+                'voucher_expired_at' => $var['voucher_expired_at'],
+                'id_deals_voucher' => $var['id_deals_voucher'],
+                'id_deals_user' => $var['id_deals_user'],
+                'deals_title' => $var['deal_voucher']['deal']['deals_title'],
+                'deals_second_title' => $var['deal_voucher']['deal']['deals_second_title'],
+                'url_deals_image' => $var['deal_voucher']['deal']['url_deals_image'],
+                'is_used' => $var['is_used'],
+                'date_expired_indo' => MyHelper::adjustTimezone($var['voucher_expired_at'], $user['user_time_zone_utc'] ?? 7, 'd F Y', true),
+                'time_expired_indo' => 'pukul '.date('H:i', strtotime($var['voucher_expired_at'])),
+                'text' => null,
+				'is_error' => false,
+                'type_deals' => 'voucher'
+            ];
+        }, $voucher);
+
+        $check_duplicat_vocher = [];
+        foreach($result ?? [] as $vou){
+            if(!isset($check_duplicat_vocher[$vou['id_deals']])){
+                $check_duplicat_vocher[$vou['id_deals']] = $vou;
+            }
+        }
+        $result = [];
+        $i = 0;
+        foreach($check_duplicat_vocher as $check_vou){
+            $result[$i] = $check_vou;
+            $i++;
+        }
+
+        if($new_version){
+            $result_deal = array_map(function($var) {
+                return [
+                    'id_deals' => $var['id_deals'],
+                    'voucher_expired_at' => null,
+                    'id_deals_voucher' => null,
+                    'id_deals_user' => null,
+                    'deals_title' => $var['deals_title'],
+                    'deals_second_title' => $var['deals_second_title'],
+                    'url_deals_image' => $var['url_deals_image'],
+                    'is_used' => 0,
+                    'date_expired_indo' => null,
+                    'time_expired_indo' => null,
+                    'text' => null,
+                    'is_error' => false,
+                    'type_deals' => 'deals'
+                ];
+            }, $deals_no_claim);
+    
+            $result = array_merge($result,$result_deal);
+        }
+
+        $new_result_data = [];
+
+        if($new_version){
+            $sharedPromoTrx = TemporaryDataManager::create('promo_trx');
+            foreach($result ?? [] as $key => $data_voucher){
+                $check_avail = app($this->voucher)->checkVoucherAvail($data_voucher['id_deals'],$data);
+                if($check_avail['status']=='success'){
+                    if(isset($data_voucher['id_deals_voucher']) && isset($data_voucher['id_deals_user'])){
+                        $data_voucher['type_deals'] = 'voucher';
+                    }else{
+                        $data_voucher['type_deals'] = 'deals';
+                    }
+                    $new_result_data[] = $data_voucher;
+                }
+            }
+            TemporaryDataManager::reset('promo_trx');
+        }else{
+            $new_result_data = $result;
+        }
+        $result = [];
+        foreach($new_result_data ?? [] as $index => $val){
+            if($index < 5){
+                $result[] = $val;
+            }
+        }
+        return $result;
+    }
+
     public function getScope()
     {
     	$bearerToken = request()->bearerToken();
@@ -637,6 +820,330 @@ class ApiPromoTransaction extends Controller
 		return $data;
     }
 
+	public function applyPromoCheckoutV2($data,$data_2 = null, $user)
+    {	
+		$new_version = true;
+		$header_version = request()->header('User-Agent');
+		if(strpos($header_version,'ios') || (is_integer(strpos($header_version,'ios')) && strpos($header_version,'ios') >= 0)){
+			if(strpos($header_version,'0.0.7 ') || (is_integer(strpos($header_version,'0.0.7')) && strpos($header_version,'0.0.7') >= 0) || strpos($header_version,'1.0.5 ') || (is_integer(strpos($header_version,'1.0.5')) && strpos($header_version,'1.0.5') >= 0)){
+				$new_version = false;
+			}
+		}
+		if(strpos($header_version,'android') || (is_integer(strpos($header_version,'android')) && strpos($header_version,'android') >= 0)){
+			if(strpos($header_version,'0.0.7 ') || (is_integer(strpos($header_version,'0.0.7')) && strpos($header_version,'0.0.7') >= 0) || strpos($header_version,'1.0.4 ') || (is_integer(strpos($header_version,'1.0.4')) && strpos($header_version,'1.0.4') >= 0)){
+				$new_version = false;
+			}
+		}
+		
+    	if(!$user){
+			if($new_version){
+				$data['promo_deals'] = [
+					'is_error' 			=> false,
+					'can_use_deal'   	=> 1,
+					'use_deal_message'	=> null,
+				];
+				$data['promo_code'] = [
+					'is_error' 			=> false,
+					'can_use_promo'   	=> 1,
+					'use_promo_message'	=> null,
+				];
+			}
+    		return $data;	
+		}
+		
+		$availableVoucher = $this->availableVoucherV2($user, $data, 'outlet-service', $data_2['id_outlet']??null);
+    	$sharedPromoTrx = TemporaryDataManager::create('promo_trx');
+    	$continueCheckOut = $data['continue_checkout'];
+
+    	$data['discount'] = 0;
+		$data['discount_delivery'] = 0;
+		$data['promo_deals'] = null;
+		$data['promo_code'] = null;
+		$data['available_voucher'] = $availableVoucher;
+		$data['continue_checkout'] = $continueCheckOut;
+		
+    	$scopeUser = $this->getScope();
+    	if ($scopeUser == 'web-apps') {
+    		return $data;
+    	}
+		
+    	$userPromo = UserPromo::where('id_user', $user['id'])->get()->keyBy('promo_type');
+
+    	if ($userPromo->isEmpty()) {
+			if($new_version){
+				$data['promo_deals'] = [
+					'is_error' 			=> false,
+					'can_use_deal'   	=> 1,
+					'use_deal_message'	=> null,
+				];
+				$data['promo_code'] = [
+					'is_error' 			=> false,
+					'can_use_promo'   	=> 1,
+					'use_promo_message'	=> null,
+				];
+			}
+    		return $data;
+    	}
+		
+		if($new_version){
+            if(!$availableVoucher){
+                $delete_user_promo = UserPromo::where('id_user', $user['id'])->where('promo_type', 'deals')->delete();
+                foreach($userPromo ?? [] as $key => $usPro){
+                    if($key=='deals'){
+                        $un_used = DealsUser::where('id_deals_user', $usPro['id_reference'])->update(['is_used'=>0]);
+                        if($new_version){
+                            $data['promo_deals'] = [
+                                'is_error' 			=> false,
+                                'can_use_deal'   	=> 1,
+                                'use_deal_message'	=> null,
+                            ];
+                            $data['promo_code'] = [
+                                'is_error' 			=> false,
+                                'can_use_promo'   	=> 1,
+                                'use_promo_message'	=> null,
+                            ];
+                        }
+                        return $data;
+                    }
+                }
+            }else{
+                $id_deals_used = null;
+                foreach($userPromo ?? [] as $key => $usPro){
+                    if($key=='deals'){
+                        $id_deals_used = $usPro['id_reference'];
+                    }
+                }
+                $id_voucher = [];
+                foreach($availableVoucher as $availVou){
+                    $id_voucher[] = $availVou['id_deals_user'];
+                }
+                if(!is_null($id_deals_used) && !in_array($id_deals_used,$id_voucher)){
+                    $delete_user_promo = UserPromo::where('id_user', $user['id'])->where('id_reference', $id_deals_used)->where('promo_type', 'deals')->delete();
+                    $un_used = DealsUser::where('id_deals_user', $id_deals_used)->update(['is_used'=>0]);
+                    if($new_version){
+                        $data['promo_deals'] = [
+                            'is_error' 			=> false,
+                            'can_use_deal'   	=> 1,
+                            'use_deal_message'	=> null,
+                        ];
+                        $data['promo_code'] = [
+                            'is_error' 			=> false,
+                            'can_use_promo'   	=> 1,
+                            'use_promo_message'	=> null,
+                        ];
+                    }
+                    return $data;
+                }
+            }
+        }
+
+    	$resDeals = null;
+    	$dealsType = null;
+		$dealsErr = [];
+		$dealsPayment = [];
+    	if (isset($userPromo['deals'])) {
+    		$dealsUser = $this->validateDeals($userPromo['deals']->id_reference);
+    		if ($dealsUser['status'] == 'fail') {
+    			$dealsErr = $dealsUser['messages'];
+    		} else {
+    			$deals = $dealsUser['result']->dealVoucher->deal;
+    			$sharedPromoTrx['deals'] = $deals;
+    			$sharedPromoTrx['deals']['id_deals_user'] = $dealsUser['result']->id_deals_user;
+    			$dealsPayment = DealsPaymentMethod::where('id_deals', $deals['id_deals'])->pluck('payment_method')->toArray();
+    			$dealsType = $deals->promo_type;
+    		}
+    	}
+
+    	$resPromoCode = null;
+    	$codeType = null;
+		$codeErr = [];
+		$codePayment = [];
+    	if (isset($userPromo['promo_campaign'])) {
+    		$promoCode = $this->validatePromoCodeV2($userPromo['promo_campaign']->id_reference,$user);
+    		if ($promoCode['status'] == 'fail') {
+    			$codeErr = $promoCode['messages'];
+    		} else {
+    			$promoCampaign = $promoCode['result']->promo_campaign;
+    			$sharedPromoTrx['promo_campaign'] = $promoCampaign;
+    			$sharedPromoTrx['promo_campaign']['promo_code'] = $promoCode['result']->promo_code;
+    			$sharedPromoTrx['promo_campaign']['id_promo_campaign_promo_code'] = $promoCode['result']->id_promo_campaign_promo_code;
+    			$codePayment = PromoCampaignPaymentMethod::where('id_promo_campaign', $promoCampaign['id_promo_campaign'])->pluck('payment_method')->toArray();
+    			$codeType = $promoCampaign->promo_type;
+    		}
+    	}
+
+    	if (!empty($dealsPayment) || !empty($codePayment)) {
+
+    		if (!empty($dealsPayment)) {
+    			$validPayment = [];
+    			foreach ($data['available_payment'] as $payment) {
+	    			if (!in_array($payment['payment_method'], $dealsPayment)) {
+	    				$payment['status'] = 0;
+	    				continue;
+	    			}
+	    			if (!empty($payment['status'])) {
+		    			$validPayment[] = $payment['payment_method'];
+	    			}
+	    		}
+	    		$dealsPayment = $validPayment;
+	    		if (empty($validPayment)) {
+	    			$dealsErr = 'Metode pembayaran tidak tersedia';
+	    		}
+    		}
+
+    		if (!empty($codePayment)) {
+    			$validPayment = [];
+    			foreach ($data['available_payment'] as $payment) {
+	    			if (!in_array($payment['payment_method'], $codePayment)) {
+	    				$payment['status'] = 0;
+	    				continue;
+	    			}
+	    			if (!empty($payment['status'])) {
+		    			$validPayment[] = $payment['payment_method'];
+	    			}
+	    		}
+	    		$codePayment = $validPayment;
+	    		if (empty($validPayment)) {
+	    			$codeErr = 'Metode pembayaran tidak tersedia';
+	    		}
+    		}
+
+    		if (!empty($dealsPayment) && !empty($codePayment)) {
+    			$promoPayment = array_intersect($dealsPayment, $codePayment);
+    			if (empty($promoPayment)) {
+    				$promoPayment = $dealsPayment;
+    				$codeErr = 'Kode promo tidak dapat digunakan bersamaan dengan voucher yang dipilih';
+    			}
+    		} else {
+    			$promoPayment = $dealsPayment ?: $codePayment;
+    		}
+
+    		foreach ($data['available_payment'] as &$payment) {
+    			if (!in_array($payment['payment_method'], $promoPayment)) {
+    				$payment['status'] = 0;
+    			}
+    		}
+    	}
+
+    	$applyOrder = ['deals', 'promo_campaign'];
+
+    	$rulePriority = [
+    		'Product discount' => 1,
+    		'Tier discount' => 1,
+    		// 'Buy X Get Y' => 1,
+    		'Discount bill' => 2,
+    		'Discount delivery' => 2
+    	];
+
+    	if (empty($dealsErr) && empty($codeErr) && isset($dealsType) && isset($codeType)) {
+    		if ($rulePriority[$codeType] < $rulePriority[$dealsType]) {
+    			$applyOrder = ['promo_campaign', 'deals'];
+    		}
+    	}
+		
+    	foreach ($applyOrder as $apply) {
+	    	if ($apply == 'deals' && isset($userPromo['deals'])) {
+	    		$this->createSharedPromoTrx($data);
+
+	    		if (empty($dealsErr)) {
+	    			$applyDeals = $this->applyDeals($userPromo['deals']->id_reference, $data);
+	    			$dealsErr = $applyDeals['messages'] ?? $dealsErr;
+	    		}
+
+				$resDeals = [
+					'id_deals_user' 	=> $userPromo['deals']->id_reference,
+					'title' 			=> $applyDeals['result']['title'] ?? null,
+					'discount' 			=> $applyDeals['result']['discount'] ?? 0,
+					'discount_delivery' => $applyDeals['result']['discount_delivery'] ?? 0,
+					'text' 				=> $applyDeals['result']['text'] ?? $dealsErr,
+					'is_error' 			=> $dealsErr ? true : false,
+				];
+				if($new_version){
+					$resDeals['can_use_deal'] = 1;
+					$resDeals['use_deal_message'] = null;
+					$resPromoCode = [
+						'is_error' 			=> false,
+						'can_use_promo'   	=> 0,
+						'use_promo_message' => 'Kode Promo tidak dapat digunakan bersamaan dengan Deals & Voucher',
+					];
+				}
+
+				if ($resDeals['is_error']) {
+					$continueCheckOut = false;
+				}
+				
+				$data = $this->reformatCheckout($data, $applyDeals['result'] ?? null);
+
+	    	} elseif ($apply == 'promo_campaign' && isset($userPromo['promo_campaign'])) {
+	    		$this->createSharedPromoTrx($data);
+				
+	    		if (empty($codeErr)) {
+		    		return $applyCode = $this->applyPromoCode($userPromo['promo_campaign']->id_reference, $data, 1);
+		    		$codeErr = $applyCode['messages'] ?? $codeErr;
+	    		}
+				
+				if($codeErr && isset($userPromo['promo_campaign']['id_reference'])){
+					$continueCheckOut = false;
+					$delete_user_promo_campaign = UserPromo::where('id_user', $user->id)->where('id_reference', $userPromo['promo_campaign']['id_reference'])->where('promo_type', 'promo_campaign')->delete();
+                    if($new_version){
+                        $data['promo_deals'] = [
+                            'is_error' 			=> false,
+                            'can_use_deal'   	=> 1,
+                            'use_deal_message'	=> null,
+                        ];
+                        $data['promo_code'] = [
+                            'is_error' 			=> false,
+                            'can_use_promo'   	=> 1,
+                            'use_promo_message'	=> null,
+                        ];
+                        return $data;
+                    }
+				}else{
+					$resPromoCode = [
+						'id_promo_campaign' => $sharedPromoTrx['promo_campaign']['id_promo_campaign'] ?? null,
+						'promo_code' 		=> $sharedPromoTrx['promo_campaign']['promo_code'] ?? null,
+						'title' 			=> $applyCode['result']['title'] ?? null,
+						'discount' 			=> $applyCode['result']['discount'] ?? 0,
+						'discount_delivery' => $applyCode['result']['discount_delivery'] ?? 0,
+						'text' 				=> $applyCode['result']['text'] ?? $codeErr,
+						'remove_text' 		=> 'Batalkan penggunaan <b>' . ($sharedPromoTrx['promo_campaign']['promo_title'] ?? null) . '</b>',
+						'promo_text'		=> 'Diskon <b>' . ('Rp '.number_format(($applyCode['result']['discount'] ?? 0),0,',','.')) . '</b> akan diterapkan pada nilai transaksi anda',
+						'is_error' 			=> false,
+					];
+					if($new_version){
+						$resPromoCode['can_use_promo'] = 1;
+						$resPromoCode['use_promo_message'] = null;
+						$resDeals = [
+							'is_error' 			=> false,
+							'can_use_deal'   	=> 0,
+							'use_deal_message'	=> $availableVoucher ? 'Deals & Voucher tidak dapat digunakan bersamaan dengan Kode Promo' : 'Anda tidak memiliki voucher yang dapat digunakan',
+						];
+					}
+				}
+
+				$data = $this->reformatCheckout($data, $applyCode['result'] ?? null);
+	    	}
+    	}
+		
+		$data['promo_deals'] = $resDeals;
+		$data['promo_code'] = $resPromoCode;
+		
+		if ($resDeals && (($new_version && $resDeals['can_use_deal']==1) || !$new_version)) {
+			foreach ($data['available_voucher'] as &$voucher) {
+				if ($resDeals['id_deals_user'] == $voucher['id_deals_user']) {
+					$voucher['text'] = $resDeals['text'];
+					$voucher['is_error'] = $resDeals['is_error'];
+				} else {
+					$voucher['text'] = null;
+					$voucher['is_error'] = false;
+				}
+			}
+		}
+        
+		$data['continue_checkout'] = $continueCheckOut;
+		return $data;
+    }
+
     public function reformatCheckout($dataTrx, $dataDiscount)
     {
     	if (empty($dataDiscount['discount']) && empty($dataDiscount['discount_delivery'])) {
@@ -742,12 +1249,16 @@ class ApiPromoTransaction extends Controller
     	return MyHelper::checkGet($dealsUser);
     }
 
-    public function applyPromoCode($id_code, $data = [])
+    public function applyPromoCode($id_code, $data = [], $app_order = 0)
     {
     	$sharedPromoTrx = TemporaryDataManager::create('promo_trx');
     	$promoCampaign = $sharedPromoTrx['promo_campaign'];
-
-    	$validateGlobalRules = $this->validateGlobalRules('promo_campaign', $promoCampaign, $data);
+		
+		if($app_order = 0){
+			$validateGlobalRules = $this->validateGlobalRules('promo_campaign', $promoCampaign, $data);
+		}else{
+			$validateGlobalRules = $this->validateGlobalRulesV2('promo_campaign', $promoCampaign, $data);
+		}
     	if ($validateGlobalRules['status'] == 'fail') {
     		return $validateGlobalRules;
     	}
@@ -871,7 +1382,157 @@ class ApiPromoTransaction extends Controller
     	return MyHelper::checkGet($promoCode);
     }
 
+	public function validatePromoCodeV2($id_code,$user)
+    {
+    	$promoCode = PromoCampaignPromoCode::find($id_code);
+    	if (!$promoCode) {
+    		return $this->failResponse('Kode promo tidak ditemukan');
+		}
+
+    	$promo = $promoCode->promo_campaign;
+		if (!$promo) {
+    		return $this->failResponse('Promo tidak ditemukan');
+		}
+
+		if (!$promo->step_complete || !$promo->user_type) {
+    		return $this->failResponse('Terdapat kesalahan pada promo');
+		}
+	
+		$pct = new PromoCampaignTools;
+		if ($promo->user_type == 'New user') {
+    		$check = Transaction::where('id_user', '=', $user['id'])
+    		->where('transaction_payment_status', 'Completed')
+    			->whereNull('reject_at')
+    			->first();
+    		if ($check) {
+    			return $this->failResponse('Promo hanya berlaku untuk pengguna baru');
+    		}
+    	} elseif ($promo->user_type == 'Specific user') {
+    		$validPhone = explode(',', $promo->specific_user);
+    		if (!in_array($user['phone'], $validPhone)) {
+    			return $this->failResponse('Promo tidak berlaku untuk akun Anda');
+    		}
+    	}
+
+        if ($promo->code_type == 'Single') {
+        	if ($promo->limitation_usage) {
+        		$usedCode = PromoCampaignReport::where('id_promo_campaign',$promo->id_promo_campaign)->where('id_user', $user['id'])->count();
+	        	if ($usedCode >= $promo->limitation_usage) {
+    				return $this->failResponse('Promo tidak tersedia');
+	        	}
+        	}
+
+        	// limit usage device
+        	/*if (PromoCampaignReport::where('id_promo_campaign',$promo->id_promo_campaign)->where('device_id',$device_id)->count()>=$promo->limitation_usage) {
+	        	$errors[]='Kuota device anda untuk penggunaan kode promo ini telah habis';
+	    		return false;
+        	}*/
+        } else {
+       		$used_by_other_user = PromoCampaignReport::where('id_promo_campaign',$promo->id_promo_campaign)
+       							->where('id_user', '!=', $user['id'])
+       							->where('id_promo_campaign_promo_code', $id_code)
+       							->first();
+
+       		if ($used_by_other_user) {
+    			return $this->failResponse('Promo tidak berlaku untuk akun Anda');
+       		}
+
+	       	$used_code = PromoCampaignReport::where('id_promo_campaign',$promo->id_promo_campaign)
+	       				->where('id_user',$user['id'])
+	       				->where('id_promo_campaign_promo_code', $id_code)
+	       				->count();
+
+        	if ($code_limit = $promo->code_limit) {
+        		if ($used_code >= $code_limit) {
+    				return $this->failResponse('Promo tidak tersedia');
+        		}
+        	}
+
+        	if ($promo->user_limit && !$used_code) {
+        		$used_diff_code = PromoCampaignReport::where('id_promo_campaign', $promo->id_promo_campaign)
+        						->where('id_user', $user['id'])
+        						->distinct()
+        						->count('id_promo_campaign_promo_code');
+
+        		if ($used_diff_code >= $promo->user_limit) {
+    				return $this->failResponse('Promo tidak tersedia');
+        		}
+        	}
+        }
+
+    	if ($promo['date_end'] < date('Y-m-d H:i:s')) {
+    		return $this->failResponse('Kode promo sudah melewati batas waktu penggunaan');
+    	}
+
+    	if (!empty($promo['date_start']) && $promo['date_start'] > date('Y-m-d H:i:s')) {
+    		$dateStart = MyHelper::adjustTimezone($promo['date_start'], null, 'l, d F Y H:i', true);
+    		return $this->failResponse('Kode promo mulai dapat digunakan pada ' . $dateStart);
+    	}
+
+    	return MyHelper::checkGet($promoCode);
+    }
+
     public function validateGlobalRules($promoSource, $promoQuery, $data)
+    {
+    	$promo = $promoQuery;
+    	$sharedPromoTrx = TemporaryDataManager::create('promo_trx');
+    	$promoName = $this->promoName($promoSource);
+		$pct = new PromoCampaignTools;
+
+    	$trxFrom = $this->serviceTrxToPromo(request()->transaction_from);
+    	$promoServices = $promo->{$promoSource . '_services'}->pluck('service')->toArray();
+    	if (!in_array($trxFrom, $promoServices)) {
+    		$promoServices = implode(', ', $promoServices);
+    		return $this->failResponse($promoName . ' hanya dapat digunakan untuk transaksi ' . $promoServices);
+    	}
+    	
+    	$ruleTrx = $this->ruleTrx($promo->promo_type);
+    	if (!in_array($trxFrom, $ruleTrx)) {
+    		return $this->failResponse($promoName . ' tidak dapat digunakan untuk jenis layanan ini');
+    	}
+
+    	switch ($trxFrom) {
+    		case 'Home Service':
+    			$id_outlet = Setting::where('key', 'default_outlet_home_service')->first()['value'] ?? null;
+    			break;
+
+			case 'Online Shop':
+				$id_outlet = Setting::where('key', 'default_outlet')->first()['value'] ?? null;
+    			break;
+    		
+    		default:
+    			$id_outlet = request()->id_outlet;
+    			break;
+    	}
+
+    	$sharedPromoTrx['id_outlet'] = $id_outlet;
+    	$promoBrand = $promo->{$promoSource . '_brands'}->pluck('id_brand')->toArray();
+    	$promoOutlet = $promo->{$promoSource . '_outlets'};
+		$outlet = $pct->checkOutletBrandRule($id_outlet, $promo->is_all_outlet ?? 0, $promoOutlet, $promoBrand, $promo->brand_rule, $promo->outlet_groups);
+		if (!$outlet) {
+    		return $this->failResponse($promoName . ' tidak dapat digunakan di outlet ini');
+		}
+
+		if (request()->shipment_method) {
+			$promoShipment = $promo->{$promoSource . '_shipment_method'}->pluck('shipment_method');
+			$checkShipment = $pct->checkShipmentRule($promo->is_all_shipment ?? 0, request()->shipment_method, $promoShipment);
+			if (!$checkShipment) {
+    			return $this->failResponse($promoName . ' tidak dapat digunakan untuk pengiriman ini');
+			}
+		}
+
+		if (request()->payment_detail) {
+			$promoPayment = $promo->{$promoSource . '_payment_method'}->pluck('payment_method');
+			$checkPayment = $pct->checkPaymentRule($promo->is_all_payment ?? 0, request()->payment_detail, $promoPayment);
+			if (!$checkPayment) {
+    			return $this->failResponse($promoName . ' tidak dapat digunakan untuk metode pembayaran ini');
+			}
+		}
+
+		return ['status' => 'success'];
+    }
+
+	public function validateGlobalRulesV2($promoSource, $promoQuery, $data)
     {
     	$promo = $promoQuery;
     	$sharedPromoTrx = TemporaryDataManager::create('promo_trx');

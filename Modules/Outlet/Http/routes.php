@@ -143,10 +143,23 @@ Route::group(['prefix' => 'api/outlet-display', 'middleware' => ['scopes:outlet-
     Route::post('/status', 'OutletDisplayController@status');
 });
 
-Route::group(['prefix' => 'api/pos-order/outlet-service', 'middleware' => ['scopes:pos-order', 'log_activities', 'auth_client', 'user_agent'], 'namespace' => 'Modules\Outlet\Http\Controllers'], function()
+Route::group(['prefix' => 'api/pos-order/outlet-service', 'middleware' => ['scopes:pos-order', 'log_activities', 'auth_client', 'user_agent']], function()
 {
-    Route::post('/home', 'ApiPosOrderController@home');
-    Route::post('/check', 'ApiPosOrderController@checkTransaction');
+    Route::group(['namespace' => 'Modules\Users\Http\Controllers'], function()
+    {
+        Route::post('phone/check', 'ApiUserV2@phoneCheck');
+        Route::post('pin/request', 'ApiUserV2@pinRequest');
+        Route::post('pin/check', 'ApiUser@checkPin')->middleware('decrypt_pin');
+        Route::post('pin/verify', 'ApiUser@verifyPin')->middleware('decrypt_pin');
+
+    });
+    Route::group(['namespace' => 'Modules\Outlet\Http\Controllers'], function()
+    {
+        Route::post('/home', 'ApiPosOrderController@home');
+        Route::post('/check', 'ApiPosOrderController@checkTransaction');
+
+    });
+
 });
 
 Route::group(['prefix' => 'api/pos-order/outlet-service', 'middleware' => ['scopes:pos-order', 'log_activities', 'auth:api', 'user_agent'], 'namespace' => 'Modules\Outlet\Http\Controllers'], function()

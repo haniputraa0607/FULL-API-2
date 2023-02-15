@@ -115,6 +115,8 @@ class ApiPosOrderController extends Controller
         
         $post = $request->json()->all();
         $outlet = $this->getOutlet($post['outlet_code']??null);
+        $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
+        ->where('id_outlet', $outlet['id_outlet'])->first();
 
         if(!$outlet){
             return [
@@ -198,6 +200,72 @@ class ApiPosOrderController extends Controller
                 'product_price' => (int)$val['product_price'],
                 'string_product_price' => 'Rp '.number_format((int)$val['product_price'],0,",","."),
                 'product_stock_status' => $stockStatus,
+                'photo' => (empty($val['photos'][0]['product_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$val['photos'][0]['product_photo'])
+            ];
+        }
+
+        $products = Product::select([
+            'products.id_product', 'products.product_name', 'products.product_code', 'products.product_description', 'product_variant_status',
+            DB::raw('(CASE
+                        WHEN (select outlets.outlet_different_price from outlets  where outlets.id_outlet = ' . $outlet['id_outlet'] . ' ) = 1 
+                        THEN (select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $outlet['id_outlet'] . ' )
+                        ELSE product_global_price.product_global_price
+                    END) as product_price'),
+            DB::raw('(select product_detail.product_detail_stock_item from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . ' order by id_product_detail desc limit 1) as product_stock_status')
+        ])
+            ->join('brand_product', 'brand_product.id_product', '=', 'products.id_product')
+            ->leftJoin('product_global_price', 'product_global_price.id_product', '=', 'products.id_product')
+            ->join('brand_outlet', 'brand_outlet.id_brand', '=', 'brand_product.id_brand')
+            ->where('brand_outlet.id_outlet', '=', $outlet['id_outlet'])
+            ->where('brand_product.id_brand', '=', $brand['id_brand'])
+            ->where('product_type', 'product')
+            ->whereRaw('products.id_product in (CASE
+                        WHEN (select product_detail.id_product from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . '  order by id_product_detail desc limit 1)
+                        is NULL AND products.product_visibility = "Visible" THEN products.id_product
+                        WHEN (select product_detail.id_product from product_detail  where (product_detail.product_detail_visibility = "" OR product_detail.product_detail_visibility is NULL) AND product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . '  order by id_product_detail desc limit 1)
+                        is NOT NULL AND products.product_visibility = "Visible" THEN products.id_product
+                        ELSE (select product_detail.id_product from product_detail  where product_detail.product_detail_visibility = "Visible" AND product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . '  order by id_product_detail desc limit 1)
+                    END)')
+            ->whereRaw('products.id_product in (CASE
+                        WHEN (select product_detail.id_product from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . ' order by id_product_detail desc limit 1)
+                        is NULL THEN products.id_product
+                        ELSE (select product_detail.id_product from product_detail  where product_detail.product_detail_status = "Active" AND product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . ' order by id_product_detail desc limit 1)
+                    END)')
+            ->where(function ($query) use ($outlet) {
+                $query->WhereRaw('(select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = ' . $outlet['id_outlet'] . '  order by id_product_special_price desc limit 1) is NOT NULL');
+                $query->orWhereRaw('(select product_global_price.product_global_price from product_global_price  where product_global_price.id_product = products.id_product order by id_product_global_price desc limit 1) is NOT NULL');
+            })
+            ->with(['photos'])
+            ->having('product_price', '>', 0)
+            ->groupBy('products.id_product')
+            ->orderByRaw('CASE WHEN products.position = 0 THEN 1 ELSE 0 END')
+            ->orderBy('products.position')
+            ->orderBy('products.id_product')
+            ->get()->toArray();
+
+        $resProducts = [];
+        foreach ($products as $val){
+            if ($val['product_variant_status'] && $val['product_stock_status'] == 'Available') {
+                $variantTree = Product::getVariantTree($val['id_product'], ['id_outlet' => $outlet['id_outlet'], 'outlet_different_price' => $outlet['outlet_different_price']]);
+                $val['product_price'] = ($variantTree['base_price']??false)?:$val['product_price'];
+            }
+
+            $stock = 'Available';
+            if($val['product_stock_status'] <= 0){
+                $stock = 'Sold Out';
+            }
+
+            $resProducts[] = [
+                'id_product' => $val['id_product'],
+                'id_brand' => $brand['id_brand'],
+                'product_type' => 'product',
+                'product_code' => $val['product_code'],
+                'product_name' => $val['product_name'],
+                'product_description' => $val['product_description'],
+                'product_price' => (int)$val['product_price'],
+                'string_product_price' => 'Rp '.number_format((int)$val['product_price'],0,",","."),
+                'product_stock_status' => $stock,
+                'qty_stock' => (int)$val['product_stock_status'],
                 'photo' => (empty($val['photos'][0]['product_photo']) ? config('url.storage_url_api').'img/product/item/default.png':config('url.storage_url_api').$val['photos'][0]['product_photo'])
             ];
         }
@@ -328,7 +396,8 @@ class ApiPosOrderController extends Controller
             
             $data = [
                 'outlet' => $outlet,
-                'product_service' => $resProdService,
+                'product_services' => $resProdService,
+                'products' => $resProducts,
                 'available_hs' => $res,
                 'current_cust' => $current,
                 'waiting' => $queue

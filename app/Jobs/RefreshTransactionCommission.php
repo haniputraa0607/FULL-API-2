@@ -10,6 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use App\Jobs\RefreshIncomeHS;
 
 class RefreshTransactionCommission implements ShouldQueue
 {
@@ -35,25 +36,18 @@ class RefreshTransactionCommission implements ShouldQueue
     {
         $start_date  = $this->data['start_date'];
         $end_date    = $this->data['end_date'];
-        // $transactions = Transaction::whereNotNull('id_outlet')
-        //     ->with('transaction_products')
-        //     ->whereNotNull('id_user')
-        //     ->whereDate('transaction_date', '>=', $start_date)
-        //     ->whereDate('transaction_date', '<=', $end_date)
-        //     ->get();
         Setting::where('key', 'Refresh Commission Transaction')->update(['value' => 'process']);
-        // foreach ($transactions ?? [] as $key => $val) {
-        //     $transaction_products = $val->transaction_products;
-        //     foreach ($transaction_products ?? [] as $key => $trx) {
-        //         $trx->breakdown();
-        //     }
-        // }
         $curDate = date('Y-m-d', strtotime($start_date));
         $lastDate = date('Y-m-d', strtotime($end_date));
         while ($curDate <= $lastDate && $curDate != date('Y-m-d')) {
             app('Modules\Transaction\Http\Controllers\ApiTransactionProductionController')->CronBreakdownCommission($curDate);
             $curDate = date('Y-m-d', strtotime($curDate . ' +1day'));
         }
+        $send = [
+            'start_date' => $start_date,
+            'end_date' => $end_date,
+        ];
+        RefreshIncomeHS::dispatch($send)->onConnection('refreshcommissionqueue');
         Setting::where('key', 'Refresh Commission Transaction')->update(['value' => 'finished']);
     }
 }

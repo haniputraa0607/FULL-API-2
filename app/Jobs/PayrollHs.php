@@ -47,7 +47,6 @@ class PayrollHs implements ShouldQueue
     {
         
         $datas = app('Modules\Recruitment\Http\Controllers\ApiExportIncome')->exportPayroll();
-        $log = MyHelper::logCron(json_encode($datas));
         return true;
 
     }

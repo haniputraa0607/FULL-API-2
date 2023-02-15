@@ -391,7 +391,7 @@ class ApiTransactionProductionController extends Controller
             }
             $tes = [];
             foreach($data ?? [] as $key_1 => $val){
-                if($key_1 == '12_26'){
+//                if($key_1 == '12_26'){
                     $dynamic = false;
                     $static = false;
                     $percent = false;
@@ -503,7 +503,7 @@ class ApiTransactionProductionController extends Controller
                         }
                     }
 
-                }
+//                }
             }
 
             if($fail){

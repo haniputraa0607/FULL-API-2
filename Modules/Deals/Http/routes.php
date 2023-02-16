@@ -30,6 +30,7 @@ Route::group(['prefix' => 'api/deals', 'namespace' => 'Modules\Deals\Http\Contro
 Route::group(['middleware' => ['auth:api', 'log_activities', 'scopes:apps'], 'prefix' => 'api/voucher', 'namespace' => 'Modules\Deals\Http\Controllers'], function () {
     Route::any('me', 'ApiDealsVoucher@myVoucher');
     Route::any('me/v2', 'ApiDealsVoucher@myVoucherV2');
+    Route::any('me/v3', 'ApiDealsVoucher@myVoucherV3');
     Route::any('cancel', 'ApiDealsVoucher@unuseVoucher');
     Route::any('status', 'ApiDealsVoucher@checkStatus');
 });

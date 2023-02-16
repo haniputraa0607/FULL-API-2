@@ -252,6 +252,65 @@ class ApiPromo extends Controller
 
     }
 
+	 public function usePromoV2($user, $source, $id_promo, $status='use', $query=null)
+    {
+		DB::beginTransaction();
+		// change is used flag to 0
+		$update = SubscriptionUser::where('id_user','=',$user['id'])->where('is_used','=',1)->update(['is_used' => 0]);
+		
+		if ($status == 'use')
+		{
+			$delete = UserPromo::where('id_user', $user['id'])->delete();
+			$update = DealsUser::where('id_user','=',$user['id'])->where('is_used','=',1)->update(['is_used' => 0]);
+			if ($source == 'deals')
+			{
+				// change specific deals user is used to 1
+				$update = DealsUser::where('id_user','=',$user['id'])->where('is_used','=',1)->update(['is_used' => 0]);
+				$update = DealsUser::where('id_deals_user','=',$id_promo)->update(['is_used' => 1]);
+			}
+			elseif($source == 'subscription')
+			{
+				$update = SubscriptionUser::where('id_subscription_user','=',$query['id_subscription_user'])->update(['is_used' => 1]);
+			}
+			$update = UserPromo::updateOrCreate(['id_user' => $user['id'], 'promo_type' => $source], ['id_reference' => $id_promo]);
+		}
+		else
+		{
+			if ($source == 'deals') {
+				$update = DealsUser::where('id_user','=',$user['id'])->where('is_used','=',1)->update(['is_used' => 0]);
+			}
+			$update = UserPromo::where('id_user', $user['id'])->where('promo_type', $source)->delete();
+		}
+
+		if ($update) {
+			DB::commit();
+		}else{
+			DB::rollback();
+		}
+
+		if (is_numeric($update)) {
+			$update = 1;
+		}
+		$update = MyHelper::checkUpdate($update);
+
+		$update['webview_url'] = "";
+		$update['webview_url_v2'] = "";
+		if ($source == 'deals')
+		{
+			$update['webview_url'] = config('url.api_url') ."api/webview/voucher/". $id_promo;
+			$update['webview_url_v2'] = config('url.api_url') ."api/webview/voucher/v2/". $id_promo;
+		}
+		elseif($source == 'subscription')
+		{
+			if ($id_promo) {
+				$update['webview_url'] = config('url.api_url') ."api/webview/mysubscription/". $id_promo;
+			}
+		}
+
+		return $update;
+
+    }
+
     public function cancelPromo(Request $request)
     {
     	$post = $request->json()->all();

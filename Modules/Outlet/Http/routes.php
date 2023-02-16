@@ -159,6 +159,18 @@ Route::group(['prefix' => 'api/pos-order/outlet-service', 'middleware' => ['scop
         Route::post('/check', 'ApiPosOrderController@checkTransaction');
 
     });
+    Route::group(['namespace' => 'Modules\PromoCampaign\Http\Controllers'], function()
+    {
+        Route::post('/list-promo', 'ApiPromoCampaign@onGoignPromoPosOrder');
+        Route::post('/use-promo', 'ApiPromoCampaign@usePromoPosOrder');
+        Route::post('/cancel-promo', 'ApiPromoCampaign@cancelPromoPosOrder');
+
+    });
+    Route::group(['namespace' => 'Modules\Transaction\Http\Controllers'], function()
+    {
+        Route::post('/available-payment', 'ApiOnlineTransaction@availablePayment');
+
+    });
 
 });
 

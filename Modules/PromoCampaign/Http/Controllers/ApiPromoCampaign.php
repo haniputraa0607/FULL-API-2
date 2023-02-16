@@ -118,6 +118,7 @@ class ApiPromoCampaign extends Controller
 		$this->balance       = "Modules\Balance\Http\Controllers\BalanceController";
         $this->promo_trx = "Modules\Transaction\Http\Controllers\ApiPromoTransaction";
         $this->subscript        	= "Modules\Subscription\Http\Controllers\ApiSubscription";
+        $this->pos_order        	= "Modules\Outlet\Http\Controllers\ApiPosOrderController";
     }
 
     public function index(Request $request)
@@ -3064,6 +3065,457 @@ class ApiPromoCampaign extends Controller
 		return $result;
     }
 
+	public function checkValidV2(ValidateCode $request)
+    {
+    	$id_user 		= isset($request->user->id) ? $request->user->id : $request->user()->id;
+        $phone 	 		= isset($request->user->phone) ? $request->user->phone : $request->user()->phone;
+        $device_id		= $request->device_id;
+        $device_type	= $request->device_type;
+        $id_outlet		= $request->id_outlet;
+        $ip 			= isset($request->ip) ?? $request->ip();
+    	$pct 			= new PromoCampaignTools();
+        $post           = $request->all();
+
+		if(isset($request->user)){
+			unset($request->user);
+		}
+		if(isset($request->ip)){
+			unset($request->ip);
+		}
+		
+        $service = [
+			'outlet-service' => 'Outlet Service',
+			'home-service' => 'Home Service',
+			'shop' => 'Online Shop',
+			'academy' => 'Academy',
+		];
+
+    	// get data
+        if ($request->promo_code && !$request->id_deals_user && !$request->id_subscription_user) 
+        {
+	        /* Check promo code*/
+	        $dataCheckPromoCode = [
+	            'id_user'    => $id_user,
+	            'device_id'  => $device_id,
+	            'promo_code' => $request->promo_code,
+	            'ip'         => $ip
+	        ];
+	        $checkFraud = app($this->fraud)->fraudCheckPromoCode($dataCheckPromoCode);
+	        if($checkFraud['status'] == 'fail'){
+	            return $checkFraud;
+	        }
+	        /* End check promo code */
+
+	        // get data promo code, promo campaign, outlet, rule, and product
+	        $code = PromoCampaignPromoCode::where('promo_code',$request->promo_code)
+	                ->join('promo_campaigns', 'promo_campaigns.id_promo_campaign', '=', 'promo_campaign_promo_codes.id_promo_campaign')
+	                ->where('step_complete', '=', 1)
+	                ->where( function($q){
+		            	$q->where(function($q2) {
+		            		$q2->where('code_type', 'Multiple')
+			            		->where(function($q3) {
+					            	$q3->whereColumn('usage','<','code_limit')
+					            		->orWhere('code_limit',0);
+			            		});
+
+		            	}) 
+		            	->orWhere(function($q2) {
+		            		$q2->where('code_type','Single')
+			            		->where(function($q3) {
+					            	$q3->whereColumn('total_coupon','>','used_code')
+					            		->orWhere('total_coupon',0);
+			            		});
+		            	});
+		            })
+	                ->with([
+						'promo_campaign.promo_campaign_outlets',
+						'promo_campaign.brand',
+						'promo_campaign.promo_campaign_product_discount.product' => function($q) {
+							$q->select('id_product', 'id_product_category', 'product_code', 'product_name');
+						},
+						'promo_campaign.promo_campaign_buyxgety_product_requirement.product' => function($q) {
+							$q->select('id_product', 'id_product_category', 'product_code', 'product_name');
+						},
+						'promo_campaign.promo_campaign_tier_discount_product.product' => function($q) {
+							$q->select('id_product', 'id_product_category', 'product_code', 'product_name');
+						},
+						'promo_campaign.promo_campaign_discount_bill_products.product' => function($q) {
+							$q->select('id_product', 'id_product_category', 'product_code', 'product_name');
+						},
+						'promo_campaign.promo_campaign_product_discount_rules',
+						'promo_campaign.promo_campaign_tier_discount_rules',
+						'promo_campaign.promo_campaign_buyxgety_rules',
+						'promo_campaign.promo_campaign_discount_bill_rules',
+						'promo_campaign.promo_campaign_discount_delivery_rules',
+						'promo_campaign.promo_campaign_payment_method',
+						'promo_campaign.promo_campaign_shipment_method'
+					]);
+            if (isset($post['id_outlet']) && is_numeric($post['id_outlet'])) {
+                $code = $code->leftJoin('promo_campaign_outlets', 'promo_campaigns.id_promo_campaign', 'promo_campaign_outlets.id_promo_campaign')
+                ->where(function($query) use ($post){
+                    $query->where('id_outlet', $post['id_outlet'])
+                            ->orWhere('promo_campaigns.is_all_outlet','=',1);
+                });
+            }
+            if(isset($post['transaction_from']) && is_string($post['transaction_from'])){
+                $code = $code->leftJoin('promo_campaign_services', 'promo_campaigns.id_promo_campaign', 'promo_campaign_services.id_promo_campaign')
+                ->where('promo_campaign_services.service', $service[$post['transaction_from']]);
+            }
+	        $code = $code->first();
+
+	        if(!$code){
+	            return [
+	                'status'=>'fail',
+	                'messages'=>['Promo tidak tersedia']
+	            ];
+	        }
+
+            if ($request->from && $request->from=='checkout') {
+                $error_item = [];
+                if($service[$post['transaction_from']] == 'Outlet Service'){
+                    $data = app( $this->voucher)->checkDealOutletServiceV2($post);
+                    $post = $data['post'];
+                    $error_item = $data['error_item'];
+
+                }elseif($service[$post['transaction_from']] == 'Home Service'){
+
+                    $data =  app( $this->voucher)->checkDealHomeService($post);
+                    $post = $data['post'];
+                    $error_item = $data['error_item'];
+    
+                }elseif($service[$post['transaction_from']] == 'Online Shop'){
+    
+                    $data =  app( $this->voucher)->checkDealShop($post,$request);
+                    $post = $data['post'];
+                    $error_item = $data['error_item'];
+    
+                }elseif($service[$post['transaction_from']] == 'Academy'){
+    
+                    $data =  app( $this->voucher)->checkDealAcademy($post);
+                    $post = $data['post'];
+                    $error_item = $data['error_item'];
+    
+                }
+                
+                if(!$error_item){
+                    $check_avail = $this->checkPromoAvail($code['promo_campaign'],$post);
+                    if($check_avail['status']=='fail'){
+                        return $check_avail;
+                    }
+                }else{
+                    return [
+                        'status' => 'fail',
+                        'messages' => $error_item,
+                    ];
+                }
+            }
+
+	        if ($code['promo_campaign']['date_start'] > date('Y-m-d H:i:s')) {
+	        	$date_start = MyHelper::dateFormatInd($code['promo_campaign']['date_start'], true, false).' pukul '.date('H:i', strtotime($code['promo_campaign']['date_start']));
+        		return [
+	                'status'=>'fail',
+	                'messages'=>['Promo berlaku pada '.$date_start]
+	            ];
+        	}
+
+	        if ($code['promo_campaign']['date_end'] < date('Y-m-d H:i:s')) {
+        		return [
+	                'status'=>'fail',
+	                'messages'=>['Promo telah berakhir']
+	            ];
+        	}
+
+	        if($code->promo_campaign->promo_type == 'Referral'){
+	            $referer = UserReferralCode::where('id_promo_campaign_promo_code',$code->id_promo_campaign_promo_code)
+	                ->join('users','users.id','=','user_referral_codes.id_user')
+	                ->where('users.is_suspended','=',0)
+	                ->first();
+	            if(!$referer){
+	                return [
+	                    'status'=>'fail',
+	                    'messages'=>['Kode promo tidak ditemukan']
+	                ];
+	            }
+	        }
+
+	    	$code = $code->toArray();
+
+        	// check user
+	        if(!$pct->validateUser($code['id_promo_campaign'], $id_user, $phone, $device_type, $device_id, $errors,$code['id_promo_campaign_promo_code'])){
+	            return [
+	                'status' => 'fail',
+	                'messages' => $errors ?? ['Promo tidak tersedia']
+	            ];
+	        }
+
+	    	$query = $code;
+	    	$id_brand = $query['id_brand'];
+	    	$source = 'promo_campaign';
+        }
+        elseif (!$request->promo_code && $request->id_deals_user && !$request->id_subscription_user) 
+        {
+        	$deals = DealsUser::where('id_deals_user', '=', $request->id_deals_user)
+        			->whereIn('paid_status', ['Free', 'Completed'])
+        			->whereNull('used_at')
+        			->with([  
+                        'dealVoucher.deals.outlets_active',
+                        'dealVoucher.deals.brand',
+                        'dealVoucher.deals.deals_product_discount.product' => function($q) {
+							$q->select('id_product', 'id_product_category', 'product_code', 'product_name');
+						}, 
+                        'dealVoucher.deals.deals_tier_discount_product.product' => function($q) {
+							$q->select('id_product', 'id_product_category', 'product_code', 'product_name');
+						}, 
+                        'dealVoucher.deals.deals_buyxgety_product_requirement.product' => function($q) {
+							$q->select('id_product', 'id_product_category', 'product_code', 'product_name');
+						}, 
+						'dealVoucher.deals.deals_discount_bill_products.product' => function($q) {
+							$q->select('id_product', 'id_product_category', 'product_code', 'product_name');
+						}, 
+                        'dealVoucher.deals.deals_product_discount_rules', 
+                        'dealVoucher.deals.deals_tier_discount_rules', 
+                        'dealVoucher.deals.deals_buyxgety_rules',
+                        'dealVoucher.deals.deals_discount_bill_rules', 
+						'dealVoucher.deals.deals_discount_delivery_rules',
+						'dealVoucher.deals.deals_payment_method',
+						'dealVoucher.deals.deals_shipment_method'
+                    ]);
+            if(isset($post['id_outlet']) && is_numeric($post['id_outlet'])){
+                $deals = $deals->join('deals_vouchers', 'deals_users.id_deals_voucher', 'deals_vouchers.id_deals_voucher')
+                    ->join('deals', 'deals.id_deals', 'deals_vouchers.id_deals')
+                    ->leftJoin('deals_outlets', 'deals.id_deals', 'deals_outlets.id_deals')
+                    ->where(function ($query) use ($post) {
+                        $query->where('deals_users.id_outlet', $post['id_outlet'])
+                            ->orWhere('deals_outlets.id_outlet', $post['id_outlet'])
+                            ->orWhere('deals.is_all_outlet','=',1);
+                    })
+                    ->select('deals_users.*')->distinct();
+            }
+            if(isset($post['transaction_from']) && is_string($post['transaction_from'])){
+                if(!MyHelper::isJoined($deals,'deals_vouchers')){
+                    $deals->leftJoin('deals_vouchers', 'deals_users.id_deals_voucher', 'deals_vouchers.id_deals_voucher');
+                }
+                if(!MyHelper::isJoined($deals,'deals')){
+                    $deals->leftJoin('deals', 'deals.id_deals', 'deals_vouchers.id_deals');
+                }
+                $deals = $deals->leftJoin('deals_services', 'deals.id_deals', 'deals_services.id_deals')
+                    ->where('deals_services.service', $service[$post['transaction_from']])
+                    ->select('deals_users.*')->distinct();
+            }
+        	$deals = $deals->first();
+			
+			if(!$deals){
+	            return [
+	                'status'=>'fail',
+	                'messages'=>['Voucher tidak tersedia']
+	            ];
+	        }
+
+            if ($request->from && $request->from=='checkout') {
+                $error_item = [];
+                if($service[$post['transaction_from']] == 'Outlet Service'){
+                    $data = app( $this->voucher)->checkDealOutletServiceV2($post);
+                    $post = $data['post'];
+                    $error_item = $data['error_item'];
+
+                }elseif($service[$post['transaction_from']] == 'Home Service'){
+
+                    $data =  app( $this->voucher)->checkDealHomeService($post);
+                    $post = $data['post'];
+                    $error_item = $data['error_item'];
+    
+                }elseif($service[$post['transaction_from']] == 'Online Shop'){
+    
+                    $data =  app( $this->voucher)->checkDealShop($post,$request);
+                    $post = $data['post'];
+                    $error_item = $data['error_item'];
+    
+                }elseif($service[$post['transaction_from']] == 'Academy'){
+    
+                    $data =  app( $this->voucher)->checkDealAcademy($post);
+                    $post = $data['post'];
+                    $error_item = $data['error_item'];
+    
+                }
+
+                if(!$error_item){
+                    $check_avail = app( $this->voucher)->checkVoucherAvail($deals['dealVoucher']['deals']['id_deals'],$post);
+                    if($check_avail['status']=='fail'){
+                        return $check_avail;
+                    }
+                }else{
+                    return [
+                        'status' => 'fail',
+                        'messages' => $error_item,
+                    ];
+                }
+            }
+
+	        if ($deals['voucher_expired_at'] < date('Y-m-d H:i:s')) {
+        		return [
+	                'status'=>'fail',
+	                'messages'=>['Batas waktu penggunaan voucer sudah berakhir']
+	            ];
+        	}
+
+        	if ($deals['voucher_active_at'] > date('Y-m-d H:i:s') && !empty($deals['voucher_active_at']) ) {
+        		$date_start = MyHelper::dateFormatInd($deals['voucher_active_at'], true, false).' pukul '.date('H:i', strtotime($deals['voucher_active_at']));
+        		return [
+	                'status'=>'fail',
+	                'messages'=>['Voucer mulai berlaku pada '.$date_start]
+	            ];
+        	}
+
+        	$deals = $deals->toArray();
+	    	$query = $deals['deal_voucher'];
+	    	$id_brand = $query['deals']['id_brand'];
+	    	$source = 'deals';
+        }
+        elseif (!$request->promo_code && !$request->id_deals_user && $request->id_subscription_user) 
+        {
+        	$subs = app($this->subscription)->checkSubscription($request->id_subscription_user, 'outlet', 'product', 'product_detail', null, null, 'brand', 'promo_rule');
+
+        	if(!$subs){
+	            return [
+	                'status'=>'fail',
+	                'messages'=>['Subscription tidak tersedia']
+	            ];
+	        }
+
+	        if ($subs['subscription_expired_at'] < date('Y-m-d H:i:s')) {
+        		return [
+	                'status'=>'fail',
+	                'messages'=>['Batas waktu penggunaan Subscription telah berakhir']
+	            ];
+        	}
+
+        	if ($subs['subscription_active_at'] > date('Y-m-d H:i:s') && !empty($subs['subscription_active_at']) ) {
+        		$date_start = MyHelper::dateFormatInd($subs['subscription_active_at'], true, false).' pukul '.date('H:i', strtotime($subs['subscription_active_at']));
+        		return [
+	                'status'=>'fail',
+	                'messages'=>['Subscription berlaku pada '.$date_start]
+	            ];
+        	}
+
+        	if ( $subs->subscription_user->subscription->daily_usage_limit ) {
+				$subs_voucher_today = SubscriptionUserVoucher::where('id_subscription_user', '=', $subs->id_subscription_user)
+										->whereDate('used_at', date('Y-m-d'))
+										->count();
+				if ( $subs_voucher_today >= $subs->subscription_user->subscription->daily_usage_limit ) {
+					return [
+		                'status'=>'fail',
+		                'messages'=>['Subscription telah mencapai limit penggunaan harian']
+		            ];
+				}
+	    	}
+        	$subs = $subs->toArray();
+	    	$query = $subs['subscription_user'];
+	    	$id_brand = $subs['subscription_user']['subscription']['id_brand'];
+	    	$source = 'subscription';
+
+        }
+        else
+        {
+        	return [
+                'status'=>'fail',
+                'messages'=>['Only Promo Code and Voucher']
+            ];
+        }
+        
+    	$getProduct = $this->getProduct($source,$query[$source]);
+
+    	$desc = $this->getPromoDescription($source, $query[$source], $getProduct['product']??'');
+
+        $errors=[];
+
+        // check outlet
+		if (isset($id_outlet)) {
+			if (!$pct->checkOutletRule($id_outlet, $query[$source]['is_all_outlet']??0,$query[$source][$source.'_outlets']??$query[$source]['outlets_active'], $id_brand??null)) {
+					return [
+	                'status'=>'fail',
+	                'messages'=>['Promo tidak berlaku di outlet ini']
+	            ];
+			}
+		}
+
+		$result['title'] 				= $query[$source]['promo_title']??$query[$source]['deals_title']??$query[$source]['subscription_title']??'';
+        $result['description']			= $desc;
+		$result['promo_code'] 			= $request->promo_code;
+		$result['id_deals_user'] 		= $request->id_deals_user;
+		$result['id_subscription_user']	= $request->id_subscription_user;
+
+		$result = MyHelper::checkGet($result);
+
+		// check item
+		if (!empty($request->item) && empty($request->from)) {
+        	$bearer = $request->header('Authorization');
+        
+	        if ($bearer == "") {
+	            return [
+	                'status'=>'fail',
+	                'messages'=>['Promo code not valid']
+	            ];
+	        }
+	        $post = $request->json()->all();
+	        $post['log_save'] = 1;
+	        $custom_request = new \Modules\Transaction\Http\Requests\CheckTransaction;
+			$custom_request = $custom_request
+							->setJson(new \Symfony\Component\HttpFoundation\ParameterBag($post))
+							->merge($post)
+							->setUserResolver(function () use ($request) {
+								return $request->user();
+							});
+			$trx =  app($this->online_transaction)->checkTransaction($custom_request);
+	        // $trx = MyHelper::postCURLWithBearer('api/transaction/check', $post, $bearer);
+	        
+	        foreach ($trx['result'] as $key => $value) {
+	        	$result['result'][$key] = $value;
+	        }
+	        $result['messages'] = $trx['messages'];
+	        $result['promo_error'] = $trx['promo_error'];
+        }
+
+        // save used promo
+        if ($source == 'deals') 
+        {
+        	$change_used_voucher = app($this->promo)->usePromo($source, $request->id_deals_user);
+        	if (($change_used_voucher['status']??false) == 'success') {
+	        	$result['result']['webview_url'] = $change_used_voucher['webview_url'];
+	        	$result['result']['webview_url_v2'] = $change_used_voucher['webview_url_v2'];
+        	}else{
+        		return [
+	                'status'=>'fail',
+	                'messages'=>['Something went wrong']
+	            ];
+        	}
+        }
+        elseif ($source == 'subscription') 
+        {
+        	$change_used_voucher = app($this->promo)->usePromo( $source, $subs['id_subscription_user_voucher'], 'use', $subs );
+
+        	if (($change_used_voucher['status']??false) == 'success') {
+	        	$result['result']['webview_url'] = $change_used_voucher['webview_url'];
+        	}else{
+        		return [
+	                'status'=>'fail',
+	                'messages'=>['Something went wrong']
+	            ];
+        	}
+        }
+        else
+        {
+        	$change_used_voucher = app($this->promo)->usePromo( $source, $query['id_promo_campaign_promo_code'] );
+        	if (!$change_used_voucher) {
+        		return [
+	                'status'=>'fail',
+	                'messages'=>['Something went wrong']
+	            ];
+        	}
+        }
+
+		return $result;
+    }
+
     public function getProduct($source, $query, $id_outlet=null)
     {
     	$default_product = $query['product_rule'] === 'and' ? 'semua produk tertentu' : 'produk tertentu';
@@ -4255,6 +4707,59 @@ class ApiPromoCampaign extends Controller
         ];
     }
 
+	public function onGoingPromoCampaignV2(Request $request){
+        $post = $request->all();
+        
+		if ($request->from && $request->from=='checkout') {
+			$user = $request->user();
+			return $ongoing_promo_checkout = $this->onGoingPromoCampaignCheckoutV2($post,$user,$request);
+		}
+
+		$now = date('Y-m-d H-i-s');
+        $home_text = Setting::whereIn('key',['share_promo_code'])->get()->keyBy('key');
+        $text['share'] = $home_text['share_promo_code']['value_text'] ?? 'Bagikan %promo_code% ke teman-teman'; //dummy
+
+        $promo_campaign = PromoCampaign::select('id_promo_campaign', 'promo_title', 'promo_image', 'date_start', 'date_end', 'code_type', 'promo_description')
+                ->where('date_end','>=',$now)
+                ->where('date_start','<=',$now)
+                ->whereHas('brands',function($query){
+                    $query->where('brand_active',1);
+                })
+                ->where('promo_campaign_visibility', 'Visible')
+                ->where('step_complete', 1)
+                ->OrderBy('id_promo_campaign', 'DESC');
+        
+        if(isset($post['page'])){
+            $promo_campaign = $promo_campaign->paginate($request->length ?: 10)->toArray();
+            $promo_map = $promo_campaign['data'];
+        }else{
+            $promo_campaign = $promo_campaign->get()->toArray();
+            $promo_map = $promo_campaign;
+        }
+
+        $promo_new = array_map(function($value)use($text){
+            $value['code'] = null;
+            $value['share_promo'] = null;
+            if($value['code_type'] == 'Single'){
+                $promo_code = PromoCampaignPromoCode::where('id_promo_campaign',$value['id_promo_campaign'])->select('promo_code')->first();
+                $value['code'] = $promo_code['promo_code'];
+                $value['share_promo'] = str_replace('%promo_code%',$value['code'],$text['share']);
+            }
+            return $value;
+        },$promo_map);
+
+        if(isset($post['page'])){
+            $promo_campaign['data'] = $promo_new;
+        }else{
+            $promo_campaign = $promo_new;
+        }
+
+        return [
+            'status' => 'success',
+            'result' => $promo_campaign
+        ];
+    }
+
     public function detailOnGoingPromoCampaign(Request $request){
         $post = $request->all();
 				$now = date('Y-m-d H-i-s');
@@ -4463,6 +4968,161 @@ class ApiPromoCampaign extends Controller
 		
 	}
 
+	public function onGoingPromoCampaignCheckoutV2($post,$user,$request){
+		$user = request()->user();
+		$home_text = Setting::whereIn('key',['share_promo_code'])->get()->keyBy('key');
+        $text['share'] = $home_text['share_promo_code']['value_text'] ?? 'Bagikan %promo_code% ke teman-teman'; //dummy
+		$promos = (new PromoCampaign)->newQuery();
+		$promos = $promos->join('promo_campaign_promo_codes','promo_campaign_promo_codes.id_promo_campaign','promo_campaigns.id_promo_campaign')
+		->where('date_end','>=',date('Y-m-d H-i-s'))->where('date_start','<=',date('Y-m-d H-i-s'))
+		->whereHas('brands',function($query){
+			$query->where('brand_active',1);
+		})
+		->where('promo_campaign_visibility', 'Visible')
+		->where('step_complete', 1);
+
+		if (isset($post['id_outlet']) && is_numeric($post['id_outlet'])) {
+			$promos->leftJoin('promo_campaign_outlets', 'promo_campaigns.id_promo_campaign', 'promo_campaign_outlets.id_promo_campaign')
+				->where(function($query) use ($post){
+					$query->where('id_outlet', $post['id_outlet'])
+							->orWhere('promo_campaigns.is_all_outlet','=',1);
+				})
+				->addSelect('promo_campaigns.*')->distinct();
+		}
+		$service = [
+			'outlet-service' => 'Outlet Service',
+			'home-service' => 'Home Service',
+			'shop' => 'Online Shop',
+			'academy' => 'Academy',
+		];
+		if(isset($post['transaction_from']) && is_string($post['transaction_from'])){
+			$promos->leftJoin('promo_campaign_services', 'promo_campaigns.id_promo_campaign', 'promo_campaign_services.id_promo_campaign')
+			->where('promo_campaign_services.service', $service[$post['transaction_from']])
+			->select('promo_campaigns.*')->distinct();
+		}
+		$promos = $promos->get()->toArray();
+
+		$new_promo = [];
+        $error_item = [];
+		foreach($promos ?? [] as $index => $promo){
+			
+			if($promo['total_coupon']!=0 && $promo['total_coupon']<=$promo['used_code']){
+				continue;
+			}
+
+			if($promo['code_type']=='Single'){
+
+				$usedCode = PromoCampaignReport::where('id_promo_campaign',$promo['id_promo_campaign'])->where('id_user', $user->id)->count();
+				
+				if($promo['limitation_usage']!=0 && $promo['limitation_usage']<=$usedCode){
+					continue;
+				}
+
+				$promo_code = PromoCampaignPromoCode::where('id_promo_campaign',$promo['id_promo_campaign'])->first();
+				if($promo_code){
+					$promo['promo_code'] = $promo_code['promo_code'];
+					$promo['id_promo_campaign_promo_code'] = $promo_code['id_promo_campaign_promo_code'];
+					$promo['share_promo'] = str_replace('%promo_code%',$promo_code['code'],$text['share']);
+				}
+
+			}else{
+
+				$usedCode = PromoCampaignReport::where('id_promo_campaign',$promo['id_promo_campaign'])->where('id_user', $user->id)->select('promo_campaign_reports.*',
+				DB::raw('
+					COUNT(id_promo_campaign_promo_code) AS count
+				'))->groupBy('id_promo_campaign_promo_code')->get()->keyBy('id_promo_campaign_promo_code');
+				if(count($usedCode)>0){
+					foreach($usedCode ?? [] as $key => $usecode){
+						$end = false;
+						if($promo['user_limit']!=0 && $promo['user_limit']<=count($usedCode)){
+							if($promo['code_limit']!=0 && $promo['code_limit']<=$usecode['count']){
+								$end = true;
+								continue;
+							}else{
+								$promo_code = PromoCampaignPromoCode::where('id_promo_campaign_promo_code',$usecode['id_promo_campaign_promo_code'])->first();
+								break;
+							}
+						}else{
+							if($promo['code_limit']!=0 && $promo['code_limit']<=$usecode['count']){
+								$promo_code = PromoCampaignPromoCode::where('id_promo_campaign',$promo['id_promo_campaign'])->where('usage',0)->first();
+							}else{
+								$promo_code = PromoCampaignPromoCode::where('id_promo_campaign_promo_code',$usecode['id_promo_campaign_promo_code'])->first();
+							}
+							break;
+						}
+					}
+					if($end){
+						continue;
+					}
+				}else{
+					$promo_code = PromoCampaignPromoCode::where('id_promo_campaign',$promo['id_promo_campaign'])->where('usage',0)->first();
+				}
+				
+				$used_by_other_user = PromoCampaignReport::where('id_promo_campaign',$promo['id_promo_campaign'])->where('id_user', '!=', $user->id)->where('id_promo_campaign_promo_code',$promo_code['id_promo_campaign_promo_code'])->first();
+				if($used_by_other_user){
+					continue;
+				}
+
+				$promo['promo_code'] = $promo_code['promo_code'];
+				$promo['id_promo_campaign_promo_code'] = $promo_code['id_promo_campaign_promo_code'];
+				$promo['share_promo'] = str_replace('%promo_code%',$promo_code['code'],$text['share']);
+			}
+
+			if($service[$post['transaction_from']] == 'Outlet Service'){
+
+                $data = app( $this->voucher)->checkDealOutletServiceV2($post);
+                $post = $data['post'];
+                $error_item = $data['error_item'];
+
+            }elseif($service[$post['transaction_from']] == 'Home Service'){
+
+                $data = app( $this->voucher)->checkDealHomeService($post);
+                $post = $data['post'];
+                $error_item = $data['error_item'];
+
+            }elseif($service[$post['transaction_from']] == 'Online Shop'){
+
+                $data = app( $this->voucher)->checkDealShop($post,$request);
+                $post = $data['post'];
+                $error_item = $data['error_item'];
+
+                
+            }elseif($service[$post['transaction_from']] == 'Academy'){
+
+                $data = app( $this->voucher)->checkDealAcademy($post);
+                $post = $data['post'];
+                $error_item = $data['error_item'];
+
+            }
+            
+			if(!$error_item){
+				$check_avail = $this->checkPromoAvail($promo,$post);
+				if($check_avail['status']=='success'){
+					
+					$new_promo[] = [
+						'id_promo_campaign'=> $promo['id_promo_campaign']??null,
+						'promo_title'=>$promo['promo_title']??'',
+						'promo_description'=>$promo['promo_description'],
+						'id_promo_campaign_promo_code' => $promo['id_promo_campaign_promo_code'],
+						'promo_code' => $promo['promo_code'],
+					];
+				}
+			}
+		}
+		
+		$result['data'] = !$error_item ? $new_promo : [];
+		$result['current_page'] = 1;
+        $result['from'] = 1;
+        $result['last_page'] = 1;
+        $result['path'] = request()->url();
+        $result['per_page'] = count($result['data']);
+        $result['to'] = count($result['data']);
+        $result['total'] = count($result['data']);
+		
+        return response()->json(app($this->subscript)->checkGet($result, $resultMessage??''));
+		
+	}
+
 	public function checkPromoAvail($promo_campaign_ori,$data){
     	$sharedPromoTrx = TemporaryDataManager::create('promo_trx');
         $promo_campaign = PromoCampaign::find($promo_campaign_ori['id_promo_campaign']);
@@ -4495,6 +5155,402 @@ class ApiPromoCampaign extends Controller
 		
 	    app($this->promo_trx)->createSharedPromoTrx($data);
         return $applyDeals = app($this->promo_trx)->applyPromoCode($promo_campaign_ori['id_promo_campaign'], $data);
+    }
+
+	public function onGoignPromoPosOrder(Request $request){
+        $post = $request->all();
+
+		$user = User::with('memberships')->where('phone',$post['phone'])->first();
+		$home_text = Setting::whereIn('key',['share_promo_code'])->get()->keyBy('key');
+        $text['share'] = $home_text['share_promo_code']['value_text'] ?? 'Bagikan %promo_code% ke teman-teman'; //dummy
+		$outlet = app($this->pos_order)->getOutlet($post['outlet_code']??null);
+		if(!$outlet){
+            return [
+    			'status' => 'fail',
+    			'title' => 'Outlet Code Salah',
+    			'messages' => ['Tidak dapat mendapat data outlet.']
+    		];
+        } 
+		$post['id_outlet'] = $outlet['id_outlet'];
+
+		$promos = (new PromoCampaign)->newQuery();
+		$promos = $promos->join('promo_campaign_promo_codes','promo_campaign_promo_codes.id_promo_campaign','promo_campaigns.id_promo_campaign')
+		->where('date_end','>=',date('Y-m-d H-i-s'))->where('date_start','<=',date('Y-m-d H-i-s'))
+		->whereHas('brands',function($query){
+			$query->where('brand_active',1);
+		})
+		->where('promo_campaign_visibility', 'Visible')
+		->where('step_complete', 1);
+
+		if (isset($outlet['id_outlet']) && is_numeric($outlet['id_outlet'])) {
+			$promos->leftJoin('promo_campaign_outlets', 'promo_campaigns.id_promo_campaign', 'promo_campaign_outlets.id_promo_campaign')
+				->where(function($query) use ($outlet){
+					$query->where('id_outlet', $outlet['id_outlet'])
+							->orWhere('promo_campaigns.is_all_outlet','=',1);
+				})
+				->addSelect('promo_campaigns.*')->distinct();
+		}
+		$service = [
+			'outlet-service' => 'Outlet Service',
+			'home-service' => 'Home Service',
+			'shop' => 'Online Shop',
+			'academy' => 'Academy',
+		];
+		$promos->leftJoin('promo_campaign_services', 'promo_campaigns.id_promo_campaign', 'promo_campaign_services.id_promo_campaign')
+		->where('promo_campaign_services.service', 'Outlet Service')
+		->select('promo_campaigns.*')->distinct();
+		
+		$promos = $promos->get()->toArray();
+
+		$new_promo = [];
+        $error_item = [];
+		foreach($promos ?? [] as $index => $promo){
+			
+			if($promo['total_coupon']!=0 && $promo['total_coupon']<=$promo['used_code']){
+				continue;
+			}
+
+			if($promo['code_type']=='Single'){
+
+				$usedCode = PromoCampaignReport::where('id_promo_campaign',$promo['id_promo_campaign'])->where('id_user', $user['id'])->count();
+				
+				if($promo['limitation_usage']!=0 && $promo['limitation_usage']<=$usedCode){
+					continue;
+				}
+
+				$promo_code = PromoCampaignPromoCode::where('id_promo_campaign',$promo['id_promo_campaign'])->first();
+				if($promo_code){
+					$promo['promo_code'] = $promo_code['promo_code'];
+					$promo['id_promo_campaign_promo_code'] = $promo_code['id_promo_campaign_promo_code'];
+					$promo['share_promo'] = str_replace('%promo_code%',$promo_code['code'],$text['share']);
+				}
+
+			}else{
+
+				$usedCode = PromoCampaignReport::where('id_promo_campaign',$promo['id_promo_campaign'])->where('id_user', $user['id'])->select('promo_campaign_reports.*',
+				DB::raw('
+					COUNT(id_promo_campaign_promo_code) AS count
+				'))->groupBy('id_promo_campaign_promo_code')->get()->keyBy('id_promo_campaign_promo_code');
+				if(count($usedCode)>0){
+					foreach($usedCode ?? [] as $key => $usecode){
+						$end = false;
+						if($promo['user_limit']!=0 && $promo['user_limit']<=count($usedCode)){
+							if($promo['code_limit']!=0 && $promo['code_limit']<=$usecode['count']){
+								$end = true;
+								continue;
+							}else{
+								$promo_code = PromoCampaignPromoCode::where('id_promo_campaign_promo_code',$usecode['id_promo_campaign_promo_code'])->first();
+								break;
+							}
+						}else{
+							if($promo['code_limit']!=0 && $promo['code_limit']<=$usecode['count']){
+								$promo_code = PromoCampaignPromoCode::where('id_promo_campaign',$promo['id_promo_campaign'])->where('usage',0)->first();
+							}else{
+								$promo_code = PromoCampaignPromoCode::where('id_promo_campaign_promo_code',$usecode['id_promo_campaign_promo_code'])->first();
+							}
+							break;
+						}
+					}
+					if($end){
+						continue;
+					}
+				}else{
+					$promo_code = PromoCampaignPromoCode::where('id_promo_campaign',$promo['id_promo_campaign'])->where('usage',0)->first();
+				}
+				
+				$used_by_other_user = PromoCampaignReport::where('id_promo_campaign',$promo['id_promo_campaign'])->where('id_user', '!=', $user['id'])->where('id_promo_campaign_promo_code',$promo_code['id_promo_campaign_promo_code'])->first();
+				if($used_by_other_user){
+					continue;
+				}
+
+				$promo['promo_code'] = $promo_code['promo_code'];
+				$promo['id_promo_campaign_promo_code'] = $promo_code['id_promo_campaign_promo_code'];
+				$promo['share_promo'] = str_replace('%promo_code%',$promo_code['code'],$text['share']);
+			}
+			
+			$data = app( $this->voucher)->checkDealOutletServiceV3($post,$user);
+			$post = $data['post'];
+			$error_item = $data['error_item'];
+            
+			if(!$error_item){
+				$check_avail = $this->checkPromoAvail($promo,$post);
+				if($check_avail['status']=='success'){
+					
+					$new_promo[] = [
+						'id_promo_campaign'=> $promo['id_promo_campaign']??null,
+						'promo_title'=>$promo['promo_title']??'',
+						'promo_description'=>$promo['promo_description'],
+						'id_promo_campaign_promo_code' => $promo['id_promo_campaign_promo_code'],
+						'promo_code' => $promo['promo_code'],
+					];
+				}
+			}
+		}
+
+		$result = !$error_item ? $new_promo : [];
+		
+        return response()->json(app($this->subscript)->checkGet($result, $resultMessage??''));
+	}
+
+	public function usePromoPosOrder(Request $request)
+    {
+		$post = $request->json()->all();
+
+		if(!empty($post['phone']) || isset($post['phone'])){
+            $user = User::with('memberships')->where('phone',$post['phone'])->first();
+			if(!$user){
+				return [
+					'status'=>'fail',
+					'messages'=>['User not found']
+				];
+			}
+		}else{
+			return [
+				'status'=>'fail',
+				'messages'=>['Phone number cant be empty']
+			];
+		}
+    	$id_user 		= $user['id'];
+        $phone 	 		= $user['phone'];
+
+		$outlet = app($this->pos_order)->getOutlet($post['outlet_code']??null);
+		if(!$outlet){
+            return [
+    			'status' => 'fail',
+    			'title' => 'Outlet Code Salah',
+    			'messages' => ['Tidak dapat mendapat data outlet.']
+    		];
+        } 
+        $id_outlet		= $outlet['id_outlet'];
+		$post['id_outlet'] = $outlet['id_outlet'];
+        $ip 			= isset($request->ip) ?? $request->ip();
+    	$pct 			= new PromoCampaignTools();
+
+    	// get data
+        if (isset($post['promo_code'])) 
+        {
+	        /* Check promo code*/
+	        $dataCheckPromoCode = [
+	            'id_user'    => $id_user,
+	            'device_id'  => null,
+	            'promo_code' => $post['promo_code'],
+	            'ip'         => $ip
+	        ];
+	        $checkFraud = app($this->fraud)->fraudCheckPromoCode($dataCheckPromoCode);
+	        if($checkFraud['status'] == 'fail'){
+	            return $checkFraud;
+	        }
+	        /* End check promo code */
+
+	        // get data promo code, promo campaign, outlet, rule, and product
+	        $code = PromoCampaignPromoCode::where('promo_code',$post['promo_code'])
+	                ->join('promo_campaigns', 'promo_campaigns.id_promo_campaign', '=', 'promo_campaign_promo_codes.id_promo_campaign')
+	                ->where('step_complete', '=', 1)
+	                ->where( function($q){
+		            	$q->where(function($q2) {
+		            		$q2->where('code_type', 'Multiple')
+			            		->where(function($q3) {
+					            	$q3->whereColumn('usage','<','code_limit')
+					            		->orWhere('code_limit',0);
+			            		});
+
+		            	}) 
+		            	->orWhere(function($q2) {
+		            		$q2->where('code_type','Single')
+			            		->where(function($q3) {
+					            	$q3->whereColumn('total_coupon','>','used_code')
+					            		->orWhere('total_coupon',0);
+			            		});
+		            	});
+		            })
+	                ->with([
+						'promo_campaign.promo_campaign_outlets',
+						'promo_campaign.brand',
+						'promo_campaign.promo_campaign_product_discount.product' => function($q) {
+							$q->select('id_product', 'id_product_category', 'product_code', 'product_name');
+						},
+						'promo_campaign.promo_campaign_buyxgety_product_requirement.product' => function($q) {
+							$q->select('id_product', 'id_product_category', 'product_code', 'product_name');
+						},
+						'promo_campaign.promo_campaign_tier_discount_product.product' => function($q) {
+							$q->select('id_product', 'id_product_category', 'product_code', 'product_name');
+						},
+						'promo_campaign.promo_campaign_discount_bill_products.product' => function($q) {
+							$q->select('id_product', 'id_product_category', 'product_code', 'product_name');
+						},
+						'promo_campaign.promo_campaign_product_discount_rules',
+						'promo_campaign.promo_campaign_tier_discount_rules',
+						'promo_campaign.promo_campaign_buyxgety_rules',
+						'promo_campaign.promo_campaign_discount_bill_rules',
+						'promo_campaign.promo_campaign_discount_delivery_rules',
+						'promo_campaign.promo_campaign_payment_method',
+						'promo_campaign.promo_campaign_shipment_method'
+					]);
+            if (isset($post['outlet_code']) && is_numeric($post['outlet_code'])) {
+                $code = $code->leftJoin('promo_campaign_outlets', 'promo_campaigns.id_promo_campaign', 'promo_campaign_outlets.id_promo_campaign')
+                ->where(function($query) use ($outlet){
+                    $query->where('id_outlet', $outlet['id_outlet'])
+                            ->orWhere('promo_campaigns.is_all_outlet','=',1);
+                });
+            }
+			$code = $code->leftJoin('promo_campaign_services', 'promo_campaigns.id_promo_campaign', 'promo_campaign_services.id_promo_campaign')
+			->where('promo_campaign_services.service', 'Outlet Service');
+	        $code = $code->first();
+
+	        if(!$code){
+	            return [
+	                'status'=>'fail',
+	                'messages'=>['Promo tidak tersedia']
+	            ];
+	        }
+
+			$error_item = [];
+			$data = app( $this->voucher)->checkDealOutletServiceV3($post, $user);
+			$post = $data['post'];
+			$error_item = $data['error_item'];
+			
+			
+			if(!$error_item){
+				$check_avail = $this->checkPromoAvail($code['promo_campaign'],$post);
+				if($check_avail['status']=='fail'){
+					return $check_avail;
+				}
+			}else{
+				return [
+					'status' => 'fail',
+					'messages' => $error_item,
+				];
+			}
+
+	        if ($code['promo_campaign']['date_start'] > date('Y-m-d H:i:s')) {
+	        	$date_start = MyHelper::dateFormatInd($code['promo_campaign']['date_start'], true, false).' pukul '.date('H:i', strtotime($code['promo_campaign']['date_start']));
+        		return [
+	                'status'=>'fail',
+	                'messages'=>['Promo berlaku pada '.$date_start]
+	            ];
+        	}
+
+	        if ($code['promo_campaign']['date_end'] < date('Y-m-d H:i:s')) {
+        		return [
+	                'status'=>'fail',
+	                'messages'=>['Promo telah berakhir']
+	            ];
+        	}
+
+	        if($code->promo_campaign->promo_type == 'Referral'){
+	            $referer = UserReferralCode::where('id_promo_campaign_promo_code',$code->id_promo_campaign_promo_code)
+	                ->join('users','users.id','=','user_referral_codes.id_user')
+	                ->where('users.is_suspended','=',0)
+	                ->first();
+	            if(!$referer){
+	                return [
+	                    'status'=>'fail',
+	                    'messages'=>['Kode promo tidak ditemukan']
+	                ];
+	            }
+	        }
+
+	    	$code = $code->toArray();
+
+        	// check user
+	        if(!$pct->validateUserPosOrder($code['id_promo_campaign'], $id_user, $phone, $errors,$code['id_promo_campaign_promo_code'])){
+	            return [
+	                'status' => 'fail',
+	                'messages' => $errors ?? ['Promo tidak tersedia']
+	            ];
+	        }
+			
+	    	$query = $code;
+	    	$id_brand = $query['id_brand'];
+	    	$source = 'promo_campaign';
+        }
+        else
+        {
+        	return [
+                'status'=>'fail',
+                'messages'=>['Promo Code cant be empty']
+            ];
+        }
+        
+    	$getProduct = $this->getProduct($source,$query[$source]);
+
+    	$desc = $this->getPromoDescription($source, $query[$source], $getProduct['product']??'');
+
+        $errors=[];
+
+        // check outlet
+		if (isset($id_outlet)) {
+			if (!$pct->checkOutletRule($id_outlet, $query[$source]['is_all_outlet']??0,$query[$source][$source.'_outlets']??$query[$source]['outlets_active'], $id_brand??null)) {
+					return [
+	                'status'=>'fail',
+	                'messages'=>['Promo tidak berlaku di outlet ini']
+	            ];
+			}
+		}
+
+		$result['title'] 				= $query[$source]['promo_title']??$query[$source]['deals_title']??$query[$source]['subscription_title']??'';
+        $result['description']			= $desc;
+		$result['promo_code'] 			= $request->promo_code;
+		$result['id_deals_user'] 		= $request->id_deals_user;
+		$result['id_subscription_user']	= $request->id_subscription_user;
+
+		$result = MyHelper::checkGet($result);
+
+        // save used promo
+        if ($source == 'promo_campaign') 
+        {
+        	$change_used_voucher = app($this->promo)->usePromoV2($user, $source, $query['id_promo_campaign_promo_code'] );
+        	if (!$change_used_voucher) {
+        		return [
+	                'status'=>'fail',
+	                'messages'=>['Something went wrong']
+	            ];
+        	}
+        }
+
+		return $result;
+    }
+
+	public function cancelPromoPosOrder(Request $request)
+    {
+    	$post = $request->json()->all();
+
+		if(!empty($post['phone']) || isset($post['phone'])){
+            $user = User::with('memberships')->where('phone',$post['phone'])->first();
+			if(!$user){
+				return [
+					'status'=>'fail',
+					'messages'=>['User not found']
+				];
+			}
+		}else{
+			return [
+				'status'=>'fail',
+				'messages'=>['Phone number cant be empty']
+			];
+		}
+
+		$outlet = app($this->pos_order)->getOutlet($post['outlet_code']??null);
+		if(!$outlet){
+            return [
+    			'status' => 'fail',
+    			'title' => 'Outlet Code Salah',
+    			'messages' => ['Tidak dapat mendapat data outlet.']
+    		];
+        } 
+
+    	$source = 'promo_campaign';
+
+    	$cancel = app($this->promo)->usePromoV2($user, $source, $post['id_deals_user']??$post['id_subscription_user']??$post['id_promo_campaign']??'', 'cancel');
+
+    	if ($cancel) {
+    		return response()->json($cancel);
+    	}else{
+    		return response()->json([
+    			'status' => 'fail',
+    			'messages' => 'Failed to update promo'
+    		]);
+    	}
     }
 
 }

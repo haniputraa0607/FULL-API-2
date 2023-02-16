@@ -2854,7 +2854,8 @@ class ApiProductController extends Controller
                 'name' => "$val[fullname] ($val[nickname])",
                 'nickname' => $val['nickname'],
                 'shift_time' => date('H:i', strtotime($shift['time_start'])).' - '.date('H:i', strtotime($shift['time_end'])),
-                'photo' => (empty($val['user_hair_stylist_photo']) ? config('url.storage_url_api').'img/product/item/default.png':$val['user_hair_stylist_photo']),
+                'photo' => (empty($val['user_hair_stylist_photo']) ? null:$val['user_hair_stylist_photo']),
+                'gender' => $val['gender'] ?? 'Male',
                 'rating' => $val['total_rating'],
                 'available_status' => $availableStatus,
                 'order' => ($availableStatus ? $val['id_user_hair_stylist']:1000)

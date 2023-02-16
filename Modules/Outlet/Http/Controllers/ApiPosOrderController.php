@@ -742,7 +742,7 @@ class ApiPosOrderController extends Controller
         
         if($result['customer']){
             $result['points'] = (int) $balance??0;
-            return $result = app($this->promo_trx)->applyPromoCheckoutV2($result,$post, $user??[]);
+            $result = app($this->promo_trx)->applyPromoCheckoutV2($result,$post, $user??[]);
         }else{
             $result['points'] = 0;
             $result['promo_deals'] = [

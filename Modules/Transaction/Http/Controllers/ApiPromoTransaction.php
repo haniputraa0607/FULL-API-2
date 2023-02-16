@@ -439,11 +439,11 @@ class ApiPromoTransaction extends Controller
         }
 
         $new_result_data = [];
-
+		
         if($new_version){
             $sharedPromoTrx = TemporaryDataManager::create('promo_trx');
             foreach($result ?? [] as $key => $data_voucher){
-                $check_avail = app($this->voucher)->checkVoucherAvail($data_voucher['id_deals'],$data);
+                $check_avail = app($this->voucher)->checkVoucherAvail($data_voucher['id_deals'],$data, 1);
                 if($check_avail['status']=='success'){
                     if(isset($data_voucher['id_deals_voucher']) && isset($data_voucher['id_deals_user'])){
                         $data_voucher['type_deals'] = 'voucher';
@@ -942,7 +942,7 @@ class ApiPromoTransaction extends Controller
 		$dealsErr = [];
 		$dealsPayment = [];
     	if (isset($userPromo['deals'])) {
-    		$dealsUser = $this->validateDeals($userPromo['deals']->id_reference);
+    		$dealsUser = $this->validateDealsV2($userPromo['deals']->id_reference,$user);
     		if ($dealsUser['status'] == 'fail') {
     			$dealsErr = $dealsUser['messages'];
     		} else {
@@ -1046,7 +1046,7 @@ class ApiPromoTransaction extends Controller
 	    		$this->createSharedPromoTrx($data);
 
 	    		if (empty($dealsErr)) {
-	    			$applyDeals = $this->applyDeals($userPromo['deals']->id_reference, $data);
+	    			$applyDeals = $this->applyDeals($userPromo['deals']->id_reference, $data, 1);
 	    			$dealsErr = $applyDeals['messages'] ?? $dealsErr;
 	    		}
 
@@ -1072,13 +1072,13 @@ class ApiPromoTransaction extends Controller
 					$continueCheckOut = false;
 				}
 				
-				$data = $this->reformatCheckout($data, $applyDeals['result'] ?? null);
+				$data = $this->reformatCheckoutV2($data, $applyDeals['result'] ?? null, $user);
 
 	    	} elseif ($apply == 'promo_campaign' && isset($userPromo['promo_campaign'])) {
 	    		$this->createSharedPromoTrx($data);
 				
 	    		if (empty($codeErr)) {
-		    		return $applyCode = $this->applyPromoCode($userPromo['promo_campaign']->id_reference, $data, 1);
+		    		$applyCode = $this->applyPromoCode($userPromo['promo_campaign']->id_reference, $data, 1);
 		    		$codeErr = $applyCode['messages'] ?? $codeErr;
 	    		}
 				
@@ -1121,7 +1121,7 @@ class ApiPromoTransaction extends Controller
 					}
 				}
 
-				$data = $this->reformatCheckout($data, $applyCode['result'] ?? null);
+				$data = $this->reformatCheckoutV2($data, $applyCode['result'] ?? null, $user);
 	    	}
     	}
 		
@@ -1185,12 +1185,57 @@ class ApiPromoTransaction extends Controller
     	return $dataTrx;
     }
 
-    public function applyDeals($id_deals_user, $data = [])
+	public function reformatCheckoutV2($dataTrx, $dataDiscount, $user)
+    {
+    	if (empty($dataDiscount['discount']) && empty($dataDiscount['discount_delivery'])) {
+    		return $dataTrx;
+    	}
+
+    	$promoCashback = ($dataDiscount['promo_source'] == 'deals') ? 'voucher_online' : 'promo_code';
+    	$discount = (int) abs($dataDiscount['discount'] ?? 0) ?: ($dataDiscount['discount_delivery'] ?? 0);
+    	$sharedPromo = TemporaryDataManager::create('promo_trx');
+		$outlet = Outlet::find($sharedPromo['id_outlet']);
+
+		$dataTrx['subtotal'] = $sharedPromo['subtotal'];
+
+		$dataTrx['discount'] = ($dataTrx['discount'] ?? 0) + ($dataDiscount['discount'] ?? 0);
+		$sharedPromo['subtotal_promo'] = $dataTrx['subtotal'] - $dataTrx['discount'];
+
+		$dataTrx['discount_delivery'] = ($dataTrx['discount_delivery'] ?? 0) + ($dataDiscount['discount_delivery'] ?? 0);
+		$sharedPromo['shipping_promo'] = $sharedPromo['shipping'] - $dataTrx['discount_delivery'];
+
+		// if ($outlet['is_tax']) {
+		// 	$tax = 0;
+		// 	foreach ($sharedPromo['items'] as $item) {
+		// 		$tax += (($item['new_price'] ?? $item['product_price']) * $outlet['is_tax'] / (100 + $outlet['is_tax'])) * ($item['qty'] ?? 1);
+		// 	}
+		// 	$dataTrx['tax'] = $tax;
+		// }
+
+		$dataTrx['grandtotal'] =  (int) $sharedPromo['subtotal_promo'] 
+								+ (int) $sharedPromo['service'] 
+								+ (int) $sharedPromo['shipping_promo'];
+
+		$dataTrx['total_payment'] = $dataTrx['grandtotal'] - ($dataTrx['used_point'] ?? 0);
+        $dataTrx['tax'] = (int) ($dataTrx['grandtotal'] * ($outlet['is_tax'] ?? 0) / (100 + ($outlet['is_tax'] ?? 0)));
+		$promoGetPoint = app($this->online_trx)->checkPromoGetPoint($promoCashback);
+        if (!$promoGetPoint) {
+			$dataTrx['cashback'] = 0;
+        }
+
+    	return $dataTrx;
+    }
+
+    public function applyDeals($id_deals_user, $data = [], $app_order = 0)
     {
     	$sharedPromoTrx = TemporaryDataManager::create('promo_trx');
     	$deals = $sharedPromoTrx['deals'];
 
-    	$validateGlobalRules = $this->validateGlobalRules('deals', $deals, $data);
+		if($app_order == 0){
+    		$validateGlobalRules = $this->validateGlobalRules('deals', $deals, $data);
+		}else{
+			$validateGlobalRules = $this->validateGlobalRulesV2('deals', $deals, $data);
+		}
     	if ($validateGlobalRules['status'] == 'fail') {
     		return $validateGlobalRules;
     	}
@@ -1230,6 +1275,33 @@ class ApiPromoTransaction extends Controller
     	}
 
     	if ($dealsUser['id_user'] != request()->user()->id) {
+    		return $this->failResponse('Voucher tidak tersedia');
+    	}
+
+    	if ($dealsUser['used_at']) {
+    		return $this->failResponse('Voucher sudah pernah digunakan');
+    	}
+
+    	if ($dealsUser['voucher_expired_at'] < date('Y-m-d H:i:s')) {
+    		return $this->failResponse('Voucher sudah melewati batas waktu penggunaan');
+    	}
+
+    	if (!empty($dealsUser['voucher_active_at']) && $dealsUser['voucher_active_at'] > date('Y-m-d H:i:s')) {
+    		$dateStart = MyHelper::adjustTimezone($dealsUser['voucher_active_at'], null, 'l, d F Y H:i', true);
+    		return $this->failResponse('Voucher mulai dapat digunakan pada ' . $dateStart);
+    	}
+
+    	return MyHelper::checkGet($dealsUser);
+    }
+
+	public function validateDealsV2($id_deals_user,$user)
+    {
+    	$dealsUser = DealsUser::find($id_deals_user);
+    	if (!$dealsUser) {
+    		return $this->failResponse('Voucher tidak ditemukan');
+    	}
+
+    	if ($dealsUser['id_user'] != $user['id']) {
     		return $this->failResponse('Voucher tidak tersedia');
     	}
 
@@ -1539,13 +1611,13 @@ class ApiPromoTransaction extends Controller
     	$promoName = $this->promoName($promoSource);
 		$pct = new PromoCampaignTools;
 
-    	$trxFrom = $this->serviceTrxToPromo(request()->transaction_from);
+    	$trxFrom = 'Outlet Service';
     	$promoServices = $promo->{$promoSource . '_services'}->pluck('service')->toArray();
     	if (!in_array($trxFrom, $promoServices)) {
     		$promoServices = implode(', ', $promoServices);
     		return $this->failResponse($promoName . ' hanya dapat digunakan untuk transaksi ' . $promoServices);
     	}
-    	
+		
     	$ruleTrx = $this->ruleTrx($promo->promo_type);
     	if (!in_array($trxFrom, $ruleTrx)) {
     		return $this->failResponse($promoName . ' tidak dapat digunakan untuk jenis layanan ini');
@@ -1561,7 +1633,7 @@ class ApiPromoTransaction extends Controller
     			break;
     		
     		default:
-    			$id_outlet = request()->id_outlet;
+    			$id_outlet = $data['outlet']['id_outlet'];
     			break;
     	}
 
@@ -1573,21 +1645,21 @@ class ApiPromoTransaction extends Controller
     		return $this->failResponse($promoName . ' tidak dapat digunakan di outlet ini');
 		}
 
-		if (request()->shipment_method) {
-			$promoShipment = $promo->{$promoSource . '_shipment_method'}->pluck('shipment_method');
-			$checkShipment = $pct->checkShipmentRule($promo->is_all_shipment ?? 0, request()->shipment_method, $promoShipment);
-			if (!$checkShipment) {
-    			return $this->failResponse($promoName . ' tidak dapat digunakan untuk pengiriman ini');
-			}
-		}
+		// if (request()->shipment_method) {
+		// 	$promoShipment = $promo->{$promoSource . '_shipment_method'}->pluck('shipment_method');
+		// 	$checkShipment = $pct->checkShipmentRule($promo->is_all_shipment ?? 0, request()->shipment_method, $promoShipment);
+		// 	if (!$checkShipment) {
+    	// 		return $this->failResponse($promoName . ' tidak dapat digunakan untuk pengiriman ini');
+		// 	}
+		// }
 
-		if (request()->payment_detail) {
-			$promoPayment = $promo->{$promoSource . '_payment_method'}->pluck('payment_method');
-			$checkPayment = $pct->checkPaymentRule($promo->is_all_payment ?? 0, request()->payment_detail, $promoPayment);
-			if (!$checkPayment) {
-    			return $this->failResponse($promoName . ' tidak dapat digunakan untuk metode pembayaran ini');
-			}
-		}
+		// if (request()->payment_detail) {
+		// 	$promoPayment = $promo->{$promoSource . '_payment_method'}->pluck('payment_method');
+		// 	$checkPayment = $pct->checkPaymentRule($promo->is_all_payment ?? 0, request()->payment_detail, $promoPayment);
+		// 	if (!$checkPayment) {
+    	// 		return $this->failResponse($promoName . ' tidak dapat digunakan untuk metode pembayaran ini');
+		// 	}
+		// }
 
 		return ['status' => 'success'];
     }

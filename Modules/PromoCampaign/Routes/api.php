@@ -52,6 +52,7 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'scopes:be'], 'pref
 // APPS
 Route::group(['middleware' => ['auth:api', 'log_activities', 'scopes:apps'], 'prefix' => 'promo-campaign'], function () {
     Route::post('check-validation', 'ApiPromoCampaign@checkValid');
+    Route::post('check-validationV2', 'ApiPromoCampaign@checkValidV2');
     Route::post('check-used-promo', 'ApiPromo@checkUsedPromo');
     Route::any('cancel', 'ApiPromo@cancelPromo');
 });
@@ -60,6 +61,7 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'scopes:apps'], 'pr
 Route::group(['middleware' => ['auth:api', 'log_activities', 'scopes:apps'], 'prefix' => 'promo-campaign'], function () {
     Route::post('validate', 'ApiPromoCampaign@validateCode');
     Route::post('list-ongoing', 'ApiPromoCampaign@onGoingPromoCampaign');
+    Route::post('list-ongoingV2', 'ApiPromoCampaign@onGoingPromoCampaignV2');
     Route::post('list-ongoing/detail', 'ApiPromoCampaign@detailOnGoingPromoCampaign');
 });
 

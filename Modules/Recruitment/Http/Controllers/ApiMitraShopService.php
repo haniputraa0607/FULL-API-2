@@ -148,7 +148,14 @@ class ApiMitraShopService extends Controller
 		if (empty($trxProducts) || $trxProducts->isEmpty()) {
 			return ['status' => 'fail', 'messages' => ['Barang tidak ditemukan']];
 		}
-
+		$trxProducts = TransactionProduct::where('id_transaction', $trx->id_transaction)
+						->where('type', 'Product')
+						->whereNull('id_user_hair_stylist')
+						->get();
+	
+		if (empty($trxProducts) || $trxProducts->isEmpty()) {
+			return ['status' => 'fail', 'messages' => ['Barang sudah diambil']];
+		}
     	DB::beginTransaction();
     	foreach ($trxProducts as $product) {
     		$product->update([
@@ -163,11 +170,11 @@ class ApiMitraShopService extends Controller
 					$product->save();
 					$dt = [
 						'id_user_hair_stylist'    => $user->id_user_hair_stylist,
-						'balance'                 => $product['transaction_product_price'],
+						'balance'                 => $product['transaction_product_subtotal'],
 						'id_reference'            => $product['id_transaction_product'],
 						'source'                  => 'Receive Payment'
 					];
-					app($this->mitra_log_balance)->insertLogBalance($dt,'transaction_products');
+					$app = app($this->mitra_log_balance)->insertLogBalance($dt,'transaction_products');
 				}
 			}
 		}

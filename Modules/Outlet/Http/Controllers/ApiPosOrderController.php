@@ -510,6 +510,8 @@ class ApiPosOrderController extends Controller
         
         $post['discount'] = -$post['discount'];
         $subtotal = 0;
+        $items = [];
+        $post['item'] = app($this->online_trx)->mergeProducts($post['item']);
         $grandTotal = app($this->setting_trx)->grandTotal();
         
         foreach ($grandTotal as $keyTotal => $valueTotal) {
@@ -570,7 +572,7 @@ class ApiPosOrderController extends Controller
                 $post[$valueTotal] = app($this->setting_trx)->countTransaction($valueTotal, $post);
             }
         }
-        
+
         $subtotalProduct = 0;
         foreach ($discount_promo['item']??$post['item'] as &$item) {
             // get detail product

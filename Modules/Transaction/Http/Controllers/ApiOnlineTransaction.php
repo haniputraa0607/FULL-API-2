@@ -2017,7 +2017,6 @@ class ApiOnlineTransaction extends Controller
 
         if(!empty($insertTransaction['id_transaction']) && $insertTransaction['transaction_grandtotal'] == 0){
             $trx = Transaction::where('id_transaction', $insertTransaction['id_transaction'])->first();
-            $this->bookHS($trx['id_transaction']);
             $this->bookProductStock($trx['id_transaction']);
             optional($trx)->recalculateTaxandMDR();
             $trx->triggerPaymentCompleted();
@@ -2658,7 +2657,7 @@ class ApiOnlineTransaction extends Controller
         $totalItem = 0;
         $totalDisProduct = 0;
         if(!empty($post['item_service'])){
-            $itemServices = $this->checkServiceProductV2($post, $outlet);
+            return $itemServices = $this->checkServiceProductV2($post, $outlet);
             $result['item_service'] = $itemServices['item_service']??[];
             $post['item_service'] = $itemServices['item_service']??[];
             $totalItem = $totalItem + $itemServices['total_item_service']??0;
@@ -3618,7 +3617,7 @@ class ApiOnlineTransaction extends Controller
         $timeZone = (empty($outlet['province_time_zone_utc']) ? 7:$outlet['province_time_zone_utc']);
         $diffTimeZone = $timeZone - 7;
         $date = date('Y-m-d H:i:s');
-        $currentDate = date('Y-m-d H:i', strtotime("+".$diffTimeZone." hour", strtotime($date)));
+        $currentDate = date('Y-m-d', strtotime("+".$diffTimeZone." hour", strtotime($date)));
 
         $day = [
             'Mon' => 'Senin',
@@ -3695,9 +3694,9 @@ class ApiOnlineTransaction extends Controller
                 // $service['product_price'] = $service['product_price'] - $service['product_tax'];
             }
 
-            // $bookTime = date('Y-m-d H:i', strtotime(date('Y-m-d', strtotime($item['booking_date'])).' '.date('H:i', strtotime($item['booking_time']))));
+            $bookTime = date('Y-m-d', strtotime(date('Y-m-d', strtotime($item['booking_date']))));
             
-            //check available hs
+            // check available hs
             // $hs = UserHairStylist::where('id_user_hair_stylist', $item['id_user_hair_stylist'])->where('user_hair_stylist_status', 'Active')->first();
             // if(empty($hs)){
             //     $errorHsNotAvailable[] = $item['user_hair_stylist_name']." (".MyHelper::dateFormatInd($bookTime).')';
@@ -3711,13 +3710,13 @@ class ApiOnlineTransaction extends Controller
             //     unset($post['item_service'][$key]);
             //     continue;
             // }
-            // if(strtotime($currentDate) > strtotime($bookTime)){
-            //     $errorBookTime[] = $item['user_hair_stylist_name']." (".MyHelper::dateFormatInd($bookTime).')';
-            //     unset($post['item_service'][$key]);
-            //     continue;
-            // }
+            if(strtotime($currentDate) > strtotime($bookTime)){
+                $errorBookTime[] = $item['product_name']." (".MyHelper::dateFormatInd($bookTime,1,0).')';
+                unset($post['item_service'][$key]);
+                continue;
+            }
 
-            //get hs schedule
+            // get hs schedule
             // $shift = HairstylistScheduleDate::leftJoin('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
             //         ->whereNotNull('approve_at')->where('id_user_hair_stylist', $item['id_user_hair_stylist'])
             //         ->whereDate('date', date('Y-m-d', strtotime($item['booking_date'])))
@@ -3792,9 +3791,9 @@ class ApiOnlineTransaction extends Controller
         //     $error_msg[] = 'Hair stylist '.implode(',', array_unique($errorHsNotAvailable)). ' tidak tersedia dan akan terhapus dari cart.';
         // }
 
-        // if(!empty($errorBookTime)){
-        //     $error_msg[] = 'Waktu pemesanan untuk hair stylist '.implode(',', array_unique($errorBookTime)). ' telah kadaluarsa.';
-        // }
+        if(!empty($errorBookTime)){
+            $error_msg[] = 'Waktu pemesanan untuk '.implode(',', array_unique($errorBookTime)). ' telah kadaluarsa.';
+        }
 
         return [
             'total_item_service' => count($mergeService),

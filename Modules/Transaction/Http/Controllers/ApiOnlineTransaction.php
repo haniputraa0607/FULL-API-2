@@ -2949,7 +2949,6 @@ class ApiOnlineTransaction extends Controller
         $result['payment_detail'] = [];
         $fake_request = new Request(['show_all' => 1]);
         $result['available_payment'] = $this->availablePayment($fake_request)['result'] ?? [];
-
         $result = app($this->promo_trx)->applyPromoCheckout($result,$post);
 
         if ($result['cashback']) {
@@ -4289,14 +4288,14 @@ class ApiOnlineTransaction extends Controller
     public function availablePayment(Request $request)
     {
         $availablePayment = config('payment_method');
-
+        
         $setting  = json_decode(MyHelper::setting('active_payment_methods', 'value_text', '[]'), true) ?? [];
         $payments = [];
         
         if(isset($request->pos_order) && !empty($request->pos_order) && $request->pos_order == 1){
             $config = [
                 'credit_card_payment_gateway' => MyHelper::setting('credit_card_payment_gateway', 'value', 'Ipay88'),
-                'platform' => 'native'
+                'platform' => 'webapps'
             ];
         }else{
             $config = [

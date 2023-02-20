@@ -41,6 +41,7 @@ use Modules\Recruitment\Entities\HairstylistAttendanceLog;
 use Modules\Transaction\Entities\HairstylistNotAvailable;
 use Modules\Transaction\Entities\TransactionProductService;
 use Modules\Transaction\Entities\TransactionProductServiceLog;
+use App\Http\Models\TransactionSetting;
 
 use App\Imports\ExcelImport;
 use App\Imports\FirstSheetOnlyImport;
@@ -495,6 +496,7 @@ class ApiPosOrderController extends Controller
             $post['tax'] = 0;
         }
 
+        $post['transaction_from'] = 'outlet-service';
         $result['item_service'] = [];
         $totalItem = 0;
         $totalDisProduct = 0;
@@ -572,6 +574,88 @@ class ApiPosOrderController extends Controller
         }
         
         $subtotalProduct = 0;
+        foreach ($discount_promo['item']??$post['item'] as &$item) {
+            // get detail product
+            $product = Product::select([
+                    'products.id_product','products.product_name','products.product_code','products.product_description',
+                    DB::raw('(CASE
+                            WHEN (select outlets.outlet_different_price from outlets  where outlets.id_outlet = '.$post['id_outlet'].' ) = 1 
+                            THEN (select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = '.$post['id_outlet'].' )
+                            ELSE product_global_price.product_global_price
+                        END) as product_price'),
+                    DB::raw('(select product_detail.product_detail_stock_item from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = ' . $outlet['id_outlet'] . ' order by id_product_detail desc limit 1) as product_stock_status'),
+                    'brand_product.id_brand', 'products.product_variant_status'
+                ])
+                ->join('brand_product','brand_product.id_product','=','products.id_product')
+                ->leftJoin('product_global_price','product_global_price.id_product','=','products.id_product')
+                ->where('brand_outlet.id_outlet','=',$post['id_outlet'])
+                ->join('brand_outlet','brand_outlet.id_brand','=','brand_product.id_brand')
+                ->whereRaw('products.id_product in (CASE
+                        WHEN (select product_detail.id_product from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = '.$post['id_outlet'].' )
+                        is NULL AND products.product_visibility = "Visible" THEN products.id_product
+                        WHEN (select product_detail.id_product from product_detail  where (product_detail.product_detail_visibility = "" OR product_detail.product_detail_visibility IS NULL) AND product_detail.id_product = products.id_product AND product_detail.id_outlet = '.$post['id_outlet'].' )
+                        is NOT NULL AND products.product_visibility = "Visible" THEN products.id_product
+                        ELSE (select product_detail.id_product from product_detail  where product_detail.product_detail_visibility = "Visible" AND product_detail.id_product = products.id_product AND product_detail.id_outlet = '.$post['id_outlet'].' )
+                    END)')
+                ->whereRaw('products.id_product in (CASE
+                        WHEN (select product_detail.id_product from product_detail  where product_detail.id_product = products.id_product AND product_detail.id_outlet = '.$post['id_outlet'].' )
+                        is NULL THEN products.id_product
+                        ELSE (select product_detail.id_product from product_detail  where product_detail.product_detail_status = "Active" AND product_detail.id_product = products.id_product AND product_detail.id_outlet = '.$post['id_outlet'].' )
+                    END)')
+                ->where(function ($query) use ($post){
+                    $query->orWhereRaw('(select product_special_price.product_special_price from product_special_price  where product_special_price.id_product = products.id_product AND product_special_price.id_outlet = '.$post['id_outlet'].' ) is NOT NULL');
+                    $query->orWhereRaw('(select product_global_price.product_global_price from product_global_price  where product_global_price.id_product = products.id_product) is NOT NULL');
+                })
+                ->with([
+                    'photos' => function($query){
+                        $query->select('id_product','product_photo');
+                    },
+                    'product_promo_categories' => function($query){
+                        $query->select('product_promo_categories.id_product_promo_category','product_promo_category_name as product_category_name','product_promo_category_order as product_category_order');
+                    },
+                ])
+            ->having('product_price','>',0)
+            ->groupBy('products.id_product')
+            ->orderBy('products.position')
+            ->find($item['id_product']);
+            $product->append('photo');
+            $product = $product->toArray();
+
+            if($product['product_variant_status'] && !empty($item['id_product_variant_group'])){
+                $product['product_stock_status'] = ProductVariantGroupDetail::where('id_product_variant_group', $item['id_product_variant_group'])
+                        ->where('id_outlet', $outlet['id_outlet'])
+                        ->first()['product_variant_group_detail_stock_item']??0;
+            }
+
+            if($item['qty'] > $product['product_stock_status']){
+                $error_msg[] = MyHelper::simpleReplace(
+                    'Produk %product_name% tidak tersedia',
+                    [
+                        'product_name' => $product['product_name']
+                    ]
+                );
+                continue;
+            }
+            unset($product['photos']);
+            $product['id_custom'] = $item['id_custom']??null;
+            $product['qty'] = $item['qty'];
+
+            $product['product_price_total'] = $item['transaction_product_subtotal'];
+            $product['product_price_raw'] = (int) $product['product_price'];
+            $product['product_price_raw_total'] = (int) $product['product_price'];
+            $product['qty_stock'] = (int)$product['product_stock_status'];
+            $product['product_price'] = (int) $product['product_price'];
+            $subtotalProduct = $subtotalProduct + $item['transaction_product_subtotal'];
+
+            //calculate total item
+            $totalItem += $product['qty'];
+            if(!empty($product['product_stock_status'])){
+                $product['product_stock_status'] = 'Available';
+            }else{
+                $product['product_stock_status'] = 'Sold Out';
+            }
+            $items[] = $product;
+        }
 
         $result['outlet'] = [
             'id_outlet' => $outlet['id_outlet'],
@@ -582,20 +666,62 @@ class ApiPosOrderController extends Controller
             'today' => $outlet['today']
         ];
         
-        if(!empty($post['id_user']) || isset($post['id_user'])){
-            $user = User::where('id',$post['id_user'])->first();
+        if(!empty($post['phone']) || isset($post['phone'])){
+            $user = User::with('memberships')->where('phone',$post['phone'])->first();
             $result['customer'] = [
-                "name" => $post['customer']['name']??"",
-                "phone" => $post['customer']['phone']??"",
+                "name" => $user['name']??"",
+                "phone" => $user['phone']??"",
             ];
+            
+            $cashBack = app($this->setting_trx)->countTransaction('cashback', $post);
+            $countUserTrx = Transaction::where('id_user', $user['id'])->where('transaction_payment_status', 'Completed')->count();
+            $countSettingCashback = TransactionSetting::get();
+
+            if ($countUserTrx < count($countSettingCashback)) {
+                $cashBack = $cashBack * $countSettingCashback[$countUserTrx]['cashback_percent'] / 100;
+
+                if ($cashBack > $countSettingCashback[$countUserTrx]['cashback_maximum']) {
+                    $cashBack = $countSettingCashback[$countUserTrx]['cashback_maximum'];
+                }
+            } else {
+
+                $maxCash = Setting::where('key', 'cashback_maximum')->first();
+
+                if (count($user['memberships']) > 0) {
+                    $cashBack = $cashBack * ($user['memberships'][0]['benefit_cashback_multiplier']) / 100;
+
+                    if($user['memberships'][0]['cashback_maximum']){
+                        $maxCash['value'] = $user['memberships'][0]['cashback_maximum'];
+                    }
+                }
+
+                $statusCashMax = 'no';
+
+                if (!empty($maxCash) && !empty($maxCash['value'])) {
+                    $statusCashMax = 'yes';
+                    $totalCashMax = $maxCash['value'];
+                }
+
+                if ($statusCashMax == 'yes') {
+                    if ($totalCashMax < $cashBack) {
+                        $cashBack = $totalCashMax;
+                    }
+                } else {
+                    $cashBack = $cashBack;
+                }
+            }
+            
+            $balance = app($this->balance)->balanceNow($user['id']);
         }else{
             $result['customer'] = [];
         }
+        $result['item'] = $items;
 
         $result['subtotal_product_service'] = $itemServices['subtotal_service']??0;
-        $post['subtotal'] = $result['subtotal_product_service'];
+        $result['subtotal_product'] = $subtotalProduct;
+        $post['subtotal'] = $result['subtotal_product_service'] + $result['subtotal_product'];
 
-        $result['subtotal'] = $result['subtotal_product_service'];
+        $result['subtotal'] = $result['subtotal_product_service'] + $result['subtotal_product'];
         $result['shipping'] = $post['shipping']+$shippingGoSend;
         $result['discount'] = $post['discount'];
         $result['discount_delivery'] = $post['discount_delivery'];
@@ -605,7 +731,7 @@ class ApiPosOrderController extends Controller
         $result['tax'] = (int) ($result['grandtotal'] * ($outlet['is_tax'] ?? 0) / (100 + ($outlet['is_tax'] ?? 0)));
         $result['subscription'] = 0;
         $result['used_point'] = 0;
-
+        
         $result['total_payment'] = $result['grandtotal'] - $result['used_point'];
         $result['discount'] = (int) $result['discount'];
         $result['continue_checkout'] = true;
@@ -617,10 +743,10 @@ class ApiPosOrderController extends Controller
         $result['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
         
         if($result['customer']){
-            $balance = app($this->balance)->balanceNow($result['customer']->id);
-            $result['points'] = (int) $balance;
-            $result = app($this->promo_trx)->applyPromoCheckout($result,$post);
+            $result['points'] = (int) $balance??0;
+            $result = app($this->promo_trx)->applyPromoCheckoutV2($result,$post, $user??[]);
         }else{
+            $result['points'] = 0;
             $result['promo_deals'] = [
                 'is_error' 			=> false,
                 'can_use_deal'   	=> 1,

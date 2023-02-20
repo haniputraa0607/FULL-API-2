@@ -1358,6 +1358,100 @@ class PromoCampaignTools{
         return true;
 	}
 
+	public function validateUserPosOrder($id_promo, $id_user, $phone, &$errors=[],$id_code=null){
+		$promo=PromoCampaign::find($id_promo);
+
+		if(!$promo){
+        	$errors[]='Promo campaign not found';
+    		return false;
+		}
+		if(!$promo->step_complete || !$promo->user_type){
+        	$errors[]='Promo campaign not finished';
+    		return false;
+		}
+
+		if($promo->promo_type == 'Referral'){
+			if(User::find($id_user)->transaction_online){
+	        	$errors[]='Kode promo tidak ditemukan';
+				return false;
+			}
+			if(UserReferralCode::where([
+				'id_promo_campaign_promo_code'=>$id_code,
+				'id_user'=>$id_user
+			])->exists()){
+	        	$errors[]='Kode promo tidak ditemukan';
+	    		return false;
+			}
+	        $referer = UserReferralCode::where('id_promo_campaign_promo_code',$id_code)
+	            ->join('users','users.id','=','user_referral_codes.id_user')
+	            ->where('users.is_suspended','=',0)
+	            ->first();
+	        if(!$referer){
+	        	$errors[] = 'Kode promo tidak ditemukan';
+	        }
+		}
+
+		//check user 
+		$user = $this->userFilter($id_user, $promo->user_type, $promo->specific_user, $phone);
+
+        if(!$user){
+        	if ($promo->user_type == 'New user') 
+	    	{
+        		$errors[]='Promo hanya berlaku untuk pengguna baru';
+	    	}
+	    	else
+	    	{
+        		$errors[]='Promo tidak berlaku untuk akun Anda';
+	    	}
+
+    		return false;
+        }
+
+        // use promo code?
+        if($promo->code_type == 'Single') {
+        	if ($promo->limitation_usage) {
+        		// limit usage user?
+	        	if(PromoCampaignReport::where('id_promo_campaign',$id_promo)->where('id_user',$id_user)->count()>=$promo->limitation_usage){
+		        	$errors[]='Promo tidak tersedia';
+		    		return false;
+	        	}
+        	}
+
+        	// limit usage device
+        	/*if(PromoCampaignReport::where('id_promo_campaign',$id_promo)->where('device_id',$device_id)->count()>=$promo->limitation_usage){
+	        	$errors[]='Kuota device anda untuk penggunaan kode promo ini telah habis';
+	    		return false;
+        	}*/
+        } else {
+       		$used_by_other_user = PromoCampaignReport::where('id_promo_campaign',$id_promo)
+       							->where('id_user', '!=', $id_user)
+       							->where('id_promo_campaign_promo_code',$id_code)
+       							->first();
+       		if ($used_by_other_user) {
+       			$errors[] = 'Promo tidak berlaku untuk akun Anda';
+	    		return false;
+       		}
+
+	       	$used_code = PromoCampaignReport::where('id_promo_campaign',$id_promo)->where('id_user',$id_user)->where('id_promo_campaign_promo_code',$id_code)->count();
+
+        	if ($code_limit = $promo->code_limit) {
+        		if ($used_code >= $code_limit) {
+        			$errors[]='Promo tidak tersedia';
+	    			return false;
+        		}
+        	}
+
+        	if ($promo->user_limit && !$used_code) {
+        		$used_diff_code = PromoCampaignReport::where('id_promo_campaign',$id_promo)->where('id_user',$id_user)->distinct()->count('id_promo_campaign_promo_code');
+        		if ($used_diff_code >= $promo->user_limit) {
+        			$errors[]='Promo tidak tersedia';
+	    			return false;
+        		}
+        	}
+        }
+        return true;
+	}
+
 	/**
 	 * Get product price with product discount
 	 * @param  Product $product product

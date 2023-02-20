@@ -180,6 +180,7 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::group(['prefix' => 'transaction'], function () {
     	Route::post('list', 'ApiTransaction@outletServiceList');
     	Route::post('detail', 'ApiTransaction@outletServiceDetail');
+    	Route::post('detailV2', 'ApiTransaction@outletServiceDetailV2');
         Route::post('cancel', 'ApiOnlineTransaction@cancelTransaction');
 	});
 });

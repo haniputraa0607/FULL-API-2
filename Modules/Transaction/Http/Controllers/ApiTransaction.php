@@ -25,6 +25,7 @@ use App\Http\Models\ManualPayment;
 use App\Http\Models\ManualPaymentMethod;
 use App\Http\Models\ManualPaymentTutorial;
 use App\Http\Models\TransactionPaymentManual;
+use Modules\Transaction\Entities\TransactionProductService;
 use App\Http\Models\TransactionPaymentOffline;
 use App\Http\Models\TransactionPaymentBalance;
 use Modules\Disburse\Entities\MDR;
@@ -5749,6 +5750,287 @@ class ApiTransaction extends Controller
         $res = [
             'id_transaction' => $detail['id_transaction'],
             'transaction_receipt_number' => $detail['transaction_receipt_number'],
+            'qrcode' => 'https://quickchart.io/qr?text=' . str_replace('#', '', $detail['transaction_receipt_number']) . '&margin=0&size=250',
+            'transaction_date' => $detail['transaction_date'],
+            'transaction_date_indo' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($detail['transaction_date'])), 'j F Y'),
+            'transaction_subtotal' => $detail['transaction_subtotal'],
+            'transaction_grandtotal' => $detail['transaction_grandtotal'],
+            'transaction_tax' => $detail['transaction_tax'],
+            'transaction_product_subtotal' => $subtotalProduct,
+            'transaction_service_subtotal' => $subtotalService,
+            'customer_name' => $detail['transaction_outlet_service']['customer_name'],
+            'color' => $detail['outlet']['brands'][0]['color_brand'],
+            'status' => $status,
+            'cancel_reason' => $cancelReason,
+            'transaction_payment_status' => $detail['transaction_payment_status'],
+            'payment_method' => $paymentMethod,
+            'payment_cash_code' => $paymentCashCode,
+            'show_rate_popup' => $show_rate_popup,
+            'outlet' => $outlet,
+            'brand' => $brand,
+            'service' => $services,
+            'product' => $products,
+            'payment_detail' => $paymentDetail,
+            'payment_method' => $paymentMethodDetail
+        ];
+        
+        return MyHelper::checkGet($res);
+    }
+
+    public function outletServiceDetailV2(Request $request) {
+
+        if ($request->json('transaction_receipt_number') !== null) {
+            $trx = Transaction::where(['transaction_receipt_number' => $request->json('transaction_receipt_number')])->first();
+            if($trx) {
+                $id_transaction = $trx->id_transaction;
+            } else {
+                return MyHelper::checkGet([]);
+            }
+        } else {
+            $id_transaction = $request->json('id_transaction');
+        }
+
+        $user = $request->user();
+        $detail = Transaction::where('transaction_from', 'outlet-service')
+                ->join('transaction_outlet_services','transactions.id_transaction', 'transaction_outlet_services.id_transaction')
+                ->where('id_user', $user->id)
+                ->where('transactions.id_transaction', $id_transaction)
+                ->orderBy('transaction_date', 'desc')
+                ->select('transactions.*', 'transaction_outlet_services.*', 'transactions.reject_at')
+                ->with(
+                    'outlet.brands', 
+                    'transaction_outlet_service', 
+                    'transaction_products.transaction_product_service.user_hair_stylist',
+                    'transaction_products.product.photos',
+                    'user_feedbacks'
+                )
+                ->first();
+
+        $outletZone = Outlet::join('cities', 'cities.id_city', 'outlets.id_city')
+            ->join('provinces', 'provinces.id_province', 'cities.id_province')
+            ->where('id_outlet', $detail['id_outlet'])
+            ->select('outlets.*', 'cities.city_name', 'provinces.time_zone_utc as province_time_zone_utc')->first();
+
+        if (!$detail) {
+            return [
+                'status' => 'fail',
+                'messages' => ['Transaction not found']
+            ];
+        }
+
+        $trxPromo = $this->transactionPromo($detail);
+
+        $outlet = [
+            'id_outlet' => $detail['outlet']['id_outlet'],
+            'outlet_code' => $detail['outlet']['outlet_code'],
+            'outlet_name' => $detail['outlet']['outlet_name'],
+            'outlet_address' => $detail['outlet']['outlet_address'],
+            'outlet_latitude' => $detail['outlet']['outlet_latitude'],
+            'outlet_longitude' => $detail['outlet']['outlet_longitude']
+        ];
+
+        $brand = [
+            'id_brand' => $detail['outlet']['brands'][0]['id_brand'],
+            'brand_code' => $detail['outlet']['brands'][0]['code_brand'],
+            'brand_name' => $detail['outlet']['brands'][0]['name_brand'],
+            'brand_logo' => $detail['outlet']['brands'][0]['logo_brand'],
+            'brand_logo_landscape' => $detail['outlet']['brands'][0]['logo_landscape_brand']
+        ];
+
+        $products = [];
+        $prod_services = [];
+        $services = [];
+        $queue = null;
+        $subtotalProduct = 0;
+        $subtotalService = 0;
+        foreach ($detail['transaction_products'] as $product) {
+            $show_rate_popup = 0;
+            if ($product['type'] == 'Service') {
+                if(isset($prod_services[$product['id_product'].'_'.$product['transaction_product_service']['schedule_date']])){
+                    $prod_services[$product['id_product'].'_'.$product['transaction_product_service']['schedule_date']]['qty'] += 1;
+                    $prod_services[$product['id_product'].'_'.$product['transaction_product_service']['schedule_date']]['total_all_service'] += $product['transaction_product_subtotal'];
+                    $queue = $product['transaction_product_service']['queue'];
+
+                }else{
+                    $prod_services[$product['id_product'].'_'.$product['transaction_product_service']['schedule_date']] = $product;
+                    $prod_services[$product['id_product'].'_'.$product['transaction_product_service']['schedule_date']]['qty'] = 1;
+                    $prod_services[$product['id_product'].'_'.$product['transaction_product_service']['schedule_date']]['total_all_service'] = $product['transaction_product_subtotal'];
+                    $queue = $product['transaction_product_service']['queue'];
+
+                    
+                }
+
+            } else {
+                $productPhoto = config('url.storage_url_api') . ($product['product']['photos'][0]['product_photo'] ?? 'img/product/item/default.png');
+                $products[] = [
+                    'product_name' => $product['product']['product_name'],
+                    'transaction_product_qty' => $product['transaction_product_qty'],
+                    'transaction_product_price' => $product['transaction_product_price'],
+                    'transaction_product_subtotal' => $product['transaction_product_subtotal'],
+                    'photo' => $productPhoto
+                ];
+                $subtotalProduct += abs($product['transaction_product_subtotal']);
+            }
+        }
+        foreach($prod_services ?? [] as $prod_ser){
+            if ($prod_ser['transaction_product_service']['completed_at']) {
+                    $logRating = UserRatingLog::where([
+                        'id_user' => $user->id,
+                        'id_transaction' => $detail['id_transaction'],
+                        'id_user_hair_stylist' => $prod_ser['transaction_product_service']['id_user_hair_stylist']
+                    ])->first();
+
+                    if ($logRating) {
+                        $show_rate_popup = 1;
+                    }
+                }
+
+                $timeZone = $outletZone['province_time_zone_utc'] - 7;
+                $time = date('H:i', strtotime('+'.$timeZone.' hours', strtotime($prod_ser['transaction_product_service']['schedule_time'])));
+
+                $services[] = [
+                    'schedule_date' => MyHelper::dateFormatInd($prod_ser['transaction_product_service']['schedule_date'], true, false),
+                    'qty' => $prod_ser['qty'],
+                    'product_name' => $prod_ser['product']['product_name'],
+                    'subtotal' => $prod_ser['transaction_product_subtotal'],
+                    'total_all_service' => $prod_ser['total_all_service'],
+                    'show_rate_popup' => $show_rate_popup
+                ];
+
+                $subtotalService += abs($product['transaction_product_subtotal']);
+        }
+
+        $cancelReason = null;
+        if ($detail['transaction_payment_status'] == 'Pending') {
+            $status = 'unpaid';
+        } elseif ($detail['transaction_payment_status'] == 'Cancelled') {
+            $status = 'cancelled';
+            $cancelReason = 'Pembayaran gagal';
+        } elseif (empty($detail['completed_at']) && $detail['transaction_payment_status'] == 'Completed') {
+            $status = 'ongoing';
+        } else {
+            $status = 'completed';
+        }
+
+        if ($detail['reject_at']) {
+            $status = 'cancelled';
+            $cancelReason = $detail['reject_reason'];
+        }
+
+        $paymentDetail = [];
+        
+        $paymentDetail[] = [
+            'name'          => 'Total',
+            "is_discount"   => 0,
+            'amount'        => MyHelper::requestNumber($detail['transaction_subtotal'],'_CURRENCY')
+        ];
+
+        if (!empty($detail['transaction_tax'])) {
+            $paymentDetail[] = [
+                'name'          => 'Base Price',
+                "is_discount"   => 0,
+                'amount'        => MyHelper::requestNumber($detail['transaction_subtotal'] - $detail['transaction_tax'],'_CURRENCY')
+            ];
+            $paymentDetail[] = [
+                'name'          => 'Tax',
+                "is_discount"   => 0,
+                'amount'        => MyHelper::requestNumber(round($detail['transaction_tax']),'_CURRENCY')
+            ];
+        }
+
+        if($paymentDetail && isset($trxPromo)){
+            $lastKey = array_key_last($paymentDetail);
+            for($i = 0; $i < count($trxPromo); $i++){
+                $KeyPosition = 1 + $i;
+                $paymentDetail[$lastKey+$KeyPosition] = $trxPromo[$i];
+            }
+        }
+
+        $show_rate_popup = 0;
+        $logRating = UserRatingLog::where([
+            'id_user' => $user->id,
+            'id_transaction' => $detail['id_transaction']
+        ])->first();
+
+        if ($logRating) {
+            $show_rate_popup = 1;
+        }
+
+        $trx = Transaction::where('id_transaction', $detail['id_transaction'])->first();
+        $trxPayment = app($this->trx_outlet_service)->transactionPayment($trx);
+        $paymentMethod = null;
+        foreach ($trxPayment['payment'] as $p) {
+            $paymentMethod = $p['name'];
+            if (strtolower($p['name']) != 'balance') {
+                break;
+            }
+        }
+
+        $paymentMethodDetail = null;
+        if ($paymentMethod) {
+            $paymentMethodDetail = [
+                'text'  => 'Metode Pembayaran',
+                'value' => $paymentMethod
+            ];
+        }
+
+        $paymentCashCode = null;
+        // if ($detail['transaction_payment_status'] == 'Pending' && $detail['trasaction_payment_type'] == 'Cash') {
+        //     $paymentCash = TransactionPaymentCash::where('id_transaction', $detail['id_transaction'])->first();
+        //     $paymentCashCode = $paymentCash->payment_code;
+        // }
+        if($queue){
+            if($queue<10){
+                $queue_code = '00'.$queue;
+            }elseif($queue<100){
+                $queue_code = '0'.$queue;
+            }else{
+                $queue_code = $queue;
+            }
+        }else{
+            $queue_code = 0;
+        }
+        $currents = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
+                ->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
+                ->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+                ->join('products', 'transaction_products.id_product', 'products.id_product')
+                ->where(function($q) {
+                    $q->where('service_status','In Progress');
+                })
+                ->where(function($q){
+                    $q->whereNotNull('transaction_product_services.id_user_hair_stylist');
+                })
+                ->where(function($q) {
+                    $q->where('trasaction_payment_type', 'Cash')
+                    ->orWhere('transaction_payment_status', 'Completed');
+                })
+                ->where('transactions.id_outlet',$outlet['id_outlet'])
+                ->whereNotNull('transaction_product_services.queue')
+                ->whereNotNull('transaction_product_services.queue_code')
+                ->whereDate('schedule_date',date('Y-m-d'))
+                ->where('transaction_payment_status', '!=', 'Cancelled')
+                ->wherenull('transaction_products.reject_at')
+                ->orderBy('queue', 'asc')
+                ->select('transactions.id_transaction','transaction_product_services.id_transaction_product_service','transaction_product_services.queue_code')
+                ->get()->toArray();
+        if($currents){
+            foreach($currents ?? [] as $current){
+                if($current['queue']<10){
+                    $queue_code = '00'.$current['queue'];
+                }elseif($current['queue']<100){
+                    $queue_code = '0'.$current['queue'];
+                }else{
+                    $queue_code = $current['queue'];
+                }
+            }
+        }else{
+            $res_cs = [];
+        }
+        $res = [
+            'id_transaction' => $detail['id_transaction'],
+            'transaction_receipt_number' => $detail['transaction_receipt_number'],
+            'queue' => $queue_code,
+            'current_service' => $res_cs,
             'qrcode' => 'https://quickchart.io/qr?text=' . str_replace('#', '', $detail['transaction_receipt_number']) . '&margin=0&size=250',
             'transaction_date' => $detail['transaction_date'],
             'transaction_date_indo' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($detail['transaction_date'])), 'j F Y'),

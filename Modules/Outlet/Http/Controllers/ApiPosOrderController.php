@@ -363,6 +363,7 @@ class ApiPosOrderController extends Controller
                     $q->where('trasaction_payment_type', 'Cash')
                     ->orWhere('transaction_payment_status', 'Completed');
                 })
+                ->where('transactions.id_outlet',$outlet['id_outlet'])
                 ->whereNotNull('transaction_product_services.queue')
                 ->whereNotNull('transaction_product_services.queue_code')
                 ->whereDate('schedule_date',date('Y-m-d'))
@@ -386,6 +387,7 @@ class ApiPosOrderController extends Controller
                     $q->where('trasaction_payment_type', 'Cash')
                     ->orWhere('transaction_payment_status', 'Completed');
                 })
+                ->where('transactions.id_outlet',$outlet['id_outlet'])
                 ->whereNotNull('transaction_product_services.queue')
                 ->whereNotNull('transaction_product_services.queue_code')
                 ->whereDate('schedule_date',date('Y-m-d'))

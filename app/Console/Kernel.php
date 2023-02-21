@@ -25,6 +25,7 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
+         $schedule->command('backup:run')->daily()->at('15:10');
         /**
          * sending the campaign schedule
          * run every 5 minute

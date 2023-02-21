@@ -2657,7 +2657,7 @@ class ApiOnlineTransaction extends Controller
         $totalItem = 0;
         $totalDisProduct = 0;
         if(!empty($post['item_service'])){
-            return $itemServices = $this->checkServiceProductV2($post, $outlet);
+            $itemServices = $this->checkServiceProductV2($post, $outlet);
             $result['item_service'] = $itemServices['item_service']??[];
             $post['item_service'] = $itemServices['item_service']??[];
             $totalItem = $totalItem + $itemServices['total_item_service']??0;

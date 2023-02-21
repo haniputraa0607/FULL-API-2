@@ -5561,6 +5561,164 @@ class ApiTransaction extends Controller
         return MyHelper::checkGet($list);
     }
 
+    public function outletServiceListV2(Request $request) {
+        $user = $request->user();
+        $bearerToken = $request->bearerToken();
+        $tokenId = (new Parser())->parse($bearerToken)->getHeader('jti');
+        $getOauth = OauthAccessToken::find($tokenId);
+        $scopeUser = str_replace(str_split('[]""'),"",$getOauth['scopes']);
+
+        $list = Transaction::where('transaction_from', 'outlet-service')
+                ->join('transaction_outlet_services','transactions.id_transaction', 'transaction_outlet_services.id_transaction')
+                ->where('id_user', $user->id)
+                ->select('transactions.*', 'transaction_outlet_services.*', 'transactions.reject_at')
+                ->orderBy('transaction_date', 'desc')
+                ->with('outlet.brands', 'products', 'transaction_outlet_service', 'user_feedbacks','transaction_products.transaction_product_service','transaction_products.product');
+
+        if ($scopeUser == 'apps') {
+            switch (strtolower($request->status)) {
+                case 'unpaid':
+                    $list->where('transaction_payment_status','Pending');
+                    break;
+
+                case 'ongoing':
+                    $list->whereNull('transaction_outlet_services.completed_at')
+                    ->where('transaction_payment_status','Completed')
+                    ->whereNull('transactions.reject_at');
+                    break;
+
+                case 'complete':
+                    $list->where(function($q) {
+                        $q->whereNotNull('transaction_outlet_services.completed_at')
+                        ->orWhere('transaction_payment_status','Cancelled')
+                        ->orWhereNotNull('transactions.reject_at');
+                    });
+                    break;
+                
+                default:
+                    // code...
+                    break;
+            }
+        } else {
+            $list->where(function ($q) {
+                $q->whereNull('transaction_outlet_services.completed_at')
+                    ->orWhere('transactions.show_rate_popup', 1);
+            })->where('scope','web-apps');
+        }
+
+
+        $list = $list->paginate(10)->toArray();
+
+        $resData = [];
+        foreach ($list['data'] ?? [] as $val) {
+
+            $outlet = [
+                'id_outlet' => $val['outlet']['id_outlet'],
+                'outlet_code' => $val['outlet']['outlet_code'],
+                'outlet_name' => $val['outlet']['outlet_name'],
+                'outlet_latitude' => $val['outlet']['outlet_latitude'],
+                'outlet_longitude' => $val['outlet']['outlet_longitude']
+            ];
+
+            $brand = null;
+            if(!empty($val['outlet']['brands'][0])){
+                $brand = [
+                    'id_brand' => $val['outlet']['brands'][0]['id_brand'],
+                    'brand_code' => $val['outlet']['brands'][0]['code_brand'],
+                    'brand_name' => $val['outlet']['brands'][0]['name_brand'],
+                    'brand_logo' => $val['outlet']['brands'][0]['logo_brand'],
+                    'brand_logo_landscape' => $val['outlet']['brands'][0]['logo_landscape_brand']
+                ];
+            }
+
+            $queue = null;
+
+            $prod_services = [];
+            foreach ($val['transaction_products'] ?? [] as $product_ser) {
+                if ($product_ser['type'] == 'Service') {
+                    
+                    if(isset($prod_services[$product_ser['id_product'].'_'.$product_ser['transaction_product_service']['schedule_date']])){
+                        $prod_services[$product_ser['id_product'].'_'.$product_ser['transaction_product_service']['schedule_date']]['qty'] += 1;
+                        $prod_services[$product_ser['id_product'].'_'.$product_ser['transaction_product_service']['schedule_date']]['total_all_service'] += $product_ser['transaction_product_subtotal'];
+                        $queue = $product_ser['transaction_product_service']['queue'];
+    
+                    }else{
+                        $prod_services[$product_ser['id_product'].'_'.$product_ser['transaction_product_service']['schedule_date']] = $product_ser;
+                        $prod_services[$product_ser['id_product'].'_'.$product_ser['transaction_product_service']['schedule_date']]['qty'] = 1;
+                        $prod_services[$product_ser['id_product'].'_'.$product_ser['transaction_product_service']['schedule_date']]['total_all_service'] = $product_ser['transaction_product_subtotal'];
+                        $queue = $product_ser['transaction_product_service']['queue']; 
+                    }
+                }
+            }
+            $orders = [];
+            foreach($prod_services ?? [] as $prod_ser){
+                $orders[] = [
+                    'product_name' => $prod_ser['product']['product_name'],
+                    'transaction_product_qty' => $prod_ser['qty'],
+                    'transaction_product_price' => $prod_ser['transaction_product_subtotal'],
+                    'transaction_product_subtotal' => $prod_ser['total_all_service']
+                ];
+            }
+            foreach ($val['products'] as $product) {
+                if($product['product_type'] == 'product'){
+                    $orders[] = [
+                        'product_name' => $product['product_name'],
+                        'transaction_product_qty' => $product['pivot']['transaction_product_qty'],
+                        'transaction_product_price' => $product['pivot']['transaction_product_price'],
+                        'transaction_product_subtotal' => $product['pivot']['transaction_product_subtotal']
+                    ];
+                }
+            }
+
+            $cancelReason = null;
+            if ($val['transaction_payment_status'] == 'Pending') {
+                $status = 'unpaid';
+            } elseif ($val['transaction_payment_status'] == 'Cancelled') {
+                $status = 'cancelled';
+                $cancelReason = 'Pembayaran gagal';
+            } elseif (empty($val['completed_at']) && $val['transaction_payment_status'] == 'Completed') {
+                $status = 'ongoing';
+            } else {
+                $status = 'completed';
+            }
+
+            if ($val['reject_at']) {
+                $status = 'cancelled';
+                $cancelReason = $val['reject_reason'];
+            }
+            if($queue){
+                if($queue<10){
+                    $queue_code = '00'.$queue;
+                }elseif($queue<100){
+                    $queue_code = '0'.$queue;
+                }else{
+                    $queue_code = $queue;
+                }
+            }else{
+                $queue_code = 0;
+            }
+
+            $resData[] = [
+                'id_transaction' => $val['id_transaction'],
+                'queue' => $queue_code,
+                'transaction_receipt_number' => $val['transaction_receipt_number'],
+                'qrcode' => 'https://quickchart.io/qr?text=' . str_replace('#', '', $val['transaction_receipt_number']) . '&margin=0&size=250',
+                'transaction_date' => $val['transaction_date'],
+                'customer_name' => $val['transaction_outlet_service']['customer_name'],
+                'color' => (!empty($val['outlet']['brands'][0]['color_brand']) ? $val['outlet']['brands'][0]['color_brand'] : null),
+                'status' => $status,
+                'cancel_reason' => $cancelReason,
+                'show_rate_popup' => $val['show_rate_popup'],
+                'outlet' => $outlet,
+                'brand' => $brand,
+                'order' => $orders
+            ];
+        }
+
+        $list['data'] = $resData;
+        return MyHelper::checkGet($list);
+    }
+
     public function outletServiceDetail(Request $request) {
 
         if ($request->json('transaction_receipt_number') !== null) {

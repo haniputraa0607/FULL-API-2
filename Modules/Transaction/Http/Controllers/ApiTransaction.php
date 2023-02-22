@@ -5698,9 +5698,46 @@ class ApiTransaction extends Controller
                 $queue_code = 0;
             }
 
+            $currents = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
+                ->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
+                ->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+                ->join('products', 'transaction_products.id_product', 'products.id_product')
+                ->where(function($q) {
+                    $q->where('service_status','In Progress');
+                })
+                ->where(function($q){
+                    $q->whereNotNull('transaction_product_services.id_user_hair_stylist');
+                })
+                ->where(function($q) {
+                    $q->where('trasaction_payment_type', 'Cash')
+                    ->orWhere('transaction_payment_status', 'Completed');
+                })
+                ->where('transactions.id_outlet',$outlet['id_outlet'])
+                ->whereNotNull('transaction_product_services.queue')
+                ->whereNotNull('transaction_product_services.queue_code')
+                ->whereDate('schedule_date',date('Y-m-d'))
+                ->where('transaction_payment_status', '!=', 'Cancelled')
+                ->wherenull('transaction_products.reject_at')
+                ->where('transactions.id_transaction', '<>', $val['id_transaction'])
+                ->orderBy('schedule_time', 'asc')
+                ->select('transactions.id_transaction','transaction_product_services.id_transaction_product_service','transaction_product_services.queue_code', 'transaction_product_services.queue')
+                ->first();
+        
+            $res_cs = null;
+            if($currents){
+                if($currents['queue']<10){
+                    $res_cs = '00'.$currents['queue'];
+                }elseif($currents['queue']<100){
+                    $res_cs = '0'.$currents['queue'];
+                }else{
+                    $res_cs = $currents['queue'];
+                }
+            }
+            
             $resData[] = [
                 'id_transaction' => $val['id_transaction'],
                 'queue' => $queue_code,
+                'current_service' => $res_cs,
                 'transaction_receipt_number' => $val['transaction_receipt_number'],
                 'qrcode' => 'https://quickchart.io/qr?text=' . str_replace('#', '', $val['transaction_receipt_number']) . '&margin=0&size=250',
                 'transaction_date' => $val['transaction_date'],
@@ -6030,6 +6067,7 @@ class ApiTransaction extends Controller
                 $subtotalProduct += abs($product['transaction_product_subtotal']);
             }
         }
+        
         foreach($prod_services ?? [] as $prod_ser){
             if ($prod_ser['transaction_product_service']['completed_at']) {
                     $logRating = UserRatingLog::where([
@@ -6148,6 +6186,7 @@ class ApiTransaction extends Controller
         }else{
             $queue_code = 0;
         }
+        
         $currents = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
                 ->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
                 ->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
@@ -6168,17 +6207,20 @@ class ApiTransaction extends Controller
                 ->whereDate('schedule_date',date('Y-m-d'))
                 ->where('transaction_payment_status', '!=', 'Cancelled')
                 ->wherenull('transaction_products.reject_at')
+                ->where('transactions.id_transaction', '<>', $detail['id_transaction'])
                 ->orderBy('queue', 'asc')
-                ->select('transactions.id_transaction','transaction_product_services.id_transaction_product_service','transaction_product_services.queue_code')
+                ->select('transactions.id_transaction','transaction_product_services.id_transaction_product_service','transaction_product_services.queue_code', 'transaction_product_services.queue')
                 ->get()->toArray();
+        
+        $res_cs = [];
         if($currents){
-            foreach($currents ?? [] as $current){
+            foreach($currents ?? [] as $key => $current){
                 if($current['queue']<10){
-                    $queue_code = '00'.$current['queue'];
+                    $res_cs[] = '00'.$current['queue'];
                 }elseif($current['queue']<100){
-                    $queue_code = '0'.$current['queue'];
+                    $res_cs[] = '0'.$current['queue'];
                 }else{
-                    $queue_code = $current['queue'];
+                    $res_cs[] = $current['queue'];
                 }
             }
         }else{

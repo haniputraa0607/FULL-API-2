@@ -1162,6 +1162,7 @@ class ApiMitraOutletService extends Controller
 
     		$service->update([
     			'id_user_hair_stylist' => $user->id_user_hair_stylist,
+				'schedule_time' => date('H:i:s'),
     			'service_status' => 'In Progress',
     			'id_outlet_box' => $request->id_outlet_box
     		]);

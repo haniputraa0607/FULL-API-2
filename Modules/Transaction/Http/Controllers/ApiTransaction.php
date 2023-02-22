@@ -5695,7 +5695,7 @@ class ApiTransaction extends Controller
                     $queue_code = $queue;
                 }
             }else{
-                $queue_code = 0;
+                $queue_code = null;
             }
 
             $currents = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
@@ -6184,7 +6184,7 @@ class ApiTransaction extends Controller
                 $queue_code = $queue;
             }
         }else{
-            $queue_code = 0;
+            $queue_code = null;
         }
         
         $currents = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')

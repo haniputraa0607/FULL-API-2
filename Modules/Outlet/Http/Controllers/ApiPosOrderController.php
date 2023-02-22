@@ -6,6 +6,8 @@ use App\Jobs\SyncronPlasticTypeOutlet;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
+use App\Http\Models\DailyTransactions;
+use App\Jobs\FraudJob;
 
 use App\Http\Models\Outlet;
 use App\Http\Models\OutletDoctor;
@@ -32,6 +34,9 @@ use Modules\Product\Entities\ProductGlobalPrice;
 use Modules\Product\Entities\ProductSpecialPrice;
 use Modules\Franchise\Entities\UserFranchise;
 use Modules\Franchise\Entities\UserFranchiseOultet;
+use App\Http\Models\LogBalance;
+use Modules\Transaction\Entities\TransactionPaymentCash;
+use App\Http\Models\TransactionMultiplePayment;
 use Modules\Outlet\Entities\OutletScheduleUpdate;
 use Modules\Transaction\Entities\TransactionOutletService;
 
@@ -43,6 +48,9 @@ use Modules\Transaction\Entities\HairstylistNotAvailable;
 use Modules\Transaction\Entities\TransactionProductService;
 use Modules\Transaction\Entities\TransactionProductServiceLog;
 use App\Http\Models\TransactionSetting;
+use App\Http\Models\TransactionProductModifier;
+use Modules\Transaction\Entities\TransactionBundlingProduct;
+use App\Http\Models\TransactionPaymentMidtran;
 
 use App\Imports\ExcelImport;
 use App\Imports\FirstSheetOnlyImport;
@@ -54,6 +62,7 @@ use DB;
 use Mail;
 use Excel;
 use Storage;
+use App\Lib\Midtrans;
 
 use Modules\Brand\Entities\BrandOutlet;
 use Modules\Brand\Entities\Brand;
@@ -83,6 +92,7 @@ use Modules\Outlet\Http\Requests\Holiday\HolidayDelete;
 use Modules\PromoCampaign\Entities\PromoCampaignPromoCode;
 use Modules\PromoCampaign\Lib\PromoCampaignTools;
 use App\Http\Models\Transaction;
+use App\Http\Models\TransactionProduct;
 
 class ApiPosOrderController extends Controller
 {
@@ -112,6 +122,7 @@ class ApiPosOrderController extends Controller
         $this->trx_shop = "Modules\Transaction\Http\Controllers\ApiTransactionShop";
         $this->promo_trx = "Modules\Transaction\Http\Controllers\ApiPromoTransaction";
         $this->online_trx = "Modules\Transaction\Http\Controllers\ApiOnlineTransaction";
+        $this->confirm = "Modules\Transaction\Http\Controllers\ApiConfirm";
     }
 
     public function home(Request $request){
@@ -1075,6 +1086,33 @@ class ApiPosOrderController extends Controller
                     $post['cashback'] = $post['cashback'];
                 }
             }
+        }else{
+            $user = User::where('phone','111111111111')->where('is_anon',1)->first();
+            if(!$user){
+                $user = User::create([
+                    'name' => 'Anonymous',
+                    'phone' => '111111111111',
+                    'id_membership' => NULL,
+                    'email' => 'anon1111@anon.cp,',
+                    'password' => '$2y$10$4CmCne./LBVkIkI1RQghxOOZWuzk7bAW2kVtJ66uSUzmTM/wbyury',
+                    'id_city' => 3471,
+                    'gender' => 'male',
+                    'provider' => NULL,
+                    'birthday' => NULL,
+                    'phone_verified' => '1',
+                    'email_verified' => '1',
+                    'level' => 'Customer',
+                    'points' => 0,
+                    'android_device' => NULL,
+                    'ios_device' => NULL,
+                    'is_suspended' => '0',
+                    'remember_token' => NULL,   
+                    'is_anon' => 1
+                ]);
+            }
+            $post['membership_level']    = null;
+            $post['membership_promo_id'] = null;
+            $post['customer'] = [];
         }
 
         $config_fraud_use_queue = Configs::where('config_name', 'fraud use queue')->first()->is_active;
@@ -1157,7 +1195,7 @@ class ApiPosOrderController extends Controller
                 'messages' => ['Invalid transaction']
             ];
         }
-
+        
         DB::beginTransaction();
         $transaction = [
             'id_outlet'                   => $post['id_outlet'],
@@ -1378,6 +1416,737 @@ class ApiPosOrderController extends Controller
             ];
             array_push($userTrxProduct, $dataUserTrxProduct);
             $totalProductQty += $valueProduct['qty'];
+   
+        }
+
+        if ($user && $user['is_anon'] == 0) {
+            $applyPromo = app($this->promo_trx)->applyPromoNewTrxV2($insertTransaction, $user);
+            if ($applyPromo['status'] == 'fail') {
+                DB::rollback();
+                return $applyPromo;
+            }
+    
+            $insertTransaction = $applyPromo['result'] ?? $insertTransaction;
+        }
+        
+        array_push($dataDetailProduct, $productMidtrans);
+
+        $dataShip = [
+            'id'       => null,
+            'price'    => $post['shipping'],
+            'name'     => 'Shipping',
+            'quantity' => 1,
+        ];
+        array_push($dataDetailProduct, $dataShip);
+
+        $dataService = [
+            'id'       => null,
+            'price'    => $post['service'],
+            'name'     => 'Service',
+            'quantity' => 1,
+        ];
+        array_push($dataDetailProduct, $dataService);
+
+        $dataTax = [
+            'id'       => null,
+            'price'    => $post['tax'],
+            'name'     => 'Tax',
+            'quantity' => 1,
+        ];
+        array_push($dataDetailProduct, $dataTax);
+
+        $dataDis = [
+            'id'       => null,
+            'price'    => -$post['discount'],
+            'name'     => 'Discount',
+            'quantity' => 1,
+        ];
+        array_push($dataDetailProduct, $dataDis);
+        
+        $insertUserTrxProduct = app($this->transaction)->insertUserTrxProduct($userTrxProduct);
+        if ($insertUserTrxProduct == 'fail') {
+            DB::rollback();
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Insert Product Transaction Failed']
+            ]);
+        }
+
+        if (isset($post['receive_at']) && $post['receive_at']) {
+            $post['receive_at'] = date('Y-m-d H:i:s', strtotime($post['receive_at']));
+        } else {
+            $post['receive_at'] = null;
+        }
+
+        if (isset($post['id_admin_outlet_receive'])) {
+            $post['id_admin_outlet_receive'] = $post['id_admin_outlet_receive'];
+        } else {
+            $post['id_admin_outlet_receive'] = null;
+        }
+
+        $configAdminOutlet = Configs::where('config_name', 'admin outlet')->first();
+
+        if($configAdminOutlet && $configAdminOutlet['is_active'] == '1'){
+
+            if ($post['type'] == 'Delivery') {
+                $configAdminOutlet = Configs::where('config_name', 'admin outlet delivery order')->first();
+            }else{
+                $configAdminOutlet = Configs::where('config_name', 'admin outlet pickup order')->first();
+            }
+
+            if($configAdminOutlet && $configAdminOutlet['is_active'] == '1'){
+                $adminOutlet = UserOutlet::where('id_outlet', $insertTransaction['id_outlet'])->orderBy('id_user_outlet');
+            }
+        }
+
+        if ($user && $user['is_anon'] == 0) {
+            $sumBalance = LogBalance::where('id_user', $user['id'])->sum('balance');
+            if ($post['transaction_payment_status'] == 'Completed') {
+                $checkMembership = app($this->membership)->calculateMembership($user['phone']);
+                if (!$checkMembership) {
+                    DB::rollback();
+                    return response()->json([
+                        'status'    => 'fail',
+                        'messages'  => ['Recount membership failed']
+                    ]);
+                }
+            }
+            //sum balance
+        }
+
+        if (!empty($post['payment_type']) && $post['payment_type'] == 'Cash') {
+            
+            $datacreateTrxPyemntCash = [
+                'id_transaction' => $insertTransaction['id_transaction'],
+                'payment_code' => MyHelper::createrandom(4, null, strtotime(date('Y-m-d H:i:s'))),
+                'cash_nominal' => $insertTransaction['transaction_grandtotal']
+            ];
+            if(!empty($post['item_service'])){
+                $datacreateTrxPyemntCash['cash_received_by'] = $post['item_service'][0]['id_user_hair_stylist'] ?? null;
+            }   
+
+            $createTrxPyemntCash = TransactionPaymentCash::create($datacreateTrxPyemntCash);
+
+            if (!$createTrxPyemntCash) {
+                DB::rollback();
+                return response()->json([
+                    'status'    => 'fail',
+                    'messages'  => ['Insert Data transaction payment Failed']
+                ]);
+            }
+
+            $multiplePaymentCash = TransactionMultiplePayment::create([
+                'id_transaction' => $insertTransaction['id_transaction'],
+                'type' => 'Cash',
+                'payment_detail' => 'Cash',
+                'id_payment' => $createTrxPyemntCash['id_transaction_payment_cash']
+            ]);
+
+            if (!$multiplePaymentCash) {
+                DB::rollback();
+                return response()->json([
+                    'status'    => 'fail',
+                    'messages'  => ['Insert Data multiple payment Failed']
+                ]);
+            }
+
+            $dataRedirect = app($this->online_trx)->dataRedirect($insertTransaction['transaction_receipt_number'], 'trx', '1');
+
+            if($config_fraud_use_queue == 1){
+                FraudJob::dispatch($user, $insertTransaction, 'transaction')->onConnection('fraudqueue');
+            }else {
+                if($config_fraud_use_queue != 1){
+                    $checkFraud = app($this->setting_fraud)->checkFraudTrxOnline($user, $insertTransaction);
+                }
+            }
+
+            /* Add daily Trx*/
+            $dataDailyTrx = [
+                'id_transaction'    => $insertTransaction['id_transaction'],
+                'id_outlet'         => $outlet['id_outlet'],
+                'transaction_date'  => date('Y-m-d H:i:s', strtotime($insertTransaction['transaction_date'])),
+                'id_user'           => $user['id']
+            ];
+            DailyTransactions::create($dataDailyTrx);
+            DB::commit();
+
+            //remove for result
+            unset($insertTransaction['user']);
+            unset($insertTransaction['outlet']);
+            unset($insertTransaction['product_transaction']);
+
+            return response()->json([
+                'status'     => 'success',
+                'redirect'   => false,
+                'result'     => $insertTransaction,
+                'additional' => $dataRedirect
+            ]);
+        }
+
+        /* Add daily Trx*/
+        $dataDailyTrx = [
+            'id_transaction'    => $insertTransaction['id_transaction'],
+            'id_outlet'         => $outlet['id_outlet'],
+            'transaction_date'  => date('Y-m-d H:i:s', strtotime($insertTransaction['transaction_date'])),
+            'referral_code_use_date'=> date('Y-m-d H:i:s', strtotime($insertTransaction['transaction_date'])),
+            'id_user'           => $user['id'],
+            'referral_code'     => NULL
+        ];
+        $createDailyTrx = DailyTransactions::create($dataDailyTrx);
+
+        if ($user && $user['is_anon'] == 0) {
+            if ($promo_code_ref) {
+                //======= Start Check Fraud Referral User =======//
+                $data = [
+                    'id_user' => $insertTransaction['id_user'],
+                    'referral_code' => $promo_code_ref,
+                    'referral_code_use_date' => $insertTransaction['transaction_date'],
+                    'id_transaction' => $insertTransaction['id_transaction']
+                ];
+                if ($config_fraud_use_queue == 1) {
+                    FraudJob::dispatch($user, $data, 'referral user')->onConnection('fraudqueue');
+                    FraudJob::dispatch($user, $data, 'referral')->onConnection('fraudqueue');
+                } else {
+                    app($this->setting_fraud)->fraudCheckReferralUser($data);
+                    app($this->setting_fraud)->fraudCheckReferral($data);
+                }
+                //======= End Check Fraud Referral User =======//
+            }
+
+            if ($request->id_deals_user) {
+                $voucherUsage = TransactionPromo::where('id_deals_user', $request->id_deals_user)->count();
+                if (($voucherUsage ?? false) > 1) {
+                    DB::rollBack();
+                    return [
+                        'status' => 'fail',
+                        'messages' => ['Voucher sudah pernah digunakan']
+                    ];
+                }
+            }
+        }
+
+        DB::commit();
+
+        if(!empty($insertTransaction['id_transaction']) && $insertTransaction['transaction_grandtotal'] == 0){
+            $trx = Transaction::where('id_transaction', $insertTransaction['id_transaction'])->first();
+            app($this->online_trx)->bookProductStock($trx['id_transaction']);
+            optional($trx)->recalculateTaxandMDR();
+            $trx->triggerPaymentCompleted();
+        }
+
+        $insertTransaction['cancel_message'] = 'Are you sure you want to cancel this transaction?';
+        $insertTransaction['timer_shopeepay'] = (int) MyHelper::setting('shopeepay_validity_period','value', 300);
+        $insertTransaction['message_timeout_shopeepay'] = "Sorry, your payment has expired";
+        return response()->json([
+            'status'   => 'success',
+            'redirect' => true,
+            'result'   => $insertTransaction
+        ]);
+    }
+
+    public function confirmTransaction(Request $request){
+
+        DB::beginTransaction();
+        $post = $request->json()->all();
+        
+        if(isset($post['phone']) && !empty($post['phone'])){
+            $user = User::where('phone', $post['phone'])->first();
+        }else{
+            $user = User::where('phone','111111111111')->where('is_anon',1)->first();
+            if(!$user){
+                $user = User::create([
+                    'name' => 'Anonymous',
+                    'phone' => '111111111111',
+                    'id_membership' => NULL,
+                    'email' => 'anon1111@anon.cp,',
+                    'password' => '$2y$10$4CmCne./LBVkIkI1RQghxOOZWuzk7bAW2kVtJ66uSUzmTM/wbyury',
+                    'id_city' => 3471,
+                    'gender' => 'male',
+                    'provider' => NULL,
+                    'birthday' => NULL,
+                    'phone_verified' => '1',
+                    'email_verified' => '1',
+                    'level' => 'Customer',
+                    'points' => 0,
+                    'android_device' => NULL,
+                    'ios_device' => NULL,
+                    'is_suspended' => '0',
+                    'remember_token' => NULL,   
+                    'is_anon' => 1
+                ]);
+            }
+        }
+
+        if ($post['payment_type'] && $post['payment_type'] != 'Balance') {
+            $available_payment = app($this->online_trx)->availablePayment(new Request(['show_all' => 1,'pos_order'=> 1]))['result'] ?? [];
+            if (!in_array($post['payment_type'], array_column($available_payment, 'payment_gateway'))) {
+                return [
+                    'status' => 'fail',
+                    'messages' => 'Metode pembayaran yang dipilih tidak tersedia untuk saat ini'
+                ];
+            }
+        }
+        
+        $productMidtrans   = [];
+        $dataDetailProduct = [];
+
+        // refresh tax and mdr
+        $trx = Transaction::find($post['id']);
+        optional($trx)->recalculateTaxandMDR();
+        
+        $check = Transaction::with('transaction_shipments', 'productTransaction.product', 'productTransaction.product_variant_group','outlet_name', 'transaction_payment_subscription')->where('id_transaction', $post['id'])->first();
+
+        if (empty($check)) {
+            DB::rollback();
+            return response()->json([
+                'status'   => 'fail',
+                'messages' => ['Transaction Not Found'],
+            ]);
+        }
+
+        if ($check['transaction_payment_status'] != 'Pending') {
+            DB::rollback();
+            return response()->json([
+                'status'   => 'fail',
+                'messages' => ['Transaction Invalid'],
+            ]);
+        }
+        
+        $outletCode = Outlet::where('id_outlet', $check['id_outlet'])->first()['outlet_code']??null;
+
+        if(!isset($post['payment_detail'])){
+            $post['payment_detail'] = null;
+        }
+
+        $checkPayment = TransactionMultiplePayment::where('id_transaction', $check['id_transaction'])->first();
+        $countGrandTotal = $check['transaction_grandtotal'];
+        $totalPriceProduct = 0;
+
+        if (isset($check['productTransaction'])) {
+            foreach ($check['productTransaction'] as $key => $value) {
+                // get modifiers name
+                $mods           = TransactionProductModifier::select('qty', 'text')->where('id_transaction_product', $value['id_transaction_product'])->get()->toArray();
+                $more_name_text = '';
+                foreach ($mods as $mod) {
+                    if ($mod['qty'] > 1) {
+                        $more_name_text .= ',' . $mod['qty'] . 'x ' . $mod['text'];
+                    } else {
+                        $more_name_text .= ',' . $mod['text'];
+                    }
+                }
+                $dataProductMidtrans = [
+                    'id'       => $value['product_variant_group']['product_variant_group_code'] ?? $value['product']['product_code'],
+                    // 'price'    => abs($value['transaction_product_price']+$value['transaction_variant_subtotal']+$value['transaction_modifier_subtotal']-($value['transaction_product_discount']/$value['transaction_product_qty'])),
+                    'price'    => abs($value['transaction_product_price']+$value['transaction_variant_subtotal']+$value['transaction_modifier_subtotal']),
+                    // 'name'     => $value['product']['product_name'].($more_name_text?'('.trim($more_name_text,',').')':''), // name + modifier too long
+                    'name'     => $value['product']['product_name'],
+                    'quantity' => $value['transaction_product_qty'],
+                ];
+
+                $totalPriceProduct+= ($dataProductMidtrans['quantity'] * $dataProductMidtrans['price']);
+
+                array_push($productMidtrans, $dataProductMidtrans);
+                array_push($dataDetailProduct, $dataProductMidtrans);
+            }
+        }
+
+        $checkItemBundling = TransactionBundlingProduct::where('id_transaction', $check['id_transaction'])
+        ->join('bundling', 'bundling.id_bundling', 'transaction_bundling_products.id_bundling')
+        ->select('transaction_bundling_products.*', 'bundling.bundling_name', 'bundling.bundling_code')
+        ->get()->toArray();
+
+        if (!empty($checkItemBundling)) {
+            foreach ($checkItemBundling as $key => $value) {
+                $dataProductMidtrans = [
+                    'id'       => $value['bundling_code'],
+                    'price'    => abs((int)$value['transaction_bundling_product_subtotal']/$value['transaction_bundling_product_qty']),
+                    'name'     => $value['bundling_name'],
+                    'quantity' => $value['transaction_bundling_product_qty'],
+                ];
+
+                $totalPriceProduct+= ($dataProductMidtrans['quantity'] * $dataProductMidtrans['price']);
+
+                array_push($productMidtrans, $dataProductMidtrans);
+                array_push($dataDetailProduct, $dataProductMidtrans);
+            }
+        }
+
+        $checkProductPlastic = TransactionProduct::join('products', 'products.id_product', 'transaction_products.id_product')
+                                ->where('id_transaction', $check['id_transaction'])->where('type', 'Plastic')->get()->toArray();
+        if (!empty($checkProductPlastic)) {
+            foreach ($checkProductPlastic as $key => $value) {
+                $dataProductMidtrans = [
+                    'id'       => $value['product_code'],
+                    'price'    => abs($value['transaction_product_price']),
+                    'name'     => $value['product_name'],
+                    'quantity' => $value['transaction_product_qty'],
+                ];
+
+                $totalPriceProduct+= ($dataProductMidtrans['quantity'] * $dataProductMidtrans['price']);
+
+                array_push($productMidtrans, $dataProductMidtrans);
+                array_push($dataDetailProduct, $dataProductMidtrans);
+            }
+        }
+
+        $checkProductService = TransactionProduct::join('products', 'products.id_product', 'transaction_products.id_product')
+            ->where('id_transaction', $check['id_transaction'])->where('type', 'Service')->get()->toArray();
+        if (!empty($checkProductService)) {
+            foreach ($checkProductService as $key => $value) {
+                $dataProductMidtrans = [
+                    'id'       => $value['product_code'],
+                    'price'    => abs($value['transaction_product_price']),
+                    'name'     => $value['product_name'],
+                    'quantity' => $value['transaction_product_qty'],
+                ];
+
+                $totalPriceProduct+= ($dataProductMidtrans['quantity'] * $dataProductMidtrans['price']);
+
+                array_push($productMidtrans, $dataProductMidtrans);
+                array_push($dataDetailProduct, $dataProductMidtrans);
+            }
+        }
+
+        $checkProductAcademy = TransactionProduct::join('products', 'products.id_product', 'transaction_products.id_product')
+            ->where('id_transaction', $check['id_transaction'])->where('type', 'Academy')->get()->toArray();
+        if (!empty($checkProductAcademy)) {
+            foreach ($checkProductAcademy as $key => $value) {
+                $dataProductMidtrans = [
+                    'id'       => $value['product_code'],
+                    'price'    => abs($value['transaction_product_price']),
+                    'name'     => $value['product_name'],
+                    'quantity' => $value['transaction_product_qty'],
+                ];
+
+                $totalPriceProduct+= ($dataProductMidtrans['quantity'] * $dataProductMidtrans['price']);
+
+                array_push($productMidtrans, $dataProductMidtrans);
+                array_push($dataDetailProduct, $dataProductMidtrans);
+            }
+        }
+
+        if ($check['transaction_shipment'] > 0) {
+            $dataShip = [
+                'id'       => null,
+                'price'    => abs($check['transaction_shipment']),
+                'name'     => 'Shipping',
+                'quantity' => 1,
+            ];
+            array_push($dataDetailProduct, $dataShip);
+        }
+
+        if ($check['transaction_shipment_go_send'] > 0) {
+            $dataShip = [
+                'id'       => null,
+                'price'    => abs($check['transaction_shipment_go_send']),
+                'name'     => 'Shipping',
+                'quantity' => 1,
+            ];
+            array_push($dataDetailProduct, $dataShip);
+        }
+
+        if ($check['transaction_service'] > 0) {
+            $dataService = [
+                'id'       => null,
+                'price'    => abs($check['transaction_service']),
+                'name'     => 'Service',
+                'quantity' => 1,
+            ];
+            array_push($dataDetailProduct, $dataService);
+        }
+
+        // if ($check['transaction_tax'] > 0) {
+        //     $dataTax = [
+        //         'id'       => null,
+        //         'price'    => abs($check['transaction_tax']),
+        //         'name'     => 'Tax',
+        //         'quantity' => 1,
+        //     ];
+        //     array_push($dataDetailProduct, $dataTax);
+        // }
+
+        if ($check['transaction_payment_subscription']) {
+            $countGrandTotal -= $check['transaction_payment_subscription']['subscription_nominal'];
+            $dataDis = [
+                'id'       => null,
+                'price'    => -abs($check['transaction_payment_subscription']['subscription_nominal']),
+                'name'     => 'Subscription',
+                'quantity' => 1,
+            ];
+            array_push($dataDetailProduct, $dataDis);
+        }
+
+        $detailPayment = [
+            'subtotal' => $check['transaction_subtotal'],
+            'shipping' => $check['transaction_shipment'],
+            'tax'      => $check['transaction_tax'],
+            'service'  => $check['transaction_service'],
+            'discount' => -$check['transaction_discount'],
+        ];
+
+        $payment_balance = 0;
+        if (!empty($checkPayment)) {
+            if ($checkPayment['type'] == 'Balance') {
+                $checkPaymentBalance = TransactionPaymentBalance::where('id_transaction', $check['id_transaction'])->first();
+                if (empty($checkPaymentBalance)) {
+                    DB::rollback();
+                    return response()->json([
+                        'status'   => 'fail',
+                        'messages' => ['Transaction is invalid'],
+                    ]);
+                }
+
+                $countGrandTotal = $countGrandTotal - $checkPaymentBalance['balance_nominal'];
+                $payment_balance = $checkPaymentBalance['balance_nominal'];
+                $dataBalance     = [
+                    'id'       => null,
+                    'price'    => -abs($checkPaymentBalance['balance_nominal']),
+                    'name'     => 'Balance',
+                    'quantity' => 1,
+                ];
+
+                array_push($dataDetailProduct, $dataBalance);
+
+                $detailPayment['balance'] = -$checkPaymentBalance['balance_nominal'];
+            }
+        }
+
+        if ($check['transaction_discount'] != 0) {
+            $dataDis = [
+                'id'       => null,
+                'price'    => -abs($check['transaction_discount']),
+                'name'     => 'Discount',
+                'quantity' => 1,
+            ];
+            array_push($dataDetailProduct, $dataDis);
+        }
+
+        if ($check['transaction_discount_delivery'] != 0) {
+            $dataDis = [
+                'id'       => null,
+                'price'    => -abs($check['transaction_discount_delivery']),
+                'name'     => 'Discount',
+                'quantity' => 1,
+            ];
+            array_push($dataDetailProduct, $dataDis);
+        }
+
+        if ($check['trasaction_type'] == 'Delivery') {
+            $dataUser = [
+                'first_name'      => $user['name'],
+                'email'           => $user['email'],
+                'phone'           => $user['phone'],
+                'billing_address' => [
+                    'first_name' => $check['transaction_shipments']['destination_name'],
+                    'phone'      => $check['transaction_shipments']['destination_phone'],
+                    'address'    => $check['transaction_shipments']['destination_address'],
+                ],
+            ];
+
+            $dataShipping = [
+                'first_name'  => $check['transaction_shipments']['name'],
+                'phone'       => $check['transaction_shipments']['phone'],
+                'address'     => $check['transaction_shipments']['address'],
+                'postal_code' => $check['transaction_shipments']['postal_code'],
+            ];
+        } else {
+            $checkOutletService = TransactionOutletService::where('id_transaction', $post['id'])->first();
+            $dataUser = [
+                'first_name'      => (!empty($checkOutletService['customer_name']) ? $checkOutletService['customer_name'] : $user['name']),
+                'email'           => (!empty($checkOutletService['customer_email']) ? $checkOutletService['customer_email'] : $user['email']),
+                'phone'           => $user['phone'],
+                'billing_address' => [
+                    'first_name' => (!empty($checkOutletService['customer_name']) ? $checkOutletService['customer_name'] : $user['name']),
+                    'phone'      => $user['phone'],
+                ],
+            ];
+        }
+
+        if ($post['payment_type'] == 'Midtrans') {
+            if (\Cache::has('midtrans_confirm_'.$check['id_transaction'])) {
+                return response()->json(\Cache::get('midtrans_confirm_'.$check['id_transaction']));
+            }
+            $transaction_details = array(
+                'order_id'     => $check['transaction_receipt_number'],
+                'gross_amount' => $countGrandTotal,
+            );
+
+            if ($check['trasaction_type'] == 'Delivery') {
+                $dataMidtrans = array(
+                    'transaction_details' => $transaction_details,
+                    'customer_details'    => $dataUser,
+                    'shipping_address'    => $dataShipping,
+                );
+                $connectMidtrans = Midtrans::token($check['transaction_receipt_number'], $countGrandTotal, $dataUser, $dataShipping, $dataDetailProduct, 'trx', $check['id_transaction'], $post['payment_detail'], $scopeUser, $outletCode, $check['transaction_from']);
+            } else {
+                $dataMidtrans = array(
+                    'transaction_details' => $transaction_details,
+                    'customer_details'    => $dataUser,
+                );
+                $connectMidtrans = Midtrans::token($check['transaction_receipt_number'], $countGrandTotal, $dataUser, $ship=null, $dataDetailProduct, 'trx', $check['id_transaction'], $post['payment_detail'], $scopeUser, $outletCode, $check['transaction_from']);
+            }
+
+            if (empty($connectMidtrans['token'])) {
+                DB::rollback();
+                return response()->json([
+                    'status'   => 'fail',
+                    'messages' => [
+                        'Midtrans token is empty. Please try again.',
+                    ],
+                    'error'    => [$connectMidtrans],
+                    'data'     => [
+                        'trx'         => $transaction_details,
+                        'grand_total' => $countGrandTotal,
+                        'product'     => $dataDetailProduct,
+                        'user'        => $dataUser,
+                    ],
+                ]);
+            }
+
+            $dataNotifMidtrans = [
+                'id_transaction' => $check['id_transaction'],
+                'gross_amount'   => $countGrandTotal,
+                'order_id'       => $check['transaction_receipt_number'],
+                'redirect_url' => $connectMidtrans['redirect_url']??NULL,
+                'token' => $connectMidtrans['token']??NULL
+            ];
+
+            switch (strtolower($post['payment_detail']??'')) {
+                case 'bank transfer':
+                    $dataNotifMidtrans['payment_type'] = 'Bank Transfer';
+                    break;
+
+                case 'credit card':
+                    $dataNotifMidtrans['payment_type'] = 'Credit Card';
+                    break;
+
+                case 'gopay':
+                    $dataNotifMidtrans['payment_type'] = 'Gopay';
+                    break;
+                
+                default:
+                    $dataNotifMidtrans['payment_type'] = null;
+                    break;
+            }
+
+            $insertNotifMidtrans = TransactionPaymentMidtran::create($dataNotifMidtrans);
+            if (!$insertNotifMidtrans) {
+                DB::rollback();
+                return response()->json([
+                    'status'   => 'fail',
+                    'messages' => [
+                        'Payment Midtrans Failed.',
+                    ],
+                    'data'     => [$connectMidtrans],
+                ]);
+            }
+
+            $dataMultiple = [
+                'id_transaction' => $check['id_transaction'],
+                'type'           => 'Midtrans',
+                'id_payment'     => $insertNotifMidtrans['id_transaction_payment'],
+                'payment_detail' => $dataNotifMidtrans['payment_type'],
+            ];
+
+            $saveMultiple = TransactionMultiplePayment::create($dataMultiple);
+            if (!$saveMultiple) {
+                DB::rollback();
+                return response()->json([
+                    'status'   => 'fail',
+                    'messages' => ['fail to confirm transaction'],
+                ]);
+            }
+
+            $dataMidtrans['items']            = $productMidtrans;
+            $dataMidtrans['payment']          = $detailPayment;
+            $dataMidtrans['midtrans_product'] = $dataDetailProduct;
+
+            Transaction::where('id_transaction', $post['id'])->update(['trasaction_payment_type' => $post['payment_type']]);
+            optional($trx)->recalculateTaxandMDR();
+            DB::commit();
+
+            $dataEncode = [
+                'transaction_receipt_number' => $check['transaction_receipt_number'],
+                'type'                       => 'trx',
+                'trx_success'                => 1,
+            ];
+            $encode = json_encode($dataEncode);
+            $base   = base64_encode($encode);
+            $dataMidtrans['transaction_details']['id_transaction'] = $check['id_transaction'];
+            $response = [
+                'status'           => 'success',
+                'result' => [
+                    'snap_token'       => $connectMidtrans['token'],
+                    'redirect_url'     => $connectMidtrans['redirect_url'],
+                    'transaction_data' => $dataMidtrans,
+                    'url'              => env('VIEW_URL') . '/transaction/web/view/detail?data=' . $base,
+                ]
+
+            ];
+            \Cache::put('midtrans_confirm_'.$check['id_transaction'], $response, now()->addMinutes(10));
+
+            //book item and hs
+            if($check['transaction_from'] == 'outlet-service' || $check['transaction_from'] == 'shop'){
+                app($this->online_trx)->bookProductStock($check['id_transaction']);
+            }
+            return response()->json($response);
+        } elseif ($post['payment_type'] == 'Ovo') {
+
+            //validasi phone
+            $phone = preg_replace("/[^0-9]/", "", $post['phone']);
+
+            if (substr($phone, 0, 2) == '62') {
+                $phone = substr($phone, 2);
+            } elseif (substr($phone, 0, 3) == '+62') {
+                $phone = substr($phone, 3);
+            }
+
+            if (substr($phone, 0, 1) != '0') {
+                $phone = '0' . $phone;
+            }
+
+            $pay = app($this->confirm)->paymentOvo($check, $countGrandTotal, $phone, env('OVO_ENV') ?: 'staging');
+
+            return $pay;
+        } elseif ($post['payment_type'] == 'Ipay88') {
+
+            // save multiple payment
+            $trx_ipay88 = \Modules\IPay88\Lib\IPay88::create()->insertNewTransaction($check, 'trx', $countGrandTotal, $post);
+            if (!$trx_ipay88) {
+                DB::rollBack();
+                return response()->json([
+                    'status'   => 'fail',
+                    'messages' => ['Failed create transaction payment'],
+                ]);
+            }
+            $dataMultiple = [
+                'id_transaction' => $check['id_transaction'],
+                'type'           => 'IPay88',
+                'id_payment'     => $trx_ipay88->id_transaction_payment_ipay88,
+                'payment_detail' => $post['payment_id'] ?? null,
+            ];
+            $saveMultiple = TransactionMultiplePayment::updateOrCreate([
+                'id_transaction' => $check['id_transaction'],
+                'type'           => 'IPay88',
+            ], $dataMultiple);
+            if (!$saveMultiple) {
+                DB::rollBack();
+                return response()->json([
+                    'status'   => 'fail',
+                    'messages' => ['Failed create multiple transaction'],
+                ]);
+            }
+            DB::commit();
+            return [
+                'status'    => 'success',
+                'result'    => [
+                    'url'  => config('url.api_url').'api/ipay88/pay?'.http_build_query([
+                        'type' => 'trx',
+                        'id_reference' => $check['id_transaction'],
+                        'payment_id'   => $request->payment_id ?: '',
+                    ]),
+                ],
+            ];
         }
     }
 }

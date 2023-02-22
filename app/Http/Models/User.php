@@ -102,7 +102,8 @@ class User extends Authenticatable
         'transaction_online_status',
         'user_time_zone_utc',
         'claim_point_status',
-            'custom_name'
+        'custom_name',
+        'is_anon'    
 	];
 
 	public function city()

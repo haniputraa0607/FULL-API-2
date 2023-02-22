@@ -2460,6 +2460,103 @@ class ApiPromoTransaction extends Controller
 		return MyHelper::checkGet($trxQuery);
     }
 
+	public function applyPromoNewTrxV2(Transaction $trxQuery, $user)
+    {	
+    	$sharedPromoTrx = TemporaryDataManager::create('promo_trx');
+    	$data = clone $trxQuery;
+    	$data->load('transaction_products');
+    	$data = $data->toArray();
+
+    	$userPromo = UserPromo::where('id_user', $user['id'])->get()->keyBy('promo_type');
+
+    	if ($userPromo->isEmpty()) {
+    		return MyHelper::checkGet($trxQuery);
+    	}
+		
+    	$dealsType = null;
+    	if (isset($userPromo['deals'])) {
+    		$dealsUser = $this->validateDealsV2($userPromo['deals']->id_reference,$user);
+    		if ($dealsUser['status'] == 'fail') {
+    			return $dealsUser;
+    		} else {
+    			$deals = $dealsUser['result']->dealVoucher->deal;
+    			$sharedPromoTrx['deals'] = $deals;
+    			$sharedPromoTrx['deals']['id_deals_user'] = $dealsUser['result']->id_deals_user;
+    			$dealsPayment = DealsPaymentMethod::where('id_deals', $deals['id_deals'])->pluck('payment_method')->toArray();
+    			$dealsType = $deals->promo_type;
+    		}
+    	}
+
+		$codeType = null;
+    	if (isset($userPromo['promo_campaign'])) {
+    		$promoCode = $this->validatePromoCodeV2($userPromo['promo_campaign']->id_reference, $user);
+    		if ($promoCode['status'] == 'fail') {
+    			return $promoCode;
+    		} else {
+    			$promoCampaign = $promoCode['result']->promo_campaign;
+    			$sharedPromoTrx['promo_campaign'] = $promoCampaign;
+    			$sharedPromoTrx['promo_campaign']['promo_code'] = $promoCode['result']->promo_code;
+    			$sharedPromoTrx['promo_campaign']['id_promo_campaign_promo_code'] = $promoCode['result']->id_promo_campaign_promo_code;
+    			$codePayment = PromoCampaignPaymentMethod::where('id_promo_campaign', $promoCampaign['id_promo_campaign'])->pluck('payment_method')->toArray();
+    			$codeType = $promoCampaign->promo_type;
+    		}
+    	}
+
+    	$applyOrder = ['deals', 'promo_campaign'];
+
+    	$rulePriority = [
+    		'Product discount' => 1,
+    		'Tier discount' => 1,
+    		// 'Buy X Get Y' => 1,
+    		'Discount bill' => 2,
+    		'Discount delivery' => 2
+    	];
+
+    	if (isset($dealsType) && isset($codeType)) {
+    		if ($rulePriority[$codeType] < $rulePriority[$dealsType]) {
+    			$applyOrder = ['promo_campaign', 'deals'];
+    		}
+    	}
+
+    	$data['outlet'] = ['id_outlet' => $data['id_outlet']];
+    	foreach ($applyOrder as $apply) {
+	    	if ($apply == 'deals' && isset($userPromo['deals'])) {
+	    		$this->createSharedPromoTrx($data);
+
+				$applyDeals = $this->applyDeals($userPromo['deals']->id_reference, $data, 1);
+	    		$promoDeals = $applyDeals['result'] ?? null;
+				if ($applyDeals['status'] == 'fail') {
+					return $applyDeals;
+				}
+
+				$data = $this->reformatNewTrxV2($trxQuery, $promoDeals ?? null, $user);
+				if ($data['status'] == 'fail') {
+					return $data;
+				}
+				$data = $data['result'];
+
+	    	} elseif ($apply == 'promo_campaign' && isset($userPromo['promo_campaign'])) {
+	    		$this->createSharedPromoTrx($data);
+				
+	    		$applyCode = $this->applyPromoCode($userPromo['promo_campaign']->id_reference, $data, 1);
+
+	    		$promoCode = $applyCode['result'] ?? null;
+				if ($applyCode['status'] == 'fail') {
+					return $applyCode;
+				}
+
+				$data = $this->reformatNewTrxV2($trxQuery, $promoCode ?? null, $user);
+				if ($data['status'] == 'fail') {
+					return $data;
+				}
+				$data = $data['result'];
+	    	}
+	    }
+
+		$trxQuery = Transaction::find($trxQuery->id_transaction);
+		return MyHelper::checkGet($trxQuery);
+    }
+
     public function reformatNewTrx(Transaction $trx, $dataDiscount)
     {
     	$trxQuery = Transaction::find($trx->id_transaction);
@@ -2586,6 +2683,131 @@ class ApiPromoTransaction extends Controller
 		return MyHelper::checkGet($trxQuery->load('transaction_products')->toArray());
     }
 
+	public function reformatNewTrxV2(Transaction $trx, $dataDiscount, $user)
+    {
+    	$trxQuery = Transaction::find($trx->id_transaction);
+
+		if (empty($dataDiscount['discount']) && empty($dataDiscount['discount_delivery'])) {
+    		return MyHelper::checkGet($trxQuery->load('transaction_products')->toArray());
+    	}
+
+    	$promoCashback = ($dataDiscount['promo_source'] == 'deals') ? 'voucher_online' : 'promo_code';
+    	$discountValue = (int) abs($dataDiscount['discount'] ?? $dataDiscount['discount_delivery']);
+    	$sharedPromo = TemporaryDataManager::create('promo_trx');
+
+		$outlet = Outlet::find($sharedPromo['id_outlet']);
+		$subtotal = $sharedPromo['subtotal'];
+		$cashback = $sharedPromo['cashback'];
+		$shipping = $trxQuery->transaction_shipment;
+
+		$discount = (int) abs($dataDiscount['discount'] ?? 0);
+		$discount_delivery = (int) abs($dataDiscount['discount_delivery'] ?? 0);
+
+
+		$promoGetPoint = app($this->online_trx)->checkPromoGetPoint($promoCashback);
+		$cashback_earned = $promoGetPoint ? $cashback : 0;
+
+		$totalDiscount = abs($trxQuery->transaction_discount) + $discount;
+		$totalDiscountDelivery = abs($trxQuery->transaction_discount_delivery) + $discount_delivery;
+		$totalDiscountItem = abs($trxQuery->transaction_discount_item);
+		$totalDiscountBill = abs($trxQuery->transaction_discount_bill);
+
+		$sharedPromo['subtotal_promo'] = $subtotal - $totalDiscount;
+		$sharedPromo['shipping_promo'] = $shipping - $totalDiscountDelivery;
+
+		$grandtotal = $sharedPromo['subtotal_promo']
+					+ (int) $sharedPromo['service'] 
+					+ $sharedPromo['shipping_promo'];
+
+		$newTrxTax = 0;
+		switch ($dataDiscount['promo_type']) {
+			case 'Discount bill':
+				$totalDiscountBill = $totalDiscountBill + $discount;
+				break;
+			
+			case 'Product discount':
+			case 'Tier discount':
+			case 'Buy X Get Y':
+			default:
+				$totalDiscountItem = $totalDiscountItem + $discount;
+				foreach ($sharedPromo['items'] as $item) {
+					if (empty($item['is_promo'])) {
+						continue;
+					}
+
+					$tp = TransactionProduct::find($item['id_transaction_product']);
+					if (!$tp) {
+						return $this->failResponse('Insert product promo failed');
+					}
+					
+					$newTax = $outlet['is_tax'] ? round((($tp->transaction_product_subtotal - ($tp->transaction_product_discount_all + $item['discount'])) / $tp->transaction_product_qty) * $outlet['is_tax'] / (100 + $outlet['is_tax'])) : 0;
+					$tp->update([
+						'transaction_product_discount' => $tp->transaction_product_discount + $item['discount'],
+						'transaction_product_discount_all' => $tp->transaction_product_discount_all + $item['discount'],
+						'transaction_product_price_base' => $tp->transaction_product_price - $newTax,
+						'transaction_product_price_tax' => $newTax
+					]);
+					$newTrxTax += ($newTax * $tp->transaction_product_qty);
+
+					TransactionProductPromo::create([
+						'id_transaction_product' => $item['id_transaction_product'],
+				        'id_deals' => $dataDiscount['id_deals'] ?? null,
+				        'id_promo_campaign' => $dataDiscount['id_promo_campaign'] ?? null,
+				        'promo_type' => ($dataDiscount['promo_source'] == 'deals') ? 'Deals' : 'Promo Campaign',
+				        'total_discount' => $item['discount'],
+				        'base_discount' => $item['base_discount'],
+				        'qty_discount' => $item['qty_discount']
+					]);
+				}
+				break;
+		}
+
+		$trxQuery->update([
+			'id_promo_campaign_promo_code' => $dataDiscount['id_promo_campaign_promo_code'] ?? $trxQuery->id_promo_campaign_promo_code,
+			'transaction_discount' => - $totalDiscount,
+			'transaction_discount_delivery' => - $totalDiscountDelivery,
+			'transaction_discount_item' => $totalDiscountItem,
+			'transaction_discount_bill' => $totalDiscountBill,
+	    	'transaction_tax' => $newTrxTax,
+	    	'transaction_cashback_earned' => $cashback_earned,
+	    	'transaction_grandtotal' => $grandtotal
+		]);
+
+        if($totalDiscountBill > 0){
+            $totalSubProduct = TransactionProduct::where('id_transaction', $trx->id_transaction)->sum('transaction_product_subtotal');
+            $products = TransactionProduct::where('id_transaction', $trx->id_transaction)->get()->toArray();
+            foreach ($products as $product){
+                $disc = $product['transaction_product_subtotal'] / $totalSubProduct * $totalDiscountBill;
+                TransactionProduct::where('id_transaction_product', $product['id_transaction_product'])->update([
+                    'transaction_product_discount_all' => $disc + $product['transaction_product_discount_all']
+                ]);
+            }
+        }
+
+		TransactionPromo::create([
+			'id_transaction' => $trxQuery->id_transaction,
+			'promo_name' => $dataDiscount['title'],
+			'promo_type' => ($dataDiscount['promo_source'] == 'deals') ? 'Deals' : 'Promo Campaign',
+			'id_deals_user' => $dataDiscount['id_deals_user'] ?? null,
+			'id_promo_campaign_promo_code' => $dataDiscount['id_promo_campaign_promo_code'] ?? null,
+			'discount_value' => $discount ?: $discount_delivery
+		]);
+
+		if ($dataDiscount['promo_source'] == 'deals') {
+			$insertPromo = $this->insertUsedVoucher($trxQuery, $dataDiscount);
+			UserPromo::where('id_user', $user['id'])->where('promo_type', 'deals')->delete();
+		} else {
+			$insertPromo = $this->insertUsedCodeV2($trxQuery, $dataDiscount, 0, $user);
+			UserPromo::where('id_user', $user['id'])->where('promo_type', 'promo_campaign')->delete();
+		}
+
+		if ($insertPromo['status'] == 'fail') {
+			return $insertPromo;
+		}
+
+		return MyHelper::checkGet($trxQuery->load('transaction_products')->toArray());
+    }
+
     public function insertUsedVoucher(Transaction $trx, $dataDiscount)
     {
     	$dealsUser = DealsUser::find($dataDiscount['id_deals_user']);
@@ -2615,6 +2837,7 @@ class ApiPromoTransaction extends Controller
             $deviceId = '';
             $deviceType = null;
         }
+
     	$promo_campaign_report = app($this->promo_campaign)->addReport(
             $dataDiscount['id_promo_campaign'],
             $dataDiscount['id_promo_campaign_promo_code'],
@@ -2625,6 +2848,34 @@ class ApiPromoTransaction extends Controller
             $dataDiscount['user_name']??null,
             $dataDiscount['user_phone']??null,
             $dataDiscount['id_user']??null
+        );
+
+        if (!$promo_campaign_report) {
+        	return $this->failResponse('Insert Promo Failed');
+        }
+
+        return ['status' => 'success'];
+    }
+
+	public function insertUsedCodeV2(Transaction $trx, $dataDiscount, $fromTriger = 0, $user)
+    {
+        $deviceId = request()->device_id ?: '';
+        $deviceType = request()->device_type ?: null;
+        if($fromTriger == 1){
+            $deviceId = '';
+            $deviceType = null;
+        }
+
+    	$promo_campaign_report = app($this->promo_campaign)->addReport(
+            $dataDiscount['id_promo_campaign'],
+            $dataDiscount['id_promo_campaign_promo_code'],
+            $trx['id_transaction'],
+            $trx['id_outlet'],
+            $deviceId,
+            $deviceType,
+            $user['name']??null,
+            $user['phone']??null,
+            $user['id']??null
         );
 
         if (!$promo_campaign_report) {

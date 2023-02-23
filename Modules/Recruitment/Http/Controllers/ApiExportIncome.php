@@ -93,8 +93,8 @@ class ApiExportIncome extends Controller
     }
     public function exportExcel($queue){
         $id = $queue;
-    	$queue = ExportPayrollQueue::where('id_export_payroll_queue', $queue)->where('status_export', 'Running')->first();
-    	if (!$queue) {
+    	$queue = ExportPayrollQueue::where('status_export', 'Running')->first();
+		if (!$queue) {
     		return false;
     	}else{
     		$queue = $queue->toArray();
@@ -110,7 +110,7 @@ class ApiExportIncome extends Controller
                 $dataExport = $data['result'];
                $store = (new PayrollExport($dataExport))->store($directory, null, null, ['visibility' => 'public']);
                 if ($store) {
-                    ExportPayrollQueue::where('id_export_payroll_queue', $id)->update(['url_export' => $directory, 'status_export' => 'Ready']);
+                    ExportPayrollQueue::where('id_export_payroll_queue',  $queue['id_export_payroll_queue'])->update(['url_export' => $directory, 'status_export' => 'Ready']);
                 }
 
             return 'success';

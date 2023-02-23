@@ -695,7 +695,7 @@ class ApiIncome extends Controller
           }
           $array = array();
           foreach ($ar as $value) {
-              return $req = array(
+            $req = array(
                   'id_outlet'=>$request['id_outlet'],
                   'start_date'=>$value['start'],
                   'end_date'=>$value['end'],

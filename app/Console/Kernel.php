@@ -25,6 +25,8 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
+         $schedule->command('backup:clean')->dailyAt(config('app.env') == 'staging' ? '08:00' : '02:00');
+         $schedule->command('backup:run')->dailyAt(config('app.env') == 'staging' ? '08:15' : '02:10');
         /**
          * sending the campaign schedule
          * run every 5 minute

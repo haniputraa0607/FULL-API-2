@@ -2795,12 +2795,6 @@ class ApiProductController extends Controller
 
         $post['id_outlet'] = $outlet['id_outlet'];
 
-        //product category hs
-        $hsCat = [];
-        if(!empty($post['id_product'])){
-            $hsCat = ProductHairstylistCategory::where('id_product', $post['id_product'])->pluck('id_hairstylist_category')->toArray();
-        }
-
         //get Schedule
         $day = [
             'Mon' => 'Senin',
@@ -2843,10 +2837,6 @@ class ApiProductController extends Controller
                         $availableStatus = false;
                     }
                 }
-            }
-
-            if(!empty($hsCat) && !in_array($val['id_hairstylist_category'], $hsCat)){
-                $availableStatus = false;
             }
 
             $res[] = [

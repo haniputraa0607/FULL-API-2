@@ -26,6 +26,7 @@ Route::group(['middleware' => ['auth:api', 'scopes:web-apps'],'prefix' => 'api/w
     Route::post('new', 'ApiOnlineTransaction@newTransaction')->middleware('decrypt_pin:pin,request');
     Route::post('newV2', 'ApiOnlineTransaction@newTransactionV2')->middleware('decrypt_pin:pin,request');
     Route::post('confirm', 'ApiConfirm@confirmTransaction');
+    Route::post('confirmV2', 'ApiConfirm@confirmTransactionV2');
     Route::post('list', 'ApiTransaction@outletServiceList');
 	Route::post('detail', 'ApiTransaction@outletServiceDetail');
 });
@@ -169,6 +170,7 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::post('/new', 'ApiOnlineTransaction@newTransaction')->middleware('decrypt_pin:pin,request');
     Route::post('/newV2', 'ApiOnlineTransaction@newTransactionV2')->middleware('decrypt_pin:pin,request');
     Route::post('/confirm', 'ApiConfirm@confirmTransaction');
+    Route::post('/confirmV2', 'ApiConfirm@confirmTransactionV2');
     Route::post('/cancel', 'ApiOnlineTransaction@cancelTransaction');
     Route::post('/prod/confirm', 'ApiTransactionProductionController@confirmTransaction2');
     Route::post('fake-update-why', 'ApiWehelpyouController@updateFakeStatus');
@@ -179,6 +181,7 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
 
     Route::group(['prefix' => 'transaction'], function () {
     	Route::post('list', 'ApiTransaction@outletServiceList');
+    	Route::post('listV2', 'ApiTransaction@outletServiceListV2');
     	Route::post('detail', 'ApiTransaction@outletServiceDetail');
     	Route::post('detailV2', 'ApiTransaction@outletServiceDetailV2');
         Route::post('cancel', 'ApiOnlineTransaction@cancelTransaction');

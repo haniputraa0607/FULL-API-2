@@ -116,7 +116,7 @@ return [
         'payment_method'  => 'SHOPEEPAY',
         'status'          => 1,
         'logo'            => env('STORAGE_URL_API').'default_image/payment_method/ic_shopee_pay.png',
-        'text'            => 'ShopeePay'
+        'text'            => 'ShopeePay (QRIS)'
     ],
     'xendit_kredivo'      => [
         'payment_gateway' => 'Xendit',

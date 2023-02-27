@@ -6478,10 +6478,10 @@ class ApiOnlineTransaction extends Controller
             }
 
 
-            // $bookTime = date('Y-m-d H:i', strtotime(date('Y-m-d', strtotime($item['booking_date'])).' '.date('H:i', strtotime($item['booking_time']))));
-            // if(strtotime($currentDate) > strtotime($bookTime)){
-            //     $err[] = "Waktu pemesanan Anda tidak valid";
-            // }
+            $bookTime = date('Y-m-d H:i', strtotime(date('Y-m-d', strtotime($item['booking_date']))));
+            if(strtotime($currentDate) > strtotime($bookTime)){
+                $err[] = "Waktu pemesanan Anda tidak valid";
+            }
 
             // //check available hs
             // $hs = UserHairStylist::where('id_user_hair_stylist', $item['id_user_hair_stylist'])->where('user_hair_stylist_status', 'Active')->first();

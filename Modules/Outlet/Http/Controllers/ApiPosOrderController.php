@@ -371,15 +371,19 @@ class ApiPosOrderController extends Controller
                 'order' => ($availableStatus ? $val['id_user_hair_stylist']:1000)
             ];
 
-            $queue = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
+            $queue = [];
+            $current = [];
+            $service_outlets = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
                 ->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
                 ->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
                 ->join('products', 'transaction_products.id_product', 'products.id_product')
                 ->where(function($q) {
                     $q->whereNull('service_status');
+                    $q->orWhere('service_status','In Progress');
                 })
                 ->where(function($q){
                     $q->whereNull('transaction_product_services.id_user_hair_stylist');
+                    $q->orWhereNotNull('transaction_product_services.id_user_hair_stylist');
                 })
                 ->where(function($q) {
                     $q->where('trasaction_payment_type', 'Cash')
@@ -392,32 +396,16 @@ class ApiPosOrderController extends Controller
                 ->where('transaction_payment_status', '!=', 'Cancelled')
                 ->wherenull('transaction_products.reject_at')
                 ->orderBy('queue', 'asc')
-                ->select('transactions.id_transaction','transaction_product_services.id_transaction_product_service','transaction_product_services.queue_code')
+                ->select('transactions.id_transaction','transaction_product_services.id_transaction_product_service','transaction_product_services.queue_code','service_status','transaction_product_services.id_user_hair_stylist')
                 ->get()->toArray();
 
-            $current = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
-                ->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
-                ->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
-                ->join('products', 'transaction_products.id_product', 'products.id_product')
-                ->where(function($q) {
-                    $q->where('service_status','In Progress');
-                })
-                ->where(function($q){
-                    $q->whereNotNull('transaction_product_services.id_user_hair_stylist');
-                })
-                ->where(function($q) {
-                    $q->where('trasaction_payment_type', 'Cash')
-                    ->orWhere('transaction_payment_status', 'Completed');
-                })
-                ->where('transactions.id_outlet',$outlet['id_outlet'])
-                ->whereNotNull('transaction_product_services.queue')
-                ->whereNotNull('transaction_product_services.queue_code')
-                ->whereDate('schedule_date',date('Y-m-d'))
-                ->where('transaction_payment_status', '!=', 'Cancelled')
-                ->wherenull('transaction_products.reject_at')
-                ->orderBy('queue', 'asc')
-                ->select('transactions.id_transaction','transaction_product_services.id_transaction_product_service','transaction_product_services.queue_code')
-                ->get()->toArray();
+            foreach($service_outlets ?? [] as $key => $service_outlet){
+                if(!isset($service_outlet['service_status']) && !isset($service_outlet['id_user_hair_stylist'])){
+                    $queue[] = $service_outlet;
+                }elseif(isset($service_outlet['service_status']) && $service_outlet['service_status'] == 'In Progress' && isset($service_outlet['id_user_hair_stylist'])){
+                    $current[] = $service_outlet;
+                }
+            }
             
             $data = [
                 'outlet' => $outlet,
@@ -1322,7 +1310,7 @@ class ApiPosOrderController extends Controller
         $insertTransaction['transaction_receipt_number'] = $receipt;
         //process add product service
         if(!empty($post['item_service'])){
-            $insertService = app($this->online_trx)->insertServiceProductV2($post['item_service']??[], $insertTransaction, $outlet, $post, $productMidtrans, $userTrxProduct);
+            $insertService = app($this->online_trx)->insertServiceProductV2($post['item_service']??[], $insertTransaction, $outlet, $post, $productMidtrans, $userTrxProduct, $post['payment_type']??null);
             if(isset($insertService['status']) && $insertService['status'] == 'fail'){
                 return response()->json($insertService);
             }

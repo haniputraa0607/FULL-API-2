@@ -1702,8 +1702,9 @@ class ApiOnlineTransaction extends Controller
 
         $insertTransaction['transaction_receipt_number'] = $receipt;
         //process add product service
+        
         if(!empty($post['item_service'])){
-            $insertService = $this->insertServiceProductV2($post['item_service']??[], $insertTransaction, $outlet, $post, $productMidtrans, $userTrxProduct);
+            $insertService = $this->insertServiceProductV2($post['item_service']??[], $insertTransaction, $outlet, $post, $productMidtrans, $userTrxProduct, $post['payment_type']??null);
             if(isset($insertService['status']) && $insertService['status'] == 'fail'){
                 return response()->json($insertService);
             }
@@ -5156,7 +5157,8 @@ class ApiOnlineTransaction extends Controller
         ];
     }
 
-    function insertServiceProductV2($data, $trx, $outlet, $post, &$productMidtrans, &$userTrxProduct){
+    function insertServiceProductV2($data, $trx, $outlet, $post, &$productMidtrans, &$userTrxProduct, $payment_type = null){
+
         $tempStock = [];
         foreach ($data as $itemProduct){
             for($i = 0; $i < $itemProduct['qty']; $i++){
@@ -5248,13 +5250,18 @@ class ApiOnlineTransaction extends Controller
                 // $timeZone = $outlet['province_time_zone_utc'] - 7;
                 // $bookTime = date('H:i:s', strtotime('-'.$timeZone.' hours', strtotime($itemProduct['booking_time'])));
                 
-                $queue = TransactionProductService::join('transactions','transactions.id_transaction','transaction_product_services.id_transaction')->whereDate('schedule_date', date('Y-m-d', strtotime($itemProduct['booking_date'])))->where('id_outlet',$trx['id_outlet'])->where('transaction_product_services.id_transaction', '<>', $trx['id_transaction'])->max('queue') + 1;
-                if($queue<10){
-                    $queue_code = '[00'.$queue.'] - '.$product['product_name'];
-                }elseif($queue<100){
-                    $queue_code = '[0'.$queue.'] - '.$product['product_name'];
+                if(isset($payment_type) && $payment_type == 'Cash'){
+                    $queue = TransactionProductService::join('transactions','transactions.id_transaction','transaction_product_services.id_transaction')->whereDate('schedule_date', date('Y-m-d', strtotime($itemProduct['booking_date'])))->where('id_outlet',$trx['id_outlet'])->where('transaction_product_services.id_transaction', '<>', $trx['id_transaction'])->max('queue') + 1;
+                    if($queue<10){
+                        $queue_code = '[00'.$queue.'] - '.$product['product_name'];
+                    }elseif($queue<100){
+                        $queue_code = '[0'.$queue.'] - '.$product['product_name'];
+                    }else{
+                        $queue_code = '['.$queue.'] - '.$product['product_name'];
+                    }
                 }else{
-                    $queue_code = '['.$queue.'] - '.$product['product_name'];
+                    $queue = null;
+                    $queue_code = null;
                 }
     
                 $product_service = TransactionProductService::create([
@@ -6478,10 +6485,10 @@ class ApiOnlineTransaction extends Controller
             }
 
 
-            $bookTime = date('Y-m-d H:i', strtotime(date('Y-m-d', strtotime($item['booking_date']))));
-            if(strtotime($currentDate) > strtotime($bookTime)){
-                $err[] = "Waktu pemesanan Anda tidak valid";
-            }
+            // $bookTime = date('Y-m-d H:i', strtotime(date('Y-m-d', strtotime($item['booking_date'])).' '.date('H:i', strtotime($item['booking_time']))));
+            // if(strtotime($currentDate) > strtotime($bookTime)){
+            //     $err[] = "Waktu pemesanan Anda tidak valid";
+            // }
 
             // //check available hs
             // $hs = UserHairStylist::where('id_user_hair_stylist', $item['id_user_hair_stylist'])->where('user_hair_stylist_status', 'Active')->first();

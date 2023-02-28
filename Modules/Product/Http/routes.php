@@ -62,6 +62,7 @@ Route::group(['prefix' => 'api/product','middleware' => ['log_activities','auth:
     Route::any('be/commission/delete', 'ApiProductController@deleteCommission');
     Route::any('be/commission/delete-product', 'ApiProductController@deleteProductCommission');
     Route::post('be/available-hs', 'ApiProductController@outletServiceAvailableHs');
+    Route::post('be/available-hsV2', 'ApiProductController@outletServiceAvailableHsV2');
     /* photo */
     Route::group(['prefix' => 'photo'], function() {
         Route::post('create', 'ApiProductController@uploadPhotoProduct');
@@ -190,6 +191,7 @@ Route::group(['prefix' => 'api/webapp/outlet-service/product','middleware' => ['
     Route::post('list', 'ApiProductController@outletServiceListProduct');
     Route::post('detail-service', 'ApiProductController@outletServiceDetailProductService');
     Route::post('available-hs', 'ApiProductController@outletServiceAvailableHs');
+    Route::post('available-hsV2', 'ApiProductController@outletServiceAvailableHsV2');
     Route::post('detail', 'ApiProductController@detail');
 });
 

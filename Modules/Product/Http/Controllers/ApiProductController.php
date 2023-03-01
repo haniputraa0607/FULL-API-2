@@ -2826,6 +2826,9 @@ class ApiProductController extends Controller
                 continue;
             }
 
+            $dateShiftStart = date("Y-m-d H:i:s", strtotime($bookDate.' '.$shift['time_start']));
+            $dateShiftEnd = date("Y-m-d H:i:s", strtotime($bookDate.' '.$shift['time_end']));
+
             if($bookDate == date('Y-m-d')){
                 $clockInOut = HairstylistAttendance::where('id_user_hair_stylist', $val['id_user_hair_stylist'])
                     ->where('id_hairstylist_schedule_date', $shift['id_hairstylist_schedule_date'])->orderBy('updated_at', 'desc')->first();
@@ -2837,6 +2840,15 @@ class ApiProductController extends Controller
                         $availableStatus = false;
                     }
                 }
+            }else{
+                $hsNotAvailable = HairstylistNotAvailable::where('id_outlet', $outlet['id_outlet'])
+                ->whereRaw('((booking_start = "'.$dateShiftStart.'" AND booking_end = "'.$dateShiftEnd.'"))')
+                ->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
+                ->first();
+                if(!$hsNotAvailable){
+                    $availableStatus = true;
+                }
+
             }
 
             $res[] = [

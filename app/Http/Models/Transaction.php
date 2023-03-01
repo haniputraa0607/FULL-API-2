@@ -442,6 +442,19 @@ class Transaction extends Model
         $trx->productTransaction->each(function($transaction_product,$index){
             $transaction_product->breakdown();
         });
+		
+		$trx->transaction_product_services->each(function($service,$index) use($trx){
+			$product = $service->transaction_product->product;
+			$queue = \Modules\Transaction\Entities\TransactionProductService::join('transactions','transactions.id_transaction','transaction_product_services.id_transaction')->whereDate('schedule_date', date('Y-m-d',strtotime($service->schedule_date)))->where('id_outlet',$trx->id_outlet)->where('transaction_product_services.id_transaction', '<>', $trx->id_transaction)->max('queue') + 1;
+			if($queue<10){
+				$queue_code = '[00'.$queue.'] - '.$product->product_name;
+			}elseif($queue<100){
+				$queue_code = '[0'.$queue.'] - '.$product->product_name;
+			}else{
+				$queue_code = '['.$queue.'] - '.$product->product_name;
+			}
+			$service->update(['queue'=>$queue,'queue_code'=>$queue_code]);
+        });
 
         app('\Modules\Transaction\Http\Controllers\ApiNotification')->notification($mid, $trx);
 

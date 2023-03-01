@@ -1148,8 +1148,7 @@ class ApiTransactionOutletService extends Controller
 					'id_user_hair_stylist' => $product['transaction_product_service']['id_user_hair_stylist'],
 					'hairstylist_name' => $product['transaction_product_service']['user_hair_stylist']['nickname'],
 					'schedule_date' => MyHelper::dateFormatInd($product['transaction_product_service']['schedule_date'], true, false),
-					'schedule_time' => $schedule_time['time'],
-					'schedule_time_zone' => $schedule_time['time_zone_id'],
+                    'service_status' => $product['transaction_product_service']['service_status'],
                     'id_product' => $product['product']['id_product'],
 					'product_name' => $product['product']['product_name'],
 					'subtotal' => 'IDR '.number_format(($product['transaction_product_subtotal']),0,',','.'),
@@ -1267,21 +1266,21 @@ class ApiTransactionOutletService extends Controller
 			];
 		}
 
-		$hna = HairstylistNotAvailable::where('id_transaction_product_service', $request->id_transaction_product_service)->first();
-		if (!$hna) {
-			return [
-				'status' => 'fail',
-				'messages' => ['Transaction product service not found']
-			];
-		}
+		// $hna = HairstylistNotAvailable::where('id_transaction_product_service', $request->id_transaction_product_service)->first();
+		// if (!$hna) {
+		// 	return [
+		// 		'status' => 'fail',
+		// 		'messages' => ['Transaction product service not found']
+		// 	];
+		// }
 
 		$trx = Transaction::with([
 				'transaction_product_services' => function($q) use ($tps) {
 					$q->where('id_transaction_product_service', $tps->id_transaction_product_service);
 				} ,
-				'hairstylist_not_available' => function($q) use ($hna) {
-					$q->where('id_hairstylist_not_available', $hna->id_hairstylist_not_available);
-				}
+				// 'hairstylist_not_available' => function($q) use ($hna) {
+				// 	$q->where('id_hairstylist_not_available', $hna->id_hairstylist_not_available);
+				// }
 			]);
 
 		$oldTrx = $trx->find($tps->id_transaction);
@@ -1306,32 +1305,36 @@ class ApiTransactionOutletService extends Controller
 			];
 		}
 
-		$newBookDateTime = date('Y-m-d H:i:s', strtotime($post['schedule_date'] . ' ' . $post['schedule_time']));
-		$newBookDateTime = $bookStart = MyHelper::reverseAdjustTimezone($newBookDateTime, $outlet['province_time_zone_utc'], 'Y-m-d H:i:s');
-		$checkSchedule = $this->checkOutletServiceSchedule($post['id_user_hair_stylist'], $newBookDateTime, $tps['transaction_product']['id_product']);
-		if ($checkSchedule['status'] == 'fail') {
-			return $checkSchedule;
-		}
+		$newBookDateTime = date('Y-m-d', strtotime($post['schedule_date']));
+		$newBookDateTime = $bookStart = $newBookDateTime;
+        if(isset($post['id_user_hair_stylist'])){
+            $checkSchedule = $this->checkOutletServiceSchedule($post['id_user_hair_stylist'], $newBookDateTime, $tps['transaction_product']['id_product']);
+            if ($checkSchedule['status'] == 'fail') {
+                return $checkSchedule;
+            }
+        }
 
 		$processingTime = Product::find($tps['transaction_product']['id_product'])['processing_time_service'] ?? null;
-    	$bookEnd = date('Y-m-d H:i:s', strtotime("+".(empty($processingTime) ? 30 : $processingTime)." minutes", strtotime($bookStart)));
+    	// $bookEnd = date('Y-m-d H:i:s', strtotime("+".(empty($processingTime) ? 30 : $processingTime)." minutes", strtotime($bookStart)));
 
 		DB::beginTransaction();
-		$tps->update([
+        
+        $dataNew = [
 			'schedule_date' => date('Y-m-d', strtotime($bookStart)),
-			'schedule_time' => date('H:i:s', strtotime($bookStart)),
-			'id_user_hair_stylist' => $post['id_user_hair_stylist'],
+			'id_user_hair_stylist' => $post['id_user_hair_stylist'] ?? null,
 			'is_conflict' => 0
-		]);
+        ];
+        
+		$tps->update($dataNew);
 
-		HairstylistNotAvailable::where('id_transaction_product_service', $request->id_transaction_product_service)->update([
-			'booking_start' => $bookStart,
-			'booking_end' => $bookEnd,
-            'id_user_hair_stylist' => $post['id_user_hair_stylist']
-		]);
+		// HairstylistNotAvailable::where('id_transaction_product_service', $request->id_transaction_product_service)->update([
+		// 	'booking_start' => $bookStart,
+		// 	'booking_end' => $bookEnd,
+        //     'id_user_hair_stylist' => $post['id_user_hair_stylist']
+		// ]);
 
 		$newTrx = $trx->find($tps->id_transaction);
-
+        
 		$logTrx = LogTransactionUpdate::create([
 			'id_user' => $request->user()->id,
 	    	'id_transaction' => $tps->id_transaction,
@@ -1369,12 +1372,12 @@ class ApiTransactionOutletService extends Controller
     		];
     	}
 
-        $timeZone = 7; // all datetime use utc+7 timezone
-        $currentDate = MyHelper::adjustTimezone(date('Y-m-d H:i'), $timeZone, 'Y-m-d H:i');
+        // $timeZone = 7; // all datetime use utc+7 timezone
+        $currentDate = date('Y-m-d');
         $bookingDate = date('Y-m-d', strtotime($bookDateTime));
-        $bookingTime = date('H:i', strtotime($bookDateTime));
-        $bookDateIndo = MyHelper::adjustTimezone($bookDateTime, $outlet['province_time_zone_utc'] ?? 7, 'l, d F Y H:i', true);
-        $currDateIndo = MyHelper::adjustTimezone($currentDate, $outlet['province_time_zone_utc'] ?? 7, 'l, d F Y H:i', true);
+        // $bookingTime = date('H:i', strtotime($bookDateTime));
+        $bookDateIndo = date('l, d F Y', strtotime($bookDateTime));
+        $currDateIndo = date('l, d F Y', strtotime($currentDate));
 
         $idOutletSchedule = $outlet['today']['id_outlet_schedule'] ?? null;
 
@@ -1392,11 +1395,8 @@ class ApiTransactionOutletService extends Controller
 
         $err = [];
         $outletSchedule = OutletSchedule::where('id_outlet', $outlet['id_outlet'])->where('day', $day[date('D', strtotime($bookingDate))])->first();
-        $open = date('H:i:s', strtotime($outletSchedule['open']));
-        $close = date('H:i:s', strtotime($outletSchedule['close']));
-        $currentHour = date('H:i:s', strtotime($bookingTime));
 
-        if (strtotime($currentHour) < strtotime($open) || strtotime($currentHour) > strtotime($close) || $outletSchedule['is_closed'] == 1) {
+        if ($outletSchedule['is_closed'] == 1) {
         	return [
     			'status' => 'fail',
     			'messages' => ['Outlet closed on ' . $bookDateIndo]
@@ -1411,8 +1411,7 @@ class ApiTransactionOutletService extends Controller
     		];
         }
 
-        $bookTime = date('Y-m-d H:i', strtotime(date('Y-m-d', strtotime($bookingDate)).' '.date('H:i', strtotime($bookingTime))));
-        if (strtotime($currentDate) > strtotime($bookTime)) {
+        if (strtotime($currentDate) > strtotime($bookingDate)) {
         	return [
     			'status' => 'fail',
     			'messages' => ['Booking time must be after '.$currDateIndo]
@@ -1420,11 +1419,12 @@ class ApiTransactionOutletService extends Controller
         }
 
         //get hs schedule
-        $shift = HairstylistScheduleDate::where('id_user_hair_stylist', $id_hs)
+        $hs_sch = HairstylistScheduleDate::where('id_user_hair_stylist', $id_hs)
                 ->leftJoin('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
                 ->whereNotNull('approve_at')
                 ->whereDate('date', date('Y-m-d', strtotime($bookingDate)))
-                ->first()['shift'] ?? null;
+                ->first();
+        $shift = $hs_sch['shift'] ?? null;
         if (empty($shift)) {
         	return [
     			'status' => 'fail',
@@ -1441,13 +1441,6 @@ class ApiTransactionOutletService extends Controller
         } else {
             $shiftTimeStart = date('H:i:s', strtotime($getTimeShift['start']));
             $shiftTimeEnd = date('H:i:s', strtotime($getTimeShift['end']));
-            $time = date('H:i', strtotime($bookingTime));
-            if ((strtotime($time) >= strtotime($shiftTimeStart) && strtotime($time) < strtotime($shiftTimeEnd)) === false) {
-            	return [
-	    			'status' => 'fail',
-	    			'messages' => ["Hair stylist " . $hs->nickname . " - " . $hs->fullname . " not available on ".$bookDateIndo.', shift hour not available']
-	    		];
-            }
         }
 
         $service = Product::find($id_product);
@@ -1458,22 +1451,19 @@ class ApiTransactionOutletService extends Controller
     		];
         }
 
-        $processingTime = $service['processing_time_service'];
-        $bookTimeStart = date("Y-m-d H:i:s", strtotime($bookingDate.' '.$bookingTime));
-        $bookTimeEnd = date('Y-m-d H:i:s', strtotime("+".$processingTime." minutes", strtotime($bookTimeStart)));
         $hsNotAvailable = HairstylistNotAvailable::where('id_outlet', $outlet['id_outlet'])
-            ->whereRaw('((booking_start >= "'.$bookTimeStart.'" AND booking_start <= "'.$bookTimeEnd.'") 
-                        OR (booking_end > "'.$bookTimeStart.'" AND booking_end < "'.$bookTimeEnd.'"))')
-            ->where('id_user_hair_stylist', $id_hs)
-            ->first();
-
-        if(!empty($hsNotAvailable)){
-        	$bookEndIndo = MyHelper::adjustTimezone($hsNotAvailable->booking_end, $outlet['province_time_zone_utc'] ?? 7, 'l, d F Y H:i', true);
-            return [
-    			'status' => 'fail',
-    			'messages' => ["Hair stylist " . $hs->nickname . " - " . $hs->fullname . " not available on ".$bookDateIndo.', booked until '.$bookEndIndo]
-    		];
+        ->where('id_user_hair_stylist', $id_hs)
+        ->first();
+        if($hsNotAvailable){
+            if(strtotime($hsNotAvailable['booking_start']) == strtotime($hs_sch['time_start']) && strtotime($hsNotAvailable['booking_end']) == strtotime($hs_sch['time_end'])){
+                return [
+                    'status' => 'fail',
+                    'messages' => ["Hair stylist " . $hs->nickname . " - " . $hs->fullname . " not available on ".$bookDateIndo]
+                ];
+            }
         }
+
+        $processingTime = $service['processing_time_service'];
 
         return ['status' => 'success'];
     }

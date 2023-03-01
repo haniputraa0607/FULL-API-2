@@ -375,7 +375,7 @@ class ApiTransactionOutletService extends Controller
         $trx['total_product_qty'] = $formatedTrxProduct['qty'];
         $result['product_transaction'] = $formatedTrxProduct['result'] ?? [];
 
-        $formatedTrxProductService = $this->formatTransactionProductService($trx);
+        $formatedTrxProductService = $this->formatTransactionProductServiceV2($trx);
         $trx['total_product_service_qty'] = $formatedTrxProductService['qty'];
         $result['product_service_transaction'] = $formatedTrxProductService['result'] ?? [];
 
@@ -444,6 +444,7 @@ class ApiTransactionOutletService extends Controller
     {
     	$trx = clone $trx;
     	$trx->load(
+    		'productServiceTransaction.transaction_product_service',
     		'productServiceTransaction.product.product_category',
             'productServiceTransaction.product.product_photos'
     	);
@@ -878,6 +879,64 @@ class ApiTransactionOutletService extends Controller
             $keynya++;
         }
 
+        return [
+        	'result' => $result['product_transaction'] ?? [],
+        	'discount' => $discount,
+        	'qty' => $quantity
+        ];
+    }
+
+    public function formatTransactionProductServiceV2(Transaction $trx)
+    {
+    	$discount = 0;
+        $quantity = 0;
+        $keynya = 0;
+        $result = [];
+        foreach ($trx['product_service_transaction'] as $keyTrx => $valueTrx) {
+            $prod_services = [];
+            $result['product_transaction'][$keynya]['brand'] = $keyTrx;
+            foreach ($valueTrx as $keyProduct => $valueProduct) {
+                if(isset($prod_services[$valueProduct['transaction_product_service']['schedule_date']])){
+                    if(isset($prod_services[$valueProduct['transaction_product_service']['schedule_date']][$valueProduct['id_product']])){
+                        $prod_services[$valueProduct['transaction_product_service']['schedule_date']][$valueProduct['id_product']]['transaction_product_qty'] += 1;
+                        $prod_services[$valueProduct['transaction_product_service']['schedule_date']][$valueProduct['id_product']]['transaction_product_subtotal'] += $valueProduct['transaction_product_subtotal'];
+                        $prod_services[$valueProduct['transaction_product_service']['schedule_date']][$valueProduct['id_product']]['transaction_product_discount'] += $valueProduct['transaction_product_discount'];
+                        $prod_services[$valueProduct['transaction_product_service']['schedule_date']][$valueProduct['id_product']]['transaction_product_service_note'][] = $valueProduct['transaction_product_note'];
+                    }else{
+                        $prod_services[$valueProduct['transaction_product_service']['schedule_date']][$valueProduct['id_product']] = $valueProduct;
+                        $prod_services[$valueProduct['transaction_product_service']['schedule_date']][$valueProduct['id_product']]['transaction_product_qty'] = 1;
+                        $prod_services[$valueProduct['transaction_product_service']['schedule_date']][$valueProduct['id_product']]['transaction_product_service_note'][] = $valueProduct['transaction_product_note'];
+                    }
+                }else{$prod_services[$valueProduct['transaction_product_service']['schedule_date']][$valueProduct['id_product']] = $valueProduct;
+                    $prod_services[$valueProduct['transaction_product_service']['schedule_date']][$valueProduct['id_product']]['transaction_product_qty'] = 1;
+                    $prod_services[$valueProduct['transaction_product_service']['schedule_date']][$valueProduct['id_product']]['transaction_product_service_note'][] = $valueProduct['transaction_product_note'];
+                }
+                
+                $quantity = $quantity + $valueProduct['transaction_product_qty'];
+                $discount = $discount + $valueProduct['transaction_product_discount'];
+            }
+            
+            foreach($prod_services ?? [] as $keyProdSer => $prodSer){
+                $result['product_transaction'][$keynya]['product'][$keyProdSer]['schedule_date'] = MyHelper::dateFormatInd($keyProdSer, true, false);
+                $result['product_transaction'][$keynya]['product'][$keyProdSer]['service'] = [];
+                foreach($prodSer ?? [] as $kerServ => $serv){
+                    $result['product_transaction'][$keynya]['product'][$keyProdSer]['service'][] = [
+                        'transaction_product_qty' => $serv['transaction_product_qty'],
+                        'transaction_product_subtotal' => MyHelper::requestNumber($serv['transaction_product_subtotal'],'_CURRENCY'),
+                        'transaction_product_sub_item' => '@'.MyHelper::requestNumber($serv['transaction_product_subtotal'] / $serv['transaction_product_qty'],'_CURRENCY'),
+                        'transaction_modifier_subtotal' => MyHelper::requestNumber($serv['transaction_modifier_subtotal'],'_CURRENCY'),
+                        'transaction_variant_subtotal' => MyHelper::requestNumber($serv['transaction_variant_subtotal'],'_CURRENCY'),
+                        'transaction_product_service_note' => $serv['transaction_product_service_note'],
+                        'transaction_product_discount' => $serv['transaction_product_discount'],
+                        'product' => [
+                            'product_name' => $serv['product']['product_name'],
+                        ]
+                    ];
+                }
+            }
+            $keynya++;
+        }
+        
         return [
         	'result' => $result['product_transaction'] ?? [],
         	'discount' => $discount,
@@ -1451,16 +1510,19 @@ class ApiTransactionOutletService extends Controller
     		];
         }
 
+        $dateShiftStart = date("Y-m-d H:i:s", strtotime($bookingDate.' '.$hs_sch['time_start']));
+        $dateShiftEnd = date("Y-m-d H:i:s", strtotime($bookingDate.' '.$hs_sch['time_end']));
+
         $hsNotAvailable = HairstylistNotAvailable::where('id_outlet', $outlet['id_outlet'])
+        ->whereRaw('((booking_start = "'.$dateShiftStart.'" AND booking_end = "'.$dateShiftEnd.'"))')
         ->where('id_user_hair_stylist', $id_hs)
         ->first();
+
         if($hsNotAvailable){
-            if(strtotime($hsNotAvailable['booking_start']) == strtotime($hs_sch['time_start']) && strtotime($hsNotAvailable['booking_end']) == strtotime($hs_sch['time_end'])){
-                return [
-                    'status' => 'fail',
-                    'messages' => ["Hair stylist " . $hs->nickname . " - " . $hs->fullname . " not available on ".$bookDateIndo]
-                ];
-            }
+            return [
+                'status' => 'fail',
+                'messages' => ["Hair stylist " . $hs->nickname . " - " . $hs->fullname . " not available on ".$bookDateIndo]
+            ];
         }
 
         $processingTime = $service['processing_time_service'];

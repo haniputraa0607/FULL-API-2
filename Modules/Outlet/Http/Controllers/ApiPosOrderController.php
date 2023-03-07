@@ -1107,13 +1107,13 @@ class ApiPosOrderController extends Controller
                 }
             }
         }else{
-            $user = User::where('phone','111111111111')->where('is_anon',1)->first();
+            $user = User::where('phone',$outlet['outlet_code'])->where('is_anon',1)->first();
             if(!$user){
                 $user = User::create([
                     'name' => 'Anonymous',
-                    'phone' => '111111111111',
+                    'phone' => $outlet['outlet_code'],
                     'id_membership' => NULL,
-                    'email' => 'anon1111@anon.cp,',
+                    'email' => $outlet['outlet_code'],
                     'password' => '$2y$10$4CmCne./LBVkIkI1RQghxOOZWuzk7bAW2kVtJ66uSUzmTM/wbyury',
                     'id_city' => 3471,
                     'gender' => 'male',
@@ -1669,16 +1669,38 @@ class ApiPosOrderController extends Controller
         DB::beginTransaction();
         $post = $request->json()->all();
         
+        if(!empty($post['outlet_code'])){
+            $outlet = Outlet::join('cities', 'cities.id_city', 'outlets.id_city')
+                ->join('provinces', 'provinces.id_province', 'cities.id_province')
+                ->where('outlet_code', $post['outlet_code'])
+                ->with('today')->where('outlet_status', 'Active')
+                ->where('outlets.outlet_service_status', 1)
+                ->select('outlets.*', 'cities.city_name', 'provinces.time_zone_utc as province_time_zone_utc')->first();
+            $post['id_outlet'] = $outlet['id_outlet']??null;
+            if (empty($outlet)) {
+                DB::rollback();
+                return response()->json([
+                    'status'    => 'fail',
+                    'messages'  => ['Outlet Not Found']
+                ]);
+            }
+        }else{
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Code outlet can not be empty']
+            ]);
+        }
+
         if(isset($post['phone']) && !empty($post['phone'])){
             $user = User::where('phone', $post['phone'])->first();
         }else{
-            $user = User::where('phone','111111111111')->where('is_anon',1)->first();
+            $user = User::where('phone',$outlet['outlet_code'])->where('is_anon',1)->first();
             if(!$user){
                 $user = User::create([
                     'name' => 'Anonymous',
-                    'phone' => '111111111111',
+                    'phone' => $outlet['outlet_code'],
                     'id_membership' => NULL,
-                    'email' => 'anon1111@anon.cp,',
+                    'email' => $outlet['outlet_code'],
                     'password' => '$2y$10$4CmCne./LBVkIkI1RQghxOOZWuzk7bAW2kVtJ66uSUzmTM/wbyury',
                     'id_city' => 3471,
                     'gender' => 'male',
@@ -2647,13 +2669,13 @@ class ApiPosOrderController extends Controller
             $user = User::leftJoin('cities', 'cities.id_city', 'users.id_city')
             ->select('users.*', 'cities.city_name')->with('memberships')->where('phone',$post['phone'])->first();
         }else{
-            $user = User::where('phone','111111111111')->where('is_anon',1)->first();
+            $user = User::where('phone',$outlet['outlet_code'])->where('is_anon',1)->first();
             if(!$user){
                 $user = User::create([
                     'name' => 'Anonymous',
-                    'phone' => '111111111111',
+                    'phone' => $outlet['outlet_code'],
                     'id_membership' => NULL,
-                    'email' => 'anon1111@anon.cp,',
+                    'email' => $outlet['outlet_code'],
                     'password' => '$2y$10$4CmCne./LBVkIkI1RQghxOOZWuzk7bAW2kVtJ66uSUzmTM/wbyury',
                     'id_city' => 3471,
                     'gender' => 'male',

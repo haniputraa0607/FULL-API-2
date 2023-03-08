@@ -5160,9 +5160,6 @@ class ApiPromoCampaign extends Controller
 	public function onGoignPromoPosOrder(Request $request){
         $post = $request->all();
 
-		$user = User::with('memberships')->where('phone',$post['phone'])->first();
-		$home_text = Setting::whereIn('key',['share_promo_code'])->get()->keyBy('key');
-        $text['share'] = $home_text['share_promo_code']['value_text'] ?? 'Bagikan %promo_code% ke teman-teman'; //dummy
 		$outlet = app($this->pos_order)->getOutlet($post['outlet_code']??null);
 		if(!$outlet){
             return [
@@ -5172,6 +5169,38 @@ class ApiPromoCampaign extends Controller
     		];
         } 
 		$post['id_outlet'] = $outlet['id_outlet'];
+		
+		if(isset($post['phone']) && !empty($post['phone'])){
+            $user = User::with('memberships')->where('phone', $post['phone'])->first();
+        }else{
+            $user = User::with('memberships')->where('phone',$outlet['outlet_code'])->where('is_anon',1)->first();
+            if(!$user){
+                $user = User::create([
+					'name' => 'Anonymous '.$outlet['outlet_code'],
+                    'phone' => $outlet['outlet_code'],
+                    'id_membership' => NULL,
+                    'email' => $outlet['outlet_code'],
+                    'password' => '$2y$10$4CmCne./LBVkIkI1RQghxOOZWuzk7bAW2kVtJ66uSUzmTM/wbyury',
+                    'id_city' => $outlet['id_city'],
+                    'gender' => 'male',
+                    'provider' => NULL,
+                    'birthday' => NULL,
+                    'phone_verified' => '1',
+                    'email_verified' => '1',
+                    'level' => 'Customer',
+                    'points' => 0,
+                    'android_device' => NULL,
+                    'ios_device' => NULL,
+                    'is_suspended' => '0',
+                    'remember_token' => NULL,   
+                    'is_anon' => 1
+                ]);
+				$user = $user->load('memberships');
+            }
+		}
+		$home_text = Setting::whereIn('key',['share_promo_code'])->get()->keyBy('key');
+        $text['share'] = $home_text['share_promo_code']['value_text'] ?? 'Bagikan %promo_code% ke teman-teman'; //dummy
+		
 
 		$promos = (new PromoCampaign)->newQuery();
 		$promos = $promos->join('promo_campaign_promo_codes','promo_campaign_promo_codes.id_promo_campaign','promo_campaigns.id_promo_campaign')
@@ -5214,7 +5243,7 @@ class ApiPromoCampaign extends Controller
 
 				$usedCode = PromoCampaignReport::where('id_promo_campaign',$promo['id_promo_campaign'])->where('id_user', $user['id'])->count();
 				
-				if($promo['limitation_usage']!=0 && $promo['limitation_usage']<=$usedCode){
+				if(isset($post['phone']) && $promo['limitation_usage']!=0 && $promo['limitation_usage']<=$usedCode){
 					continue;
 				}
 
@@ -5226,7 +5255,7 @@ class ApiPromoCampaign extends Controller
 				}
 
 			}else{
-
+				
 				$usedCode = PromoCampaignReport::where('id_promo_campaign',$promo['id_promo_campaign'])->where('id_user', $user['id'])->select('promo_campaign_reports.*',
 				DB::raw('
 					COUNT(id_promo_campaign_promo_code) AS count
@@ -5234,7 +5263,7 @@ class ApiPromoCampaign extends Controller
 				if(count($usedCode)>0){
 					foreach($usedCode ?? [] as $key => $usecode){
 						$end = false;
-						if($promo['user_limit']!=0 && $promo['user_limit']<=count($usedCode)){
+						if(isset($post['phone']) && $promo['user_limit']!=0 && $promo['user_limit']<=count($usedCode)){
 							if($promo['code_limit']!=0 && $promo['code_limit']<=$usecode['count']){
 								$end = true;
 								continue;
@@ -5307,15 +5336,15 @@ class ApiPromoCampaign extends Controller
 				];
 			}
 		}else{
-			$user = User::where('phone',$outlet['outlet_code'])->where('is_anon',1)->first();
+			$user = User::with('memberships')->where('phone',$outlet['outlet_code'])->where('is_anon',1)->first();
             if(!$user){
                 $user = User::create([
-                    'name' => 'Anonymous',
+                    'name' => 'Anonymous '.$outlet['outlet_code'],
                     'phone' => $outlet['outlet_code'],
                     'id_membership' => NULL,
                     'email' => $outlet['outlet_code'],
                     'password' => '$2y$10$4CmCne./LBVkIkI1RQghxOOZWuzk7bAW2kVtJ66uSUzmTM/wbyury',
-                    'id_city' => 3471,
+                    'id_city' => $outlet['id_city'],
                     'gender' => 'male',
                     'provider' => NULL,
                     'birthday' => NULL,
@@ -5329,6 +5358,7 @@ class ApiPromoCampaign extends Controller
                     'remember_token' => NULL,   
                     'is_anon' => 1
                 ]);
+				$user = $user->load('memberships');
             }
 		}
     	$id_user 		= $user['id'];
@@ -5471,9 +5501,8 @@ class ApiPromoCampaign extends Controller
 	        }
 
 	    	$code = $code->toArray();
-
         	// check user
-	        if(!$pct->validateUserPosOrder($code['id_promo_campaign'], $id_user, $phone, $errors,$code['id_promo_campaign_promo_code'])){
+	        if(!$pct->validateUserPosOrder($code['id_promo_campaign'], $user, $phone, $errors,$code['id_promo_campaign_promo_code'])){
 	            return [
 	                'status' => 'fail',
 	                'messages' => $errors ?? ['Promo tidak tersedia']

@@ -1358,7 +1358,11 @@ class PromoCampaignTools{
         return true;
 	}
 
-	public function validateUserPosOrder($id_promo, $id_user, $phone, &$errors=[],$id_code=null){
+	public function validateUserPosOrder($id_promo, $user, $phone, &$errors=[],$id_code=null){
+		
+		$id_user = $user['id'];
+		$user_claim = $user;
+
 		$promo=PromoCampaign::find($id_promo);
 
 		if(!$promo){
@@ -1411,7 +1415,7 @@ class PromoCampaignTools{
         if($promo->code_type == 'Single') {
         	if ($promo->limitation_usage) {
         		// limit usage user?
-	        	if(PromoCampaignReport::where('id_promo_campaign',$id_promo)->where('id_user',$id_user)->count()>=$promo->limitation_usage){
+	        	if($user_claim['is_anon'] == 0 && (PromoCampaignReport::where('id_promo_campaign',$id_promo)->where('id_user',$id_user)->count()>=$promo->limitation_usage)){
 		        	$errors[]='Promo tidak tersedia';
 		    		return false;
 	        	}
@@ -1440,10 +1444,10 @@ class PromoCampaignTools{
 	    			return false;
         		}
         	}
-
+			
         	if ($promo->user_limit && !$used_code) {
         		$used_diff_code = PromoCampaignReport::where('id_promo_campaign',$id_promo)->where('id_user',$id_user)->distinct()->count('id_promo_campaign_promo_code');
-        		if ($used_diff_code >= $promo->user_limit) {
+        		if ($user_claim['is_anon'] == 0 && $used_diff_code >= $promo->user_limit) {
         			$errors[]='Promo tidak tersedia';
 	    			return false;
         		}

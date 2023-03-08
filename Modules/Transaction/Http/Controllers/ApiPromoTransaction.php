@@ -1489,7 +1489,7 @@ class ApiPromoTransaction extends Controller
         if ($promo->code_type == 'Single') {
         	if ($promo->limitation_usage) {
         		$usedCode = PromoCampaignReport::where('id_promo_campaign',$promo->id_promo_campaign)->where('id_user', $user['id'])->count();
-	        	if ($usedCode >= $promo->limitation_usage) {
+	        	if ($user['is_anon'] == 0 && $usedCode >= $promo->limitation_usage) {
     				return $this->failResponse('Promo tidak tersedia');
 	        	}
         	}
@@ -1526,7 +1526,7 @@ class ApiPromoTransaction extends Controller
         						->distinct()
         						->count('id_promo_campaign_promo_code');
 
-        		if ($used_diff_code >= $promo->user_limit) {
+        		if ($user['is_anon'] == 0 && $used_diff_code >= $promo->user_limit) {
     				return $this->failResponse('Promo tidak tersedia');
         		}
         	}

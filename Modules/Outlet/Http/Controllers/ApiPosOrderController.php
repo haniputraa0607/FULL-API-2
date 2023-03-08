@@ -331,6 +331,7 @@ class ApiPosOrderController extends Controller
                 ->first();
 
             $currentService = TransactionProductService::where('service_status', 'In Progress')
+			->whereDate('schedule_date', $bookDate)
             ->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
             ->first();
 
@@ -709,32 +710,32 @@ class ApiPosOrderController extends Controller
             $cashBack = app($this->setting_trx)->countTransaction('cashback', $post);
             $countUserTrx = Transaction::where('id_user', $user['id'])->where('transaction_payment_status', 'Completed')->count();
             $countSettingCashback = TransactionSetting::get();
-
+    
             if ($countUserTrx < count($countSettingCashback)) {
                 $cashBack = $cashBack * $countSettingCashback[$countUserTrx]['cashback_percent'] / 100;
-
+    
                 if ($cashBack > $countSettingCashback[$countUserTrx]['cashback_maximum']) {
                     $cashBack = $countSettingCashback[$countUserTrx]['cashback_maximum'];
                 }
             } else {
-
+    
                 $maxCash = Setting::where('key', 'cashback_maximum')->first();
-
+    
                 if (count($user['memberships']) > 0) {
                     $cashBack = $cashBack * ($user['memberships'][0]['benefit_cashback_multiplier']) / 100;
-
+    
                     if($user['memberships'][0]['cashback_maximum']){
                         $maxCash['value'] = $user['memberships'][0]['cashback_maximum'];
                     }
                 }
-
+    
                 $statusCashMax = 'no';
-
+    
                 if (!empty($maxCash) && !empty($maxCash['value'])) {
                     $statusCashMax = 'yes';
                     $totalCashMax = $maxCash['value'];
                 }
-
+    
                 if ($statusCashMax == 'yes') {
                     if ($totalCashMax < $cashBack) {
                         $cashBack = $totalCashMax;
@@ -746,10 +747,36 @@ class ApiPosOrderController extends Controller
             
             $balance = app($this->balance)->balanceNow($user['id']);
         }else{
-            $result['customer'] = [];
+            $user = User::where('phone',$outlet['outlet_code'])->where('is_anon',1)->first();
+            if(!$user){
+                $user = User::create([
+                    'name' => 'Anonymous '.$outlet['outlet_code'],
+                    'phone' => $outlet['outlet_code'],
+                    'id_membership' => NULL,
+                    'email' => $outlet['outlet_code'],
+                    'password' => '$2y$10$4CmCne./LBVkIkI1RQghxOOZWuzk7bAW2kVtJ66uSUzmTM/wbyury',
+                    'id_city' => $outlet['id_city'],
+                    'gender' => 'male',
+                    'provider' => NULL,
+                    'birthday' => NULL,
+                    'phone_verified' => '1',
+                    'email_verified' => '1',
+                    'level' => 'Customer',
+                    'points' => 0,
+                    'android_device' => NULL,
+                    'ios_device' => NULL,
+                    'is_suspended' => '0',
+                    'remember_token' => NULL,   
+                    'is_anon' => 1
+                ]);
+            }
+            $result['customer'] = [
+                "name" => $user['name']??"",
+                "phone" => $user['phone']??"",
+            ];
         }
-        $result['item'] = $items;
 
+        $result['item'] = $items;
         $result['subtotal_product_service'] = $itemServices['subtotal_service']??0;
         $result['subtotal_product'] = $subtotalProduct;
         $post['subtotal'] = $result['subtotal_product_service'] + $result['subtotal_product'];
@@ -775,22 +802,12 @@ class ApiPosOrderController extends Controller
         $fake_request = new Request(['show_all' => 1,'pos_order'=> 1]);
         $result['available_payment'] = app($this->online_trx)->availablePayment($fake_request)['result'] ?? [];
         
-        if($result['customer']){
+        if($post['phone']){
             $result['points'] = (int) $balance??0;
-            $result = app($this->promo_trx)->applyPromoCheckoutV2($result,$post, $user??[]);
         }else{
             $result['points'] = 0;
-            $result['promo_deals'] = [
-                'is_error' 			=> false,
-                'can_use_deal'   	=> 1,
-                'use_deal_message'	=> null,
-            ];
-            $result['promo_code'] = [
-                'is_error' 			=> false,
-                'can_use_promo'   	=> 1,
-                'use_promo_message'	=> null,
-            ];
         }
+        $result = app($this->promo_trx)->applyPromoCheckoutV2($result,$post, $user??[]);
 
         if ($result['cashback']) {
             $result['point_earned'] = [
@@ -1110,12 +1127,12 @@ class ApiPosOrderController extends Controller
             $user = User::where('phone',$outlet['outlet_code'])->where('is_anon',1)->first();
             if(!$user){
                 $user = User::create([
-                    'name' => 'Anonymous',
+                    'name' => 'Anonymous '.$outlet['outlet_code'],
                     'phone' => $outlet['outlet_code'],
                     'id_membership' => NULL,
                     'email' => $outlet['outlet_code'],
                     'password' => '$2y$10$4CmCne./LBVkIkI1RQghxOOZWuzk7bAW2kVtJ66uSUzmTM/wbyury',
-                    'id_city' => 3471,
+                    'id_city' => $outlet['id_city'],
                     'gender' => 'male',
                     'provider' => NULL,
                     'birthday' => NULL,
@@ -1438,16 +1455,14 @@ class ApiPosOrderController extends Controller
             $totalProductQty += $valueProduct['qty'];
    
         }
-
-        if ($user && $user['is_anon'] == 0) {
-            $applyPromo = app($this->promo_trx)->applyPromoNewTrxV2($insertTransaction, $user);
-            if ($applyPromo['status'] == 'fail') {
-                DB::rollback();
-                return $applyPromo;
-            }
-    
-            $insertTransaction = $applyPromo['result'] ?? $insertTransaction;
+        
+        $applyPromo = app($this->promo_trx)->applyPromoNewTrxV2($insertTransaction, $user);
+        if ($applyPromo['status'] == 'fail') {
+            DB::rollback();
+            return $applyPromo;
         }
+
+        $insertTransaction = $applyPromo['result'] ?? $insertTransaction;
         
         array_push($dataDetailProduct, $productMidtrans);
 
@@ -1614,37 +1629,34 @@ class ApiPosOrderController extends Controller
         ];
         $createDailyTrx = DailyTransactions::create($dataDailyTrx);
 
-        if ($user && $user['is_anon'] == 0) {
-            if ($promo_code_ref) {
-                //======= Start Check Fraud Referral User =======//
-                $data = [
-                    'id_user' => $insertTransaction['id_user'],
-                    'referral_code' => $promo_code_ref,
-                    'referral_code_use_date' => $insertTransaction['transaction_date'],
-                    'id_transaction' => $insertTransaction['id_transaction']
-                ];
-                if ($config_fraud_use_queue == 1) {
-                    FraudJob::dispatch($user, $data, 'referral user')->onConnection('fraudqueue');
-                    FraudJob::dispatch($user, $data, 'referral')->onConnection('fraudqueue');
-                } else {
-                    app($this->setting_fraud)->fraudCheckReferralUser($data);
-                    app($this->setting_fraud)->fraudCheckReferral($data);
-                }
-                //======= End Check Fraud Referral User =======//
+        if ($promo_code_ref) {
+            //======= Start Check Fraud Referral User =======//
+            $data = [
+                'id_user' => $insertTransaction['id_user'],
+                'referral_code' => $promo_code_ref,
+                'referral_code_use_date' => $insertTransaction['transaction_date'],
+                'id_transaction' => $insertTransaction['id_transaction']
+            ];
+            if ($config_fraud_use_queue == 1) {
+                FraudJob::dispatch($user, $data, 'referral user')->onConnection('fraudqueue');
+                FraudJob::dispatch($user, $data, 'referral')->onConnection('fraudqueue');
+            } else {
+                app($this->setting_fraud)->fraudCheckReferralUser($data);
+                app($this->setting_fraud)->fraudCheckReferral($data);
             }
-
-            if ($request->id_deals_user) {
-                $voucherUsage = TransactionPromo::where('id_deals_user', $request->id_deals_user)->count();
-                if (($voucherUsage ?? false) > 1) {
-                    DB::rollBack();
-                    return [
-                        'status' => 'fail',
-                        'messages' => ['Voucher sudah pernah digunakan']
-                    ];
-                }
-            }
+            //======= End Check Fraud Referral User =======//
         }
 
+        if ($request->id_deals_user) {
+            $voucherUsage = TransactionPromo::where('id_deals_user', $request->id_deals_user)->count();
+            if (($voucherUsage ?? false) > 1) {
+                DB::rollBack();
+                return [
+                    'status' => 'fail',
+                    'messages' => ['Voucher sudah pernah digunakan']
+                ];
+            }
+        }
         DB::commit();
 
         if(!empty($insertTransaction['id_transaction']) && $insertTransaction['transaction_grandtotal'] == 0){
@@ -1697,12 +1709,12 @@ class ApiPosOrderController extends Controller
             $user = User::where('phone',$outlet['outlet_code'])->where('is_anon',1)->first();
             if(!$user){
                 $user = User::create([
-                    'name' => 'Anonymous',
+                    'name' => 'Anonymous '.$outlet['outlet_code'],
                     'phone' => $outlet['outlet_code'],
                     'id_membership' => NULL,
                     'email' => $outlet['outlet_code'],
                     'password' => '$2y$10$4CmCne./LBVkIkI1RQghxOOZWuzk7bAW2kVtJ66uSUzmTM/wbyury',
-                    'id_city' => 3471,
+                    'id_city' => $outlet['id_city'],
                     'gender' => 'male',
                     'provider' => NULL,
                     'birthday' => NULL,
@@ -2672,12 +2684,12 @@ class ApiPosOrderController extends Controller
             $user = User::where('phone',$outlet['outlet_code'])->where('is_anon',1)->first();
             if(!$user){
                 $user = User::create([
-                    'name' => 'Anonymous',
+                    'name' => 'Anonymous '.$outlet['outlet_code'],
                     'phone' => $outlet['outlet_code'],
                     'id_membership' => NULL,
                     'email' => $outlet['outlet_code'],
                     'password' => '$2y$10$4CmCne./LBVkIkI1RQghxOOZWuzk7bAW2kVtJ66uSUzmTM/wbyury',
-                    'id_city' => 3471,
+                    'id_city' => $outlet['id_city'],
                     'gender' => 'male',
                     'provider' => NULL,
                     'birthday' => NULL,

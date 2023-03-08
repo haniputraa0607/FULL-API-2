@@ -28,6 +28,7 @@ use Modules\Recruitment\Entities\HairstylistAttendance;
 
 use Modules\Transaction\Entities\TransactionPaymentCash;
 use Modules\Transaction\Entities\TransactionHomeService;
+use Modules\Transaction\Entities\TransactionProductService;
 use Modules\UserRating\Entities\UserRating;
 use Modules\UserRating\Entities\RatingOption;
 use Modules\UserRating\Entities\UserRatingLog;
@@ -426,6 +427,88 @@ class ApiMitra extends Controller
 
 		$level = $user['level'];
 		$level = ($level == 'Hairstylist') ? 'Mitra' : (($level == 'Supervisor') ? 'SPV' : null);
+
+		$listHs = UserHairStylist::where('id_outlet', $outlet['id_outlet'])
+			->where('user_hair_stylist_status', 'Active')->get()->toArray();
+		$bookTime = date('H:i:s');
+		$bookTimeOrigin = date('H:i:s');
+		$bookDate = date('Y-m-d');
+		
+		$hairstylists = [];
+		foreach ($listHs as $val){
+            $availableStatus = false;
+            $current_service = null;
+            //check schedule hs
+            $shift = HairstylistScheduleDate::leftJoin('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
+                ->whereNotNull('approve_at')->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
+                ->whereDate('date', date('Y-m-d'))
+                ->first();
+
+            if(empty($shift)){
+                continue;
+            }
+
+            $clockInOut = HairstylistAttendance::where('id_user_hair_stylist', $val['id_user_hair_stylist'])
+                ->where('id_hairstylist_schedule_date', $shift['id_hairstylist_schedule_date'])->orderBy('updated_at', 'desc')->first();
+                    
+            if(!empty($clockInOut) && !empty($clockInOut['clock_in']) && strtotime($bookTime) >= strtotime($clockInOut['clock_in'])){
+                $availableStatus = true;
+                $lastAction = HairstylistAttendanceLog::where('id_hairstylist_attendance', $clockInOut['id_hairstylist_attendance'])->orderBy('datetime', 'desc')->first();
+                if(!empty($clockInOut['clock_out']) && $lastAction['type'] == 'clock_out' && strtotime($bookTime) > strtotime($clockInOut['clock_out'])){
+                    $availableStatus = false;
+                }
+            }
+
+            $bookTimeOrigin = date('H:i:s', strtotime($bookTimeOrigin . "+ 1 minutes"));
+            $notAvailable = HairstylistNotAvailable::where('id_outlet', $outlet['id_outlet'])
+                ->whereRaw('"'.$bookDate.' '.$bookTimeOrigin. '" BETWEEN booking_start AND booking_end')
+                ->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
+                ->first();
+
+            $currentService = TransactionProductService::where('service_status', 'In Progress')
+			->whereDate('schedule_date', $bookDate)
+            ->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
+            ->first();
+
+			$totalService = TransactionProductService::where('service_status', 'Completed')
+			->whereDate('schedule_date', $bookDate)
+            ->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
+            ->count();
+
+            if(!empty($currentService)){
+                $availableStatus = false;
+                if($currentService['queue']<10){
+                    $current_service = '00'.$currentService['queue'];
+                }elseif($currentService['queue']<100){
+                    $current_service = '0'.$currentService['queue'];
+                }else{
+                    $current_service = ''.$currentService['queue'];
+                }
+            }
+            
+            $until = null;
+            $now = strtotime($bookTime);
+            $shift_end = strtotime($shift['time_end']);
+            $diff = $shift_end - $now;
+            $hour = floor($diff / (60*60));
+            if($hour<1){
+                $minute = floor(($diff - ($hour*60*60))/(60));
+                $until = 'Shift end in '.$minute.'mnt';
+            }
+
+            if(!empty($notAvailable)){
+                $availableStatus = false;
+            }
+
+            $hairstylists[] = [
+                'id_user_hair_stylist' => $val['id_user_hair_stylist'],
+                'nickname' => $val['nickname'],
+                'photo' => (empty($val['user_hair_stylist_photo']) ? config('url.storage_url_api').'img/product/item/default.png':$val['user_hair_stylist_photo']),
+                'available_status' => $availableStatus,
+                'current_service' => $current_service,
+				'count_service' => $totalService
+            ];    
+        }
 		
 		$res = [
 			'id_user_hair_stylist' => $user['id_user_hair_stylist'],
@@ -446,6 +529,7 @@ class ApiMitra extends Controller
 			'outlet_service' => $this->outletServiceScheduleStatus($user->id_user_hair_stylist),
 			'home_service' => $this->homeServiceScheduleStatus($user->id_user_hair_stylist, $today),
 			'has_otw_home_service' => TransactionHomeService::where(['id_user_hair_stylist' => $user->id_user_hair_stylist, 'status' => 'On The Way'])->exists() ? 1 : 0,
+			'list_hair_stylists' => $hairstylists
 		];
 
 		if(!empty($request->latitude) && !empty($request->longitude)){

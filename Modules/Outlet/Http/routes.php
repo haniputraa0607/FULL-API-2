@@ -156,6 +156,7 @@ Route::group(['prefix' => 'api/pos-order/outlet-service', 'middleware' => ['scop
     Route::group(['namespace' => 'Modules\Outlet\Http\Controllers'], function()
     {
         Route::post('/home', 'ApiPosOrderController@home');
+        Route::post('/list', 'ApiPosOrderController@listQueue');
         Route::post('/check', 'ApiPosOrderController@checkTransaction');
         Route::post('/new', 'ApiPosOrderController@newTransaction');
         Route::post('/confirm', 'ApiPosOrderController@confirmTransaction');

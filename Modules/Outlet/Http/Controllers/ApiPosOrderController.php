@@ -371,51 +371,15 @@ class ApiPosOrderController extends Controller
                 'order' => ($availableStatus ? $val['id_user_hair_stylist']:1000)
             ];
 
-            $queue = [];
-            $current = [];
-            $service_outlets = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
-                ->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
-                ->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
-                ->join('products', 'transaction_products.id_product', 'products.id_product')
-                ->where(function($q) {
-                    $q->whereNull('service_status');
-                    $q->orWhere('service_status','In Progress');
-                })
-                ->where(function($q){
-                    $q->whereNull('transaction_product_services.id_user_hair_stylist');
-                    $q->orWhereNotNull('transaction_product_services.id_user_hair_stylist');
-                })
-                ->where(function($q) {
-                    $q->where('trasaction_payment_type', 'Cash')
-                    ->orWhere('transaction_payment_status', 'Completed');
-                })
-                ->where('transactions.id_outlet',$outlet['id_outlet'])
-                ->whereNotNull('transaction_product_services.queue')
-                ->whereNotNull('transaction_product_services.queue_code')
-                ->whereDate('schedule_date',date('Y-m-d'))
-                ->where('transaction_payment_status', '!=', 'Cancelled')
-                ->wherenull('transaction_products.reject_at')
-                ->orderBy('queue', 'asc')
-                ->select('transactions.id_transaction','transaction_product_services.id_transaction_product_service','transaction_product_services.queue_code','service_status','transaction_product_services.id_user_hair_stylist')
-                ->get()->toArray();
-
-            foreach($service_outlets ?? [] as $key => $service_outlet){
-                if(!isset($service_outlet['service_status']) && !isset($service_outlet['id_user_hair_stylist'])){
-                    $queue[] = $service_outlet;
-                }elseif(isset($service_outlet['service_status']) && $service_outlet['service_status'] == 'In Progress' && isset($service_outlet['id_user_hair_stylist'])){
-                    $current[] = $service_outlet;
-                }
-            }
             
-            $data = [
-                'outlet' => $outlet,
-                'product_services' => $resProdService,
-                'products' => $resProducts,
-                'available_hs' => $res,
-                'current_cust' => $current,
-                'waiting' => $queue
-            ];
+            
         }
+        $data = [
+            'outlet' => $outlet,
+            'product_services' => $resProdService,
+            'products' => $resProducts,
+            'available_hs' => $res
+        ];
         return response()->json(['status' => 'success', 'result' => $data]);
     }
 
@@ -431,6 +395,63 @@ class ApiPosOrderController extends Controller
         ->select('outlets.*', 'cities.city_name', 'provinces.time_zone_utc as province_time_zone_utc')
         ->first();
         return $outlet;
+    }
+
+    public function listQueue(Request $request){
+        $post = $request->json()->all();
+        $outlet = $this->getOutlet($post['outlet_code']??null);
+
+        if(!$outlet){
+            return [
+    			'status' => 'fail',
+    			'title' => 'Outlet Code Salah',
+    			'messages' => ['Tidak dapat mendapat data outlet.']
+    		];
+        } 
+
+        $queue = [];
+        $current = [];
+        $service_outlets = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
+            ->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
+            ->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+            ->join('products', 'transaction_products.id_product', 'products.id_product')
+            ->where(function($q) {
+                $q->whereNull('service_status');
+                $q->orWhere('service_status','In Progress');
+            })
+            ->where(function($q){
+                $q->whereNull('transaction_product_services.id_user_hair_stylist');
+                $q->orWhereNotNull('transaction_product_services.id_user_hair_stylist');
+            })
+            ->where(function($q) {
+                $q->where('trasaction_payment_type', 'Cash')
+                ->orWhere('transaction_payment_status', 'Completed');
+            })
+            ->where('transactions.id_outlet',$outlet['id_outlet'])
+            ->whereNotNull('transaction_product_services.queue')
+            ->whereNotNull('transaction_product_services.queue_code')
+            ->whereDate('schedule_date',date('Y-m-d'))
+            ->where('transaction_payment_status', '!=', 'Cancelled')
+            ->wherenull('transaction_products.reject_at')
+            ->orderBy('queue', 'asc')
+            ->select('transactions.id_transaction','transaction_product_services.id_transaction_product_service','transaction_product_services.queue_code','service_status','transaction_product_services.id_user_hair_stylist')
+            ->get()->toArray();
+
+        foreach($service_outlets ?? [] as $key => $service_outlet){
+            if(!isset($service_outlet['service_status']) && !isset($service_outlet['id_user_hair_stylist'])){
+                $queue[] = $service_outlet;
+            }elseif(isset($service_outlet['service_status']) && $service_outlet['service_status'] == 'In Progress' && isset($service_outlet['id_user_hair_stylist'])){
+                $current[] = $service_outlet;
+            }
+        }
+
+        $data = [
+            'current_cust' => $current,
+            'waiting' => $queue
+        ];
+
+        return response()->json(['status' => 'success', 'result' => $data]);
+
     }
 
     public function checkTransaction(Request $request){
@@ -1086,13 +1107,13 @@ class ApiPosOrderController extends Controller
                 }
             }
         }else{
-            $user = User::where('phone','111111111111')->where('is_anon',1)->first();
+            $user = User::where('phone',$outlet['outlet_code'])->where('is_anon',1)->first();
             if(!$user){
                 $user = User::create([
                     'name' => 'Anonymous',
-                    'phone' => '111111111111',
+                    'phone' => $outlet['outlet_code'],
                     'id_membership' => NULL,
-                    'email' => 'anon1111@anon.cp,',
+                    'email' => $outlet['outlet_code'],
                     'password' => '$2y$10$4CmCne./LBVkIkI1RQghxOOZWuzk7bAW2kVtJ66uSUzmTM/wbyury',
                     'id_city' => 3471,
                     'gender' => 'male',
@@ -1648,16 +1669,38 @@ class ApiPosOrderController extends Controller
         DB::beginTransaction();
         $post = $request->json()->all();
         
+        if(!empty($post['outlet_code'])){
+            $outlet = Outlet::join('cities', 'cities.id_city', 'outlets.id_city')
+                ->join('provinces', 'provinces.id_province', 'cities.id_province')
+                ->where('outlet_code', $post['outlet_code'])
+                ->with('today')->where('outlet_status', 'Active')
+                ->where('outlets.outlet_service_status', 1)
+                ->select('outlets.*', 'cities.city_name', 'provinces.time_zone_utc as province_time_zone_utc')->first();
+            $post['id_outlet'] = $outlet['id_outlet']??null;
+            if (empty($outlet)) {
+                DB::rollback();
+                return response()->json([
+                    'status'    => 'fail',
+                    'messages'  => ['Outlet Not Found']
+                ]);
+            }
+        }else{
+            return response()->json([
+                'status'    => 'fail',
+                'messages'  => ['Code outlet can not be empty']
+            ]);
+        }
+
         if(isset($post['phone']) && !empty($post['phone'])){
             $user = User::where('phone', $post['phone'])->first();
         }else{
-            $user = User::where('phone','111111111111')->where('is_anon',1)->first();
+            $user = User::where('phone',$outlet['outlet_code'])->where('is_anon',1)->first();
             if(!$user){
                 $user = User::create([
                     'name' => 'Anonymous',
-                    'phone' => '111111111111',
+                    'phone' => $outlet['outlet_code'],
                     'id_membership' => NULL,
-                    'email' => 'anon1111@anon.cp,',
+                    'email' => $outlet['outlet_code'],
                     'password' => '$2y$10$4CmCne./LBVkIkI1RQghxOOZWuzk7bAW2kVtJ66uSUzmTM/wbyury',
                     'id_city' => 3471,
                     'gender' => 'male',
@@ -2626,13 +2669,13 @@ class ApiPosOrderController extends Controller
             $user = User::leftJoin('cities', 'cities.id_city', 'users.id_city')
             ->select('users.*', 'cities.city_name')->with('memberships')->where('phone',$post['phone'])->first();
         }else{
-            $user = User::where('phone','111111111111')->where('is_anon',1)->first();
+            $user = User::where('phone',$outlet['outlet_code'])->where('is_anon',1)->first();
             if(!$user){
                 $user = User::create([
                     'name' => 'Anonymous',
-                    'phone' => '111111111111',
+                    'phone' => $outlet['outlet_code'],
                     'id_membership' => NULL,
-                    'email' => 'anon1111@anon.cp,',
+                    'email' => $outlet['outlet_code'],
                     'password' => '$2y$10$4CmCne./LBVkIkI1RQghxOOZWuzk7bAW2kVtJ66uSUzmTM/wbyury',
                     'id_city' => 3471,
                     'gender' => 'male',

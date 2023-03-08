@@ -5296,6 +5296,8 @@ class ApiPromoCampaign extends Controller
     {
 		$post = $request->json()->all();
 
+		$outlet = app($this->pos_order)->getOutlet($post['outlet_code']??null);
+
 		if(!empty($post['phone']) || isset($post['phone'])){
             $user = User::with('memberships')->where('phone',$post['phone'])->first();
 			if(!$user){
@@ -5305,15 +5307,33 @@ class ApiPromoCampaign extends Controller
 				];
 			}
 		}else{
-			return [
-				'status'=>'fail',
-				'messages'=>['Phone number cant be empty']
-			];
+			$user = User::where('phone',$outlet['outlet_code'])->where('is_anon',1)->first();
+            if(!$user){
+                $user = User::create([
+                    'name' => 'Anonymous',
+                    'phone' => $outlet['outlet_code'],
+                    'id_membership' => NULL,
+                    'email' => $outlet['outlet_code'],
+                    'password' => '$2y$10$4CmCne./LBVkIkI1RQghxOOZWuzk7bAW2kVtJ66uSUzmTM/wbyury',
+                    'id_city' => 3471,
+                    'gender' => 'male',
+                    'provider' => NULL,
+                    'birthday' => NULL,
+                    'phone_verified' => '1',
+                    'email_verified' => '1',
+                    'level' => 'Customer',
+                    'points' => 0,
+                    'android_device' => NULL,
+                    'ios_device' => NULL,
+                    'is_suspended' => '0',
+                    'remember_token' => NULL,   
+                    'is_anon' => 1
+                ]);
+            }
 		}
     	$id_user 		= $user['id'];
         $phone 	 		= $user['phone'];
 
-		$outlet = app($this->pos_order)->getOutlet($post['outlet_code']??null);
 		if(!$outlet){
             return [
     			'status' => 'fail',

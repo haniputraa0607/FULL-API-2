@@ -39,6 +39,7 @@ use Modules\Transaction\Entities\TransactionPaymentCash;
 use App\Http\Models\TransactionMultiplePayment;
 use Modules\Outlet\Entities\OutletScheduleUpdate;
 use Modules\Transaction\Entities\TransactionOutletService;
+use App\Http\Models\Province;
 
 use Modules\Recruitment\Entities\HairstylistScheduleDate;
 use Modules\Recruitment\Entities\UserHairStylist;
@@ -154,7 +155,10 @@ class ApiPosOrderController extends Controller
             'outlet_code' => $outlet['outlet_code'],
             'outlet_name' => $outlet['outlet_name']
         ];
+        $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+        ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
 
+        
         $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
                 ->where('id_outlet', $outlet['id_outlet'])->first();
 
@@ -364,7 +368,7 @@ class ApiPosOrderController extends Controller
                 'id_user_hair_stylist' => $val['id_user_hair_stylist'],
                 'name' => "$val[fullname] ($val[nickname])",
                 'nickname' => $val['nickname'],
-                'shift_time' => date('H:i', strtotime($shift['time_start'])).' - '.date('H:i', strtotime($shift['time_end'])),
+                'shift_time' => MyHelper::adjustTimezone($shift['time_start'], $timeZone, 'H:i', true).' - '.MyHelper::adjustTimezone($shift['time_end'], $timeZone, 'H:i', true),
                 'photo' => (empty($val['user_hair_stylist_photo']) ? config('url.storage_url_api').'img/product/item/default.png':$val['user_hair_stylist_photo']),
                 'available_status' => $availableStatus,
                 'current_service' => $current_service,

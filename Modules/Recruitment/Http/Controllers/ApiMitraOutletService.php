@@ -2613,4 +2613,79 @@ class ApiMitraOutletService extends Controller
             $log->fail($e->getMessage());
         } 
 	}
+
+	public function cronCompletedService(){
+		$log = MyHelper::logCron('Completed Service');
+        try{
+            DB::beginTransaction();
+			$date_now = date('Y-m-d',strtotime('-1 days'));
+			$services = TransactionProductService::whereDate('schedule_date', $date_now)->where('service_status', 'In Progress')->get()->toArray();
+
+			foreach($services ?? [] as $service){
+				$box = OutletBox::where('id_outlet_box', $service['id_outlet_box'])->first();
+
+				if (!$box) {
+					continue;
+				}
+
+				$outlet = Outlet::with(['location_outlet'])->where('id_outlet', $box['id_outlet'])->first();
+				if (!$outlet) {
+					continue;
+				}
+
+				$trx = Transaction::where('id_transaction', $service['id_transaction'])->with('outlet', 'user')->first();
+				$user = $trx['user'];
+				TransactionProductServiceLog::create([
+					'id_transaction_product_service' => $service['id_transaction_product_service'],
+					'action' => 'Complete'
+				]);
+
+				$update_service = TransactionProductService::where('id_transaction_product_service', $service['id_transaction_product_service'])->update([
+					'service_status' => 'Completed',
+    				'completed_at' => date('Y-m-d H:i:s')
+				]);
+
+				TransactionProduct::where('id_transaction_product', $service['id_transaction_product'])
+				->update([
+					'transaction_product_completed_at' => date('Y-m-d H:i:s')
+				]);
+
+				$box->update(['outlet_box_use_status' => 0]);
+
+				UserRatingLog::updateOrCreate([
+					'id_user' => $trx['id_user'],
+					'id_transaction' => $trx['id_transaction'],
+					'id_outlet' => $trx['id_outlet']
+				],[
+					'refuse_count' => 0,
+					'last_popup' => date('Y-m-d H:i:s', time() - MyHelper::setting('popup_min_interval', 'value', 900))
+				]);
+	
+				// log rating hairstylist
+				UserRatingLog::updateOrCreate([
+					'id_user' => $trx['id_user'],
+					'id_transaction' => $trx['id_transaction'],
+					'id_transaction_product_service' => $request['id_transaction_product_service'],
+					'id_user_hair_stylist' => $user['id_user_hair_stylist']
+				],[
+					'refuse_count' => 0,
+					'last_popup' => date('Y-m-d H:i:s', time() - MyHelper::setting('popup_min_interval', 'value', 900))
+				]);
+	
+				$trx->update(['show_rate_popup' => '1']);
+
+				$this->completeTransaction($service['id_transaction']);
+				app($this->refund)->refundNotFullPayment($service['id_transaction']);
+			}
+			
+            DB::commit();
+
+            $log->success('success');
+            // return response()->json(['status' => 'success']);
+
+        }catch (\Exception $e) {
+            DB::rollBack();
+            $log->fail($e->getMessage());
+        } 
+	}
 }

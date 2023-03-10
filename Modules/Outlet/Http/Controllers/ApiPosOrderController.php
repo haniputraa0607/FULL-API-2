@@ -149,14 +149,13 @@ class ApiPosOrderController extends Controller
     			'messages' => ['Tidak dapat mendapat data outlet.']
     		];
         } 
-
+        $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+        ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
         $outlet = [
             'id_outlet' => $outlet['id_outlet'],
             'outlet_code' => $outlet['outlet_code'],
             'outlet_name' => $outlet['outlet_name']
         ];
-        $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
-        ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
 
         
         $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
@@ -340,7 +339,6 @@ class ApiPosOrderController extends Controller
             ->first();
 
             if(!empty($currentService)){
-                $availableStatus = false;
                 if($currentService['queue']<10){
                     $current_service = '00'.$currentService['queue'];
                 }elseif($currentService['queue']<100){

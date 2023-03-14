@@ -1068,7 +1068,7 @@ class ApiTransactionOutletService extends Controller
 	            ->leftJoin('products','products.id_product','=','transaction_products.id_product')
                 ->leftJoin('transaction_payment_midtrans', 'transactions.id_transaction', '=', 'transaction_payment_midtrans.id_transaction')
                 ->leftJoin('transaction_payment_xendits', 'transactions.id_transaction', '=', 'transaction_payment_xendits.id_transaction')
-	            ->with('user')
+	            ->with(['user', 'transaction_products'])
 	            ->where('transaction_payment_status', 'Completed')
 	            ->whereNull('transaction_products.transaction_product_completed_at')
 	            ->whereNull('transaction_products.reject_at')
@@ -1131,6 +1131,19 @@ class ApiTransactionOutletService extends Controller
                 ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
                 $date_time = $this->getTimezone($val['transaction_date'], $timeZone);
                 $val['transaction_date'] = $date_time['time'].' '.$date_time['time_zone_id'];
+                $show = true;
+                foreach($val['transaction_products'] ?? [] as $trx_pro){
+                    if($trx_pro['type'] == 'Service'){
+                        if(isset($trx_pro['transaction_product_completed_at'])){
+                            $show = false;
+                        }else{
+                            $show = true;
+                        }
+                    }
+                }
+                if($show){
+                    $val['service_status'] = $show;
+                }
                 return $val;
             },$list['data']);
         } else {
@@ -1141,8 +1154,22 @@ class ApiTransactionOutletService extends Controller
                 ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
                 $date_time = $this->getTimezone($val['transaction_date'], $timeZone);
                 $val['transaction_date'] = $date_time['time'].' '.$date_time['time_zone_id'];
+                $show = true;
+                foreach($val['transaction_products'] ?? [] as $trx_pro){
+                    if($trx_pro['type'] == 'Service'){
+                        if(isset($trx_pro['transaction_product_completed_at'])){
+                            $show = false;
+                        }else{
+                            $show = true;
+                        }
+                    }
+                }
+                if($show){
+                    $val['service_status'] = $show;
+                }
                 return $val;
             },$list->toArray());
+            return $list;
         }
         return MyHelper::checkGet($list);
     }

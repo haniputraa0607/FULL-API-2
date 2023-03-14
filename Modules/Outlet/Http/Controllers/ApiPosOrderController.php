@@ -480,13 +480,6 @@ class ApiPosOrderController extends Controller
         unset($post['outlet_code']);
         $post['id_outlet'] = $outlet['id_outlet']??null;
 
-        if(empty($post['item_service'])){
-            return response()->json([
-                'status'    => 'fail',
-                'messages'  => ['Item/Item Service can not be empty']
-            ]);
-        }
-
         $issetDate = false;
         if (isset($post['transaction_date'])) {
             $issetDate = true;
@@ -543,7 +536,6 @@ class ApiPosOrderController extends Controller
                 $error_msg = array_merge($error_msg, $itemServices['error_message']??[]);
             }
         }
-        
         $post['discount'] = -$post['discount'];
         $subtotal = 0;
         $items = [];

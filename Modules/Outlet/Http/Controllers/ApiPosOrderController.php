@@ -3110,4 +3110,83 @@ class ApiPosOrderController extends Controller
         $services['data'] = $data;
         return MyHelper::checkGet($services);
     }
+
+    public function availablePayment(Request $request)
+    {
+
+        $availablePayment = config('payment_method');
+        
+        $setting  = json_decode(MyHelper::setting('active_payment_methods', 'value_text', '[]'), true) ?? [];
+        $payments = [];
+        
+        $config = [
+            'credit_card_payment_gateway' => MyHelper::setting('credit_card_payment_gateway', 'value', 'Ipay88'),
+            'platform' => 'webapps'
+        ];
+        
+        $last_status = [];
+        foreach ($setting as $value) {
+            $payment = $availablePayment[$value['code'] ?? ''] ?? false;
+            if (!$payment) {
+                unset($availablePayment[$value['code']]);
+                continue;
+            }
+
+            if (is_array($payment['available_time'] ?? false)) {
+                $available_time = $payment['available_time'];
+                $current_time = time();
+                if ($current_time < strtotime($available_time['start']) || $current_time > strtotime($available_time['end'])) {
+                    $value['status'] = 0;
+                }
+            }
+
+            if (!($payment['status'] ?? false) || (!$request->show_all && !($value['status'] ?? false))) {
+                unset($availablePayment[$value['code']]);
+                continue;
+            }
+
+            if(!is_numeric($payment['status'])){
+                $var = explode(':',$payment['status']);
+                if(($config[$var[0]]??false) != ($var[1]??true)) {
+                    $last_status[$var[0]] = $value['status'];
+                    unset($availablePayment[$value['code']]);
+                    continue;
+                }
+            }
+            $payments[] = [
+                'code'                          => $value['code'] ?? '',
+                'payment_gateway'               => $payment['payment_gateway'] ?? '',
+                'payment_method'                => $payment['payment_method'] ?? '',
+                'logo'                          => $payment['logo'] ?? '',
+                'text'                          => $payment['text'] ?? '',
+                'id_chart_of_account'           => $value['id_chart_of_account'] ?? '',
+                'description'                   => $value['description'] ?? '',
+                'status'                        => (int) $value['status'] ? 1 : 0
+            ];
+            unset($availablePayment[$value['code']]);
+        }
+        foreach ($availablePayment as $code => $payment) {
+            $status = 0;
+            if (!$payment['status'] || !is_numeric($payment['status'])) {
+                $var = explode(':',$payment['status']);
+                if(($config[$var[0]]??false) != ($var[1]??true)) {
+                    continue;
+                }
+                $status = (int) ($last_status[$var[0]] ?? 0);
+            }
+            if($request->show_all || $status) {
+                $payments[] = [
+                    'code'            => $code,
+                    'payment_gateway' => $payment['payment_gateway'] ?? '',
+                    'payment_method'  => $payment['payment_method'] ?? '',
+                    'logo'            => $payment['logo'] ?? '',
+                    'text'            => $payment['text'] ?? '',
+                    'id_chart_of_account'            => $payment['id_chart_of_account'] ?? '',
+                    'description'     => $payment['description'] ?? '',
+                    'status'          => $status
+                ];
+            }
+        }
+        return MyHelper::checkGet($payments);
+    }
 }

@@ -2411,10 +2411,10 @@ class ApiMitra extends Controller
             ->wherenull('transaction_products.reject_at')
             ->orderBy('queue', 'asc')
             ->select('transactions.id_transaction','transaction_product_services.id_transaction_product_service','transaction_product_services.queue_code', 'transaction_product_services.queue','service_status','transaction_product_services.id_user_hair_stylist', 'user_hair_stylist.nickname', 'users.name', 'users.is_anon', 'transaction_product_services.schedule_date', 'transaction_product_services.schedule_time', 'transaction_product_services.completed_at', 'products.product_name', 'outlets.outlet_name', 'transaction_product_services.created_at', 'transaction_product_services.order_id', 'transactions.trasaction_payment_type', 'transaction_products.transaction_product_subtotal')
-            ->get()->toArray();
+            ->paginate(10)->toArray();
 
 		$list_services = [];
-		foreach($service_outlets ?? [] as $serv){
+		foreach($service_outlets['data'] ?? [] as $serv){
 			
 			$queue = null;
             if(isset($serv['queue'])){
@@ -2462,8 +2462,9 @@ class ApiMitra extends Controller
 				'end_time' => isset($serv['completed_at']) ? MyHelper::adjustTimezone($serv['completed_at'], $timeZone, 'H:i', true) : null
 			];
 		}
+		$service_outlets['data'] = $list_services;
 
-    	return MyHelper::checkGet($list_services);
+    	return MyHelper::checkGet($service_outlets);
 
 	}
 

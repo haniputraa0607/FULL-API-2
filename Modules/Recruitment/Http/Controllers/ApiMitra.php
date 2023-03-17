@@ -12,6 +12,7 @@ use App\Http\Models\Setting;
 use App\Http\Models\Outlet;
 use App\Http\Models\OutletSchedule;
 use App\Http\Models\Product;
+use App\Http\Models\Province;
 
 use Modules\Franchise\Entities\TransactionProduct;
 use Modules\Outlet\Entities\OutletTimeShift;
@@ -39,6 +40,8 @@ use Modules\Recruitment\Http\Requests\ScheduleCreateRequest;
 use Modules\Recruitment\Entities\OutletCashAttachment;
 use Modules\Recruitment\Entities\HairstylistAttendanceLog;
 use Modules\Transaction\Entities\HairstylistNotAvailable;
+use Modules\Xendit\Entities\TransactionPaymentXendit;
+use App\Http\Models\TransactionPaymentMidtran;
 
 use App\Lib\MyHelper;
 use DB;
@@ -476,7 +479,6 @@ class ApiMitra extends Controller
             ->count();
 
             if(!empty($currentService)){
-                $availableStatus = false;
                 if($currentService['queue']<10){
                     $current_service = '00'.$currentService['queue'];
                 }elseif($currentService['queue']<100){
@@ -2063,16 +2065,20 @@ class ApiMitra extends Controller
 
 		if($user['level'] != 'Supervisor'){
 			return [
-				'status' => 'success',
+				'status' => 'fail',
 				'messages' => ['Anda tidak memiliki akses']
 			];
 		}
 
+		$outlet = $user['outlet'];
 		$listHs = UserHairStylist::where('id_outlet', $outlet['id_outlet'])
 			->where('user_hair_stylist_status', 'Active')->get()->toArray();
 		$bookTime = date('H:i:s');
 		$bookTimeOrigin = date('H:i:s');
 		$bookDate = date('Y-m-d');
+
+		$timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+        ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
 
 		$hairstylists = [];
 
@@ -2120,7 +2126,6 @@ class ApiMitra extends Controller
 				->count();
 	
 				if(!empty($currentService)){
-					$availableStatus = false;
 					if($currentService['queue']<10){
 						$current_service = '00'.$currentService['queue'];
 					}elseif($currentService['queue']<100){
@@ -2135,23 +2140,433 @@ class ApiMitra extends Controller
 				}
 			}
 			
-
-
             $hairstylists[] = [
                 'id_user_hair_stylist' => $val['id_user_hair_stylist'],
                 'nickname' => $val['nickname'],
                 'photo' => (empty($val['user_hair_stylist_photo']) ? config('url.storage_url_api').'img/product/item/default.png':$val['user_hair_stylist_photo']),
-                'shift_time' => $today_shift ? null : date('H:i', strtotime($shift['time_start'])).' - '.date('H:i', strtotime($shift['time_end'])),
+                'shift_time' => $today_shift ? MyHelper::adjustTimezone($shift['time_start'], $timeZone, 'H:i', true).' - '.MyHelper::adjustTimezone($shift['time_end'], $timeZone, 'H:i', true) : null,
 				'available_status' => $availableStatus,
-                'current_service' => $today_shift ? null : $current_service,
-				'count_service' => $today_shift ? null : $totalService
+                'current_service' => $today_shift ? $current_service : null,
+				'count_service' => $today_shift ? $totalService : null
             ];    
         }
+
+    	return MyHelper::checkGet($hairstylists);
+
+	}
+
+	public function todayDetailHairstylist(Request $request){
+		
+		$post = $request->json()->all();
+		$user = $request->user();
+		$this->setTimezone();
+		$today = date('Y-m-d H:i:s');
+
+		if($user['level'] != 'Supervisor'){
+			return [
+				'status' => 'fail',
+				'messages' => ['Anda tidak memiliki akses']
+			];
+		}
+		$user->load('outlet');
+		$spv_outlet = $user['outlet'];
+
+		if(!isset($post['id_user_hair_stylist'])){
+			return [
+				'status' => 'fail',
+				'messages' => ['ID Hair Stylist tidak boleh kosong']
+			];
+		}
+		
+		$hairstylist = UserHairStylist::where('id_user_hair_stylist', $post['id_user_hair_stylist'])
+		->where('id_outlet', $spv_outlet['id_outlet'])
+		->where('user_hair_stylist_status', 'Active')->with(['outlet'])->first();
+		if(!$hairstylist){
+			return [
+				'status' => 'fail',
+				'messages' => ['Hair Stylist tidak ditemukan']
+			];
+		}
+
+		$bookTime = date('H:i:s');
+		$bookTimeOrigin = date('H:i:s');
+		$bookDate = date('Y-m-d');
+		$yesterday = date('Y-m-d', strtotime($bookDate.'-1 days'));
+
+		$outlet = $hairstylist['outlet'];
+		$timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+        ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+		
+		$today_shift = true;
+		$availableStatus = false;
+		$shift = HairstylistScheduleDate::leftJoin('hairstylist_schedules', 'hairstylist_schedules.id_hairstylist_schedule', 'hairstylist_schedule_dates.id_hairstylist_schedule')
+			->whereNotNull('approve_at')->where('id_user_hair_stylist', $hairstylist['id_user_hair_stylist'])
+			->whereDate('date', date('Y-m-d'))
+			->first();
+			
+        if(empty($shift)){
+			$today_shift = false;
+        }
+
+		$clockInOut = HairstylistAttendance::where('id_user_hair_stylist', $hairstylist['id_user_hair_stylist'])
+			->where('id_hairstylist_schedule_date', $shift['id_hairstylist_schedule_date'])->orderBy('updated_at', 'desc')->first();
+				
+		if(!empty($clockInOut) && !empty($clockInOut['clock_in']) && strtotime($bookTime) >= strtotime($clockInOut['clock_in'])){
+			$availableStatus = true;
+			$lastAction = HairstylistAttendanceLog::where('id_hairstylist_attendance', $clockInOut['id_hairstylist_attendance'])->orderBy('datetime', 'desc')->first();
+			if(!empty($clockInOut['clock_out']) && $lastAction['type'] == 'clock_out' && strtotime($bookTime) > strtotime($clockInOut['clock_out'])){
+				$availableStatus = false;
+			}
+		}
+
+		$bookTimeOrigin = date('H:i:s', strtotime($bookTimeOrigin . "+ 1 minutes"));
+		$notAvailable = HairstylistNotAvailable::where('id_outlet', $outlet['id_outlet'])
+			->whereRaw('"'.$bookDate.' '.$bookTimeOrigin. '" BETWEEN booking_start AND booking_end')
+			->where('id_user_hair_stylist', $hairstylist['id_user_hair_stylist'])
+			->first();
+
+		$currentService = TransactionProductService::where('service_status', 'In Progress')
+		->whereDate('schedule_date', $bookDate)
+		->where('id_user_hair_stylist', $hairstylist['id_user_hair_stylist'])
+		->first();
+
+		$current_service = null;
+		if(!empty($currentService)){
+			if($currentService['queue']<10){
+				$current_service = '00'.$currentService['queue'];
+			}elseif($currentService['queue']<100){
+				$current_service = '0'.$currentService['queue'];
+			}else{
+				$current_service = ''.$currentService['queue'];
+			}
+		}
+
+		$totalService = TransactionProductService::where('service_status', 'Completed')
+		->whereDate('schedule_date', $bookDate)
+		->where('id_user_hair_stylist', $hairstylist['id_user_hair_stylist'])
+		->count();
+
+		$today_services = [];
+		$yesterday_services = [];
+
+		$service_outlets = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
+            ->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
+            ->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+            ->join('products', 'transaction_products.id_product', 'products.id_product')
+            ->join('users', 'transactions.id_user', 'users.id')
+            ->join('outlets', 'transactions.id_outlet', 'outlets.id_outlet')
+            ->where(function($q) {
+                $q->where('service_status', 'Completed');
+                $q->orWhere('service_status','In Progress');
+            })
+            ->where('transaction_product_services.id_user_hair_stylist', $hairstylist['id_user_hair_stylist'])
+            ->where(function($q) {
+                $q->where('trasaction_payment_type', 'Cash')
+                ->orWhere('transaction_payment_status', 'Completed');
+            })
+            ->where('transactions.id_outlet',$outlet['id_outlet'])
+            ->whereNotNull('transaction_product_services.queue')
+            ->whereNotNull('transaction_product_services.queue_code')
+			->where(function($q) use($bookDate,$yesterday){
+                $q->whereDate('schedule_date',$bookDate);
+				$q->orWhereDate('schedule_date',$yesterday);
+            })
+            ->where('transaction_payment_status', '!=', 'Cancelled')
+            ->wherenull('transaction_products.reject_at')
+            ->orderBy('queue', 'asc')
+            ->select('transactions.id_transaction','transaction_product_services.id_transaction_product_service','transaction_product_services.queue_code', 'transaction_product_services.queue','service_status','transaction_product_services.id_user_hair_stylist', 'users.name', 'users.is_anon', 'transaction_product_services.schedule_date', 'transaction_product_services.schedule_time', 'transaction_product_services.completed_at', 'products.product_name', 'outlets.outlet_name', 'transaction_product_services.created_at', 'transaction_product_services.order_id', 'transactions.trasaction_payment_type', 'transaction_products.transaction_product_subtotal')
+            ->get()->toArray();
+
+		foreach($service_outlets ?? [] as $serv){
+	
+			$queue = null;
+			if(isset($serv['queue'])){
+				if($serv['queue']<10){
+					$queue = '00'.$serv['queue'];
+				}elseif($serv['queue']<100){
+					$queue = '0'.$serv['queue'];
+				}else{
+					$queue = $serv['queue'];
+				}
+			}
+
+			if($serv['trasaction_payment_type'] == 'Cash'){
+				$payment_type = 'Cash';
+			}elseif($serv['trasaction_payment_type'] == 'Xendit'){
+				$xendit = TransactionPaymentXendit::where('id_transaction',$serv['id_transaction'])->first();
+				if($xendit){
+					$payment_type = ucfirst($xendit['type']);
+				}else{
+					$payment_type = $serv['trasaction_payment_type'];
+				}
+			}elseif($serv['trasaction_payment_type'] == 'Midtrans'){
+				$midtrans = TransactionPaymentMidtran::where('id_transaction',$serv['id_transaction'])->first();
+				if($xendit){
+					$payment_type = ucfirst($midtrans['payment_type']);
+				}else{
+					$payment_type = $serv['trasaction_payment_type'];
+				}
+			}
+			
+			if($bookDate == $serv['schedule_date']){
+				$today_services[] = [
+					'id_transaction' => $serv['id_transaction'],
+					'id_transaction_product_service' => $serv['id_transaction_product_service'],
+				'hairstylist_name' => $hairstylist['nickname'],
+					'date' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($serv['schedule_date'])), 'j F Y'),
+					'customer_name' => $serv['is_anon'] == 1 ? null : $serv['name'],
+					'product' => $serv['product_name'],
+				'price' => 'Rp '.number_format((int)$serv['transaction_product_subtotal'],0,",","."),
+					'queue' => $queue,
+				'payment_type' => $payment_type,
+				'order_id' => $serv['order_id'],
+				'outlet_name' => $serv['outlet_name'],
+				'order_time' => isset($serv['created_at']) ? MyHelper::adjustTimezone($serv['created_at'], $timeZone, 'H:i', true) : null,
+
+					'start_time' => MyHelper::adjustTimezone($serv['schedule_time'], $timeZone, 'H:i', true),
+					'end_time' => isset($serv['completed_at']) ? MyHelper::adjustTimezone($serv['completed_at'], $timeZone, 'H:i', true) : null
+				];
+			}elseif($yesterday == $serv['schedule_date']){
+				$yesterday_services[] = [
+					'id_transaction' => $serv['id_transaction'],
+					'id_transaction_product_service' => $serv['id_transaction_product_service'],
+				'hairstylist_name' => $hairstylist['nickname'],
+
+					'date' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($serv['schedule_date'])), 'j F Y'),
+					'customer_name' => $serv['is_anon'] == 1 ? null : $serv['name'],
+					'product' => $serv['product_name'],
+				'price' => 'Rp '.number_format((int)$serv['transaction_product_subtotal'],0,",","."),
+
+					'queue' => $queue,
+					'payment_type' => $payment_type,
+				'order_id' => $serv['order_id'],
+				'outlet_name' => $serv['outlet_name'],
+				'order_time' => isset($serv['created_at']) ? MyHelper::adjustTimezone($serv['created_at'], $timeZone, 'H:i', true) : null,
+					'start_time' => MyHelper::adjustTimezone($serv['schedule_time'], $timeZone, 'H:i', true),
+					'end_time' => isset($serv['completed_at']) ? MyHelper::adjustTimezone($serv['completed_at'], $timeZone, 'H:i', true) : null
+				];
+
+			}
+		}
+
+		$data = [
+			'id_user_hair_stylist' => $hairstylist['id_user_hair_stylist'],
+			'photo' => (empty($hairstylist['user_hair_stylist_photo']) ? config('url.storage_url_api').'img/product/item/default.png':$hairstylist['user_hair_stylist_photo']),
+			'nickname' => $hairstylist['nickname'],
+			'available_status' => $availableStatus,
+			'today_shift' => $today_shift,
+			'current_service' => $today_shift ? $current_service : null,
+			'count_service' => $today_shift ? $totalService : null,
+			'today_services' => $today_shift ? $today_services : [],
+			'yesterday_services' => $today_shift ? $yesterday_services : [],
+		];
+
+    	return MyHelper::checkGet($data);
 
 	}
 
 	public function todayService(Request $request){
 		
+		$user = $request->user();
+		$this->setTimezone();
+		$today = date('Y-m-d H:i:s');
+
+		$user->load('outlet');
+
+		if($user['level'] != 'Supervisor'){
+			return [
+				'status' => 'fail',
+				'messages' => ['Anda tidak memiliki akses']
+			];
+		}
+
+		$outlet = $user['outlet'];
+
+		$timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+        ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+
+		$service_outlets = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
+            ->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
+            ->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+            ->join('products', 'transaction_products.id_product', 'products.id_product')
+            ->join('user_hair_stylist', 'transaction_product_services.id_user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist')
+            ->join('users', 'transactions.id_user', 'users.id')
+            ->join('outlets', 'transactions.id_outlet', 'outlets.id_outlet')
+            ->where(function($q) {
+                $q->where('service_status', 'Completed');
+                $q->orWhere('service_status','In Progress');
+            })
+            ->where(function($q){
+                $q->whereNotNull('transaction_product_services.id_user_hair_stylist');
+            })
+            ->where(function($q) {
+                $q->where('trasaction_payment_type', 'Cash')
+                ->orWhere('transaction_payment_status', 'Completed');
+            })
+            ->where('transactions.id_outlet',$outlet['id_outlet'])
+            ->whereNotNull('transaction_product_services.queue')
+            ->whereNotNull('transaction_product_services.queue_code')
+            ->whereDate('schedule_date',date('Y-m-d'))
+            ->where('transaction_payment_status', '!=', 'Cancelled')
+            ->wherenull('transaction_products.reject_at')
+            ->orderBy('queue', 'asc')
+            ->select('transactions.id_transaction','transaction_product_services.id_transaction_product_service','transaction_product_services.queue_code', 'transaction_product_services.queue','service_status','transaction_product_services.id_user_hair_stylist', 'user_hair_stylist.nickname', 'users.name', 'users.is_anon', 'transaction_product_services.schedule_date', 'transaction_product_services.schedule_time', 'transaction_product_services.completed_at', 'products.product_name', 'outlets.outlet_name', 'transaction_product_services.created_at', 'transaction_product_services.order_id', 'transactions.trasaction_payment_type', 'transaction_products.transaction_product_subtotal')
+            ->paginate(10)->toArray();
+
+		$list_services = [];
+		foreach($service_outlets['data'] ?? [] as $serv){
+			
+			$queue = null;
+            if(isset($serv['queue'])){
+                if($serv['queue']<10){
+                    $queue = '00'.$serv['queue'];
+                }elseif($serv['queue']<100){
+                    $queue = '0'.$serv['queue'];
+                }else{
+                    $queue = $serv['queue'];
+                }
+            }
+
+			if($serv['trasaction_payment_type'] == 'Cash'){
+				$payment_type = 'Cash';
+			}elseif($serv['trasaction_payment_type'] == 'Xendit'){
+				$xendit = TransactionPaymentXendit::where('id_transaction',$serv['id_transaction'])->first();
+				if($xendit){
+					$payment_type = ucfirst($xendit['type']);
+				}else{
+					$payment_type = $serv['trasaction_payment_type'];
+				}
+			}elseif($serv['trasaction_payment_type'] == 'Midtrans'){
+				$midtrans = TransactionPaymentMidtran::where('id_transaction',$serv['id_transaction'])->first();
+				if($xendit){
+					$payment_type = ucfirst($midtrans['payment_type']);
+				}else{
+					$payment_type = $serv['trasaction_payment_type'];
+				}
+			}
+
+			$list_services[] = [
+				'id_transaction' => $serv['id_transaction'],
+				'id_transaction_product_service' => $serv['id_transaction_product_service'],
+				'hairstylist_name' => $serv['nickname'],
+				'date' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($serv['schedule_date'])), 'j F Y'),
+				'customer_name' => $serv['is_anon'] == 1 ? null : $serv['name'],
+				'product' => $serv['product_name'],
+				'price' => 'Rp '.number_format((int)$serv['transaction_product_subtotal'],0,",","."),
+				'queue' => $queue,
+				'payment_type' => $payment_type,
+				'order_id' => $serv['order_id'],
+				'outlet_name' => $serv['outlet_name'],
+				'order_time' => isset($serv['created_at']) ? MyHelper::adjustTimezone($serv['created_at'], $timeZone, 'H:i', true) : null,
+				'start_time' => MyHelper::adjustTimezone($serv['schedule_time'], $timeZone, 'H:i', true),
+				'end_time' => isset($serv['completed_at']) ? MyHelper::adjustTimezone($serv['completed_at'], $timeZone, 'H:i', true) : null
+			];
+		}
+		$service_outlets['data'] = $list_services;
+
+    	return MyHelper::checkGet($service_outlets);
+
+	}
+
+	public function todayDetailService(Request $request){
+
+		$post = $request->json()->all();
+		$user = $request->user();
+		$this->setTimezone();
+		$today = date('Y-m-d H:i:s');
+
+		if($user['level'] != 'Supervisor'){
+			return [
+				'status' => 'fail',
+				'messages' => ['Anda tidak memiliki akses']
+			];
+		}
+		$user->load('outlet');
+		$spv_outlet = $user['outlet'];
+		$timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+        ->where('id_city', $spv_outlet['id_city'])->first()['time_zone_utc']??null;
+
+		if(!isset($post['id_transaction_product_service'])){
+			return [
+				'status' => 'fail',
+				'messages' => ['ID Transaction Product Service tidak boleh kosong']
+			];
+		}
+		$data = [];
+
+		$service_outlets = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
+            ->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
+            ->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+            ->join('products', 'transaction_products.id_product', 'products.id_product')
+            ->join('user_hair_stylist', 'transaction_product_services.id_user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist')
+            ->join('users', 'transactions.id_user', 'users.id')
+            ->join('outlets', 'transactions.id_outlet', 'outlets.id_outlet')
+			->where('transaction_product_services.id_transaction_product_service',$post['id_transaction_product_service'])
+            ->where(function($q) {
+                $q->where('service_status', 'Completed');
+                $q->orWhere('service_status','In Progress');
+            })
+            ->where(function($q){
+                $q->whereNotNull('transaction_product_services.id_user_hair_stylist');
+            })
+            ->where(function($q) {
+                $q->where('trasaction_payment_type', 'Cash')
+                ->orWhere('transaction_payment_status', 'Completed');
+            })
+            ->where('transactions.id_outlet',$spv_outlet['id_outlet'])
+            ->whereNotNull('transaction_product_services.queue')
+            ->whereNotNull('transaction_product_services.queue_code')
+            ->where('transaction_payment_status', '!=', 'Cancelled')
+            ->wherenull('transaction_products.reject_at')
+            ->orderBy('queue', 'asc')
+            ->select('transactions.id_transaction','transaction_product_services.id_transaction_product_service','transaction_product_services.queue_code', 'transaction_product_services.queue','service_status','transaction_product_services.id_user_hair_stylist', 'user_hair_stylist.nickname', 'users.name', 'users.is_anon', 'transaction_product_services.schedule_date', 'transaction_product_services.schedule_time', 'transaction_product_services.completed_at', 'products.product_name', 'outlets.outlet_name', 'transaction_product_services.created_at', 'transaction_product_services.order_id', 'transactions.trasaction_payment_type', 'transaction_products.transaction_product_subtotal')
+            ->first();
+			
+		$queue = null;
+        if(isset($service_outlets['queue'])){
+			if($service_outlets['queue']<10){
+				$queue = '00'.$service_outlets['queue'];
+			}elseif($service_outlets['queue']<100){
+				$queue = '0'.$service_outlets['queue'];
+			}else{
+				$queue = $service_outlets['queue'];
+			}
+		}	
+		$data = [
+			'id_transaction' => $service_outlets['id_transaction'],
+			'id_transaction_product_service' => $service_outlets['id_transaction_product_service'],
+			'queue' => $queue,
+			'order_id' => $service_outlets['order_id'],
+			'outlet_name' => $service_outlets['outlet_name'],
+			'hairstylist_name' => $service_outlets['nickname'],
+			'date' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($service_outlets['schedule_date'])), 'j F Y'),
+			'order_time' => isset($service_outlets['created_at']) ? MyHelper::adjustTimezone($service_outlets['created_at'], $timeZone, 'H:i', true) : null,
+			'customer_name' => $service_outlets['is_anon'] == 1 ? null : $service_outlets['name'],
+			'product' => $service_outlets['product_name'],
+			'price' => 'Rp '.number_format((int)$service_outlets['transaction_product_subtotal'],0,",","."),
+			'start_time' => MyHelper::adjustTimezone($service_outlets['schedule_time'], $timeZone, 'H:i', true),
+			'end_time' => isset($service_outlets['completed_at']) ? MyHelper::adjustTimezone($service_outlets['completed_at'], $timeZone, 'H:i', true) : null
+		];
+
+		if($service_outlets['trasaction_payment_type'] == 'Cash'){
+			$data['payment_type'] = 'Cash';
+		}elseif($service_outlets['trasaction_payment_type'] == 'Xendit'){
+			$xendit = TransactionPaymentXendit::where('id_transaction',$service_outlets['id_transaction'])->first();
+			if($xendit){
+				$data['payment_type'] = ucfirst($xendit['type']);
+			}else{
+				$data['payment_type'] = $service_outlets['trasaction_payment_type'];
+			}
+		}elseif($service_outlets['trasaction_payment_type'] == 'Midtrans'){
+			$midtrans = TransactionPaymentMidtran::where('id_transaction',$service_outlets['id_transaction'])->first();
+			if($xendit){
+				$data['payment_type'] = ucfirst($midtrans['payment_type']);
+			}else{
+				$data['payment_type'] = $service_outlets['trasaction_payment_type'];
+			}
+		}
+		
+    	return MyHelper::checkGet($data);
 
 	}
 }

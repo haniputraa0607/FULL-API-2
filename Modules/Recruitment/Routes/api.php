@@ -280,7 +280,9 @@ Route::group(['middleware' => ['log_activities_mitra_apps', 'user_agent'], 'pref
     	Route::get('announcement','ApiMitra@announcementList');
     	Route::any('home','ApiMitra@home');
     	Route::any('list-hairstylist','ApiMitra@todayHairstylist');
+    	Route::any('detail-hairstylist','ApiMitra@todayDetailHairstylist');
     	Route::any('list-service','ApiMitra@todayService');
+    	Route::any('detail-service','ApiMitra@todayDetailService');
         Route::any('logout','ApiMitra@logout');
 
     	Route::group(['prefix' => 'schedule'], function () {

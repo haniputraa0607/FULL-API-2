@@ -5158,7 +5158,7 @@ class ApiPromoCampaign extends Controller
     }
 
 	public function onGoignPromoPosOrder(Request $request){
-        $post = $request->all();
+        $post = $request->json()->all();
 
 		$outlet = app($this->pos_order)->getOutlet($post['outlet_code']??null);
 		if(!$outlet){

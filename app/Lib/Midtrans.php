@@ -93,6 +93,19 @@ class Midtrans {
                 'unfinish' => $baseCallback.'&result=fail',
                 'error' => $baseCallback.'&result=fail'
             ];
+        }elseif($scopeUser == 'pos-order'){
+            $baseCallback = env('MIDTRANS_CALLBACK_POS').$outletCode.'/qr-code'.'?id_transaction='.$id;
+            if (!$payment_detail || $payment_detail == 'gopay') {
+                $dataMidtrans['gopay'] = [
+                    'enable_callback' => true,
+                    'callback_url' => $baseCallback,
+                ];
+            }
+            $dataMidtrans['callbacks'] = [
+                'finish' => $baseCallback,
+                'unfinish' => $baseCallback,
+                'error' => $baseCallback,
+            ];
         }else{
             if (!$payment_detail || $payment_detail == 'gopay') {
                 $dataMidtrans['gopay'] = [
@@ -106,9 +119,9 @@ class Midtrans {
                 'error' => env('MIDTRANS_CALLBACK_APPS').'?result=fail&'.(!empty($type)? 'type='.$type.'&': '').(!empty($transaction_from)? '&transaction_from='.$transaction_from: '')
             ];
         }
-
+        
         $token = MyHelper::post($url, Self::bearer(), $dataMidtrans);
-
+        
         try {
             LogMidtrans::create([
                 'type'                 => 'request_token',

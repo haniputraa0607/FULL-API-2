@@ -23,6 +23,8 @@ use Modules\Xendit\Entities\LogXendit;
 use Modules\Subscription\Entities\SubscriptionUser;
 use App\Http\Models\DealsUser;
 use App\Http\Models\Outlet;
+use Lcobucci\JWT\Parser;
+use App\Http\Models\OauthAccessToken;
 
 class XenditController extends Controller
 {
@@ -503,7 +505,12 @@ class XenditController extends Controller
         CustomHttpClient::setLogType('create');
         CustomHttpClient::setIdReference($external_id);
         $method = strtoupper($method);
-
+        
+        $bearerToken = request()->bearerToken();
+        $tokenId = (new Parser())->parse($bearerToken)->getHeader('jti');
+        $getOauth = OauthAccessToken::find($tokenId);
+        $scopeUser = str_replace(str_split('[]""'),"",$getOauth['scopes']);
+        
         if(substr_count($external_id,"-") >= 2){
             $trxReceiptnumber = TransactionAcademyInstallment::where('installment_receipt_number', $external_id)
                         ->join('transaction_academy', 'transaction_academy.id_transaction_academy', 'transaction_academy_installment.id_transaction_academy')
@@ -513,11 +520,16 @@ class XenditController extends Controller
             $outlet = Outlet::join('transactions', 'transactions.id_outlet', 'outlets.id_outlet')->with('xendit_account')->where('transaction_receipt_number', $external_id)->first();
         }
         $outlet_code = $outlet->outlet_code??null;
-        $redirect_url = str_replace(
-            ['%order_id%', '%type%', '%outlet_code%', '%transaction_from%'],
-            [urlencode($options['order_id'] ?? $external_id), $options['type'] ?? 'trx', $outlet_code, $options['transaction_from'] ?? 'outlet_service'],
-            $this->redirect_url
-        );
+        if($scopeUser == 'pos-order'){
+            $trx = Transaction::where('transaction_receipt_number', $external_id)->first();
+            $redirect_url = env('XENDIT_REDIRECT_URL_POS').$outlet_code.'/qr-code'.'?id_transaction='.$trx['id_transaction'];
+        }else{
+            $redirect_url = str_replace(
+                ['%order_id%', '%type%', '%outlet_code%', '%transaction_from%'],
+                [urlencode($options['order_id'] ?? $external_id), $options['type'] ?? 'trx', $outlet_code, $options['transaction_from'] ?? 'outlet_service'],
+                $this->redirect_url
+            );
+        }
 
         $params = [
             'for-user-id'  => optional($outlet->xendit_account)->xendit_id,

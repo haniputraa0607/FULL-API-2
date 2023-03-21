@@ -896,14 +896,6 @@ class ApiPosOrderController extends Controller
         }
 
         $post['item'] = app($this->online_trx)->mergeProducts($post['item']??[]);
-        if (isset($post['pin']) && strtolower($post['payment_type']) == 'balance') {
-            if (!password_verify($post['pin'], $request->user()->password)) {
-                return [
-                    'status' => 'fail',
-                    'messages' => ['Incorrect PIN']
-                ];
-            }
-        }
 
         $totalPrice = 0;
         $totalWeight = 0;
@@ -1144,6 +1136,15 @@ class ApiPosOrderController extends Controller
             $post['membership_level']    = null;
             $post['membership_promo_id'] = null;
             $post['customer'] = [];
+        }
+
+        if (isset($post['pin']) && strtolower($post['payment_type']) == 'balance') {
+            if (!password_verify($post['pin'], $user['password'])) {
+                return [
+                    'status' => 'fail',
+                    'messages' => ['Incorrect PIN']
+                ];
+            }
         }
 
         $config_fraud_use_queue = Configs::where('config_name', 'fraud use queue')->first()->is_active;
@@ -1641,8 +1642,8 @@ class ApiPosOrderController extends Controller
             //======= End Check Fraud Referral User =======//
         }
 
-        if ($request->id_deals_user) {
-            $voucherUsage = TransactionPromo::where('id_deals_user', $request->id_deals_user)->count();
+        if (isset($post['id_deals_user'])) {
+            $voucherUsage = TransactionPromo::where('id_deals_user', $post['id_deals_user'])->count();
             if (($voucherUsage ?? false) > 1) {
                 DB::rollBack();
                 return [
@@ -1777,7 +1778,7 @@ class ApiPosOrderController extends Controller
         $checkPayment = TransactionMultiplePayment::where('id_transaction', $check['id_transaction'])->first();
         $countGrandTotal = $check['transaction_grandtotal'];
         $totalPriceProduct = 0;
-
+        
         if (isset($check['productTransaction'])) {
             foreach ($check['productTransaction'] as $key => $value) {
                 // get modifiers name
@@ -2199,7 +2200,7 @@ class ApiPosOrderController extends Controller
                     'url'  => config('url.api_url').'api/ipay88/pay?'.http_build_query([
                         'type' => 'trx',
                         'id_reference' => $check['id_transaction'],
-                        'payment_id'   => $request->payment_id ?: '',
+                        'payment_id'   => $post['payment_id'] ?: '',
                     ]),
                 ],
             ];
@@ -2353,7 +2354,7 @@ class ApiPosOrderController extends Controller
             ];
         } elseif ($post['payment_type'] == 'Xendit') {
             $post['phone'] = $post['phone'] ?? $user['phone'];
-            $payment_id = $request->payment_id ?? $request->payment_detail;
+            $payment_id = $post['payment_id'] ?? $post['payment_detail'];
             $paymentXendit = TransactionPaymentXendit::where('id_transaction', $check['id_transaction'])->first();
             $transactionData = [
                 'transaction_details' => [
@@ -2496,7 +2497,7 @@ class ApiPosOrderController extends Controller
                 }
             }
             $paymentXendit->items = $dataDetailProduct;
-
+            
             if ($paymentXendit->pay($errors)) {
                 $dataMultiple = [
                     'id_transaction' => $paymentXendit->id_transaction,
@@ -2554,7 +2555,7 @@ class ApiPosOrderController extends Controller
             ], $dataMultiple);
 
             DB::commit();
-
+            
             if($check['transaction_from'] == 'outlet-service' || $check['transaction_from'] == 'shop'){
                 app($this->online_trx)->bookProductStock($check['id_transaction']);
             }
@@ -2755,15 +2756,17 @@ class ApiPosOrderController extends Controller
 
     public function detailTransaction(Request $request){
 
-        if ($request->json('transaction_receipt_number') !== null) {
-            $trx = Transaction::where(['transaction_receipt_number' => $request->json('transaction_receipt_number')])->first();
+        $post = $request->json()->all();
+
+        if ($post['transaction_receipt_number'] !== null) {
+            $trx = Transaction::where(['transaction_receipt_number' => $post['transaction_receipt_number']])->first();
             if($trx) {
                 $id_transaction = $trx->id_transaction;
             } else {
                 return MyHelper::checkGet([]);
             }
         } else {
-            $id_transaction = $request->json('id_transaction');
+            $id_transaction = $post['id_transaction'];
         }
 
         $detail = Transaction::where('transaction_from', 'outlet-service')
@@ -3113,6 +3116,7 @@ class ApiPosOrderController extends Controller
 
     public function availablePayment(Request $request)
     {
+        $post = $request->json()->all();
 
         $availablePayment = config('payment_method');
         
@@ -3140,7 +3144,7 @@ class ApiPosOrderController extends Controller
                 }
             }
 
-            if (!($payment['status'] ?? false) || (!$request->show_all && !($value['status'] ?? false))) {
+            if (!($payment['status'] ?? false) || (!$post['show_all'] && !($value['status'] ?? false))) {
                 unset($availablePayment[$value['code']]);
                 continue;
             }
@@ -3174,7 +3178,7 @@ class ApiPosOrderController extends Controller
                 }
                 $status = (int) ($last_status[$var[0]] ?? 0);
             }
-            if($request->show_all || $status) {
+            if($post['show_all'] || $status) {
                 $payments[] = [
                     'code'            => $code,
                     'payment_gateway' => $payment['payment_gateway'] ?? '',

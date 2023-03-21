@@ -5158,7 +5158,7 @@ class ApiPromoCampaign extends Controller
     }
 
 	public function onGoignPromoPosOrder(Request $request){
-        $post = $request->all();
+        $post = $request->json()->all();
 
 		$outlet = app($this->pos_order)->getOutlet($post['outlet_code']??null);
 		if(!$outlet){
@@ -5536,12 +5536,10 @@ class ApiPromoCampaign extends Controller
 	            ];
 			}
 		}
-
+		
 		$result['title'] 				= $query[$source]['promo_title']??$query[$source]['deals_title']??$query[$source]['subscription_title']??'';
         $result['description']			= $desc;
-		$result['promo_code'] 			= $request->promo_code;
-		$result['id_deals_user'] 		= $request->id_deals_user;
-		$result['id_subscription_user']	= $request->id_subscription_user;
+		$result['promo_code'] 			= $post['promo_code'];
 
 		$result = MyHelper::checkGet($result);
 
@@ -5564,6 +5562,15 @@ class ApiPromoCampaign extends Controller
     {
     	$post = $request->json()->all();
 
+		$outlet = app($this->pos_order)->getOutlet($post['outlet_code']??null);
+		if(!$outlet){
+            return [
+    			'status' => 'fail',
+    			'title' => 'Outlet Code Salah',
+    			'messages' => ['Tidak dapat mendapat data outlet.']
+    		];
+        } 
+
 		if(!empty($post['phone']) || isset($post['phone'])){
             $user = User::with('memberships')->where('phone',$post['phone'])->first();
 			if(!$user){
@@ -5573,20 +5580,31 @@ class ApiPromoCampaign extends Controller
 				];
 			}
 		}else{
-			return [
-				'status'=>'fail',
-				'messages'=>['Phone number cant be empty']
-			];
+			$user = User::with('memberships')->where('phone',$outlet['outlet_code'])->where('is_anon',1)->first();
+            if(!$user){
+                $user = User::create([
+                    'name' => 'Anonymous '.$outlet['outlet_code'],
+                    'phone' => $outlet['outlet_code'],
+                    'id_membership' => NULL,
+                    'email' => $outlet['outlet_code'],
+                    'password' => '$2y$10$4CmCne./LBVkIkI1RQghxOOZWuzk7bAW2kVtJ66uSUzmTM/wbyury',
+                    'id_city' => $outlet['id_city'],
+                    'gender' => 'male',
+                    'provider' => NULL,
+                    'birthday' => NULL,
+                    'phone_verified' => '1',
+                    'email_verified' => '1',
+                    'level' => 'Customer',
+                    'points' => 0,
+                    'android_device' => NULL,
+                    'ios_device' => NULL,
+                    'is_suspended' => '0',
+                    'remember_token' => NULL,   
+                    'is_anon' => 1
+                ]);
+				$user = $user->load('memberships');
+            }
 		}
-
-		$outlet = app($this->pos_order)->getOutlet($post['outlet_code']??null);
-		if(!$outlet){
-            return [
-    			'status' => 'fail',
-    			'title' => 'Outlet Code Salah',
-    			'messages' => ['Tidak dapat mendapat data outlet.']
-    		];
-        } 
 
     	$source = 'promo_campaign';
 

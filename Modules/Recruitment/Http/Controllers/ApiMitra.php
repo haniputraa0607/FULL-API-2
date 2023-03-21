@@ -2312,17 +2312,16 @@ class ApiMitra extends Controller
 				$today_services[] = [
 					'id_transaction' => $serv['id_transaction'],
 					'id_transaction_product_service' => $serv['id_transaction_product_service'],
-				'hairstylist_name' => $hairstylist['nickname'],
+					'hairstylist_name' => $hairstylist['nickname'],
 					'date' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($serv['schedule_date'])), 'j F Y'),
-					'customer_name' => $serv['is_anon'] == 1 ? null : $serv['name'],
+					'customer_name' => $serv['is_anon'] == 1 ? ('Customer '.$queue) : $serv['name'],
 					'product' => $serv['product_name'],
-				'price' => 'Rp '.number_format((int)$serv['transaction_product_subtotal'],0,",","."),
+					'price' => 'Rp '.number_format((int)$serv['transaction_product_subtotal'],0,",","."),
 					'queue' => $queue,
-				'payment_type' => $payment_type,
-				'order_id' => $serv['order_id'],
-				'outlet_name' => $serv['outlet_name'],
-				'order_time' => isset($serv['created_at']) ? MyHelper::adjustTimezone($serv['created_at'], $timeZone, 'H:i', true) : null,
-
+					'payment_type' => $payment_type,
+					'order_id' => $serv['order_id'],
+					'outlet_name' => $serv['outlet_name'],
+					'order_time' => isset($serv['created_at']) ? MyHelper::adjustTimezone($serv['created_at'], $timeZone, 'H:i', true) : null,
 					'start_time' => MyHelper::adjustTimezone($serv['schedule_time'], $timeZone, 'H:i', true),
 					'end_time' => isset($serv['completed_at']) ? MyHelper::adjustTimezone($serv['completed_at'], $timeZone, 'H:i', true) : null
 				];
@@ -2330,18 +2329,16 @@ class ApiMitra extends Controller
 				$yesterday_services[] = [
 					'id_transaction' => $serv['id_transaction'],
 					'id_transaction_product_service' => $serv['id_transaction_product_service'],
-				'hairstylist_name' => $hairstylist['nickname'],
-
+					'hairstylist_name' => $hairstylist['nickname'],
 					'date' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($serv['schedule_date'])), 'j F Y'),
-					'customer_name' => $serv['is_anon'] == 1 ? null : $serv['name'],
+					'customer_name' => $serv['is_anon'] == 1 ? ('Customer '.$queue) : $serv['name'],
 					'product' => $serv['product_name'],
-				'price' => 'Rp '.number_format((int)$serv['transaction_product_subtotal'],0,",","."),
-
+					'price' => 'Rp '.number_format((int)$serv['transaction_product_subtotal'],0,",","."),
 					'queue' => $queue,
 					'payment_type' => $payment_type,
-				'order_id' => $serv['order_id'],
-				'outlet_name' => $serv['outlet_name'],
-				'order_time' => isset($serv['created_at']) ? MyHelper::adjustTimezone($serv['created_at'], $timeZone, 'H:i', true) : null,
+					'order_id' => $serv['order_id'],
+					'outlet_name' => $serv['outlet_name'],
+					'order_time' => isset($serv['created_at']) ? MyHelper::adjustTimezone($serv['created_at'], $timeZone, 'H:i', true) : null,
 					'start_time' => MyHelper::adjustTimezone($serv['schedule_time'], $timeZone, 'H:i', true),
 					'end_time' => isset($serv['completed_at']) ? MyHelper::adjustTimezone($serv['completed_at'], $timeZone, 'H:i', true) : null
 				];
@@ -2450,7 +2447,7 @@ class ApiMitra extends Controller
 				'id_transaction_product_service' => $serv['id_transaction_product_service'],
 				'hairstylist_name' => $serv['nickname'],
 				'date' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($serv['schedule_date'])), 'j F Y'),
-				'customer_name' => $serv['is_anon'] == 1 ? null : $serv['name'],
+				'customer_name' => $serv['is_anon'] == 1 ? ('Customer '.$queue) : $serv['name'],
 				'product' => $serv['product_name'],
 				'price' => 'Rp '.number_format((int)$serv['transaction_product_subtotal'],0,",","."),
 				'queue' => $queue,

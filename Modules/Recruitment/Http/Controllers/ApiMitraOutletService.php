@@ -178,6 +178,7 @@ class ApiMitraOutletService extends Controller
 		->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
 		->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
 		->join('products', 'transaction_products.id_product', 'products.id_product')
+		->join('users', 'transactions.id_user', 'users.id')
 		->where(function($q) {
 			$q->whereNull('service_status');
 			$q->orWhere('service_status', '!=', 'Completed');
@@ -258,11 +259,22 @@ class ApiMitraOutletService extends Controller
 			// $scheduleTime = app($this->mitra)->convertTimezoneMitra($val['schedule_time']);
 			// $scheduleTime = date('H:i', strtotime($scheduleTime));
 
+			$queue_code = null;
+            if(isset($val['queue'])){
+                if($val['queue']<10){
+                    $queue_code = '00'.$val['queue'];
+                }elseif($val['queue']<100){
+                    $queue_code = '0'.$val['queue'];
+                }else{
+                    $queue_code = $val['queue'];
+                }
+            }
+
 			$resData[] = [
 				'id_transaction_product_service' => $val['id_transaction_product_service'],
 				'order_id' => $val['transaction_receipt_number'] ?? null,
 				'transaction_receipt_number' => $val['transaction_receipt_number'],
-				'customer_name' => $val['customer_name'],
+				'customer_name' => $val['is_anon'] == 1 ? 'Customer '.$queue_code : $val['customer_name'],
 				'schedule_date' => $scheduleDate,
 				// 'schedule_time' => $scheduleTime,
 				'service_status' => $val['service_status'],
@@ -439,6 +451,7 @@ class ApiMitraOutletService extends Controller
 		$queue = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
 		->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
 		->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+		->join('users', 'transactions.id_user', 'users.id')
 		->where(function($q) use($user) {
 			$q->whereNull('transaction_product_services.id_user_hair_stylist');
 			$q->orWhere('transaction_product_services.id_user_hair_stylist', $user->id_user_hair_stylist);
@@ -553,12 +566,23 @@ class ApiMitraOutletService extends Controller
     	// $scheduleTime = app($this->mitra)->convertTimezoneMitra($queue['schedule_time']);
     	// $scheduleTime = date('H:i', strtotime($scheduleTime));
 
+		$queue_code = null;
+		if(isset($queue['queue'])){
+			if($queue['queue']<10){
+				$queue_code = '00'.$queue['queue'];
+			}elseif($queue['queue']<100){
+				$queue_code = '0'.$queue['queue'];
+			}else{
+				$queue_code = $queue['queue'];
+			}
+		}
+
     	$res = [
     		'id_transaction' => $queue['id_transaction'],
     		'id_transaction_product_service' => $queue['id_transaction_product_service'],
     		'order_id' => $queue['order_id'] ?? null,
     		'transaction_receipt_number' => $queue['transaction_receipt_number'] ?? null,
-    		'customer_name' => $queue['customer_name'],
+    		'customer_name' => $queue['is_anon'] == 1 ? 'Customer '.$queue_code : $queue['customer_name'],
     		'schedule_date' => $scheduleDate,
     		// 'schedule_time' => $scheduleTime,
     		'service_status' => $queue['service_status'],
@@ -2298,6 +2322,7 @@ class ApiMitraOutletService extends Controller
     	->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
     	->join('products', 'transaction_products.id_product', 'products.id_product')
     	->join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')
+		->join('users', 'transactions.id_user', 'users.id')
     	->where(function($q) {
     		$q->whereNotNull('transaction_product_services.completed_at');		
     		$q->Where('service_status', '=', 'Completed');
@@ -2331,7 +2356,7 @@ class ApiMitraOutletService extends Controller
     	}
 
     	$tps = $tps->paginate(10);
-
+		
     	$tps->transform(function($item) use ($user) {
     		$trx = Transaction::where('id_transaction', $item->id_transaction)->first();
     		$trxPayment = app($this->trx_outlet_service)->transactionPayment($trx);
@@ -2343,12 +2368,23 @@ class ApiMitraOutletService extends Controller
     			}
     		}
 
+			$queue = null;
+            if(isset($item->queue)){
+                if($item->queue<10){
+                    $queue = '00'.$item->queue;
+                }elseif($item->queue<100){
+                    $queue = '0'.$item->queue;
+                }else{
+                    $queue = $item->queue;
+                }
+            }
+
     		return [
     			'id_transaction_product_service' => $item->id_transaction_product_service,
     			'transaction_date' => MyHelper::indonesian_date_v2($item->schedule_date, 'd F Y'),
 				'service_start' => date('H:i', strtotime($item->schedule_time)), //TODO update with service start
 				'service_end' => date('H:i', strtotime($item->completed_at)),
-				'customer_name' => $item->customer_name,
+				'customer_name' => $item->is_anon == 1 ? 'Customer '.$queue : $item->customer_name,
 				'product_name' => $item->product_name,
 				'order_id' => $item->transaction_receipt_number,
 				'outlet_name' => $item->outlet_name,

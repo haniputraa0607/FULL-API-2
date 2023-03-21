@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use App\Http\Models\DailyTransactions;
+use Lcobucci\JWT\Parser;
 use App\Jobs\FraudJob;
 
 use App\Http\Models\Outlet;
@@ -1991,7 +1992,7 @@ class ApiPosOrderController extends Controller
         if ($check['trasaction_type'] == 'Delivery') {
             $dataUser = [
                 'first_name'      => $user['name'],
-                'email'           => $user['email'],
+                'email'           => $user['is_anon'] == 0 ? $user['email'] : null,
                 'phone'           => $user['phone'],
                 'billing_address' => [
                     'first_name' => $check['transaction_shipments']['destination_name'],
@@ -2010,7 +2011,7 @@ class ApiPosOrderController extends Controller
             $checkOutletService = TransactionOutletService::where('id_transaction', $post['id'])->first();
             $dataUser = [
                 'first_name'      => (!empty($checkOutletService['customer_name']) ? $checkOutletService['customer_name'] : $user['name']),
-                'email'           => (!empty($checkOutletService['customer_email']) ? $checkOutletService['customer_email'] : $user['email']),
+                'email'           => $user['is_anon'] == 0 ? (!empty($checkOutletService['customer_email']) ? $checkOutletService['customer_email'] : $user['email']) : null,
                 'phone'           => $user['phone'],
                 'billing_address' => [
                     'first_name' => (!empty($checkOutletService['customer_name']) ? $checkOutletService['customer_name'] : $user['name']),
@@ -2034,13 +2035,13 @@ class ApiPosOrderController extends Controller
                     'customer_details'    => $dataUser,
                     'shipping_address'    => $dataShipping,
                 );
-                $connectMidtrans = Midtrans::token($check['transaction_receipt_number'], $countGrandTotal, $dataUser, $dataShipping, $dataDetailProduct, 'trx', $check['id_transaction'], $post['payment_detail'], $scopeUser, $outletCode, $check['transaction_from']);
+                $connectMidtrans = Midtrans::token($check['transaction_receipt_number'], $countGrandTotal, $dataUser, $dataShipping, $dataDetailProduct, 'trx', $check['id_transaction'], $post['payment_detail'], 'pos-order', $outletCode, $check['transaction_from']);
             } else {
                 $dataMidtrans = array(
                     'transaction_details' => $transaction_details,
                     'customer_details'    => $dataUser,
                 );
-                $connectMidtrans = Midtrans::token($check['transaction_receipt_number'], $countGrandTotal, $dataUser, $ship=null, $dataDetailProduct, 'trx', $check['id_transaction'], $post['payment_detail'], $scopeUser, $outletCode, $check['transaction_from']);
+                $connectMidtrans = Midtrans::token($check['transaction_receipt_number'], $countGrandTotal, $dataUser, $ship=null, $dataDetailProduct, 'trx', $check['id_transaction'], $post['payment_detail'], 'pos-order', $outletCode, $check['transaction_from']);
             }
 
             if (empty($connectMidtrans['token'])) {

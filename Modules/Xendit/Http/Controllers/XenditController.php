@@ -522,7 +522,7 @@ class XenditController extends Controller
         $outlet_code = $outlet->outlet_code??null;
         if($scopeUser == 'pos-order'){
             $trx = Transaction::where('transaction_receipt_number', $external_id)->first();
-            $redirect_url = env('XENDIT_REDIRECT_URL_POS').$outlet_code.'/qr-code'.'?id_transaction='.$trx['id_transaction'];
+            $redirect_url = env('XENDIT_REDIRECT_URL_POS').$outlet_code.'/qr-code'.'?id_transaction='.$trx['id_transaction'].'&order_id='.$external_id.'&result=success';
         }else{
             $redirect_url = str_replace(
                 ['%order_id%', '%type%', '%outlet_code%', '%transaction_from%'],

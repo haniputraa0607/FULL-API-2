@@ -195,10 +195,10 @@ class ApiMitraOutletService extends Controller
 		->where('transaction_payment_status', '!=', 'Cancelled')
 		->wherenull('transaction_products.reject_at')
 		->orderBy('schedule_date', 'asc')
-		->orderBy('schedule_time', 'asc')
+		->orderBy('transaction_product_services.created_at', 'asc')
 		->paginate(10)
 		->toArray();
-		
+
 		$serviceInProgress = TransactionProductService::where('service_status', 'In Progress')
 		->where('id_user_hair_stylist', $user->id_user_hair_stylist)
 		->first();
@@ -274,6 +274,7 @@ class ApiMitraOutletService extends Controller
 				'id_transaction_product_service' => $val['id_transaction_product_service'],
 				'order_id' => $val['transaction_receipt_number'] ?? null,
 				'transaction_receipt_number' => $val['transaction_receipt_number'],
+				'queue_code' => $queue_code,
 				'customer_name' => $val['is_anon'] == 1 ? 'Customer '.$queue_code : $val['customer_name'],
 				'schedule_date' => $scheduleDate,
 				// 'schedule_time' => $scheduleTime,
@@ -2332,8 +2333,8 @@ class ApiMitraOutletService extends Controller
     		$q->where('trasaction_payment_type', 'Cash')
     		->orWhere('transaction_payment_status', 'Completed');
     	})
-    	->where('transaction_payment_status',  'Completed');
 
+    	->where('transaction_payment_status',  'Completed');
     	if ($filter_range = $request->filter_range) {
     		if (is_array($filter_range)) {
     			$tps->whereDate('schedule_date', '>=', date('Y-m-d', strtotime($filter_range[0])));
@@ -2354,7 +2355,16 @@ class ApiMitraOutletService extends Controller
     	}elseif(!empty($request->sort) && $request->sort == 'asc'){
     		$tps = $tps->orderBy('schedule_date', 'asc')->orderBy('schedule_time', 'asc');
     	}
-
+		$tps = $tps->select(
+			'transaction_product_services.*',
+			'transaction_products.transaction_product_net',
+			'products.product_name',
+			'transactions.customer_name',
+			'users.is_anon',
+			'transactions.id_transaction',
+			'transactions.transaction_receipt_number',
+			'outlets.outlet_name',
+		);
     	$tps = $tps->paginate(10);
 		
     	$tps->transform(function($item) use ($user) {
@@ -2378,7 +2388,7 @@ class ApiMitraOutletService extends Controller
                     $queue = $item->queue;
                 }
             }
-
+			
     		return [
     			'id_transaction_product_service' => $item->id_transaction_product_service,
     			'transaction_date' => MyHelper::indonesian_date_v2($item->schedule_date, 'd F Y'),

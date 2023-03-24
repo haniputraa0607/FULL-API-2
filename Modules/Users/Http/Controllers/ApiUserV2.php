@@ -161,7 +161,7 @@ class ApiUserV2 extends Controller
             $device_id = $request->json('device_id');
             $device_token = $request->json('device_token');
             $device_type = $request->json('device_type');
-
+            
             $useragent = $_SERVER['HTTP_USER_AGENT'];
             if (stristr($_SERVER['HTTP_USER_AGENT'], 'iOS')) $useragent = 'IOS';
             if (stristr($_SERVER['HTTP_USER_AGENT'], 'okhttp')) $useragent = 'Android';
@@ -191,6 +191,7 @@ class ApiUserV2 extends Controller
 
             $create = User::create([
                 'phone' => $phone,
+                'name' => $request->json('name') ?? null,
                 'provider'         => $provider,
                 'password'        => bcrypt($pin),
                 'android_device' => $is_android,

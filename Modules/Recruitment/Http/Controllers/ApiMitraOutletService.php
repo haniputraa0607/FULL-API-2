@@ -583,6 +583,7 @@ class ApiMitraOutletService extends Controller
     		'id_transaction_product_service' => $queue['id_transaction_product_service'],
     		'order_id' => $queue['order_id'] ?? null,
     		'transaction_receipt_number' => $queue['transaction_receipt_number'] ?? null,
+			'queue_code' => $queue_code,
     		'customer_name' => $queue['is_anon'] == 1 ? 'Customer '.$queue_code : $queue['customer_name'],
     		'schedule_date' => $scheduleDate,
     		// 'schedule_time' => $scheduleTime,

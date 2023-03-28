@@ -140,13 +140,13 @@ class ApiMitra extends Controller
 				$q->orderBy('date','asc');
 			}
 		])
-		->get();
+		->get()->toArray();
 
 		$resHairstylist = [];
-		foreach ($hairstylists as $hs) {
+		foreach ($hairstylists ?? [] as $hs) {
 
 			$schedule = $hs['hairstylist_schedules'][0] ?? null;
-			$schedule['status'] = $schedule['approve_at'] ? 'approved' : ($schedule['reject_at'] ? 'rejected' : 'pending');
+			$schedule['status'] = isset($schedule['approve_at']) ? ($schedule['approve_at'] ? 'approved' : ($schedule['reject_at'] ? 'rejected' : 'pending')) : null;
 			$schedule_dates = $schedule['hairstylist_schedule_dates'] ?? [];
 
 			$tmpListDate = [];
@@ -2301,7 +2301,7 @@ class ApiMitra extends Controller
 				}
 			}elseif($serv['trasaction_payment_type'] == 'Midtrans'){
 				$midtrans = TransactionPaymentMidtran::where('id_transaction',$serv['id_transaction'])->first();
-				if($xendit){
+				if($midtrans){
 					$payment_type = ucfirst($midtrans['payment_type']);
 				}else{
 					$payment_type = $serv['trasaction_payment_type'];
@@ -2435,7 +2435,7 @@ class ApiMitra extends Controller
 				}
 			}elseif($serv['trasaction_payment_type'] == 'Midtrans'){
 				$midtrans = TransactionPaymentMidtran::where('id_transaction',$serv['id_transaction'])->first();
-				if($xendit){
+				if($midtrans){
 					$payment_type = ucfirst($midtrans['payment_type']);
 				}else{
 					$payment_type = $serv['trasaction_payment_type'];
@@ -2556,7 +2556,7 @@ class ApiMitra extends Controller
 			}
 		}elseif($service_outlets['trasaction_payment_type'] == 'Midtrans'){
 			$midtrans = TransactionPaymentMidtran::where('id_transaction',$service_outlets['id_transaction'])->first();
-			if($xendit){
+			if($midtrans){
 				$data['payment_type'] = ucfirst($midtrans['payment_type']);
 			}else{
 				$data['payment_type'] = $service_outlets['trasaction_payment_type'];

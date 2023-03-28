@@ -80,7 +80,8 @@ class TransactionProduct extends Model
         'transaction_product_completed_at',
         'reject_at',
         'reject_reason',
-        'mdr_product'
+        'mdr_product',
+        'customer_queue'
     ];
     
     public function modifiers()

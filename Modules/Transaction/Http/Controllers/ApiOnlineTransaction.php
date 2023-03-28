@@ -1754,6 +1754,12 @@ class ApiOnlineTransaction extends Controller
                 }
             }
 
+            if(isset($post['payment_type']) && $post['payment_type'] == 'Cash'){
+                $queue = TransactionProduct::join('transactions','transactions.id_transaction','transaction_products.id_transaction')->whereDate('transaction_date', date('Y-m-d'))->where('id_outlet',$trx['id_outlet'])->where('transaction_products.id_transaction', '<>', $trx['id_transaction'])->max('customer_queue') + 1;
+            }else{
+                $queue = null;
+            }
+
             $dataProduct = [
                 'id_transaction'               => $insertTransaction['id_transaction'],
                 'id_product'                   => $checkProduct['id_product'],
@@ -1776,6 +1782,7 @@ class ApiOnlineTransaction extends Controller
                 'transaction_product_net' => $valueProduct['transaction_product_subtotal']-$this_discount,
                 'transaction_variant_subtotal' => $valueProduct['transaction_variant_subtotal'],
                 'transaction_product_note'     => $valueProduct['note'],
+                'customer_queue'               => $queue, 
                 'created_at'                   => date('Y-m-d', strtotime($insertTransaction['transaction_date'])).' '.date('H:i:s'),
                 'updated_at'                   => date('Y-m-d H:i:s')
             ];
@@ -5215,6 +5222,20 @@ class ApiOnlineTransaction extends Controller
                     ];
                 }
     
+                if(isset($payment_type) && $payment_type == 'Cash'){
+                    $queue = TransactionProduct::join('transactions','transactions.id_transaction','transaction_products.id_transaction')->whereDate('transaction_date', date('Y-m-d'))->where('id_outlet',$trx['id_outlet'])->where('transaction_products.id_transaction', '<>', $trx['id_transaction'])->max('customer_queue') + 1;
+                    if($queue<10){
+                        $queue_code = '[00'.$queue.'] - '.$product['product_name'];
+                    }elseif($queue<100){
+                        $queue_code = '[0'.$queue.'] - '.$product['product_name'];
+                    }else{
+                        $queue_code = '['.$queue.'] - '.$product['product_name'];
+                    }
+                }else{
+                    $queue = null;
+                    $queue_code = null;
+                }
+
                 $dataProduct = [
                     'id_transaction'               => $trx['id_transaction'],
                     'id_product'                   => $product['id_product'],
@@ -5233,6 +5254,7 @@ class ApiOnlineTransaction extends Controller
                     'transaction_product_subtotal' => $price,
                     'transaction_product_net' => $price,
                     'transaction_product_note'     => null,
+                    'customer_queue'               => $queue, 
                     'created_at'                   => date('Y-m-d', strtotime($trx['transaction_date'])).' '.date('H:i:s'),
                     'updated_at'                   => date('Y-m-d H:i:s')
                 ];
@@ -5251,19 +5273,7 @@ class ApiOnlineTransaction extends Controller
                 // $timeZone = $outlet['province_time_zone_utc'] - 7;
                 // $bookTime = date('H:i:s', strtotime('-'.$timeZone.' hours', strtotime($itemProduct['booking_time'])));
                 
-                if(isset($payment_type) && $payment_type == 'Cash'){
-                    $queue = TransactionProductService::join('transactions','transactions.id_transaction','transaction_product_services.id_transaction')->whereDate('schedule_date', date('Y-m-d', strtotime($itemProduct['booking_date'])))->where('id_outlet',$trx['id_outlet'])->where('transaction_product_services.id_transaction', '<>', $trx['id_transaction'])->max('queue') + 1;
-                    if($queue<10){
-                        $queue_code = '[00'.$queue.'] - '.$product['product_name'];
-                    }elseif($queue<100){
-                        $queue_code = '[0'.$queue.'] - '.$product['product_name'];
-                    }else{
-                        $queue_code = '['.$queue.'] - '.$product['product_name'];
-                    }
-                }else{
-                    $queue = null;
-                    $queue_code = null;
-                }
+                
     
                 $product_service = TransactionProductService::create([
                     'order_id' => $order_id,
@@ -5273,6 +5283,7 @@ class ApiOnlineTransaction extends Controller
                     'queue' => $queue,
                     'queue_code' => $queue_code,
                 ]);
+
                 if (!$product_service) {
                     DB::rollback();
                     return [

@@ -441,11 +441,13 @@ class Transaction extends Model
 
         $trx->productTransaction->each(function($transaction_product,$index){
             $transaction_product->breakdown();
+			$queue = \Modules\Transaction\Entities\TransactionProduct::join('transactions','transactions.id_transaction','transaction_products.id_transaction')->whereDate('schedule_date', date('Y-m-d'))->where('id_outlet',$trx->id_outlet)->where('transaction_products.id_transaction', '<>', $trx->id_transaction)->max('customer_queue') + 1;
+			$transaction_product->update(['customer_queue'=>$queue]);
         });
 		
 		$trx->transaction_product_services->each(function($service,$index) use($trx){
 			$product = $service->transaction_product->product;
-			$queue = \Modules\Transaction\Entities\TransactionProductService::join('transactions','transactions.id_transaction','transaction_product_services.id_transaction')->whereDate('schedule_date', date('Y-m-d',strtotime($service->schedule_date)))->where('id_outlet',$trx->id_outlet)->where('transaction_product_services.id_transaction', '<>', $trx->id_transaction)->max('queue') + 1;
+			$queue = $service->transaction_product->customer_queue;
 			if($queue<10){
 				$queue_code = '[00'.$queue.'] - '.$product->product_name;
 			}elseif($queue<100){

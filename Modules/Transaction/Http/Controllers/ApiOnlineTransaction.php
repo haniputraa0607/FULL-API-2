@@ -1755,7 +1755,7 @@ class ApiOnlineTransaction extends Controller
             }
 
             if(isset($post['payment_type']) && $post['payment_type'] == 'Cash'){
-                $queue = TransactionProduct::join('transactions','transactions.id_transaction','transaction_products.id_transaction')->whereDate('transaction_date', date('Y-m-d'))->where('id_outlet',$trx['id_outlet'])->where('transaction_products.id_transaction', '<>', $trx['id_transaction'])->max('customer_queue') + 1;
+                $queue = TransactionProduct::join('transactions','transactions.id_transaction','transaction_products.id_transaction')->whereDate('transaction_date', date('Y-m-d'))->where('transactions.id_outlet',$insertTransaction['id_outlet'])->where('transaction_products.id_transaction', '<>', $insertTransaction['id_transaction'])->max('customer_queue') + 1;
             }else{
                 $queue = null;
             }
@@ -5223,7 +5223,7 @@ class ApiOnlineTransaction extends Controller
                 }
     
                 if(isset($payment_type) && $payment_type == 'Cash'){
-                    $queue = TransactionProduct::join('transactions','transactions.id_transaction','transaction_products.id_transaction')->whereDate('transaction_date', date('Y-m-d'))->where('id_outlet',$trx['id_outlet'])->where('transaction_products.id_transaction', '<>', $trx['id_transaction'])->max('customer_queue') + 1;
+                    $queue = TransactionProduct::join('transactions','transactions.id_transaction','transaction_products.id_transaction')->whereDate('transaction_date', date('Y-m-d'))->where('transactions.id_outlet',$trx['id_outlet'])->where('transaction_products.id_transaction', '<>', $trx['id_transaction'])->max('customer_queue') + 1;
                     if($queue<10){
                         $queue_code = '[00'.$queue.'] - '.$product['product_name'];
                     }elseif($queue<100){

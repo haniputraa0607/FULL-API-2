@@ -889,10 +889,10 @@ class ApiPosOrderController extends Controller
         
         unset($post['outlet_code']);
 
-        if(empty($post['item_service'])){
+        if(empty($post['item_service']) && empty($post['item'])){
             return response()->json([
                 'status'    => 'fail',
-                'messages'  => ['Item/Item Service can not be empty']
+                'messages'  => ['Item and Item Service can not be empty']
             ]);
         }
 

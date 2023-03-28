@@ -164,6 +164,7 @@ Route::group(['prefix' => 'api/pos-order/outlet-service', 'middleware' => ['scop
         Route::post('/done', 'ApiPosOrderController@doneTransaction');
         Route::post('/detail-transaction', 'ApiPosOrderController@detailTransaction');
         Route::post('/list-transaction', 'ApiPosOrderController@listTransaction');
+        Route::post('/list-transactionV2', 'ApiPosOrderController@listTransactionV2');
 
     });
     Route::group(['namespace' => 'Modules\PromoCampaign\Http\Controllers'], function()

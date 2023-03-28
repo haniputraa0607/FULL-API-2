@@ -4339,6 +4339,7 @@ class ApiOnlineTransaction extends Controller
                 'payment_method'                => $payment['payment_method'] ?? '',
                 'logo'                          => $payment['logo'] ?? '',
                 'text'                          => $payment['text'] ?? '',
+                'text_2'                        => $payment['text_2'] ?? '',
                 'id_chart_of_account'           => $value['id_chart_of_account'] ?? '',
                 'description'                   => $value['description'] ?? '',
                 'status'                        => (int) $value['status'] ? 1 : 0

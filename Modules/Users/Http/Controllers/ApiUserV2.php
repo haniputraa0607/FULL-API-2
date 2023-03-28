@@ -19,6 +19,7 @@ use Modules\Users\Http\Requests\users_phone;
 use Modules\Users\Http\Requests\users_phone_pin_admin;
 use Modules\Users\Http\Requests\usersNewPinEmployee;
 use Modules\Users\Http\Requests\users_phone_pin_new_v2;
+use Lcobucci\JWT\Parser;
 
 use App\Lib\MyHelper;
 use Validator;
@@ -51,6 +52,11 @@ class ApiUserV2 extends Controller
 
         $phoneOld = $phone;
         $phone = preg_replace("/[^0-9]/", "", $phone);
+
+        $bearerToken = request()->bearerToken();
+        $tokenId = (new Parser())->parse($bearerToken)->getHeader('jti');
+        $getOauth = OauthAccessToken::find($tokenId);
+        $scopeUser = str_replace(str_split('[]""'),"",$getOauth['scopes']);
 
         $checkPhoneFormat = MyHelper::phoneCheckFormat($phone);
 
@@ -89,7 +95,7 @@ class ApiUserV2 extends Controller
         $msg_check = str_replace('%phone%', $phoneOld, MyHelper::setting('message_send_otp_miscall', 'value_text', 'Kami akan mengirimkan kode OTP melalui ke %phone%.<br/>Anda akan mendapatkan kode berupa 6 digit angka.<br/>Silahkan pilih metode pengiriman OTP yang akan digunakan.'));
 
         if($data){
-            if ($data[0]['phone_verified'] == 0 && empty($data[0]['pin_changed'])) {
+            if (($data[0]['phone_verified'] == 0 && empty($data[0]['pin_changed'])) && ($scopeUser != 'pos-order' && $data[0]['from_pos'] == 0)) {
                 $result['register'] = true;
                 $result['forgot'] = false;
                 $result['confirmation_message'] = $msg_check;
@@ -126,7 +132,11 @@ class ApiUserV2 extends Controller
 
         $phoneOld = $phone;
         $phone = preg_replace("/[^0-9]/", "", $phone);
-
+        $bearerToken = request()->bearerToken();
+        $tokenId = (new Parser())->parse($bearerToken)->getHeader('jti');
+        $getOauth = OauthAccessToken::find($tokenId);
+        $scopeUser = str_replace(str_split('[]""'),"",$getOauth['scopes']);
+        
         $checkPhoneFormat = MyHelper::phoneCheckFormat($phone);
 
         if (isset($checkPhoneFormat['status']) && $checkPhoneFormat['status'] == 'fail') {
@@ -195,6 +205,7 @@ class ApiUserV2 extends Controller
                 'provider'         => $provider,
                 'password'        => bcrypt($pin),
                 'android_device' => $is_android,
+                'from_pos'      => $scopeUser == 'pos-order' ? 1 : 0,
                 'ios_device'     => $is_ios,
                 'otp_valid_time' => $dateOtpTimeExpired
             ]);

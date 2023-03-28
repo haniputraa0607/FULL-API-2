@@ -2395,6 +2395,7 @@ class ApiMitraOutletService extends Controller
     			'transaction_date' => MyHelper::indonesian_date_v2($item->schedule_date, 'd F Y'),
 				'service_start' => date('H:i', strtotime($item->schedule_time)), //TODO update with service start
 				'service_end' => date('H:i', strtotime($item->completed_at)),
+				'queue_code' => $queue,
 				'customer_name' => $item->is_anon == 1 ? 'Customer '.$queue : $item->customer_name,
 				'product_name' => $item->product_name,
 				'order_id' => $item->transaction_receipt_number,

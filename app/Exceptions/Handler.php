@@ -6,6 +6,8 @@ use Exception;
 use Illuminate\Support\Arr;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Validation\ValidationException;
+use League\OAuth2\Server\Exception\OAuthServerException;
 
 class Handler extends ExceptionHandler
 {
@@ -16,6 +18,8 @@ class Handler extends ExceptionHandler
      */
     protected $dontReport = [
         SilentException::class,
+        ValidationException::class,
+        OAuthServerException::class,
     ];
 
     /**

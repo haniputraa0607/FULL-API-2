@@ -3284,6 +3284,9 @@ class ApiPosOrderController extends Controller
 
         }
 
-        return MyHelper::checkGet($data);
+        return response()->json([
+            'status' => 'success',
+            'result' => $data,
+        ]);
     }
 }

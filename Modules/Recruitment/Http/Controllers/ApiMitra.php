@@ -146,7 +146,7 @@ class ApiMitra extends Controller
 		foreach ($hairstylists ?? [] as $hs) {
 
 			$schedule = $hs['hairstylist_schedules'][0] ?? null;
-			$schedule['status'] = isset($schedule['approve_at']) ? ($schedule['approve_at'] ? 'approved' : ($schedule['reject_at'] ? 'rejected' : 'pending')) : null;
+			$schedule['status'] = isset($schedule) ? ($schedule['approve_at'] ? 'approved' : ($schedule['reject_at'] ? 'rejected' : 'pending')) : null;
 			$schedule_dates = $schedule['hairstylist_schedule_dates'] ?? [];
 
 			$tmpListDate = [];

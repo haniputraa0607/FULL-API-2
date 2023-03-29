@@ -1394,6 +1394,12 @@ class ApiPosOrderController extends Controller
                 }
             }
 
+            if(isset($post['payment_type']) && $post['payment_type'] == 'Cash'){
+                $queue = TransactionProduct::join('transactions','transactions.id_transaction','transaction_products.id_transaction')->whereDate('transaction_date', date('Y-m-d'))->where('transactions.id_outlet',$insertTransaction['id_outlet'])->where('transaction_products.id_transaction', '<>', $insertTransaction['id_transaction'])->max('customer_queue') + 1;
+            }else{
+                $queue = null;
+            }
+
             $dataProduct = [
                 'id_transaction'               => $insertTransaction['id_transaction'],
                 'id_product'                   => $checkProduct['id_product'],
@@ -3278,6 +3284,9 @@ class ApiPosOrderController extends Controller
 
         }
 
-        return MyHelper::checkGet($data);
+        return response()->json([
+            'status' => 'success',
+            'result' => $data,
+        ]);
     }
 }

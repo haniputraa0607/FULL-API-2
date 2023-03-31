@@ -98,13 +98,13 @@ class Midtrans {
             if (!$payment_detail || $payment_detail == 'gopay') {
                 $dataMidtrans['gopay'] = [
                     'enable_callback' => true,
-                    'callback_url' => $baseCallback,
+                    'callback_url' => $baseCallback.'&result=success',
                 ];
             }
             $dataMidtrans['callbacks'] = [
-                'finish' => $baseCallback,
-                'unfinish' => $baseCallback,
-                'error' => $baseCallback,
+                'finish' => $baseCallback.'&result=success',
+                'unfinish' => $baseCallback.'&result=fail',
+                'error' => $baseCallback.'&result=fail'
             ];
         }else{
             if (!$payment_detail || $payment_detail == 'gopay') {

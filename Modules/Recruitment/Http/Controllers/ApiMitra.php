@@ -146,7 +146,7 @@ class ApiMitra extends Controller
 		foreach ($hairstylists ?? [] as $hs) {
 
 			$schedule = $hs['hairstylist_schedules'][0] ?? null;
-			$schedule['status'] = isset($schedule['approve_at']) ? ($schedule['approve_at'] ? 'approved' : ($schedule['reject_at'] ? 'rejected' : 'pending')) : null;
+			$schedule['status'] = isset($schedule) ? ($schedule['approve_at'] ? 'approved' : ($schedule['reject_at'] ? 'rejected' : 'pending')) : null;
 			$schedule_dates = $schedule['hairstylist_schedule_dates'] ?? [];
 
 			$tmpListDate = [];
@@ -478,6 +478,12 @@ class ApiMitra extends Controller
             ->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
             ->count();
 
+			$totalServiceProduct = TransactionProduct::where('type', 'Product')
+			->whereNotNull('transaction_product_completed_at')
+			->whereDate('transaction_product_completed_at', $bookDate)
+            ->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
+            ->count();
+
             if(!empty($currentService)){
                 if($currentService['queue']<10){
                     $current_service = '00'.$currentService['queue'];
@@ -508,7 +514,7 @@ class ApiMitra extends Controller
                 'photo' => (empty($val['user_hair_stylist_photo']) ? config('url.storage_url_api').'img/product/item/default.png':$val['user_hair_stylist_photo']),
                 'available_status' => $availableStatus,
                 'current_service' => $current_service,
-				'count_service' => $totalService
+				'count_service' => $totalService + $totalServiceProduct
             ];    
         }
 		
@@ -2124,6 +2130,12 @@ class ApiMitra extends Controller
 				->whereDate('schedule_date', $bookDate)
 				->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
 				->count();
+
+				$totalServiceProduct = TransactionProduct::where('type', 'Product')
+				->whereNotNull('transaction_product_completed_at')
+				->whereDate('transaction_product_completed_at', $bookDate)
+				->where('id_user_hair_stylist', $val['id_user_hair_stylist'])
+				->count();
 	
 				if(!empty($currentService)){
 					if($currentService['queue']<10){
@@ -2147,7 +2159,8 @@ class ApiMitra extends Controller
                 'shift_time' => $today_shift ? MyHelper::adjustTimezone($shift['time_start'], $timeZone, 'H:i', true).' - '.MyHelper::adjustTimezone($shift['time_end'], $timeZone, 'H:i', true) : null,
 				'available_status' => $availableStatus,
                 'current_service' => $today_shift ? $current_service : null,
-				'count_service' => $today_shift ? $totalService : null
+				'count_service' => $today_shift ? $totalService : null,
+				'count_product' => $today_shift ? $totalServiceProduct : null
             ];    
         }
 
@@ -2249,32 +2262,52 @@ class ApiMitra extends Controller
 		$today_services = [];
 		$yesterday_services = [];
 
-		$service_outlets = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
-            ->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
-            ->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+		$service_outlets = TransactionProduct::join('transactions', 'transaction_products.id_transaction', 'transactions.id_transaction')
+            ->join('transaction_outlet_services', 'transaction_products.id_transaction', 'transaction_outlet_services.id_transaction')
+            ->leftJoin('transaction_product_services', 'transaction_products.id_transaction_product', 'transaction_product_services.id_transaction_product')
             ->join('products', 'transaction_products.id_product', 'products.id_product')
             ->join('users', 'transactions.id_user', 'users.id')
             ->join('outlets', 'transactions.id_outlet', 'outlets.id_outlet')
-            ->where(function($q) {
-                $q->where('service_status', 'Completed');
-                $q->orWhere('service_status','In Progress');
+            ->where(function($q) use($hairstylist,$bookDate,$yesterday){
+				$q->where(function($q2) use($hairstylist,$bookDate,$yesterday) {
+					$q2->where('transaction_products.type','Service');
+					$q2->where('transaction_product_services.id_user_hair_stylist', $hairstylist['id_user_hair_stylist']);
+					$q2->whereNotNull('transaction_product_services.queue');
+            		$q2->whereNotNull('transaction_product_services.queue_code');
+					$q2->where(function($q3) use($bookDate,$yesterday){
+						$q3->whereDate('schedule_date',$bookDate);
+						$q3->orWhereDate('schedule_date',$yesterday);
+					});
+					$q2->where(function($q3) {
+						$q3->where('service_status', 'Completed');
+						$q3->orWhere('service_status','In Progress');
+					});
+
+				});
+				$q->orWhere(function($q2) use($hairstylist,$bookDate,$yesterday){
+					$q2->where('transaction_products.type','Product');
+					$q2->where('transaction_products.id_user_hair_stylist', $hairstylist['id_user_hair_stylist']);
+					$q2->whereNotNull('transaction_products.customer_queue');
+					$q2->where(function($q3) use($bookDate,$yesterday){
+						$q3->whereDate('transaction_product_completed_at',$bookDate);
+						$q3->orWhereDate('transaction_product_completed_at',$yesterday);
+					});
+					$q2->whereNotNull('transaction_product_completed_at');
+				});
+                
             })
-            ->where('transaction_product_services.id_user_hair_stylist', $hairstylist['id_user_hair_stylist'])
+           
             ->where(function($q) {
                 $q->where('trasaction_payment_type', 'Cash')
                 ->orWhere('transaction_payment_status', 'Completed');
             })
             ->where('transactions.id_outlet',$outlet['id_outlet'])
-            ->whereNotNull('transaction_product_services.queue')
-            ->whereNotNull('transaction_product_services.queue_code')
-			->where(function($q) use($bookDate,$yesterday){
-                $q->whereDate('schedule_date',$bookDate);
-				$q->orWhereDate('schedule_date',$yesterday);
-            })
+            
+			
             ->where('transaction_payment_status', '!=', 'Cancelled')
             ->wherenull('transaction_products.reject_at')
-            ->orderBy('queue', 'asc')
-            ->select('transactions.id_transaction','transaction_product_services.id_transaction_product_service','transaction_product_services.queue_code', 'transaction_product_services.queue','service_status','transaction_product_services.id_user_hair_stylist', 'users.name', 'users.is_anon', 'transaction_product_services.schedule_date', 'transaction_product_services.schedule_time', 'transaction_product_services.completed_at', 'products.product_name', 'outlets.outlet_name', 'transaction_product_services.created_at', 'transaction_product_services.order_id', 'transactions.trasaction_payment_type', 'transaction_products.transaction_product_subtotal')
+            ->orderBy('transaction_products.customer_queue', 'asc')
+            ->select('transactions.id_transaction','transaction_products.id_transaction_product','transaction_product_services.id_transaction_product_service', 'transaction_products.customer_queue','transaction_product_services.queue_code', 'transaction_product_services.queue','service_status','transaction_product_services.id_user_hair_stylist', 'users.name', 'users.is_anon', 'transaction_product_services.schedule_date', 'transaction_product_services.schedule_time', 'transaction_product_services.completed_at', 'products.product_name', 'outlets.outlet_name', 'transaction_product_services.created_at', 'transaction_product_services.order_id', 'transactions.trasaction_payment_type', 'transaction_products.transaction_product_subtotal', 'transaction_products.transaction_product_completed_at','transaction_products.transaction_product_qty', 'transaction_products.created_at as prod_created_at')
             ->get()->toArray();
 
 		foreach($service_outlets ?? [] as $serv){
@@ -2288,59 +2321,75 @@ class ApiMitra extends Controller
 				}else{
 					$queue = $serv['queue'];
 				}
+			}elseif(isset($serv['customer_queue'])){
+				if($serv['customer_queue']<10){
+					$queue = '00'.$serv['customer_queue'];
+				}elseif($serv['customer_queue']<100){
+					$queue = '0'.$serv['customer_queue'];
+				}else{
+					$queue = $serv['customer_queue'];
+				}
 			}
 
+			$is_service = isset($serv['id_transaction_product_service']) ? true : false;
+			
 			if($serv['trasaction_payment_type'] == 'Cash'){
 				$payment_type = 'Cash';
 			}elseif($serv['trasaction_payment_type'] == 'Xendit'){
 				$xendit = TransactionPaymentXendit::where('id_transaction',$serv['id_transaction'])->first();
 				if($xendit){
-					$payment_type = ucfirst($xendit['type']);
+					$payment_type = ucfirst(strtolower($xendit['type']));
 				}else{
 					$payment_type = $serv['trasaction_payment_type'];
 				}
 			}elseif($serv['trasaction_payment_type'] == 'Midtrans'){
 				$midtrans = TransactionPaymentMidtran::where('id_transaction',$serv['id_transaction'])->first();
 				if($midtrans){
-					$payment_type = ucfirst($midtrans['payment_type']);
+					$payment_type = ucfirst(strtolower($midtrans['payment_type']));
 				}else{
 					$payment_type = $serv['trasaction_payment_type'];
 				}
 			}
 			
-			if($bookDate == $serv['schedule_date']){
+			if(($is_service && $bookDate == $serv['schedule_date']) || (!$is_service && $bookDate == date('Y-m-d', strtotime($serv['transaction_product_completed_at'])))){
 				$today_services[] = [
 					'id_transaction' => $serv['id_transaction'],
+					'id_transaction_product' => $serv['id_transaction_product'],
 					'id_transaction_product_service' => $serv['id_transaction_product_service'],
+					'is_service' => $is_service,
 					'hairstylist_name' => $hairstylist['nickname'],
-					'date' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($serv['schedule_date'])), 'j F Y'),
+					'date' => $is_service ? MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($serv['schedule_date'])), 'j F Y') : MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($serv['transaction_product_completed_at'])), 'j F Y'),
 					'customer_name' => $serv['is_anon'] == 1 ? ('Customer '.$queue) : $serv['name'],
 					'product' => $serv['product_name'],
 					'price' => 'Rp '.number_format((int)$serv['transaction_product_subtotal'],0,",","."),
 					'queue' => $queue,
 					'payment_type' => $payment_type,
 					'order_id' => $serv['order_id'],
+					'qty' => $serv['transaction_product_qty'],
 					'outlet_name' => $serv['outlet_name'],
-					'order_time' => isset($serv['created_at']) ? MyHelper::adjustTimezone($serv['created_at'], $timeZone, 'H:i', true) : null,
-					'start_time' => MyHelper::adjustTimezone($serv['schedule_time'], $timeZone, 'H:i', true),
-					'end_time' => isset($serv['completed_at']) ? MyHelper::adjustTimezone($serv['completed_at'], $timeZone, 'H:i', true) : null
+					'order_time' => $is_service ? (isset($serv['created_at']) ? MyHelper::adjustTimezone($serv['created_at'], $timeZone, 'H:i', true) : null) : (isset($serv['prod_created_at']) ? MyHelper::adjustTimezone($serv['prod_created_at'], $timeZone, 'H:i', true) : null),
+					'start_time' => $is_service ? MyHelper::adjustTimezone($serv['schedule_time'], $timeZone, 'H:i', true) : null,
+					'end_time' =>  $is_service ? (isset($serv['completed_at']) ? MyHelper::adjustTimezone($serv['completed_at'], $timeZone, 'H:i', true) : null) : (isset($serv['transaction_product_completed_at']) ? MyHelper::adjustTimezone($serv['transaction_product_completed_at'], $timeZone, 'H:i', true) : null)
 				];
-			}elseif($yesterday == $serv['schedule_date']){
+			}elseif(($is_service && $yesterday == $serv['schedule_date']) || (!$is_service && $yesterday == date('Y-m-d', strtotime($serv['transaction_product_completed_at'])))){
 				$yesterday_services[] = [
 					'id_transaction' => $serv['id_transaction'],
+					'id_transaction_product' => $serv['id_transaction_product'],
 					'id_transaction_product_service' => $serv['id_transaction_product_service'],
+					'is_service' => $is_service,
 					'hairstylist_name' => $hairstylist['nickname'],
-					'date' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($serv['schedule_date'])), 'j F Y'),
+					'date' => $is_service ? MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($serv['schedule_date'])), 'j F Y') : MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($serv['transaction_product_completed_at'])), 'j F Y'),
 					'customer_name' => $serv['is_anon'] == 1 ? ('Customer '.$queue) : $serv['name'],
 					'product' => $serv['product_name'],
 					'price' => 'Rp '.number_format((int)$serv['transaction_product_subtotal'],0,",","."),
 					'queue' => $queue,
 					'payment_type' => $payment_type,
 					'order_id' => $serv['order_id'],
+					'qty' => $serv['transaction_product_qty'],
 					'outlet_name' => $serv['outlet_name'],
-					'order_time' => isset($serv['created_at']) ? MyHelper::adjustTimezone($serv['created_at'], $timeZone, 'H:i', true) : null,
-					'start_time' => MyHelper::adjustTimezone($serv['schedule_time'], $timeZone, 'H:i', true),
-					'end_time' => isset($serv['completed_at']) ? MyHelper::adjustTimezone($serv['completed_at'], $timeZone, 'H:i', true) : null
+					'order_time' => $is_service ? (isset($serv['created_at']) ? MyHelper::adjustTimezone($serv['created_at'], $timeZone, 'H:i', true) : null) : (isset($serv['prod_created_at']) ? MyHelper::adjustTimezone($serv['prod_created_at'], $timeZone, 'H:i', true) : null),
+					'start_time' => $is_service ? MyHelper::adjustTimezone($serv['schedule_time'], $timeZone, 'H:i', true) : null,
+					'end_time' =>  $is_service ? (isset($serv['completed_at']) ? MyHelper::adjustTimezone($serv['completed_at'], $timeZone, 'H:i', true) : null) : (isset($serv['transaction_product_completed_at']) ? MyHelper::adjustTimezone($serv['transaction_product_completed_at'], $timeZone, 'H:i', true) : null)
 				];
 
 			}
@@ -2382,61 +2431,88 @@ class ApiMitra extends Controller
 		$timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
 
-		$service_outlets = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
-            ->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
-            ->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+		$service_outlets = TransactionProduct::join('transactions', 'transaction_products.id_transaction', 'transactions.id_transaction')
+            ->join('transaction_outlet_services', 'transaction_products.id_transaction', 'transaction_outlet_services.id_transaction')
+            ->leftJoin('transaction_product_services', 'transaction_products.id_transaction_product', 'transaction_product_services.id_transaction_product')
             ->join('products', 'transaction_products.id_product', 'products.id_product')
-            ->join('user_hair_stylist', 'transaction_product_services.id_user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist')
             ->join('users', 'transactions.id_user', 'users.id')
             ->join('outlets', 'transactions.id_outlet', 'outlets.id_outlet')
-            ->where(function($q) {
-                $q->where('service_status', 'Completed');
-                $q->orWhere('service_status','In Progress');
-            })
+            ->leftJoin('user_hair_stylist as prod_hs', 'transaction_products.id_user_hair_stylist', 'prod_hs.id_user_hair_stylist')
+            ->leftJoin('user_hair_stylist as serv_hs', 'transaction_product_services.id_user_hair_stylist', 'serv_hs.id_user_hair_stylist')
             ->where(function($q){
-                $q->whereNotNull('transaction_product_services.id_user_hair_stylist');
+				$q->where(function($q2) {
+					$q2->where('transaction_products.type','Service');
+					$q2->whereNotNull('transaction_product_services.id_user_hair_stylist');
+					$q2->whereNotNull('transaction_product_services.queue');
+            		$q2->whereNotNull('transaction_product_services.queue_code');
+					$q2->whereDate('schedule_date',date('Y-m-d'));
+					$q2->where(function($q3) {
+						$q3->where('service_status', 'Completed');
+						$q3->orWhere('service_status','In Progress');
+					});
+
+				});
+				$q->orWhere(function($q2){
+					$q2->where('transaction_products.type','Product');
+					$q2->whereNotNull('transaction_products.id_user_hair_stylist');
+					$q2->whereNotNull('transaction_products.customer_queue');
+					$q2->whereDate('transaction_product_completed_at',date('Y-m-d'));
+					$q2->whereNotNull('transaction_product_completed_at');
+				});
+                
             })
+           
             ->where(function($q) {
                 $q->where('trasaction_payment_type', 'Cash')
                 ->orWhere('transaction_payment_status', 'Completed');
             })
             ->where('transactions.id_outlet',$outlet['id_outlet'])
-            ->whereNotNull('transaction_product_services.queue')
-            ->whereNotNull('transaction_product_services.queue_code')
-            ->whereDate('schedule_date',date('Y-m-d'))
+            
+			
             ->where('transaction_payment_status', '!=', 'Cancelled')
             ->wherenull('transaction_products.reject_at')
-            ->orderBy('queue', 'asc')
-            ->select('transactions.id_transaction','transaction_product_services.id_transaction_product_service','transaction_product_services.queue_code', 'transaction_product_services.queue','service_status','transaction_product_services.id_user_hair_stylist', 'user_hair_stylist.nickname', 'users.name', 'users.is_anon', 'transaction_product_services.schedule_date', 'transaction_product_services.schedule_time', 'transaction_product_services.completed_at', 'products.product_name', 'outlets.outlet_name', 'transaction_product_services.created_at', 'transaction_product_services.order_id', 'transactions.trasaction_payment_type', 'transaction_products.transaction_product_subtotal')
+            ->orderBy('transaction_products.customer_queue', 'asc')
+            ->select('transactions.id_transaction','transaction_products.id_transaction_product','transaction_product_services.id_transaction_product_service', 'transaction_products.customer_queue','transaction_product_services.queue_code', 'transaction_product_services.queue','service_status','transaction_product_services.id_user_hair_stylist', 'users.name', 'users.is_anon', 'transaction_product_services.schedule_date', 'transaction_product_services.schedule_time', 'transaction_product_services.completed_at', 'products.product_name', 'outlets.outlet_name', 'transaction_product_services.created_at', 'transaction_product_services.order_id', 'transactions.trasaction_payment_type', 'transaction_products.transaction_product_subtotal', 'transaction_products.transaction_product_completed_at','transaction_products.transaction_product_qty', 'transaction_products.created_at as prod_created_at','prod_hs.nickname as prod_hs_nickname', 'serv_hs.nickname as serv_hs_nickname')
             ->paginate(10)->toArray();
+
 
 		$list_services = [];
 		foreach($service_outlets['data'] ?? [] as $serv){
 			
 			$queue = null;
-            if(isset($serv['queue'])){
-                if($serv['queue']<10){
-                    $queue = '00'.$serv['queue'];
-                }elseif($serv['queue']<100){
-                    $queue = '0'.$serv['queue'];
-                }else{
-                    $queue = $serv['queue'];
-                }
-            }
+			if(isset($serv['queue'])){
+				if($serv['queue']<10){
+					$queue = '00'.$serv['queue'];
+				}elseif($serv['queue']<100){
+					$queue = '0'.$serv['queue'];
+				}else{
+					$queue = $serv['queue'];
+				}
+			}elseif(isset($serv['customer_queue'])){
+				if($serv['customer_queue']<10){
+					$queue = '00'.$serv['customer_queue'];
+				}elseif($serv['customer_queue']<100){
+					$queue = '0'.$serv['customer_queue'];
+				}else{
+					$queue = $serv['customer_queue'];
+				}
+			}
+
+			$is_service = isset($serv['id_transaction_product_service']) ? true : false;
 
 			if($serv['trasaction_payment_type'] == 'Cash'){
 				$payment_type = 'Cash';
 			}elseif($serv['trasaction_payment_type'] == 'Xendit'){
 				$xendit = TransactionPaymentXendit::where('id_transaction',$serv['id_transaction'])->first();
 				if($xendit){
-					$payment_type = ucfirst($xendit['type']);
+					$payment_type = ucfirst(strtolower($xendit['type']));
 				}else{
 					$payment_type = $serv['trasaction_payment_type'];
 				}
 			}elseif($serv['trasaction_payment_type'] == 'Midtrans'){
 				$midtrans = TransactionPaymentMidtran::where('id_transaction',$serv['id_transaction'])->first();
 				if($midtrans){
-					$payment_type = ucfirst($midtrans['payment_type']);
+					$payment_type = ucfirst(strtolower($midtrans['payment_type']));
 				}else{
 					$payment_type = $serv['trasaction_payment_type'];
 				}
@@ -2444,19 +2520,22 @@ class ApiMitra extends Controller
 
 			$list_services[] = [
 				'id_transaction' => $serv['id_transaction'],
+				'id_transaction_product' => $serv['id_transaction_product'],
 				'id_transaction_product_service' => $serv['id_transaction_product_service'],
-				'hairstylist_name' => $serv['nickname'],
-				'date' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($serv['schedule_date'])), 'j F Y'),
+				'is_service' => $is_service,
+				'hairstylist_name' => $is_service ? $serv['serv_hs_nickname'] : $serv['prod_hs_nickname'],
+				'date' =>  $is_service ? MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($serv['schedule_date'])), 'j F Y') : MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($serv['transaction_product_completed_at'])), 'j F Y'),
 				'customer_name' => $serv['is_anon'] == 1 ? ('Customer '.$queue) : $serv['name'],
 				'product' => $serv['product_name'],
 				'price' => 'Rp '.number_format((int)$serv['transaction_product_subtotal'],0,",","."),
 				'queue' => $queue,
 				'payment_type' => $payment_type,
 				'order_id' => $serv['order_id'],
+				'qty' => $serv['transaction_product_qty'],
 				'outlet_name' => $serv['outlet_name'],
-				'order_time' => isset($serv['created_at']) ? MyHelper::adjustTimezone($serv['created_at'], $timeZone, 'H:i', true) : null,
-				'start_time' => MyHelper::adjustTimezone($serv['schedule_time'], $timeZone, 'H:i', true),
-				'end_time' => isset($serv['completed_at']) ? MyHelper::adjustTimezone($serv['completed_at'], $timeZone, 'H:i', true) : null
+				'order_time' =>  $is_service ? (isset($serv['created_at']) ? MyHelper::adjustTimezone($serv['created_at'], $timeZone, 'H:i', true) : null) : (isset($serv['prod_created_at']) ? MyHelper::adjustTimezone($serv['prod_created_at'], $timeZone, 'H:i', true) : null),
+				'start_time' => $is_service ? MyHelper::adjustTimezone($serv['schedule_time'], $timeZone, 'H:i', true) : null,
+				'end_time' => $is_service ? (isset($serv['completed_at']) ? MyHelper::adjustTimezone($serv['completed_at'], $timeZone, 'H:i', true) : null) : (isset($serv['transaction_product_completed_at']) ? MyHelper::adjustTimezone($serv['transaction_product_completed_at'], $timeZone, 'H:i', true) : null)
 			];
 		}
 		$service_outlets['data'] = $list_services;

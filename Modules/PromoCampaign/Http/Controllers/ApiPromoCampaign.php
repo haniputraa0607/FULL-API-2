@@ -5317,8 +5317,8 @@ class ApiPromoCampaign extends Controller
 		}
 
 		$result = !$error_item ? $new_promo : [];
-		
-        return response()->json(app($this->subscript)->checkGet($result, $resultMessage??''));
+        
+		return response()->json(['status' => 'success', 'result' => $result]);
 	}
 
 	public function usePromoPosOrder(Request $request)

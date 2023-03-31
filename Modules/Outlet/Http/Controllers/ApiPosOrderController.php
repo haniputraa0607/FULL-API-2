@@ -1422,6 +1422,7 @@ class ApiPosOrderController extends Controller
                 'transaction_product_net' => $valueProduct['transaction_product_subtotal']-$this_discount,
                 'transaction_variant_subtotal' => $valueProduct['transaction_variant_subtotal'],
                 'transaction_product_note'     => $valueProduct['note'],
+                'customer_queue'               => $queue, 
                 'created_at'                   => date('Y-m-d', strtotime($insertTransaction['transaction_date'])).' '.date('H:i:s'),
                 'updated_at'                   => date('Y-m-d H:i:s')
             ];

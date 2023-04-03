@@ -378,8 +378,8 @@ class ApiCustomPageController extends Controller
         if ($customPage) {
             $data['result'] = $customPage;
 
-            $data['result']['custom_page_button_form_text_button'] = json_decode($customPage['custom_page_button_form_text'], true)['button'];
-            $data['result']['custom_page_button_form_text_value'] = json_decode($customPage['custom_page_button_form_text'], true)['value'];
+            $data['result']['custom_page_button_form_text_button'] = json_decode($customPage['custom_page_button_form_text'], true)['button']??[];
+            $data['result']['custom_page_button_form_text_value'] = json_decode($customPage['custom_page_button_form_text'], true)['value']??[];
 
             return view('custompage::webview.information', $data);
         } else {

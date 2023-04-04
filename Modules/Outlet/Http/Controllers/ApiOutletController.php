@@ -673,7 +673,7 @@ class ApiOutletController extends Controller
                     }]);
                 }, 'product_special_price','product_icount_outlet_stocks'=>function($pi){
                     $pi->with(['product_icount' => function($p){
-                        $p->select('id_product_icount','name');
+                        $p->select('id_product_icount','name', 'company_type');
                     }]);
                 }]);
             }

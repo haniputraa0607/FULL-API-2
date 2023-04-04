@@ -780,15 +780,15 @@ class ApiMitraOutletService extends Controller
 				$product = TransactionProduct::where('id_transaction_product',$service->id_transaction_product)->first();
 				// $updateCash = TransactionPaymentCash::where('id_transaction', $checkQr['id_transaction'])->update(['cash_received_by' => $user->id_user_hair_stylist]);
 				if($product){
-                                    $product->id_user_hair_stylist = $user->id_user_hair_stylist;
-                                    $product->save();
-                                    $dt = [
-                                            'id_user_hair_stylist'    => $user->id_user_hair_stylist,
-                                            'balance'                 => $product['transaction_product_price'],
-                                            'id_reference'            => $product['id_transaction_product'],
-                                            'source'                  => 'Receive Payment'
-                                    ];
-                                    app($this->mitra_log_balance)->insertLogBalance($dt,'transaction_products');
+					$product->id_user_hair_stylist = $user->id_user_hair_stylist;
+					$product->save();
+					$dt = [
+							'id_user_hair_stylist'    => $user->id_user_hair_stylist,
+							'balance'                 => $product['transaction_product_price'],
+							'id_reference'            => $product['id_transaction_product'],
+							'source'                  => 'Receive Payment'
+					];
+					app($this->mitra_log_balance)->insertLogBalance($dt,'transaction_products');
 				}
 			}
     		$action = ($service->service_status == 'Stopped') ? 'Resume' : 'Start';
@@ -1169,15 +1169,18 @@ class ApiMitraOutletService extends Controller
     	try {
 			
 			if($checkQr['trasaction_payment_type'] == 'Cash'){
-				$updateCash = TransactionPaymentCash::where('id_transaction', $checkQr['id_transaction'])->update(['cash_received_by' => $user->id_user_hair_stylist]);
-				if($updateCash){
+				$product = TransactionProduct::where('id_transaction_product',$service->id_transaction_product)->first();
+				// $updateCash = TransactionPaymentCash::where('id_transaction', $checkQr['id_transaction'])->update(['cash_received_by' => $user->id_user_hair_stylist]);
+				if($product){
+					$product->id_user_hair_stylist = $user->id_user_hair_stylist;
+					$product->save();
 					$dt = [
 						'id_user_hair_stylist'    => $user->id_user_hair_stylist,
 						'balance'                 => $checkQr['transaction_grandtotal'],
 						'id_reference'            => $checkQr['id_transaction'],
 						'source'                  => 'Receive Payment'
 					];
-					app($this->mitra_log_balance)->insertLogBalance($dt);
+					app($this->mitra_log_balance)->insertLogBalance($dt,'transaction_products');
 				}
 			}
 

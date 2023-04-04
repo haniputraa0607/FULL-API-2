@@ -2142,7 +2142,7 @@ class ApiPosOrderController extends Controller
                 'status'           => 'success',
                 'result' => [
                     'snap_token'       => $connectMidtrans['token'],
-                    'redirect_url'     => $connectMidtrans['redirect_url'].(config('app.env') == 'staging' ? '' : '-qris'),
+                    'redirect_url'     => $connectMidtrans['redirect_url'].(config('app.env') == 'staging' ? '-qris' : '-qris'),
                     'transaction_data' => $dataMidtrans,
                     'url'              => env('VIEW_URL') . '/transaction/web/view/detail?data=' . $base,
                 ]

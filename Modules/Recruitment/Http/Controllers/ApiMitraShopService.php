@@ -54,6 +54,7 @@ class ApiMitraShopService extends Controller
 
         $trxReceiptNumber = $request->transaction_receipt_number;
     	$trx = Transaction::where('transaction_receipt_number', $trxReceiptNumber)->first();
+    	$outlet = Outlet::where('id_outlet', $trx->id_outlet)->first();
     	if (!$trx) {
     		return ['status' => 'fail', 'messages' => ['Transaksi tidak ditemukan']];
     	}
@@ -63,7 +64,6 @@ class ApiMitraShopService extends Controller
     	}
 
     	if ($trx->id_outlet != $user->id_outlet) {
-    		$outlet = Outlet::where('id_outlet', $trx->id_outlet)->first();
     		return ['status' => 'fail', 'messages' => ['Pengambilan barang hanya dapat dilakukan di outlet ' .$outlet->outlet_name]];
     	}
 
@@ -95,7 +95,6 @@ class ApiMitraShopService extends Controller
 
         $products = [];
         $subtotalProduct = 0;
-		$queue = null;
         foreach ($trxProduct as $product){
         	$productPhoto = config('url.storage_url_api') . ($product['product']['photos'][0]['product_photo'] ?? 'img/product/item/default.png');
             $products[] = [
@@ -107,21 +106,12 @@ class ApiMitraShopService extends Controller
 				'photo' => $productPhoto
             ];
             $subtotalProduct += abs($product['transaction_product_subtotal']);
-			if(isset($product['customer_queue'])){
-				if($product['customer_queue']<10){
-					$queue = '00'.$product['customer_queue'];
-				}elseif($product['customer_queue']<100){
-					$queue = '0'.$product['customer_queue'];
-				}else{
-					$queue = $product['customer_queue'];
-				}
-			}	
         }
 
     	$res = [
     		'transaction_receipt_number' => $trx['transaction_receipt_number'],
     		'transaction_date' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($trx['transaction_date'])), 'j F Y'),
-    		'name' => $trx['user']['is_anon'] == 1 ? ('Customer '.$queue) : $trx['user']['name'],
+    		'name' => $trx['user']['is_anon'] == 1 ? ('Customer '.$outlet['outlet_code']) : $trx['user']['name'],
     		'payment_method' => $paymentMethod,
     		'transaction_payment_status' => $trx['transaction_payment_status'],
     		'payment_cash' => $paymentCash,
@@ -293,7 +283,7 @@ class ApiMitraShopService extends Controller
 	        $products = [];
 	        $subtotalProduct = 0;
 	        $trxProduct = $trx->transaction_products;
-			$queue = null;
+			$outlet = Outlet::where('id_outlet', $trx->id_outlet)->first();
 	        foreach ($trxProduct as $product){
 	        	$productPhoto = config('url.storage_url_api') . ($product['product']['photos'][0]['product_photo'] ?? 'img/product/item/default.png');
 	            $products[] = [
@@ -305,20 +295,11 @@ class ApiMitraShopService extends Controller
 					'photo' => $productPhoto
 	            ];
 	            $subtotalProduct += abs($product['transaction_product_subtotal']);
-				if(isset($product['customer_queue'])){
-					if($product['customer_queue']<10){
-						$queue = '00'.$product['customer_queue'];
-					}elseif($product['customer_queue']<100){
-						$queue = '0'.$product['customer_queue'];
-					}else{
-						$queue = $product['customer_queue'];
-					}
-				}	
 	        }
     		$histories[] = [
     			'transaction_receipt_number' => $trx['transaction_receipt_number'],
     			'transaction_date' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($trx['transaction_date'])), 'j F Y'),
-    			'name' => $trx['user']['is_anon'] == 1 ? ('Customer '.$queue) : $trx['user']['name'],
+    			'name' => $trx['user']['is_anon'] == 1 ? ('Customer '.$outlet['outlet_code']) : $trx['user']['name'],
     			'product' => $products,
     		];
     	}

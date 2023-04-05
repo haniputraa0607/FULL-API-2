@@ -419,8 +419,8 @@ class ApiHairStylistController extends Controller
 
             if ($detail) {
                 $detail['file_contract'] = (empty($detail['file_contract'])? '' : config('url.storage_url_api').$detail['file_contract']);
-            	$detail['today_shift'] = app($this->mitra)->getTodayShift($detail->id_user_hair_stylist);
-            	$detail['shift_box'] = app('Modules\Recruitment\Http\Controllers\ApiMitraOutletService')->shiftBox($detail->id_outlet);
+            	$detail['today_shift'] = app($this->mitra)->getTodayShift($detail['id_user_hair_stylist']);
+            	$detail['shift_box'] = app('Modules\Recruitment\Http\Controllers\ApiMitraOutletService')->shiftBox($detail['id_outlet']);
                 if(isset($detail['experiences']) && !empty(isset($detail['experiences']))){
                     $value_experinces =  json_decode($detail['experiences']['value']??'' , true);
                     unset($detail['experiences']);

@@ -2259,6 +2259,12 @@ class ApiMitra extends Controller
 		->where('id_user_hair_stylist', $hairstylist['id_user_hair_stylist'])
 		->count();
 
+		$totalServiceProduct = TransactionProduct::where('type', 'Product')
+		->whereNotNull('transaction_product_completed_at')
+		->whereDate('transaction_product_completed_at', $bookDate)
+		->where('id_user_hair_stylist', $hairstylist['id_user_hair_stylist'])
+		->count();
+
 		$today_services = [];
 		$yesterday_services = [];
 
@@ -2287,7 +2293,6 @@ class ApiMitra extends Controller
 				$q->orWhere(function($q2) use($hairstylist,$bookDate,$yesterday){
 					$q2->where('transaction_products.type','Product');
 					$q2->where('transaction_products.id_user_hair_stylist', $hairstylist['id_user_hair_stylist']);
-					$q2->whereNotNull('transaction_products.customer_queue');
 					$q2->where(function($q3) use($bookDate,$yesterday){
 						$q3->whereDate('transaction_product_completed_at',$bookDate);
 						$q3->orWhereDate('transaction_product_completed_at',$yesterday);
@@ -2306,14 +2311,15 @@ class ApiMitra extends Controller
 			
             ->where('transaction_payment_status', '!=', 'Cancelled')
             ->wherenull('transaction_products.reject_at')
-            ->orderBy('transaction_products.customer_queue', 'asc')
+            ->orderBy('transaction_products.id_transaction_product', 'asc')
             ->select('transactions.id_transaction','transaction_products.id_transaction_product','transaction_product_services.id_transaction_product_service', 'transaction_products.customer_queue','transaction_product_services.queue_code', 'transaction_product_services.queue','service_status','transaction_product_services.id_user_hair_stylist', 'users.name', 'users.is_anon', 'transaction_product_services.schedule_date', 'transaction_product_services.schedule_time', 'transaction_product_services.completed_at', 'products.product_name', 'outlets.outlet_name', 'transaction_product_services.created_at', 'transaction_product_services.order_id', 'transactions.trasaction_payment_type', 'transaction_products.transaction_product_subtotal', 'transaction_products.transaction_product_completed_at','transaction_products.transaction_product_qty', 'transaction_products.created_at as prod_created_at')
             ->get()->toArray();
 
 		foreach($service_outlets ?? [] as $serv){
 	
+			$is_service = isset($serv['id_transaction_product_service']) ? true : false;
 			$queue = null;
-			if(isset($serv['queue'])){
+			if(isset($serv['queue']) && $is_service){
 				if($serv['queue']<10){
 					$queue = '00'.$serv['queue'];
 				}elseif($serv['queue']<100){
@@ -2321,18 +2327,8 @@ class ApiMitra extends Controller
 				}else{
 					$queue = $serv['queue'];
 				}
-			}elseif(isset($serv['customer_queue'])){
-				if($serv['customer_queue']<10){
-					$queue = '00'.$serv['customer_queue'];
-				}elseif($serv['customer_queue']<100){
-					$queue = '0'.$serv['customer_queue'];
-				}else{
-					$queue = $serv['customer_queue'];
-				}
 			}
 
-			$is_service = isset($serv['id_transaction_product_service']) ? true : false;
-			
 			if($serv['trasaction_payment_type'] == 'Cash'){
 				$payment_type = 'Cash';
 			}elseif($serv['trasaction_payment_type'] == 'Xendit'){
@@ -2403,6 +2399,7 @@ class ApiMitra extends Controller
 			'today_shift' => $today_shift,
 			'current_service' => $today_shift ? $current_service : null,
 			'count_service' => $today_shift ? $totalService : null,
+			'count_product' => $today_shift ? $totalServiceProduct : null,
 			'today_services' => $today_shift ? $today_services : [],
 			'yesterday_services' => $today_shift ? $yesterday_services : [],
 		];
@@ -2455,7 +2452,6 @@ class ApiMitra extends Controller
 				$q->orWhere(function($q2){
 					$q2->where('transaction_products.type','Product');
 					$q2->whereNotNull('transaction_products.id_user_hair_stylist');
-					$q2->whereNotNull('transaction_products.customer_queue');
 					$q2->whereDate('transaction_product_completed_at',date('Y-m-d'));
 					$q2->whereNotNull('transaction_product_completed_at');
 				});
@@ -2471,7 +2467,7 @@ class ApiMitra extends Controller
 			
             ->where('transaction_payment_status', '!=', 'Cancelled')
             ->wherenull('transaction_products.reject_at')
-            ->orderBy('transaction_products.customer_queue', 'asc')
+            ->orderBy('transaction_products.id_transaction_product', 'asc')
             ->select('transactions.id_transaction','transaction_products.id_transaction_product','transaction_product_services.id_transaction_product_service', 'transaction_products.customer_queue','transaction_product_services.queue_code', 'transaction_product_services.queue','service_status','transaction_product_services.id_user_hair_stylist', 'users.name', 'users.is_anon', 'transaction_product_services.schedule_date', 'transaction_product_services.schedule_time', 'transaction_product_services.completed_at', 'products.product_name', 'outlets.outlet_name', 'transaction_product_services.created_at', 'transaction_product_services.order_id', 'transactions.trasaction_payment_type', 'transaction_products.transaction_product_subtotal', 'transaction_products.transaction_product_completed_at','transaction_products.transaction_product_qty', 'transaction_products.created_at as prod_created_at','prod_hs.nickname as prod_hs_nickname', 'serv_hs.nickname as serv_hs_nickname')
             ->paginate(10)->toArray();
 
@@ -2479,8 +2475,10 @@ class ApiMitra extends Controller
 		$list_services = [];
 		foreach($service_outlets['data'] ?? [] as $serv){
 			
+			$is_service = isset($serv['id_transaction_product_service']) ? true : false;
+
 			$queue = null;
-			if(isset($serv['queue'])){
+			if(isset($serv['queue']) && $is_service){
 				if($serv['queue']<10){
 					$queue = '00'.$serv['queue'];
 				}elseif($serv['queue']<100){
@@ -2488,17 +2486,8 @@ class ApiMitra extends Controller
 				}else{
 					$queue = $serv['queue'];
 				}
-			}elseif(isset($serv['customer_queue'])){
-				if($serv['customer_queue']<10){
-					$queue = '00'.$serv['customer_queue'];
-				}elseif($serv['customer_queue']<100){
-					$queue = '0'.$serv['customer_queue'];
-				}else{
-					$queue = $serv['customer_queue'];
-				}
 			}
 
-			$is_service = isset($serv['id_transaction_product_service']) ? true : false;
 
 			if($serv['trasaction_payment_type'] == 'Cash'){
 				$payment_type = 'Cash';

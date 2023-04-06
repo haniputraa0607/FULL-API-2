@@ -2988,7 +2988,7 @@ class ApiPosOrderController extends Controller
                 ->whereDate('schedule_date',date('Y-m-d'))
                 ->where('transaction_payment_status', '!=', 'Cancelled')
                 ->wherenull('transaction_products.reject_at')
-                ->where('transactions.id_transaction', '<>', $detail['id_transaction'])
+                // ->where('transactions.id_transaction', '<>', $detail['id_transaction'])
                 ->orderBy('queue', 'asc')
                 ->select('transactions.id_transaction','transaction_product_services.id_transaction_product_service','transaction_product_services.queue_code', 'transaction_product_services.queue')
                 ->get()->toArray();

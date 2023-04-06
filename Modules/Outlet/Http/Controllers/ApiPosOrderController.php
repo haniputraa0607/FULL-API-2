@@ -2988,7 +2988,7 @@ class ApiPosOrderController extends Controller
                 ->whereDate('schedule_date',date('Y-m-d'))
                 ->where('transaction_payment_status', '!=', 'Cancelled')
                 ->wherenull('transaction_products.reject_at')
-                ->where('transactions.id_transaction', '<>', $detail['id_transaction'])
+                // ->where('transactions.id_transaction', '<>', $detail['id_transaction'])
                 ->orderBy('queue', 'asc')
                 ->select('transactions.id_transaction','transaction_product_services.id_transaction_product_service','transaction_product_services.queue_code', 'transaction_product_services.queue')
                 ->get()->toArray();
@@ -3020,7 +3020,7 @@ class ApiPosOrderController extends Controller
             'transaction_tax' => $detail['transaction_tax'],
             'transaction_product_subtotal' => $subtotalProduct,
             'transaction_service_subtotal' => $subtotalService,
-            'customer_name' => $user['is_anon'] == 0 ? $detail['transaction_outlet_service']['customer_name'] : ('Customer '.$queue_code),
+            'customer_name' => $user['is_anon'] == 0 ? (isset($user['name']) ? $detail['transaction_outlet_service']['customer_name'] : ('Customer '.$queue_code)) : ('Customer '.$queue_code),
             'color' => $detail['outlet']['brands'][0]['color_brand'],
             'status' => $status,
             'cancel_reason' => $cancelReason,
@@ -3106,7 +3106,7 @@ class ApiPosOrderController extends Controller
                 'status' => isset($val['service_status']) ? 'Sedang Berlangsung' : 'Menunggu',
                 'transaction_date_indo' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($val['schedule_date'])), 'j F Y'),
                 'product' => $val['product_name'],
-                'customer_name' => $val['is_anon'] == 0 ? $val['name'] : ('Customer '.$queue)
+                'customer_name' => $val['is_anon'] == 0 ? ($val['name'] ?? ('Customer '.$queue)) : ('Customer '.$queue)
             ];
 
         }
@@ -3273,7 +3273,7 @@ class ApiPosOrderController extends Controller
                 'status' => isset($val['service_status']) ? 'Sedang Berlangsung' : 'Menunggu',
                 'transaction_date_indo' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($val['schedule_date'])), 'j F Y'),
                 'product' => $val['product_name'],
-                'customer_name' => $val['is_anon'] == 0 ? $val['name'] : ('Customer '.$queue)
+                'customer_name' => $val['is_anon'] == 0 ? ($val['name'] ?? ('Customer '.$queue)) : ('Customer '.$queue)
             ];
 
         }

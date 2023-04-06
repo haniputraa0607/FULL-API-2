@@ -111,7 +111,7 @@ class ApiMitraShopService extends Controller
     	$res = [
     		'transaction_receipt_number' => $trx['transaction_receipt_number'],
     		'transaction_date' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($trx['transaction_date'])), 'j F Y'),
-    		'name' => $trx['user']['is_anon'] == 1 ? ('Customer '.$outlet['outlet_code']) : $trx['user']['name'],
+    		'name' => $trx['user']['is_anon'] == 1 ? ('Customer '.$outlet['outlet_code']) : ($trx['user']['name'] ?? ('Customer '.$outlet['outlet_code'])),
     		'payment_method' => $paymentMethod,
     		'transaction_payment_status' => $trx['transaction_payment_status'],
     		'payment_cash' => $paymentCash,
@@ -299,7 +299,7 @@ class ApiMitraShopService extends Controller
     		$histories[] = [
     			'transaction_receipt_number' => $trx['transaction_receipt_number'],
     			'transaction_date' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($trx['transaction_date'])), 'j F Y'),
-    			'name' => $trx['user']['is_anon'] == 1 ? ('Customer '.$outlet['outlet_code']) : $trx['user']['name'],
+    			'name' => $trx['user']['is_anon'] == 1 ? ('Customer '.$outlet['outlet_code']) : ($trx['user']['name'] ?? ('Customer '.$outlet['outlet_code'])),
     			'product' => $products,
     		];
     	}

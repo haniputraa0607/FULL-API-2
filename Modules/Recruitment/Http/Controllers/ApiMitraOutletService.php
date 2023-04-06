@@ -275,7 +275,7 @@ class ApiMitraOutletService extends Controller
 				'order_id' => $val['transaction_receipt_number'] ?? null,
 				'transaction_receipt_number' => $val['transaction_receipt_number'],
 				'queue_code' => $queue_code,
-				'customer_name' => $val['is_anon'] == 1 ? 'Customer '.$queue_code : $val['customer_name'],
+				'customer_name' => $val['is_anon'] == 1 ? 'Customer '.$queue_code : (isset($val['name']) ? $val['customer_name'] : ('Customer '.$queue_code)),
 				'schedule_date' => $scheduleDate,
 				// 'schedule_time' => $scheduleTime,
 				'service_status' => $val['service_status'],
@@ -584,7 +584,7 @@ class ApiMitraOutletService extends Controller
     		'order_id' => $queue['order_id'] ?? null,
     		'transaction_receipt_number' => $queue['transaction_receipt_number'] ?? null,
 			'queue_code' => $queue_code,
-    		'customer_name' => $queue['is_anon'] == 1 ? 'Customer '.$queue_code : $queue['customer_name'],
+    		'customer_name' => $queue['is_anon'] == 1 ? 'Customer '.$queue_code : (isset($queue['name']) ? $queue['customer_name'] : ('Customer '.$queue_code)),
     		'schedule_date' => $scheduleDate,
     		// 'schedule_time' => $scheduleTime,
     		'service_status' => $queue['service_status'],
@@ -794,7 +794,7 @@ class ApiMitraOutletService extends Controller
     		$action = ($service->service_status == 'Stopped') ? 'Resume' : 'Start';
     		TransactionProductServiceLog::create([
     			'id_transaction_product_service' => $request->id_transaction_product_service,
-    			'action' => $action
+    			'action' => $action 
     		]);
 
     		$service->update([
@@ -2365,6 +2365,7 @@ class ApiMitraOutletService extends Controller
 			'products.product_name',
 			'transactions.customer_name',
 			'users.is_anon',
+			'users.name',
 			'transactions.id_transaction',
 			'transactions.transaction_receipt_number',
 			'outlets.outlet_name',
@@ -2399,7 +2400,7 @@ class ApiMitraOutletService extends Controller
 				'service_start' => date('H:i', strtotime($item->schedule_time)), //TODO update with service start
 				'service_end' => date('H:i', strtotime($item->completed_at)),
 				'queue_code' => $queue,
-				'customer_name' => $item->is_anon == 1 ? 'Customer '.$queue : $item->customer_name,
+				'customer_name' => $item->is_anon == 1 ? 'Customer '.$queue : (isset($item->name) ? $item->customer_name : ('Customer '.$queue)),
 				'product_name' => $item->product_name,
 				'order_id' => $item->transaction_receipt_number,
 				'outlet_name' => $item->outlet_name,

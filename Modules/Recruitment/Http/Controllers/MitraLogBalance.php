@@ -116,8 +116,28 @@ class MitraLogBalance extends Controller
 				'id_reference'                   => $check['id_reference'],
 				'source'                         => $check['source'],
 			];
+			$dataHash1 = [
+				'id_hairstylist_log_balance'     => $check['id_hairstylist_log_balance'],
+				'id_user_hair_stylist'           => $check['id_user_hair_stylist'],
+				'balance'                        => $check['balance'],
+				'balance_before'                 => $check['balance_before'],
+				'balance_after'                  => $check['balance_after'],
+				'id_reference'                   => $check['id_reference'],
+				'source'                         => $check['source'],
+				'type_log_balance'               => $check['type_log_balance'],
+			];
 		}else{
 			$dataHash = [
+				'id_hairstylist_log_balance'     => $check['id_hairstylist_log_balance'],
+				'id_user_hair_stylist'           => $check['id_user_hair_stylist'],
+				'balance'                        => $check['balance'],
+				'balance_before'                 => $check['balance_before'],
+				'balance_after'                  => $check['balance_after'],
+				'id_reference'                   => $check['id_reference'],
+				'source'                         => $check['source'],
+				'type_log_balance'               => $check['type_log_balance'],
+			];
+			$dataHash1 = [
 				'id_hairstylist_log_balance'     => $check['id_hairstylist_log_balance'],
 				'id_user_hair_stylist'           => $check['id_user_hair_stylist'],
 				'balance'                        => $check['balance'],
@@ -131,8 +151,9 @@ class MitraLogBalance extends Controller
         
 
         $encodeCheck = json_encode($dataHash);
+        $encodeCheck1 = json_encode($dataHash1);
 
-        if (MyHelper::decrypt2019($check['enc']) == $encodeCheck) {
+        if (MyHelper::decrypt2019($check['enc']) == $encodeCheck || MyHelper::decrypt2019($check['enc']) == $encodeCheck1) {
             return true;
         }
         return false;

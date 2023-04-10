@@ -3112,7 +3112,10 @@ class ApiPosOrderController extends Controller
         }
 
         $services['data'] = $data;
-        return MyHelper::checkGet($services);
+        return response()->json([
+            'status' => 'success',
+            'result' => $services,
+        ]);
     }
 
     public function availablePayment(Request $request)
@@ -3247,7 +3250,7 @@ class ApiPosOrderController extends Controller
             ->orderBy('queue', 'asc')
             ->select('transactions.id_transaction','transactions.transaction_receipt_number','transaction_product_services.id_transaction_product_service','transaction_product_services.schedule_date','transaction_product_services.queue','transaction_product_services.queue_code','transaction_product_services.service_status','products.product_name','users.name','users.is_anon')
             ->get()->toArray();
-        
+
         $data = [];
         foreach($services ?? [] as $val){
 
@@ -3282,5 +3285,74 @@ class ApiPosOrderController extends Controller
             'status' => 'success',
             'result' => $data,
         ]);
+    }
+
+    public function listTrxProduct(Request $request){
+
+        $post = $request->json()->all();
+        $outlet = $this->getOutlet($post['outlet_code']??null);
+
+        if(!$outlet){
+            return [
+    			'status' => 'fail',
+    			'title' => 'Outlet Code Salah',
+    			'messages' => ['Tidak dapat mendapat data outlet.']
+    		];
+        } 
+
+        $products = Transaction::whereHas('transaction_products',function($query){
+            $query->where('type','Product');
+            $query->whereNull('transaction_product_completed_at');
+        })
+        ->with(['transaction_products.product'])
+        ->join('transaction_outlet_services', 'transactions.id_transaction','transaction_outlet_services.id_transaction')
+        ->join('users', 'transactions.id_user', 'users.id')
+        ->where(function($q) {
+            $q->where('trasaction_payment_type', 'Cash')
+            ->orWhere('transaction_payment_status', 'Completed');
+        })
+        ->where('transactions.id_outlet',$outlet['id_outlet'])
+        ->whereDate('transaction_date',date('Y-m-d'))
+        ->where('transaction_payment_status', '!=', 'Cancelled')
+        ->orderBy('transaction_date', 'asc')
+        ->select('transactions.id_transaction','transactions.transaction_receipt_number','users.name','users.is_anon','transactions.transaction_date')
+        ->paginate(10)->toArray();
+
+        $data = [];
+        foreach($products['data'] ?? [] as $val){
+
+            $prod = [];
+            $all_reject = true;
+            foreach($val['transaction_products'] as $trx_prod){
+                if(!isset($trx_prod['reject_at']) && empty($trx_prod['reject_at'])){
+                    $all_reject = false;
+                }
+
+                $prod[] = [
+                    'product_name' => $trx_prod['product']['product_name'],
+                    'transaction_product_qty' => $trx_prod['transaction_product_qty']
+                ];
+            }   
+            
+            if(!$all_reject){
+                $data[] = [
+                    'id_transaction' => $val['id_transaction'],
+                    'transaction_receipt_number' => $val['transaction_receipt_number'],
+                    'qrcode' => 'https://quickchart.io/qr?text=' . str_replace('#', '', $val['transaction_receipt_number']) . '&margin=0&size=250',
+                    'transaction_date' => $val['transaction_date'],
+                    'transaction_date_indo' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($val['transaction_date'])), 'j F Y'),
+                    'product' => $prod,
+                    'customer_name' => $val['is_anon'] == 0 ? ($val['name'] ?? ('Customer '.$outlet['outlet_code'])) : ('Customer '.$outlet['outlet_code'])
+                ];
+            }
+
+        }
+
+        $products['data'] = $data;
+        return response()->json([
+            'status' => 'success',
+            'result' => $products,
+        ]);
+
     }
 }

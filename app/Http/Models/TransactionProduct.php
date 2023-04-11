@@ -207,67 +207,68 @@ class TransactionProduct extends Model
         ];
         $send = $this->transaction_breakdown()->updateOrCreate(["type" => $material['type']],["value"=> $material['value']]);
         if($send){
-            $hair_stylist = $this->hairstylist;
-            if (!$hair_stylist) {
-                $hair_stylist = optional($this->transaction_product_service)->user_hair_stylist;
-            }
-            $id_group_hs =  $hair_stylist['id_hairstylist_group'];
-            $sub_total = $this->transaction_product_subtotal;
-            $group = HairstylistGroupCommission::where('id_hairstylist_group',$id_group_hs)->where('id_product',$id_product)->first() ?? [];
-            $fee_hs = [
-                "id_transaction_product" => $this->id_transaction_product,
-                "type"                   => 'fee_hs',
-                "value"                  => null
-            ];
-            $static = false;
-            if($group){
-                if($group['dynamic']==0){
-                    if($group['percent']==0){
-                        $fee_hs['value'] = $group['commission_percent'];
-                    }else{
-                        $fee_hs['value'] = ($group['commission_percent']/100) * $sub_total;
-                    }
-                    $static = true;
-                }
-            }else{
-                $static = false;
-                $defaultCommission = ProductCommissionDefault::where('id_product', $id_product)->first();
-                if ($defaultCommission) {
-                    if($defaultCommission['dynamic']==0){
-                        if($defaultCommission['percent']==0){
-                            $fee_hs['value'] = $defaultCommission['commission'];
-                        }else{
-                            $fee_hs['value'] = ($defaultCommission['commission']/100) * $sub_total;
-                        }
-                        $static = true;
-                    }
-                } else {
-                    $static = false;
-                    $defaultGlobal = Setting::where('key','global_commission_product')->first();
-                    $defaultGlobalDynamic = Setting::where('key','global_commission_product_dynamic')->first()['value'] ?? 0;
-                    if($defaultGlobalDynamic==0){
-                        if (!$defaultGlobal) {
-                            $fee_hs['value'] = '';
-                        } else {
-                            if($defaultGlobal['value']==0){
-                                $fee_hs['value'] = $defaultGlobal['value_text'];
-                            }else{
-                                $fee_hs['value'] = ($defaultGlobal['value_text']/100) * $sub_total;
-                            }
-                        }
-                        $static = true;
-                    }
-                }
-            }
-            if($static && isset($fee_hs['value'])){
-                $send = $this->transaction_breakdown()->updateOrCreate(["type" => $fee_hs['type']],["value"=> $fee_hs['value']]);
-                if($send){
-                    return true;
-                }
-            }else{
-                $this->transaction_breakdown()->where('type','fee_hs')->delete();
-                return true;
-            }
+            return true;
+            // $hair_stylist = $this->hairstylist;
+            // if (!$hair_stylist) {
+            //     $hair_stylist = optional($this->transaction_product_service)->user_hair_stylist;
+            // }
+            // $id_group_hs =  $hair_stylist['id_hairstylist_group'];
+            // $sub_total = $this->transaction_product_subtotal;
+            // $group = HairstylistGroupCommission::where('id_hairstylist_group',$id_group_hs)->where('id_product',$id_product)->first() ?? [];
+            // $fee_hs = [
+            //     "id_transaction_product" => $this->id_transaction_product,
+            //     "type"                   => 'fee_hs',
+            //     "value"                  => null
+            // ];
+            // $static = false;
+            // if($group){
+            //     if($group['dynamic']==0){
+            //         if($group['percent']==0){
+            //             $fee_hs['value'] = $group['commission_percent'];
+            //         }else{
+            //             $fee_hs['value'] = ($group['commission_percent']/100) * $sub_total;
+            //         }
+            //         $static = true;
+            //     }
+            // }else{
+            //     $static = false;
+            //     $defaultCommission = ProductCommissionDefault::where('id_product', $id_product)->first();
+            //     if ($defaultCommission) {
+            //         if($defaultCommission['dynamic']==0){
+            //             if($defaultCommission['percent']==0){
+            //                 $fee_hs['value'] = $defaultCommission['commission'];
+            //             }else{
+            //                 $fee_hs['value'] = ($defaultCommission['commission']/100) * $sub_total;
+            //             }
+            //             $static = true;
+            //         }
+            //     } else {
+            //         $static = false;
+            //         $defaultGlobal = Setting::where('key','global_commission_product')->first();
+            //         $defaultGlobalDynamic = Setting::where('key','global_commission_product_dynamic')->first()['value'] ?? 0;
+            //         if($defaultGlobalDynamic==0){
+            //             if (!$defaultGlobal) {
+            //                 $fee_hs['value'] = '';
+            //             } else {
+            //                 if($defaultGlobal['value']==0){
+            //                     $fee_hs['value'] = $defaultGlobal['value_text'];
+            //                 }else{
+            //                     $fee_hs['value'] = ($defaultGlobal['value_text']/100) * $sub_total;
+            //                 }
+            //             }
+            //             $static = true;
+            //         }
+            //     }
+            // }
+            // if($static && isset($fee_hs['value'])){
+            //     $send = $this->transaction_breakdown()->updateOrCreate(["type" => $fee_hs['type']],["value"=> $fee_hs['value']]);
+            //     if($send){
+            //         return true;
+            //     }
+            // }else{
+            //     $this->transaction_breakdown()->where('type','fee_hs')->delete();
+            //     return true;
+            // }
         }
         return false;
     }

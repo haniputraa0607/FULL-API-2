@@ -443,7 +443,11 @@ class Transaction extends Model
 			$transaction_product->breakdown();
         });
 
-		if($trx->transaction_product_services){
+		$trx->productServiceTransaction->each(function($transaction_product_service,$index) use($trx){
+			$transaction_product_service->breakdown();
+        });
+
+		if(isset($trx->transaction_product_services)){
 			$trx->transaction_product_services->each(function($service,$index) use($trx){
 				$product = $service->transaction_product->product;
 				$queue = \Modules\Transaction\Entities\TransactionProductService::join('transactions','transactions.id_transaction','transaction_product_services.id_transaction')->whereDate('schedule_date', date('Y-m-d',strtotime($service->schedule_date)))->where('id_outlet',$trx->id_outlet)->where('transaction_product_services.id_transaction', '<>', $trx->id_transaction)->max('queue') + 1;

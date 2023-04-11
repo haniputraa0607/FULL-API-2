@@ -11,6 +11,7 @@ use App\Http\Models\LogTopup;
 use App\Http\Models\LogTopupMidtrans;
 use App\Http\Models\LogTopupManual;
 use App\Http\Models\Transaction;
+use App\Http\Models\TransactionProduct;
 use App\Http\Models\ManualPaymentMethod;
 use App\Http\Models\Setting;
 use App\Http\Models\TransactionPaymentMidtran;
@@ -354,7 +355,7 @@ class ApiTransactionProductionController extends Controller
             ]);
             
         }
-    }
+        }
 
     public function CronBreakdownCommission($date = null){
         $log = MyHelper::logCron('Check Commission Hair Stylist');
@@ -363,10 +364,14 @@ class ApiTransactionProductionController extends Controller
 
             $fail = false;
             $date_trans = date('Y-m-d', strtotime($date ?: '-1 days'));
-            $transactions = Transaction::select('transaction_products.id_transaction_product', 'transaction_products.id_product', 'transaction_product_services.id_user_hair_stylist', 'transaction_product_subtotal')
-                ->join('transaction_products','transaction_products.id_transaction','transactions.id_transaction')
-                ->join('transaction_product_services','transaction_products.id_transaction_product','transaction_product_services.id_transaction_product')
-                ->whereDate('transaction_product_services.completed_at', $date_trans)
+            $transactions = TransactionProduct::join('transactions','transactions.id_transaction','transaction_products.id_transaction')
+                ->whereNotNull('transaction_products.id_user_hair_stylist')
+                ->whereNotNull('transaction_products.transaction_product_completed_at')
+                ->where('transactions.transaction_payment_status', 'Completed')
+                ->whereDate('transaction_products.transaction_product_completed_at', $date_trans)
+                ->select(
+                    'transaction_products.id_transaction_product', 'transaction_products.id_product', 'transaction_products.id_user_hair_stylist', 'transaction_product_subtotal'
+                )
                 ->get()
                 ->toArray();
 
@@ -389,23 +394,49 @@ class ApiTransactionProductionController extends Controller
                     $data[$transaction['id_user_hair_stylist'].'_'.$transaction['id_product']]['transaction'][] = $transaction;
                 }
             }
+
             $tes = [];
             foreach($data ?? [] as $key_1 => $val){
-//                if($key_1 == '12_26'){
-                    $dynamic = false;
-                    $static = false;
-                    $percent = false;
-                    $group = HairstylistGroupCommission::join('user_hair_stylist','user_hair_stylist.id_hairstylist_group','hairstylist_group_commissions.id_hairstylist_group')
-                    ->where('user_hair_stylist.id_user_hair_stylist',$val['id_user_hair_stylist'])->where('hairstylist_group_commissions.id_product',$val['id_product'])
-                    ->with(['dynamic_rule'=>function($d){$d->orderBy('qty','desc');}])->first();
-                    if($group && $group['dynamic'] == 1 && isset($group['dynamic_rule'])){
+                $dynamic = false;
+                $static = false;
+                $percent = false;
+                $group = HairstylistGroupCommission::join('user_hair_stylist','user_hair_stylist.id_hairstylist_group','hairstylist_group_commissions.id_hairstylist_group')
+                ->where('user_hair_stylist.id_user_hair_stylist',$val['id_user_hair_stylist'])->where('hairstylist_group_commissions.id_product',$val['id_product'])
+                ->with(['dynamic_rule'=>function($d){$d->orderBy('qty','desc');}])->first();
+                if($group && $group['dynamic'] == 1 && isset($group['dynamic_rule'])){
+                    $dynamic = true;
+                    $check = false;
+                    $fee_hs = 0;
+                    foreach($group['dynamic_rule'] as $rule){
+                        if($val['sum']>=$rule['qty'] && !$check){
+                            $check = true;
+                            if($group['percent']==0){
+                                $fee_hs = $rule['value'];
+                            }else{
+                                $fee_hs = ($rule['value']/100);
+                                $percent = true;
+                            }
+                        }
+                    }
+                }elseif($group && $group['dynamic'] == 0){
+                    $static = true;
+                    $fee_hs = 0;
+                    if($group['percent']==0){
+                        $fee_hs = $group['commission_percent'];
+                    }else{
+                        $fee_hs = ($group['commission_percent']/100);
+                        $percent = true;
+                    }
+                }else{
+                    $product_rule = ProductCommissionDefault::where('id_product',$val['id_product'])->with(['dynamic_rule'=>function($d){$d->orderBy('qty','desc');}])->first();
+                    if($product_rule && $product_rule['dynamic'] == 1 && isset($product_rule['dynamic_rule'])){
                         $dynamic = true;
                         $check = false;
                         $fee_hs = 0;
-                        foreach($group['dynamic_rule'] as $rule){
+                        foreach($product_rule['dynamic_rule'] as $rule){
                             if($val['sum']>=$rule['qty'] && !$check){
                                 $check = true;
-                                if($group['percent']==0){
+                                if($product_rule['percent']==0){
                                     $fee_hs = $rule['value'];
                                 }else{
                                     $fee_hs = ($rule['value']/100);
@@ -413,97 +444,70 @@ class ApiTransactionProductionController extends Controller
                                 }
                             }
                         }
-                    }elseif($group && $group['dynamic'] == 0){
+                    }elseif($product_rule && $product_rule['dynamic'] == 0){
                         $static = true;
                         $fee_hs = 0;
                         if($group['percent']==0){
-                            $fee_hs = $group['commission_percent'];
+                            $fee_hs = $product_rule['commission'];
                         }else{
-                            $fee_hs = ($group['commission_percent']/100);
+                            $fee_hs = ($product_rule['commission']/100);
                             $percent = true;
                         }
                     }else{
-                        $product_rule = ProductCommissionDefault::where('id_product',$val['id_product'])->with(['dynamic_rule'=>function($d){$d->orderBy('qty','desc');}])->first();
-                        if($product_rule && $product_rule['dynamic'] == 1 && isset($product_rule['dynamic_rule'])){
-                            $dynamic = true;
-                            $check = false;
-                            $fee_hs = 0;
-                            foreach($product_rule['dynamic_rule'] as $rule){
-                                if($val['sum']>=$rule['qty'] && !$check){
-                                    $check = true;
-                                    if($product_rule['percent']==0){
-                                        $fee_hs = $rule['value'];
-                                    }else{
-                                        $fee_hs = ($rule['value']/100);
-                                        $percent = true;
-                                    }
-                                }
-                            }
-                        }elseif($product_rule && $product_rule['dynamic'] == 0){
-                            $static = true;
-                            $fee_hs = 0;
-                            if($group['percent']==0){
-                                $fee_hs = $product_rule['commission'];
-                            }else{
-                                $fee_hs = ($product_rule['commission']/100);
-                                $percent = true;
-                            }
-                        }else{
-                            $global_rule_dynamic = Setting::where('key','global_commission_product_dynamic')->first()['value'] ?? 0;
-                            $setting_percent = Setting::where('key','global_commission_product')->first();
-                            if($global_rule_dynamic==1){
-                                $global_rule = GlobalCommissionProductDynamic::orderBy('qty','desc')->get()->toArray();
-                                if($global_rule && $setting_percent){
-                                    $dynamic = true;
-                                    $check = false;
-                                    $fee_hs = 0;
-                                    foreach($global_rule as $rule){
-                                        if($val['sum']>=$rule['qty'] && !$check){
-                                            $check = true;
-                                            if($setting_percent['value']==0){
-                                                $fee_hs = $rule['value'];
-                                            }else{
-                                                $fee_hs = ($rule['value']/100);
-                                                $percent = true;
-                                            }
+                        $global_rule_dynamic = Setting::where('key','global_commission_product_dynamic')->first()['value'] ?? 0;
+                        $setting_percent = Setting::where('key','global_commission_product')->first();
+                        if($global_rule_dynamic==1){
+                            $global_rule = GlobalCommissionProductDynamic::orderBy('qty','desc')->get()->toArray();
+                            if($global_rule && $setting_percent){
+                                $dynamic = true;
+                                $check = false;
+                                $fee_hs = 0;
+                                foreach($global_rule as $rule){
+                                    if($val['sum']>=$rule['qty'] && !$check){
+                                        $check = true;
+                                        if($setting_percent['value']==0){
+                                            $fee_hs = $rule['value'];
+                                        }else{
+                                            $fee_hs = ($rule['value']/100);
+                                            $percent = true;
                                         }
                                     }
                                 }
-                            }elseif($global_rule_dynamic==0 && $setting_percent){
-                                $static = true;
-                                $fee_hs = 0;
-                                if($setting_percent['value']==0){
-                                    $fee_hs = $setting_percent['value_text'];
-                                }else{
-                                    $fee_hs = ($setting_percent['value_text']/100);
-                                    $percent = true;
-    
-                                }
                             }
-                        }
-                    }
-                    
-                    if($dynamic || $static){
-                        foreach($val['transaction'] ??[] as $key_2 => $tran){
-                            if($percent){
-                                $commission = $fee_hs * $tran['transaction_product_subtotal'];
+                        }elseif($global_rule_dynamic==0 && $setting_percent){
+                            $static = true;
+                            $fee_hs = 0;
+                            if($setting_percent['value']==0){
+                                $fee_hs = $setting_percent['value_text'];
                             }else{
-                                $commission = $fee_hs;
-                            }
-                            $breakdown = TransactionBreakdown::updateOrCreate([
-                                    'id_transaction_product' => $tran['id_transaction_product'],
-                                    'type' => 'fee_hs'
-                                ],[
-                                    'value' => $commission
-                                ]
-                            );
-                            if(!$breakdown){
-                                $fail = true;
+                                $fee_hs = ($setting_percent['value_text']/100);
+                                $percent = true;
+    
                             }
                         }
                     }
+                }
+                
+                if($dynamic || $static){
+                    foreach($val['transaction'] ??[] as $key_2 => $tran){
+                        if($percent){
+                            $commission = $fee_hs * $tran['transaction_product_subtotal'];
+                        }else{
+                            $commission = $fee_hs;
+                        }
+                        $breakdown = TransactionBreakdown::updateOrCreate([
+                                'id_transaction_product' => $tran['id_transaction_product'],
+                                'type' => 'fee_hs'
+                            ],[
+                                'value' => $commission
+                            ]
+                        );
+                        if(!$breakdown){
+                            $fail = true;
+                        }
+                    }
+                }
 
-//                }
             }
 
             if($fail){

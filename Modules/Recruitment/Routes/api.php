@@ -345,6 +345,9 @@ Route::group(['middleware' => ['log_activities_mitra_apps', 'user_agent'], 'pref
         	Route::post('/', 'ApiMitraUpdateData@updateRequest');
     	});
 
+        Route::post('generate', 'ApiMitra@generate_cash');
+        Route::post('generate-reset', 'ApiMitra@generate_reset');
+        Route::post('generate-reset-null', 'ApiMitra@generate_reset_null');
         Route::get('balance-detail', 'ApiMitra@balanceDetail');
         Route::get('balance-history', 'ApiMitra@balanceHistory');
         Route::post('cash/transfer/detail', 'ApiMitra@transferCashDetail');

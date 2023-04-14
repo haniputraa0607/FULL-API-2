@@ -1176,8 +1176,8 @@ class ApiMitraOutletService extends Controller
 					$product->save();
 					$dt = [
 						'id_user_hair_stylist'    => $user->id_user_hair_stylist,
-						'balance'                 => $checkQr['transaction_grandtotal'],
-						'id_reference'            => $checkQr['id_transaction'],
+						'balance'                 => $product['transaction_product_price'],
+						'id_reference'            => $product['id_transaction_product'],
 						'source'                  => 'Receive Payment'
 					];
 					app($this->mitra_log_balance)->insertLogBalance($dt,'transaction_products');

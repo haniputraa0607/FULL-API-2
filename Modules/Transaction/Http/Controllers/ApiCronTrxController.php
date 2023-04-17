@@ -146,7 +146,7 @@ class ApiCronTrxController extends Controller
                         if(!$cancel){
                             continue;
                         }
-                    }elseif($status && ($status['status'] == 'COMPLETED' || $status['status'] == 'PAID')){
+                    }elseif($status && ($status['status'] == 'COMPLETED' || $status['status'] == 'PAID' || $status['status'] == 'SETTLED')){
                         $singleTrx->triggerPaymentCompleted();
                         continue;
                     }else{

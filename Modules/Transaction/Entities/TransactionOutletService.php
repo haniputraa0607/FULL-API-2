@@ -133,20 +133,22 @@ class TransactionOutletService extends \App\Http\Models\Template\TransactionServ
 				$phoneSpv = UserHairStylist::where('id_outlet', $trx['id_outlet'])
 							->where('level', 'Supervisor')
 							->where('user_hair_stylist_status', 'Active')
-							->first()['phone_number'];
-
-				app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
-                    'Mitra SPV - Transaction Product Created',
-                    $phoneSpv,
-                    [
-                        'date' => $trx['transaction_date'],
-                    	'outlet_name' => $trx['outlet']['outlet_name'],
-                    	'detail' => $detail ?? null,
-                    	'receipt_number' => $trx['transaction_receipt_number']
-                    ], null, false, false, 'hairstylist'
-                );
-
-				$sentSpv = true;
+							->first()['phone_number'] ?? null;
+				
+				if($phoneSpv){
+					app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
+						'Mitra SPV - Transaction Product Created',
+						$phoneSpv,
+						[
+							'date' => $trx['transaction_date'],
+							'outlet_name' => $trx['outlet']['outlet_name'],
+							'detail' => $detail ?? null,
+							'receipt_number' => $trx['transaction_receipt_number']
+						], null, false, false, 'hairstylist'
+					);
+	
+					$sentSpv = true;
+				}
 			}
     	}
 

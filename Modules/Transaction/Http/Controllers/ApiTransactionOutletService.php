@@ -1231,8 +1231,8 @@ class ApiTransactionOutletService extends Controller
 			if ($product['type'] == 'Service') {
                 $schedule_time = $this->getTimezone($product['transaction_product_service']['schedule_time'],$timezone,'H:i');
 				$services[] = [
-					'id_user_hair_stylist' => $product['transaction_product_service']['id_user_hair_stylist'],
-					'hairstylist_name' => $product['transaction_product_service']['user_hair_stylist']['nickname'],
+					'id_user_hair_stylist' => $product['transaction_product_service']['id_user_hair_stylist'] ?? null,
+					'hairstylist_name' => isset($product['transaction_product_service']['user_hair_stylist']) ? $product['transaction_product_service']['user_hair_stylist']['nickname'] : null,
 					'schedule_date' => MyHelper::dateFormatInd($product['transaction_product_service']['schedule_date'], true, false),
                     'service_status' => $product['transaction_product_service']['service_status'],
                     'id_product' => $product['product']['id_product'],

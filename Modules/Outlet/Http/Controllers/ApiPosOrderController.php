@@ -144,11 +144,11 @@ class ApiPosOrderController extends Controller
         ->where('id_outlet', $outlet['id_outlet'])->first();
 
         if(!$outlet){
-            return [
-    			'status' => 'fail',
+            return response([
+                'status' => 'fail',
     			'title' => 'Outlet Code Salah',
     			'messages' => ['Tidak dapat mendapat data outlet.']
-    		];
+            ], 400);
         } 
         $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
@@ -406,11 +406,11 @@ class ApiPosOrderController extends Controller
         $outlet = $this->getOutlet($post['outlet_code']??null);
 
         if(!$outlet){
-            return [
-    			'status' => 'fail',
+            return response([
+                'status' => 'fail',
     			'title' => 'Outlet Code Salah',
     			'messages' => ['Tidak dapat mendapat data outlet.']
-    		];
+            ], 400);
         } 
 
         $queue = [];

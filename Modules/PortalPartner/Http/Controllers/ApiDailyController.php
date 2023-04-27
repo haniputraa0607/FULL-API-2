@@ -35,6 +35,7 @@ class ApiDailyController extends Controller
         $outlet = Outlet::join('locations','outlets.id_location','locations.id_location')
                 ->where('outlet_status','Active')
                 ->select('id_outlet','outlet_status','outlets.created_at')
+                ->orderby('id_outlet','asc')
                 ->get();
         foreach($outlet as $value){
             $report = OutletReport::where('id_outlet',$value['id_outlet'])->orderby('date','DESC')->first();

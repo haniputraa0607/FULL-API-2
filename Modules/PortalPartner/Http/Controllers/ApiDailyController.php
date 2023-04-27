@@ -48,6 +48,11 @@ class ApiDailyController extends Controller
                    'dari'=> $date,
                    'sampai'=> date('Y-m-d',strtotime(date('Y-m-d').'-1 day')),
                );
+           
+           $outletReport = OutletReport::create([
+                'id_outlet'=> $value['id_outlet'],
+                'date'=> date('Y-m-d',strtotime(date('Y-m-d').'-1 day')),
+           ]);
            $this->dailyData($data);
         }
         OutletReportJob::where('id_outlet_report_job',$datas->id_outlet_report_job)->update([
@@ -58,10 +63,6 @@ class ApiDailyController extends Controller
     public function dailyData($request) {
         DB::beginTransaction();
         try {
-           $outletReport = OutletReport::create([
-                'id_outlet'=> $request['id_outlet'],
-                'date'=> $request['sampai'],
-           ]);
            $array = array();
            $transaction = Transaction::where(array('transactions.id_outlet'=>$request['id_outlet']))
                        ->whereDate('transactions.transaction_date', '>=', $request['dari'])->whereDate('transactions.transaction_date', '<=', $request['sampai'])

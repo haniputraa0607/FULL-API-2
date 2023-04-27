@@ -56,8 +56,8 @@ class ApiDailyController extends Controller
         return $outlet;
     } 
     public function dailyData($request) {
-//        DB::beginTransaction();
-//        try {
+        DB::beginTransaction();
+        try {
            $outletReport = OutletReport::create([
                 'id_outlet'=> $request['id_outlet'],
                 'date'=> $request['sampai'],
@@ -163,12 +163,12 @@ class ApiDailyController extends Controller
                     ]
                     );
             }
-//            DB::commit();
+            DB::commit();
         return true;  
-//        } catch (Exception $exc) {
-//            DB::rollBack();
-//            return false;  
-//        }
+        } catch (Exception $exc) {
+            DB::rollBack();
+            return false;  
+        }
 
        
     }

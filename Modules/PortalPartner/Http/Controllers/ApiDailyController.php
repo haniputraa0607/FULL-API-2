@@ -25,7 +25,7 @@ use DataTables;
 class ApiDailyController extends Controller
 {
     public function job() {
-        $data = OutletJob::dispatch()->allOnConnection('database');
+        $data = OutletJob::dispatch()->OnConnection('outletqueue');
         $data = OutletReportJob::create([
             'date'=>date('Y-m-d')
         ]);
@@ -61,7 +61,7 @@ class ApiDailyController extends Controller
         return $outlet;
     } 
     public function dailyData($request) {
-        DB::beginTransaction();
+//        DB::beginTransaction();
         try {
            $array = array();
            $transaction = Transaction::where(array('transactions.id_outlet'=>$request['id_outlet']))
@@ -164,10 +164,10 @@ class ApiDailyController extends Controller
                     ]
                     );
             }
-            DB::commit();
+//            DB::commit();
         return true;  
         } catch (Exception $exc) {
-            DB::rollBack();
+//            DB::rollBack();
             return false;  
         }
 

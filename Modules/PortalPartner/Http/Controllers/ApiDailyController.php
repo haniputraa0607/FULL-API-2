@@ -21,7 +21,8 @@ use Modules\PortalPartner\Entities\OutletPortalReport;
 use App\Jobs\OutletJob;
 use Modules\PortalPartner\Entities\OutletReportJob;
 use DataTables;
-
+use Modules\PortalPartner\Entities\LogOutletPortal;
+//use App\Jobs\Cek;
 class ApiDailyController extends Controller
 {
     public function job() {
@@ -169,10 +170,22 @@ class ApiDailyController extends Controller
         return true;  
         } catch (Exception $exc) {
 //            DB::rollBack();
+            LogOutletPortal::create([
+                'id_outlet'=>$request['id_outlet'],
+                'error'=>$exc->getTraceAsString()
+            ]);
             return false;  
         }
 
        
     }
+    
+    public function generate() {
+         $data = OutletJob::dispatch()->OnConnection('portal');
+        $data = OutletReportJob::create([
+            'date'=>date('Y-m-d')
+        ]);
+        return MyHelper::checkGet($data);
+    } 
 } 
  

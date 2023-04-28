@@ -40,6 +40,12 @@ return [
             'queue' => 'default',
             'retry_after' => 9000,
         ],
+        'portal' => [
+            'driver' => 'database',
+            'table' => 'jobs',
+            'queue' => 'portal',
+            'retry_after' => 9000,
+        ],
 
         'achievement' => [
             'driver' => 'database',

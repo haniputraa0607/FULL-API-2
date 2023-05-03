@@ -181,7 +181,7 @@ class ApiDailyController extends Controller
     }
     
     public function generate() {
-         $data = OutletJob::dispatch()->OnConnection('portal');
+        $data = OutletJob::dispatch()->OnConnection('portal');
         $data = OutletReportJob::create([
             'date'=>date('Y-m-d')
         ]);
@@ -192,7 +192,8 @@ class ApiDailyController extends Controller
             return 'Limit not found';
         }
         $transaction = Transaction::where('transaction_gross', 0)->select('transactions.id_transaction','transaction_subtotal','transaction_gross')
-                       ->get();
+                       ->limit($request->limit)
+                        ->get();
         foreach ($transaction as $value) {
            if($value['transaction_subtotal']!=$value['transaction_gross']){
                   $value['transaction_gross'] = $value['transaction_subtotal'];

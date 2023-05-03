@@ -1761,21 +1761,25 @@ class ApiTransactionOutletService extends Controller
     	}
 
     	$oldTrx = clone $trx;
-    	$trx->triggerReject($post);
+    	$triggerReject = $trx->triggerReject($post);
 
-    	$newTrx = $tempTrx->find($request->id_transaction);
-
-
-    	$logTrx = LogTransactionUpdate::create([
-			'id_user' => $request->user()->id,
-	    	'id_transaction' => $request->id_transaction,
-	    	'transaction_from' => 'outlet-service',
-	        'old_data' => json_encode($oldTrx),
-	        'new_data' => json_encode($newTrx),
-	    	'note' => $post['reject_reason']
-		]);
-
-    	return MyHelper::checkCreate($logTrx);
+        if($triggerReject){
+            $newTrx = $tempTrx->find($request->id_transaction);
+    
+    
+            $logTrx = LogTransactionUpdate::create([
+                'id_user' => $request->user()->id,
+                'id_transaction' => $request->id_transaction,
+                'transaction_from' => 'outlet-service',
+                'old_data' => json_encode($oldTrx),
+                'new_data' => json_encode($newTrx),
+                'note' => $post['reject_reason']
+            ]);
+    
+            return MyHelper::checkCreate($logTrx);
+        }else{
+    		return ['status' => 'fail', 'messages' => ['Failed reject outlet service']];
+        }
     }
 
     public function cancelCashPayment(Request $request){

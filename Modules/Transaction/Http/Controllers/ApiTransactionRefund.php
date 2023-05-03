@@ -49,7 +49,8 @@ class ApiTransactionRefund extends Controller
         $refund_failed_process_balance = MyHelper::setting('refund_failed_process_balance');
         $rejectBalance = false;
         $point = 0;
-
+        $fail_refund = false;
+        
         $multiple = TransactionMultiplePayment::where('id_transaction', $trx['id_transaction'])->get()->toArray();
 
         foreach ($multiple as $pay) {
@@ -113,6 +114,7 @@ class ApiTransactionRefund extends Controller
                                         ];
                                         app("Modules\Autocrm\Http\Controllers\ApiAutoCrm")->SendAutoCRM('Payment Void Failed', $order->phone, $variables, null, true);
                                     }
+                                    $fail_refund = true;
                                 }
                             }
                         }else{
@@ -121,6 +123,7 @@ class ApiTransactionRefund extends Controller
                                 'reject_type' => 'refund',
                                 'need_manual_void' => 1
                             ]);
+                            $fail_refund = true;
                         }
                     }
 
@@ -174,6 +177,7 @@ class ApiTransactionRefund extends Controller
                                     ];
                                     app("Modules\Autocrm\Http\Controllers\ApiAutoCrm")->SendAutoCRM('Payment Void Failed', $order->phone, $variables, null, true);
                                 }
+                                $fail_refund = true;
                             }
                         }
                     }
@@ -217,11 +221,17 @@ class ApiTransactionRefund extends Controller
             }
         }
 
-        return [
-            'status' => 'success',
-            'reject_balance' => $rejectBalance,
-            'received_point' => (string) $point
-        ];
+        if(!$fail_refund){
+            return [
+                'status' => 'success',
+                'reject_balance' => $rejectBalance,
+                'received_point' => (string) $point
+            ];
+        }else{
+            return [
+                'status'   => 'fail'
+            ];
+        }
     }
 
     public function refundNotFullPayment($id_transaction)

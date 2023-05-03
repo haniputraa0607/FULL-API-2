@@ -375,11 +375,11 @@ class Transaction extends Model
      */
     public function triggerPaymentCompleted($data = [])
     {
-    	\DB::beginTransaction();
     	// check complete allowed
     	if ($this->transaction_payment_status != 'Pending') {
     		return $this->transaction_payment_status == 'Completed';
     	}
+    	\DB::beginTransaction();
     	// update transaction status
     	if ($this->transaction_from != 'academy') {
 	    	$this->update([
@@ -580,11 +580,11 @@ class Transaction extends Model
      */
     public function triggerPaymentCancelled($data = [])
     {
-    	\DB::beginTransaction();
     	// check complete allowed
     	if ($this->transaction_payment_status != 'Pending' && $this->trasaction_payment_type != "Cash") {
     		return $this->transaction_payment_status == 'Completed';
     	}
+    	\DB::beginTransaction();
 
     	// update transaction payment cancelled
     	$this->update([
@@ -672,11 +672,11 @@ class Transaction extends Model
 
     public function triggerReject($data = [])
     {
-    	\DB::beginTransaction();
 
     	if ($this->reject_at) {
     		return true;
     	}
+    	\DB::beginTransaction();
 
     	$this->update([
     		'reject_at' => date('Y-m-d H:i:s'),

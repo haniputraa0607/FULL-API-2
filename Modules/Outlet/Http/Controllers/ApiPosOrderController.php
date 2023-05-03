@@ -1011,7 +1011,7 @@ class ApiPosOrderController extends Controller
                     ]);
                 }
 
-                $post['subtotal'] = array_sum($post['sub']);
+                $post['subtotal_final'] = array_sum($post['sub']['subtotal_final']);
                 $post['subtotal'] = array_sum($post['sub']['subtotal']);
                 $post['subtotal'] = $post['subtotal'] - $totalDisProduct??0;
             }elseif ($valueTotal == 'discount') {
@@ -3047,11 +3047,11 @@ class ApiPosOrderController extends Controller
         ->where('id_outlet', $outlet['id_outlet'])->first();
 
         if(!$outlet){
-            return [
-    			'status' => 'fail',
+            return response([
+                'status' => 'fail',
     			'title' => 'Outlet Code Salah',
     			'messages' => ['Tidak dapat mendapat data outlet.']
-    		];
+            ], 400);
         } 
 
         $services = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
@@ -3209,95 +3209,17 @@ class ApiPosOrderController extends Controller
         return MyHelper::checkGet($payments);
     }
 
-    public function listTransactionV2(Request $request){
-
-        $post = $request->json()->all();
-        $outlet = $this->getOutlet($post['outlet_code']??null);
-        $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
-        ->where('id_outlet', $outlet['id_outlet'])->first();
-
-        if(!$outlet){
-            return [
-    			'status' => 'fail',
-    			'title' => 'Outlet Code Salah',
-    			'messages' => ['Tidak dapat mendapat data outlet.']
-    		];
-        } 
-
-        $services = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
-            ->join('transaction_outlet_services', 'transaction_product_services.id_transaction','transaction_outlet_services.id_transaction')
-            ->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
-            ->join('products', 'transaction_products.id_product', 'products.id_product')
-            ->join('users', 'transactions.id_user', 'users.id')
-            ->where(function($q) {
-                $q->whereNull('service_status');
-                $q->orWhere('service_status','In Progress');
-            })
-            ->where(function($q){
-                $q->whereNull('transaction_product_services.id_user_hair_stylist');
-                $q->orWhereNotNull('transaction_product_services.id_user_hair_stylist');
-            })
-            ->where(function($q) {
-                $q->where('trasaction_payment_type', 'Cash')
-                ->orWhere('transaction_payment_status', 'Completed');
-            })
-            ->where('transactions.id_outlet',$outlet['id_outlet'])
-            ->whereNotNull('transaction_product_services.queue')
-            ->whereNotNull('transaction_product_services.queue_code')
-            ->whereDate('schedule_date',date('Y-m-d'))
-            ->where('transaction_payment_status', '!=', 'Cancelled')
-            ->wherenull('transaction_products.reject_at')
-            ->orderBy('queue', 'asc')
-            ->select('transactions.id_transaction','transactions.transaction_receipt_number','transaction_product_services.id_transaction_product_service','transaction_product_services.schedule_date','transaction_product_services.queue','transaction_product_services.queue_code','transaction_product_services.service_status','products.product_name','users.name','users.is_anon')
-            ->get()->toArray();
-
-        $data = [];
-        foreach($services ?? [] as $val){
-
-            $queue = null;
-            if(isset($val['queue'])){
-                if($val['queue']<10){
-                    $queue = '00'.$val['queue'];
-                }elseif($val['queue']<100){
-                    $queue = '0'.$val['queue'];
-                }else{
-                    $queue = $val['queue'];
-                }
-            }
-            
-            $data[] = [
-                'id_transaction' => $val['id_transaction'],
-                'id_transaction_product_service' => $val['id_transaction_product_service'],
-                'transaction_receipt_number' => $val['transaction_receipt_number'],
-                'qrcode' => 'https://quickchart.io/qr?text=' . str_replace('#', '', $val['transaction_receipt_number']) . '&margin=0&size=250',
-                'queue' => $queue,
-                'queue_code' => $val['queue_code'],
-                'transaction_date' => $val['schedule_date'],
-                'status' => isset($val['service_status']) ? 'Sedang Berlangsung' : 'Menunggu',
-                'transaction_date_indo' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($val['schedule_date'])), 'j F Y'),
-                'product' => $val['product_name'],
-                'customer_name' => $val['is_anon'] == 0 ? ($val['name'] ?? ('Customer '.$queue)) : ('Customer '.$queue)
-            ];
-
-        }
-
-        return response()->json([
-            'status' => 'success',
-            'result' => $data,
-        ]);
-    }
-
     public function listTrxProduct(Request $request){
 
         $post = $request->json()->all();
         $outlet = $this->getOutlet($post['outlet_code']??null);
 
         if(!$outlet){
-            return [
-    			'status' => 'fail',
+            return response([
+                'status' => 'fail',
     			'title' => 'Outlet Code Salah',
     			'messages' => ['Tidak dapat mendapat data outlet.']
-    		];
+            ], 400);
         } 
 
         $products = Transaction::whereHas('transaction_products',function($query){

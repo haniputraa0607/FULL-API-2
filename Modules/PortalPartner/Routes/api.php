@@ -34,6 +34,7 @@ Route::group(['prefix' => 'partner'], function () {
             Route::post('/growth', 'ApiDashboardController@growth');
             Route::post('/monthly', 'ApiDashboardController@monthly');
             Route::post('/generate', 'ApiDailyController@generate');
+            Route::post('/cek_gross', 'ApiDailyController@cek_gross');
         });
         Route::group(['prefix' => 'promo'], function() {
             Route::post('detail/deals', 'ApiDeals@detail');

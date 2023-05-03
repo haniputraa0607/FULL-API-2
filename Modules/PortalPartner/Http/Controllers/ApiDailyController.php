@@ -26,7 +26,7 @@ use Modules\PortalPartner\Entities\LogOutletPortal;
 class ApiDailyController extends Controller
 {
     public function job() {
-        $data = OutletJob::dispatch()->OnConnection('portal');
+        $data = OutletJob::dispatch()->allOnConnection('database');
         $data = OutletReportJob::create([
             'date'=>date('Y-m-d')
         ]);

@@ -187,5 +187,25 @@ class ApiDailyController extends Controller
         ]);
         return MyHelper::checkGet($data);
     } 
+    public function cek_gross(Request $request) {
+        if(empty($request->limit)||$request->limit < 0){
+            return 'Limit not found';
+        }
+        $transaction = Transaction::where('transaction_outlet_services.reject_at', NULL)
+                       ->where('transactions.reject_at', NULL)
+                       ->where('transaction_gross', 0)
+                       ->where('transactions.transaction_payment_status', 'Completed')
+                       ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
+                       ->select('transactions.id_transaction','transaction_subtotal','transaction_gross')
+                       ->limit($request->limit)
+                       ->get();
+        foreach ($transaction as $value) {
+           if($value['transaction_subtotal']!=$value['transaction_gross']){
+                  $value['transaction_gross'] = $value['transaction_subtotal'];
+                  $value->save(); 
+                }
+        }
+        return $transaction;
+    }
 } 
  

@@ -40,23 +40,10 @@ class ApiGenerateController extends Controller
     } 
     public function list(Request $request) {
         $post = $request->json()->all();
-        $query = OutletReportQueueJob::where('id_outlet',$request->id_outlet??0)
+        $data = OutletReportQueueJob::where('id_outlet',$request->id_outlet??0)
                 ->orderBy('status','ASC')
-                ->paginate($request->length ?: 10);
-        if ($query) {
-            $result = [
-                'status'     => 'success',
-                'data'       => $query,
-                'count'      => count($query)
-            ];
-        } else {
-            $result = [
-                'status'     => 'fail',
-                'data'       => $query,
-                'count'      => count($query)
-            ];
-        }
-        return response()->json($result);
+                ->get();
+        return MyHelper::checkGet($data);
     }
     public function daily($datas) {
         $data = array(

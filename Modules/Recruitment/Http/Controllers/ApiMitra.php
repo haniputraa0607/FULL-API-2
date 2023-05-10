@@ -1077,11 +1077,12 @@ class ApiMitra extends Controller
                                         if($transaction_product){
                                             $paymentcash = TransactionPaymentCash::where('id_transaction', $transaction_product->id_transaction)->first();
                                             if($transaction_product){
-                                                $updates = TransactionPaymentCashDetail::create([
+                                                $updates = TransactionPaymentCashDetail::updateOrCreate([
                                                     'id_transaction_payment_cash'=>$paymentcash->id_transaction_payment_cash,
                                                     'id_transaction_product'=>$transaction_product['id_transaction_product'],
-                                                    'id_outlet_cash'=>$transferPayment['id_outlet_cash'],
                                                     'cash_received_by'=>$user->id_user_hair_stylist,
+                                                ],[
+                                                    'id_outlet_cash'=>$transferPayment['id_outlet_cash'],
                                                 ]);
                                                 $update_product = 1;
                                             }
@@ -1157,11 +1158,13 @@ class ApiMitra extends Controller
 		->where('user_hair_stylist_status', 'Active')->select('id_user_hair_stylist', 'fullname as name')->get()->toArray();
 
 		$projection = Transaction::join('transaction_payment_cash', 'transaction_payment_cash.id_transaction', 'transactions.id_transaction')
-		->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_payment_cash.cash_received_by')
+		->join('transaction_payment_cash_details','transaction_payment_cash_details.id_transaction_payment_cash','transaction_payment_cash.id_transaction_payment_cash')
+		->join('transaction_products','transaction_products.id_transaction_product','transaction_payment_cash_details.id_transaction_product')
+		->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_payment_cash_details.cash_received_by')
 		->whereDate('transactions.transaction_date', $date)
 		->where('transaction_payment_status', 'Completed')
 		->where('transactions.id_outlet', $user->id_outlet)
-		->select('transaction_grandtotal', 'transactions.id_transaction', 'transactions.transaction_receipt_number', 'transaction_payment_cash.*', 'user_hair_stylist.fullname');
+		->select('transaction_grandtotal', 'transactions.id_transaction', 'transactions.transaction_receipt_number', 'transaction_payment_cash.*', 'user_hair_stylist.fullname','transaction_products.transaction_product_price');
 
 		$acceptance = OutletCash::join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'outlet_cash.id_user_hair_stylist')
 		->where('outlet_cash.id_outlet', $user->id_outlet)
@@ -1197,7 +1200,7 @@ class ApiMitra extends Controller
 				'time' => date('H:i', strtotime($value['updated_at'])),
 				'hair_stylist_name' => $value['fullname'],
 				'receipt_number' => $value['transaction_receipt_number'],
-				'amount' => $value['transaction_grandtotal']
+				'amount' => $value['transaction_product_price']
 			];
 		}
 

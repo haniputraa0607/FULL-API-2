@@ -1209,10 +1209,13 @@ class ApiMitra extends Controller
 		$outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
 
 		$spvProjection = Transaction::join('transaction_payment_cash', 'transaction_payment_cash.id_transaction', 'transactions.id_transaction')
-		->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_payment_cash.cash_received_by')
+		->join('transaction_payment_cash_details','transaction_payment_cash_details.id_transaction_payment_cash','transaction_payment_cash.id_transaction_payment_cash')
+		->join('transaction_products','transaction_products.id_transaction_product','transaction_payment_cash_details.id_transaction_product')
+		->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_payment_cash_details.cash_received_by')
 		->whereDate('transactions.transaction_date', $date)
 		->where('transaction_payment_status', 'Completed')
-		->where('cash_received_by', $user->id_user_hair_stylist)->sum('cash_nominal');
+		->where('transactions.id_outlet', $user->id_outlet)
+		->sum('transaction_products.transaction_product_price');
 
 		$spvAcceptance = OutletCash::where('outlet_cash.id_outlet', $user->id_outlet)
 		->where('id_user_hair_stylist', $user->id_user_hair_stylist)

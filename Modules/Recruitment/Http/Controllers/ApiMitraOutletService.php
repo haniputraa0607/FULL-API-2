@@ -779,6 +779,7 @@ class ApiMitraOutletService extends Controller
 			
 			if($checkQr['trasaction_payment_type'] == 'Cash'){
 				$product = TransactionProduct::where('id_transaction_product',$service->id_transaction_product)->first();
+				$products = TransactionProduct::where('id_transaction_product',$service->id_transaction_product)->update(['id_user_hair_stylist' => $user->id_user_hair_stylist]);
 				 $updateCash = TransactionPaymentCash::where('id_transaction', $checkQr['id_transaction'])->first();
 				if($product){
                                         $createDetail = TransactionPaymentCashDetail::create([
@@ -786,8 +787,6 @@ class ApiMitraOutletService extends Controller
                                                     'id_transaction_product'=>$product['id_transaction_product'],
                                                     'cash_received_by'=>$user->id_user_hair_stylist,
                                                 ]);
-					$product->id_user_hair_stylist = $user->id_user_hair_stylist;
-					$product->save();
 					$dt = [
 							'id_user_hair_stylist'    => $user->id_user_hair_stylist,
 							'balance'                 => $product['transaction_product_price'],
@@ -1176,6 +1175,7 @@ class ApiMitraOutletService extends Controller
 			
 			if($checkQr['trasaction_payment_type'] == 'Cash'){
 				$product = TransactionProduct::where('id_transaction_product',$service->id_transaction_product)->first();
+				$products = TransactionProduct::where('id_transaction_product',$service->id_transaction_product)->update(['id_user_hair_stylist' => $user->id_user_hair_stylist]);
 				 $updateCash = TransactionPaymentCash::where('id_transaction', $checkQr['id_transaction'])->first();
 				if($product){
                                     $createDetail = TransactionPaymentCashDetail::create([
@@ -1183,8 +1183,6 @@ class ApiMitraOutletService extends Controller
                                                     'id_transaction_product'=>$product['id_transaction_product'],
                                                     'cash_received_by'=>$user->id_user_hair_stylist,
                                                 ]);
-					$product->id_user_hair_stylist = $user->id_user_hair_stylist;
-					$product->save();
 					$dt = [
 						'id_user_hair_stylist'    => $user->id_user_hair_stylist,
 						'balance'                 => $product['transaction_product_price'],

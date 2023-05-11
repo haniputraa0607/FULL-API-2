@@ -112,6 +112,7 @@ class ApiGenerateController extends Controller
                        ->whereDate('transactions.transaction_date', '>=', $value['date'])->whereDate('transactions.transaction_date', '<=', $value['date'])
                        ->where('transaction_outlet_services.reject_at', NULL)
                        ->where('transactions.reject_at', NULL)
+                       ->whereNotNull('transaction_product_services.id_user_hair_stylist')
                        ->where('transactions.transaction_payment_status', 'Completed')
                        ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
                        ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')

@@ -776,11 +776,11 @@ class ApiMitraOutletService extends Controller
 		
     	// DB::beginTransaction();
     	try {
-			
+		$product = TransactionProduct::where('id_transaction_product',$service->id_transaction_product)->first();	
+                $products = TransactionProduct::where('id_transaction_product',$service->id_transaction_product)->update(['id_user_hair_stylist' => $user->id_user_hair_stylist]);
+				
 			if($checkQr['trasaction_payment_type'] == 'Cash'){
-				$product = TransactionProduct::where('id_transaction_product',$service->id_transaction_product)->first();
-				$products = TransactionProduct::where('id_transaction_product',$service->id_transaction_product)->update(['id_user_hair_stylist' => $user->id_user_hair_stylist]);
-				 $updateCash = TransactionPaymentCash::where('id_transaction', $checkQr['id_transaction'])->first();
+				$updateCash = TransactionPaymentCash::where('id_transaction', $checkQr['id_transaction'])->first();
 				if($product){
                                         $createDetail = TransactionPaymentCashDetail::create([
                                                     'id_transaction_payment_cash'=>$updateCash['id_transaction_payment_cash'],
@@ -1172,11 +1172,11 @@ class ApiMitraOutletService extends Controller
 		
     	// DB::beginTransaction();
     	try {
-			
+			$product = TransactionProduct::where('id_transaction_product',$service->id_transaction_product)->first();	
+                        $products = TransactionProduct::where('id_transaction_product',$service->id_transaction_product)->update(['id_user_hair_stylist' => $user->id_user_hair_stylist]);
+				
 			if($checkQr['trasaction_payment_type'] == 'Cash'){
-				$product = TransactionProduct::where('id_transaction_product',$service->id_transaction_product)->first();
-				$products = TransactionProduct::where('id_transaction_product',$service->id_transaction_product)->update(['id_user_hair_stylist' => $user->id_user_hair_stylist]);
-				 $updateCash = TransactionPaymentCash::where('id_transaction', $checkQr['id_transaction'])->first();
+				$updateCash = TransactionPaymentCash::where('id_transaction', $checkQr['id_transaction'])->first();
 				if($product){
                                     $createDetail = TransactionPaymentCashDetail::create([
                                                     'id_transaction_payment_cash'=>$updateCash['id_transaction_payment_cash'],

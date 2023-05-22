@@ -24,7 +24,8 @@ use DataTables;
 use Modules\PortalPartner\Entities\LogOutletPortal;
 use App\Http\Models\TransactionProduct;
 use App\Jobs\GenerateHsJob;
-//use App\Jobs\Cek;
+use App\Jobs\GeneratePortalHsJob;
+
 class ApiDailyController extends Controller
 {
     public function job() {
@@ -238,6 +239,48 @@ class ApiDailyController extends Controller
         DB::commit();
         return true;
      } catch (Exception $exc) {
+         DB::rollBack();
+            return false;  
+        }
+    }
+    public function cek_portal_hs() {
+        $data = GeneratePortalHsJob::dispatch()->OnConnection('portal');
+        return MyHelper::checkGet($data);
+    }
+    public function portal_hs(){
+     DB::beginTransaction();
+        try{
+           $outlet = Outlet::join('locations','outlets.id_location','locations.id_location')
+                ->where('outlet_status','Active')
+                ->select('id_outlet','outlet_status','outlets.created_at')
+                ->orderby('id_outlet','asc')
+                ->get();
+        foreach($outlet as $value){
+            $data = OutletPortalReport::where('id_outlet',$value['id_outlet'])
+                    ->select('id_outlet_portal_report','id_outlet','date')
+                    ->get();
+            foreach($data as $v){
+                $hs= Transaction::where(array('transactions.id_outlet'=>$v['id_outlet']))
+                       ->whereDate('transactions.transaction_date', '>=', $v['date'])->whereDate('transactions.transaction_date', '<=', $v['date'])
+                       ->where('transaction_outlet_services.reject_at', NULL)
+                       ->where('transactions.reject_at', NULL)
+                       ->where('transactions.transaction_payment_status', 'Completed')
+                       ->where('transaction_product_services.service_status', 'Completed')
+                       ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
+                       ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+                       ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+                       ->whereNotNull('transaction_product_services.id_user_hair_stylist')
+                       ->select('transaction_product_services.id_user_hair_stylist')
+                       ->distinct()
+                       ->get();
+                  $update=OutletPortalReport::where('id_outlet_portal_report',$v['id_outlet_portal_report'])->update([
+                        'count_hs' => count($hs),
+                    ]);
+            }
+        }
+        DB::commit();
+        return true;
+        } catch (Exception $exc) {
          DB::rollBack();
             return false;  
         }

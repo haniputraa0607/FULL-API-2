@@ -22,6 +22,8 @@ use App\Jobs\OutletJob;
 use Modules\PortalPartner\Entities\OutletReportJob;
 use DataTables;
 use Modules\PortalPartner\Entities\LogOutletPortal;
+use App\Http\Models\TransactionProduct;
+use App\Jobs\GenerateHsJob;
 //use App\Jobs\Cek;
 class ApiDailyController extends Controller
 {
@@ -121,9 +123,10 @@ class ApiDailyController extends Controller
                        ->where('transaction_outlet_services.reject_at', NULL)
                        ->where('transactions.reject_at', NULL)
                        ->where('transactions.transaction_payment_status', 'Completed')
+                       ->where('transaction_product_services.service_status', 'Completed')
                        ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
                        ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
-                        ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+                       ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
                        ->whereNotNull('transaction_product_services.id_user_hair_stylist')
                        ->select('transaction_product_services.id_user_hair_stylist')
                        ->distinct()
@@ -202,6 +205,42 @@ class ApiDailyController extends Controller
                 }
         }
         return $transaction;
+    }
+    public function cek_hs() {
+        $data = GenerateHsJob::dispatch()->OnConnection('portal');
+        return MyHelper::checkGet($data);
+    } 
+    public function generate_hs() {
+        DB::beginTransaction();
+     try{
+        $hs= Transaction::where('transaction_outlet_services.reject_at', NULL)
+                       ->whereDate('transactions.transaction_date', '<', date('Y-m-d'))
+                       ->where('transactions.reject_at', NULL)
+                       ->where('transactions.transaction_payment_status', 'Completed')
+                       ->where('transaction_product_services.service_status', 'Completed')
+                       ->whereNotNull('transaction_product_services.id_user_hair_stylist')
+                       ->whereNull('transaction_products.id_user_hair_stylist')
+                       ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
+                       ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+                       ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+                       ->select('transaction_products.id_transaction_product','transaction_product_services.id_user_hair_stylist')
+                       ->take(10000)
+                       ->get();
+                foreach ($hs as $value) {
+                   $update = TransactionProduct::where('id_transaction_product',$value['id_transaction_product'])
+                           ->update([
+                               'id_user_hair_stylist'=>$value['id_user_hair_stylist']
+                           ]); 
+                }
+           if(count($hs)>0){
+               GenerateHsJob::dispatch()->OnConnection('portal');
+           }
+        DB::commit();
+        return true;
+     } catch (Exception $exc) {
+         DB::rollBack();
+            return false;  
+        }
     }
 } 
  

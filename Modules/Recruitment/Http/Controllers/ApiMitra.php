@@ -1200,7 +1200,7 @@ class ApiMitra extends Controller
 				'time' => date('H:i', strtotime($value['updated_at'])),
 				'hair_stylist_name' => $value['fullname'],
 				'receipt_number' => $value['transaction_receipt_number'],
-				'amount' => $value['transaction_product_price']
+				'amount' => (int)$value['transaction_product_price']
 			];
 		}
 

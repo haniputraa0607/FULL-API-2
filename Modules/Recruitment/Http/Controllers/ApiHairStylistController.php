@@ -1201,7 +1201,7 @@ class ApiHairStylistController extends Controller
             ->whereIn('transactions.id_outlet', $idOutlets)
             ->whereNotNull('transaction_products.transaction_product_completed_at')
             ->groupBy(DB::raw('transaction_products.transaction_product_completed_at'), 'transaction_product_services.id_user_hair_stylist', 'transaction_products.id_product')
-            ->select(DB::raw('DATE(transaction_products.transaction_product_completed_at) as schedule_date'), 'transactions.id_outlet', 'transaction_product_services.id_user_hair_stylist', 'transaction_products.id_product', 'fullname', 'outlet_name', 'product_name', DB::raw('SUM(transaction_products.transaction_product_qty) as total'))
+            ->select(DB::raw('DATE(transaction_products.transaction_product_completed_at) as schedule_date'), 'transactions.id_outlet', 'transaction_product_services.id_user_hair_stylist', 'transaction_products.id_product', 'fullname', 'outlet_name','transaction_products.type', 'product_name', DB::raw('SUM(transaction_products.transaction_product_qty) as total'))
             ->get()->toArray();
 
         $homeService = Transaction::join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
@@ -1213,10 +1213,21 @@ class ApiHairStylistController extends Controller
             ->whereIn('transactions.id_outlet', $idOutlets)
             ->whereNotNull('transaction_products.transaction_product_completed_at')
             ->groupBy(DB::raw('transaction_products.transaction_product_completed_at'), 'transaction_home_services.id_user_hair_stylist', 'transaction_products.id_product')
-            ->select(DB::raw('DATE(transaction_products.transaction_product_completed_at) as schedule_date'), 'transactions.id_outlet', 'transaction_home_services.id_user_hair_stylist', 'transaction_products.id_product', 'fullname', 'outlet_name', 'product_name', DB::raw('SUM(transaction_products.transaction_product_qty) as total'))
+            ->select(DB::raw('DATE(transaction_products.transaction_product_completed_at) as schedule_date'), 'transactions.id_outlet', 'transaction_home_services.id_user_hair_stylist', 'transaction_products.id_product', 'fullname', 'outlet_name','transaction_products.type', 'product_name', DB::raw('SUM(transaction_products.transaction_product_qty) as total'))
             ->get()->toArray();
-
+        $product = Transaction::join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+            ->join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')
+            ->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_products.id_user_hair_stylist')
+            ->join('products', 'products.id_product', 'transaction_products.id_product')
+            ->whereDate('transaction_products.transaction_product_completed_at', '>=', $dateStart)->whereDate('transaction_products.transaction_product_completed_at', '<=', $dateEnd)
+            ->whereIn('transactions.id_outlet', $idOutlets)
+            ->where('transaction_products.type', "Product")
+            ->whereNotNull('transaction_products.transaction_product_completed_at')
+            ->groupBy(DB::raw('transaction_products.transaction_product_completed_at'), 'transaction_products.id_user_hair_stylist', 'transaction_products.id_product')
+            ->select(DB::raw('DATE(transaction_products.transaction_product_completed_at) as schedule_date'), 'transactions.id_outlet', 'transaction_products.id_user_hair_stylist', 'transaction_products.id_product', 'fullname', 'outlet_name','transaction_products.type', 'product_name', DB::raw('SUM(transaction_products.transaction_product_qty) as total'))
+            ->get()->toArray();
         $datas = array_merge($outletService, $homeService);
+        $datas = array_merge($product, $datas);
         $dates = [];
         $tmp = $dateStart;
         $i=0;
@@ -1238,6 +1249,7 @@ class ApiHairStylistController extends Controller
                     'Name' => $data['fullname'],
                     'Outlet' => $data['outlet_name'],
                     'Product' => $data['product_name'],
+                    'Type' => $data['type'],
                     'Total' => 0
                 ];
             }

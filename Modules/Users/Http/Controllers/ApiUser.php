@@ -2949,83 +2949,88 @@ class ApiUser extends Controller
             $rule = 'and';
         }
 
-
-        $queryApps = LogActivitiesApps::where('phone', '=', $post['phone'])
-            ->orderBy('id_log_activities_apps', 'desc')
-            ->select('id_log_activities_apps', 'response_status', 'ip', 'created_at', 'subject', 'useragent', 'module');
-        $queryBE = LogActivitiesBE::where('phone', '=', $post['phone'])
-            ->orderBy('id_log_activities_be', 'desc')
-            ->select('id_log_activities_be', 'response_status', 'ip', 'created_at', 'subject', 'useragent', 'module');
-
-        if (isset($post['date_start'])) {
-            $queryApps = $queryApps->where('created_at', '>=', date('Y-m-d H:i:00', strtotime($post['date_start'])));
-            $queryBE = $queryBE->where('created_at', '>=', date('Y-m-d H:i:00', strtotime($post['date_start'])));
-        }
-        if (isset($post['date_end'])) {
-            $queryApps = $queryApps->where('created_at', '<=', date('Y-m-d H:i:00', strtotime($post['date_end'])));
-            $queryBE = $queryBE->where('created_at', '<=', date('Y-m-d H:i:00', strtotime($post['date_end'])));
-        }
-        if (isset($post['conditions'])) {
-            $data = ['post' => $post, 'rule' => $rule];
-            $queryApps->where(function ($query) use ($data) {
-                foreach ($data['post']['conditions'] as $condition) {
-                    if (isset($condition['subject'])) {
-                        if ($condition['operator'] != '=' && $condition['operator'] != 'like') {
-                            $condition['parameter'] = $condition['operator'];
-                        }
-
-                        if ($condition['operator'] == 'like') {
-                            if ($data['rule'] == 'and') {
-                                $query = $query->where($condition['subject'], 'LIKE', '%' . $condition['parameter'] . '%');
-                            } else {
-                                $query = $query->orWhere($condition['subject'], 'LIKE', '%' . $condition['parameter'] . '%');
+        try {
+            
+            $queryApps = LogActivitiesApps::where('phone', '=', $post['phone'])
+                ->orderBy('id_log_activities_apps', 'desc')
+                ->select('id_log_activities_apps', 'response_status', 'ip', 'created_at', 'subject', 'useragent', 'module');
+            $queryBE = LogActivitiesBE::where('phone', '=', $post['phone'])
+                ->orderBy('id_log_activities_be', 'desc')
+                ->select('id_log_activities_be', 'response_status', 'ip', 'created_at', 'subject', 'useragent', 'module');
+    
+            if (isset($post['date_start'])) {
+                $queryApps = $queryApps->where('created_at', '>=', date('Y-m-d H:i:00', strtotime($post['date_start'])));
+                $queryBE = $queryBE->where('created_at', '>=', date('Y-m-d H:i:00', strtotime($post['date_start'])));
+            }
+            if (isset($post['date_end'])) {
+                $queryApps = $queryApps->where('created_at', '<=', date('Y-m-d H:i:00', strtotime($post['date_end'])));
+                $queryBE = $queryBE->where('created_at', '<=', date('Y-m-d H:i:00', strtotime($post['date_end'])));
+            }
+            if (isset($post['conditions'])) {
+                $data = ['post' => $post, 'rule' => $rule];
+                $queryApps->where(function ($query) use ($data) {
+                    foreach ($data['post']['conditions'] as $condition) {
+                        if (isset($condition['subject'])) {
+                            if ($condition['operator'] != '=' && $condition['operator'] != 'like') {
+                                $condition['parameter'] = $condition['operator'];
                             }
-                        } else {
-                            if ($data['rule'] == 'and') {
-                                $query = $query->where($condition['subject'], '=', $condition['parameter']);
+    
+                            if ($condition['operator'] == 'like') {
+                                if ($data['rule'] == 'and') {
+                                    $query = $query->where($condition['subject'], 'LIKE', '%' . $condition['parameter'] . '%');
+                                } else {
+                                    $query = $query->orWhere($condition['subject'], 'LIKE', '%' . $condition['parameter'] . '%');
+                                }
                             } else {
-                                $query = $query->orWhere($condition['subject'], '=', $condition['parameter']);
-                            }
-                        }
-                    }
-                }
-            });
-
-            $queryBE->where(function ($query) use ($data) {
-                foreach ($data['post']['conditions'] as $condition) {
-                    if (isset($condition['subject'])) {
-                        if ($condition['operator'] != '=' && $condition['operator'] != 'like') {
-                            $condition['parameter'] = $condition['operator'];
-                        }
-
-                        if ($condition['operator'] == 'like') {
-                            if ($data['rule'] == 'and') {
-                                $query = $query->where($condition['subject'], 'LIKE', '%' . $condition['parameter'] . '%');
-                            } else {
-                                $query = $query->orWhere($condition['subject'], 'LIKE', '%' . $condition['parameter'] . '%');
-                            }
-                        } else {
-                            if ($data['rule'] == 'and') {
-                                $query = $query->where($condition['subject'], '=', $condition['parameter']);
-                            } else {
-                                $query = $query->orWhere($condition['subject'], '=', $condition['parameter']);
+                                if ($data['rule'] == 'and') {
+                                    $query = $query->where($condition['subject'], '=', $condition['parameter']);
+                                } else {
+                                    $query = $query->orWhere($condition['subject'], '=', $condition['parameter']);
+                                }
                             }
                         }
                     }
-                }
-            });
-        }
-
-        if (isset($post['pagination'])) {
-            $queryApps = $queryApps->paginate($post['take']);
-            $queryBE = $queryBE->paginate($post['take']);
-        } else {
-            $queryApps = $queryApps->skip($skip)->take($take)
-                ->get()
-                ->toArray();
-            $queryBE = $queryBE->skip($skip)->take($take)
-                ->get()
-                ->toArray();
+                });
+    
+                $queryBE->where(function ($query) use ($data) {
+                    foreach ($data['post']['conditions'] as $condition) {
+                        if (isset($condition['subject'])) {
+                            if ($condition['operator'] != '=' && $condition['operator'] != 'like') {
+                                $condition['parameter'] = $condition['operator'];
+                            }
+    
+                            if ($condition['operator'] == 'like') {
+                                if ($data['rule'] == 'and') {
+                                    $query = $query->where($condition['subject'], 'LIKE', '%' . $condition['parameter'] . '%');
+                                } else {
+                                    $query = $query->orWhere($condition['subject'], 'LIKE', '%' . $condition['parameter'] . '%');
+                                }
+                            } else {
+                                if ($data['rule'] == 'and') {
+                                    $query = $query->where($condition['subject'], '=', $condition['parameter']);
+                                } else {
+                                    $query = $query->orWhere($condition['subject'], '=', $condition['parameter']);
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+    
+            if (isset($post['pagination'])) {
+                $queryApps = $queryApps->paginate($post['take']);
+                $queryBE = $queryBE->paginate($post['take']);
+            } else {
+                $queryApps = $queryApps->skip($skip)->take($take)
+                    ->get()
+                    ->toArray();
+                $queryBE = $queryBE->skip($skip)->take($take)
+                    ->get()
+                    ->toArray();
+            }
+        }catch (\Exception $e){
+            $queryApps = [];
+            $queryBE = [];
         }
 
         if ($queryApps || $queryBE) {

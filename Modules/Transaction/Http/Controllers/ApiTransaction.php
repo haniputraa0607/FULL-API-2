@@ -7286,7 +7286,7 @@ class ApiTransaction extends Controller
         $dateEnd = date('Y-m-d', strtotime($post['date_end']));
         $idOutlets = $post['id_outlet'];
 
-        $services = Product::where('product_type', 'service')->select('id_product', 'product_name')->get()->toArray();
+        $services = Product::select('id_product', 'product_name')->get()->toArray();
 
         $datas = Transaction::join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
             ->join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')

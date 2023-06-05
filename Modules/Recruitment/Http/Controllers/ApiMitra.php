@@ -1214,8 +1214,11 @@ class ApiMitra extends Controller
 		->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_products.id_user_hair_stylist')
 		->whereDate('transactions.transaction_date', $date)
 		->where('transaction_payment_status', 'Completed')
-		->where('transactions.id_outlet', $user->id_outlet)
-		->sum('transaction_products.transaction_product_price');
+		->where('transactions.id_outlet', $user->id_outlet);
+                if(!empty($post['id_user_hair_stylist'])){
+			$spvProjection = $spvProjection->where('transaction_products.id_user_hair_stylist', $post['id_user_hair_stylist']);
+		}
+		$spvProjection = $spvProjection->sum('transaction_products.transaction_product_price');
 
 		$spvAcceptance = OutletCash::where('outlet_cash.id_outlet', $user->id_outlet)
 		->where('id_user_hair_stylist', $user->id_user_hair_stylist)

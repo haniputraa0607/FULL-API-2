@@ -1959,6 +1959,11 @@ class ApiOnlineTransaction extends Controller
             DailyTransactions::create($dataDailyTrx);
             DB::commit();
 
+            $trx = Transaction::where('id_transaction', $insertTransaction['id_transaction'])->first();
+            app($this->online_trx)->bookProductStock($trx['id_transaction']);
+            optional($trx)->recalculateTaxandMDR();
+            $trx->triggerPaymentCompleted();
+            
             //remove for result
             unset($insertTransaction['user']);
             unset($insertTransaction['outlet']);
@@ -6639,7 +6644,7 @@ class ApiOnlineTransaction extends Controller
         foreach ($data as $dt){
             $outletType = Outlet::join('locations', 'locations.id_location', 'outlets.id_location')->where('id_outlet', $dt['id_outlet'])
                         ->first()['company_type']??null;
-            $outletType = str_replace('PT ', '', $outletType);
+            $outletType = strtolower(str_replace('PT ', '', $outletType));
             $getProductUse = ProductProductIcount::join('product_detail', 'product_detail.id_product', 'product_product_icounts.id_product')
                 ->where('product_product_icounts.id_product', $dt['id_product'])
                 ->where('company_type', $outletType)

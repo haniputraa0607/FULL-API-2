@@ -103,7 +103,7 @@ class ApiMitraShopService extends Controller
                 'id_product' => $product['id_product'],
                 'product_name' => $product['product']['product_name'],
 				'qty' => $product['transaction_product_qty'],
-				'price' => $product['transaction_product_price'],
+				'price' => $product['transaction_product_net'],
 				'subtotal' => $product['transaction_product_subtotal'],
 				'discount' => $product['transaction_product_discount_all'],
 				'photo' => $productPhoto
@@ -182,7 +182,7 @@ class ApiMitraShopService extends Controller
                                             ]);
 					$dt = [
 						'id_user_hair_stylist'    => $user->id_user_hair_stylist,
-						'balance'                 => $product['transaction_product_subtotal'],
+						'balance'                 => $product['transaction_product_net']-$product['transaction_product_discount_all'],
 						'id_reference'            => $product['id_transaction_product'],
 						'source'                  => 'Receive Payment'
 					];

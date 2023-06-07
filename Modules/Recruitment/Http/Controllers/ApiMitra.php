@@ -1164,7 +1164,7 @@ class ApiMitra extends Controller
 		->whereDate('transactions.transaction_date', $date)
 		->where('transaction_payment_status', 'Completed')
 		->where('transactions.id_outlet', $user->id_outlet)
-		->select('transaction_grandtotal', 'transactions.id_transaction', 'transactions.transaction_receipt_number', 'transaction_payment_cash.*', 'user_hair_stylist.fullname','transaction_products.transaction_product_price');
+		->select('transaction_grandtotal', 'transactions.id_transaction', 'transactions.transaction_receipt_number', 'transaction_payment_cash.*', 'user_hair_stylist.fullname','transaction_products.transaction_product_price','transaction_products.transaction_product_discount_all');
 
 		$acceptance = OutletCash::join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'outlet_cash.id_user_hair_stylist')
 		->where('outlet_cash.id_outlet', $user->id_outlet)
@@ -1200,7 +1200,7 @@ class ApiMitra extends Controller
 				'time' => date('H:i', strtotime($value['updated_at'])),
 				'hair_stylist_name' => $value['fullname'],
 				'receipt_number' => $value['transaction_receipt_number'],
-				'amount' => (int)$value['transaction_product_price']
+				'amount' => (int)$value['transaction_product_price']-(int)$value['transaction_product_discount_all']
 			];
 		}
 
@@ -1208,7 +1208,7 @@ class ApiMitra extends Controller
 		$totalAcceptance = array_sum(array_column($history, 'amount'));
 		$outlet = Outlet::where('id_outlet', $user->id_outlet)->first();
 
-		$spvProjection = Transaction::join('transaction_payment_cash', 'transaction_payment_cash.id_transaction', 'transactions.id_transaction')
+		 $spvProjection = Transaction::join('transaction_payment_cash', 'transaction_payment_cash.id_transaction', 'transactions.id_transaction')
 		->join('transaction_payment_cash_details','transaction_payment_cash_details.id_transaction_payment_cash','transaction_payment_cash.id_transaction_payment_cash')
 		->join('transaction_products','transaction_products.id_transaction_product','transaction_payment_cash_details.id_transaction_product')
 		->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_products.id_user_hair_stylist')
@@ -1218,8 +1218,11 @@ class ApiMitra extends Controller
                 if(!empty($post['id_user_hair_stylist'])){
 			$spvProjection = $spvProjection->where('transaction_products.id_user_hair_stylist', $post['id_user_hair_stylist']);
 		}
-		$spvProjection = $spvProjection->sum('transaction_products.transaction_product_price');
-
+		$spvProjection = $spvProjection->select('transaction_products.transaction_product_price','transaction_products.transaction_product_discount_all')->get()->toArray();
+		$totalSpvProjection = 0;
+		foreach ($spvProjection as $vas){
+			$totalSpvProjection = $totalSpvProjection + $vas['transaction_product_price'] - $vas['transaction_product_discount_all'];
+		}
 		$spvAcceptance = OutletCash::where('outlet_cash.id_outlet', $user->id_outlet)
 		->where('id_user_hair_stylist', $user->id_user_hair_stylist)
 		->where('outlet_cash_type', 'Transfer To Supervisor')
@@ -1231,7 +1234,7 @@ class ApiMitra extends Controller
 			'total_projection' => $totalProjection,
 			'total_reception' => $totalAcceptance,
 			'currency' => $currency,
-			'spv_cash_projection' => (int)$spvProjection,
+			'spv_cash_projection' => (int)$totalSpvProjection,
 			'spv_cash_acceptance' => (int)$spvAcceptance,
 			'list_hair_stylist' => $listHS,
 			'projection' => $resProjection,

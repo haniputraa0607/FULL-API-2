@@ -154,7 +154,7 @@ class ApiMitraOutletService extends Controller
 				'service_status' => $val['service_status'],
 				'payment_method' => $paymentMethod,
 				'product_name' => $val['product_name'],
-				'price' => $val['transaction_product_net'],
+				'price' => $val['transaction_product_price']-$val['transaction_product_discount_all'],
 				'timer_text' => $timerText,
 				'timer_text_color' => $timerTextColor,
 				'button_text' => $buttonText,
@@ -216,23 +216,6 @@ class ApiMitraOutletService extends Controller
 		$resData = [];
 		$dateNow = new DateTime("now");
 		foreach ($queue['data'] ?? [] as $val) {
-			// $timerText = "";
-			// $dateSchedule = new DateTime($val['schedule_date'] . ' ' .$val['schedule_time']);
-			// $interval = $dateNow->diff($dateSchedule);
-			// $day = $interval->d;
-			// $hour = $interval->h;
-			// $minute = $interval->i;
-			// if ($day) {
-			// 	$timerText .= $day.' hari, '. $hour.' jam' ;
-			// } elseif ($hour) {
-			// 	$timerText .= $hour.' jam' ;
-			// } else {
-			// 	$timerText .= $minute.' menit' ;
-			// }
-
-			// $timerText .= (strtotime(date('Y-m-d H:i:s')) < strtotime($val['schedule_date'] . ' ' .$val['schedule_time'])) ? ' lagi' : ' lalu';
-			// $timerTextColor = (strtotime(date('Y-m-d')) == strtotime($val['schedule_date'])) ? '#FF2424' : '#121212';
-
 			$trx = Transaction::where('id_transaction', $val['id_transaction'])->first();
 			$trxPayment = app($this->trx_outlet_service)->transactionPayment($trx);
 			$paymentMethod = null;
@@ -242,24 +225,14 @@ class ApiMitraOutletService extends Controller
 					break;
 				}
 			}
-
 			$buttonText = 'Layani';
 			$paymentCash = 0;
-			// if ($val['transaction_payment_status'] == 'Pending' && $val['trasaction_payment_type'] == 'Cash') {
-			// 	$buttonText = 'Pembayaran';
-			// 	$paymentCash = 1;
-			// }
-
 			$disable = 0;
 			if ($serviceInProgress && $serviceInProgress['id_transaction_product_service'] != $val['id_transaction_product_service']) {
 				$disable = 1;
 			}
-
 			$scheduleDate = app($this->mitra)->convertTimezoneMitra($val['schedule_date']);
 			$scheduleDate = MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($scheduleDate)), 'j F Y');
-			// $scheduleTime = app($this->mitra)->convertTimezoneMitra($val['schedule_time']);
-			// $scheduleTime = date('H:i', strtotime($scheduleTime));
-
 			$queue_code = null;
             if(isset($val['queue'])){
                 if($val['queue']<10){
@@ -278,13 +251,10 @@ class ApiMitraOutletService extends Controller
 				'queue_code' => $queue_code,
 				'customer_name' => $val['is_anon'] == 1 ? 'Customer '.$queue_code : (isset($val['name']) ? $val['customer_name'] : ('Customer '.$queue_code)),
 				'schedule_date' => $scheduleDate,
-				// 'schedule_time' => $scheduleTime,
 				'service_status' => $val['service_status'],
 				'payment_method' => $paymentMethod,
 				'product_name' => $val['product_name'],
-				'price' => $val['transaction_product_net'],
-				// 'timer_text' => $timerText,
-				// 'timer_text_color' => $timerTextColor,
+				'price' => $val['transaction_product_price']-$val['transaction_product_discount_all'],
 				'button_text' => $buttonText,
 				'disable' => $disable,
 				'id_outlet_box' => $schedule->id_outlet_box ?? null,
@@ -293,12 +263,10 @@ class ApiMitraOutletService extends Controller
 				'payment_cash' => $paymentCash 
 			];
 		}
-
 		$res = $queue;
 		$res['data'] = $resData;
 		return MyHelper::checkGet($res);
 	}
-
 	public function customerQueueDetail(DetailCustomerQueueRequest $request)
 	{
 		$user = $request->user();
@@ -789,7 +757,7 @@ class ApiMitraOutletService extends Controller
                                                 ]);
 					$dt = [
 							'id_user_hair_stylist'    => $user->id_user_hair_stylist,
-							'balance'                 => $product['transaction_product_price'],
+							'balance'                 => $product['transaction_product_price']-$product['transaction_product_discount_all'],
 							'id_reference'            => $product['id_transaction_product'],
 							'source'                  => 'Receive Payment'
 					];
@@ -1185,7 +1153,7 @@ class ApiMitraOutletService extends Controller
                                                 ]);
 					$dt = [
 						'id_user_hair_stylist'    => $user->id_user_hair_stylist,
-						'balance'                 => $product['transaction_product_price'],
+						'balance'                 => $product['transaction_product_price']-$product['transaction_product_discount_all'],
 						'id_reference'            => $product['id_transaction_product'],
 						'source'                  => 'Receive Payment'
 					];
@@ -2371,6 +2339,8 @@ class ApiMitraOutletService extends Controller
 		$tps = $tps->select(
 			'transaction_product_services.*',
 			'transaction_products.transaction_product_net',
+			'transaction_products.transaction_product_price',
+			'transaction_products.transaction_product_discount_all',
 			'products.product_name',
 			'transactions.customer_name',
 			'users.is_anon',
@@ -2415,7 +2385,7 @@ class ApiMitraOutletService extends Controller
 				'outlet_name' => $item->outlet_name,
 				'hairstylist_name' => $user->fullname,
 				'schedule_time' => date('H:i', strtotime($item->schedule_time)),
-				'price' => $item->transaction_product_net,
+				'price' => (int)$item->transaction_product_price - (int)$item->transaction_product_discount_all,
 				'payment_method' => $paymentMethod,
 			];
 		});

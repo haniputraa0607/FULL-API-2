@@ -1164,7 +1164,7 @@ class ApiMitra extends Controller
 		->whereDate('transactions.transaction_date', $date)
 		->where('transaction_payment_status', 'Completed')
 		->where('transactions.id_outlet', $user->id_outlet)
-		->select('transaction_grandtotal', 'transactions.id_transaction', 'transactions.transaction_receipt_number', 'transaction_payment_cash.*', 'user_hair_stylist.fullname','transaction_products.transaction_product_price','transaction_products.transaction_product_discount_all');
+		->select('transaction_grandtotal', 'transactions.id_transaction', 'transactions.transaction_receipt_number', 'transaction_payment_cash.*', 'user_hair_stylist.fullname','transaction_products.transaction_product_net','transaction_products.transaction_product_discount_all');
 
 		$acceptance = OutletCash::join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'outlet_cash.id_user_hair_stylist')
 		->where('outlet_cash.id_outlet', $user->id_outlet)
@@ -1200,7 +1200,7 @@ class ApiMitra extends Controller
 				'time' => date('H:i', strtotime($value['updated_at'])),
 				'hair_stylist_name' => $value['fullname'],
 				'receipt_number' => $value['transaction_receipt_number'],
-				'amount' => (int)$value['transaction_product_price']-(int)$value['transaction_product_discount_all']
+				'amount' => (int)$value['transaction_product_net']-(int)$value['transaction_product_discount_all']
 			];
 		}
 
@@ -1218,10 +1218,10 @@ class ApiMitra extends Controller
                 if(!empty($post['id_user_hair_stylist'])){
 			$spvProjection = $spvProjection->where('transaction_products.id_user_hair_stylist', $post['id_user_hair_stylist']);
 		}
-		$spvProjection = $spvProjection->select('transaction_products.transaction_product_price','transaction_products.transaction_product_discount_all')->get()->toArray();
+		$spvProjection = $spvProjection->select('transaction_products.transaction_product_net','transaction_products.transaction_product_discount_all')->get()->toArray();
 		$totalSpvProjection = 0;
 		foreach ($spvProjection as $vas){
-			$totalSpvProjection = $totalSpvProjection + $vas['transaction_product_price'] - $vas['transaction_product_discount_all'];
+			$totalSpvProjection = $totalSpvProjection + $vas['transaction_product_net'] - $vas['transaction_product_discount_all'];
 		}
 		$spvAcceptance = OutletCash::where('outlet_cash.id_outlet', $user->id_outlet)
 		->where('id_user_hair_stylist', $user->id_user_hair_stylist)

@@ -154,7 +154,7 @@ class ApiMitraOutletService extends Controller
 				'service_status' => $val['service_status'],
 				'payment_method' => $paymentMethod,
 				'product_name' => $val['product_name'],
-				'price' => $val['transaction_product_price']-$val['transaction_product_discount_all'],
+				'price' => $val['transaction_product_net']-$val['transaction_product_discount_all'],
 				'timer_text' => $timerText,
 				'timer_text_color' => $timerTextColor,
 				'button_text' => $buttonText,
@@ -254,7 +254,7 @@ class ApiMitraOutletService extends Controller
 				'service_status' => $val['service_status'],
 				'payment_method' => $paymentMethod,
 				'product_name' => $val['product_name'],
-				'price' => $val['transaction_product_price']-$val['transaction_product_discount_all'],
+				'price' => $val['transaction_product_net']-$val['transaction_product_discount_all'],
 				'button_text' => $buttonText,
 				'disable' => $disable,
 				'id_outlet_box' => $schedule->id_outlet_box ?? null,
@@ -757,7 +757,7 @@ class ApiMitraOutletService extends Controller
                                                 ]);
 					$dt = [
 							'id_user_hair_stylist'    => $user->id_user_hair_stylist,
-							'balance'                 => $product['transaction_product_price']-$product['transaction_product_discount_all'],
+							'balance'                 => $product['transaction_product_net']-$product['transaction_product_discount_all'],
 							'id_reference'            => $product['id_transaction_product'],
 							'source'                  => 'Receive Payment'
 					];
@@ -1153,7 +1153,7 @@ class ApiMitraOutletService extends Controller
                                                 ]);
 					$dt = [
 						'id_user_hair_stylist'    => $user->id_user_hair_stylist,
-						'balance'                 => $product['transaction_product_price']-$product['transaction_product_discount_all'],
+						'balance'                 => $product['transaction_product_net']-$product['transaction_product_discount_all'],
 						'id_reference'            => $product['id_transaction_product'],
 						'source'                  => 'Receive Payment'
 					];
@@ -2339,7 +2339,7 @@ class ApiMitraOutletService extends Controller
 		$tps = $tps->select(
 			'transaction_product_services.*',
 			'transaction_products.transaction_product_net',
-			'transaction_products.transaction_product_price',
+			'transaction_products.transaction_product_net',
 			'transaction_products.transaction_product_discount_all',
 			'products.product_name',
 			'transactions.customer_name',
@@ -2385,7 +2385,7 @@ class ApiMitraOutletService extends Controller
 				'outlet_name' => $item->outlet_name,
 				'hairstylist_name' => $user->fullname,
 				'schedule_time' => date('H:i', strtotime($item->schedule_time)),
-				'price' => (int)$item->transaction_product_price - (int)$item->transaction_product_discount_all,
+				'price' => (int)$item->transaction_product_net - (int)$item->transaction_product_discount_all,
 				'payment_method' => $paymentMethod,
 			];
 		});

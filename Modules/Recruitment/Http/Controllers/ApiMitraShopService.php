@@ -96,6 +96,7 @@ class ApiMitraShopService extends Controller
 
         $products = [];
         $subtotalProduct = 0;
+        $subtotalDiscountProduct = 0;
         foreach ($trxProduct as $product){
         	$productPhoto = config('url.storage_url_api') . ($product['product']['photos'][0]['product_photo'] ?? 'img/product/item/default.png');
             $products[] = [
@@ -104,9 +105,11 @@ class ApiMitraShopService extends Controller
 				'qty' => $product['transaction_product_qty'],
 				'price' => $product['transaction_product_price'],
 				'subtotal' => $product['transaction_product_subtotal'],
+				'discount' => $product['transaction_product_discount_all'],
 				'photo' => $productPhoto
             ];
             $subtotalProduct += abs($product['transaction_product_subtotal']);
+            $subtotalDiscountProduct += abs($product['transaction_product_discount_all']);
         }
 
     	$res = [
@@ -117,6 +120,8 @@ class ApiMitraShopService extends Controller
     		'transaction_payment_status' => $trx['transaction_payment_status'],
     		'payment_cash' => $paymentCash,
     		'product_subtotal' => $subtotalProduct,
+    		'product_discount' => $subtotalDiscountProduct,
+    		'product_price' => $subtotalProduct-$subtotalDiscountProduct,
     		'products' => $products
     	];
 

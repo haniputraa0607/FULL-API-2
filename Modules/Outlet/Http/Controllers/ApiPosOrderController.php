@@ -1601,6 +1601,11 @@ class ApiPosOrderController extends Controller
             DailyTransactions::create($dataDailyTrx);
             DB::commit();
 
+            $trx = Transaction::where('id_transaction', $insertTransaction['id_transaction'])->first();
+            app($this->online_trx)->bookProductStock($trx['id_transaction']);
+            optional($trx)->recalculateTaxandMDR();
+            $trx->triggerPaymentCompleted();
+            
             //remove for result
             unset($insertTransaction['user']);
             unset($insertTransaction['outlet']);

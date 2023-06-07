@@ -36,6 +36,7 @@ use DB;
 use DateTime;
 use UserHairStylist as GlobalUserHairStylist;
 use App\Http\Models\Outlet;
+use Modules\Transaction\Entities\TransactionPaymentCashDetail;
 
 class ApiMitraShopService extends Controller
 {
@@ -166,8 +167,14 @@ class ApiMitraShopService extends Controller
 		if($trx['trasaction_payment_type'] == 'Cash'){
 			foreach ($trxProducts as $product) {
 				if($product){
-					$product->id_user_hair_stylist = $user->id_user_hair_stylist;
-					$product->save();
+                                    $updateCash = TransactionPaymentCash::where('id_transaction', $trx['id_transaction'])->first();
+                                    $product->id_user_hair_stylist = $user->id_user_hair_stylist;
+                                    $product->save();
+                                    $createDetail = TransactionPaymentCashDetail::create([
+                                                'id_transaction_payment_cash'=>$updateCash['id_transaction_payment_cash'],
+                                                'id_transaction_product'=>$product['id_transaction_product'],
+                                                'cash_received_by'=>$user->id_user_hair_stylist,
+                                            ]);
 					$dt = [
 						'id_user_hair_stylist'    => $user->id_user_hair_stylist,
 						'balance'                 => $product['transaction_product_subtotal'],

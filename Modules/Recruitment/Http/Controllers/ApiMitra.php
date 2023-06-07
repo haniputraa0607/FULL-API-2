@@ -1160,7 +1160,7 @@ class ApiMitra extends Controller
 		$projection = Transaction::join('transaction_payment_cash', 'transaction_payment_cash.id_transaction', 'transactions.id_transaction')
 		->join('transaction_payment_cash_details','transaction_payment_cash_details.id_transaction_payment_cash','transaction_payment_cash.id_transaction_payment_cash')
 		->join('transaction_products','transaction_products.id_transaction_product','transaction_payment_cash_details.id_transaction_product')
-		->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_payment_cash_details.cash_received_by')
+		->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_products.id_user_hair_stylist')
 		->whereDate('transactions.transaction_date', $date)
 		->where('transaction_payment_status', 'Completed')
 		->where('transactions.id_outlet', $user->id_outlet)
@@ -1184,7 +1184,7 @@ class ApiMitra extends Controller
 			'outlet_cash_status', 'outlet_cash_code', 'outlet_cash_amount as amount', 'confirm.fullname as confirm_by_name');
 
 		if(!empty($post['id_user_hair_stylist'])){
-			$projection = $projection->where('id_user_hair_stylist', $post['id_user_hair_stylist']);
+			$projection = $projection->where('transaction_products.id_user_hair_stylist', $post['id_user_hair_stylist']);
 			$acceptance = $acceptance->where('outlet_cash.id_user_hair_stylist', $post['id_user_hair_stylist']);
 			$history = $history->where('outlet_cash.id_user_hair_stylist', $post['id_user_hair_stylist']);
 		}
@@ -1211,11 +1211,14 @@ class ApiMitra extends Controller
 		$spvProjection = Transaction::join('transaction_payment_cash', 'transaction_payment_cash.id_transaction', 'transactions.id_transaction')
 		->join('transaction_payment_cash_details','transaction_payment_cash_details.id_transaction_payment_cash','transaction_payment_cash.id_transaction_payment_cash')
 		->join('transaction_products','transaction_products.id_transaction_product','transaction_payment_cash_details.id_transaction_product')
-		->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_payment_cash_details.cash_received_by')
+		->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_products.id_user_hair_stylist')
 		->whereDate('transactions.transaction_date', $date)
 		->where('transaction_payment_status', 'Completed')
-		->where('transactions.id_outlet', $user->id_outlet)
-		->sum('transaction_products.transaction_product_price');
+		->where('transactions.id_outlet', $user->id_outlet);
+                if(!empty($post['id_user_hair_stylist'])){
+			$spvProjection = $spvProjection->where('transaction_products.id_user_hair_stylist', $post['id_user_hair_stylist']);
+		}
+		$spvProjection = $spvProjection->sum('transaction_products.transaction_product_price');
 
 		$spvAcceptance = OutletCash::where('outlet_cash.id_outlet', $user->id_outlet)
 		->where('id_user_hair_stylist', $user->id_user_hair_stylist)

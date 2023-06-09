@@ -2325,7 +2325,27 @@ class ApiMitra extends Controller
             ->where('transaction_payment_status', '!=', 'Cancelled')
             ->wherenull('transaction_products.reject_at')
             ->orderBy('transaction_products.id_transaction_product', 'asc')
-            ->select('transactions.id_transaction','transaction_products.id_transaction_product','transaction_product_services.id_transaction_product_service', 'transaction_products.customer_queue','transaction_product_services.queue_code', 'transaction_product_services.queue','service_status','transaction_product_services.id_user_hair_stylist', 'users.name', 'users.is_anon', 'transaction_product_services.schedule_date', 'transaction_product_services.schedule_time', 'transaction_product_services.completed_at', 'products.product_name', 'outlets.outlet_name', 'transaction_product_services.created_at', 'transaction_product_services.order_id', 'transactions.trasaction_payment_type', 'transaction_products.transaction_product_subtotal', 'transaction_products.transaction_product_completed_at','transaction_products.transaction_product_qty', 'transaction_products.created_at as prod_created_at')
+            ->select(
+			'transactions.id_transaction',
+			'transaction_products.id_transaction_product',
+			'transaction_product_services.id_transaction_product_service',
+			'transaction_products.customer_queue','transaction_product_services.queue_code',
+			'transaction_product_services.queue',
+			'service_status',
+			'transaction_product_services.id_user_hair_stylist',
+			'users.name', 'users.is_anon',
+			'transaction_product_services.schedule_date',
+			'transaction_product_services.schedule_time',
+			'transaction_product_services.completed_at',
+			'products.product_name', 'outlets.outlet_name',
+			'transaction_product_services.created_at',
+			'transaction_product_services.order_id',
+			'transactions.trasaction_payment_type',
+			'transaction_products.transaction_product_subtotal',
+			'transaction_products.transaction_product_discount_all',
+			'transaction_products.transaction_product_completed_at',
+			'transaction_products.transaction_product_qty',
+			'transaction_products.created_at as prod_created_at')
             ->get()->toArray();
 
 		foreach($service_outlets ?? [] as $serv){
@@ -2370,7 +2390,7 @@ class ApiMitra extends Controller
 					'date' => $is_service ? MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($serv['schedule_date'])), 'j F Y') : MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($serv['transaction_product_completed_at'])), 'j F Y'),
 					'customer_name' => $serv['is_anon'] == 1 ? ('Customer '.$queue) : ($serv['name'] ?? ('Customer '.$queue)),
 					'product' => $serv['product_name'],
-					'price' => 'Rp '.number_format((int)$serv['transaction_product_subtotal'],0,",","."),
+					'price' => 'Rp '.number_format((int)$serv['transaction_product_subtotal']-(int)$serv['transaction_product_discount_all'],0,",","."),
 					'queue' => $queue,
 					'payment_type' => $payment_type,
 					'order_id' => $serv['order_id'],
@@ -2390,7 +2410,7 @@ class ApiMitra extends Controller
 					'date' => $is_service ? MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($serv['schedule_date'])), 'j F Y') : MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($serv['transaction_product_completed_at'])), 'j F Y'),
 					'customer_name' => $serv['is_anon'] == 1 ? ('Customer '.$queue) : ($serv['name'] ?? ('Customer '.$queue)),
 					'product' => $serv['product_name'],
-					'price' => 'Rp '.number_format((int)$serv['transaction_product_subtotal'],0,",","."),
+					'price' => 'Rp '.number_format((int)$serv['transaction_product_subtotal']-(int)$serv['transaction_product_discount_all'],0,",","."),
 					'queue' => $queue,
 					'payment_type' => $payment_type,
 					'order_id' => $serv['order_id'],
@@ -2481,7 +2501,32 @@ class ApiMitra extends Controller
             ->where('transaction_payment_status', '!=', 'Cancelled')
             ->wherenull('transaction_products.reject_at')
             ->orderBy('transaction_products.id_transaction_product', 'asc')
-            ->select('transactions.id_transaction','transaction_products.id_transaction_product','transaction_product_services.id_transaction_product_service', 'transaction_products.customer_queue','transaction_product_services.queue_code', 'transaction_product_services.queue','service_status','transaction_product_services.id_user_hair_stylist', 'users.name', 'users.is_anon', 'transaction_product_services.schedule_date', 'transaction_product_services.schedule_time', 'transaction_product_services.completed_at', 'products.product_name', 'outlets.outlet_name', 'transaction_product_services.created_at', 'transaction_product_services.order_id', 'transactions.trasaction_payment_type', 'transaction_products.transaction_product_subtotal', 'transaction_products.transaction_product_completed_at','transaction_products.transaction_product_qty', 'transaction_products.created_at as prod_created_at','prod_hs.nickname as prod_hs_nickname', 'serv_hs.nickname as serv_hs_nickname')
+            ->select(
+			'transactions.id_transaction',
+			'transaction_products.id_transaction_product',
+			'transaction_product_services.id_transaction_product_service', 
+			'transaction_products.customer_queue',
+			'transaction_product_services.queue_code',
+			'transaction_product_services.queue',
+			'service_status',
+			'transaction_product_services.id_user_hair_stylist',
+			'users.name',
+			'users.is_anon',
+			'transaction_product_services.schedule_date',
+			'transaction_product_services.schedule_time',
+			'transaction_product_services.completed_at',
+			'products.product_name',
+			'outlets.outlet_name',
+			'transaction_product_services.created_at',
+			'transaction_product_services.order_id',
+			'transactions.trasaction_payment_type',
+			'transaction_products.transaction_product_subtotal',
+			'transaction_products.transaction_product_discount_all',
+			'transaction_products.transaction_product_completed_at',
+			'transaction_products.transaction_product_qty',
+			'transaction_products.created_at as prod_created_at',
+			'prod_hs.nickname as prod_hs_nickname',
+			'serv_hs.nickname as serv_hs_nickname')
             ->paginate(10)->toArray();
 
 
@@ -2529,7 +2574,7 @@ class ApiMitra extends Controller
 				'date' =>  $is_service ? MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($serv['schedule_date'])), 'j F Y') : MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($serv['transaction_product_completed_at'])), 'j F Y'),
 				'customer_name' => $serv['is_anon'] == 1 ? ('Customer '.$queue) : ($serv['name'] ?? ('Customer '.$queue)),
 				'product' => $serv['product_name'],
-				'price' => 'Rp '.number_format((int)$serv['transaction_product_subtotal'],0,",","."),
+				'price' => 'Rp '.number_format((int)$serv['transaction_product_subtotal']-(int)$serv['transaction_product_discount_all'],0,",","."),
 				'queue' => $queue,
 				'payment_type' => $payment_type,
 				'order_id' => $serv['order_id'],

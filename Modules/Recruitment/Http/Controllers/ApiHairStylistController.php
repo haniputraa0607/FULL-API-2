@@ -1185,8 +1185,8 @@ class ApiHairStylistController extends Controller
         }
     }
 
-    public function exportCommission(Request $request){
-        $post = $request->json()->all();
+    public function exportCommission($request){
+        $post = $request;
 
         $dateStart = date('Y-m-d', strtotime($post['date_start']));
         $dateEnd = date('Y-m-d', strtotime($post['date_end']));
@@ -1280,7 +1280,7 @@ class ApiHairStylistController extends Controller
             $res[] = $dt;
         }
 
-        return response()->json(['status' => 'success', 'result' => $res]);
+        return $res;
     }
 
     public function createCategory(Request $request){

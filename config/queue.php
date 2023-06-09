@@ -87,6 +87,13 @@ return [
             'queue' => 'refreshcommissionqueue',
             'retry_after' => 90,
         ],
+        
+        'refreshcheckstockqueue' => [
+            'driver' => 'database',
+            'table' => 'refresh_check_stock_queue',
+            'queue' => 'refreshcheckstockqueue',
+            'retry_after' => 90,
+        ],
 
         'outletqueue' => [
             'driver' => 'database',

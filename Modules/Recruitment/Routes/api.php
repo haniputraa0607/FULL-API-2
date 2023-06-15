@@ -29,7 +29,7 @@ Route::group(['middleware' => ['auth:api', 'scopes:be'], 'prefix' => 'hairstylis
     Route::post('income-mid', 'ApiIncome@cron_middle');
 //    Route::post('generate', 'ApiIncome@generate');
     Route::post('export-payroll', 'ApiExportIncome@newExport');
-//    Route::post('export-payroll/{id}', 'ApiExportIncome@exportPayroll');
+    Route::post('export-payroll/detail/{id}', 'ApiExportIncome@exportExcel');
     Route::get('export-payroll/delete/{id}', 'ApiExportIncome@deleteExport');
     Route::get('export-payroll/list', 'ApiExportIncome@index');
     

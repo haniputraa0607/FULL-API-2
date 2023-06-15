@@ -984,6 +984,7 @@ class ApiIncome extends Controller
                 $query->whereIn('id_user_hair_stylist', $transactions->pluck('id_user_hair_stylist')->unique())
                     ->orWhereIn('id_outlet', $request['id_outlet']);
             })
+            ->join('hairstylist_groups', 'hairstylist_groups.id_hairstylist_group','user_hair_stylist.id_hairstylist_group')
             ->where('user_hair_stylist_status', 'Active')
             ->orderBy('fullname')
             ->with('hairstylistCategory', 'bank_account')
@@ -1109,13 +1110,47 @@ class ApiIncome extends Controller
         $exportResults = [];
         foreach ($hairstylists as $hairstylist) {
             $hs = $hairstylist;
+            $periode = date('m', strtotime($request['end_date']));
+            $protec = HairstylistGroupProteksiAttendanceDefault::leftJoin('hairstylist_group_proteksi_attendances', function ($join) use ($hs) {
+                $join->on('hairstylist_group_proteksi_attendances.id_hairstylist_group_default_proteksi_attendance', 'hairstylist_group_default_proteksi_attendances.id_hairstylist_group_default_proteksi_attendance')
+                    ->where('id_hairstylist_group', $hs->id_hairstylist_group);
+            })
+                 ->where('month', $periode)
+                ->select('hairstylist_group_default_proteksi_attendances.id_hairstylist_group_default_proteksi_attendance','hairstylist_group_default_proteksi_attendances.month',
+                    DB::raw('
+                        CASE WHEN
+                        hairstylist_group_proteksi_attendances.value IS NOT NULL THEN hairstylist_group_proteksi_attendances.value ELSE hairstylist_group_default_proteksi_attendances.value
+                        END as value
+                     '),
+                DB::raw('
+                    CASE WHEN
+                    hairstylist_group_proteksi_attendances.amount IS NOT NULL THEN hairstylist_group_proteksi_attendances.amount ELSE hairstylist_group_default_proteksi_attendances.amount
+                    END as amount
+                 '),
+                DB::raw('
+                    CASE WHEN
+                    hairstylist_group_proteksi_attendances.amount_proteksi IS NOT NULL THEN hairstylist_group_proteksi_attendances.amount_proteksi ELSE hairstylist_group_default_proteksi_attendances.amount_proteksi
+                    END as amount_proteksi
+                 '),
+                DB::raw('
+                    CASE WHEN
+                    hairstylist_group_proteksi_attendances.amount_day IS NOT NULL THEN hairstylist_group_proteksi_attendances.amount_day ELSE hairstylist_group_default_proteksi_attendances.amount_day
+                    END as amount_day
+                 '),
+                )->first();
             $data = array(
                 'NIK'               => $hairstylist->user_hair_stylist_code,
                 'NAMA LENGKAP'      => $hairstylist->fullname,
                 'Nama Panggilan'    => $hairstylist->nickname,
                 'Jabatan'           => $hairstylist->hairstylistCategory->hairstylist_category_name,
                 'Join Date'         => date('d-M-Y',strtotime($hairstylist->join_date)),
+                'HS Group'          => $hairstylist->hair_stylist_group_name,
+                'Value Proteksi'          => $protec->value,
+                'Proteksi Attendance'     => $protec->amount,
+                'Proteksi Non Attendance' => $protec->amount_proteksi,
+                'Amount Per Day'          => $protec->amount_day,
             );
+            
             $hsTransactions = $transactionsByHS[$hairstylist->id_user_hair_stylist] ?? collect([]);
             $hsTransactionsByOutlet = $hsTransactions->groupBy('id_outlet');
             if ($hsTransactionsByOutlet->count() == 0) {
@@ -1233,7 +1268,7 @@ class ApiIncome extends Controller
         }
         $head = array_unique($b);
         $body = array();
-        $in_array = ["NIK","NAMA LENGKAP","Nama Panggilan","Jabatan","Join Date","Outlet","Keterangan","Bank","Bank account","Email"];
+        $in_array = ["NIK","NAMA LENGKAP","Nama Panggilan","Jabatan","Join Date","Outlet","HS Group","Value Proteksi","Proteksi Attendance","Proteksi Non Attendance","Amount Per Day","Keterangan","Bank","Bank account","Email"];
         foreach ($exportResults as $vab) {
             foreach($head as $v){
             if (in_array($v, $in_array)){
@@ -1296,6 +1331,7 @@ class ApiIncome extends Controller
                     ->orWhereIn('id_outlet', $request['id_outlet']);
             })
             ->where('user_hair_stylist_status', 'Active')
+            ->join('hairstylist_groups', 'hairstylist_groups.id_hairstylist_group','user_hair_stylist.id_hairstylist_group')
             ->orderBy('fullname')
             ->with('hairstylistCategory', 'bank_account')
             ->get();
@@ -1420,6 +1456,35 @@ class ApiIncome extends Controller
         $exportResults = [];
         foreach ($hairstylists as $hairstylist) {
             $hs = $hairstylist;
+            
+            $periode = date('m', strtotime($request['end_date']));
+            $protec = HairstylistGroupProteksiAttendanceDefault::leftJoin('hairstylist_group_proteksi_attendances', function ($join) use ($hs) {
+                $join->on('hairstylist_group_proteksi_attendances.id_hairstylist_group_default_proteksi_attendance', 'hairstylist_group_default_proteksi_attendances.id_hairstylist_group_default_proteksi_attendance')
+                    ->where('id_hairstylist_group', $hs->id_hairstylist_group);
+            })
+                 ->where('month', $periode)
+                ->select('hairstylist_group_default_proteksi_attendances.id_hairstylist_group_default_proteksi_attendance','hairstylist_group_default_proteksi_attendances.month',
+                    DB::raw('
+                        CASE WHEN
+                        hairstylist_group_proteksi_attendances.value IS NOT NULL THEN hairstylist_group_proteksi_attendances.value ELSE hairstylist_group_default_proteksi_attendances.value
+                        END as value
+                     '),
+                DB::raw('
+                    CASE WHEN
+                    hairstylist_group_proteksi_attendances.amount IS NOT NULL THEN hairstylist_group_proteksi_attendances.amount ELSE hairstylist_group_default_proteksi_attendances.amount
+                    END as amount
+                 '),
+                DB::raw('
+                    CASE WHEN
+                    hairstylist_group_proteksi_attendances.amount_proteksi IS NOT NULL THEN hairstylist_group_proteksi_attendances.amount_proteksi ELSE hairstylist_group_default_proteksi_attendances.amount_proteksi
+                    END as amount_proteksi
+                 '),
+                DB::raw('
+                    CASE WHEN
+                    hairstylist_group_proteksi_attendances.amount_day IS NOT NULL THEN hairstylist_group_proteksi_attendances.amount_day ELSE hairstylist_group_default_proteksi_attendances.amount_day
+                    END as amount_day
+                 '),
+                )->first();
             $data = array(
                 'NIK'               => $hairstylist->user_hair_stylist_code,
                 'NAMA LENGKAP'      => $hairstylist->fullname,
@@ -1427,6 +1492,11 @@ class ApiIncome extends Controller
                 'Jabatan'           => $hairstylist->hairstylistCategory->hairstylist_category_name,
                 'Join Date'         => date('d-M-Y',strtotime($hairstylist->join_date)),
                 'Outlet'            => '',
+                'HS Group'          => $hairstylist->hair_stylist_group_name,
+                'Value Proteksi'          => $protec->value,
+                'Proteksi Attendance'          => $protec->amount,
+                'Proteksi Non Attendance'          => $protec->amount_proteksi,
+                'Amount Per Day'          => $protec->amount_day,
             );
             $hsTransactions = $transactionsByHS[$hairstylist->id_user_hair_stylist] ?? collect([]);
             $hsTransactionsByOutlet = $hsTransactions->groupBy('id_outlet');
@@ -1524,7 +1594,7 @@ class ApiIncome extends Controller
         }
         $head = array_unique($b);
         $body = array();
-        $in_array = ["NIK","NAMA LENGKAP","Nama Panggilan","Jabatan","Join Date","Outlet","Keterangan","Bank","Bank account","Email"];
+        $in_array = ["NIK","NAMA LENGKAP","Nama Panggilan","Jabatan","Join Date","Outlet","HS Group","Value Proteksi","Proteksi Attendance","Proteksi Non Attendance","Amount Per Day","Keterangan","Bank","Bank account","Email"];
         foreach ($exportResults as $vab) {
             foreach($head as $v){
             if (in_array($v, $in_array)){

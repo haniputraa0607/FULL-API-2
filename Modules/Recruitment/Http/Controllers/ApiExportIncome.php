@@ -93,7 +93,7 @@ class ApiExportIncome extends Controller
     }
     public function exportExcel($queue){
         $id = $queue;
-    	$queue = ExportPayrollQueue::where('status_export', 'Running')->first();
+    	$queue = ExportPayrollQueue::where('status_export', 'Running')->where('id_export_payroll_queue',  $id)->first();
 		if (!$queue) {
     		return false;
     	}else{

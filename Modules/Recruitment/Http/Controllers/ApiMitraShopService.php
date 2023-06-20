@@ -78,6 +78,7 @@ class ApiMitraShopService extends Controller
     		'transaction_products.product.photos',
     		'transaction_products' => function($q) {
     			$q->where('type', 'Product');
+				$q->whereNull('reject_at');
     		}
     	]);
     	$trxPayment = app($this->trx_outlet_service)->transactionPayment($trx);
@@ -96,17 +97,20 @@ class ApiMitraShopService extends Controller
 
         $products = [];
         $subtotalProduct = 0;
+        $subtotalDiscountProduct = 0;
         foreach ($trxProduct as $product){
         	$productPhoto = config('url.storage_url_api') . ($product['product']['photos'][0]['product_photo'] ?? 'img/product/item/default.png');
             $products[] = [
                 'id_product' => $product['id_product'],
                 'product_name' => $product['product']['product_name'],
 				'qty' => $product['transaction_product_qty'],
-				'price' => $product['transaction_product_price'],
+				'price' => $product['transaction_product_net'],
 				'subtotal' => $product['transaction_product_subtotal'],
+				'discount' => $product['transaction_product_discount_all'],
 				'photo' => $productPhoto
             ];
             $subtotalProduct += abs($product['transaction_product_subtotal']);
+            $subtotalDiscountProduct += abs($product['transaction_product_discount_all']);
         }
 
     	$res = [
@@ -117,6 +121,8 @@ class ApiMitraShopService extends Controller
     		'transaction_payment_status' => $trx['transaction_payment_status'],
     		'payment_cash' => $paymentCash,
     		'product_subtotal' => $subtotalProduct,
+    		'product_discount' => $subtotalDiscountProduct,
+    		'product_price' => $subtotalProduct-$subtotalDiscountProduct,
     		'products' => $products
     	];
 
@@ -137,6 +143,10 @@ class ApiMitraShopService extends Controller
     		return ['status' => 'fail', 'messages' => ['Proses pembayaran belum selesai']];
     	}
 
+		if (!empty($trx->reject_type)) {
+    		return ['status' => 'fail', 'messages' => ['Transaksi sudah di reject']];
+    	}
+
     	if ($trx->id_outlet != $user->id_outlet) {
     		$outlet = Outlet::where('id_outlet', $trx->id_outlet)->first();
     		return ['status' => 'fail', 'messages' => ['Pengambilan barang hanya dapat dilakukan di outlet ' .$outlet->outlet_name]];
@@ -144,6 +154,7 @@ class ApiMitraShopService extends Controller
 
     	$trxProducts = TransactionProduct::where('id_transaction', $trx->id_transaction)
 						->where('type', 'Product')
+						->whereNull('reject_at')
 						->get();
 	
 		if (empty($trxProducts) || $trxProducts->isEmpty()) {
@@ -152,6 +163,7 @@ class ApiMitraShopService extends Controller
 		$trxProducts = TransactionProduct::where('id_transaction', $trx->id_transaction)
 						->where('type', 'Product')
 						->whereNull('id_user_hair_stylist')
+						->whereNull('reject_at')
 						->get();
 	
 		if (empty($trxProducts) || $trxProducts->isEmpty()) {
@@ -177,7 +189,7 @@ class ApiMitraShopService extends Controller
                                             ]);
 					$dt = [
 						'id_user_hair_stylist'    => $user->id_user_hair_stylist,
-						'balance'                 => $product['transaction_product_subtotal'],
+						'balance'                 => $product['transaction_product_net']-$product['transaction_product_discount_all'],
 						'id_reference'            => $product['id_transaction_product'],
 						'source'                  => 'Receive Payment'
 					];

@@ -78,6 +78,7 @@ class ApiMitraShopService extends Controller
     		'transaction_products.product.photos',
     		'transaction_products' => function($q) {
     			$q->where('type', 'Product');
+				$q->whereNull('reject_at');
     		}
     	]);
     	$trxPayment = app($this->trx_outlet_service)->transactionPayment($trx);
@@ -142,6 +143,10 @@ class ApiMitraShopService extends Controller
     		return ['status' => 'fail', 'messages' => ['Proses pembayaran belum selesai']];
     	}
 
+		if (!empty($trx->reject_type)) {
+    		return ['status' => 'fail', 'messages' => ['Transaksi sudah di reject']];
+    	}
+
     	if ($trx->id_outlet != $user->id_outlet) {
     		$outlet = Outlet::where('id_outlet', $trx->id_outlet)->first();
     		return ['status' => 'fail', 'messages' => ['Pengambilan barang hanya dapat dilakukan di outlet ' .$outlet->outlet_name]];
@@ -149,6 +154,7 @@ class ApiMitraShopService extends Controller
 
     	$trxProducts = TransactionProduct::where('id_transaction', $trx->id_transaction)
 						->where('type', 'Product')
+						->whereNull('reject_at')
 						->get();
 	
 		if (empty($trxProducts) || $trxProducts->isEmpty()) {
@@ -157,6 +163,7 @@ class ApiMitraShopService extends Controller
 		$trxProducts = TransactionProduct::where('id_transaction', $trx->id_transaction)
 						->where('type', 'Product')
 						->whereNull('id_user_hair_stylist')
+						->whereNull('reject_at')
 						->get();
 	
 		if (empty($trxProducts) || $trxProducts->isEmpty()) {

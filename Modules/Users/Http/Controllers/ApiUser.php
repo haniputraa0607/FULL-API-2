@@ -2951,6 +2951,8 @@ class ApiUser extends Controller
 
         try {
             
+            set_time_limit(30);
+
             $queryApps = LogActivitiesApps::where('phone', '=', $post['phone'])
                 ->orderBy('id_log_activities_apps', 'desc')
                 ->select('id_log_activities_apps', 'response_status', 'ip', 'created_at', 'subject', 'useragent', 'module');

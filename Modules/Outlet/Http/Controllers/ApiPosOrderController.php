@@ -887,6 +887,7 @@ class ApiPosOrderController extends Controller
             ]);
         }
         
+        $outlet_code = $post['outlet_code'];
         unset($post['outlet_code']);
 
         if(empty($post['item_service']) && empty($post['item'])){
@@ -1670,6 +1671,14 @@ class ApiPosOrderController extends Controller
         $insertTransaction['cancel_message'] = 'Are you sure you want to cancel this transaction?';
         $insertTransaction['timer_shopeepay'] = (int) MyHelper::setting('shopeepay_validity_period','value', 300);
         $insertTransaction['message_timeout_shopeepay'] = "Sorry, your payment has expired";
+
+        return $this->confirmTransaction([
+            'id' => $insertTransaction['id_transaction'],
+            'outlet_code' => $outlet_code,
+            'payment_detail' => $post['payment_detail'],
+            'payment_type' => $post['payment_type'],
+            'phone' => $post['phone'],
+        ]);
         return response()->json([
             'status'   => 'success',
             'redirect' => true,
@@ -1677,10 +1686,10 @@ class ApiPosOrderController extends Controller
         ]);
     }
 
-    public function confirmTransaction(Request $request){
+    public function confirmTransaction($request){
 
         DB::beginTransaction();
-        $post = $request->json()->all();
+        $post = $request;
         
         if(!empty($post['outlet_code'])){
             $outlet = Outlet::join('cities', 'cities.id_city', 'outlets.id_city')
@@ -3281,5 +3290,13 @@ class ApiPosOrderController extends Controller
             'result' => $products,
         ]);
 
+        
+    }
+
+    public function desc(Request $request){
+        $post = $request->json()->all();
+
+        $data = MyHelper::decrypt2019($post['desc']);
+        return json_decode($data??'' , true);
     }
 }

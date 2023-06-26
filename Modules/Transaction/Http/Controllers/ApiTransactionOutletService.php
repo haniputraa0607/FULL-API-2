@@ -125,7 +125,7 @@ class ApiTransactionOutletService extends Controller
                 ->leftJoin('transaction_payment_midtrans', 'transactions.id_transaction', '=', 'transaction_payment_midtrans.id_transaction')
                 ->leftJoin('transaction_payment_xendits', 'transactions.id_transaction', '=', 'transaction_payment_xendits.id_transaction')
 	            ->leftJoin('products','products.id_product','=','transaction_products.id_product')
-	            ->with('user')
+	            ->with(['user','transaction_outlet_service'])
 	            ->select(
 	            	'transaction_product_services.*',
 	            	'transaction_outlet_services.*',

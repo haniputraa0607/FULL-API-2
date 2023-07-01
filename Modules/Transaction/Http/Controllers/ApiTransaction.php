@@ -7540,7 +7540,8 @@ class ApiTransaction extends Controller
                 $statusCompleted = true;
             }
         }
-
+$completed = $trx->triggerPaymentCompletedFromCancelled();
+            return response()->json(MyHelper::checkUpdate($completed));
         if($statusCompleted){
             $completed = $trx->triggerPaymentCompletedFromCancelled();
             return response()->json(MyHelper::checkUpdate($completed));

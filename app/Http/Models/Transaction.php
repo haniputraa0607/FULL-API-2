@@ -10,6 +10,7 @@ namespace App\Http\Models;
 use Illuminate\Database\Eloquent\Model;
 use App\Lib\MyHelper;
 use App\Jobs\FraudJob;
+use App\Jobs\QueueService;
 use Modules\PromoCampaign\Entities\PromoCampaignPromoCode;
 use Modules\PromoCampaign\Entities\UserPromo;
 use Modules\Transaction\Entities\TransactionAcademy;
@@ -447,24 +448,33 @@ class Transaction extends Model
 			$transaction_product_service->breakdown();
         });
 
+		app('\Modules\Transaction\Http\Controllers\ApiNotification')->notification($mid, $trx);
+
+        \DB::commit();
+
 		if(isset($trx->transaction_product_services)){
 			$trx->transaction_product_services->each(function($service,$index) use($trx){
 				$product = $service->transaction_product->product;
-				$queue = \Modules\Transaction\Entities\TransactionProductService::join('transactions','transactions.id_transaction','transaction_product_services.id_transaction')->whereDate('schedule_date', date('Y-m-d',strtotime($service->schedule_date)))->where('id_outlet',$trx->id_outlet)->where('transaction_product_services.id_transaction', '<>', $trx->id_transaction)->max('queue') + 1;
-				if($queue<10){
-					$queue_code = '[00'.$queue.'] - '.$product->product_name;
-				}elseif($queue<100){
-					$queue_code = '[0'.$queue.'] - '.$product->product_name;
-				}else{
-					$queue_code = '['.$queue.'] - '.$product->product_name;
-				}
-				$service->update(['queue'=>$queue,'queue_code'=>$queue_code]);
+				$send = [
+					'trx' => $trx,
+					'service' => $service,
+					'product' => $product,
+				];
+				$refresh = QueueService::dispatch($send)->onConnection('queueservicequeue');
+
+				// $queue = \Modules\Transaction\Entities\TransactionProductService::join('transactions','transactions.id_transaction','transaction_product_services.id_transaction')->whereDate('schedule_date', date('Y-m-d',strtotime($service->schedule_date)))->where('id_outlet',$trx->id_outlet)->where('transaction_product_services.id_transaction', '<>', $trx->id_transaction)->max('queue') + 1;
+				// if($queue<10){
+				// 	$queue_code = '[00'.$queue.'] - '.$product->product_name;
+				// }elseif($queue<100){
+				// 	$queue_code = '[0'.$queue.'] - '.$product->product_name;
+				// }else{
+				// 	$queue_code = '['.$queue.'] - '.$product->product_name;
+				// }
+				// $service->update(['queue'=>$queue,'queue_code'=>$queue_code]);
 			});
 		}
 
-        app('\Modules\Transaction\Http\Controllers\ApiNotification')->notification($mid, $trx);
-
-        \DB::commit();
+        
     	return true;
     }
 
@@ -568,9 +578,27 @@ class Transaction extends Model
             $transaction_product->breakdown();
         });
 
-        app('\Modules\Transaction\Http\Controllers\ApiNotification')->notification($mid, $trx);
+		$trx->productServiceTransaction->each(function($transaction_product_service,$index) use($trx){
+			$transaction_product_service->breakdown();
+        });
+
+		app('\Modules\Transaction\Http\Controllers\ApiNotification')->notification($mid, $trx);
 
         \DB::commit();
+		
+		if(isset($trx->transaction_product_services)){
+			$trx->transaction_product_services->each(function($service,$index) use($trx){
+				$product = $service->transaction_product->product;
+				$send = [
+					'trx' => $trx,
+					'service' => $service,
+					'product' => $product,
+				];
+				$refresh = QueueService::dispatch($send)->onConnection('queueservicequeue');
+			});
+		}
+
+        
         return true;
     }
 

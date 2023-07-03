@@ -108,6 +108,7 @@ use Modules\Transaction\Http\Requests\Transaction\ConfirmPayment;
 use Modules\Transaction\Http\Requests\CheckTransaction;
 use Modules\ProductVariant\Entities\ProductVariant;
 use App\Http\Models\TransactionMultiplePayment;
+use App\Jobs\QueueService;
 use Modules\ProductBundling\Entities\Bundling;
 use Modules\Transaction\Entities\HairstylistNotAvailable;
 use Modules\Xendit\Entities\TransactionPaymentXendit;
@@ -1958,6 +1959,18 @@ class ApiOnlineTransaction extends Controller
             ];
             DailyTransactions::create($dataDailyTrx);
             DB::commit();
+
+            if(!empty($post['item_service'])){
+                $trxProductService = TransactionProductService::with(['transaction_product.product'])->where('id_transaction', $insertTransaction['id_transaction'])->get();
+                foreach($trxProductService ?? [] as $trxproserv){
+                    $send = [
+                        'trx' => $insertTransaction,
+                        'service' => $trxproserv,
+                        'product' => $trxproserv['transaction_product']['product'],
+                    ];
+				    $refresh = QueueService::dispatch($send)->onConnection('queueservicequeue');
+                }
+            }
 
             $trx = Transaction::where('id_transaction', $insertTransaction['id_transaction'])->first();
             app($this->online_trx)->bookProductStock($trx['id_transaction']);
@@ -5256,27 +5269,27 @@ class ApiOnlineTransaction extends Controller
                 // $timeZone = $outlet['province_time_zone_utc'] - 7;
                 // $bookTime = date('H:i:s', strtotime('-'.$timeZone.' hours', strtotime($itemProduct['booking_time'])));
     
-                if(isset($payment_type) && $payment_type == 'Cash'){
-                    $queue = TransactionProductService::join('transactions','transactions.id_transaction','transaction_product_services.id_transaction')->whereDate('schedule_date', date('Y-m-d', strtotime($itemProduct['booking_date'])))->where('id_outlet',$trx['id_outlet'])->where('transaction_product_services.id_transaction', '<>', $trx['id_transaction'])->max('queue') + 1;
-                    if($queue<10){
-                        $queue_code = '[00'.$queue.'] - '.$product['product_name'];
-                    }elseif($queue<100){
-                        $queue_code = '[0'.$queue.'] - '.$product['product_name'];
-                    }else{
-                        $queue_code = '['.$queue.'] - '.$product['product_name'];
-                    }
-                }else{
-                    $queue = null;
-                    $queue_code = null;
-                }
+                // if(isset($payment_type) && $payment_type == 'Cash'){
+                //     $queue = TransactionProductService::join('transactions','transactions.id_transaction','transaction_product_services.id_transaction')->whereDate('schedule_date', date('Y-m-d', strtotime($itemProduct['booking_date'])))->where('id_outlet',$trx['id_outlet'])->where('transaction_product_services.id_transaction', '<>', $trx['id_transaction'])->max('queue') + 1;
+                //     if($queue<10){
+                //         $queue_code = '[00'.$queue.'] - '.$product['product_name'];
+                //     }elseif($queue<100){
+                //         $queue_code = '[0'.$queue.'] - '.$product['product_name'];
+                //     }else{
+                //         $queue_code = '['.$queue.'] - '.$product['product_name'];
+                //     }
+                // }else{
+                //     $queue = null;
+                //     $queue_code = null;
+                // }
 
                 $product_service = TransactionProductService::create([
                     'order_id' => $order_id,
                     'id_transaction' => $trx['id_transaction'],
                     'id_transaction_product' => $trx_product['id_transaction_product'],
                     'schedule_date' => date('Y-m-d', strtotime($itemProduct['booking_date'])),
-                    'queue' => $queue,
-                    'queue_code' => $queue_code,
+                    // 'queue' => $queue,
+                    // 'queue_code' => $queue_code,
                 ]);
 
                 if (!$product_service) {

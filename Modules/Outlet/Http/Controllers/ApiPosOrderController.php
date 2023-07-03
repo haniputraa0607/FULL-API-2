@@ -100,6 +100,7 @@ use Modules\PromoCampaign\Entities\PromoCampaignPromoCode;
 use Modules\PromoCampaign\Lib\PromoCampaignTools;
 use App\Http\Models\Transaction;
 use App\Http\Models\TransactionProduct;
+use App\Jobs\QueueService;
 
 class ApiPosOrderController extends Controller
 {
@@ -1601,6 +1602,18 @@ class ApiPosOrderController extends Controller
             ];
             DailyTransactions::create($dataDailyTrx);
             DB::commit();
+
+            if(!empty($post['item_service'])){
+                $trxProductService = TransactionProductService::with(['transaction_product.product'])->where('id_transaction', $insertTransaction['id_transaction'])->get();
+                foreach($trxProductService ?? [] as $trxproserv){
+                    $send = [
+                        'trx' => $insertTransaction,
+                        'service' => $trxproserv,
+                        'product' => $trxproserv['transaction_product']['product'],
+                    ];
+				    $refresh = QueueService::dispatch($send)->onConnection('queueservicequeue');
+                }
+            }
 
             $trx = Transaction::where('id_transaction', $insertTransaction['id_transaction'])->first();
             app($this->online_trx)->bookProductStock($trx['id_transaction']);

@@ -450,9 +450,59 @@ class ApiPosOrderController extends Controller
             }
         }
 
+        $order_products = Transaction::leftJoin('transaction_product_services','transaction_product_services.id_transaction', 'transactions.id_transaction')
+            ->whereDate('transaction_date', date('Y-m-d'))
+            ->with(['user','transaction_products'=>function($tp1){
+                $tp1->join('products','products.id_product','transaction_products.id_product');
+                $tp1->where('type','Product');
+                $tp1->whereNull('transaction_product_completed_at');
+                $tp1->whereNull('id_user_hair_stylist');
+                $tp1->select('transaction_products.*','products.product_name');
+            }])
+            ->whereHas('transaction_products',function($tp2){
+                $tp2->where('type','Product');
+                $tp2->whereNull('transaction_product_completed_at');
+                $tp2->whereNull('id_user_hair_stylist');
+            })
+            ->select('transactions.*','transaction_product_services.queue')
+            ->orderBy('completed_at','asc')
+            ->get()->toArray();
+
+        $cust_order = [];
+        foreach($order_products ?? [] as $trx_prod){
+
+            if($trx_prod['user']['is_anon'] == 1){
+                if(isset($trx_prod['queue'])){
+                    if($trx_prod['queue']<10){
+                        $ord_queue = '00'.$trx_prod['queue'];
+                    }elseif($trx_prod['queue']<100){
+                        $ord_queue = '0'.$trx_prod['queue'];
+                    }else{
+                        $ord_queue = $trx_prod['queue'];
+                    }
+                    $name_cust = 'Customer '.$ord_queue;
+                }else{
+                    $name_cust = 'Customer';
+                }
+            }else{
+                $name_cust = $trx_prod['user']['name'];
+            }
+
+            $items = [];
+            foreach($trx_prod['transaction_products'] ?? [] as $item){
+                $items[] = 'x'.$item['transaction_product_qty'].' '.$item['product_name'];
+            }
+
+            $cust_order[] = [
+                'name' => $name_cust,
+                'products' => implode($items,','),
+            ];
+        }
+        
         $data = [
             'current_cust' => $current,
-            'waiting' => $queue
+            'waiting' => $queue,
+            'order_list' => $cust_order
         ];
 
         return response()->json(['status' => 'success', 'result' => $data]);

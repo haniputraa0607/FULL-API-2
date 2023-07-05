@@ -82,13 +82,13 @@ class FraudJob implements ShouldQueue
                 $pointValue = 0;
 
 
-                if ($countTrxDay > $fraudTrxDay['parameter_detail']??0 && isset($fraudTrxDay)) {
+                if ($countTrxDay > $fraudTrxDay['parameter_detail']??0 && isset($fraudTrxDay['parameter_detail'])) {
                     $dataUpdate = [
                         'fraud_flag' => 'transaction day',
                         'transaction_point_earned' => NULL,
                         'transaction_cashback_earned' => NULL,
                     ];
-                } elseif ($countTrxWeek > $fraudTrxWeek['parameter_detail']??0 && isset($fraudTrxWeek)) {
+                } elseif ($countTrxWeek > $fraudTrxWeek['parameter_detail']??0 && isset($fraudTrxWeek['parameter_detail'])) {
                     $dataUpdate = [
                         'fraud_flag' => 'transaction week',
                         'transaction_point_earned' => NULL,

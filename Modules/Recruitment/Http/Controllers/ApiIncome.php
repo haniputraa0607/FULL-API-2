@@ -1144,11 +1144,11 @@ class ApiIncome extends Controller
                 'Nama Panggilan'    => $hairstylist->nickname,
                 'Jabatan'           => $hairstylist->hairstylistCategory->hairstylist_category_name,
                 'Join Date'         => date('d-M-Y',strtotime($hairstylist->join_date)),
-                'HS Group'          => $hairstylist->hair_stylist_group_name,
-                'Value Proteksi'          => $protec->value,
-                'Proteksi Attendance'     => $protec->amount,
-                'Proteksi Non Attendance' => $protec->amount_proteksi,
-                'Amount Per Day'          => $protec->amount_day,
+                'Brand'             => $hairstylist->hair_stylist_group_name,
+                'Brand Salary Protection'      => $protec->amount_proteksi,
+                'Brand Salary'      => $protec->amount,
+                'Brand Salary Per Day' => $protec->amount_day,
+                'Brand Attendance' => $protec->amount_day,
             );
             
             $hsTransactions = $transactionsByHS[$hairstylist->id_user_hair_stylist] ?? collect([]);
@@ -1492,11 +1492,11 @@ class ApiIncome extends Controller
                 'Jabatan'           => $hairstylist->hairstylistCategory->hairstylist_category_name,
                 'Join Date'         => date('d-M-Y',strtotime($hairstylist->join_date)),
                 'Outlet'            => '',
-                'HS Group'          => $hairstylist->hair_stylist_group_name,
-                'Value Proteksi'          => $protec->value,
-                'Proteksi Attendance'          => $protec->amount,
-                'Proteksi Non Attendance'          => $protec->amount_proteksi,
-                'Amount Per Day'          => $protec->amount_day,
+                'Brand'             => $hairstylist->hair_stylist_group_name,
+                'Brand Salary Protection'      => $protec->amount_proteksi,
+                'Brand Salary'      => $protec->amount,
+                'Brand Salary Per Day' => $protec->amount_day,
+                'Brand Attendance' => $protec->amount_day,
             );
             $hsTransactions = $transactionsByHS[$hairstylist->id_user_hair_stylist] ?? collect([]);
             $hsTransactionsByOutlet = $hsTransactions->groupBy('id_outlet');

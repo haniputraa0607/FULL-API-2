@@ -2646,7 +2646,11 @@ class HairstylistIncome extends Model
                             }
                     }
                     if($total_timeoff>0||$total_late>0||$total_absen>0){
-                        $nominals = $incentive->amount;
+                        $nominals = $total_attend * $incentive->amount_day;
+                        if($incentive->amount??0 > $nominals){
+                            $nominals = $incentive->amount;
+                        }
+                        $nominals = $total_attend * $incentive->amount_day;
                     }
                     $incentives = HairstylistGroupOvertimeDayDefault::leftJoin('hairstylist_group_overtime_days', function ($join) use ($hs) {
                 $join->on('hairstylist_group_overtime_days.id_hairstylist_group_default_overtime_day', 'hairstylist_group_default_overtime_days.id_hairstylist_group_default_overtime_day')

@@ -1072,22 +1072,26 @@ class ApiMitra extends Controller
 			]);
 			if($transferPayment){
 				$update = TransactionPaymentCash::whereIn('id_transaction', $idTransaction)->update(['id_outlet_cash' => $transferPayment['id_outlet_cash']]);
-                                foreach($idTransactionProduct as $value){
-                                        $transaction_product = TransactionProduct::where('id_transaction_product',$value)->first();
-                                        if($transaction_product){
-                                            $paymentcash = TransactionPaymentCash::where('id_transaction', $transaction_product->id_transaction)->first();
-                                            if($transaction_product){
-                                                $updates = TransactionPaymentCashDetail::updateOrCreate([
-                                                    'id_transaction_payment_cash'=>$paymentcash->id_transaction_payment_cash,
-                                                    'id_transaction_product'=>$transaction_product['id_transaction_product'],
-                                                    'cash_received_by'=>$user->id_user_hair_stylist,
-                                                ],[
-                                                    'id_outlet_cash'=>$transferPayment['id_outlet_cash'],
-                                                ]);
-                                                $update_product = 1;
-                                            }
-                                        }
-                                }
+				foreach($idTransactionProduct as $value){
+						$transaction_product = TransactionProduct::where('id_transaction_product',$value)->first();
+						if($transaction_product){
+							$paymentcash = TransactionPaymentCash::where('id_transaction', $transaction_product->id_transaction)->first();
+							if($transaction_product){
+								$paymentCashDetail = TransactionPaymentCashDetail::where('id_transaction_payment_cash',$paymentcash['id_transaction_payment_cash'])->where('id_transaction_product',$transaction_product['id_transaction_product'])->where('cash_received_by',$user->id_user_hair_stylist)->first();
+								if($paymentCashDetail){
+									$updatepaymentCashDetail = TransactionPaymentCashDetail::where('id_transaction_payment_cash_detail',$paymentCashDetail['id_transaction_payment_cash_detail'])->update(['id_outlet_cash'=>$transferPayment['id_outlet_cash']]);
+								}else{
+									$createpaymentCashDetail = TransactionPaymentCashDetail::create([
+										'id_transaction_payment_cash'=>$paymentcash['id_transaction_payment_cash'],
+										'id_transaction_product'=>$transaction_product['id_transaction_product'],
+										'cash_received_by'=>$user->id_user_hair_stylist,
+										'id_outlet_cash'=>$transferPayment['id_outlet_cash'],
+									]);
+								}
+								$update_product = 1;
+							}
+						}
+				}
 				if($update||$update_product){
 					$dt = [
 						'id_user_hair_stylist'    => $user->id_user_hair_stylist,

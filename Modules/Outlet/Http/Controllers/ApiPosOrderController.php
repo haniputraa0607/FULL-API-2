@@ -452,20 +452,25 @@ class ApiPosOrderController extends Controller
 
         $order_products = Transaction::leftJoin('transaction_product_services','transaction_product_services.id_transaction', 'transactions.id_transaction')
             ->whereDate('transaction_date', date('Y-m-d'))
+            ->whereNotNull('transactions.completed_at')
+            ->where('transaction_payment_status', 'Completed')
             ->with(['user','transaction_products'=>function($tp1){
                 $tp1->join('products','products.id_product','transaction_products.id_product');
                 $tp1->where('type','Product');
                 $tp1->whereNull('transaction_product_completed_at');
+                $tp1->whereNull('reject_at');
                 $tp1->whereNull('id_user_hair_stylist');
                 $tp1->select('transaction_products.*','products.product_name');
             }])
             ->whereHas('transaction_products',function($tp2){
                 $tp2->where('type','Product');
                 $tp2->whereNull('transaction_product_completed_at');
+                $tp2->whereNull('reject_at');
                 $tp2->whereNull('id_user_hair_stylist');
             })
             ->select('transactions.*','transaction_product_services.queue')
             ->orderBy('completed_at','asc')
+            ->groupBy('transactions.id_transaction')
             ->get()->toArray();
 
         $cust_order = [];
@@ -494,8 +499,9 @@ class ApiPosOrderController extends Controller
             }
 
             $cust_order[] = [
+                'id_transaction' => $trx_prod['id_transaction'],
                 'name' => $name_cust,
-                'products' => implode($items,','),
+                'products' => implode(', ', $items),
             ];
         }
         

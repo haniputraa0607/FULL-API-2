@@ -1144,11 +1144,6 @@ class ApiIncome extends Controller
                 'Nama Panggilan'    => $hairstylist->nickname,
                 'Jabatan'           => $hairstylist->hairstylistCategory->hairstylist_category_name,
                 'Join Date'         => date('d-M-Y',strtotime($hairstylist->join_date)),
-                'Brand'             => $hairstylist->hair_stylist_group_name,
-                'Brand Salary Protection'      => $protec->amount_proteksi,
-                'Brand Salary'      => $protec->amount,
-                'Brand Salary Per Day' => $protec->amount_day,
-                'Brand Attendance' => $protec->amount_day,
             );
             
             $hsTransactions = $transactionsByHS[$hairstylist->id_user_hair_stylist] ?? collect([]);
@@ -1190,8 +1185,11 @@ class ApiIncome extends Controller
             }
             
             $data['Hari Masuk'] = (string) $hari_masuk;
-
-            $data['Total gross sale'] = (string) $total_gross_sale;
+            $data['Brand'] = $hairstylist->hair_stylist_group_name;
+                $data['Brand Protection Attendace'] = $protec->value;
+                $data['Brand Salary Protection'] = $protec->amount_proteksi;
+                $data['Brand Salary'] =  $protec->amount;
+                $data['Brand Salary Per Day'] = $protec->amount_day * (int)$hari_masuk;
 
 
             $data['Total commission'] = (string) $total_commissions;
@@ -1492,11 +1490,6 @@ class ApiIncome extends Controller
                 'Jabatan'           => $hairstylist->hairstylistCategory->hairstylist_category_name,
                 'Join Date'         => date('d-M-Y',strtotime($hairstylist->join_date)),
                 'Outlet'            => '',
-                'Brand'             => $hairstylist->hair_stylist_group_name,
-                'Brand Salary Protection'      => $protec->amount_proteksi,
-                'Brand Salary'      => $protec->amount,
-                'Brand Salary Per Day' => $protec->amount_day,
-                'Brand Attendance' => $protec->amount_day,
             );
             $hsTransactions = $transactionsByHS[$hairstylist->id_user_hair_stylist] ?? collect([]);
             $hsTransactionsByOutlet = $hsTransactions->groupBy('id_outlet');
@@ -1513,7 +1506,12 @@ class ApiIncome extends Controller
                 $total_absen = $all_absens[$hs->id_user_hair_stylist][$id_outlet]['total'] ?? '0';
                 $total_overtimes = $all_overtimes[$hs->id_user_hair_stylist][$id_outlet] ?? '0';
                 $data['Hari Masuk'] = (string) $total_attend;
-
+                $data['Brand'] = $hairstylist->hair_stylist_group_name;
+                $data['Brand Protection Attendace'] = $protec->value;
+                $data['Brand Salary Protection'] = $protec->amount_proteksi;
+                $data['Brand Salary'] =  $protec->amount;
+                $data['Brand Salary Per Day'] = $protec->amount_day * (int)$total_attend;
+                
                 $data['Total gross sale'] = (string) $outletTransactions->sum('transaction_product_subtotal');
 
                 $total_income = 0;

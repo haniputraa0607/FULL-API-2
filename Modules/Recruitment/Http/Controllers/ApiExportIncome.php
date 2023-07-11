@@ -105,7 +105,7 @@ class ApiExportIncome extends Controller
     	$data['type_export'] =  $queue['type_export'];
         $data = app('Modules\Recruitment\Http\Controllers\ApiIncome')->export_periode($data);
         if (isset($data['status']) && $data['status'] == "success") {
-               $excelFile = 'Export_'.$queue['type_export'].'_'.strtotime(date('Y-m-d H:i:s')).mt_rand(0, 1000).time().'.xlsx';
+               $excelFile = 'Export_'.strtotime(date('Y-m-d H:i:s')).mt_rand(0, 1000).time().'.xlsx';
                 $directory = 'hairstylist/export-payroll/'.$excelFile;
                 $dataExport = $data['result'];
                $store = (new PayrollExport($dataExport))->store($directory, null, null, ['visibility' => 'public']);

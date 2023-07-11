@@ -49,6 +49,7 @@ use Modules\Product\Entities\UnitIcount;
 use Modules\Product\Entities\ProductIcount;
 use Modules\Product\Entities\ProductIcountOutletStock;
 use Modules\Transaction\Entities\TransactionPaymentCashDetail;
+use App\Http\Models\User;
 
 class ApiMitraOutletService extends Controller
 {
@@ -2718,5 +2719,117 @@ class ApiMitraOutletService extends Controller
             DB::rollBack();
             $log->fail($e->getMessage());
         } 
+	}
+
+	public function cronCompleteService(){
+		$log = MyHelper::logCron('Cron Complete Service');
+        try{
+
+			$transaction_ser = TransactionProductService::join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+			->join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
+			->join('outlet_box', 'transaction_product_services.id_outlet_box', 'outlet_box.id_outlet_box')
+			->where('transaction_product_services.service_status', 'In Progress')
+			->whereNotNull('transaction_product_services.id_user_hair_stylist')
+			->whereNotNull('transaction_product_services.id_outlet_box')
+			->whereNull('transaction_products.reject_at')
+			->whereNull('transaction_products.transaction_product_completed_at')
+			->select(
+				'transaction_product_services.*',
+				'transactions.*',
+				'outlet_box.*',
+				'transaction_products.id_transaction_product',
+				'transaction_products.reject_at',
+				'transaction_products.transaction_product_completed_at',
+				'transaction_products.id_product',
+			)
+			->get()->toArray();
+
+			foreach($transaction_ser ?? [] as $key => $service){
+
+				try{
+
+					$user_hs = UserHairStylist::where('id_user_hair_stylist', $service['id_user_hair_stylist'])->first();
+					$user = User::where('id', $service['id_user'])->first();
+					$outlet = Outlet::where('id_outlet', $service['id_outlet'])->first();
+
+					TransactionProductServiceLog::create([
+						'id_transaction_product_service' => $service['id_transaction_product_service'],
+						'action' => 'Complete'
+					]);
+
+					$update = TransactionProductService::where('id_transaction_product_service', $service['id_transaction_product_service'])->update([
+						'service_status' => 'Completed',
+						'completed_at' => date('Y-m-d H:i:s')
+					]);
+
+					TransactionProduct::where('id_transaction_product', $service['id_transaction_product'])
+					->update([
+						'transaction_product_completed_at' => date('Y-m-d H:i:s')
+					]);
+
+					$outlet_box = OutletBox::where('id_outlet_box', $service['id_outlet_box'])->update(['outlet_box_use_status' => 0]);
+
+					HairstylistNotAvailable::where('id_transaction_product_service', $service['id_transaction_product_service'])->delete();
+
+					UserRatingLog::updateOrCreate([
+						'id_user' => $service['id_user'],
+						'id_transaction' => $service['id_transaction'],
+						'id_outlet' => $service['id_outlet']
+					],[
+						'refuse_count' => 0,
+						'last_popup' => date('Y-m-d H:i:s', time() - MyHelper::setting('popup_min_interval', 'value', 900))
+					]);
+
+					UserRatingLog::updateOrCreate([
+						'id_user' => $service['id_user'],
+						'id_transaction' => $service['id_transaction'],
+						'id_transaction_product_service' => $service['id_transaction_product_service'],
+						'id_user_hair_stylist' => $service['id_user_hair_stylist']
+					],[
+						'refuse_count' => 0,
+						'last_popup' => date('Y-m-d H:i:s', time() - MyHelper::setting('popup_min_interval', 'value', 900))
+					]);
+
+					Transaction::where('id_transaction', $service['id_transaction'])->update(['show_rate_popup' => '1']);
+
+					// notif hairstylist
+					app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
+						'Mitra HS - Transaction Service Completed',
+						$user_hs['phone_number'],
+						[
+							'date' => $service['transaction_date'],
+							'outlet_name' => $outlet['outlet_name'],
+							'detail' => $detail ?? null,
+							'receipt_number' => $service['transaction_receipt_number'],
+							'order_id' => $service['order_id']
+						], null, false, false, 'hairstylist'
+					);
+
+					// notif user customer
+					$tes = app('Modules\Autocrm\Http\Controllers\ApiAutoCrm')->SendAutoCRM(
+						'Transaction Service Completed', 
+						$user['phone'], 
+						[
+							'date' => $service['transaction_date'],
+							'outlet_name' => $outlet['outlet_name'],
+							'detail' => $detail ?? null,
+							'receipt_number' => $service['transaction_receipt_number'],
+							'order_id' => $service['order_id'],
+							'service_name' => Product::where('id_product', $service['id_product'])->first()['product_name']??''
+						]
+					);
+
+					$this->completeTransaction($service['id_transaction']);
+					app($this->refund)->refundNotFullPayment($service['id_transaction']);
+
+
+				} catch (\Exception $e) {
+					\Log::error($e->getMessage());
+				}
+			}
+		}catch (\Exception $e) {
+            $log->fail($e->getMessage());
+        } 
+
 	}
 }

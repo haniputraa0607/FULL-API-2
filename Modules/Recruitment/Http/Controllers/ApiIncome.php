@@ -1186,10 +1186,10 @@ class ApiIncome extends Controller
             
             $data['Hari Masuk'] = (string) $hari_masuk;
             $data['Brand'] = $hairstylist->hair_stylist_group_name;
-                $data['Brand Protection Attendace'] = $protec->value;
-                $data['Brand Salary Protection'] = $protec->amount_proteksi;
-                $data['Brand Salary'] =  $protec->amount;
-                $data['Brand Salary Per Day'] = $protec->amount_day * (int)$hari_masuk;
+            $data['Brand Protection Attendace'] = $protec->value;
+            $data['Brand Salary Protection'] = $protec->amount_proteksi;
+            $data['Brand Salary'] =  $protec->amount;
+            $data['Brand Salary Per Day'] = $protec->amount_day * (int)$hari_masuk;
 
 
             $data['Total commission'] = (string) $total_commissions;
@@ -1266,7 +1266,7 @@ class ApiIncome extends Controller
         }
         $head = array_unique($b);
         $body = array();
-        $in_array = ["NIK","NAMA LENGKAP","Nama Panggilan","Jabatan","Join Date","Outlet","HS Group","Value Proteksi","Proteksi Attendance","Proteksi Non Attendance","Amount Per Day","Keterangan","Bank","Bank account","Email"];
+        $in_array = ["NIK","NAMA LENGKAP","Nama Panggilan","Jabatan","Join Date","Outlet","Brand","Brand Protection Attendace","Brand Salary Protection","Brand Salary","Brand Salary Per Day","Keterangan","Bank","Bank account","Email"];
         foreach ($exportResults as $vab) {
             foreach($head as $v){
             if (in_array($v, $in_array)){
@@ -1592,7 +1592,7 @@ class ApiIncome extends Controller
         }
         $head = array_unique($b);
         $body = array();
-        $in_array = ["NIK","NAMA LENGKAP","Nama Panggilan","Jabatan","Join Date","Outlet","HS Group","Value Proteksi","Proteksi Attendance","Proteksi Non Attendance","Amount Per Day","Keterangan","Bank","Bank account","Email"];
+        $in_array = ["NIK","NAMA LENGKAP","Nama Panggilan","Jabatan","Join Date","Outlet","Brand","Brand Protection Attendace","Brand Salary Protection","Brand Salary","Brand Salary Per Day","Keterangan","Bank","Bank account","Email"];
         foreach ($exportResults as $vab) {
             foreach($head as $v){
             if (in_array($v, $in_array)){

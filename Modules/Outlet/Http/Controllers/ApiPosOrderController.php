@@ -451,6 +451,7 @@ class ApiPosOrderController extends Controller
         }
 
         $order_products = Transaction::leftJoin('transaction_product_services','transaction_product_services.id_transaction', 'transactions.id_transaction')
+            ->where('transactions.id_outlet',$outlet['id_outlet'])
             ->whereDate('transaction_date', date('Y-m-d'))
             ->whereNotNull('transactions.completed_at')
             ->where('transaction_payment_status', 'Completed')

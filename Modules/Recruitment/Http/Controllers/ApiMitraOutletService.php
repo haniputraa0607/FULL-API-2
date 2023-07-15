@@ -176,11 +176,18 @@ class ApiMitraOutletService extends Controller
 	{
 		$user = $request->user();
 		
-		$queue = TransactionProductService::join('transactions', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
-		->join('transaction_outlet_services', 'transaction_product_services.id_transaction', 'transaction_outlet_services.id_transaction')
-		->join('transaction_products', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
-		->join('products', 'transaction_products.id_product', 'products.id_product')
-		->join('users', 'transactions.id_user', 'users.id')
+		$queue = TransactionProductService::with(['transaction.user','transaction_product.product'])
+		->whereHas('transaction',function($transaction)use($user){
+			$transaction->where('id_outlet',$user->id_outlet);
+			$transaction->where(function($q) {
+				$q->where('trasaction_payment_type', 'Cash')
+				->orWhere('transaction_payment_status', 'Completed');
+			});
+			$transaction->where('transaction_payment_status', '!=', 'Cancelled');
+		})
+		->whereHas('transaction_product',function($transaction_product){
+			$transaction_product->wherenull('transaction_products.reject_at');
+		})
 		->where(function($q) {
 			$q->whereNull('service_status');
 			$q->orWhere('service_status', '!=', 'Completed');
@@ -188,17 +195,7 @@ class ApiMitraOutletService extends Controller
 		->where(function($q) use($user) {
 			$q->whereNull('transaction_product_services.id_user_hair_stylist');
 			$q->orWhere('transaction_product_services.id_user_hair_stylist', $user->id_user_hair_stylist);
-		})
-		->where(function($q) {
-			$q->where('trasaction_payment_type', 'Cash')
-			->orWhere('transaction_payment_status', 'Completed');
-		})
-		->where('transactions.id_outlet', $user->id_outlet)
-		->where('transaction_payment_status', '!=', 'Cancelled')
-		->wherenull('transaction_products.reject_at')
-		->orderBy('schedule_date', 'asc')
-		->orderBy('transaction_product_services.created_at', 'asc')
-		->paginate(10)
+		})->paginate(10)
 		->toArray();
 
 		$serviceInProgress = TransactionProductService::where('service_status', 'In Progress')
@@ -247,15 +244,15 @@ class ApiMitraOutletService extends Controller
 
 			$resData[] = [
 				'id_transaction_product_service' => $val['id_transaction_product_service'],
-				'order_id' => $val['transaction_receipt_number'] ?? null,
-				'transaction_receipt_number' => $val['transaction_receipt_number'],
+				'order_id' => $val['order_id'] ?? null,
+				'transaction_receipt_number' => $val['transaction']['transaction_receipt_number'],
 				'queue_code' => $queue_code,
-				'customer_name' => $val['is_anon'] == 1 ? 'Customer '.$queue_code : (isset($val['name']) ? $val['customer_name'] : ('Customer '.$queue_code)),
+				'customer_name' => $val['transaction']['user']['is_anon'] == 1 ? 'Customer '.$queue_code : (isset($val['transaction']['user']['name']) ? $val['transaction']['customer_name'] : ('Customer '.$queue_code)),
 				'schedule_date' => $scheduleDate,
 				'service_status' => $val['service_status'],
 				'payment_method' => $paymentMethod,
-				'product_name' => $val['product_name'],
-				'price' => $val['transaction_product_net']-$val['transaction_product_discount_all'],
+				'product_name' => $val['transaction_product']['product']['product_name'],
+				'price' => $val['transaction_product']['transaction_product_net']-$val['transaction_product']['transaction_product_discount_all'],
 				'button_text' => $buttonText,
 				'disable' => $disable,
 				'id_outlet_box' => $schedule->id_outlet_box ?? null,
@@ -268,6 +265,7 @@ class ApiMitraOutletService extends Controller
 		$res['data'] = $resData;
 		return MyHelper::checkGet($res);
 	}
+	
 	public function customerQueueDetail(DetailCustomerQueueRequest $request)
 	{
 		$user = $request->user();

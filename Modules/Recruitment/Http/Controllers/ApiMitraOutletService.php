@@ -244,7 +244,7 @@ class ApiMitraOutletService extends Controller
 
 			$resData[] = [
 				'id_transaction_product_service' => $val['id_transaction_product_service'],
-				'order_id' => $val['order_id'] ?? null,
+				'order_id' => $val['transaction_receipt_number'] ?? null,
 				'transaction_receipt_number' => $val['transaction']['transaction_receipt_number'],
 				'queue_code' => $queue_code,
 				'customer_name' => $val['transaction']['user']['is_anon'] == 1 ? 'Customer '.$queue_code : (isset($val['transaction']['user']['name']) ? $val['transaction']['customer_name'] : ('Customer '.$queue_code)),

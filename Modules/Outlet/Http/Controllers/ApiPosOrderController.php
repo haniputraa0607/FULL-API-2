@@ -450,41 +450,31 @@ class ApiPosOrderController extends Controller
             }
         }
 
-        $order_products = Transaction::leftJoin('transaction_product_services','transaction_product_services.id_transaction', 'transactions.id_transaction')
-            ->where('transactions.id_outlet',$outlet['id_outlet'])
-            ->whereDate('transaction_date', date('Y-m-d'))
-            ->whereNotNull('transactions.completed_at')
-            ->where('transaction_payment_status', 'Completed')
-            ->with(['user','transaction_products'=>function($tp1){
-                $tp1->join('products','products.id_product','transaction_products.id_product');
-                $tp1->where('type','Product');
-                $tp1->whereNull('transaction_product_completed_at');
-                $tp1->whereNull('reject_at');
-                $tp1->whereNull('id_user_hair_stylist');
-                $tp1->select('transaction_products.*','products.product_name');
-            }])
-            ->whereHas('transaction_products',function($tp2){
-                $tp2->where('type','Product');
-                $tp2->whereNull('transaction_product_completed_at');
-                $tp2->whereNull('reject_at');
-                $tp2->whereNull('id_user_hair_stylist');
-            })
-            ->select('transactions.*','transaction_product_services.queue')
-            ->orderBy('completed_at','asc')
-            ->groupBy('transactions.id_transaction')
-            ->get()->toArray();
+        $order_products = Transaction::with(['user','transaction_products_product_type'=>function($tp1){
+            $tp1->whereNull('transaction_product_completed_at');
+            $tp1->whereNull('reject_at');
+            $tp1->whereNull('id_user_hair_stylist');
+            $tp1->select('transaction_products.*');
+        },'transaction_products_service_type'])
+        ->where('transactions.id_outlet',$outlet['id_outlet'])
+        ->whereDate('transaction_date', date('Y-m-d'))
+        ->whereNotNull('transactions.completed_at')
+        ->where('transaction_payment_status', 'Completed')
+        ->orderBy('completed_at','asc')
+        ->groupBy('transactions.id_transaction')
+        ->get()->toArray();
 
         $cust_order = [];
         foreach($order_products ?? [] as $trx_prod){
 
             if($trx_prod['user']['is_anon'] == 1){
-                if(isset($trx_prod['queue'])){
-                    if($trx_prod['queue']<10){
-                        $ord_queue = '00'.$trx_prod['queue'];
-                    }elseif($trx_prod['queue']<100){
-                        $ord_queue = '0'.$trx_prod['queue'];
+                if(isset($trx_prod['transaction_products_service_type'][0]['transaction_product_service']['queue'])){
+                    if($trx_prod['transaction_products_service_type'][0]['transaction_product_service']['queue']<10){
+                        $ord_queue = '00'.$trx_prod['transaction_products_service_type'][0]['transaction_product_service']['queue'];
+                    }elseif($trx_prod['transaction_products_service_type'][0]['transaction_product_service']['queue']<100){
+                        $ord_queue = '0'.$trx_prod['transaction_products_service_type'][0]['transaction_product_service']['queue'];
                     }else{
-                        $ord_queue = $trx_prod['queue'];
+                        $ord_queue = $trx_prod['transaction_products_service_type'][0]['transaction_product_service']['queue'];
                     }
                     $name_cust = 'Customer '.$ord_queue;
                 }else{
@@ -495,8 +485,9 @@ class ApiPosOrderController extends Controller
             }
 
             $items = [];
-            foreach($trx_prod['transaction_products'] ?? [] as $item){
-                $items[] = 'x'.$item['transaction_product_qty'].' '.$item['product_name'];
+            
+            foreach($trx_prod['transaction_products_product_type'] ?? [] as $item){
+                $items[] = 'x'.$item['transaction_product_qty'].' '.$item['product']['product_name'];
             }
 
             $cust_order[] = [
@@ -505,7 +496,7 @@ class ApiPosOrderController extends Controller
                 'products' => implode(', ', $items),
             ];
         }
-        
+
         $data = [
             'current_cust' => $current,
             'waiting' => $queue,
@@ -3306,13 +3297,9 @@ class ApiPosOrderController extends Controller
             ], 400);
         } 
 
-        $products = Transaction::whereHas('transaction_products',function($query){
-            $query->where('type','Product');
+        $products = Transaction::with(['user','transaction_products_product_type' => function($query){
             $query->whereNull('transaction_product_completed_at');
-        })
-        ->with(['transaction_products.product'])
-        ->join('transaction_outlet_services', 'transactions.id_transaction','transaction_outlet_services.id_transaction')
-        ->join('users', 'transactions.id_user', 'users.id')
+        }])
         ->where(function($q) {
             $q->where('trasaction_payment_type', 'Cash')
             ->orWhere('transaction_payment_status', 'Completed');
@@ -3321,7 +3308,6 @@ class ApiPosOrderController extends Controller
         ->whereDate('transaction_date',date('Y-m-d'))
         ->where('transaction_payment_status', '!=', 'Cancelled')
         ->orderBy('transaction_date', 'asc')
-        ->select('transactions.id_transaction','transactions.transaction_receipt_number','users.name','users.is_anon','transactions.transaction_date')
         ->paginate(10)->toArray();
 
         $data = [];
@@ -3329,7 +3315,7 @@ class ApiPosOrderController extends Controller
 
             $prod = [];
             $all_reject = true;
-            foreach($val['transaction_products'] as $trx_prod){
+            foreach($val['transaction_products_product_type'] as $trx_prod){
                 if(!isset($trx_prod['reject_at']) && empty($trx_prod['reject_at'])){
                     $all_reject = false;
                 }
@@ -3348,7 +3334,7 @@ class ApiPosOrderController extends Controller
                     'transaction_date' => $val['transaction_date'],
                     'transaction_date_indo' => MyHelper::indonesian_date_v2(date('Y-m-d', strtotime($val['transaction_date'])), 'j F Y'),
                     'product' => $prod,
-                    'customer_name' => $val['is_anon'] == 0 ? ($val['name'] ?? ('Customer '.$outlet['outlet_code'])) : ('Customer '.$outlet['outlet_code'])
+                    'customer_name' => $val['user']['is_anon'] == 0 ? ($val['user']['name'] ?? ('Customer '.$outlet['outlet_code'])) : ('Customer '.$outlet['outlet_code'])
                 ];
             }
 

@@ -1370,7 +1370,7 @@ class ApiPosOrderController extends Controller
             ]);
         }
 
-        $lastReceipt = Transaction::where('id_outlet', $insertTransaction['id_outlet'])->orderBy('transaction_receipt_number', 'desc')->first()['transaction_receipt_number']??'';
+        $lastReceipt = Transaction::where('id_outlet', $insertTransaction['id_outlet'])->latest('transaction_receipt_number')->first()['transaction_receipt_number']??'';
         $lastReceipt = substr($lastReceipt, -5);
         $lastReceipt = (int)$lastReceipt;
         $countReciptNumber = $lastReceipt+1;

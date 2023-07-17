@@ -116,25 +116,8 @@ class ApiTransactionOutletService extends Controller
 
     public function listOutletService(Request $request)
     {	
-    	$list = Transaction::where('transaction_from', 'outlet-service')
-    			->join('transaction_outlet_services','transactions.id_transaction', 'transaction_outlet_services.id_transaction')
-	            ->join('users','transactions.id_user','=','users.id')
-	            ->join('outlets', 'outlets.id_outlet', 'transactions.id_outlet')
-	            ->leftJoin('transaction_products','transactions.id_transaction','=','transaction_products.id_transaction')
-	            ->leftJoin('transaction_product_services','transactions.id_transaction','=','transaction_product_services.id_transaction')
-                ->leftJoin('transaction_payment_midtrans', 'transactions.id_transaction', '=', 'transaction_payment_midtrans.id_transaction')
-                ->leftJoin('transaction_payment_xendits', 'transactions.id_transaction', '=', 'transaction_payment_xendits.id_transaction')
-	            ->leftJoin('products','products.id_product','=','transaction_products.id_product')
-	            ->with(['user','transaction_outlet_service'])
-	            ->select(
-	            	'transaction_product_services.*',
-	            	'transaction_outlet_services.*',
-	            	'products.*',
-	            	'transaction_products.*',
-	            	'outlets.*',
-	            	'users.*',
-	            	'transactions.*'
-	            )
+        $list = Transaction::with(['user','outlet','transaction_outlet_service'])
+                ->where('transaction_from', 'outlet-service')
 	            ->groupBy('transactions.id_transaction');
 
         $countTotal = null;
@@ -204,6 +187,7 @@ class ApiTransactionOutletService extends Controller
     {
         $new_rule = [];
         $where    = $operator == 'and' ? 'where' : 'orWhere';
+        $whereORM  = $operator == 'and' ? 'whereHas' : 'orWhereHas';
         foreach ($rule as $var) {
             $var1 = ['operator' => $var['operator'] ?? '=', 'parameter' => $var['parameter'] ?? null, 'hide' => $var['hide'] ?? false];
             if ($var1['operator'] == 'like') {
@@ -211,11 +195,9 @@ class ApiTransactionOutletService extends Controller
             }
             $new_rule[$var['subject']][] = $var1;
         }
-        $model->where(function($model2) use ($model, $where, $new_rule){
+        $model->where(function($model2) use ($model, $where, $whereORM, $new_rule){
             $inner = [
             	'transaction_receipt_number',
-            	'outlet_name',
-            	'outlet_code',
             	'transaction_grandtotal',
             	'transaction_payment_status'
             ];
@@ -227,11 +209,27 @@ class ApiTransactionOutletService extends Controller
                 }
             }
 
+            $inner = [
+                'outlet_name',
+            	'outlet_code',
+            ];
+            foreach ($inner as $col_name) {
+                if ($rules = $new_rule[$col_name] ?? false) {
+                    foreach ($rules as $rul) {
+                        $model2->$whereORM('outlet',function($o) use($col_name,$rul){
+                            $o->where($col_name, $rul['operator'], $rul['parameter']);
+                        });
+                    }
+                }
+            }
+
             $inner = ['order_id'];
             foreach ($inner as $col_name) {
                 if ($rules = $new_rule[$col_name] ?? false) {
                     foreach ($rules as $rul) {
-                        $model2->$where('transaction_product_services.'.$col_name, $rul['operator'], $rul['parameter']);
+                        $model2->$whereORM('transaction_products.transaction_product_service',function($ts) use($col_name,$rul){
+                            $ts->where($col_name, $rul['operator'], $rul['parameter']);
+                        });
                     }
                 }
             }
@@ -240,7 +238,9 @@ class ApiTransactionOutletService extends Controller
             foreach ($inner as $col_name) {
                 if ($rules = $new_rule[$col_name] ?? false) {
                     foreach ($rules as $rul) {
-                        $model2->$where('users.'.$col_name, $rul['operator'], $rul['parameter']);
+                        $model2->$whereORM('user',function($u) use($col_name,$rul){
+                            $u->where($col_name, $rul['operator'], $rul['parameter']);
+                        });
                     }
                 }
             }
@@ -264,9 +264,13 @@ class ApiTransactionOutletService extends Controller
                         if($paymentGateway == 'Cash'){
                             $model2->$where('transactions.trasaction_payment_type', 'Cash');
                         }elseif($paymentGateway == 'Midtrans'){
-                            $model2->$where('transaction_payment_midtrans.payment_type',  $paymentMethod);
+                            $model2->$whereORM('transaction_payment_midtrans', function($mid)use($paymentMethod){
+                                $mid->where('payment_type', $paymentMethod);
+                            });
                         }elseif($paymentGateway == 'Xendit'){
-                            $model2->$where('transaction_payment_xendits.type',  $paymentMethod);
+                            $model2->$whereORM('transaction_payment_xendit', function($xend)use($paymentMethod){
+                                $xend->where('type', $paymentMethod);
+                            });
                         }
                     }
                 }

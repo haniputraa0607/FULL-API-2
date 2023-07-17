@@ -35,8 +35,7 @@ class ApiDashboardController extends Controller
                        ->where('transactions.transaction_payment_status', 'Completed')
                        ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
                        ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
-                       ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
-                       ->join('products','products.id_product','transaction_products.id_product')
+                      ->join('products','products.id_product','transaction_products.id_product')
                       ->groupby('transaction_products.id_product')
                        ->select('products.product_name as network','products.product_code',
                                  DB::raw('

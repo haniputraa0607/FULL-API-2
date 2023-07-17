@@ -26,6 +26,7 @@ class ApiReportSalesController extends Controller
                        ->where('transaction_outlet_services.reject_at', NULL)
                        ->where('transactions.reject_at', NULL)
                        ->where('transactions.transaction_payment_status', 'Completed')
+                       ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
                        ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
                        		->select(DB::raw('
 						# tanggal transaksi
@@ -53,6 +54,12 @@ class ApiReportSalesController extends Controller
 							) as total_mdr,
                                                         
                                                 #refund product
+                                                sum(
+                                                CASE WHEN
+                                                transaction_products.reject_at IS NULL
+                                                THEN transaction_products.transaction_variant_subtotal ELSE 0
+                                                END
+                                                 ) as refund_product,
                                                 #revenue
                                                 SUM(
                                                 CASE WHEN transactions.transaction_gross IS NOT NULL AND transaction_outlet_services.reject_at IS NULL AND transactions.transaction_payment_status = "Completed" AND transactions.reject_at IS NULL THEN transactions.transaction_gross 
@@ -60,38 +67,9 @@ class ApiReportSalesController extends Controller
                                                 ) as total_revenue
 					'));
 
-        $report = $report->first();
-
-        if (!$report) {
-        	return response()->json(['status' => 'fail', 'messages' => ['Empty']]);
-        }
-        $refund = Transaction::where(array('transactions.id_outlet'=>$request->id_outlet))
-                       ->whereDate('transactions.transaction_date', '>=', $request->dari)->whereDate('transactions.transaction_date', '<=', $request->sampai)
-                       ->where('transaction_outlet_services.reject_at', NULL)
-                       ->where('transactions.reject_at', NULL)
-                       ->where('transactions.transaction_payment_status', 'Completed')
-                       ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
-                       ->join('transaction_product_services', 'transaction_product_services.id_transaction', 'transactions.id_transaction')
-                       ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
-                       ->select(DB::raw('
-                                        sum(
-                                       CASE WHEN
-                                       transaction_products.reject_at IS NULL
-                                       THEN transaction_products.transaction_variant_subtotal ELSE 0
-                                       END
-                                        ) as refund_product
-                                        '))
-                       ->first();
-        $total_net_sales = $report['total_revenue'] - ($refund['refund_product']+$report['total_discount']+$report['total_tax']);
-        /*$report['acceptance_rate'] = 0;
-    	if ($report['total_accept']) {
-    		$report['acceptance_rate'] = floor(( $report['total_accept'] / ($report['total_accept'] + $report['total_reject']) ) * 100);
-    	}
-
-    	if ($report['total_discount']) {
-    		$report['total_discount'] = abs($report['total_discount']);
-    	}*/
-
+         $report = $report->first();
+        $total_net_sales = $report['total_revenue'] - ($report['refund_product']+$report['total_discount']+$report['total_tax']);
+      
     	$result = [
             'total_transaction' => [
                 'title' => 'Total Order Completed',

@@ -365,6 +365,16 @@ Route::group(['middleware' => ['log_activities_mitra_apps', 'user_agent'], 'pref
         Route::post('income/detail', 'ApiMitra@incomeDetail');
         Route::post('acceptance/detail', 'ApiMitra@acceptanceDetail');
         Route::post('acceptance/confirm', 'ApiMitra@acceptanceConfirm');
+        Route::group(['prefix' => 'income/v2'], function () {
+        	Route::post('/cash', 'ApiMitraSupervisor@cash_outlet');
+        	Route::post('/total_projection', 'ApiMitraSupervisor@total_projection');
+        	Route::post('/total_reception', 'ApiMitraSupervisor@total_reception');
+        	Route::post('/spv_cash', 'ApiMitraSupervisor@spv_cash');
+        	Route::post('/projection', 'ApiMitraSupervisor@projection');
+        	Route::post('/acceptance', 'ApiMitraSupervisor@acceptance');
+        	Route::post('/history', 'ApiMitraSupervisor@history');
+    	});
+        
 
         Route::post('cash/outlet/income/create', 'ApiMitra@outletIncomeCreate');
         Route::post('cash/outlet/transfer', 'ApiMitra@cashOutletTransfer');

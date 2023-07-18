@@ -93,6 +93,13 @@ return [
             'queue' => 'queueservicequeue',
             'retry_after' => 90,
         ],
+
+        'syncicountitems' => [
+            'driver' => 'database',
+            'table' => 'sync_icount_item_queue',
+            'queue' => 'syncicountitems',
+            'retry_after' => 90,
+        ],
         
         'refreshcheckstockqueue' => [
             'driver' => 'database',

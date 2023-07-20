@@ -3346,6 +3346,7 @@ class ApiProductController extends Controller
                 'ims' => false, 
             ];
             $sync_job = SyncIcountItems::dispatch($send)->onConnection('syncicountitems');
+            $log->success('success');
             return ['status' => 'success', 'messages' => ['Success to sync with ICount']]; 
         } catch (\Exception $e) {
             $log->fail($e->getMessage());

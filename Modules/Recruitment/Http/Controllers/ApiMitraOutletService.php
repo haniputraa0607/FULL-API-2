@@ -2825,6 +2825,7 @@ class ApiMitraOutletService extends Controller
 					\Log::error($e->getMessage());
 				}
 			}
+            $log->success('success');
 		}catch (\Exception $e) {
             $log->fail($e->getMessage());
         } 

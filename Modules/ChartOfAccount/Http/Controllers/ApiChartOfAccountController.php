@@ -93,6 +93,7 @@ class ApiChartOfAccountController extends Controller
                 'id_chart' => null
             ];
             $sync_job = SyncIcountChartOfAccount::dispatch($send)->onConnection('syncicountchartofaccount');
+            $log->success('success');
             return ['status' => 'success', 'messages' => ['Success to sync with ICount']]; 
         } catch (\Exception $e) {
             $log->fail($e->getMessage());

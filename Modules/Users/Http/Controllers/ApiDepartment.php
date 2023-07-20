@@ -215,6 +215,7 @@ class ApiDepartment extends Controller
                 'id_departments' => null
             ];
             $sync_job = SyncIcountDepartment::dispatch($send)->onConnection('syncicountdepartments');
+            $log->success('success');
             return ['status' => 'success', 'messages' => ['Success to sync with ICount']]; 
         } catch (\Exception $e) {
             $log->fail($e->getMessage());

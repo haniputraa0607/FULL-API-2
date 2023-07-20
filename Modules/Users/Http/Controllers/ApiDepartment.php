@@ -198,7 +198,7 @@ class ApiDepartment extends Controller
         }
     }
 
-    public function syncIcount(Request $request){
+    public function syncIcount(){
         $log = MyHelper::logCron('Sync Department Icount');
         try{
             $setting = Setting::where('key' , 'Sync Department Icount')->first();
@@ -214,7 +214,7 @@ class ApiDepartment extends Controller
                 'page' => 1,
                 'id_departments' => null
             ];
-            $sync_job = SyncIcountDepartment::dispatch($send);
+            $sync_job = SyncIcountDepartment::dispatch($send)->onConnection('syncicountdepartments');
             return ['status' => 'success', 'messages' => ['Success to sync with ICount']]; 
         } catch (\Exception $e) {
             $log->fail($e->getMessage());

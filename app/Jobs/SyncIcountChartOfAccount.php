@@ -65,7 +65,7 @@ class SyncIcountChartOfAccount implements ShouldQueue
             }
             if($data['response']['Meta']['Pagination']['CurrentPage']<$data['response']['Meta']['Pagination']['LastPage']){
                 $new_page = $data['response']['Meta']['Pagination']['CurrentPage'] + 1;
-                SyncIcountChartOfAccount::dispatch(['page'=> $new_page,'id_chart' => $id_chart]);    
+                SyncIcountChartOfAccount::dispatch(['page'=> $new_page,'id_chart' => $id_chart])->onConnection('syncicountchartofaccount');  
                 Setting::where('key','Sync Chart Icount')->update(['value' => 'process']);
             }else{
                 ChartOfAccount::whereIn('ChartOfAccountID',$id_chart)->update(['is_actived' => 'true']);

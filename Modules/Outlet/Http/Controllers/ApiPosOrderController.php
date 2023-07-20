@@ -450,7 +450,7 @@ class ApiPosOrderController extends Controller
             }
         }
 
-        $order_products = Transaction::with(['user','transaction_products_product_type'=>function($tp1){
+        return $order_products = Transaction::with(['user','transaction_products_product_type'=>function($tp1){
             $tp1->whereNull('transaction_product_completed_at');
             $tp1->whereNull('reject_at');
             $tp1->whereNull('id_user_hair_stylist');
@@ -467,34 +467,36 @@ class ApiPosOrderController extends Controller
         $cust_order = [];
         foreach($order_products ?? [] as $trx_prod){
 
-            if($trx_prod['user']['is_anon'] == 1){
-                if(isset($trx_prod['transaction_products_service_type'][0]['transaction_product_service']['queue'])){
-                    if($trx_prod['transaction_products_service_type'][0]['transaction_product_service']['queue']<10){
-                        $ord_queue = '00'.$trx_prod['transaction_products_service_type'][0]['transaction_product_service']['queue'];
-                    }elseif($trx_prod['transaction_products_service_type'][0]['transaction_product_service']['queue']<100){
-                        $ord_queue = '0'.$trx_prod['transaction_products_service_type'][0]['transaction_product_service']['queue'];
+            if(count($trx_prod['transaction_products_product_type']) > 0){
+                if($trx_prod['user']['is_anon'] == 1){
+                    if(isset($trx_prod['transaction_products_service_type'][0]['transaction_product_service']['queue'])){
+                        if($trx_prod['transaction_products_service_type'][0]['transaction_product_service']['queue']<10){
+                            $ord_queue = '00'.$trx_prod['transaction_products_service_type'][0]['transaction_product_service']['queue'];
+                        }elseif($trx_prod['transaction_products_service_type'][0]['transaction_product_service']['queue']<100){
+                            $ord_queue = '0'.$trx_prod['transaction_products_service_type'][0]['transaction_product_service']['queue'];
+                        }else{
+                            $ord_queue = $trx_prod['transaction_products_service_type'][0]['transaction_product_service']['queue'];
+                        }
+                        $name_cust = 'Customer '.$ord_queue;
                     }else{
-                        $ord_queue = $trx_prod['transaction_products_service_type'][0]['transaction_product_service']['queue'];
+                        $name_cust = 'Customer';
                     }
-                    $name_cust = 'Customer '.$ord_queue;
                 }else{
-                    $name_cust = 'Customer';
+                    $name_cust = $trx_prod['user']['name'];
                 }
-            }else{
-                $name_cust = $trx_prod['user']['name'];
+    
+                $items = [];
+                
+                foreach($trx_prod['transaction_products_product_type'] ?? [] as $item){
+                    $items[] = 'x'.$item['transaction_product_qty'].' '.$item['product']['product_name'];
+                }
+    
+                $cust_order[] = [
+                    'id_transaction' => $trx_prod['id_transaction'],
+                    'name' => $name_cust,
+                    'products' => implode(', ', $items),
+                ];
             }
-
-            $items = [];
-            
-            foreach($trx_prod['transaction_products_product_type'] ?? [] as $item){
-                $items[] = 'x'.$item['transaction_product_qty'].' '.$item['product']['product_name'];
-            }
-
-            $cust_order[] = [
-                'id_transaction' => $trx_prod['id_transaction'],
-                'name' => $name_cust,
-                'products' => implode(', ', $items),
-            ];
         }
 
         $data = [

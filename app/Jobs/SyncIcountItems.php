@@ -118,13 +118,13 @@ class SyncIcountItems implements ShouldQueue
                         $ims = true;
                     }
                     // \Log::debug($id_items);
-                    SyncIcountItems::dispatch(['page'=> $new_page,'id_items' => $id_items, 'ima' => $ima, 'ims' => $ims]);
+                    SyncIcountItems::dispatch(['page'=> $new_page,'id_items' => $id_items, 'ima' => $ima, 'ims' => $ims])->onConnection('syncicountitems');
                 }
                 else{
                     ProductIcount::whereIn('id_item',$id_items)->where('company_type', $company)->update(['is_actived' => 'true']);
                     ProductIcount::whereNotIn('id_item',$id_items)->where('company_type', $company)->update(['is_actived' => 'false']);
                     if($this->data['ima']){
-                        SyncIcountItems::dispatch(['page'=> '1','id_items' => null, 'ima' => false, 'ims' => true]);
+                        SyncIcountItems::dispatch(['page'=> '1','id_items' => null, 'ima' => false, 'ims' => true])->onConnection('syncicountitems');
                     }
                     Setting::where('key','Sync Product Icount')->update(['value' => 'finished']);
                 }

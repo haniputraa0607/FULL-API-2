@@ -77,7 +77,7 @@ class ApiChartOfAccountController extends Controller
         return response()->json(['status' => 'success', 'result' => $data]);
     }
     public function sync() {
-        $log = MyHelper::logCron('Sync Item Icount');
+        $log = MyHelper::logCron('Sync Chart Of Account Icount');
         try{
             $setting = Setting::where('key' , 'Sync Chart Icount')->first();
             if($setting){
@@ -92,7 +92,7 @@ class ApiChartOfAccountController extends Controller
                 'page' => 1,
                 'id_chart' => null
             ];
-            $sync_job = SyncIcountChartOfAccount::dispatch($send);
+            $sync_job = SyncIcountChartOfAccount::dispatch($send)->onConnection('syncicountchartofaccount');
             return ['status' => 'success', 'messages' => ['Success to sync with ICount']]; 
         } catch (\Exception $e) {
             $log->fail($e->getMessage());

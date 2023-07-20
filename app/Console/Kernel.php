@@ -310,7 +310,7 @@ class Kernel extends ConsoleKernel
          * Clock Out HS
          * run every 00:01 AM
          */
-        $schedule->call('Modules\Recruitment\Http\Controllers\ApiMitraOutletService@cronRefreshStock')->dailyAt(config('app.env') == 'staging' ? '00:55' : '00:55');
+        $schedule->call('Modules\Recruitment\Http\Controllers\ApiMitraOutletService@cronClockOutHS')->dailyAt(config('app.env') == 'staging' ? '00:55' : '00:55');
 
         /**
          * Completed Service

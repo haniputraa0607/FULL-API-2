@@ -450,7 +450,7 @@ class ApiPosOrderController extends Controller
             }
         }
 
-        return $order_products = Transaction::with(['user','transaction_products_product_type'=>function($tp1){
+        $order_products = Transaction::with(['user','transaction_products_product_type'=>function($tp1){
             $tp1->whereNull('transaction_product_completed_at');
             $tp1->whereNull('reject_at');
             $tp1->whereNull('id_user_hair_stylist');

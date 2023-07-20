@@ -101,6 +101,20 @@ return [
             'retry_after' => 90,
         ],
         
+        'syncicountdepartments' => [
+            'driver' => 'database',
+            'table' => 'sync_icount_department_queue',
+            'queue' => 'syncicountdepartments',
+            'retry_after' => 90,
+        ],
+        
+        'syncicountchartofaccount' => [
+            'driver' => 'database',
+            'table' => 'sync_icount_chartofaccount_queue',
+            'queue' => 'syncicountchartofaccount',
+            'retry_after' => 90,
+        ],
+        
         'refreshcheckstockqueue' => [
             'driver' => 'database',
             'table' => 'refresh_check_stock_queue',

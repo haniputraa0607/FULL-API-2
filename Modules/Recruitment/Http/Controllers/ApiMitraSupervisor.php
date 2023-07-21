@@ -99,9 +99,9 @@ class ApiMitraSupervisor extends Controller
 		->whereDate('transactions.transaction_date', $date)
 		->where('transaction_payment_status', 'Completed')
 		->where('transactions.id_outlet', $user->id_outlet)
-		->groupby('transaction_products.id_transaction_product')
-		->distinct()
-		->select('transaction_products.id_transaction_product','hairstylist_log_balances.balance');
+                ->groupby('transaction_products.id_transaction_product')
+                ->distinct()
+		->select('hairstylist_log_balances.balance','transaction_grandtotal', 'transactions.id_transaction', 'transactions.transaction_receipt_number', 'transaction_payment_cash.*', 'user_hair_stylist.fullname','transaction_products.transaction_product_price','transaction_products.transaction_product_discount_all');
 		
 		if(!empty($post['id_user_hair_stylist'])){
 			$projection = $projection->where('transaction_products.id_user_hair_stylist', $post['id_user_hair_stylist']);

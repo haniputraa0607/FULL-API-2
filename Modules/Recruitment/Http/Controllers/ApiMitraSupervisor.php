@@ -99,9 +99,9 @@ class ApiMitraSupervisor extends Controller
 		->whereDate('transactions.transaction_date', $date)
 		->where('transaction_payment_status', 'Completed')
 		->where('transactions.id_outlet', $user->id_outlet)
-		->groupby('transaction_products.id_transaction_product')
-		->distinct()
-		->select('transaction_products.id_transaction_product','hairstylist_log_balances.balance');
+                ->groupby('transaction_products.id_transaction_product')
+                ->distinct()
+		->select('hairstylist_log_balances.balance','transaction_grandtotal', 'transactions.id_transaction', 'transactions.transaction_receipt_number', 'transaction_payment_cash.*', 'user_hair_stylist.fullname','transaction_products.transaction_product_price','transaction_products.transaction_product_discount_all');
 		
 		if(!empty($post['id_user_hair_stylist'])){
 			$projection = $projection->where('transaction_products.id_user_hair_stylist', $post['id_user_hair_stylist']);
@@ -161,28 +161,37 @@ class ApiMitraSupervisor extends Controller
 
 		$date = date('Y-m-d', strtotime($post['date']));
 		
-		 $spvProjection = Transaction::join('transaction_payment_cash', 'transaction_payment_cash.id_transaction', 'transactions.id_transaction')
+		 $spvProjection = $projection = Transaction::join('transaction_payment_cash', 'transaction_payment_cash.id_transaction', 'transactions.id_transaction')
 		->join('transaction_payment_cash_details','transaction_payment_cash_details.id_transaction_payment_cash','transaction_payment_cash.id_transaction_payment_cash')
 		->join('transaction_products','transaction_products.id_transaction_product','transaction_payment_cash_details.id_transaction_product')
 		->join('hairstylist_log_balances', 'hairstylist_log_balances.id_reference', 'transaction_products.id_transaction_product')
 		->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_products.id_user_hair_stylist')
 		->whereDate('transactions.transaction_date', $date)
 		->where('transaction_payment_status', 'Completed')
-		->where('transactions.id_outlet', $user->id_outlet);
-                if(!empty($post['id_user_hair_stylist'])){
-			$spvProjection = $spvProjection->where('transaction_products.id_user_hair_stylist', $post['id_user_hair_stylist']);
-		}
-		$spvProjection = $spvProjection->sum('hairstylist_log_balances.balance');
+		->where('transactions.id_outlet', $user->id_outlet)
+                ->groupby('transaction_products.id_transaction_product')
+                ->distinct()
+		->select('hairstylist_log_balances.balance','transaction_grandtotal', 'transactions.id_transaction', 'transactions.transaction_receipt_number', 'transaction_payment_cash.*', 'user_hair_stylist.fullname','transaction_products.transaction_product_price','transaction_products.transaction_product_discount_all');
 		
 		$spvAcceptance = OutletCash::join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'outlet_cash.id_user_hair_stylist')
 		->join('user_hair_stylist as confirm', 'confirm.id_user_hair_stylist', 'outlet_cash.confirm_by')
 		->where('outlet_cash.id_outlet', $user->id_outlet)
 		->whereDate('outlet_cash.confirm_at', $date)
 		->where('outlet_cash_status', 'Confirm')
-		->where('outlet_cash_type', 'Transfer To Supervisor')
-		->select('outlet_cash_amount as amount')->sum('outlet_cash_amount');
+		->where('outlet_cash_type', 'Transfer To Supervisor');
+                if(!empty($post['id_user_hair_stylist'])){
+			$spvProjection = $spvProjection->where('transaction_products.id_user_hair_stylist', $post['id_user_hair_stylist']);
+			$spvAcceptance = $spvAcceptance->where('outlet_cash.id_user_hair_stylist', $post['id_user_hair_stylist']);
+		}
+		$spvProjection = $spvProjection->get();
+		$amount = 0;
+		foreach ($spvProjection as $value){
+			$amount = $amount + $value['balance'];
+		}
+		
+		$spvAcceptance = $spvAcceptance->select('outlet_cash_amount as amount')->sum('outlet_cash_amount');
 		$result = [
-			'spv_cash_projection' => (int)$spvProjection,
+			'spv_cash_projection' => (int)$amount,
 			'spv_cash_acceptance' => (int)$spvAcceptance,
 		];
 		return ['status' => 'success', 'result' => $result];

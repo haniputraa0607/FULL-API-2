@@ -5879,11 +5879,11 @@ Message :
         foreach ($rows as $row) {
             if (Autocrm::where('autocrm_title', $row['autocrm_title'])->exists()) continue;
             Autocrm::create([
-                'autocrm_title' => $setting['autocrm_title'],
-                'autocrm_type' => $setting['autocrm_type'] ?? null,
-                'autocrm_trigger' => $setting['autocrm_trigger'] ?? null,
-                'autocrm_title' => $setting['autocrm_title'] ?? null,
-                'custom_text_replace' => $setting['custom_text_replace'] ?? null,
+                'autocrm_title' => $row['autocrm_title'],
+                'autocrm_type' => $row['autocrm_type'] ?? null,
+                'autocrm_trigger' => $row['autocrm_trigger'] ?? null,
+                'autocrm_title' => $row['autocrm_title'] ?? null,
+                'custom_text_replace' => $row['custom_text_replace'] ?? null,
             ]);
         }
     }

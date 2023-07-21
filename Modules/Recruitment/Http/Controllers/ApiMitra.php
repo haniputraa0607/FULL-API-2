@@ -2432,11 +2432,11 @@ class ApiMitra extends Controller
 					$payment_type = $serv_prod['transaction']['trasaction_payment_type'];
 				}
 			}elseif($serv_prod['transaction']['trasaction_payment_type'] == 'Midtrans'){
-				$midtrans = TransactionPaymentMidtran::where('id_transaction',$serv_prod['transction']['id_transaction'])->first();
+				$midtrans = TransactionPaymentMidtran::where('id_transaction',$serv_prod['transction']['id_transaction']??null)->first();
 				if($midtrans){
 					$payment_type = ucfirst(strtolower($midtrans['payment_type']));
 				}else{
-					$payment_type = $serv_prod['transaction']['trasaction_payment_type'];
+					$payment_type = $serv_prod['transaction']['trasaction_payment_type']??"Midtrans";
 				}
 			}
 			

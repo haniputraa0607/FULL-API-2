@@ -99,18 +99,21 @@ class ApiMitraSupervisor extends Controller
 		->whereDate('transactions.transaction_date', $date)
 		->where('transaction_payment_status', 'Completed')
 		->where('transactions.id_outlet', $user->id_outlet)
-                ->groupby('transaction_products.id_transaction_product')
-                ->distinct()
-		->select('hairstylist_log_balances.balance');
+		->groupby('transaction_products.id_transaction_product')
+		->distinct()
+		->select('transaction_products.id_transaction_product','hairstylist_log_balances.balance');
 		
 		if(!empty($post['id_user_hair_stylist'])){
 			$projection = $projection->where('transaction_products.id_user_hair_stylist', $post['id_user_hair_stylist']);
 		}
 
-		$totalProjection = $projection->orderBy('transaction_date', 'desc')->sum('hairstylist_log_balances.balance');
-		
+		$totalProjection = $projection->orderBy('transaction_date', 'desc')->get();
+		$amount = 0;
+		foreach ($totalProjection as $value){
+			$amount = $amount + $value['balance'];
+		}
 		$result = [
-			'total_projection' => $totalProjection,
+			'total_projection' => $amount,
 		];
 		return ['status' => 'success', 'result' => $result];
 	}
@@ -171,12 +174,13 @@ class ApiMitraSupervisor extends Controller
 		}
 		$spvProjection = $spvProjection->sum('hairstylist_log_balances.balance');
 		
-		$spvAcceptance = OutletCash::where('outlet_cash.id_outlet', $user->id_outlet)
-		->where('id_user_hair_stylist', $user->id_user_hair_stylist)
-		->where('outlet_cash_type', 'Transfer To Supervisor')
+		$spvAcceptance = OutletCash::join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'outlet_cash.id_user_hair_stylist')
+		->join('user_hair_stylist as confirm', 'confirm.id_user_hair_stylist', 'outlet_cash.confirm_by')
+		->where('outlet_cash.id_outlet', $user->id_outlet)
+		->whereDate('outlet_cash.confirm_at', $date)
 		->where('outlet_cash_status', 'Confirm')
-		->whereDate('outlet_cash.created_at', $date)->sum('outlet_cash_amount');
-
+		->where('outlet_cash_type', 'Transfer To Supervisor')
+		->select('outlet_cash_amount as amount')->sum('outlet_cash_amount');
 		$result = [
 			'spv_cash_projection' => (int)$spvProjection,
 			'spv_cash_acceptance' => (int)$spvAcceptance,

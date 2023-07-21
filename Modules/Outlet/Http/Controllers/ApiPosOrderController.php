@@ -164,7 +164,7 @@ class ApiPosOrderController extends Controller
         if(isset($post['device_id']) && isset($post['device_token'])){
             $update_device = PosDevice::updateOrCreate(['device_id' => $post['device_id']], [
                 'id_outlet'  => $outlet['id_outlet'],
-                'device_token' => $post['device_id'],
+                'device_token' => $post['device_token'],
                 'device_type'  => $post['device_type'] ?? null,
             ]);
         }

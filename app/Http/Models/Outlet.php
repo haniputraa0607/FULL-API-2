@@ -263,4 +263,9 @@ class Outlet extends Authenticatable
     {
     	return $this->belongsTo(\Modules\Xendit\Entities\XenditAccount::class, 'id_xendit_account');
     }
+
+	public function devices()
+	{
+		return $this->hasMany(\Modules\Outlet\Entities\PosDevice::class, 'id_outlet');
+	}
 }

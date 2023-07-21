@@ -10,6 +10,7 @@ use App\Http\Models\User;
 use App\Http\Models\UserDevice;
 use App\Http\Models\Transaction;
 use App\Http\Models\ProductVariant;
+use App\Http\Models\Outlet;
 
 use App\Http\Requests;
 use Illuminate\Http\JsonResponse;
@@ -73,6 +74,9 @@ class PushNotificationHelper{
             return static::searchHairstylistDeviceToken($type, $value, $recipient_type);
         }elseif ($recipient_type && $recipient_type == 'employee') {
             return static::searchEmployeetDeviceToken($type, $value);
+        }
+        elseif ($recipient_type && $recipient_type == 'pos_outlet') {
+            return static::searcOutletPOSDeviceToken($type, $value);
         }
         $devUser = User::leftjoin('user_devices', 'user_devices.id_user', '=', 'users.id')
             ->select('id_device_user', 'users.id', 'user_devices.device_token', 'user_devices.device_id', 'phone');
@@ -140,6 +144,33 @@ class PushNotificationHelper{
             'token' => $hs->devices->pluck('device_token')->unique()->toArray(),
             'id_user' => [$hs->id_user_hair_stylist],
             'mphone' => [$hs->phone]
+        ];
+    }
+
+    public static function searcOutletPOSDeviceToken($type, $value)
+    {
+        $outlet = Outlet::with('devices');
+
+        if (is_array($type) && is_array($value)) {
+            for ($i=0; $i < count($type) ; $i++) { 
+                $outlet->where($type[$i], $value[$i]);
+            }
+        }
+        else {
+            if (is_array($value)) {
+                $outlet->whereIn($type, $value);
+            }
+            else {
+                $outlet->where($type, $value);
+            }
+        }
+
+        $outlet = $outlet->first();
+
+        return [
+            'token' => $outlet->devices->pluck('device_token')->unique()->toArray(),
+            'id_user' => [$outlet->id_outlet],
+            'mphone' => [$outlet->outlet_code]
         ];
     }
 

@@ -39,6 +39,7 @@ use App\Http\Models\LogBalance;
 use Modules\Transaction\Entities\TransactionPaymentCash;
 use App\Http\Models\TransactionMultiplePayment;
 use Modules\Outlet\Entities\OutletScheduleUpdate;
+use Modules\Outlet\Entities\PosDevice;
 use Modules\Transaction\Entities\TransactionOutletService;
 use App\Http\Models\Province;
 
@@ -159,7 +160,15 @@ class ApiPosOrderController extends Controller
             'outlet_name' => $outlet['outlet_name']
         ];
 
-        
+        //save device token
+        if(isset($post['device_id']) && isset($post['device_token'])){
+            $update_device = PosDevice::updateOrCreate(['device_id' => $post['device_id']], [
+                'id_outlet'  => $outlet['id_outlet'],
+                'device_token' => $post['device_id'],
+                'device_type'  => $post['device_type'] ?? null,
+            ]);
+        }
+
         $brand = Brand::join('brand_outlet', 'brand_outlet.id_brand', 'brands.id_brand')
                 ->where('id_outlet', $outlet['id_outlet'])->first();
 

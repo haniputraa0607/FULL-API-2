@@ -546,6 +546,7 @@ class ApiNotification extends Controller {
         $phone   = $trx['user']['phone'];
         $date    = $trx['transaction_date'];
         $outlet  = $trx['outlet']['outlet_name'];
+        $outlet_code  = $trx['outlet']['outlet_code'];
         $receipt = $trx['transaction_receipt_number'];
         $detail = "";
         $title = 'Sukses';
@@ -587,6 +588,8 @@ class ApiNotification extends Controller {
             'id_reference' => $mid['order_id'].','.$trx['id_outlet'],
             'data_optional' => $dataOptional
         ]);
+
+        $send_pos = app($this->autocrm)->SendAutoCRM('Push Notif to POS Apps', $outlet_code, null, null, null, null. 'pos_outlet');
 
         return $send;
     }

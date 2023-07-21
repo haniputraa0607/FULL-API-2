@@ -2482,10 +2482,7 @@ class ApiMitra extends Controller
 				];
 			}
 		}
-		return [
-			'today_services' => $today_shift ? $today_services : [],
-			'yesterday_services' => $today_shift ? $yesterday_services : [],
-		];
+		
 		$data = [
 			'id_user_hair_stylist' => $hairstylist['id_user_hair_stylist'],
 			'photo' => (empty($hairstylist['user_hair_stylist_photo']) ? config('url.storage_url_api').'img/product/item/default.png':$hairstylist['user_hair_stylist_photo']),

@@ -5844,14 +5844,46 @@ Message :
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s'),
                 ),
+            190 =>
+                array (
+                    'id_autocrm' => 191,
+                    'autocrm_type' => 'Response',
+                    'autocrm_trigger' => 'Daily',
+                    'autocrm_cron_reference' => NULL,
+                    'autocrm_title' => 'Push Notif to POS Apps',
+                    'autocrm_email_toogle' => '0',
+                    'autocrm_sms_toogle' => '0',
+                    'autocrm_push_toogle' => '1',
+                    'autocrm_inbox_toogle' => '0',
+                    'autocrm_forward_toogle' => '0',
+                    'autocrm_email_subject' => NULL,
+                    'autocrm_email_content' => NULL,
+                    'autocrm_sms_content' => NULL,
+                    'autocrm_push_subject' => 'A new Transaction has been created',
+                    'autocrm_push_content' => 'A new Transaction has been created',
+                    'autocrm_push_image' => NULL,
+                    'autocrm_push_clickto' => NULL,
+                    'autocrm_push_link' => NULL,
+                    'autocrm_push_id_reference' => NULL,
+                    'autocrm_inbox_subject' => NULL,
+                    'autocrm_inbox_content' => NULL,
+                    'autocrm_forward_email' => NULL,
+                    'autocrm_forward_email_subject' => null,
+                    'autocrm_forward_email_content' => null,
+                    'custom_text_replace'=> null,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ),
         );
 
         foreach ($rows as $row) {
-            Autocrm::updateOrCreate(['autocrm_title' => $row['autocrm_title']], [
-                'autocrm_type' => $row['autocrm_type'],
-                'autocrm_trigger' => $row['autocrm_trigger'],
-                'autocrm_title' => $row['autocrm_title'],
-                'custom_text_replace'=> $row['custom_text_replace'],
+            if (Autocrm::where('autocrm_title', $row['autocrm_title'])->exists()) continue;
+            Autocrm::create([
+                'autocrm_title' => $setting['autocrm_title'],
+                'autocrm_type' => $setting['autocrm_type'] ?? null,
+                'autocrm_trigger' => $setting['autocrm_trigger'] ?? null,
+                'autocrm_title' => $setting['autocrm_title'] ?? null,
+                'custom_text_replace' => $setting['custom_text_replace'] ?? null,
             ]);
         }
     }

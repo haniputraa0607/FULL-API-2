@@ -96,6 +96,8 @@ class ApiAutoCrm extends Controller
 		                )->where('phone_number','=',$receipient)->get()->toArray();
             }elseif($recipient_type = 'employee'){
 				$users = User::where('phone','=',$receipient)->whereNotNull('id_role')->get()->toArray();
+            }elseif($recipient_type = 'pos_outlet'){
+				$user = Outlet::where('outlet_code', $receipient)->get()->toArray();
 			}
 		}
 		if(empty($users)){
@@ -759,6 +761,33 @@ class ApiAutoCrm extends Controller
 								}
 							}
 						}
+					} catch (\Exception $e) {
+						return response()->json(MyHelper::throwError($e));
+					}
+				}elseif(!empty($user['outlet_code'])){
+					try {
+						$dataOptional          = [];
+						$subject = $crm['autocrm_push_subject'];
+						$content = $crm['autocrm_push_content'];
+						$deviceToken = PushNotificationHelper::searchDeviceToken("outlet_code", $user['outlet_code'], $recipient_type);
+
+						if (!empty($deviceToken)) {
+							if (isset($deviceToken['token']) && !empty($deviceToken['token'])) {
+								$push = PushNotificationHelper::sendPush($deviceToken['token'], $subject, $content, null, $dataOptional);
+
+								if (isset($push['success']) && $push['success'] > 0) {
+	
+									$logData['id_user'] = $user['id_outlet'];
+									$logData['type_user'] = 'outlet';
+									$logData['push_log_to'] = $user['outlet_code'];
+									$logData['push_log_subject'] = $subject;
+									$logData['push_log_content'] = $content;
+
+									$logs = AutocrmPushLog::create($logData);
+								}
+							}
+						}
+
 					} catch (\Exception $e) {
 						return response()->json(MyHelper::throwError($e));
 					}

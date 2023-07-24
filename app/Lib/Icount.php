@@ -40,22 +40,23 @@ class Icount
         }else{
             $time_out = 1;
         }
+        $responseIcount = null;
         if ($method == 'get') {
-            $response = MyHelper::getWithTimeout(self::getBaseUrl($company) . $url, null, $request, $header, 65, $fullResponse);
+            $responseIcount = MyHelper::getWithTimeout(self::getBaseUrl($company) . $url, null, $request, $header, 65, $fullResponse);
         }elseif($method == 'put'){
-            $response = MyHelper::putWithTimeout(self::getBaseUrl($company) . $url, null, $request, $time_out, $header, 65, $fullResponse);
+            $responseIcount = MyHelper::putWithTimeout(self::getBaseUrl($company) . $url, null, $request, $time_out, $header, 65, $fullResponse);
         }else{
-            $response = MyHelper::postWithTimeout(self::getBaseUrl($company) . $url, null, $request, $time_out, $header, 65, $fullResponse);
+            $responseIcount = MyHelper::postWithTimeout(self::getBaseUrl($company) . $url, null, $request, $time_out, $header, 65, $fullResponse);
         }   
         try {
             if($method=='get'){
-                foreach($response['response']['Data'] as $key => $data){
+                foreach($responseIcount['response']['Data'] as $key => $data){
                     if(isset($data['ItemImage']) && !empty($data['ItemImage'])){
-                        $response['response']['Data'][$key]['ItemImage'] = "";
+                        $responseIcount['response']['Data'][$key]['ItemImage'] = "";
                     }
                 }
             }
-            $log_response = $response;
+            $log_response = $responseIcount;
             
             $log_api_array = [
                 'type'              => $logType??'',
@@ -72,7 +73,7 @@ class Icount
             \Illuminate\Support\Facades\Log::error('Failed write log to LogApiIcount: ' . $e->getMessage());
         }        
 
-        return $response;
+        return $responseIcount;
     }
 
     public static function ApiInitBranch($request, $company = null, $logType = null, $orderId = null){

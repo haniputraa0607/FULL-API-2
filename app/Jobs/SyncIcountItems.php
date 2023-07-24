@@ -48,7 +48,7 @@ class SyncIcountItems implements ShouldQueue
             $data = $icount->ItemList($this->data['page'],null,'PT IMS');
             $company = 'ims';
         }
-        if(isset($data)){
+        if(isset($data) && isset($data['response'])){
             if($data['response']['Message']=='Success'){
                 $items = $data['response']['Data'];
                 $items = $this->checkInputIcount($items,$company);

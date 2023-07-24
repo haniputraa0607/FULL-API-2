@@ -38,7 +38,7 @@ class SyncIcountDepartment implements ShouldQueue
         $icount = new Icount();
         $id_departments = $this->data['id_departments'];
         $data = $icount->DepartmentList($this->data['page']);
-        if(isset($data)){
+        if(isset($data) && isset($data['response'])){
             if($data['response']['Message']=='Success'){
                 $departments = $data['response']['Data'];
                 $departments = $this->checkInputIcount($departments);

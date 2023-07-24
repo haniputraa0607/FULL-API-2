@@ -50,7 +50,7 @@ class Icount
         }   
         try {
             if($method=='get'){
-                foreach($responseIcount['response']['Data'] as $key => $data){
+                foreach($responseIcount['response']['Data'] ?? [] as $key => $data){
                     if(isset($data['ItemImage']) && !empty($data['ItemImage'])){
                         $responseIcount['response']['Data'][$key]['ItemImage'] = "";
                     }

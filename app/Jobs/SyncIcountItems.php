@@ -38,18 +38,17 @@ class SyncIcountItems implements ShouldQueue
      */
     public function handle()
     {
-        $icount = new Icount();
         $id_items = $this->data['id_items'];
         if($this->data['ima']){
-            $data = $icount->ItemList($this->data['page'],null,'PT IMA');
+            $data = Icount::ItemList($this->data['page'],null,'PT IMA');
             $company = 'ima';
         }
         if($this->data['ims']){
-            $data = $icount->ItemList($this->data['page'],null,'PT IMS');
+            $data = Icount::ItemList($this->data['page'],null,'PT IMS');
             $company = 'ims';
         }
         if(isset($data) && isset($data['response'])){
-            if($data['response']['Message']=='Success'){
+            if(isset($data['response']['Message']) && $data['response']['Message']=='Success'){
                 $items = $data['response']['Data'];
                 $items = $this->checkInputIcount($items,$company);
                 if($data['response']['Meta']['Pagination']['CurrentPage']==1){

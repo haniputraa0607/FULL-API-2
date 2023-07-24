@@ -34,11 +34,10 @@ class SyncIcountChartOfAccount implements ShouldQueue
      */
     public function handle()
     {
-        $icount = new Icount();
         $id_chart = $this->data['id_chart'];
-        $data = $icount->ChartOfAccount($this->data['page']);
+        $data = Icount::ChartOfAccount($this->data['page']);
         if(isset($data) && isset($data['response'])){
-            if($data['response']['Status']==0 && $data['response']['Message']=='Success'){
+            if(isset($data['response']['Message']) && $data['response']['Status']==0 && $data['response']['Message']=='Success'){
                 if($data['response']['Meta']['Pagination']['CurrentPage']==1){
                     $index = 0;
                 }else{

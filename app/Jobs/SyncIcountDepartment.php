@@ -36,9 +36,7 @@ class SyncIcountDepartment implements ShouldQueue
     public function handle()
     {
         $id_departments = $this->data['id_departments'];
-        \Log::debug($this->data['page']);
         $data = Icount::DepartmentList($this->data['page']);
-        \Log::debug($data);
         if(isset($data) && isset($data['response'])){
             if(isset($data['response']['Message']) && $data['response']['Message']=='Success'){
                 $departments = $data['response']['Data'];

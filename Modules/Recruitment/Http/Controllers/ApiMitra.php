@@ -2237,18 +2237,19 @@ class ApiMitra extends Controller
 			
         if(empty($shift)){
 			$today_shift = false;
-        }
-
-		$clockInOut = HairstylistAttendance::where('id_user_hair_stylist', $hairstylist['id_user_hair_stylist'])
-			->where('id_hairstylist_schedule_date', $shift['id_hairstylist_schedule_date'])->orderBy('updated_at', 'desc')->first();
-				
-		if(!empty($clockInOut) && !empty($clockInOut['clock_in']) && strtotime($bookTime) >= strtotime($clockInOut['clock_in'])){
-			$availableStatus = true;
-			$lastAction = HairstylistAttendanceLog::where('id_hairstylist_attendance', $clockInOut['id_hairstylist_attendance'])->orderBy('datetime', 'desc')->first();
-			if(!empty($clockInOut['clock_out']) && $lastAction['type'] == 'clock_out' && strtotime($bookTime) > strtotime($clockInOut['clock_out'])){
-				$availableStatus = false;
+        }else{
+			$clockInOut = HairstylistAttendance::where('id_user_hair_stylist', $hairstylist['id_user_hair_stylist'])
+				->where('id_hairstylist_schedule_date', $shift['id_hairstylist_schedule_date'])->orderBy('updated_at', 'desc')->first();
+					
+			if(!empty($clockInOut) && !empty($clockInOut['clock_in']) && strtotime($bookTime) >= strtotime($clockInOut['clock_in'])){
+				$availableStatus = true;
+				$lastAction = HairstylistAttendanceLog::where('id_hairstylist_attendance', $clockInOut['id_hairstylist_attendance'])->orderBy('datetime', 'desc')->first();
+				if(!empty($clockInOut['clock_out']) && $lastAction['type'] == 'clock_out' && strtotime($bookTime) > strtotime($clockInOut['clock_out'])){
+					$availableStatus = false;
+				}
 			}
 		}
+
 
 		$bookTimeOrigin = date('H:i:s', strtotime($bookTimeOrigin . "+ 1 minutes"));
 		$notAvailable = HairstylistNotAvailable::where('id_outlet', $outlet['id_outlet'])
@@ -2292,7 +2293,7 @@ class ApiMitra extends Controller
                 $trx_q->where('trasaction_payment_type', 'Cash')
                 ->orWhere('transaction_payment_status', 'Completed');
             });
-            $trx->where('transactions.id_outlet',$outlet['id_outlet']);	
+            $trx->where('id_outlet',$outlet['id_outlet']);	
 			$trx->where('transaction_payment_status', '!=', 'Cancelled');
 		})
 		->where('type','Product')
@@ -2312,7 +2313,7 @@ class ApiMitra extends Controller
                 $trx_q->where('trasaction_payment_type', 'Cash')
                 ->orWhere('transaction_payment_status', 'Completed');
             });
-            $trx->where('transactions.id_outlet',$outlet['id_outlet']);	
+            $trx->where('id_outlet',$outlet['id_outlet']);	
 			$trx->where('transaction_payment_status', '!=', 'Cancelled');
 		})
 		->where('id_user_hair_stylist', $hairstylist['id_user_hair_stylist'])
@@ -2346,14 +2347,14 @@ class ApiMitra extends Controller
 			if($serv['transaction']['trasaction_payment_type'] == 'Cash'){
 				$payment_type = 'Cash';
 			}elseif($serv['transaction']['trasaction_payment_type'] == 'Xendit'){
-				$xendit = TransactionPaymentXendit::where('id_transaction',$serv['transction']['id_transaction'])->first();
+				$xendit = TransactionPaymentXendit::where('id_transaction',$serv['transaction']['id_transaction'])->first();
 				if($xendit){
 					$payment_type = ucfirst(strtolower($xendit['type']));
 				}else{
 					$payment_type = $serv['transaction']['trasaction_payment_type'];
 				}
 			}elseif($serv['transaction']['trasaction_payment_type'] == 'Midtrans'){
-				$midtrans = TransactionPaymentMidtran::where('id_transaction',$serv['transction']['id_transaction'])->first();
+				$midtrans = TransactionPaymentMidtran::where('id_transaction',$serv['transaction']['id_transaction'])->first();
 				if($midtrans){
 					$payment_type = ucfirst(strtolower($midtrans['payment_type']));
 				}else{
@@ -2425,14 +2426,14 @@ class ApiMitra extends Controller
 			if($serv_prod['transaction']['trasaction_payment_type'] == 'Cash'){
 				$payment_type = 'Cash';
 			}elseif($serv_prod['transaction']['trasaction_payment_type'] == 'Xendit'){
-				$xendit = TransactionPaymentXendit::where('id_transaction',$serv_prod['transction']['id_transaction'])->first();
+				$xendit = TransactionPaymentXendit::where('id_transaction',$serv_prod['transaction']['id_transaction'])->first();
 				if($xendit){
 					$payment_type = ucfirst(strtolower($xendit['type']));
 				}else{
 					$payment_type = $serv_prod['transaction']['trasaction_payment_type'];
 				}
 			}elseif($serv_prod['transaction']['trasaction_payment_type'] == 'Midtrans'){
-				$midtrans = TransactionPaymentMidtran::where('id_transaction',$serv_prod['transction']['id_transaction']??null)->first();
+				$midtrans = TransactionPaymentMidtran::where('id_transaction',$serv_prod['transaction']['id_transaction']??null)->first();
 				if($midtrans){
 					$payment_type = ucfirst(strtolower($midtrans['payment_type']));
 				}else{

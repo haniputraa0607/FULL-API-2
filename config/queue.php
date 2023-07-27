@@ -46,6 +46,12 @@ return [
             'queue' => 'portal',
             'retry_after' => 9000,
         ],
+        'outlet_portal_report_queues' => [
+            'driver' => 'database',
+            'table' => 'outlet_portal_report_queues',
+            'queue' => 'outlet_portal_report_queues',
+            'retry_after' => 9000,
+        ],
 
         'achievement' => [
             'driver' => 'database',

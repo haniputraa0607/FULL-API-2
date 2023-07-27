@@ -37,6 +37,7 @@ use DateTime;
 use UserHairStylist as GlobalUserHairStylist;
 use App\Http\Models\Outlet;
 use Modules\Transaction\Entities\TransactionPaymentCashDetail;
+use App\Jobs\TransaksiOutletJob;
 
 class ApiMitraShopService extends Controller
 {
@@ -247,7 +248,13 @@ class ApiMitraShopService extends Controller
             	'receipt_number' => $trx['transaction_receipt_number']
 	        ]
 	    );
-
+           if(isset($trx->id_outlet)){
+                     $datas = array(
+                                    'id_outlet'=>$trx->id_outlet,
+                                    'date'=>date('Y-m-d')
+                                );
+                    TransaksiOutletJob::dispatch($datas)->OnConnection('outlet_portal_report_queues');
+                }
     	DB::commit();
 
     	return ['status' => 'success'];

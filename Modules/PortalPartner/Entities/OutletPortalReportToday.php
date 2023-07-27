@@ -4,10 +4,10 @@ namespace Modules\PortalPartner\Entities;
 
 use Illuminate\Database\Eloquent\Model;
 
-class OutletPortalReport extends Model
+class OutletPortalReportToday extends Model
 {
-    protected $table = 'outlet_portal_reports';
-    protected $primaryKey = 'id_outlet_portal_report';
+    protected $table = 'outlet_portal_report_todays';
+    protected $primaryKey = 'id_outlet_portal_report_today';
    
     protected $fillable = [
         'id_outlet',

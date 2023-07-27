@@ -50,6 +50,7 @@ use Modules\Product\Entities\ProductIcount;
 use Modules\Product\Entities\ProductIcountOutletStock;
 use Modules\Transaction\Entities\TransactionPaymentCashDetail;
 use App\Http\Models\User;
+use App\Jobs\TransaksiOutletJob;
 
 class ApiMitraOutletService extends Controller
 {
@@ -780,7 +781,13 @@ class ApiMitraOutletService extends Controller
     			HairstylistScheduleDate::where('id_hairstylist_schedule_date', $schedule->id_hairstylist_schedule_date)
     			->update(['id_outlet_box' => $request->id_outlet_box]);
     		}
-
+                if(isset($checkQr['id_outlet'])){
+                     $datas = array(
+                                    'id_outlet'=>$checkQr['id_outlet'],
+                                    'date'=>date('Y-m-d')
+                                );
+                    TransaksiOutletJob::dispatch($datas)->OnConnection('outlet_portal_report_queues');
+                }
 
     		// DB::commit();
     	} catch (\Exception $e) {
@@ -1165,7 +1172,6 @@ class ApiMitraOutletService extends Controller
     			'id_transaction_product_service' => $request->id_transaction_product_service,
     			'action' => $action
     		]);
-
     		$service->update([
     			'id_user_hair_stylist' => $user->id_user_hair_stylist,
 				'schedule_time' => date('H:i:s'),
@@ -1179,8 +1185,15 @@ class ApiMitraOutletService extends Controller
     			HairstylistScheduleDate::where('id_hairstylist_schedule_date', $schedule->id_hairstylist_schedule_date)
     			->update(['id_outlet_box' => $request->id_outlet_box]);
     		}
+                if(isset($checkQr['id_outlet'])){
+                     $datas = array(
+                                    'id_outlet'=>$checkQr['id_outlet'],
+                                    'date'=>date('Y-m-d')
+                                );
+                    TransaksiOutletJob::dispatch($datas)->OnConnection('outlet_portal_report_queues');
 
-
+                }
+                
     		// DB::commit();
     	} catch (\Exception $e) {
 

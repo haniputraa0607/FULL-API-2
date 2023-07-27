@@ -35,10 +35,13 @@ Route::group(['prefix' => 'partner'], function () {
             Route::post('/monthly', 'ApiDashboardController@monthly');
             Route::post('/generate', 'ApiDailyController@generate');
             Route::post('/cek_gross', 'ApiDailyController@cek_gross');
-            Route::post('/portal_hs', 'ApiDailyController@cek_portal_hs');
-            Route::post('/cek_hs', 'ApiDailyController@cek_hs');
+            Route::post('/portal_hs', 'ApiGenerateTodayController@cek_portal_hs');
+            Route::post('/job', 'ApiGenerateTodayController@job');
+            Route::post('/generateToday', 'ApiDailyController@generateToday');
             Route::post('/create/generate', 'ApiGenerateController@create');
             Route::post('/list/generate', 'ApiGenerateController@list');
+            
+            Route::post('/cek_generate', 'ApiGenerateTodayController@dailyData');
         });
         Route::group(['prefix' => 'promo'], function() {
             Route::post('detail/deals', 'ApiDeals@detail');

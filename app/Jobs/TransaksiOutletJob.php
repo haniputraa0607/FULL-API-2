@@ -25,26 +25,24 @@ use Symfony\Component\HttpFoundation\Request;
 use App\Lib\MyHelper;
 use Modules\PortalPartner\Entities\OutletReportJob;
 
-class OutletJob implements ShouldQueue
+class TransaksiOutletJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    
+    protected $data;
     /**
      * Create a new job instance.
      *
      * @return void
      */
+    public function __construct($data)
+    {
+        $this->data    = $data;
+    }
 
-    /**
-     * Execute the job.
-     *
-     * @return void
-     */
     public function handle()
     {
-        $data = OutletReportJob::where('status_export','Running')->first();
-        if($data){
-        $datas = app('Modules\PortalPartner\Http\Controllers\ApiDailyController')->generateToday($data);
-        }
+        $datas = app('Modules\PortalPartner\Http\Controllers\ApiGenerateTodayController')->generateTransaksi($this->data);
         return true;
 
     }

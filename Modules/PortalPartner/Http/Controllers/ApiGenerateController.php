@@ -137,6 +137,15 @@ class ApiGenerateController extends Controller
                                         ) as refund_product
                                         '))
                        ->first();
+                $qty= Transaction::where(array('transactions.id_outlet'=>$request['id_outlet']))
+                       ->whereDate('transactions.transaction_date', '>=', $value['date'])->whereDate('transactions.transaction_date', '<=', $value['date'])
+                       ->where('transaction_outlet_services.reject_at', NULL)
+                       ->where('transactions.reject_at', NULL)
+                       ->where('transactions.transaction_payment_status', 'Completed')
+                       ->join('transaction_outlet_services', 'transaction_outlet_services.id_transaction', 'transactions.id_transaction')
+                       ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
+                       ->select('transaction_product_qty')
+                        ->sum('transaction_product_qty');
                 $value['net_sales'] = $value['revenue'] - ($refund['refund_product']+$value['diskon']+$value['tax']);
                 $value['net_sales_mdr'] = $value['net_sales'] - $value['mdr'];
                 $value['count_hs'] = count($hs);
@@ -156,6 +165,7 @@ class ApiGenerateController extends Controller
                         'net_sales_mdr' => $value['net_sales_mdr'],
                         'count_hs' => $value['count_hs'],
                         'refund_product' => $value['refund_product'],
+                        'qty'=>$qty
                     ]
                     );
             }
@@ -169,8 +179,6 @@ class ApiGenerateController extends Controller
             ]);
             return false;  
         }
-
-       
     }
 } 
  

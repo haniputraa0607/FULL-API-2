@@ -42,7 +42,7 @@ class GeneratePortalHsJob implements ShouldQueue
     public function handle()
     {
       
-        $datas = app('Modules\PortalPartner\Http\Controllers\ApiDailyController')->portal_hs();
+        $datas = app('Modules\PortalPartner\Http\Controllers\ApiGenerateTodayController')->portal_hs();
         return true;
 
     }

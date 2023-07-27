@@ -30,7 +30,7 @@ use Modules\PortalPartner\Entities\OutletPortalReportToday;
 class ApiDailyController extends Controller
 {
     public function job() {
-        $data = OutletJob::dispatch()->allOnConnection('database');
+        $data = OutletJob::dispatch()->OnConnection('outlet_portal_report_queues');
         $data = OutletReportJob::create([
             'date'=>date('Y-m-d')
         ]);

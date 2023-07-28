@@ -168,7 +168,7 @@ class ApiMitraSupervisor extends Controller
 		->whereDate('transactions.transaction_date', $date)
 		->where('transaction_payment_status', 'Completed')
 		->where('transactions.id_outlet', $user->id_outlet)
-		->where('transfer_status', 0)
+//		->where('transfer_status', 0)
                 ->groupby('transaction_products.id_transaction_product')
 		->select('hairstylist_log_balances.balance','transaction_grandtotal', 'transactions.id_transaction', 'transactions.transaction_receipt_number', 'transaction_payment_cash_details.*', 'user_hair_stylist.fullname','transaction_products.transaction_product_price','transaction_products.transaction_product_discount_all');
 		
@@ -219,7 +219,7 @@ class ApiMitraSupervisor extends Controller
 		->whereDate('transactions.transaction_date', $date)
 		->where('transaction_payment_status', 'Completed')
 		->where('transactions.id_outlet', $user->id_outlet)
-		->where('transfer_status', 0)
+//		->where('transfer_status', 0)
                 ->groupby('transaction_products.id_transaction_product')
 		->select('hairstylist_log_balances.balance','transaction_grandtotal', 'transactions.id_transaction', 'transactions.transaction_receipt_number', 'transaction_payment_cash_details.*', 'user_hair_stylist.fullname','transaction_products.transaction_product_price','transaction_products.transaction_product_discount_all');
 		

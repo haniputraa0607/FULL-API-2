@@ -18,6 +18,7 @@ use App\Http\Models\Product;
 use DB;
 use DataTables;
 use Modules\PortalPartner\Entities\OutletPortalReport;
+use Modules\PortalPartner\Entities\OutletPortalReportToday;
 
 class ApiDashboardController extends Controller
 {
@@ -131,12 +132,18 @@ class ApiDashboardController extends Controller
     }
     public function daily(Request $request) {
        if(isset($request->id_outlet) && !empty($request->id_outlet) && isset($request->dari) && !empty($request->dari) && isset($request->sampai) && !empty($request->sampai) ){
-            $data = OutletPortalReport::where('id_outlet',$request->id_outlet)
+           
+          $data = OutletPortalReport::where('id_outlet',$request->id_outlet)
                     ->whereDate('date', '>=', $request->dari)
                     ->whereDate('date', '<=', $request->sampai)
                     ->orderby('date','DESC')
                     ->get();      
-            
+           $data[] = OutletPortalReportToday::where('id_outlet',$request->id_outlet)
+                    ->whereDate('date', '>=', $request->dari)
+                    ->whereDate('date', '<=', $request->sampai)
+                    ->orderby('date','DESC')
+                    ->first(); 
+           
              return response()->json(['status' => 'success', 'result' => $data]);  
        }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incomplete data']]);

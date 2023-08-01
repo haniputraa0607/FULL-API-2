@@ -43,7 +43,8 @@ class OutletJob implements ShouldQueue
     {
         $data = OutletReportJob::where('status_export','Running')->first();
         if($data){
-        $datas = app('Modules\PortalPartner\Http\Controllers\ApiDailyController')->generateToday($data);
+        $datas = app('Modules\PortalPartner\Http\Controllers\ApiDailyController')->daily($data);
+//        $datas = app('Modules\PortalPartner\Http\Controllers\ApiDailyController')->generateToday($data);
         }
         return true;
 

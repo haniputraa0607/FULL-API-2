@@ -330,5 +330,12 @@ class ApiDailyController extends Controller
             return false;  
         }
     }
+    public function generate_by_day(Request $request) {
+        $data = OutletJob::dispatch()->OnConnection('outlet_portal_report_queues');
+        $data = OutletReportJob::create([
+            'date'=>date('Y-m-d')
+        ]);
+        return MyHelper::checkGet($data);
+    } 
 } 
  

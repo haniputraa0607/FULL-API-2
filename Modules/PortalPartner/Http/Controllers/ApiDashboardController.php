@@ -138,12 +138,6 @@ class ApiDashboardController extends Controller
                     ->whereDate('date', '<=', $request->sampai)
                     ->orderby('date','DESC')
                     ->get();      
-           $data[] = OutletPortalReportToday::where('id_outlet',$request->id_outlet)
-                    ->whereDate('date', '>=', $request->dari)
-                    ->whereDate('date', '<=', $request->sampai)
-                    ->orderby('date','DESC')
-                    ->first(); 
-           
              return response()->json(['status' => 'success', 'result' => $data]);  
        }else{
             return response()->json(['status' => 'fail', 'messages' => ['Incomplete data']]);

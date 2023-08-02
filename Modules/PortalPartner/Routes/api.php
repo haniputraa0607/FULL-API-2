@@ -41,6 +41,9 @@ Route::group(['prefix' => 'partner'], function () {
             Route::post('/create/generate', 'ApiGenerateController@create');
             Route::post('/list/generate', 'ApiGenerateController@list');
             
+            //
+            Route::post('/generate_by_day', 'ApiDailyController@generate_by_day');
+            
             Route::post('/cek_generate', 'ApiGenerateTodayController@dailyData');
         });
         Route::group(['prefix' => 'promo'], function() {

@@ -112,7 +112,7 @@ class ApiMitraSupervisor extends Controller
 			$amount = $amount + $value['balance'];
 		}
 		$result = [
-			'total_projection' => $amount,
+			'total_projection' => (int)$amount,
 		];
 		return ['status' => 'success', 'result' => $result];
 	}
@@ -142,7 +142,7 @@ class ApiMitraSupervisor extends Controller
 		}
 		$totalAcceptance = $history->orderBy('outlet_cash.confirm_at', 'desc')->sum('outlet_cash_amount');
 		$result = [
-			'total_reception' => $totalAcceptance,
+			'total_reception' => (int)$totalAcceptance,
 		];
 		return ['status' => 'success', 'result' => $result];
 	}

@@ -175,7 +175,7 @@ class ApiGenerateTodayController extends Controller
         foreach($outlet as $value){
             $data = OutletPortalReport::where('id_outlet',$value['id_outlet'])
                     ->select('id_outlet_portal_report','id_outlet','date')
-                    ->where('qty','!=',0)
+                    ->where('qty','=',0)
                     ->get();
             foreach($data as $v){
                  $qty= Transaction::where(array('transactions.id_outlet'=>$v['id_outlet']))

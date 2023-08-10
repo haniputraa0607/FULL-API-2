@@ -152,6 +152,42 @@ class ApiPosOrderController extends Controller
     			'messages' => ['Tidak dapat mendapat data outlet.']
             ], 400);
         } 
+
+        $status_outlet = true;
+        if(isset($outlet['outlet_status']) && $outlet['outlet_status'] == 'Inactive'){
+            $status_outlet = false;
+        }
+
+
+        $holiday = Holiday::with(['date_holidays'])->whereHas('date_holidays',function($date_holiday){
+            $date_holiday->whereDay('date_holidays.date', date('d'));
+            $date_holiday->whereMonth('date_holidays.date', date('m'));
+        })->whereHas('outlet_holidays',function($outlet_holiday) use($outlet){
+            $outlet_holiday->where('id_outlet', $outlet['id_outlet']);
+        })->get();
+
+        if(count($holiday) > 0){
+            foreach($holiday as $i => $holi){
+                if($holi['yearly'] == '0'){
+                    if($holi['date_holidays'][0]['date'] == date('Y-m-d')){
+                        $status_outlet = false;
+                    }
+                }else{
+                    $status_outlet = false;
+                }
+            }
+        }
+
+        if($outlet['today']['is_closed'] == '1'){
+            $status_outlet = false;
+        }
+
+        if($outlet['today']['close'] && $outlet['today']['open']){
+            if(($outlet['today']['open'] && date('H:i') < date('H:i', strtotime($outlet['today']['open']))) || ($outlet['today']['close'] && date('H:i') > date('H:i', strtotime($outlet['today']['close'])))){
+                $status_outlet = false;
+            }
+        }
+
         $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
         $outlet = [
@@ -390,6 +426,7 @@ class ApiPosOrderController extends Controller
         }
         $data = [
             'outlet' => $outlet,
+            'outlet_open' => $status_outlet,
             'product_services' => $resProdService,
             'products' => $resProducts,
             'available_hs' => $res

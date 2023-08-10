@@ -625,7 +625,7 @@ class XenditController extends Controller
                 }
                 $params['for-user-id'] = optional($reference->outlet->xendit_account)->xendit_id;
                 $payment = TransactionPaymentXendit::where('id_transaction', $reference['id_transaction'])->first();
-                if (!in_array(strtolower($payment->type), ['ovo', 'dana', 'shopeepay', 'linkaja'])) {
+                if (!in_array(strtolower($payment['type']), ['ovo', 'dana', 'shopeepay', 'linkaja'])) {
                     $errors = ['Refund not supported dor this payment type'];
                     return false;
                 }

@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use App\Lib\MyHelper;
 use DB;
+use Modules\PortalPartner\Entities\OutletPortalReport;
 
 class ApiReportSalesController extends Controller
 {
@@ -15,7 +16,7 @@ class ApiReportSalesController extends Controller
         date_default_timezone_set('Asia/Jakarta');
     }
 
-    public function outletSummary(Request $request)
+    public function outletSummaryOld(Request $request)
     {
     	$post = $request->json()->all();
         if(!$request->id_outlet){
@@ -104,6 +105,83 @@ class ApiReportSalesController extends Controller
             'total_net_sales' => [
                 'title' => 'Total Net Sales',
                 'amount' => 'Rp. '.number_format($total_net_sales??0,0,",","."),
+                "tooltip" => 'Total pendapatan bersih dari trasaksi',
+                "show" => 1
+            ],
+    	];
+
+        return MyHelper::checkGet($result);
+    }
+    public function outletSummary(Request $request)
+    {
+    	$post = $request->json()->all();
+        if(!$request->id_outlet){
+        	return response()->json(['status' => 'fail', 'messages' => ['ID outlet can not be empty']]);
+        }
+    	$report = OutletPortalReport::where(array('id_outlet'=>$request->id_outlet))
+                       ->whereDate('date', '>=', $request->dari)->whereDate('date', '<=', $request->sampai)
+                       ->select(DB::raw('
+                         SUM(CASE WHEN jumlah THEN jumlah ELSE 0 END) AS total_transaction, 
+                                                
+                                                # tax
+						SUM(
+                                                tax
+							) as total_tax,
+						# diskon
+						 SUM(
+                                                    diskon
+                                                  ) as total_discount,
+                                                
+                                                #mdr 
+                                                SUM(
+                                                    mdr
+                                                ) as total_mdr,
+                                                #revenue
+                                                SUM(
+                                                revenue
+                                                ) as total_revenue,
+                                                #net sales
+                                                SUM(
+                                                net_sales
+                                                ) as total_net_sales                                               
+                                                
+					'));
+        $report = $report->first();
+       
+    	$result = [
+            'total_transaction' => [
+                'title' => 'Total Order Completed',
+                'amount' => number_format($report['total_transaction']??0,0,",","."),
+                "tooltip" => 'Jumlah semua transaksi',
+                "show" => 1
+            ],
+            'total_revenue' => [
+                'title' => 'Total Revenue',
+                'amount' => 'Rp. '.number_format($report['total_revenue']??0,0,",","."),
+                "tooltip" => 'Total pendapatan',
+                "show" => 1
+            ],
+            'total_diskon' => [
+                'title' => 'Total Diskon Given',
+                'amount' => 'Rp. '.number_format($report['total_discount']??0,0,",","."),
+                "tooltip" => 'Total diskon yang dikenakan pada transaksi',
+                "show" => 1
+            ],
+             'total_tax' => [
+                'title' => 'Total Tax Charged',
+                'amount' =>'Rp. '. number_format($report['total_tax']??0,0,",","."),
+                "tooltip" => 'Total pajak yang dikenakan pada transaksi',
+                "show" => 1
+            ],
+            'total_mdr_paid' => [
+                'title' => 'Total MDR Paid',
+                'amount' => 'Rp. '.number_format($report['total_mdr']??0,0,",","."),
+                "tooltip" => 'Total nominal MDR transaksi',
+                "show" => 1
+            ],
+            'total_net_sales' => [
+                'title' => 'Total Net Sales',
+                'amount' => 'Rp. '.number_format($report['total_net_sales']??0,0,",","."),
                 "tooltip" => 'Total pendapatan bersih dari trasaksi',
                 "show" => 1
             ],

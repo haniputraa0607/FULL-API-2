@@ -3,7 +3,7 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefi
     Route::post('/', ['middleware'=>['scopes:be'],'uses' => 'ApiTransaction@exportTransaction']);
 });
 Route::group(['middleware' => ['auth:api','log_activities', 'user_agent'],'prefix' => 'api/cobapoo', 'namespace' => 'Modules\Transaction\Http\Controllers'], function() {
-    Route::post('/', ['middleware'=>['scopes:be'],'uses' => 'ApiTransactionProductionController@CronBreakdownCommission']);
+    Route::post('/', ['middleware'=>['scopes:be'],'uses' => 'ApiTransactionProductionController@breakdownCommission']);
 });
 Route::group(['middleware' => ['auth:api'],'prefix' => 'api/transaction', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {
     Route::any('hs-location', 'ApiTransactionHomeService@getHSLocation');

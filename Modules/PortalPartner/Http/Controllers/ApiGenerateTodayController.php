@@ -304,7 +304,7 @@ class ApiGenerateTodayController extends Controller
                 $value['net_sales_mdr'] = $value['net_sales'] - $value['mdr'];
                 $value['count_hs'] = count($hs);
 		$value['refund_product'] = $refund['refund_product'];
-                $outletReport = OutletPortalReportToday::updateOrCreate([
+                $outletReport = OutletPortalReport::updateOrCreate([
                         'id_outlet' => $request['id_outlet'],
                         'date' => $value['date']
                     ],

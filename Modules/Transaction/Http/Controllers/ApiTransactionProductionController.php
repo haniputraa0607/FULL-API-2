@@ -448,7 +448,7 @@ class ApiTransactionProductionController extends Controller
                     }elseif($product_rule && $product_rule['dynamic'] == 0){
                         $static = true;
                         $fee_hs = 0;
-                        if(isset($group['percent'])&&$group['percent']==0){
+                        if(isset($product_rule['percent'])&&$product_rule['percent']==0){
                             $fee_hs = $product_rule['commission'];
                         }else{
                             $fee_hs = ($product_rule['commission']/100);
@@ -478,7 +478,7 @@ class ApiTransactionProductionController extends Controller
                         }elseif($global_rule_dynamic==0 && $setting_percent){
                             $static = true;
                             $fee_hs = 0;
-                        if(isset($group['percent'])&&$group['percent']==0){
+                        if(isset($product_rule['percent'])&&$product_rule['percent']==0){
                                 $fee_hs = $setting_percent['value_text'];
                             }else{
                                 $fee_hs = ($setting_percent['value_text']/100);
@@ -528,12 +528,12 @@ class ApiTransactionProductionController extends Controller
     }
      public function breakdownCommissionQueue(){
      $date = \App\Http\Models\LogCron::where('cron','Check Commission Hair Stylist')
-                ->where('status','fail')
+                ->where('status','!=','success')
                 ->select('id_log_cron',DB::raw('DATE_FORMAT(start_date, "%Y-%m-%d") as date'))
                 ->orderby('start_date','DESC')
                 ->get();
         foreach ($date as $value) {
-           $this->CronBreakdownCommissionGenerate($value['id_log_cron'],$value['date']);
+          $this->CronBreakdownCommissionGenerate($value['id_log_cron'],$value['date']);
         }
         return true;
      }
@@ -551,11 +551,10 @@ class ApiTransactionProductionController extends Controller
 
             $fail = false;
             $date_trans = date('Y-m-d', strtotime($date));
-            $transactions = TransactionProduct::join('transactions','transactions.id_transaction','transaction_products.id_transaction')
+          $transactions = TransactionProduct::join('transactions','transactions.id_transaction','transaction_products.id_transaction')
                 ->whereNotNull('transaction_products.id_user_hair_stylist')
                 ->whereNotNull('transaction_products.transaction_product_completed_at')
                 ->where('transactions.transaction_payment_status', 'Completed')
-                ->where('transaction_products.type', 'Service')
                 ->whereDate('transaction_products.transaction_product_completed_at', $date_trans)
                 ->select(
                     'transaction_products.id_transaction_product', 'transaction_products.id_product', 'transaction_products.id_user_hair_stylist', 'transaction_product_subtotal'
@@ -627,7 +626,7 @@ class ApiTransactionProductionController extends Controller
                     }elseif($product_rule && $product_rule['dynamic'] == 0){
                         $static = true;
                         $fee_hs = 0;
-                        if(isset($group['percent'])&&$group['percent']==0){
+                        if(isset($product_rule['percent'])&&$product_rule['percent']==0){
                             $fee_hs = $product_rule['commission'];
                         }else{
                             $fee_hs = ($product_rule['commission']/100);
@@ -657,7 +656,7 @@ class ApiTransactionProductionController extends Controller
                         }elseif($global_rule_dynamic==0 && $setting_percent){
                             $static = true;
                             $fee_hs = 0;
-                        if(isset($group['percent'])&&$group['percent']==0){
+                        if(isset($product_rule['percent'])&&$product_rule['percent']==0){
                                 $fee_hs = $setting_percent['value_text'];
                             }else{
                                 $fee_hs = ($setting_percent['value_text']/100);
@@ -694,7 +693,7 @@ class ApiTransactionProductionController extends Controller
             }else{
                 // DB::commit();
             }
-
+            
             $log->success('success');
             return response()->json(['status' => 'success']);
 

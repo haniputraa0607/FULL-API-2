@@ -116,7 +116,7 @@ class ApiTransactionOutletService extends Controller
 
     public function listOutletService(Request $request)
     {	
-        $list = Transaction::with(['user','outlet','transaction_outlet_service'])
+        $list = Transaction::with(['user','outlet','transaction_outlet_service', 'transaction_products'])
                 ->where('transaction_from', 'outlet-service')
 	            ->groupBy('transactions.id_transaction');
 
@@ -167,6 +167,13 @@ class ApiTransactionOutletService extends Controller
                 ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
                 $date_time = $this->getTimezone($val['transaction_date'], $timeZone);
                 $val['transaction_date'] = $date_time['time'].' '.$date_time['time_zone_id'];
+                $val['cancel_cash'] = true;
+                foreach($val['transaction_products'] ?? [] as $trx_prod){
+                    if(isset($trx_prod['transaction_product_completed_at'])){
+                        $val['cancel_cash'] = false;
+                    }
+                }
+                
                 return $val;
             },$list['data']);
         } else {
@@ -177,6 +184,12 @@ class ApiTransactionOutletService extends Controller
                 ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
                 $date_time = $this->getTimezone($val['transaction_date'], $timeZone);
                 $val['transaction_date'] = $date_time['time'].' '.$date_time['time_zone_id'];
+                $val['cancel_cash'] = true;
+                foreach($val['transaction_products'] ?? [] as $trx_prod){
+                    if(isset($trx_prod['transaction_product_completed_at'])){
+                        $val['cancel_cash'] = false;
+                    }
+                }
                 return $val;
             },$list->toArray());
         }

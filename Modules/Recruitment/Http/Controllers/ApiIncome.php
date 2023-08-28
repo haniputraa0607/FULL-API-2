@@ -1255,6 +1255,7 @@ class ApiIncome extends Controller
 
                 $data['Bank'] = $hairstylist->bank_account->bank_name->bank_name??'';
                 $data['Bank account'] = $hairstylist->bank_account->beneficiary_name??'';
+                $data['No. Rekening'] = $hairstylist->bank_account->beneficiary_account??'';
                 $data['Email'] = $hairstylist->email??'';
 
                 $exportResults[] = $data;
@@ -1580,6 +1581,7 @@ class ApiIncome extends Controller
 
                 $data['Bank'] = $hairstylist->bank_account->bank_name->bank_name??'';
                 $data['Bank account'] = $hairstylist->bank_account->beneficiary_name??'';
+                $data['No. Rekening'] = $hairstylist->bank_account->beneficiary_account??'';
                 $data['Email'] = $hairstylist->email??'';
 
                 $exportResults[] = $data;

@@ -97,7 +97,16 @@ class ApiMitraSupervisor extends Controller
 		->join('hairstylist_log_balances', 'hairstylist_log_balances.id_reference', 'transaction_products.id_transaction_product')
 		->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_products.id_user_hair_stylist')
 		->whereDate('transactions.transaction_date', $date)
-		->where('transaction_payment_status', 'Completed')
+		->where(function($where){
+			$where->where('transaction_payment_status', 'Completed')
+			->orWhere(function($where2){
+				$where2->where('transaction_payment_status', 'Cancelled')
+				->where('trasaction_payment_type', 'Cash')
+				->whereNotNull('void_date')
+				->whereNotNull('transaction_product_completed_at');
+			});
+		})
+		// ->where('transaction_payment_status', 'Completed')
 		->where('transactions.id_outlet', $user->id_outlet)
                 ->groupby('transaction_products.id_transaction_product')
 		->select('hairstylist_log_balances.balance','transaction_grandtotal', 'transactions.id_transaction', 'transactions.transaction_receipt_number', 'transaction_payment_cash_details.*', 'user_hair_stylist.fullname','transaction_products.transaction_product_price','transaction_products.transaction_product_discount_all');
@@ -166,7 +175,16 @@ class ApiMitraSupervisor extends Controller
 		->join('hairstylist_log_balances', 'hairstylist_log_balances.id_reference', 'transaction_products.id_transaction_product')
 		->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_products.id_user_hair_stylist')
 		->whereDate('transactions.transaction_date', $date)
-		->where('transaction_payment_status', 'Completed')
+		->where(function($where){
+			$where->where('transaction_payment_status', 'Completed')
+			->orWhere(function($where2){
+				$where2->where('transaction_payment_status', 'Cancelled')
+				->where('trasaction_payment_type', 'Cash')
+				->whereNotNull('void_date')
+				->whereNotNull('transaction_product_completed_at');
+			});
+		})
+		// ->where('transaction_payment_status', 'Completed')
 		->where('transactions.id_outlet', $user->id_outlet)
 //		->where('transfer_status', 0)
                 ->groupby('transaction_products.id_transaction_product')
@@ -217,7 +235,16 @@ class ApiMitraSupervisor extends Controller
 		->join('hairstylist_log_balances', 'hairstylist_log_balances.id_reference', 'transaction_products.id_transaction_product')
 		->join('user_hair_stylist', 'user_hair_stylist.id_user_hair_stylist', 'transaction_products.id_user_hair_stylist')
 		->whereDate('transactions.transaction_date', $date)
-		->where('transaction_payment_status', 'Completed')
+		->where(function($where){
+			$where->where('transaction_payment_status', 'Completed')
+			->orWhere(function($where2){
+				$where2->where('transaction_payment_status', 'Cancelled')
+				->where('trasaction_payment_type', 'Cash')
+				->whereNotNull('void_date')
+				->whereNotNull('transaction_product_completed_at');
+			});
+		})
+		// ->where('transaction_payment_status', 'Completed')
 		->where('transactions.id_outlet', $user->id_outlet)
 //		->where('transfer_status', 0)
                 ->groupby('transaction_products.id_transaction_product')

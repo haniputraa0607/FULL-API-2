@@ -362,7 +362,7 @@ class ApiTransactionProductionController extends Controller
        
         $log = MyHelper::logCron('Check Commission Hair Stylist');
         try{
-            // DB::beginTransaction();
+             DB::beginTransaction();
 
             $fail = false;
             $date_trans = date('Y-m-d', strtotime($date ?: '-1 days'));
@@ -376,13 +376,7 @@ class ApiTransactionProductionController extends Controller
                 )
                 ->get()
                 ->toArray();
-
-            $transactions = array_map(function($val){
-                if(!isset($val['id_user_hair_stylist']) && empty($val['id_user_hair_stylist'])){
-                    $val['id_user_hair_stylist'] = TransactionProductService::where('id_transaction_product',$val['id_transaction_product'])->first()['id_user_hair_stylist'] ?? null;
-                }
-            },$transactions);
-
+            
             $data = [];
             foreach($transactions ?? [] as $key =>$transaction){
                 if(isset($data[$transaction['id_user_hair_stylist'].'_'.$transaction['id_product']])){
@@ -395,7 +389,6 @@ class ApiTransactionProductionController extends Controller
                     $data[$transaction['id_user_hair_stylist'].'_'.$transaction['id_product']]['transaction'][] = $transaction;
                 }
             }
-
             $tes = [];
             foreach($data ?? [] as $key_1 => $val){
                 $dynamic = false;
@@ -510,18 +503,18 @@ class ApiTransactionProductionController extends Controller
                 }
 
             }
-
             if($fail){
-                // DB::rollback();
+                 DB::rollback();
             }else{
-                // DB::commit();
+                 DB::commit();
             }
+            
 
             $log->success('success');
             return response()->json(['status' => 'success']);
 
         }catch (\Exception $e) {
-            // DB::rollBack();
+             DB::rollBack();
             $log->fail($e->getMessage());
         }  
         

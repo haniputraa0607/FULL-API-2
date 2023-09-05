@@ -1226,11 +1226,7 @@ class ApiIncome extends Controller
 //                    $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
 //                    $total_income += $values['value'];
 //                }
-                $response = HairstylistIncome::calculateIncomeProteksi($hs, $request['start_date'],$request['end_date'],$id_outlet);
-                foreach ($response as $values) {
-                    $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
-                    $total_income += $values['value'];
-                }
+              
                 $response = HairstylistIncome::calculateIncomeOvertime($hs, $request['start_date'],$request['end_date'], [$id_outlet], $all_overtimes);
                 foreach ($response as $values) {
                     $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
@@ -1241,15 +1237,20 @@ class ApiIncome extends Controller
                     $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
                     $total_income -= $values['value'];
                 }
+                  $response = HairstylistIncome::calculateIncomeProteksi($hs, $request['start_date'],$request['end_date'],$id_outlet);
+                foreach ($response as $values) {
+                    $data[ucfirst(str_replace('-', ' ', $values['name']))]=(string)$values['value'];
+                    $total_income += $values['value'];
+                }
 		$proteksi = HairstylistIncome::calculateGenerateIncomeProtec($hs, $request['start_date'],$request['end_date'],$id_outlet);
                 $keterangan = "Non Protection";
                 if($proteksi['name']){
                          $keterangan = $proteksi['name'];
                 }
-                if($proteksi['total_income']>$total_income){
-                         $total_income =(string) $proteksi['total_income'];
-                }
-                
+//                if($proteksi['total_income']>$total_income){
+//                         $total_income =(string) $proteksi['total_income'];
+//                }
+//                
                 $data['Total imbal jasa'] = (string) $total_income;
                 $data['Keterangan'] = $keterangan;
 
@@ -1613,5 +1614,58 @@ class ApiIncome extends Controller
             'body'=> $body,
         );
         return $response;
+    }
+    
+    
+    public function periode(Request $request) {
+          $startDate = $request['start_date'];
+          $endDate   = $request['end_date'];
+          $date_end         = (int) MyHelper::setting('hs_income_cut_off_mid_date', 'value')??null;
+          $cek_end         = (int) MyHelper::setting('hs_income_cut_off_end_date', 'value')??null;
+          if($cek_end){
+              $date_end = $cek_end;
+          }
+         $end_date = date('Y-m-'.$date_end, strtotime($startDate));
+          if(!$date_end){
+              return array();
+          }
+          $ar = array();
+          $s = 2;
+          for($i=1;$i<$s;$i){
+              if($startDate>=$end_date){
+               $end_date = date('Y-m-d', strtotime($end_date.'+1 months'));
+              }
+              if($end_date>=$endDate){
+                  $end_date = $endDate;
+              }
+              $ar[]= array(
+                  'start'=>$startDate,
+                  'end'=>$end_date,
+              );
+              
+              if($end_date>=$endDate){
+                  break;
+              }
+              $startDate = date('Y-m-d', strtotime($end_date.'+1 days'));
+          }
+          $array = array();
+          foreach ($ar as $value) {
+            $req = array(
+                  'id_outlet'=>$request['id_outlet'],
+                  'start_date'=>$value['start'],
+                  'end_date'=>$value['end'],
+              );
+            if($request['type_export']== "Combine"){
+                $data = $this->export_income2($req);
+            }else{
+                $data = $this->export_income($req);
+            }
+              if(isset($data['status'])&& $data['status']=='fail'){
+                  continue;
+              }else{
+                  $array[] = $data;
+              }
+          }
+          return MyHelper::checkGet($array);
     }
 }

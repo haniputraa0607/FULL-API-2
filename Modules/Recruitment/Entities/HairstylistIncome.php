@@ -1835,22 +1835,33 @@ class HairstylistIncome extends Model
     {
         $total = 0;
         $array = array();
-        $trxs  = TransactionProduct::where(array('transaction_product_services.id_user_hair_stylist' => $hs->id_user_hair_stylist))
-            ->join('transactions', 'transactions.id_transaction', 'transaction_products.id_transaction')
-            ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+//        $trxs  = TransactionProduct::where(array('transaction_product_services.id_user_hair_stylist' => $hs->id_user_hair_stylist))
+//            ->join('transactions', 'transactions.id_transaction', 'transaction_products.id_transaction')
+//            ->join('transaction_product_services', 'transaction_product_services.id_transaction_product', 'transaction_products.id_transaction_product')
+//            ->join('transaction_breakdowns', function ($join) use ($startDate, $endDate) {
+//                $join->on('transaction_breakdowns.id_transaction_product', 'transaction_products.id_transaction_product')
+//                    ->whereNotNull('transaction_products.transaction_product_completed_at')
+//                    ->whereBetween('transaction_product_completed_at', [$startDate, $endDate]);
+//            })
+//            ->where('transaction_product_services.service_status', 'Completed')
+//            ->wherenotnull('transaction_product_services.completed_at')
+//            ->wherenull('transaction_products.reject_at')
+//            ->wherenotnull('transaction_products.transaction_product_completed_at')
+//            ->where('transaction_breakdowns.type', 'fee_hs')
+//            ->select('transaction_breakdowns.value')
+//            ->get();
+        $trxs  = Transaction::where(array('transaction_products.id_user_hair_stylist' => $hs->id_user_hair_stylist))
+            ->join('transaction_products', 'transaction_products.id_transaction', 'transactions.id_transaction')
             ->join('transaction_breakdowns', function ($join) use ($startDate, $endDate) {
                 $join->on('transaction_breakdowns.id_transaction_product', 'transaction_products.id_transaction_product')
                     ->whereNotNull('transaction_products.transaction_product_completed_at')
                     ->whereBetween('transaction_product_completed_at', [$startDate, $endDate]);
             })
-            ->where('transaction_product_services.service_status', 'Completed')
-            ->wherenotnull('transaction_product_services.completed_at')
             ->wherenull('transaction_products.reject_at')
             ->wherenotnull('transaction_products.transaction_product_completed_at')
             ->where('transaction_breakdowns.type', 'fee_hs')
             ->select('transaction_breakdowns.value')
             ->get();
-
         foreach ($trxs as $value) {
             $total = $total + $value->value;
         }
@@ -2650,7 +2661,7 @@ class HairstylistIncome extends Model
                         if($incentive->amount??0 > $nominals){
                             $nominals = $incentive->amount;
                         }
-                        $nominals = $total_attend * $incentive->amount_day;
+//                        $nominals = $total_attend * $incentive->amount_day;
                     }
                     $incentives = HairstylistGroupOvertimeDayDefault::leftJoin('hairstylist_group_overtime_days', function ($join) use ($hs) {
                 $join->on('hairstylist_group_overtime_days.id_hairstylist_group_default_overtime_day', 'hairstylist_group_default_overtime_days.id_hairstylist_group_default_overtime_day')
@@ -2999,10 +3010,11 @@ class HairstylistIncome extends Model
                 
                 
             $total_attend = $total_attend+$total_timeoff;
+            $nama_proteksi = "Non Protection";
             if($total_attend>0){
                 if($total_attend>=$incentive->value){
                     if($total_timeoff==0&&$total_late==0&&$total_absen==0){
-                        $nama_proteksi = "Protection Attendance";
+                        $nama_proteksi = "Brand Salary Protection";
                         if($total_income<$incentive->amount_proteksi){
                             $total_income = $incentive->amount_proteksi;
                         }
@@ -3029,12 +3041,16 @@ class HairstylistIncome extends Model
                                             } 
                                     }
                             }
+                    }else{
+                        $nama_proteksi = "Brand Salary";
                     }
+                }else{
+                    $nama_proteksi = "Brand Salary Per Day";
                 }
             }
         return array(
             'name'=>$nama_proteksi,
-            'total_income'=>$total_income,
+//            'total_income'=>$total_income,
         );
         
     }

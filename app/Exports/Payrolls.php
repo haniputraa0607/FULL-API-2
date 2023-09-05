@@ -78,6 +78,7 @@ class Payrolls implements FromArray, WithTitle, WithHeadings, ShouldAutoSize, Wi
                 ];
                 $x_coor = MyHelper::getNameFromNumber(count($this->request['head']??[]));
                 $event->sheet->getStyle('A1:'.$x_coor.($last+1))->applyFromArray($styleArray);
+                $event->sheet->getStyle('AA1:'.$x_coor.($last+1))->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_TEXT);;
                 $headRange = 'A1:'.$x_coor.'1';
                 $event->sheet->getStyle($headRange)->applyFromArray($styleHead);
             },

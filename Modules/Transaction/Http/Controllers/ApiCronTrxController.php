@@ -782,7 +782,7 @@ class ApiCronTrxController extends Controller
                 ->whereNull('ready_at')
                 ->whereNull('taken_at')
                 ->whereNull('taken_by_system_at')
-                ->whereNull('reject_at')
+                ->whereNull('transactions.reject_at')
                 ->with('outlet')
                 ->where('pickup_at', '<', date('Y-m-d H:i:s', time() - $max_pickup))
                 ->get();

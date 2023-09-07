@@ -320,7 +320,7 @@ class Kernel extends ConsoleKernel
         
         $schedule->call('Modules\PortalPartner\Http\Controllers\ApiDailyController@job')->dailyAt(config('app.env') == 'staging' ? '06:00' : '01:30');
 
-        $schedule->call('Modules\Outlet\Http\Controllers\ApiOutletController@job')->dailyAt(config('app.env') == 'staging' ? '06:00' : '01:30');
+        $schedule->call('Modules\Outlet\Http\Controllers\ApiOutletController@cronRefreshStock')->dailyAt(config('app.env') == 'staging' ? '06:05' : '01:45');
 
         /**
          * Complete Service

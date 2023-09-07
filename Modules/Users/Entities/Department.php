@@ -17,6 +17,7 @@ class Department extends Model
 		'id_parent',
         'from_icount',
         'id_department_icount',
+        'id_company',
         'code_icount',
         'is_actived',
 	];

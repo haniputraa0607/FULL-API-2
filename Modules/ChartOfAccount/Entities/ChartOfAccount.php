@@ -17,6 +17,7 @@ class ChartOfAccount extends Model
 		'Description',
 		'ParentID',
 		'IsChildest',
+		'IsSuspended',
 		'IsBank',
 		'Type',
 		'IsDeleted',

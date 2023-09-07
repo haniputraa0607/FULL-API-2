@@ -235,6 +235,12 @@ class SyncIcountItems implements ShouldQueue
                 if (isset($item['UnitPrice6'])) {
                     $data[$key]['unit_price_6'] = $item['UnitPrice6'];
                 }
+                if (isset($item['MinimumQty'])) {
+                    $data[$key]['minimum_qty'] = $item['MinimumQty'];
+                }
+                if (isset($item['UsefulLife'])) {
+                    $data[$key]['use_full_life'] = $item['UsefulLife'];
+                }
                 if (isset($item['Notes']) && !empty($item['Notes'])) {
                     $data[$key]['notes'] = $item['Notes'];
                 }else{
@@ -281,6 +287,16 @@ class SyncIcountItems implements ShouldQueue
                     $data[$key]['id_sales'] = $item['SalesID'];
                 }else{
                     $data[$key]['id_sales'] = null;
+                }  
+                if (isset($item['DepreciationID']) && !empty($item['DepreciationID'])) {
+                    $data[$key]['id_depreciation'] = $item['DepreciationID'];
+                }else{
+                    $data[$key]['id_depreciation'] = null;
+                }  
+                if (isset($item['AccumulatedID']) && !empty($item['AccumulatedID'])) {
+                    $data[$key]['id_accumulated'] = $item['AccumulatedID'];
+                }else{
+                    $data[$key]['id_accumulated'] = null;
                 }  
                 if (isset($item['IsDeleted'])) {
                     if($item['IsDeleted']==true){

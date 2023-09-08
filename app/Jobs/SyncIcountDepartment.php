@@ -83,6 +83,9 @@ class SyncIcountDepartment implements ShouldQueue
                 if (isset($department['DepartmentID'])) {
                     $data[$key]['id_department_icount'] = $department['DepartmentID'];
                 }
+                if (isset($department['CompanyID'])) {
+                    $data[$key]['id_company'] = $department['CompanyID'];
+                }
                 if (isset($department['Code']) ) {
                     $data[$key]['code_icount'] = $department['Code'];
                 }

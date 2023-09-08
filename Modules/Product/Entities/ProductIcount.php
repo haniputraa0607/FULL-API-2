@@ -44,7 +44,11 @@ class ProductIcount extends Model
         'id_purchase',
         'id_sales',
         'is_deleted',
-        'is_actived'
+        'is_actived',
+        'minimum_qty',
+        'use_full_life',
+        'id_depreciation',
+        'id_accumulated',
 	];
 
     public function getCompanyAttribute()

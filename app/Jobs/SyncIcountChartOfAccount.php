@@ -54,6 +54,7 @@ class SyncIcountChartOfAccount implements ShouldQueue
                        $query->Description      = $value['Description'];
                        $query->ParentID         = $value['ParentID'];
                        $query->IsChildest       = $value['IsChildest'];
+                       $query->IsSuspended      = $value['IsSuspended'];
                        $query->IsBank           = $value['Description'];
                        $query->Type             = $value['Type'];
                        $query->IsDeleted        = $value['Description'];

@@ -16,7 +16,7 @@ class ApiEmployeeAppController extends Controller
     {
         $user = $request->user();
         $data = $request->all();
-        if ($data['device_id'] && $data['device_token'] && $data['device_type']) {
+        if (isset($data['device_id']) && isset($data['device_token']) && isset($data['device_type'])) {
             $device = $this->updateDeviceUser($user, $data['device_id'], $data['device_token'], $data['device_type']);
             if ($device) {
                 return response()->json(['status' => 'success', 'messages' => ['Success to update Device User']]);
@@ -24,6 +24,9 @@ class ApiEmployeeAppController extends Controller
                 return response()->json(['status' => 'fail', 'messages' => ['Failed to update Device User']]);
             }
         } else {
+            if(isset($data['device_type']) && $data['device_type'] == 'web'){
+                return response()->json(['status' => 'success', 'messages' => []]);
+            }
             return response()->json(['status' => 'fail', 'messages' => ['Incompleted Data']]);
         }
 

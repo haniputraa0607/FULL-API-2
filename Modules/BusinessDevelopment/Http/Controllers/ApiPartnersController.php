@@ -1114,7 +1114,7 @@ class ApiPartnersController extends Controller
                         "disc_rp" => $data_db_init['Detail'][0]['DiscRp'],
                         "description" => $data_db_init['Detail'][0]['Description'],
                         "outstanding" => $data_db_init['Detail'][0]['Outstanding'],
-                        "item" => $data_db_init['Detail'][0]['Item'],
+                        "item" => json_encode($data_db_init['Detail'][0]['Item']),
                     ];
                     
                     $location_init['value_detail'] = json_encode($value_detail);

@@ -644,7 +644,7 @@ class ApiBeEmployeeController extends Controller
                     }else{
                         $data_send['employee']['is_tax'] = false;
                     }
-                return $initBranch = Icount::ApiUpdateEmployee($data_send, $data_send['location']['company_type']??null);
+                $initBranch = Icount::ApiUpdateEmployee($data_send, $data_send['location']['company_type']??null);
                if($initBranch['response']['Status']=='1' && $initBranch['response']['Message']=='success'){
                    $initBranch = $initBranch['response']['Data'][0];
                    if($data_send['location']['company_type']=='PT IMS'){

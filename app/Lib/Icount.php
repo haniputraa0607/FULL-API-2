@@ -128,7 +128,7 @@ class Icount
         }
 
         return self::sendRequest('POST', '/partner_initiation/init_branch_code_order', $data, $company, $logType, $orderId);
-    }
+    }//
     public static function ApiInvoiceConfirmationLetter($request, $company = null, $logType = null, $orderId = null){
         $data = [
             "SalesOrderID" => $request['partner']['id_sales_order'],
@@ -166,7 +166,7 @@ class Icount
             }
         }
         return self::sendRequest('POST', '/partner_initiation/do_invoice_cl', $data, 'PT IMA', $logType, $orderId);
-    }
+    }//
     public static function ApiInvoiceSPK($request, $company = null, $logType = null, $orderId = null){
         $data = [
             "SalesOrderID" => $request['partner']['id_sales_order'],
@@ -204,7 +204,7 @@ class Icount
             }
         }
         return self::sendRequest('POST', '/partner_initiation/do_invoice_spk', $data, 'PT IMA', $logType, $orderId);
-    }
+    }//
     public static function ApiInvoiceBAP($request, $company = null, $logType = null, $orderId = null){
         $data = [
             "SalesOrderID" => $request['partner']['id_sales_order'],
@@ -242,7 +242,7 @@ class Icount
             }
         }
         return self::sendRequest('POST', '/partner_initiation/do_invoice_bap', $data, 'PT IMA', $logType, $orderId);
-    }
+    }//
     public static function ApiPurchaseSPK($request, $company= null, $logType = null, $orderId = null){
         $detail = array();
         foreach ($request['location_bundling'] as $value) {
@@ -305,7 +305,7 @@ class Icount
             }
         }
         return self::sendRequest('POST', '/partner_initiation/purchase_request_spk', $data, $company, $logType, $orderId);
-    }
+    }//
 
     public static function ApiCreateOrderPOO($request, $company = null, $logType = null, $orderId = null){
         if(isset($request['transaction']) && !empty($request['transaction'])){
@@ -449,7 +449,7 @@ class Icount
             }
         }
         return self::sendRequest('POST', '/sales/sharing_management_fee', $data, $company, $logType, $orderId);
-    }
+    }//
     public static function ManagementFee($request, $company = null, $logType = null, $orderId = null){
         $management_fee = Setting::where('key','management_fee')->first();
         if($request['disc']??0 != 0){
@@ -498,7 +498,7 @@ class Icount
             }
         }
         return self::sendRequest('POST', '/sales/sharing_management_fee', $data, $company, $logType, $orderId);
-    }
+    }//
     public static function SalesPayment($request, $company = null, $logType = null, $orderId = null){
         $data = [
             "VoucherNo" => "[AUTO]",
@@ -515,19 +515,19 @@ class Icount
            $company = "PT IMS";
         }
         return self::sendRequest('POST', '/sales/create_sp_hs', $data, $company, $logType, $orderId);
-    }
+    }//
     public static function get($request, $logType = null, $orderId = null){
         return self::sendRequest('GET', '/branch/list', $request, $logType, $orderId);
-    }
+    }//
     public static function ItemList($page = 1, $request = null, $company = null, $logType = null, $orderId = null){
         return self::sendRequest('GET', '/item/list?Limit=20&Page='.$page , $request, $company, $logType, $orderId);
-    }
+    }//
     public static function DepartmentList($page = 1, $request = null, $company = null, $logType = null, $orderId = null){
         return self::sendRequest('GET', '/department/list?Limit=20&Page='.$page , $request, $company, $logType, $orderId);
-    }
+    }//
     public static function ChartOfAccount($page = 1, $request = null, $company = null, $logType = null, $orderId = null){
         return self::sendRequest('GET', '/chart_of_account/list?Limit=20&Page='.$page , $request, $logType, $orderId);
-    }
+    }//
     
     public static function ApiCreateEmployee($request, $company = null, $logType = null, $orderId = null){
         $data = [
@@ -551,7 +551,7 @@ class Icount
         }
 
         return self::sendRequest('POST', '/business_partner/employee_create', $data, $company, $logType, $orderId);
-    }
+    }//
     public static function ApiUpdateEmployee($request, $company = null, $logType = null, $orderId = null){
         
         $data = [
@@ -584,7 +584,7 @@ class Icount
             }
         }
         return self::sendRequest('PUT', '/business_partner/employee_update/'.$data['BusinessPartnerID'], $data, $company, $logType, $orderId);
-    }
+    }//
     public static function EmployeeReimbursement($request, $company = null, $logType = null, $orderId = null){
         $data = [
             "VoucherNo" => "[AUTO]",
@@ -615,7 +615,7 @@ class Icount
                 }
             }
         return self::sendRequest('POST', '/purchase/create_reimbursement', $data, $company, $logType, $orderId);
-    }
+    }//
     public static function EmployeeCashAdvance($request, $company = null, $logType = null, $orderId = null){
         $data = [
             "VoucherNo" => "[AUTO]",
@@ -641,7 +641,7 @@ class Icount
 
     public static function searchBusinessPartner($id_business_partner, $cluster = '011', $company = null, $logType = null, $orderId = null){
         return self::sendRequest('GET', '/business_partner/list?ID='.$id_business_partner.'&ClusterID='.$cluster, $request, $logType, $orderId);
-    }
+    }//
 
     public static function ApiCreateHairStylist($request, $company = null, $logType = null, $orderId = null){
         $data = [
@@ -665,5 +665,5 @@ class Icount
         }
 
         return self::sendRequest('POST', '/business_partner/employee_create', $data, $company, $logType, $orderId);
-    }
+    }//
 }

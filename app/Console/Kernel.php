@@ -322,6 +322,7 @@ class Kernel extends ConsoleKernel
 
         $schedule->call('Modules\Outlet\Http\Controllers\ApiOutletController@cronRefreshStock')->dailyAt(config('app.env') == 'staging' ? '06:05' : '01:45');
 
+
         /**
          * Complete Service
          * run every 00:01 AM

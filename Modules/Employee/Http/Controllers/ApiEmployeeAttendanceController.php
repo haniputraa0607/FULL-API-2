@@ -96,6 +96,18 @@ class ApiEmployeeAttendanceController extends Controller
             }),
         ];
 
+        foreach($result['logs'] ?? [] as $log){
+            if($log['type'] == 'Clock In'){
+                $result['clock_in_button'] = false;
+                $result['clock_out_button'] = true;
+            }
+
+            if($log['type'] == 'Clock Out'){
+                $result['clock_in_button'] = false;
+                $result['clock_out_button'] = false;
+            }
+        }
+
         return MyHelper::checkGet($result);
     }
 

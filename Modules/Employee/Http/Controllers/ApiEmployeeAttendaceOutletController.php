@@ -114,6 +114,8 @@ class ApiEmployeeAttendaceOutletController extends Controller
             'end_shift' => MyHelper::adjustTimezone($todaySchedule->end_shift, $timeZone, 'H:i', true),
             'shift_name' => $todaySchedule->shift ? $office_hour_name.' ('.$todaySchedule->shift.')' : $office_hour_name,
             'outlet' => $outlet,
+            'clock_in_button' => true,
+            'clock_out_button' => false,
             'logs' => $attendance->logs()->get()->transform(function($item) use($timeZone) {
                 return [
                     'location_name' => $item->location_name,
@@ -128,6 +130,18 @@ class ApiEmployeeAttendaceOutletController extends Controller
                 ];
             }),
         ];
+
+        foreach($result['logs'] ?? [] as $log){
+            if($log['type'] == 'Clock In'){
+                $result['clock_in_button'] = false;
+                $result['clock_out_button'] = true;
+            }
+
+            if($log['type'] == 'Clock Out'){
+                $result['clock_in_button'] = false;
+                $result['clock_out_button'] = false;
+            }
+        }
 
         return MyHelper::checkGet($result);
     }

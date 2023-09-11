@@ -81,6 +81,8 @@ class ApiEmployeeAttendanceController extends Controller
             'clock_out_requirement' => MyHelper::adjustTimezone($todaySchedule->clock_out_requirement, $timeZone, 'H:i', true),
             'shift_name' => $todaySchedule->shift ? $office_hour_name.' ('.$todaySchedule->shift.')' : $office_hour_name,
             'outlet' => $outlet,
+            'clock_in_button' => true,
+            'clock_out_button' => false,
             'logs' => $attendance->logs()->get()->transform(function($item) use($timeZone) {
                 return [
                     'location_name' => $item->location_name,

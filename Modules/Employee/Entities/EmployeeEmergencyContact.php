@@ -18,4 +18,9 @@ class EmployeeEmergencyContact extends Model
         'created_at',
         'updated_at',
     ];
+     protected $appends  = ['wa'];
+    public function getWaAttribute()
+    {
+        return $this->phone_emergency_contact;
+    }
 }

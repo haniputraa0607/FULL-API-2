@@ -330,7 +330,8 @@ class ApiEmployeeProfileController extends Controller
                    ))
                ->whereNotNull('employee_time_off.approve_at')
                ->WhereNull('employee_time_off.reject_at')
-               ->wheredate('employee_time_off.date',date('Y-m-d'))
+               ->wheredate('employee_time_off.start_date','>=',date('Y-m-d'))
+               ->wheredate('employee_time_off.end_date','<=',date('Y-m-d'))
                ->select([
                    'id',
                    'name',

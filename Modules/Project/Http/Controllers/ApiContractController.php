@@ -78,12 +78,16 @@ class ApiContractController extends Controller
                 }
                 $purchase = Icount::ApiPurchaseSPK($data_send,'PT IMA');
                 if($purchase['response']['Status']=='1' && $purchase['response']['Message']=='success'){
+                    $value_detail = array_map(function($value){
+                        unset($value['Item']['ItemImage']);
+                        return $value;
+                    }, $purchase['response']['Data'][0]['Detail'] ?? []);
                     $data_purchase = [
                         'id_project'=>$request->id_project,
                         'id_request_purchase'=>$purchase['response']['Data'][0]['PurchaseRequestID'],
                         'id_business_partner'=>$purchase['response']['Data'][0]['BusinessPartnerID'],
                         'id_branch'=>$purchase['response']['Data'][0]['BranchID'],
-                        'value_detail'=>json_encode($purchase['response']['Data'][0]['Detail']),  
+                        'value_detail'=>json_encode($value_detail),  
                         'message'=>$purchase['response']['Message'],
                     ];
                     $input = PurchaseSpk::create($data_purchase);
@@ -185,12 +189,16 @@ class ApiContractController extends Controller
                     $input = InvoiceSpk::create($data_invoice);
                     $purchase = Icount::ApiPurchaseSPK($data_send,'PT IMA');
                     if($purchase['response']['Status']=='1' && $purchase['response']['Message']=='success'){
+                        $value_detail = array_map(function($value){
+                            unset($value['Item']['ItemImage']);
+                            return $value;
+                        }, $purchase['response']['Data'][0]['Detail'] ?? []);
                         $data_purchase = [
                             'id_project'=>$request->id_project,
                             'id_request_purchase'=>$purchase['response']['Data'][0]['PurchaseRequestID'],
                             'id_business_partner'=>$purchase['response']['Data'][0]['BusinessPartnerID'],
                             'id_branch'=>$purchase['response']['Data'][0]['BranchID'],
-                            'value_detail'=>json_encode($purchase['response']['Data'][0]['Detail']),  
+                            'value_detail'=>json_encode($value_detail),  
                         ];
                         $input = PurchaseSpk::create($data_purchase);
                     }
@@ -320,11 +328,15 @@ class ApiContractController extends Controller
                 ];
                 $purchase = Icount::ApiPurchaseSPK($data_send,'PT IMA');
                 if($purchase['response']['Status']=='1' && $purchase['response']['Message']=='success'){
+                    $value_detail = array_map(function($value){
+                        unset($value['Item']['ItemImage']);
+                        return $value;
+                    }, $purchase['response']['Data'][0]['Detail'] ?? []);
                     $data_invoice = [
                        'id_request_purchase'=>$purchase['response']['Data'][0]['PurchaseRequestID'],
                        'id_business_partner'=>$purchase['response']['Data'][0]['BusinessPartnerID'],
                        'id_branch'=>$purchase['response']['Data'][0]['BranchID'],
-                       'value_detail'=>json_encode($purchase['response']['Data'][0]['Detail']),  
+                       'value_detail'=>json_encode($value_detail),  
                        'message'=>$purchase['response']['Message'],
                        'status_purchase_spk'=>1,
                     ];

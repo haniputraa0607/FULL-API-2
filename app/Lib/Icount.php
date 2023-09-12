@@ -10,6 +10,7 @@ use App\Http\Models\LogApiIcount;
 use Modules\ChartOfAccount\Entities\ChartOfAccount;
 use App\Http\Models\Setting;
 use App\Lib\MyHelper;
+use Modules\Product\Entities\ProductIcount;
 
 class Icount
 {
@@ -371,6 +372,25 @@ class Icount
             $key = 0;
 
             foreach($transactions as $transaction){
+                // $company_type = ($company == 'PT IMA') ? 'ima' : 'ims';
+                // if($transaction['product_type'] == 'service'){
+                //     return $product_icounts = ProductIcount::join('product_product_icounts', 'product_product_icounts.id_product_icount', 'product_icounts.id_product_icount')->where('product_product_icounts.id_product', $transaction['id_product'])->where('product_product_icounts.company_type', $company_type)->get()->toArray();
+                //     foreach($product_icounts ?? [] as $product_icount){
+                //         $data['Detail'][$key] = [
+                //             "ItemID" => $product_icount['id_item'],
+                //             "Name" => $product_icount['name'],
+                //             "Qty" => $transaction['transaction_product_qty']*$product_icount['qty'],
+                //             "Unit" => $product_icount['unit'],
+                //             "Ratio" => "1",
+                //             "Price" => $transaction['total_price'],
+                //             "Disc" => "0",
+                //             "DiscRp" => "0",
+                //             "Description" => ""
+                //         ];
+                //         $key++;
+                //     }
+
+                // }
                 $data['Detail'][$key] = [
                     "ItemID" => $transaction['id_item_icount'] ?? $penjulana_outlet['value'],
                     "Name" => $transaction['product_name'],

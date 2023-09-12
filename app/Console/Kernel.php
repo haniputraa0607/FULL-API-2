@@ -223,7 +223,7 @@ class Kernel extends ConsoleKernel
          * run every minute
          */
         $schedule->call('Modules\Transaction\Http\Controllers\ApiTransaction@CronOutletSericeICountPOO')->dailyAt(config('app.env') == 'staging' ? '05:39' : '00:05');
-        $schedule->call('Modules\Transaction\Http\Controllers\ApiTransaction@CronHomeServiceICountPOO')->dailyAt(config('app.env') == 'staging' ? '05:41' : '00:06');
+        // $schedule->call('Modules\Transaction\Http\Controllers\ApiTransaction@CronHomeServiceICountPOO')->dailyAt(config('app.env') == 'staging' ? '05:41' : '00:06');
 
         /**
          * Cancel pending hair stylist for home service

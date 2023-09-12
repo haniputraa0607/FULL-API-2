@@ -167,7 +167,7 @@ Route::group(['middleware' => ['auth:api','log_activities', 'user_agent', 'scope
     });
 
     Route::group(['prefix' => 'job-level'], function()
-    {
+    { 
         Route::any('/', ['middleware' => 'feature_control:323', 'uses' => 'ApiJobLevelController@index']);
         Route::post('store', ['middleware' => 'feature_control:324', 'uses' => 'ApiJobLevelController@store']);
         Route::post('edit', ['middleware' => 'feature_control:325,326', 'uses' => 'ApiJobLevelController@edit']);
@@ -191,6 +191,7 @@ Route::group(['middleware' => ['auth_client', 'scopes:employee-apps'], 'prefix' 
 {
     Route::post('phone/check', 'ApiUserV2@phoneCheckEmployee');
     Route::post('pin/forgot', 'ApiUserV2@forgotPin');
+    Route::post('pin/change-client', 'ApiUserV2@changePinEmployeeForgot')->middleware(['decrypt_pin:old_password','decrypt_pin:new_password','decrypt_pin:confirm_new_password']);
     Route::post('pin/change', 'ApiUserV2@changePinEmployee')->middleware(['decrypt_pin:old_password','decrypt_pin:new_password','decrypt_pin:confirm_new_password','auth:api']);
     Route::post('pin/verify', 'ApiUser@verifyPin')->middleware('decrypt_pin');
 });

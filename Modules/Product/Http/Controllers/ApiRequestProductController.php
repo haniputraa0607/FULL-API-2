@@ -436,6 +436,10 @@ class ApiRequestProductController extends Controller
                     $invoice = Icount::ApiPurchaseSPK($data_send,$data_send['location']['company_type']);
                 }
                 if($invoice['response']['Status']=='1' && $invoice['response']['Message']=='success'){
+                    $value_details = array_map(function($value_detail){
+                        unset($value_detail['Item']['ItemImage']);
+                        return $value_detail;
+                    }, $invoice['response']['Data'][0]['Detail'] ?? []);
                     $data_invoice = [
                         'id_project'=>$project['id_project'] ?? null,
                         'id_request_product'=>$post['id_request_product'],
@@ -450,7 +454,7 @@ class ApiRequestProductController extends Controller
                         'netto'=>$invoice['response']['Data'][0]['Netto']??null,
                         'amount'=>$invoice['response']['Data'][0]['Amount']??null,
                         'outstanding'=>$invoice['response']['Data'][0]['Outstanding']??null,
-                        'value_detail'=>json_encode($invoice['response']['Data'][0]['Detail']),  
+                        'value_detail'=>json_encode($value_details),  
                         'message'=>$invoice['response']['Message'],
                     ];
                     $input = InvoiceSpk::create($data_invoice);

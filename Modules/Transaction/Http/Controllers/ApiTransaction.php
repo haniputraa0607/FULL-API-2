@@ -6768,7 +6768,7 @@ class ApiTransaction extends Controller
                     }
                 }
             }   
-            
+
             $create_order_poo= [];
             foreach($new_outlets as $n => $new_outlet){
                     $create_order_poo[$n] = Icount::ApiCreateOrderPOO($new_outlet, $new_outlet['company_type']);

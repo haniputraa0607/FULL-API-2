@@ -634,7 +634,7 @@ class ApiBeEmployeeController extends Controller
    public function update_icount($id) {
         if(isset($id) && !empty($id)){
              $detail = Employee::join('users','users.id','employees.id_user')->where('id_user',$id)->first();
-             if($detail){
+             if($detail && ($detail['id_business_partner'] || $detail['id_business_partner_ima'])){
                $data_send = [
                     "employee" => Employee::join('users','users.id','employees.id_user')->where('id_user',$id)->first(),
                     "location" => Outlet::leftjoin('locations','locations.id_location','outlets.id_location')->where('id_outlet',$detail["id_outlet"])->first(),

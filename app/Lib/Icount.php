@@ -10,7 +10,6 @@ use App\Http\Models\LogApiIcount;
 use Modules\ChartOfAccount\Entities\ChartOfAccount;
 use App\Http\Models\Setting;
 use App\Lib\MyHelper;
-use Modules\Product\Entities\ProductIcount;
 
 class Icount
 {
@@ -323,7 +322,7 @@ class Icount
                 "BranchID" => $request['id_branch'],
                 "BusinessPartnerID" => $request['id_business_partner'],
                 "VoucherNo" => "[AUTO]",
-                "TermOfPaymentID" => '011',
+                "TermOfPaymentID" => 1,
                 "TransDate" => $trans_date,
                 "DueDate" => $due_date,
                 "SalesmanID" => 0,
@@ -370,27 +369,8 @@ class Icount
                 }
             }
             $key = 0;
-
+            
             foreach($transactions as $transaction){
-                // $company_type = ($company == 'PT IMA') ? 'ima' : 'ims';
-                // if($transaction['product_type'] == 'service'){
-                //     return $product_icounts = ProductIcount::join('product_product_icounts', 'product_product_icounts.id_product_icount', 'product_icounts.id_product_icount')->where('product_product_icounts.id_product', $transaction['id_product'])->where('product_product_icounts.company_type', $company_type)->get()->toArray();
-                //     foreach($product_icounts ?? [] as $product_icount){
-                //         $data['Detail'][$key] = [
-                //             "ItemID" => $product_icount['id_item'],
-                //             "Name" => $product_icount['name'],
-                //             "Qty" => $transaction['transaction_product_qty']*$product_icount['qty'],
-                //             "Unit" => $product_icount['unit'],
-                //             "Ratio" => "1",
-                //             "Price" => $transaction['total_price'],
-                //             "Disc" => "0",
-                //             "DiscRp" => "0",
-                //             "Description" => ""
-                //         ];
-                //         $key++;
-                //     }
-
-                // }
                 $data['Detail'][$key] = [
                     "ItemID" => $transaction['id_item_icount'] ?? $penjulana_outlet['value'],
                     "Name" => $transaction['product_name'],
@@ -551,12 +531,23 @@ class Icount
     
     public static function ApiCreateEmployee($request, $company = null, $logType = null, $orderId = null){
         $data = [
+            "Type" => $request['employee']['type'],
+            "NPWP" => $request['employee']['type'] == 0 ? $request['employee']['card_number'] : ($request['employee']['type'] == 1 ? $request['employee']['npwp'] : $request['employee']['phone_number']),
             "Name" => $request['employee']['name'],
             "Code" => $request['employee']['code'],
-            "TermOfPaymentID" => $request['employee']['id_term_payment'],
+            "Title" => $request['employee']['nickname'],
+            "TermOfPaymentID" => 1,
+            "AddressDelivery" => $request['employee']['address_domicile'] ?? '',
+            "AddressInvoice" => $request['employee']['address_ktp'] ?? '',
+            "Notes" => $request['employee']['notes'] ?? '',
+            "NPWPName" => $request['employee']['NPWPName'] ?? '',
+            "PhoneNo" => $request['employee']['phone_number'],
+            "ContactPerson" => $request['employee']['contact_person'],
             "Email" => $request['employee']['email'],
-            "ClusterID" => '013',
             "JoinDate" => $request['employee']['start_date']??date('Y-m-d'),
+            "MobileNo" => $request['employee']['phone_number'],
+            "IsTax" => isset($request['employee']['is_tax']) ? ($request['employee']['is_tax'] == 0 ? 'false' : 'true') : 'false',
+            "ClusterID" => 3,
         ];
         if($company=='PT IMS'){
             if(isset($request['employee']['id_business_partner_ima']) && !empty($request['employee']['id_business_partner_ima']) && isset($request['employee']['id_business_partner']) && !empty($request['employee']['id_business_partner']) ){
@@ -575,22 +566,24 @@ class Icount
     public static function ApiUpdateEmployee($request, $company = null, $logType = null, $orderId = null){
         
         $data = [
-            "Code" => $request['employee']['code'],
-            "ClusterID" => $request['employee']['id_cluster'],
-            "Email" => $request['employee']['email'],
             "Type" => $request['employee']['type'],
-            "NPWP" => $request['employee']['npwp'],
+            "NPWP" => $request['employee']['type'] == 0 ? $request['employee']['card_number'] : ($request['employee']['type'] == 1 ? $request['employee']['npwp'] : $request['employee']['phone_number']),
             "Name" => $request['employee']['name'],
-            "JoinDate" => $request['employee']['start_date']??date('Y-m-d'),
-            "TermOfPaymentID" => $request['employee']['id_term_payment'],
-            "AddressDelivery" => $request['employee']['address_domicile'],
-            "AddressInvoice" => $request['employee']['address_ktp'],
+            "Code" => $request['employee']['code'],
+            "Title" => $request['employee']['nickname'],
+            "TermOfPaymentID" => 1,
+            "AddressDelivery" => $request['employee']['address_domicile'] ?? '',
+            "AddressInvoice" => $request['employee']['address_ktp'] ?? '',
             "Notes" => $request['employee']['notes'],
             "NPWPName" => $request['employee']['npwp_name'],
             "PhoneNo" => $request['employee']['phone_number'],
             "ContactPerson" => $request['employee']['contact_person'],
+            "Email" => $request['employee']['email'],
+            "JoinDate" => $request['employee']['start_date']??date('Y-m-d'),
             "MobileNo" => $request['employee']['phone'],
-            "IsTax" => $request['employee']['IsTax']
+            "IsTax" => isset($request['employee']['is_tax']) ? ($request['employee']['is_tax'] == 0 ? 'false' : 'true') : 'false',
+            "ClusterID" => 3,
+
         ];
         if($company=='PT IMS'){
             if(isset($request['employee']['id_business_partner_ima']) && !empty($request['employee']['id_business_partner_ima']) && isset($request['employee']['id_business_partner']) && !empty($request['employee']['id_business_partner']) ){
@@ -610,8 +603,11 @@ class Icount
             "VoucherNo" => "[AUTO]",
             "TransDate" => $request['reimbursement']['date_reimbursement'],
             "DueDate" =>  $request['reimbursement']['due_date'],
-            "BranchID" => $request['outlet']['id_branch'],
-            "TermOfPaymentID" => $request['employee']['id_term_payment']??'011',
+            "BranchID" => $request['location']['id_branch'],
+            "TermOfPaymentID" => 1,
+            'Tax'=> isset($request['employee']['is_tax']) ? ($request['employee']['is_tax'] == 0 ? 10 : 11) : 10,
+            "Disc" => 0,
+            "DiscRp" => 0,
             "ReferenceNo" => '',
             'TaxNo'=>'',
             "Notes" => $request['reimbursement']['notes'],
@@ -634,21 +630,22 @@ class Icount
                     $data['BranchID'] = $request['location']['id_branch_ima']; 
                 }
             }
+
         return self::sendRequest('POST', '/purchase/create_reimbursement', $data, $company, $logType, $orderId);
     }
     public static function EmployeeCashAdvance($request, $company = null, $logType = null, $orderId = null){
         $data = [
             "VoucherNo" => "[AUTO]",
             "TransDate" => $request['cash_advance']['date_cash_advance'],
-            "DueDate" =>  $request['cash_advance']['tax_date'],
-            "BranchID" => '013',
+            "TaxDate" =>  $request['cash_advance']['tax_date'],
             "BusinessPartnerID" => $request['employee']['id_business_partner'],
-            "amount" => $request['cash_advance']['price_realisasi']??0,
-            "ChartOfAccountID" => '',
+            "BranchID" => $request['location']['id_branch'],
+            "Amount" => $request['cash_advance']['price']??0,
+            'Tax'=> isset($request['employee']['is_tax']) ? ($request['employee']['is_tax'] == 0 ? 10 : 11) : 10,
             "ReferenceNo" => '',
-            'Tax'=>0,
-            'TaxNo'=>'',
+            "ChartOfAccountID" => 0,
             "Notes" => $request['cash_advance']['notes'],
+            'TaxNo'=>'',
            
         ];
         if($company=='PT IMA'){
@@ -660,7 +657,7 @@ class Icount
     }
 
     public static function searchBusinessPartner($id_business_partner, $cluster = '011', $company = null, $logType = null, $orderId = null){
-        return self::sendRequest('GET', '/business_partner/list?ID='.$id_business_partner.'&ClusterID='.$cluster, $request, $logType, $orderId);
+        return self::sendRequest('GET', '/business_partner/list?ID='.$id_business_partner.'&ClusterID='.$cluster, null, $logType, $orderId);
     }
 
     public static function ApiCreateHairStylist($request, $company = null, $logType = null, $orderId = null){
@@ -669,9 +666,29 @@ class Icount
             "Code" => $request['hairstylist']['user_hair_stylist_code'],
             "TermOfPaymentID" => $request['hairstylist']['id_term_payment'],
             "Email" => $request['hairstylist']['email'],
-            "ClusterID" => '012',
+            "ClusterID" => 2,
             "JoinDate" => $request['hairstylist']['join_date']? date('Y-m-d',strtotime($request['hairstylist']['join_date'])) : date('Y-m-d'),
         ];
+        $data = [
+            "Type" => $request['hairstylist']['type'],
+            "NPWP" => $request['hairstylist']['id_card_number'],
+            "Name" => $request['hairstylist']['fullname'],
+            "Code" => $request['hairstylist']['user_hair_stylist_code'],
+            "Title" => $request['hairstylist']['nickname'],
+            "TermOfPaymentID" => 1,
+            "AddressDelivery" => $request['hairstylist']['recent_address'] ?? '',
+            "AddressInvoice" => $request['hairstylist']['recent_address'] ?? '',
+            "Notes" => $request['location']['notes'] ?? '',
+            "NPWPName" => $request['hairstylist']['NPWPName'] ?? '',
+            "PhoneNo" => $request['hairstylist']['phone_number'],
+            "ContactPerson" => $request['location']['pic_name'],
+            "Email" => $request['hairstylist']['email'],
+            "JoinDate" => $request['hairstylist']['join_date']? date('Y-m-d',strtotime($request['hairstylist']['join_date'])) : date('Y-m-d'),
+            "MobileNo" => $request['hairstylist']['phone_number'],
+            "IsTax" => isset($request['location']['is_tax']) ? ($request['location']['is_tax'] == 0 ? 'false' : 'true') : 'false',
+            "ClusterID" => 2,
+        ];
+
         if($company=='PT IMS'){
             if(isset($request['hairstylist']['id_business_partner_ima']) && !empty($request['hairstylist']['id_business_partner_ima']) && isset($request['hairstylist']['id_business_partner']) && !empty($request['hairstylist']['id_business_partner']) ){
                 $data['BusinessPartnerID'] = $request['hairstylist']['id_business_partner'];

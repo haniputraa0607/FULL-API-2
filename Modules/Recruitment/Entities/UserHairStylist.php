@@ -226,7 +226,7 @@ class UserHairStylist extends Authenticatable
                     'messages' => 'This Business Partner ID already used by other hair stylist',
                 ];
             }
-            $getBusinessPartner = Icount::searchBusinessPartner($id_business_partner, '012', $data_send['location']['company_type']??null);
+            $getBusinessPartner = Icount::searchBusinessPartner($id_business_partner, 2, $data_send['location']['company_type']??null);
             if($getBusinessPartner['response']['Message']=='Success'){
                 $getBusinessPartner = $getBusinessPartner['response']['Data'];
                 if(count($getBusinessPartner)<=0){

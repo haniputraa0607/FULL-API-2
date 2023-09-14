@@ -223,6 +223,8 @@ class Kernel extends ConsoleKernel
          * run every minute
          */
         $schedule->call('Modules\Transaction\Http\Controllers\ApiTransaction@CronOutletSericeICountPOO')->dailyAt(config('app.env') == 'staging' ? '05:39' : '00:05');
+        $schedule->call('Modules\Transaction\Http\Controllers\ApiTransaction@revenue_sharing')->dailyAt(config('app.env') == 'staging' ? '05:20' : '00:18');
+        $schedule->call('Modules\Transaction\Http\Controllers\ApiTransaction@management_fee')->dailyAt(config('app.env') == 'staging' ? '05:25' : '00:21');
         // $schedule->call('Modules\Transaction\Http\Controllers\ApiTransaction@CronHomeServiceICountPOO')->dailyAt(config('app.env') == 'staging' ? '05:41' : '00:06');
 
         /**

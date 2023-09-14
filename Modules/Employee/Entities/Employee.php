@@ -98,7 +98,7 @@ class Employee extends Model
                     'messages' => 'This Business Partner ID already used by other employee',
                 ];
             }
-            $getBusinessPartner = Icount::searchBusinessPartner($id_business_partner, '013', $data_send['location']['company_type']??null);
+            $getBusinessPartner = Icount::searchBusinessPartner($id_business_partner, 3, $data_send['location']['company_type']??null);
             if($getBusinessPartner['response']['Message']=='Success'){
                 $getBusinessPartner = $getBusinessPartner['response']['Data'];
                 if(count($getBusinessPartner)<=0){

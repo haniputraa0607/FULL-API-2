@@ -1937,7 +1937,7 @@ class ApiSetting extends Controller
              $management_fee = Setting::where('key','management_fee')->first();
              if($management_fee){
                  $data = Setting::where('key','management_fee')->update([
-                 'value'=>$request->revenue_sharing
+                 'value'=>$request->management_fee
              ]);
              }else{
                  $data = Setting::where('key','management_fee')->create([

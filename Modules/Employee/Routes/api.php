@@ -375,6 +375,12 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         Route::post('/','ApiIncome@payslip');
         Route::post('/password','ApiIncome@password');
     });
+    Route::group(['prefix' => 'emergency'], function(){
+        Route::post('/create', 'ApiEmployeeProfileController@create_emergency_contact');
+        Route::post('/detail', 'ApiEmployeeProfileController@detail_emergency_contact');
+        Route::post('/update', 'ApiEmployeeProfileController@update_emergency_contact');
+        Route::post('/delete', 'ApiEmployeeProfileController@delete_emergency_contact');
+      });
     Route::group(['prefix' => 'profile'], function () {
         Route::get('info','ApiEmployeeProfileController@info');
         Route::get('payroll','ApiEmployeeProfileController@payroll');

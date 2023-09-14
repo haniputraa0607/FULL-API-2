@@ -41,35 +41,35 @@ class ApiRegisterEmployeeController extends Controller
                 $post['employee']['id_user']=$user->id;
                 $employee = Employee::create($post['employee']);
             }
-            if($post['family']){
+            if(isset($post['family'])){
                 $family = array();
                 foreach ($post['family'] as $value) {
                     $value['id_user'] = $user->id;
                     EmployeeFamily::create($value);
                 }
             }
-            if($post['education']){
+            if(isset($post['education'])){
                 $education = array();
                 foreach ($post['education'] as $value) {
                     $value['id_user'] = $user->id;
                     EmployeeEducation::create($value);
                 }
             }
-            if($post['education_non_formal']){
+            if(isset($post['education_non_formal'])){
                 $education_non_formal = array();
                 foreach ($post['education_non_formal'] as $value) {
                     $value['id_user'] = $user->id;
                     EmployeeEducationNonFormal::create($value);
                 }
             }
-            if($post['job_experiences']){
+            if(isset($post['job_experiences'])){
                 $job_experiences = array();
                 foreach ($post['job_experiences'] as $value) {
                     $value['id_user'] = $user->id;
                     EmployeeJobExperience::create($value);
                 }
             }
-            if($post['questions']){
+            if(isset($post['questions'])){
                 $questions = array();
                 foreach ($post['questions'] as $value) {
                     $value['id_user'] = $user->id;

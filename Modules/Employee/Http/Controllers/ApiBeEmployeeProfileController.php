@@ -94,12 +94,12 @@ class ApiBeEmployeeProfileController extends Controller
             if ($deletefile == 1) {
                 $result = [
                     'status'    => 'success',
-                    'result'    => ['File has been deleted']
+                    'result'    => ['Contact has been deleted']
                 ];
             } else {
                 $result = [
                     'status'    => 'fail',
-                    'messages'    => ['File Not Found']
+                    'messages'    => ['Contact Not Found']
                 ];
             }
         return $result;

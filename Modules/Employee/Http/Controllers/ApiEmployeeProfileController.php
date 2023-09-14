@@ -41,6 +41,8 @@ use Modules\Users\Entities\SettingUser;
 use Modules\Employee\Entities\EmployeeNotAvailable;
 use Modules\Employee\Entities\EmployeeTimeOff;
 use App\Jobs\ReminderEmployeeAttendance;
+use Modules\Employee\Http\Requests\EmergencyContact\CreateEmergency;
+use Modules\Employee\Http\Requests\EmergencyContact\UpdateEmergency;
 
 class ApiEmployeeProfileController extends Controller
 {
@@ -444,5 +446,54 @@ class ApiEmployeeProfileController extends Controller
             $log->fail($e->getMessage());
         }    
     }
-
+   public function create_emergency_contact(CreateEmergency $request) {
+       $post = $request->all();
+       $id = $request->user()->id;
+       $post['id_user'] = $id;
+       $profile = EmployeeEmergencyContact::create($post);
+       return MyHelper::checkGet($profile);
+   }
+   public function detail_emergency_contact(UpdateEmergency $request) {
+       $post = $request->all();
+       $profile = EmployeeEmergencyContact::where(array(
+               'id_employee_emergency_contact'=>$request->id_employee_emergency_contact,
+               )
+       )->first();
+       return MyHelper::checkGet($profile);
+   }
+   public function update_emergency_contact(UpdateEmergency $request) {
+       $post = $request->all();
+       $profile = EmployeeEmergencyContact::where(array('id_employee_emergency_contact'=>$request->id_employee_emergency_contact))->first();
+     
+       if(!empty($post['name_emergency_contact'])){
+           $profile['name_emergency_contact'] = $post['name_emergency_contact'];
+            }
+       if(!empty($post['relation_emergency_contact'])){
+           $profile['relation_emergency_contact'] = $post['relation_emergency_contact'];
+            }
+       if(!empty($post['phone_emergency_contact'])){
+           $profile['phone_emergency_contact'] = $post['phone_emergency_contact'];
+            }
+         $profile->save();
+       return MyHelper::checkGet($profile);
+   }
+   public function delete_emergency_contact(UpdateEmergency $request)
+    {
+        $deletefile = EmployeeEmergencyContact::where(array(
+               'id_employee_emergency_contact'=>$request->id_employee_emergency_contact??null
+                )
+               )->delete();
+            if ($deletefile == 1) {
+                $result = [
+                    'status'    => 'success',
+                    'result'    => ['Contact has been deleted']
+                ];
+            } else {
+                $result = [
+                    'status'    => 'fail',
+                    'messages'    => ['Contact Not Found']
+                ];
+            }
+        return $result;
+    }
 }

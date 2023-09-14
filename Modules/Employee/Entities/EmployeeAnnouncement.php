@@ -17,7 +17,8 @@ class EmployeeAnnouncement extends Model
 	protected $fillable = [
 		'date_start',
 		'date_end',
-		'content'
+		'content',
+		'description',
 	];
 
 	public function employee_announcement_rule_parents()

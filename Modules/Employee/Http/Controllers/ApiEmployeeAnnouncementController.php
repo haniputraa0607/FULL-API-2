@@ -22,6 +22,7 @@ class ApiEmployeeAnnouncementController extends Controller
 		$post = $request->json()->all(); 
 
 		$data['content'] 		= $post['announcement_subject'];
+		$data['description'] 		= $post['description'];
 		
 		if(!empty($post['announcement_date_start'])){
 			$datetimearr 				= explode(' - ',$post['announcement_date_start']);
@@ -36,7 +37,6 @@ class ApiEmployeeAnnouncementController extends Controller
 			$date 						= date("Y-m-d", strtotime($datearr[2].", ".$datearr[1]." ".$datearr[0]));
 			$data['date_end'] 	= $date." ".$datetimearr[1].":00";
 		} else $data['date_end'] = null;
-
 		DB::beginTransaction();
 		if (isset($post['id_employee_announcement'])) {
 			$queryAnn = EmployeeAnnouncement::where('id_employee_announcement', $post['id_employee_announcement'])->first();
@@ -252,7 +252,7 @@ class ApiEmployeeAnnouncementController extends Controller
     public function announcementList(Request $request){
         $user = $request->user();
     	$today = date('Y-m-d h:i:s');
-    	$anns = EmployeeAnnouncement::select('id_employee_announcement', 'date_start as date', 'content')
+    	$anns = EmployeeAnnouncement::select('id_employee_announcement', 'date_start as date', 'content','description')
     			->with('employee_announcement_rule_parents.rules')
     			->where('date_start','<=',$today)
     			->where('date_end','>',$today)
@@ -277,7 +277,8 @@ class ApiEmployeeAnnouncementController extends Controller
 				'id_employee_announcement' => $ann['id_employee_announcement'],
 				'date' => $ann['date'],
 				'date_indo' => MyHelper::indonesian_date_v2($ann['date'], 'd F Y'),
-				'content' => $ann['content']
+				'content' => $ann['content'],
+				'description' => $ann['description'],
 			];
 		}
 

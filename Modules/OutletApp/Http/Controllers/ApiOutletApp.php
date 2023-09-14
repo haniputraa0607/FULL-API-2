@@ -5991,7 +5991,7 @@ class ApiOutletApp extends Controller
                 ->where('transaction_payment_status', 'Completed')
                 ->whereDate('transaction_date', date('Y-m-d'))
                 ->whereNull('receive_at')
-                ->whereNull('reject_at')
+                ->whereNull('transactions.reject_at')
                 ->pluck('transactions.id_transaction');
             foreach ($trxs as $id_trx) {
                 app($this->trx)->outletNotif($id_trx, true);

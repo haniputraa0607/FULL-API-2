@@ -6,6 +6,9 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Modules\Employee\Entities\EmployeeCashAdvance;
+use Illuminate\Support\Facades\Auth;
+use App\Http\Models\Outlet;
+use Modules\Product\Entities\ProductIcount;
 class Update extends FormRequest
 {
       public function withValidator($validator)

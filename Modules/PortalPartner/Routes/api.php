@@ -14,7 +14,9 @@ use Illuminate\Http\Request;
 */
 
 Route::group(['prefix' => 'partner'], function () {
-    Route::post('daily', 'ApiDailyController@daily');
+    Route::post('daily', 'ApiTodayController@dailyData');
+    
+    
     Route::group(['middleware' => ['auth_client', 'scopes:partners']], function () {
         Route::post('reset-password', 'ApiUserPartnerController@resetPassword');
     });

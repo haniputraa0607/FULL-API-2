@@ -109,7 +109,10 @@ class ApiHairStylistGroupProteksiAttendanceController extends Controller
             $data = array();
             $overtime = HairstylistGroupProteksiAttendanceDefault::orderby('month','asc')->get();
             foreach ($overtime as $value) {
-               $insen = HairstylistGroupProteksiAttendance::where(array('id_hairstylist_group_default_proteksi_attendance'=>$value['id_hairstylist_group_default_proteksi_attendance'],'id_hairstylist_group'=>$request->id_hairstylist_group))->first();
+               $insen = HairstylistGroupProteksiAttendance::where(
+                       array(
+                           'id_hairstylist_group_default_proteksi_attendance'=>$value['id_hairstylist_group_default_proteksi_attendance'],
+                           'id_hairstylist_group'=>$request->id_hairstylist_group))->first();
                 $value['name_month'] = date('M', strtotime(date('Y-'.$value['month'])));
                 $value['default_value'] = $value['value'];
                 $value['default']    = 0;
@@ -124,15 +127,15 @@ class ApiHairStylistGroupProteksiAttendanceController extends Controller
                    $value['default']    = 1;
                 }
                 if(isset($insen->amount)){
-                   $value['default_amount']      = $insen->amount; 
+                   $value['amount']      = $insen->amount; 
                    $value['amount_default']    = 1;
                 }
                 if(isset($insen->amount_day)){
-                   $value['default_amount_day']      = $insen->amount_day; 
+                   $value['amount_day']      = $insen->amount_day; 
                    $value['amount_day_default']    = 1;
                 }
                 if(isset($insen->amount_proteksi)){
-                   $value['default_amount_proteksi']      = $insen->amount_proteksi; 
+                   $value['amount_proteksi']      = $insen->amount_proteksi; 
                    $value['amount_proteksi_default']    = 1;
                 }
                 array_push($data,$value);

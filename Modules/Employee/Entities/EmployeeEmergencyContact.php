@@ -21,6 +21,6 @@ class EmployeeEmergencyContact extends Model
      protected $appends  = ['wa'];
     public function getWaAttribute()
     {
-        return $this->phone_emergency_contact;
+        return 'wa.me/'.$this->phone_emergency_contact;
     }
 }

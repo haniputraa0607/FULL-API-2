@@ -133,7 +133,8 @@ class ApiEmployeeCashAdvanceController extends Controller
            $start = date('Y-m-01');
            $end = date('Y-m-t');
        }
-       $saldo = EmployeeCashAdvance::wherebetween(
+       $saldo = EmployeeCashAdvance::join('product_icounts','product_icounts.id_product_icount','employee_cash_advances.id_product_icount')
+               ->wherebetween(
                "date_cash_advance",[$start,$end]
        )->where(array(
            'id_user'=>Auth::user()->id

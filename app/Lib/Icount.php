@@ -403,19 +403,21 @@ class Icount
 
     public static function RevenueSharing($request, $company = null, $logType = null, $orderId = null){
         $management_fee = Setting::where('key','revenue_sharing')->first();
+        
         if($request['disc']??0 != 0){
             $disc = ($request['disc']*100)/($request['disc']+$request['transfer']);
         }else{
             $disc = 0;
         }
+        
         $data = [
             "VoucherNo" => "[AUTO]",
             "TransDate" => $request['tanggal_akhir'],
             "DueDate" => $request['tanggal_akhir'],
-            "TermOfPaymentID" => $request['partner']['id_term_payment'],
-            "BusinessPartnerID" => $request['partner']['id_business_partner'],
+            "TermOfPaymentID" => 1,
             "BranchID" => $request['location']['id_branch'],
             "ReferenceNo" => '',
+            "AdvancedRevenue" => $request['beban_outlet'],
             'Tax'=>$request['tax'],
             'TaxNo'=>'',
             "Notes" => "",
@@ -433,38 +435,36 @@ class Icount
                 ],
             ]
         ];
+
+
         if($company=='PT IMA'){
-            $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
-            $data['BranchID'] = $request['location']['id_branch_ima'];
-        }else{
-            if(isset($request['partner']['id_business_partner_ima']) && !empty($request['partner']['id_business_partner_ima'])){
-                $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
-            }elseif(isset($request['partner']['id_business_partner']) && !empty($request['partner']['id_business_partner'])){
-                $data['BusinessPartnerID'] = $request['partner']['id_business_partner'];
-            }
             if(isset($request['location']['id_branch_ima']) && !empty($request['location']['id_branch_ima'])){
                 $data['BranchID'] = $request['location']['id_branch_ima'];
             }elseif(isset($request['location']['id_branch']) && !empty($request['location']['id_branch'])){
                 $data['BranchID'] = $request['location']['id_branch'];
             }
         }
+
         return self::sendRequest('POST', '/sales/sharing_management_fee', $data, $company, $logType, $orderId);
     }
+    
     public static function ManagementFee($request, $company = null, $logType = null, $orderId = null){
         $management_fee = Setting::where('key','management_fee')->first();
+
         if($request['disc']??0 != 0){
             $disc = ($request['disc']*100)/($request['disc']+$request['transfer']);
         }else{
             $disc = 0;
         }
+
         $data = [
             "VoucherNo" => "[AUTO]",
             "TransDate" => $request['tanggal_akhir'],
             "DueDate" => $request['tanggal_akhir'],
-            "TermOfPaymentID" => $request['partner']['id_term_payment'],
-            "BusinessPartnerID" => $request['partner']['id_business_partner'],
+            "TermOfPaymentID" => 1,
             "BranchID" => $request['location']['id_branch'],
             "ReferenceNo" => '',
+            "AdvancedRevenue" => $request['beban_outlet'],
             'Tax'=>$request['tax'],
             'TaxNo'=>'',
             "Notes" => "",
@@ -483,14 +483,6 @@ class Icount
             ]
         ];
         if($company=='PT IMA'){
-            $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
-            $data['BranchID'] = $request['location']['id_branch_ima'];
-        }else{
-            if(isset($request['partner']['id_business_partner_ima']) && !empty($request['partner']['id_business_partner_ima'])){
-                $data['BusinessPartnerID'] = $request['partner']['id_business_partner_ima'];
-            }elseif(isset($request['partner']['id_business_partner']) && !empty($request['partner']['id_business_partner'])){
-                $data['BusinessPartnerID'] = $request['partner']['id_business_partner'];
-            }
             if(isset($request['location']['id_branch_ima']) && !empty($request['location']['id_branch_ima'])){
                 $data['BranchID'] = $request['location']['id_branch_ima'];
             }elseif(isset($request['location']['id_branch']) && !empty($request['location']['id_branch'])){

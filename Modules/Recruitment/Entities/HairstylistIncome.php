@@ -13,6 +13,7 @@ use DateTime;
 use DB;
 use Illuminate\Database\Eloquent\Model;
 use App\Lib\Icount;
+use Modules\BusinessDevelopment\Entities\Location;
 use Modules\Recruitment\Entities\HairstylistLoanIcount;
 use Modules\Transaction\Entities\TransactionBreakdown;
 
@@ -679,7 +680,7 @@ class HairstylistIncome extends Model
                     $price_salary_cut = $price_salary_cut + $value['value'];
                     if ($total >= 0) {
                         if(isset($value['type'])){
-                        $icount = Icount::SalesPayment($value, $value['type'], null, null);
+                        $icount = Icount::SalesPayment($value, $value['company'], null, null);
                         if($icount['response']['Status']=='1' && $icount['response']['Message']=='success'){
                             $icount = $icount['response']['Data'][0];
                             $loanicount = HairstylistLoanIcount::create([
@@ -889,9 +890,6 @@ class HairstylistIncome extends Model
             $date         = (int) MyHelper::setting('hs_income_cut_off_end_date', 'value');
             $calculations = json_decode(MyHelper::setting('hs_income_calculation_end', 'value_text', '[]'), true) ?? [];
         }
-//        if (!$calculations) {
-//            throw new \Exception('No calculation for current periode. Check setting!');
-//        }
 
         $year = date('Y');
         if ($date >= date('d')) {
@@ -926,9 +924,7 @@ class HairstylistIncome extends Model
             'schedule_month'=>$month,
             'schedule_year'=>$year
         ))->first();
-//        if(!$jadwal){
-//            return false;
-//        }
+
         $hsIncome = static::updateOrCreate([
             'id_user_hair_stylist' => $hs->id_user_hair_stylist,
             'type'                 => $type,
@@ -1408,49 +1404,7 @@ class HairstylistIncome extends Model
                     } 
                 } 
             
-                //overtime Day
-//                $overtimes_day = HairstylistOverTime::wherenotnull('approve_at')
-//                            ->wherenull('reject_at')
-//                            ->where('not_schedule',1)
-//                            ->where('id_user_hair_stylist',$hair)
-//                            ->whereDate('date', '>=', $startDate)
-//                            ->whereDate('date', '<=', $endDate)
-//                            ->select('id_user_hair_stylist', 'id_outlet', \DB::raw('DATE(date) as datex'))
-//                            ->get();
-//                $jml_over = 0;
-//                foreach($overtimes_day as $v){
-//                   $ove_day = HairstylistAttendance::where(array(
-//                       'id_outlet'=>$outl,
-//                       'id_user_hair_stylist'=>$hair
-//                   ))->whereDate('hairstylist_attendances.attendance_date', $va['datex'])
-//                    ->join('hairstylist_schedule_dates','hairstylist_schedule_dates.id_hairstylist_schedule_date','hairstylist_attendances.id_hairstylist_schedule_date')
-//                    ->where('is_overtime',1)
-//                    ->first();
-//                   if($ove_day){
-//                       $jml_over++;
-//                   }
-//                }
-//                $day = self::calculateGenerateIncomeOvertimeDay($hs, $startDate, $endDate,$outl,$jml_over);
-//                if($day['id']){
-//                $hsIncome->hairstylist_income_details()->updateOrCreate([
-//                    'source'    => "Overtime Not Schedule",
-//                    'reference' => $day['id'],
-//                ],
-//                    [
-//                        'id_outlet'   => $outl,
-//                        'amount'      => $day['value'],
-//                        'type'        => "Incentive",
-//                        'name_income' => "Overtime Not Schedule",
-//                        'value_detail'=> json_encode($day),
-//                    ]);
-//                    $total_incomes = $total_incomes + $value['value'];
-//                    $price_income = $price_income + $value['value'];
-//                    $list_income[] = array(
-//                            'list'=>'Proteksi Attendance',
-//                            'content'=> $value['value']
-//                        );
-//                    $total = $total + $day['value']; 
-//                }
+                
 
                   //Lateness
                $late = self::calculateGenerateIncomeLateness($hs, $startDate, $endDate, $outl);
@@ -1488,7 +1442,7 @@ class HairstylistIncome extends Model
                     $price_salary_cut = $price_salary_cut + $value['value'];
                     if ($total >= 0) {
                         if(isset($value['type'])){
-                        $icount = Icount::SalesPayment($value, $value['type'], null, null);
+                        $icount = Icount::SalesPayment($value, $value['company'], null, null);
                         if($icount['response']['Status']=='1' && $icount['response']['Message']=='success'){
                             $icount = $icount['response']['Data'][0];
                             $loanicount = HairstylistLoanIcount::create([
@@ -3175,6 +3129,11 @@ class HairstylistIncome extends Model
             ->get();
           
         foreach ($loan as $value) {
+            $location = UserHairStylist::join('outlets', 'outlets.id_outlet', 'user_hair_stylist.id_outlet')
+            ->join('locations', 'locations.id_location', 'outlets.id_location')
+            ->where('user_hair_stylist.id_user_hair_stylist', $loan['id_user_hair_stylist'])
+            ->select('locations')
+            ->first();
             if(isset($value['type'])){
                     $array[] = array(
                         "name"                       => $value['name_category_loan'],
@@ -3184,7 +3143,8 @@ class HairstylistIncome extends Model
                         "SalesInvoiceID"             => $value['SalesInvoiceID'],
                         "amount_return"              => $value['amount_return'],
                         "name_category_loan"         => $value['name_category_loan'],
-                        "type"                       => $value['type']      
+                        "type"                       => $value['type'],
+                        "company"                    => $location['company_type'] ?? 'PT IMA'      
                     );
             }else{
                 $array[] = array(
@@ -3192,6 +3152,7 @@ class HairstylistIncome extends Model
                     "value"                      => $value['amount_return'],
                     "id_outlet"                  => $hs->id_outlet,
                     "id_hairstylist_loan_return" => $value['id_hairstylist_loan_return'],
+                    "company"                    => $location['company_type'] ?? 'PT IMA'
                 );
             }
         }
@@ -3755,7 +3716,7 @@ class HairstylistIncome extends Model
                     $price_salary_cut = $price_salary_cut + $value['value'];
                     if ($total >= 0) {
                         if(isset($value['type'])){
-                        $icount = Icount::SalesPayment($value, $value['type'], null, null);
+                        $icount = Icount::SalesPayment($value, $value['company'], null, null);
                         if($icount['response']['Status']=='1' && $icount['response']['Message']=='success'){
                             $icount = $icount['response']['Data'][0];
                             $loanicount = HairstylistLoanIcount::create([

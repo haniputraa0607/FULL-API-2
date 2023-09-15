@@ -496,16 +496,11 @@ class Icount
             "VoucherNo" => "[AUTO]",
             "TransDate" => date("Y-m-d"),
             "ReferenceNo" => null,
+            "Notes" => "Pembayaran peminjaman",
             "SalesInvoiceID" => $request['SalesInvoiceID'],
             "Amount" => $request['amount_return'],
             "Description" => $request['name_category_loan'],
-            "Notes" => "Pembayaran peminjaman"
         ];
-        if($company=='IMA'){
-           $company = "PT IMA";
-        }else{
-           $company = "PT IMS";
-        }
         return self::sendRequest('POST', '/sales/create_sp_hs', $data, $company, $logType, $orderId);
     }
     public static function get($request, $logType = null, $orderId = null){

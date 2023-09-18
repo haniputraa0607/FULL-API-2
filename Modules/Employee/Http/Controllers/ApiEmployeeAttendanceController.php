@@ -44,7 +44,8 @@ class ApiEmployeeAttendanceController extends Controller
         $schedule_month = EmployeeSchedule::where('id',$employee->id)->where('schedule_month',date('m'))->where('schedule_year',date('Y'))->first();
         // get current schedule
         $todaySchedule = $employee->employee_schedules()
-            ->selectRaw('date, min(time_start) as clock_in_requirement, max(time_end) as clock_out_requirement, shift')
+//            ->selectRaw('date, min(time_start) as clock_in_requirement, max(time_end) as clock_out_requirement, shift')
+            ->selectRaw('date, time_start as clock_in_requirement, time_end as clock_out_requirement, shift')
             ->join('employee_schedule_dates', 'employee_schedules.id_employee_schedule', 'employee_schedule_dates.id_employee_schedule');
         
         if($employee->role->office_hour['office_hour_type'] == 'Use Shift' || isset($schedule_month['id_office_hour_shift'])){

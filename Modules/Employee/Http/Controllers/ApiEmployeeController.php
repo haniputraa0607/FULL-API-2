@@ -199,7 +199,7 @@ class ApiEmployeeController extends Controller
     public function employeeList(Request $request){
         $post = $request->json()->all();
 
-        $data = User::join('roles', 'roles.id_role', 'users.id_role')->join('outlets', 'outlets.id_outlet', 'users.id_outlet')->where('outlets.type','Office')->orderBy('created_at', 'desc');
+        $data = User::join('roles', 'roles.id_role', 'users.id_role')->join('outlets', 'outlets.id_outlet', 'users.id_outlet')->where('outlets.type','Office')->orderBy('users.created_at', 'desc');
 
         if(isset($post['conditions']) && !empty($post['conditions'])){
             $rule = 'and';

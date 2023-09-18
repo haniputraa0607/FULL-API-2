@@ -69,6 +69,7 @@ class ApiEmployeeChangeShiftController extends Controller
         ->where('schedule_year', date('Y'))
         ->where('id',$request->user()->id)
         ->first();
+       
         if(($office_hour['office_hour_type'] == 'Use Shift' && isset($office_hour['office_hour_shift'])) || isset($schedule['id_office_hour_shift'])){
             $schedule_date = EmployeeScheduleDate::where('id_employee_schedule',$schedule['id_employee_schedule'])
             ->whereDate('date',date('Y-m-d'))

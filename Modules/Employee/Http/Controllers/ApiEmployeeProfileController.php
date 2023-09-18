@@ -116,7 +116,7 @@ class ApiEmployeeProfileController extends Controller
            'departement'=>$profile->department_name,
            'position'=>$profile->role_name,
            'status_employee'=>"Karyawan Tetap",
-           'start_date'=>$profile->start_date,
+           'start_date'=>date('d F Y',strtotime($profile->start_date)),
            'validity_period'=>$validity_period
        );
        }else{
@@ -128,8 +128,8 @@ class ApiEmployeeProfileController extends Controller
            'departement'=>$profile->department_name,
            'position'=>$profile->role_name,
            'status_employee'=>"Karyawan Kontrak",
-           'start_date'=>$profile->start_date,
-           'end_date'=>$profile->end_date,
+           'start_date'=>date('d F Y',strtotime($profile->start_date)),
+           'end_date'=>date('d F Y',strtotime($profile->end_date)),
            'validity_period'=>$validity_period
        );
        }

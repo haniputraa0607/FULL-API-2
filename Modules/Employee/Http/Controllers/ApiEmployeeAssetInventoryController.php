@@ -92,12 +92,12 @@ class ApiEmployeeAssetInventoryController extends Controller
            if($available->type == "Loan"){
                $loan = AssetInventoryLoan::where('id_asset_inventory_log',$available->id_asset_inventory_log)->first();
                if(isset($loan->attachment)){
-                   $url =  env('STORAGE_URL_API').$loan->attachment_foto;
+                   $url =  env('STORAGE_URL_API').$loan->attachment;
                }
            }else{
                $loan = AssetInventoryReturn::where('id_asset_inventory_log',$available->id_asset_inventory_log)->first();
                if(isset($loan->attachment)){
-                   $url =  env('STORAGE_URL_API').$loan->attachment_foto;
+                   $url =  env('STORAGE_URL_API').$loan->attachment;
                }
            }
            $date_action = null;

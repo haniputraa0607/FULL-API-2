@@ -55,6 +55,8 @@ class ApiEmployeeAssetInventoryController extends Controller
                    'code',
                    'status_asset_inventory as status',
                    'type_asset_inventory as type',
+                   'qty_logs as qty',
+                   'notes',
                    'asset_inventory_logs.created_at as date_create'
                ])
                ->orderby('asset_inventory_logs.created_at','desc')
@@ -62,6 +64,58 @@ class ApiEmployeeAssetInventoryController extends Controller
        
         return MyHelper::checkGet($user);   
    }
+   public function detail_history(Request $request) {
+       if(!isset($request->id_asset_inventory_log)){
+           return array(
+               'status'=>'fail',
+               'message'=>[
+                   'Data Incomplete'
+               ]
+           );
+       }
+       $available = AssetInventoryLog::leftjoin('asset_inventorys','asset_inventorys.id_asset_inventory','asset_inventory_logs.id_asset_inventory')
+               ->where('id_asset_inventory_log',$request->id_asset_inventory_log)
+               ->select([
+                   'id_asset_inventory_log',
+                   'name_asset_inventory as name',
+                   'code',
+                   'status_asset_inventory as status',
+                   'type_asset_inventory as type',
+                   'qty_logs as qty',
+                   'notes',
+                   'date_action',
+                   'asset_inventory_logs.created_at as date_create'
+               ])
+               ->first();
+       if($available){
+           $url = null;  
+           if($available->type == "Loan"){
+               $loan = AssetInventoryLoan::where('id_asset_inventory_log',$available->id_asset_inventory_log)->first();
+               if(isset($loan->attachment)){
+                   $url =  env('STORAGE_URL_API').$loan->attachment_foto;
+               }
+           }else{
+               $loan = AssetInventoryReturn::where('id_asset_inventory_log',$available->id_asset_inventory_log)->first();
+               if(isset($loan->attachment)){
+                   $url =  env('STORAGE_URL_API').$loan->attachment_foto;
+               }
+           }
+        $response = [
+            'code' => $available->code,
+            'name' => $available->name,
+            'status' => $available->status,
+            'type' => $available->type,
+            'qty' => $available->qty,
+            'notes' => $available->notes,
+            'date_action' => date('d F Y', strtotime($available->date_action)),
+            'date_create' => date('d F Y', strtotime($available->date_create)),
+            'attachment' => $url,
+        ];
+        
+        }
+        return MyHelper::checkGet($user);   
+   }
+   
    public function category_asset() {
        $user = CategoryAssetInventory::select([
             'id_asset_inventory_category',
@@ -180,8 +234,8 @@ class ApiEmployeeAssetInventoryController extends Controller
         $response = [
             'code' => $available->code,
             'name' => $available->name_asset_inventory,
-            'start_date' => date('d/m/Y', strtotime($available->start_date_loan)),
-            'end_date' => date('d/m/Y', strtotime($available->end_date_loan)),
+            'start_date' => date('d F Y', strtotime($available->start_date_loan)),
+            'end_date' => date('d F Y', strtotime($available->end_date_loan)),
             'long_loan' => $available->long.' '.$available->long_loan,
             'notes' => $available->notes,
             'attachment' => $available->attachment_foto,

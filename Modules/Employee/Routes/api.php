@@ -442,6 +442,7 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         Route::post('category','ApiEmployeeAssetInventoryController@category_asset');
         Route::post('available','ApiEmployeeAssetInventoryController@available_asset');
         Route::post('history','ApiEmployeeAssetInventoryController@history');
+        Route::post('history/detail','ApiEmployeeAssetInventoryController@detail_history');
         Route::group(['prefix' => 'loan'], function () {
             Route::post('create','ApiEmployeeAssetInventoryController@create_loan');
             Route::post('list','ApiEmployeeAssetInventoryController@loan_asset');

@@ -227,7 +227,7 @@ class ApiEmployeeAssetInventoryController extends Controller
                 ->select([
                     'asset_inventory_loans.*',
                     'asset_inventorys.*',
-                    'asset_inventory_logs.attachment as attachment_foto',
+                    'asset_inventory_loans.attachment as attachment_foto',
                 ])
                 ->first();
         $response = [];

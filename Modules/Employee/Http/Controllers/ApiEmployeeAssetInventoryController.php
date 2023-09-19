@@ -113,7 +113,7 @@ class ApiEmployeeAssetInventoryController extends Controller
         ];
         
         }
-        return MyHelper::checkGet($user);   
+        return MyHelper::checkGet($response);   
    }
    
    public function category_asset() {

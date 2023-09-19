@@ -100,6 +100,10 @@ class ApiEmployeeAssetInventoryController extends Controller
                    $url =  env('STORAGE_URL_API').$loan->attachment_foto;
                }
            }
+           $date_action = null;
+           if(isset($available->date_action)){
+               $date_action = date('d F Y', strtotime($available->date_action));
+           }
         $response = [
             'code' => $available->code,
             'name' => $available->name,
@@ -107,7 +111,7 @@ class ApiEmployeeAssetInventoryController extends Controller
             'type' => $available->type,
             'qty' => $available->qty,
             'notes' => $available->notes,
-            'date_action' => date('d F Y', strtotime($available->date_action)),
+            'date_action' =>$date_action ,
             'date_create' => date('d F Y', strtotime($available->date_create)),
             'attachment' => $url,
         ];

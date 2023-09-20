@@ -243,7 +243,7 @@ class ApiBeEmployeeCashAdvanceController extends Controller
                 if($post['update_type'] == "Finance Approval"){
                     $update = EmployeeCashAdvance::where('id_employee_cash_advance', $post['id_employee_cash_advance'])->update([
                          'status' => $post['update_type'],
-                         'id_user_approved' => $post['id_user_approved'],
+                         'id_user_approved' => $post['id_user_approved']?? Auth::user()->id,
                              ]);
                     $icount = $this->approved($request);
                 }

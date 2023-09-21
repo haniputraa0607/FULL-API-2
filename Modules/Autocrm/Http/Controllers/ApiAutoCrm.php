@@ -56,7 +56,7 @@ class ApiAutoCrm extends Controller
 		$this->apiwha = new apiwha();
     }
 
-	function SendAutoCRM($autocrm_title, $receipient, $variables = null, $useragent = null, $forward_only = false, $outlet = false, $recipient_type = null, $franchise = null, $save_log=true, $otp_type = null, $partner = null){
+	function SendAutoCRM($autocrm_title, $receipient, $variables = null, $useragent = null, $forward_only = false, $outlet = false, $recipient_type = null, $franchise = null, $save_log=true, $otp_type = null, $partner = null,$employee=null){
 		$query = Autocrm::where('autocrm_title','=',$autocrm_title)->with('whatsapp_content')->get()->toArray();
 
 		if (!isset($recipient_type)) {
@@ -69,6 +69,8 @@ class ApiAutoCrm extends Controller
 				if(empty($users)){
 					$users = Location::where('email','=',$receipient)->get()->toArray();
 				}
+			}elseif($employee){
+				$users = User::join('employees','employees.id_user','users.id')->where('id_employee', $receipient)->whereNotNull('id_role')->select('*')->get()->toArray();
 			}else{
 				$users = User::where('phone','=',$receipient)->get()->toArray();
 			}

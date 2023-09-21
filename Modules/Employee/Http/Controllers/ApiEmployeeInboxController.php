@@ -1262,7 +1262,7 @@ class ApiEmployeeInboxController extends Controller
                 'id_user_approved' => $id_employee,
                 'validator_reimbursement' => $user['name']
             ];
-            $update = app('\Modules\Employee\Http\Controllers\ApiBeEmployeeReimbursementController')->approved(New Request($data_update));
+            $update = app('\Modules\Employee\Http\Controllers\ApiBeEmployeeReimbursementController')->approved_apps($data_update);
         }
 
         if($key_id == 'loan_assets'){

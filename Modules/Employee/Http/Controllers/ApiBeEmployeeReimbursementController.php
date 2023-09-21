@@ -421,7 +421,7 @@ class ApiBeEmployeeReimbursementController extends Controller
        return MyHelper::checkGet($data);
    }
    public function approved_apps($request) {
-       $post = $request->all();
+       $post = $request;
        $post['date_validation'] = date('Y-m-d H:i:s');
        $post['id_user_approved'] =  $post['id_user_approved'] ?? Auth::user()->id;
        $reimbursement = EmployeeReimbursement::where(array('id_employee_reimbursement'=>$request->id_employee_reimbursement))->update($post);

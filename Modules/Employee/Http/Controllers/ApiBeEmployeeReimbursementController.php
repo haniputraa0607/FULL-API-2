@@ -420,15 +420,15 @@ class ApiBeEmployeeReimbursementController extends Controller
        }
        return MyHelper::checkGet($data);
    }
-   public function approved_apps($request) {
+  public function approved_apps($request) {
        $post = $request;
        $post['date_validation'] = date('Y-m-d H:i:s');
        $post['id_user_approved'] =  $post['id_user_approved'] ?? Auth::user()->id;
-       $reimbursement = EmployeeReimbursement::where(array('id_employee_reimbursement'=>$request->id_employee_reimbursement))->update($post);
-       $reimbursement = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')->where(array('id_employee_reimbursement'=>$request->id_employee_reimbursement))->first();
+       $reimbursement = EmployeeReimbursement::where(array('id_employee_reimbursement'=>$post['id_employee_reimbursement']))->update($post);
+       $reimbursement = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')->where(array('id_employee_reimbursement'=>$post['id_employee_reimbursement']))->first();
        if($post['status'] == "Approved"){
             $data_send = [
-                    "reimbursement" => EmployeeReimbursement::where(array('id_employee_reimbursement'=>$request->id_employee_reimbursement))->first(),
+                    "reimbursement" => EmployeeReimbursement::where(array('id_employee_reimbursement'=>$post['id_employee_reimbursement']))->first(),
                     "employee" => Employee::where('id_user',$reimbursement['id_user'])->first(),
                     "item"=> ProductIcount::where('id_product_icount',$reimbursement['id_product_icount'])->first(),
                     "outlet" => Outlet::where('id_outlet',$reimbursement["id_outlet"])->first(),
@@ -437,7 +437,7 @@ class ApiBeEmployeeReimbursementController extends Controller
               $initBranch = Icount::EmployeeReimbursement($data_send, $data_send['location']['company_type']??null);
                if($initBranch['response']['Status']=='1' && $initBranch['response']['Message']=='success'){
                    $initBranch = $initBranch['response']['Data'][0];
-                   $update = EmployeeReimbursement::where(array('id_employee_reimbursement'=>$request->id_employee_reimbursement))->update([
+                   $update = EmployeeReimbursement::where(array('id_employee_reimbursement'=>$post['id_employee_reimbursement']))->update([
                        'id_purchase_invoice'=>$initBranch['PurchaseInvoiceID'],
                        'value_detail'=> json_encode($initBranch)
                    ]);

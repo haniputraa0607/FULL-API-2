@@ -289,13 +289,12 @@ class ApiBeEmployeeController extends Controller
                         if (\Module::collections()->has('Autocrm')) {
                         $autocrm = app($this->autocrm)->SendAutoCRM(
                             'Interview Invitation Employee',
-                            $getData->phone,
+                            $post['id_employee'],
                             [
                                 'date_invitation'=>date('Y-m-d', strtotime($post['data_document']['process_date']??date('Y-m-d H:i:s'))),
                                 'time_invitation'=>date('H:i:s', strtotime($post['data_document']['process_date']??date('Y-m-d H:i:s'))),
-                            ], null, null, null, null, null, null, null, null,
+                            ], null, null, null, null, null, null, null, null,1
                         );
-                        // return $autocrm;
                         if (!$autocrm) {
                             return response()->json([
                                 'status'    => 'fail',

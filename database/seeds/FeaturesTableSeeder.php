@@ -4955,6 +4955,33 @@ class FeaturesTableSeeder extends Seeder
                 'order'          => 184,
                 'created_at'     => date('Y-m-d H:00:00'),
                 'updated_at'     => date('Y-m-d H:00:00'),
+            ), 
+            551 => array(
+                'id_feature'     => 553,
+                'feature_type'   => 'List',
+                'feature_module' => 'Employee Cash Advance',
+                'show_hide'      => 1,
+                'order'          => 185,
+                'created_at'     => date('Y-m-d H:00:00'),
+                'updated_at'     => date('Y-m-d H:00:00'),
+            ),
+            552 => array(
+                'id_feature'     => 554,
+                'feature_type'   => 'Detail',
+                'feature_module' => 'Employee Cash Advance',
+                'show_hide'      => 1,
+                'order'          => 185,
+                'created_at'     => date('Y-m-d H:00:00'),
+                'updated_at'     => date('Y-m-d H:00:00'),
+            ),
+            553 => array(
+                'id_feature'     => 555,
+                'feature_type'   => 'Update',
+                'feature_module' => 'Approve Employee Cash Advance',
+                'show_hide'      => 1,
+                'order'          => 186,
+                'created_at'     => date('Y-m-d H:00:00'),
+                'updated_at'     => date('Y-m-d H:00:00'),
             ),
         );
 

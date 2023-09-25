@@ -96,7 +96,19 @@ class ApiBeEmployeeController extends Controller
                 });
             }
         }
-            $employee = $employee->orderBy('employees.created_at', 'desc')->paginate($request->length ?: 10);
+        $employee = $employee->orderBy('employees.created_at', 'desc')->paginate($request->length ?: 10)->toArray();
+        foreach($employee['data'] as $key => $value){
+            $employee['data'][$key]['manager_name'] = null;
+           if(isset($value['id_manager'])){
+                  $manager = Employee::join('users','users.id','employees.id_user')->join('roles','roles.id_role','users.id_role')
+                     ->where('users.id',$value['id_manager'])
+                     ->where('employees.status','active')
+                     ->where('employees.status_employee','Permanent')
+                     ->select('users.id','users.name')
+                     ->first()['name'];
+                  $employee['data'][$key]['manager_name'] = $manager;
+            }
+        }
         return MyHelper::checkGet($employee);
    }
     public function detail(Request $request) {

@@ -3894,24 +3894,28 @@ class ApiProductController extends Controller
             $unit_icount_con = UnitIcountConversion::whereIn('id_unit_icount', $unit_icount)->delete();
             if($unit_icount_con){
                 $delete_unit_icount = UnitIcount::whereIn('id_product_icount', $exclude)->delete();
-                if($delete_unit_icount){
-                    $stock = ProductIcountOutletStock::whereIn('id_product_icount', $exclude)->delete();
-                    if($stock){
-                        $delete_icount = ProductIcount::whereIn('id_product_icount', $exclude)->delete();
-                        if($delete_icount){
-                            DB::commit();
-                        }else{
-                            DB::rollBack();
-                        }
-                    }else{
-                        DB::rollBack();
-                    }
-                }else{
+                if(!$delete_unit_icount){
                     DB::rollBack();
                 }
             }else{
                 DB::rollBack();
             }
+
+            $stock = ProductIcountOutletStock::whereIn('id_product_icount', $exclude)->get();
+            if($stock){
+                $delete_stock = ProductIcountOutletStock::whereIn('id_product_icount', $exclude)->delete();
+                if(!$delete_stock){
+                    DB::rollBack();
+                }
+            }
+
+            $delete_icount = ProductIcount::whereIn('id_product_icount', $exclude)->delete();
+            if(!$delete_icount){
+                DB::rollBack();
+            }
+
+            DB::commit();
+
             
         } catch (\Exception $e) {
             DB::rollBack();

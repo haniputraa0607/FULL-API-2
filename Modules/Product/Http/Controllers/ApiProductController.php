@@ -74,9 +74,18 @@ use Modules\Product\Http\Requests\product\Commission;
 use App\Jobs\SyncIcountItems;
 use Modules\Product\Entities\ProductCatalogDetail;
 use Modules\Product\Entities\ProductIcountOutletStockLog;
+use Modules\Product\Entities\ProductIcountOutletStock;
 use Modules\Product\Entities\UnitIcount;
 use Modules\Product\Entities\UnitIcountConversion;
 use Modules\Brand\Entities\BrandOutlet;
+use Modules\Product\Entities\ProductProductIcount;
+use Modules\BusinessDevelopment\Entities\OutletStarterBundlingProduct;
+use Modules\BusinessDevelopment\Entities\LocationOutletStarterBundlingProduct;
+use Modules\Employee\Entities\EmployeeReimbursement;
+use Modules\Employee\Entities\EmployeeCashAdvance;
+use Modules\Employee\Entities\EmployeeCashAdvanceProductIcount;
+use Modules\Product\Entities\RequestProductDetail;
+use Modules\Product\Entities\DeliveryProductDetail;
 
 class ApiProductController extends Controller
 {
@@ -3830,5 +3839,84 @@ class ApiProductController extends Controller
                 ->get();
            
         return MyHelper::checkGet($product);
+    }
+
+    public function productIcountSyncUpdate(){
+        $array = [];
+
+        $product_product_icounts = ProductProductIcount::select('id_product_icount')->groupBy('id_product_icount')->get()->toArray();
+        $product_product_icounts = array_column($product_product_icounts, 'id_product_icount');
+        $array = array_merge($array, $product_product_icounts);
+
+        $location_bundligs = LocationOutletStarterBundlingProduct::select('id_product_icount')->groupBy('id_product_icount')->get()->toArray();
+        $location_bundligs = array_column($location_bundligs, 'id_product_icount');
+        $array = array_merge($array, $location_bundligs);
+
+        $outlet_bundling = OutletStarterBundlingProduct::select('id_product_icount')->groupBy('id_product_icount')->get()->toArray();
+        $outlet_bundling = array_column($outlet_bundling, 'id_product_icount');
+        $array = array_merge($array, $outlet_bundling);
+
+        $rembus = EmployeeReimbursement::select('id_product_icount')->groupBy('id_product_icount')->get()->toArray();
+        $rembus = array_column($rembus, 'id_product_icount');
+        $array = array_merge($array, $rembus);
+
+        $cash = EmployeeCashAdvance::select('id_product_icount')->groupBy('id_product_icount')->get()->toArray();
+        $cash = array_column($cash, 'id_product_icount');
+        $array = array_merge($array, $cash);
+
+        $cash_prod = EmployeeCashAdvanceProductIcount::select('id_product_icount')->groupBy('id_product_icount')->get()->toArray();
+        $cash_prod = array_column($cash_prod, 'id_product_icount');
+        $array = array_merge($array, $cash_prod);
+
+        $req_prod = RequestProductDetail::select('id_product_icount')->groupBy('id_product_icount')->get()->toArray();
+        $req_prod = array_column($req_prod, 'id_product_icount');
+        $array = array_merge($array, $req_prod);
+
+        $dev_prod = DeliveryProductDetail::select('id_product_icount')->groupBy('id_product_icount')->get()->toArray();
+        $dev_prod = array_column($dev_prod, 'id_product_icount');
+        $array = array_merge($array, $dev_prod);
+
+        $catlog = ProductCatalogDetail::select('id_product_icount')->groupBy('id_product_icount')->get()->toArray();
+        $catlog = array_column($catlog, 'id_product_icount');
+        $array = array_merge($array, $catlog);
+
+        $array = array_unique($array);
+
+        $exclude = ProductIcount::whereNotIn('id_product_icount', $array)->select('id_product_icount')->groupBy('id_product_icount')->get()->toArray();
+        $exclude = array_column($exclude, 'id_product_icount');
+
+        DB::beginTransaction();
+        try {
+            
+            $unit_icount = UnitIcount::whereIn('id_product_icount', $exclude)->select('id_unit_icount')->get()->toArray();
+            $unit_icount = array_column($unit_icount, 'id_unit_icount');
+            
+            $unit_icount_con = UnitIcountConversion::whereIn('id_unit_icount', $unit_icount)->delete();
+            if($unit_icount_con){
+                $delete_unit_icount = UnitIcount::whereIn('id_product_icount', $exclude)->delete();
+                if($delete_unit_icount){
+                    $stock = ProductIcountOutletStock::whereIn('id_product_icount', $exclude)->delete();
+                    if($stock){
+                        $delete_icount = ProductIcount::whereIn('id_product_icount', $exclude)->delete();
+                        if($delete_icount){
+                            DB::commit();
+                        }else{
+                            DB::rollBack();
+                        }
+                    }else{
+                        DB::rollBack();
+                    }
+                }else{
+                    DB::rollBack();
+                }
+            }else{
+                DB::rollBack();
+            }
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::debug($e);
+        }
+
     }
 }

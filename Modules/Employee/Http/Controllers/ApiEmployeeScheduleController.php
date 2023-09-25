@@ -309,6 +309,37 @@ class ApiEmployeeScheduleController extends Controller
                     if($create_schedule['shift']=='Use Shift'){
                         $id_employee_office_hour = $hs['id_employee_office_hour'] ?? $setting_default['value'];
                         $update_sch = EmployeeSchedule::where('id_employee_schedule',$create_schedule['id_employee_schedule'])->update(['id_office_hour_shift'=>$id_employee_office_hour]);
+                    }else{
+                        $date = date('Y-m-d');
+                        $day = MyHelper::indonesian_date_v2($date, 'l');
+                        $day = str_replace('Jum\'at', 'Jumat', $day);
+
+                        $office_sch = OutletSchedule::where('id_outlet', $create_schedule['id_outlet'])->where('day', $day)->where('is_closed', 0)->first();
+
+                        $holiday = Holiday::join('outlet_holidays', 'outlet_holidays.id_holiday', '=', 'holidays.id_holiday')
+                        ->join('date_holidays', 'date_holidays.id_holiday', '=', 'holidays.id_holiday')
+                        ->where('outlet_holidays.id_outlet', $create_schedule['id_outlet'])
+                        ->where('date_holidays.date', date('Y-m-d', strtotime($date)))
+                        ->get()->toArray();
+
+                        if($office_sch && !$holiday){
+
+                            $create_schedule_date = EmployeeScheduleDate::create([
+                                'id_employee_schedule' => $create_schedule['id_employee_schedule'],
+                                'date' => date('Y-m-d', strtotime($date)),
+                                'is_overtime' => 0,
+                                'time_start' => $default_office['office_hour_start'] ?? null,
+                                'time_end' => $default_office['office_hour_end'] ?? null,
+                            ]);
+                            if(!$create_schedule_date){
+                                DB::rollback();
+                                return response()->json([
+                                    'status' => 'fail', 
+                                    'messages' => 'Failed to create'
+                                ]);
+                            }
+                        }
+                        
                     }
                     DB::commit();
                     return response()->json([

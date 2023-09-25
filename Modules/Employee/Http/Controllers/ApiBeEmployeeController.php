@@ -237,7 +237,7 @@ class ApiBeEmployeeController extends Controller
             $detail['manager_name'] = null;
             if(isset($detail['id_manager'])){
                   $manager = Employee::join('users','users.id','employees.id_user')->join('roles','roles.id_role','users.id_role')
-                     ->where('employees.id_manager',$detail['id_manager'])
+                     ->where('users.id',$detail['id_manager'])
                      ->where('employees.status','active')
                      ->where('employees.status_employee','Permanent')
                      ->select('users.id','users.name')

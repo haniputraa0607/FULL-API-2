@@ -234,6 +234,16 @@ class ApiBeEmployeeController extends Controller
             foreach($detail['employee']['form_evaluation'] ?? [] as $key_eval => $eval){
                 $detail['employee']['form_evaluation'][$key_eval]['directory'] = isset($eval['directory']) ? env('STORAGE_URL_API').$eval['directory'] : null; 
             }
+            $detail['manager_name'] = null;
+            if(isset($detail['id_manager'])){
+                  $manager = Employee::join('users','users.id','employees.id_user')->join('roles','roles.id_role','users.id_role')
+                     ->where('users.id_manager',$detail['id_manager'])
+                     ->where('employees.status','active')
+                     ->where('employees.status_employee','Permanent')
+                     ->select('users.id','users.name')
+                     ->first()['name'];
+                  $detail['manager_name'] = $manager;
+            }
             return response()->json(MyHelper::checkGet($detail));
         }else{
             return response()->json(['status' => 'fail', 'messages' => ['ID can not be empty']]);

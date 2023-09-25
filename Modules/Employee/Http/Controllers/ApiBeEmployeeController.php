@@ -70,7 +70,7 @@ class ApiBeEmployeeController extends Controller
         $employee = User::where(array(
             "employees.status"=>"active",
             "users.level"=>"Admin"
-            ))->join('employees','employees.id_user','users.id');
+            ))->join('employees','employees.id_user','users.id')->join('roles','roles.id_role','users.id_role');
         if(isset($post['rule']) && !empty($post['rule'])){
             $rule = 'and';
             if(isset($post['operator'])){

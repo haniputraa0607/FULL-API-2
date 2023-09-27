@@ -462,15 +462,15 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                     if($time_off){
                         //disetujui tdk bisa lagi mengajukan
                         foreach($time_off as $tf){
-                            DB::rollBack();
                             if(isset($tf['approve_by']) && !isset($tf['reject_at'])){
+                                DB::rollBack();
                                 return response()->json(['status' => 'fail', 'messages' => ['There has been a request time off approved at '.date('F j, Y', strtotime($tf['start_date'])).' to '.date('F j, Y', strtotime($tf['end_date']))]]);
                             }
                         }
                         //pending
                         foreach($time_off as $tf){
-                            DB::rollBack();
                             if(!isset($tf['approve_by']) && !isset($tf['reject_at'])){
+                            DB::rollBack();
                                 return response()->json(['status' => 'fail', 'messages' => ['There has been a request time off waiting to approve at '.date('F j, Y', strtotime($tf['start_date'])).' to '.date('F j, Y', strtotime($tf['end_date']))]]);
                             }
                         }

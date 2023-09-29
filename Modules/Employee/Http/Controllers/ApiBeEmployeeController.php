@@ -309,13 +309,14 @@ class ApiBeEmployeeController extends Controller
                     ]);
                     if($post['data_document']['document_type']=='Interview Invitation'){
                         if (\Module::collections()->has('Autocrm')) {
+                        $users = User::join('employees','employees.id_user','users.id')->where('id_employee', $post['id_employee'])->whereNotNull('id_role')->select('*')->first();
                         $autocrm = app($this->autocrm)->SendAutoCRM(
                             'Interview Invitation Employee',
-                            $post['id_employee'],
+                            $users['phone'],
                             [
                                 'date_invitation'=>date('Y-m-d', strtotime($post['data_document']['process_date']??date('Y-m-d H:i:s'))),
                                 'time_invitation'=>date('H:i:s', strtotime($post['data_document']['process_date']??date('Y-m-d H:i:s'))),
-                            ], null, null, null, null, null, null, null, null,1
+                            ],  null, null, null, null, null, true, null, null,null
                         );
                         if (!$autocrm) {
                             return response()->json([

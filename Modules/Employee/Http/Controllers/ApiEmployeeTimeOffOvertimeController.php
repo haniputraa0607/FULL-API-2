@@ -1908,7 +1908,7 @@ class ApiEmployeeTimeOffOvertimeController extends Controller
                             $user_employee['phone'] ?? null,
                             [
                                 'user_update'=>'Admin',
-                                'time_off_date'=> MyHelper::dateFormatInd($data_time_off['start_date'], true, false, false).' - '.MyHelper::dateFormatInd($data_time_off['end_date'], true, false, false),
+                                'time_off_date'=> MyHelper::dateFormatInd($time_off['start_date'], true, false, false).' - '.MyHelper::dateFormatInd($time_off['end_date'], true, false, false),
                                 'name_office'=> $office['outlet_name'],
                                 'category' => 'Time Off',
                             ], null, false, false, $recipient_type = 'employee', null, true

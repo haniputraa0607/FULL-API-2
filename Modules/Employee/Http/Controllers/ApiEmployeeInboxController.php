@@ -1551,7 +1551,7 @@ class ApiEmployeeInboxController extends Controller
                     'important' => 0,
                     'detail' => 'change_shift-'.$val['id_employee_change_shift'],
                     'read' => $val['read'],
-                    'read' => $stats,
+                    'status' => $stats,
                     'data' => [
                         [
                             'label' => 'Nama',
@@ -1608,7 +1608,7 @@ class ApiEmployeeInboxController extends Controller
                         'important' => 0,
                         'detail' => 'reimbursement-'.$val['id_employee_reimbursement'],
                         'read' => $val['read'],
-                        'read' => $stats,
+                        'status' => $stats,
                         'data' => [
                             [
                                 'label' => 'Product',
@@ -1706,7 +1706,7 @@ class ApiEmployeeInboxController extends Controller
                         'important' => 0,
                         'detail' => 'loan_assets-'.$val['id_asset_inventory_log'],
                         'read' => $val['read'],
-                        'read' => $stats,
+                        'status' => $stats,
                         'data' => [
                             [
                                 'label' => 'Barang',

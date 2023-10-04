@@ -1979,7 +1979,7 @@ class ApiEmployeeInboxController extends Controller
         $key_id = null;
         $id_detail = null;
         $category = null;
-
+        $roles = false;
         $outlet = $request->user()->outlet()->first();
         $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
@@ -2010,6 +2010,7 @@ class ApiEmployeeInboxController extends Controller
         
         if($category=='attendance' || $category == 'all'){
             if(in_array('497',$roles)){
+                $roles = true;
                 if(empty($key_id) || (isset($key_id) && $key_id=='attendance_pending')){
                     $a_pending = EmployeeAttendanceLog::join('employee_attendances', 'employee_attendances.id_employee_attendance', 'employee_attendance_logs.id_employee_attendance')
                             ->join('users','users.id','employee_attendances.id')
@@ -2082,12 +2083,14 @@ class ApiEmployeeInboxController extends Controller
         
         if($category=='attendance_outlet' || $category == 'all'){
             if(in_array('503',$roles)){
+                
+                $roles = true;
                     $a_pending = EmployeeOutletAttendanceLog::join('employee_outlet_attendances', 'employee_outlet_attendances.id_employee_outlet_attendance', 'employee_outlet_attendance_logs.id_employee_outlet_attendance')->join('users','users.id','employee_outlet_attendances.id')->where('users.id_outlet', $id_outlet)->where('employee_outlet_attendance_logs.status', 'Pending');
                      if($status == 1){
-                        $a_pending = $a_pending->where('employee_attendance_logs.status','Approved');
+                        $a_pending = $a_pending->where('employee_outlet_attendance_logs.status','Approved');
                     }
                     if($status == 2){
-                       $a_pending = $a_pending->where('employee_attendance_logs.status','Rejected');
+                       $a_pending = $a_pending->where('employee_outlet_attendance_logs.status','Rejected');
                     }
                     if($key_id == 'attendance_outlet_pending'){
                         $a_pending = $a_pending->where('employee_outlet_attendance_logs.id_employee_outlet_attendance_log', $id_detail);
@@ -2148,6 +2151,7 @@ class ApiEmployeeInboxController extends Controller
         }
 
         if(in_array('510',$roles) && ($category=='time_off'  || $category == 'all' || $key_id == 'time_off')){
+            $roles = true;
             $time_off = EmployeeTimeOff::join('users','users.id','employee_time_off.id_employee')
                     ->join('employees','employees.id_user','employee_time_off.id_employee')
                     ->where('employee_time_off.id_outlet',$id_outlet)
@@ -2241,6 +2245,7 @@ class ApiEmployeeInboxController extends Controller
         }
 
         if(in_array('514',$roles) && ($category=='overtime' || $category == 'all' || $key_id == 'overtime')){
+            $roles = true;
             $overtime = EmployeeOvertime::join('users','users.id','employee_overtime.id_employee')
                         ->join('employees','employees.id_user','employee_overtime.id_employee')
                         ->where('employee_overtime.id_outlet',$id_outlet)
@@ -2302,6 +2307,7 @@ class ApiEmployeeInboxController extends Controller
         }
 
         if(in_array('546',$roles) && ($category=='change_shift' || $category == 'all' || $key_id == 'change_shift')){
+           $roles = true;
            $changeshift = EmployeeChangeShift::join('users','users.id','employee_change_shifts.id_user')
                             ->where('users.id_outlet',$id_outlet)
                             ->where('employee_change_shifts.status','!=','Pending')
@@ -2372,6 +2378,7 @@ class ApiEmployeeInboxController extends Controller
         }
         
         if(in_array('517',$roles) && ($category=='reimbursement' || $category == 'all' || $key_id == 'reimbursement')){
+            $roles = true;
             $reim = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')
                     ->join('product_icounts','product_icounts.id_product_icount','employee_reimbursements.id_product_icount')
                     ->where('employee_reimbursements.id_user_approved', $user['id'])
@@ -2461,6 +2468,7 @@ class ApiEmployeeInboxController extends Controller
         }
          
         if(in_array('520',$roles) && ($category=='loan_assets' || $category == 'all' || $key_id == 'loan_assets')){
+            $roles = true;
             $loan = AssetInventoryLog::join('users','users.id','asset_inventory_logs.id_user')
                         ->join('asset_inventorys','asset_inventorys.id_asset_inventory','asset_inventory_logs.id_asset_inventory')
                         ->join('asset_inventory_loans', 'asset_inventory_loans.id_asset_inventory_log', 'asset_inventory_logs.id_asset_inventory_log')
@@ -2563,6 +2571,7 @@ class ApiEmployeeInboxController extends Controller
         }
 
         if(in_array('523',$roles) && ($category=='return_assets' || $category == 'all' || $key_id == 'return_assets')){
+            $roles = true;
             $ret = AssetInventoryLog::join('users','users.id','asset_inventory_logs.id_user')
                         ->join('asset_inventorys','asset_inventorys.id_asset_inventory','asset_inventory_logs.id_asset_inventory')
                         ->join('asset_inventory_returns', 'asset_inventory_returns.id_asset_inventory_log', 'asset_inventory_logs.id_asset_inventory_log')
@@ -2656,6 +2665,7 @@ class ApiEmployeeInboxController extends Controller
         }
         
         if(in_array('415',$roles) && ($category=='request_product' || $category == 'all'  || $key_id == 'request_product')){
+            $roles = true;
              $req_product = RequestProduct::join('users','users.id','request_products.id_user_request')
                         ->leftJoin('request_product_details', 'request_product_details.id_request_product', 'request_products.id_request_product')
                         ->where('request_products.id_outlet',$id_outlet)
@@ -2754,11 +2764,24 @@ class ApiEmployeeInboxController extends Controller
                 $send[] = $data;
             }
         }
-
+        
         if(isset($key_id) && isset($id_detail)){
             $send = $send[0];
         }
-
+        if(!$roles){
+            return array(
+                'status'=>'fail',
+                'roles'=>false,
+                'messages'=>['Anda tidak memiliki akses.']
+            );
+        }
+        if(!$send){
+            return array(
+                'status'=>'fail',
+                'roles'=>true,
+                'messages'=>['Data Not Found.']
+            );
+        }
         return MyHelper::checkGet($send);
     }
     public function categoryHistory() {

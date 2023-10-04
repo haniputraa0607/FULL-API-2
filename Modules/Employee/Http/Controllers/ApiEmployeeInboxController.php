@@ -1589,7 +1589,7 @@ class ApiEmployeeInboxController extends Controller
         if($category=='reimbursement'|| $category == 'all' ){
             $reim = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')
                     ->join('product_icounts','product_icounts.id_product_icount','employee_reimbursements.id_product_icount')
-                    ->where('employee_reimbursements.id_user_approved ', $user['id']);
+                    ->where('employee_reimbursements.id_user_approved', $user['id']);
             if($status == 2){
                  $changeshift = $changeshift->where('employee_reimbursements.status','Successed');
             }
@@ -1957,6 +1957,10 @@ class ApiEmployeeInboxController extends Controller
     }
     public function categoryHistory() {
         $send = [
+            array(
+                'category'=>'all',
+                'name'=>'All'
+            ),
             array(
                 'category'=>'time_off',
                 'name'=>'Cuti'

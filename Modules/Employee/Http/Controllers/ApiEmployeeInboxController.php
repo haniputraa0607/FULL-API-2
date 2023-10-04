@@ -1370,7 +1370,6 @@ class ApiEmployeeInboxController extends Controller
         if($category=='time_off'){
             $time_off = EmployeeTimeOff::join('users','users.id','employee_time_off.id_employee')
                     ->join('employees','employees.id_user','employee_time_off.id_employee')
-                    ->where('employees.id_manager', $id_employee)
                     ->where('employee_time_off.id_outlet',$id_outlet)
                     ->where('employee_time_off.approve_by',$user['id']);
             
@@ -1448,7 +1447,6 @@ class ApiEmployeeInboxController extends Controller
         if($category=='overtime'){
             $overtime = EmployeeOvertime::join('users','users.id','employee_overtime.id_employee')
                         ->join('employees','employees.id_user','employee_overtime.id_employee')
-                        ->where('employees.id_manager', $id_employee)
                         ->where('employee_overtime.id_outlet',$id_outlet)
                         ->where('employee_overtime.approve_by',$user['id']);
             if($key_id == 'overtime'){

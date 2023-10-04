@@ -1464,10 +1464,10 @@ class ApiEmployeeInboxController extends Controller
                         ->join('employees','employees.id_user','employee_overtime.id_employee')
                         ->where('employee_overtime.id_outlet',$id_outlet)
                         ->where('employee_overtime.approve_by',$user['id']);
-            if($status == 2){
+            if($status == 1){
                 $overtime = $overtime->whereNotNull('employee_overtime.approve_at')->whereNull('employee_overtime.reject_at');
             }
-            if($status == 3){
+            if($status == 2){
                $overtime = $overtime->whereNull('employee_overtime.approve_at')->whereNotNull('employee_overtime.reject_at');
             }
             $overtime = $overtime->select('employee_overtime.*','users.name')->get()->toArray();

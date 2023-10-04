@@ -113,7 +113,6 @@ class ApiEmployeeAttendanceController extends Controller
 
         return MyHelper::checkGet($result);
     }
-
     public function storeLiveAttendance(Request $request)
     {
         $request->validate([
@@ -138,7 +137,7 @@ class ApiEmployeeAttendanceController extends Controller
         ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
         $date_time_now = MyHelper::adjustTimezone(date('Y-m-d H:i:s'), $timeZone, 'Y-m-d H:i:s', true);
         $attendance = $employee->getAttendanceByDate(date('Y-m-d'), $shift);
-
+		
         $time_zone = [
             '7' => 'WIB',
             '8' => 'WITA',
@@ -148,14 +147,36 @@ class ApiEmployeeAttendanceController extends Controller
         $maximumRadius = MyHelper::setting('employee_attendance_max_radius', 'value', 50);
         $distance = MyHelper::getDistance($request->latitude, $request->longitude, $outlet->outlet_latitude, $outlet->outlet_longitude);
         $outsideRadius = $distance > $maximumRadius;
-
+		
         if ($outsideRadius && !$request->radius_confirmation) {
             return MyHelper::checkGet([
                 'need_confirmation' => true,
-                'message' => 'Waktu Jam Masuk/Keluar Anda akan diproses sebagai permintaan kehadiran dan memerlukan persetujuan dari atasan Anda.',
+                'message' => 'Anda diluar dari area yang telah ditentukan, akan diproses sebagai permintaan kehadiran dan memerlukan persetujuan dari atasan Anda.',
             ]);
         }
-
+		$clockinRadius = MyHelper::setting('employee_clock_in_tolerance', 'value', 50);
+		$clockoutRadius = MyHelper::setting('employee_clock_out_tolerance', 'value', 50);
+		$clockins = strtotime("+".$clockinRadius."minutes", strtotime($attendance['clock_in_requirement']));
+		$clockouts = strtotime("-".$clockoutRadius."minutes", strtotime($attendance['clock_out_requirement']));
+        $nows = strtotime(date('H:i:s'));
+		if($request->type == 'clock_in'){
+			$outsideRadius = $clockins <= $nows;
+			 if ($outsideRadius && !$request->radius_confirmation) {
+				return MyHelper::checkGet([
+					'need_confirmation' => true,
+					'message' => 'Waktu Jam Masuk Anda akan diproses sebagai permintaan kehadiran dan memerlukan persetujuan dari atasan Anda.',
+				]);
+			}
+		}
+		if($request->type == 'clock_out'){
+			$outsideRadius = $clockouts >= $nows;
+			 if ($outsideRadius && !$request->radius_confirmation) {
+				return MyHelper::checkGet([
+					'need_confirmation' => true,
+					'message' => 'Waktu Jam Keluar Anda akan diproses sebagai permintaan kehadiran dan memerlukan persetujuan dari atasan Anda.',
+				]);
+			}
+		}
         $photoPath = null;
         $upload = MyHelper::uploadPhoto($request->photo, 'upload/employee/attendances/');
         if ($upload['status'] == 'success') {
@@ -199,7 +220,6 @@ class ApiEmployeeAttendanceController extends Controller
             'message' => 'Berhasil',
         ]);
     }
-
     public function histories(Request $request)
     {
         $request->validate([

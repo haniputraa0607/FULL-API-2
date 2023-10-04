@@ -2083,17 +2083,29 @@ class ApiEmployeeInboxController extends Controller
         if($category=='attendance_outlet' || $category == 'all'){
             if(in_array('503',$roles)){
                     $a_pending = EmployeeOutletAttendanceLog::join('employee_outlet_attendances', 'employee_outlet_attendances.id_employee_outlet_attendance', 'employee_outlet_attendance_logs.id_employee_outlet_attendance')->join('users','users.id','employee_outlet_attendances.id')->where('users.id_outlet', $id_outlet)->where('employee_outlet_attendance_logs.status', 'Pending');
+                     if($status == 1){
+                        $a_pending = $a_pending->where('employee_attendance_logs.status','Approved');
+                    }
+                    if($status == 2){
+                       $a_pending = $a_pending->where('employee_attendance_logs.status','Rejected');
+                    }
                     if($key_id == 'attendance_outlet_pending'){
                         $a_pending = $a_pending->where('employee_outlet_attendance_logs.id_employee_outlet_attendance_log', $id_detail);
                     }
                     $a_pending = $a_pending->select('employee_outlet_attendance_logs.*','users.name')->get()->toArray();
                     foreach($a_pending ?? [] as $val){
+                        if($val['status']=='Approved'){
+                            $stats = true;
+                        }else{
+                            $stats = false;
+                        }
                        $data = [
                             'request_at' => MyHelper::dateFormatInd($val['created_at'], true, false, false),
                             'type' => 'Presensi Outlet',
                             'important' => 0,
                             'detail' => 'attendance_outlet_pending-'.$val['id_employee_outlet_attendance_log'],
                             'read' => $val['read'],
+                            'status'=>$stats,
                             'data' => [
                                 [
                                     'label' => 'Jenis Presensi',
@@ -2140,6 +2152,12 @@ class ApiEmployeeInboxController extends Controller
                     ->join('employees','employees.id_user','employee_time_off.id_employee')
                     ->where('employee_time_off.id_outlet',$id_outlet)
                     ->where('employee_time_off.approve_by',$user['id']);
+            if($status == 1){
+                $time_off = $time_off->whereNotNull('employee_time_off.approve_at')->whereNull('employee_time_off.reject_at');
+            }
+            if($status == 2){
+               $time_off = $time_off->whereNull('employee_time_off.approve_at')->whereNotNull('employee_time_off.reject_at');
+            }
             if($key_id == 'time_off'){
                 $time_off = $time_off->where('employee_time_off.id_employee_time_off', $id_detail);
             }

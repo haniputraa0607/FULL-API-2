@@ -473,6 +473,10 @@ Route::group([ 'middleware' => ['log_activities_employee_apps','auth:api','user_
         Route::post('approval', 'ApiEmployeeInboxController@listReqApproval');
         Route::post('approval-detail', 'ApiEmployeeInboxController@listReqApproval');
         Route::post('approval-approve', 'ApiEmployeeInboxController@approveReqApproval');
+        
+        
+        Route::any('history', 'ApiEmployeeInboxController@history');
+        Route::get('category', 'ApiEmployeeInboxController@categoryHistory');
     });
 
     Route::group(['prefix' => 'req-product'], function () {

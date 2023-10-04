@@ -1590,10 +1590,10 @@ class ApiEmployeeInboxController extends Controller
                     ->where('employee_reimbursements.id_user_approved', $user['id'])
                     ->whereIn('employee_reimbursements.status',['Successed','Rejected']);
             if($status == 1){
-                 $changeshift = $changeshift->where('employee_reimbursements.status','Successed');
+                 $reim = $reim->where('employee_reimbursements.status','Successed');
             }
             if($status == 2){
-               $changeshift = $changeshift->where('employee_reimbursements.status','Rejected');
+               $reim = $reim->where('employee_reimbursements.status','Rejected');
             }
             $reim = $reim->select('product_icounts.name as name_product','users.name', 'employee_reimbursements.*')->get()->toArray();
             foreach($reim ?? [] as $val){

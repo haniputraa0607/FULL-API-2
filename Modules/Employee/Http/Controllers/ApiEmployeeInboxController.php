@@ -1340,5 +1340,573 @@ class ApiEmployeeInboxController extends Controller
         }
         return ['status' => 'success'];
     }
+    public function history(Request $request){
+        $post = $request->all();
+        $user = $request->user();
+        $id_employee = $user['id'];
+        $id_outlet = $user['id_outlet'];
+        $key_id = null;
+        $id_detail = null;
+        $category = null;
 
+        $outlet = $request->user()->outlet()->first();
+        $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')
+        ->where('id_city', $outlet['id_city'])->first()['time_zone_utc']??null;
+        $time_zone = [
+            '7' => 'WIB',
+            '8' => 'WITA',
+            '9' => 'WIT',
+        ];
+
+        if(isset($post['category']) && !empty($post['category'])){
+            $category = $post['category'];
+        }else{
+            return ['status' => 'fail', 'messages' => ['Category Empty']];
+        }
+        
+        $roles = RolesFeature::where('id_role', $user['id_role'])->select('id_feature')->get()->toArray();
+        $roles = array_pluck($roles, 'id_feature');
+        $send = [];
+        if($category=='time_off'){
+            $time_off = EmployeeTimeOff::join('users','users.id','employee_time_off.id_employee')
+                    ->join('employees','employees.id_user','employee_time_off.id_employee')
+                    ->where('employees.id_manager', $id_employee)
+                    ->where('employee_time_off.id_outlet',$id_outlet)
+                    ->where('employee_time_off.approve_by',$user['id']);
+            
+            $time_off = $time_off->select('employee_time_off.*','users.name')->get()->toArray();
+            foreach($time_off ?? [] as $val){
+               $data = [
+                    'request_at' => MyHelper::dateFormatInd($val['created_at'], true, false, false),
+                        'type' => 'Cuti',
+                        'important' => 0,
+                        'detail' => 'time_off-'.$val['id_employee_time_off'],
+                        'read' => $val['read'],
+                        'data' => [
+                            [
+                                'label' => 'Jenis Cuti',
+                                'value' => $val['type']
+                            ],
+                            [
+                                'label' => 'Nama',
+                                'value' => $val['name']
+                            ],
+                            [
+                                'label' => 'Tanggal',
+                                'value' => MyHelper::dateFormatInd($val['start_date'], true, false, false).' - '.MyHelper::dateFormatInd($val['end_date'], true, false, false)
+                            ],
+                            [
+                                'label' => 'Keterangan',
+                                'value' => $val['notes']
+                            ],
+                        ]
+                ];
+                if(isset($id_detail)){
+                    $att_image = [
+                        'label' => 'Attachment Image',
+                        'type' => 'Image',
+                        'value' => [
+                            ''
+                        ]
+                    ];
+                    $att_file = [
+                        'label' => 'Attachment File',
+                        'type' => 'File',
+                        'value' => [
+                            ''
+                        ]
+                    ];
+
+                    $attachment_time_off = EmployeeTimeOffImage::where('id_employee_time_off', $val['id_employee_time_off'])->get()->toArray();
+                    $link_img = [];
+                    $link_file = [];
+                    foreach($attachment_time_off ?? [] as $att){
+                        $ext = pathinfo($att['path'])['extension'];
+                        if($ext == 'pdf'){
+                            $link_file[] = $att['path'] ? env('STORAGE_URL_API').$att['path'] : '';
+                        }elseif($ext == 'png' || $ext == 'jpeg' || $ext == 'jpg' || $ext == 'bmp'){
+                            $link_img[] = $att['path'] ? env('STORAGE_URL_API').$att['path'] : '';
+                        }
+                    }
+                    if(!empty($link_img)){
+                        $att_image['value'] = $link_img;
+                    }
+                    if(!empty($link_file)){
+                        $att_file['value'] = $link_file;
+                    }
+
+                    $data['data'][] = $att_image;
+                    $data['data'][] = $att_file;
+
+                    $update_read = EmployeeTimeOff::where('id_employee_time_off',$val['id_employee_time_off'])->update(['read'=>1]);
+                }
+
+                $send[] = $data;
+            }
+        }
+
+        if($category=='overtime'){
+            $overtime = EmployeeOvertime::join('users','users.id','employee_overtime.id_employee')
+                        ->join('employees','employees.id_user','employee_overtime.id_employee')
+                        ->where('employees.id_manager', $id_employee)
+                        ->where('employee_overtime.id_outlet',$id_outlet)
+                        ->where('employee_overtime.approve_by',$user['id']);
+            if($key_id == 'overtime'){
+                $overtime = $overtime->where('employee_overtime.id_employee_overtime', $id_detail);
+            }
+            $overtime = $overtime->select('employee_overtime.*','users.name')->get()->toArray();
+            foreach($overtime ?? [] as $val){
+               $data = [
+                    'request_at' => MyHelper::dateFormatInd($val['created_at'], true, false, false),
+                        'type' => 'Lembur',
+                        'important' => 0,
+                        'detail' => 'overtime-'.$val['id_employee_overtime'],
+                        'read' => $val['read'],
+                        'data' => [
+                            [
+                                'label' => 'Jenis Lembur',
+                                'value' => $val['time'] == 'before' ? 'Sebelum Jam Kerja' : 'Setelah Jam Kerja'
+                            ],
+                            [
+                                'label' => 'Nama',
+                                'value' => $val['name']
+                            ],
+                            [
+                                'label' => 'Tanggal',
+                                'value' => MyHelper::dateFormatInd($val['date'], true, false, false)
+                            ],
+                            [
+                                'label' => 'Keterangan',
+                                'value' => $val['notes']
+                            ],
+                        ]
+                ];
+                
+                if(isset($id_detail)){
+                    $shift = $this->getShiftForOvertime($val);
+                    $data['data'][] = [
+                        'label' => 'Jam Lembur',
+                        'value' => $shift['schedule_in'].' - '.$shift['schedule_out']
+                    ];
+                    $update_read = EmployeeOvertime::where('id_employee_overtime',$val['id_employee_overtime'])->update(['read'=>1]);
+                }
+
+                $send[] = $data;
+            }
+        }
+
+        if($category=='change_shift'){
+            $changeshift = EmployeeChangeShift::join('users','users.id','employee_change_shifts.id_user')
+                            ->where('users.id_outlet',$id_outlet)
+                            ->where('employee_change_shifts.status','!=','Pending')
+                            ->where('employee_change_shifts.id_approve',$user['id']);
+            
+            $changeshift = $changeshift->select('employee_change_shifts.*','users.name')->get()->toArray();
+            foreach($changeshift ?? [] as $val){
+                $schedule_date = EmployeeSchedule::join('employee_schedule_dates','employee_schedule_dates.id_employee_schedule','employee_schedules.id_employee_schedule')
+                ->where('schedule_month',date('m',strtotime($val['change_shift_date'])))
+                ->where('schedule_year', date('Y',strtotime($val['change_shift_date'])))
+                ->Where('id',$val['id_user'])
+                ->whereDate('date',date('Y-m-d',strtotime($val['change_shift_date'])))
+                ->first();
+                $office_hour = EmployeeOfficeHourShift::where('id_employee_office_hour',$schedule_date['id_office_hour_shift'])->get()->keyBy('shift_name');
+                $new_shift = array_reduce($office_hour->toArray(), function ($found, $obj) use ($val) {
+                    return $obj['id_employee_office_hour_shift'] == $val['id_employee_office_hour_shift'] ? $obj : $found;
+                }, null);
+                $data = [
+                    'request_at' => MyHelper::dateFormatInd($val['created_at'], true, false, false),
+                    'type' => 'Ganti Shift',
+                    'important' => 0,
+                    'detail' => 'change_shift-'.$val['id_employee_change_shift'],
+                    'read' => $val['read'],
+                    'data' => [
+                        [
+                            'label' => 'Nama',
+                            'value' => $val['name']
+                        ],
+                        [
+                            'label' => 'Tanggal',
+                            'value' => MyHelper::dateFormatInd($val['change_shift_date'], true, false, false)
+                        ],
+                        [
+                            'label' => 'Shift Lama',
+                            'value' => $office_hour[$schedule_date['shift']]['shift_name'].' '.'('.MyHelper::adjustTimezone($office_hour[$schedule_date['shift']]['shift_start'], $timeZone, 'H:i', true).'-'.MyHelper::adjustTimezone($office_hour[$schedule_date['shift']]['shift_end'], $timeZone, 'H:i', true).' '.$time_zone[$timeZone].')'
+                        ],
+                        [
+                            'label' => 'Shift Baru',
+                            'value' => $new_shift['shift_name'].' '.'('.MyHelper::adjustTimezone($new_shift['shift_start'], $timeZone, 'H:i', true).'-'.MyHelper::adjustTimezone($new_shift['shift_end'], $timeZone, 'H:i', true).' '.$time_zone[$timeZone].')'
+                        ],
+                    ]
+                ];
+                
+                if(isset($id_detail)){
+                    $data['data'][] = [
+                        'label' => 'Alasan',
+                        'value' => $val['reason'],
+                    ];
+                    $update_read = EmployeeChangeShift::where('id_employee_change_shift',$val['id_employee_change_shift'])->update(['read'=>1]);
+                }
+
+                $send[] = $data;
+            }
+        }
+        
+        if($category=='reimbursement'){
+            $reim = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')
+                    ->join('product_icounts','product_icounts.id_product_icount','employee_reimbursements.id_product_icount')
+                    ->where('employee_reimbursements.id_user_approved ', $user['id']);
+            $reim = $reim->select('product_icounts.name as name_product','users.name', 'employee_reimbursements.*')->get()->toArray();
+            foreach($reim ?? [] as $val){
+               $data = [
+                    'request_at' => MyHelper::dateFormatInd($val['created_at'], true, false, false),
+                        'type' => 'Pengembalian Dana',
+                        'important' => 0,
+                        'detail' => 'reimbursement-'.$val['id_employee_reimbursement'],
+                        'read' => $val['read'],
+                        'data' => [
+                            [
+                                'label' => 'Product',
+                                'value' => $val['name_product']
+                            ],
+                            [
+                                'label' => 'Nama',
+                                'value' => $val['name']
+                            ],
+                            [
+                                'label' => 'Tanggal',
+                                'value' => MyHelper::dateFormatInd($val['date_reimbursement'], true, false, false)
+                            ],
+                            [
+                                'label' => 'Keterangan',
+                                'value' => $val['notes']
+                            ],
+                        ]
+                ];
+
+                if(isset($id_detail)){
+                    $att_image = [
+                        'label' => 'Attachment Image',
+                        'type' => 'Image',
+                        'value' => [
+                            ''
+                        ]
+                    ];
+                    $att_file = [
+                        'label' => 'Attachment File',
+                        'type' => 'File',
+                        'value' => [
+                            ''
+                        ]
+                    ];
+
+                    $link_img = [];
+                    $link_file = [];
+                    $ext = pathinfo($val['attachment'])['extension'];
+                    if($ext == 'pdf'){
+                        $link_file[] = $val['attachment'] ? env('STORAGE_URL_API').$val['attachment'] : '';
+                    }elseif($ext == 'png' || $ext == 'jpeg' || $ext == 'jpg' || $ext == 'bmp'){
+                        $link_img[] = $val['attachment'] ? env('STORAGE_URL_API').$val['attachment'] : '';
+                    }
+        
+                    if(!empty($link_img)){
+                        $att_image['value'] = $link_img;
+                    }
+                    if(!empty($link_file)){
+                        $att_file['value'] = $link_file;
+                    }
+
+                    $data['data'][] = $att_image;
+                    $data['data'][] = $att_file;
+                    $update_read = EmployeeReimbursement::where('id_employee_reimbursement',$val['id_employee_reimbursement'])->update(['read'=>1]);
+                }
+                
+                $send[] = $data;
+            }
+        }
+         
+        if($category=='loan_assets'){
+            $loan = AssetInventoryLog::join('users','users.id','asset_inventory_logs.id_user')
+                        ->join('asset_inventorys','asset_inventorys.id_asset_inventory','asset_inventory_logs.id_asset_inventory')
+                        ->join('asset_inventory_loans', 'asset_inventory_loans.id_asset_inventory_log', 'asset_inventory_logs.id_asset_inventory_log')
+                        ->where('users.id_outlet', $id_outlet)
+                        ->where('asset_inventory_logs.type_asset_inventory','Loan')
+                        ->where('asset_inventory_logs.id_approved',$user['id']);
+            if($key_id == 'loan_assets'){
+                $loan = $loan->where('asset_inventory_logs.id_asset_inventory_log', $id_detail);
+            }
+            $loan = $loan->select('users.name','asset_inventory_logs.*','asset_inventorys.name_asset_inventory', 'asset_inventory_loans.notes as loan_notes', 'asset_inventory_loans.long', 'asset_inventory_loans.long_loan', 'asset_inventory_loans.attachment as attachment_loans')
+                        ->get()->toArray(); 
+            $longtime = [
+                'Day' => 'Hari',
+                'Month' => 'Bulan',
+                'Year' => 'Tahun'
+            ];
+            foreach($loan ?? [] as $val){
+               $data = [
+                    'request_at' => MyHelper::dateFormatInd($val['created_at'], true, false, false),
+                        'type' => 'Peminjaman Barang',
+                        'important' => 0,
+                        'detail' => 'loan_assets-'.$val['id_asset_inventory_log'],
+                        'read' => $val['read'],
+                        'data' => [
+                            [
+                                'label' => 'Barang',
+                                'value' => $val['name_asset_inventory']
+                            ],
+                            [
+                                'label' => 'Nama',
+                                'value' => $val['name']
+                            ],
+                            [
+                                'label' => 'Jumlah',
+                                'value' => $val['qty_logs']
+                            ],
+                            [
+                                'label' => 'Durasi',
+                                'value' => $val['long'].' '.$longtime[$val['long_loan']]
+                            ],
+                            [
+                                'label' => 'Keterangan',
+                                'value' => $val['loan_notes']
+                            ],
+                        ]
+                ];
+                
+                if(isset($id_detail)){
+                    $att_image = [
+                        'label' => 'Attachment Image',
+                        'type' => 'Image',
+                        'value' => [
+                            ''
+                        ]
+                    ];
+                    $att_file = [
+                        'label' => 'Attachment File',
+                        'type' => 'File',
+                        'value' => [
+                            ''
+                        ]
+                    ];
+
+                    $link_img = [];
+                    $link_file = [];
+                    $ext = pathinfo($val['attachment_loans'])['extension'];
+                    if($ext == 'pdf'){
+                        $link_file[] = $val['attachment_loans'] ? env('STORAGE_URL_API').$val['attachment_loans'] : '';
+                    }elseif($ext == 'png' || $ext == 'jpeg' || $ext == 'jpg' || $ext == 'bmp'){
+                        $link_img[] = $val['attachment_loans'] ? env('STORAGE_URL_API').$val['attachment_loans'] : '';
+                    }
+        
+                    if(!empty($link_img)){
+                        $att_image['value'] = $link_img;
+                    }
+                    if(!empty($link_file)){
+                        $att_file['value'] = $link_file;
+                    }
+
+                    $data['data'][] = $att_image;
+                    $data['data'][] = $att_file;
+                    $update_read = AssetInventoryLog::where('id_asset_inventory_log',$val['id_asset_inventory_log'])->update(['read'=>1]);
+                }
+                
+                $send[] = $data;
+            }
+        }
+
+        if($category=='return_assets'){
+            $ret = AssetInventoryLog::join('users','users.id','asset_inventory_logs.id_user')
+                        ->join('asset_inventorys','asset_inventorys.id_asset_inventory','asset_inventory_logs.id_asset_inventory')
+                        ->join('asset_inventory_returns', 'asset_inventory_returns.id_asset_inventory_log', 'asset_inventory_logs.id_asset_inventory_log')
+                        ->where('users.id_outlet', $id_outlet)
+                        ->where('asset_inventory_logs.type_asset_inventory','Return')
+                        ->where('asset_inventory_logs.id_approved',$user['id']);
+            if($key_id == 'return_assets'){
+                $ret = $ret->where('asset_inventory_logs.id_asset_inventory_log', $id_detail);
+            }
+            $ret = $ret->select('users.name','asset_inventory_logs.*','asset_inventorys.name_asset_inventory', 'asset_inventory_returns.notes as return_notes', 'asset_inventory_returns.date_return', 'asset_inventory_returns.attachment as attachment_return')
+                        ->get()->toArray(); 
+            foreach($ret ?? [] as $val){
+               $data = [
+                    'request_at' => MyHelper::dateFormatInd($val['created_at'], true, false, false),
+                        'type' => 'Pengembalian Barang',
+                        'important' => 0,
+                        'detail' => 'return_assets-'.$val['id_asset_inventory_log'],
+                        'read' => $val['read'],
+                        'data' => [
+                            [
+                                'label' => 'Barang',
+                                'value' => $val['name_asset_inventory']
+                            ],
+                            [
+                                'label' => 'Nama',
+                                'value' => $val['name']
+                            ],
+                            [
+                                'label' => 'Tanggal Pengembalian',
+                                'value' => MyHelper::dateFormatInd($val['date_return'], true, false, false)
+                            ],
+                            [
+                                'label' => 'Keterangan',
+                                'value' => $val['return_notes']
+                            ],
+                        ]
+                ];
+                
+                if(isset($id_detail)){
+                    $att_image = [
+                        'label' => 'Attachment Image',
+                        'type' => 'Image',
+                        'value' => [
+                            ''
+                        ]
+                    ];
+                    $att_file = [
+                        'label' => 'Attachment File',
+                        'type' => 'File',
+                        'value' => [
+                            ''
+                        ]
+                    ];
+
+                    $link_img = [];
+                    $link_file = [];
+                    $ext = pathinfo($val['attachment_return'])['extension'];
+                    if($ext == 'pdf'){
+                        $link_file[] = $val['attachment_return'] ? env('STORAGE_URL_API').$val['attachment_return'] : '';
+                    }elseif($ext == 'png' || $ext == 'jpeg' || $ext == 'jpg' || $ext == 'bmp'){
+                        $link_img[] = $val['attachment_return'] ? env('STORAGE_URL_API').$val['attachment_return'] : '';
+                    }
+        
+                    if(!empty($link_img)){
+                        $att_image['value'] = $link_img;
+                    }
+                    if(!empty($link_file)){
+                        $att_file['value'] = $link_file;
+                    }
+
+                    $data['data'][] = $att_image;
+                    $data['data'][] = $att_file;
+                    $update_read = AssetInventoryLog::where('id_asset_inventory_log',$val['id_asset_inventory_log'])->update(['read'=>1]);
+                }
+                
+                $send[] = $data;
+            }
+        }
+        
+        if($category=='request_product'){
+            $req_product = RequestProduct::join('users','users.id','request_products.id_user_request')
+                        ->leftJoin('request_product_details', 'request_product_details.id_request_product', 'request_products.id_request_product')
+                        ->where('request_products.id_outlet',$id_outlet)
+                        ->where('request_products.id_user_approve',$user['id']);
+            if($key_id == 'request_product'){
+                $req_product = $req_product->where('request_products.id_request_product', $id_detail);
+            }
+            $req_product = $req_product->select('request_products.*', 'users.name', DB::raw("count(request_product_details.id_request_product_detail) as count"))
+                        ->groupBy('request_products.id_request_product')->get()->toArray();
+            foreach($req_product ?? [] as $val){
+               $data = [
+                        'request_at' => MyHelper::dateFormatInd($val['created_at'], true, false, false),
+                        'type' => 'Permintaan Produk',
+                        'important' => 0,
+                        'detail' => 'request_product-'.$val['id_request_product'],
+                        'read' => $val['read'],
+                        'data' => [
+                            [
+                                'label' => 'Code',
+                                'value' => $val['code']
+                            ],
+                            [
+                                'label' => 'Nama',
+                                'value' => $val['name']
+                            ],
+                            [
+                                'label' => 'Tanggal Dibutuhkan',
+                                'value' => MyHelper::dateFormatInd($val['requirement_date'], true, false, false)
+                            ],
+                            [
+                                'label' => 'Jumlah Produk',
+                                'value' => number_format($val['count'],0,",",".")
+                            ],
+                            [
+                                'label' => 'Keterangan',
+                                'value' => $val['note_request']
+                            ],
+                        ]
+                ];
+
+                if(isset($id_detail)){
+                    $att_image = [
+                        'label' => 'Attachment Image',
+                        'type' => 'Image',
+                        'value' => [
+                            ''
+                        ]
+                    ];
+
+                    $attachment_req_pro = RequestProductImage::where('id_request_product', $val['id_request_product'])->get()->toArray();
+                    $link_img = [];
+                    foreach($attachment_req_pro ?? [] as $att){
+                        $ext = pathinfo($att['path'])['extension'];
+                        if($ext == 'pdf'){
+                            $link_file[] = $att['path'] ? env('STORAGE_URL_API').$att['path'] : '';
+                        }elseif($ext == 'png' || $ext == 'jpeg' || $ext == 'jpg' || $ext == 'bmp'){
+                            $link_img[] = $att['path'] ? env('STORAGE_URL_API').$att['path'] : '';
+                        }
+                    }
+                    if(!empty($link_img)){
+                        $att_image['value'] = $link_img;
+                    }
+                    
+                    $product_detail = [
+                        'label' => 'Detail',
+                        'value' => []
+                    ];
+                    $detail_product = RequestProductDetail::join('product_icounts', 'product_icounts.id_product_icount', 'request_product_details.id_product_icount')->where('id_request_product', $val['id_request_product'])->select('product_icounts.name', 'request_product_details.*')->get()->toArray();
+                    foreach($detail_product ?? [] as $detail_pro){
+                        $product_detail['value'][] = [
+                            'id_product_icount' => $detail_pro['id_product_icount'],
+                            'name_product' => $detail_pro['name'],
+                            'count' => $detail_pro['value'],
+                            'unit' => $detail_pro['unit'],
+                        ];
+                    }
+                    $data['data'][] = $product_detail;
+                    $data['data'][] = $att_image;
+                    $update_read = RequestProduct::where('id_request_product',$val['id_request_product'])->update(['read'=>1]);
+                }
+
+                $send[] = $data;
+            }
+        }
+        return MyHelper::checkGet($send);
+    }
+    public function categoryHistory() {
+        $send = [
+            array(
+                'category'=>'time_off',
+                'name'=>'Cuti'
+            ),
+            array(
+                'category'=>'overtime',
+                'name'=>'Lembur'
+            ),
+            array(
+                'category'=>'change_shift',
+                'name'=>'Pergantian Shift'
+            ),
+            array(
+                'category'=>'reimbursement',
+                'name'=>'Pengembalian Dana'
+            ),
+            array(
+                'category'=>'loan_assets',
+                'name'=>'Peminjaman Barang'
+            ),
+            array(
+                'category'=>'return_assets',
+                'name'=>'Pengembalian Barang'
+            ),
+        ];
+         return MyHelper::checkGet($send);
+    }
 }

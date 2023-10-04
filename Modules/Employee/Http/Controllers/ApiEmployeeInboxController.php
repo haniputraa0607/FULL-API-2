@@ -1374,18 +1374,20 @@ class ApiEmployeeInboxController extends Controller
                     ->join('employees','employees.id_user','employee_time_off.id_employee')
                     ->where('employee_time_off.id_outlet',$id_outlet)
                     ->where('employee_time_off.approve_by',$user['id']);
-            if($status == 2){
+            if($status == 1){
                 $time_off = $time_off->whereNotNull('employee_time_off.approve_at')->whereNull('employee_time_off.reject_at');
             }
-            if($status == 3){
+            if($status == 2){
                $time_off = $time_off->whereNull('employee_time_off.approve_at')->whereNotNull('employee_time_off.reject_at');
             }
             $time_off = $time_off->select('employee_time_off.*','users.name')->get()->toArray();
             foreach($time_off ?? [] as $val){
                if(isset($val['approve_at'])&&empty($val['reject_at'])){
                    $stat = 'Approved';
+                   $stats = true;
                }else{
                    $stat = 'Rejected';
+                   $stats = false;
                }
                $data = [
                     'request_at' => MyHelper::dateFormatInd($val['created_at'], true, false, false),
@@ -1393,6 +1395,7 @@ class ApiEmployeeInboxController extends Controller
                         'important' => 0,
                         'detail' => 'time_off-'.$val['id_employee_time_off'],
                         'read' => $val['read'],
+                        'status'=>$stats,
                         'data' => [
                             [
                                 'label' => 'Jenis Cuti',
@@ -1401,10 +1404,6 @@ class ApiEmployeeInboxController extends Controller
                             [
                                 'label' => 'Nama',
                                 'value' => $val['name']
-                            ],
-                            [
-                                'label' => 'Status',
-                                'value' => $stat
                             ],
                             [
                                 'label' => 'Tanggal',
@@ -1474,9 +1473,9 @@ class ApiEmployeeInboxController extends Controller
             $overtime = $overtime->select('employee_overtime.*','users.name')->get()->toArray();
             foreach($overtime ?? [] as $val){
                 if(isset($val['approve_at'])&&empty($val['reject_at'])){
-                   $stat = 'Approved';
+                   $stats = true;
                }else{
-                   $stat = 'Rejected';
+                   $stats = false;
                }
                $data = [
                     'request_at' => MyHelper::dateFormatInd($val['created_at'], true, false, false),
@@ -1484,6 +1483,7 @@ class ApiEmployeeInboxController extends Controller
                         'important' => 0,
                         'detail' => 'overtime-'.$val['id_employee_overtime'],
                         'read' => $val['read'],
+                        'status'=>$stats,
                         'data' => [
                             [
                                 'label' => 'Jenis Lembur',
@@ -1492,10 +1492,6 @@ class ApiEmployeeInboxController extends Controller
                             [
                                 'label' => 'Nama',
                                 'value' => $val['name']
-                            ],
-                            [
-                                'label' => 'Status',
-                                'value' => $stat
                             ],
                             [
                                 'label' => 'Tanggal',
@@ -1526,10 +1522,10 @@ class ApiEmployeeInboxController extends Controller
                             ->where('users.id_outlet',$id_outlet)
                             ->where('employee_change_shifts.status','!=','Pending')
                             ->where('employee_change_shifts.id_approve',$user['id']);
-            if($status == 2){
+            if($status == 1){
                  $changeshift = $changeshift->where('employee_change_shifts.status','Approved');
             }
-            if($status == 3){
+            if($status == 2){
                $changeshift = $changeshift->where('employee_change_shifts.status','Rejected');
             }
             $changeshift = $changeshift->select('employee_change_shifts.*','users.name')->get()->toArray();
@@ -1544,12 +1540,18 @@ class ApiEmployeeInboxController extends Controller
                 $new_shift = array_reduce($office_hour->toArray(), function ($found, $obj) use ($val) {
                     return $obj['id_employee_office_hour_shift'] == $val['id_employee_office_hour_shift'] ? $obj : $found;
                 }, null);
+                if($val['status']=='Approved'){
+                   $stats = true;
+               }else{
+                   $stats = false;
+               }
                 $data = [
                     'request_at' => MyHelper::dateFormatInd($val['created_at'], true, false, false),
                     'type' => 'Ganti Shift',
                     'important' => 0,
                     'detail' => 'change_shift-'.$val['id_employee_change_shift'],
                     'read' => $val['read'],
+                    'read' => $stats,
                     'data' => [
                         [
                             'label' => 'Nama',
@@ -1558,10 +1560,6 @@ class ApiEmployeeInboxController extends Controller
                         [
                             'label' => 'Tanggal',
                             'value' => MyHelper::dateFormatInd($val['change_shift_date'], true, false, false)
-                        ],
-                        [
-                            'label' => 'Status',
-                            'value' => $val['status']
                         ],
                         [
                             'label' => 'Shift Lama',
@@ -1589,21 +1587,28 @@ class ApiEmployeeInboxController extends Controller
         if($category=='reimbursement'|| $category == 'all' ){
             $reim = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')
                     ->join('product_icounts','product_icounts.id_product_icount','employee_reimbursements.id_product_icount')
-                    ->where('employee_reimbursements.id_user_approved', $user['id']);
-            if($status == 2){
+                    ->where('employee_reimbursements.id_user_approved', $user['id'])
+                    ->whereIn('employee_reimbursements.status',['Successed','Rejected']);
+            if($status == 1){
                  $changeshift = $changeshift->where('employee_reimbursements.status','Successed');
             }
-            if($status == 3){
+            if($status == 2){
                $changeshift = $changeshift->where('employee_reimbursements.status','Rejected');
             }
             $reim = $reim->select('product_icounts.name as name_product','users.name', 'employee_reimbursements.*')->get()->toArray();
             foreach($reim ?? [] as $val){
+               if($val['status']=='Successed'){
+                   $stats = true;
+               }else{
+                   $stats = false;
+               } 
                $data = [
                     'request_at' => MyHelper::dateFormatInd($val['created_at'], true, false, false),
                         'type' => 'Pengembalian Dana',
                         'important' => 0,
                         'detail' => 'reimbursement-'.$val['id_employee_reimbursement'],
                         'read' => $val['read'],
+                        'read' => $stats,
                         'data' => [
                             [
                                 'label' => 'Product',
@@ -1612,10 +1617,6 @@ class ApiEmployeeInboxController extends Controller
                             [
                                 'label' => 'Nama',
                                 'value' => $val['name']
-                            ],
-                            [
-                                'label' => 'Status',
-                                'value' => $val['status']
                             ],
                             [
                                 'label' => 'Tanggal',
@@ -1675,11 +1676,12 @@ class ApiEmployeeInboxController extends Controller
                         ->join('asset_inventory_loans', 'asset_inventory_loans.id_asset_inventory_log', 'asset_inventory_logs.id_asset_inventory_log')
                         ->where('users.id_outlet', $id_outlet)
                         ->where('asset_inventory_logs.type_asset_inventory','Loan')
+                        ->whereIn('asset_inventory_logs.status_asset_inventory',['Approved','Rejected'])
                         ->where('asset_inventory_logs.id_approved',$user['id']);
-            if($status == 2){
+            if($status == 1){
                  $loan = $loan->where('asset_inventory_logs.status_asset_inventory','Approved');
             }
-            if($status == 3){
+            if($status == 2){
                $loan = $loan->where('asset_inventory_logs.status_asset_inventory','Rejected');
             }
             if($key_id == 'loan_assets'){
@@ -1693,12 +1695,18 @@ class ApiEmployeeInboxController extends Controller
                 'Year' => 'Tahun'
             ];
             foreach($loan ?? [] as $val){
+                if($val['status_asset_inventory']=='Approved'){
+                   $stats = true;
+               }else{
+                   $stats = false;
+               } 
                $data = [
                     'request_at' => MyHelper::dateFormatInd($val['created_at'], true, false, false),
                         'type' => 'Peminjaman Barang',
                         'important' => 0,
                         'detail' => 'loan_assets-'.$val['id_asset_inventory_log'],
                         'read' => $val['read'],
+                        'read' => $stats,
                         'data' => [
                             [
                                 'label' => 'Barang',
@@ -1707,10 +1715,6 @@ class ApiEmployeeInboxController extends Controller
                             [
                                 'label' => 'Nama',
                                 'value' => $val['name']
-                            ],
-                            [
-                                'label' => 'Status',
-                                'value' => $val['status_asset_inventory']
                             ],
                             [
                                 'label' => 'Jumlah',
@@ -1774,11 +1778,12 @@ class ApiEmployeeInboxController extends Controller
                         ->join('asset_inventory_returns', 'asset_inventory_returns.id_asset_inventory_log', 'asset_inventory_logs.id_asset_inventory_log')
                         ->where('users.id_outlet', $id_outlet)
                         ->where('asset_inventory_logs.type_asset_inventory','Return')
+                        ->whereIn('asset_inventory_logs.status_asset_inventory',['Approved','Rejected'])
                         ->where('asset_inventory_logs.id_approved',$user['id']);
-            if($status == 2){
+            if($status == 1){
                  $ret = $ret->where('asset_inventory_logs.status_asset_inventory','Approved');
             }
-            if($status == 3){
+            if($status == 2){
                $ret = $ret->where('asset_inventory_logs.status_asset_inventory','Rejected');
             }
             if($key_id == 'return_assets'){
@@ -1787,12 +1792,18 @@ class ApiEmployeeInboxController extends Controller
             $ret = $ret->select('users.name','asset_inventory_logs.*','asset_inventorys.name_asset_inventory', 'asset_inventory_returns.notes as return_notes', 'asset_inventory_returns.date_return', 'asset_inventory_returns.attachment as attachment_return')
                         ->get()->toArray(); 
             foreach($ret ?? [] as $val){
+                if($val['status_asset_inventory']=='Approved'){
+                   $stats = true;
+               }else{
+                   $stats = false;
+               } 
                $data = [
                     'request_at' => MyHelper::dateFormatInd($val['created_at'], true, false, false),
                         'type' => 'Pengembalian Barang',
                         'important' => 0,
                         'detail' => 'return_assets-'.$val['id_asset_inventory_log'],
                         'read' => $val['read'],
+                        'status' => $stats,
                         'data' => [
                             [
                                 'label' => 'Barang',
@@ -1863,10 +1874,10 @@ class ApiEmployeeInboxController extends Controller
                         ->leftJoin('request_product_details', 'request_product_details.id_request_product', 'request_products.id_request_product')
                         ->where('request_products.id_outlet',$id_outlet)
                         ->where('request_products.id_user_approve',$user['id']);
-            if($status == 2){
+            if($status == 1){
                  $req_product = $req_product->whereNull('request_products.status');
             }
-            if($status == 3){
+            if($status == 2){
                $req_product = $req_product->where('request_products.status','Rejected');
             }
             if($key_id == 'request_product'){
@@ -1875,12 +1886,20 @@ class ApiEmployeeInboxController extends Controller
             $req_product = $req_product->select('request_products.*', 'users.name', DB::raw("count(request_product_details.id_request_product_detail) as count"))
                         ->groupBy('request_products.id_request_product')->get()->toArray();
             foreach($req_product ?? [] as $val){
+                
+                   $stats = true;
+               if($val['status']=='Rejected'){
+                   $stats = false;
+               }elseif(empty($val['status'])){
+                   $stats = true;
+               } 
                $data = [
                         'request_at' => MyHelper::dateFormatInd($val['created_at'], true, false, false),
                         'type' => 'Permintaan Produk',
                         'important' => 0,
                         'detail' => 'request_product-'.$val['id_request_product'],
                         'read' => $val['read'],
+                        'status' => $stats,
                         'data' => [
                             [
                                 'label' => 'Code',
@@ -1889,10 +1908,6 @@ class ApiEmployeeInboxController extends Controller
                             [
                                 'label' => 'Nama',
                                 'value' => $val['name']
-                            ],
-                            [
-                                'label' => 'Status',
-                                'value' => $val['status']
                             ],
                             [
                                 'label' => 'Tanggal Dibutuhkan',

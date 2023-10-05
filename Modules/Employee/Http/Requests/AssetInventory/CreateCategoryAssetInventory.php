@@ -18,9 +18,9 @@ class CreateCategoryAssetInventory extends FormRequest
         return true;
     }
     public function rules()
-	{
-		return [
-			'name_category_asset_inventory' => 'required',
+   {
+        return [
+                'name_category_asset_inventory' => 'required|unique:asset_inventory_categorys,name_category_asset_inventory',
         ];
     }
 

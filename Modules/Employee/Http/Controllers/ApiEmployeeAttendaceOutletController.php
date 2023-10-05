@@ -621,8 +621,7 @@ class ApiEmployeeAttendaceOutletController extends Controller
 
     public function detailPending(Request $request)
     {
-        $result = EmployeeOutletAttendanceLog::selectRaw('*, null as photo_url')
-            ->join('employee_outlet_attendances', 'employee_outlet_attendances.id_employee_outlet_attendance', 'employee_outlet_attendance_logs.id_employee_outlet_attendance')
+        $result = EmployeeOutletAttendanceLog::join('employee_outlet_attendances', 'employee_outlet_attendances.id_employee_outlet_attendance', 'employee_outlet_attendance_logs.id_employee_outlet_attendance')
             ->where('employee_outlet_attendance_logs.status', 'Pending')
             ->join('employee_schedule_dates', 'employee_schedule_dates.id_employee_schedule_date', 'employee_outlet_attendances.id_employee_schedule_date')
             ->join('outlets as outlet_att','outlet_att.id_outlet','employee_outlet_attendances.id_outlet');

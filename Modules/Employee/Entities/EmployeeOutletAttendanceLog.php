@@ -22,6 +22,7 @@ class EmployeeOutletAttendanceLog extends Model
         'approve_notes',
         'read'
     ];
+    protected $appends  = ['photo_url'];
 
     public function getPhotoUrlAttribute()
     {

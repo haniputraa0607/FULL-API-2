@@ -2002,6 +2002,8 @@ class ApiEmployeeInboxController extends Controller
         }
         if(isset($post['status']) && !empty($post['status'])){
             $status = $post['status'];
+        }else{
+            $status = 0;
         }
         
         $roles = RolesFeature::where('id_role', $user['id_role'])->select('id_feature')->get()->toArray();

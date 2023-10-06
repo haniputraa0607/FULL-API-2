@@ -382,13 +382,15 @@ class ApiEmployeeInboxController extends Controller
                         ];
 
                         if(isset($id_detail)){
-                            $data['data'][] = [
-                                'label' => 'Attachment Image',
-                                'type' => 'Image',
-                                'value' => [
-                                    $val['photo_path'] ? env('STORAGE_URL_API').$val['photo_path'] : ''
-                                ]
-                            ];
+                            if(isset($val['photo_path'])){
+                                $data['data'][] = [
+                                    'label' => 'Attachment Image',
+                                    'type' => 'Image',
+                                    'value' => [
+                                        $val['photo_path'] ? env('STORAGE_URL_API').$val['photo_path'] : ''
+                                    ]
+                                ];
+                             }
                             $update_read = EmployeeAttendanceLog::where('id_employee_attendance_log',$val['id_employee_attendance_log'])->update(['read'=>1]);
                         }
 
@@ -484,13 +486,16 @@ class ApiEmployeeInboxController extends Controller
                         ];
 
                         if(isset($id_detail)){
-                            $data['data'][] = [
+                            if(isset($val['photo_path'])){
+                                $data['data'][] = [
                                 'label' => 'Attachment Image',
                                 'type' => 'Image',
                                 'value' => [
                                     $val['photo_path'] ? env('STORAGE_URL_API').$val['photo_path'] : ''
                                 ]
                             ];
+                            }
+                            
                             $update_read = EmployeeOutletAttendanceLog::where('id_employee_outlet_attendance_log',$val['id_employee_outlet_attendance_log'])->update(['read'=>1]);
                         }
                         
@@ -582,21 +587,7 @@ class ApiEmployeeInboxController extends Controller
                         ]
                 ];
                 if(isset($id_detail)){
-                    $att_image = [
-                        'label' => 'Attachment Image',
-                        'type' => 'Image',
-                        'value' => [
-                            ''
-                        ]
-                    ];
-                    $att_file = [
-                        'label' => 'Attachment File',
-                        'type' => 'File',
-                        'value' => [
-                            ''
-                        ]
-                    ];
-
+                   
                     $attachment_time_off = EmployeeTimeOffImage::where('id_employee_time_off', $val['id_employee_time_off'])->get()->toArray();
                     $link_img = [];
                     $link_file = [];
@@ -609,14 +600,30 @@ class ApiEmployeeInboxController extends Controller
                         }
                     }
                     if(!empty($link_img)){
+                        $att_image = [
+                        'label' => 'Attachment Image',
+                        'type' => 'Image',
+                        'value' => [
+                            ''
+                        ]
+                        ];
                         $att_image['value'] = $link_img;
+                    $data['data'][] = $att_image;
                     }
                     if(!empty($link_file)){
-                        $att_file['value'] = $link_file;
-                    }
+                         
+                        $att_file = [
+                            'label' => 'Attachment File',
+                            'type' => 'File',
+                            'value' => [
+                                ''
+                            ]
+                        ];
 
-                    $data['data'][] = $att_image;
+                        $att_file['value'] = $link_file;
+
                     $data['data'][] = $att_file;
+                    }
 
                     $update_read = EmployeeTimeOff::where('id_employee_time_off',$val['id_employee_time_off'])->update(['read'=>1]);
                 }
@@ -765,20 +772,8 @@ class ApiEmployeeInboxController extends Controller
                 ];
 
                 if(isset($id_detail)){
-                    $att_image = [
-                        'label' => 'Attachment Image',
-                        'type' => 'Image',
-                        'value' => [
-                            ''
-                        ]
-                    ];
-                    $att_file = [
-                        'label' => 'Attachment File',
-                        'type' => 'File',
-                        'value' => [
-                            ''
-                        ]
-                    ];
+                  
+                   
 
                     $link_img = [];
                     $link_file = [];
@@ -790,14 +785,28 @@ class ApiEmployeeInboxController extends Controller
                     }
         
                     if(!empty($link_img)){
+                        $att_image = [
+                            'label' => 'Attachment Image',
+                            'type' => 'Image',
+                            'value' => [
+                                ''
+                            ]
+                        ];
                         $att_image['value'] = $link_img;
+                    $data['data'][] = $att_image;
                     }
                     if(!empty($link_file)){
+                         $att_file = [
+                            'label' => 'Attachment File',
+                            'type' => 'File',
+                            'value' => [
+                                ''
+                            ]
+                        ];
                         $att_file['value'] = $link_file;
+                    $data['data'][] = $att_file;
                     }
 
-                    $data['data'][] = $att_image;
-                    $data['data'][] = $att_file;
                     $update_read = EmployeeReimbursement::where('id_employee_reimbursement',$val['id_employee_reimbursement'])->update(['read'=>1]);
                 }
                 
@@ -854,20 +863,8 @@ class ApiEmployeeInboxController extends Controller
                 ];
                 
                 if(isset($id_detail)){
-                    $att_image = [
-                        'label' => 'Attachment Image',
-                        'type' => 'Image',
-                        'value' => [
-                            ''
-                        ]
-                    ];
-                    $att_file = [
-                        'label' => 'Attachment File',
-                        'type' => 'File',
-                        'value' => [
-                            ''
-                        ]
-                    ];
+                  
+                   
 
                     $link_img = [];
                     $link_file = [];
@@ -879,14 +876,30 @@ class ApiEmployeeInboxController extends Controller
                     }
         
                     if(!empty($link_img)){
+                        $att_image = [
+                            'label' => 'Attachment Image',
+                            'type' => 'Image',
+                            'value' => [
+                                ''
+                            ]
+                        ];
                         $att_image['value'] = $link_img;
+                        
+                    $data['data'][] = $att_image;
                     }
                     if(!empty($link_file)){
+                         $att_file = [
+                            'label' => 'Attachment File',
+                            'type' => 'File',
+                            'value' => [
+                                ''
+                            ]
+                        ];
                         $att_file['value'] = $link_file;
+                        $data['data'][] = $att_file;
                     }
 
-                    $data['data'][] = $att_image;
-                    $data['data'][] = $att_file;
+                    
                     $update_read = AssetInventoryLog::where('id_asset_inventory_log',$val['id_asset_inventory_log'])->update(['read'=>1]);
                 }
                 
@@ -934,20 +947,7 @@ class ApiEmployeeInboxController extends Controller
                 ];
                 
                 if(isset($id_detail)){
-                    $att_image = [
-                        'label' => 'Attachment Image',
-                        'type' => 'Image',
-                        'value' => [
-                            ''
-                        ]
-                    ];
-                    $att_file = [
-                        'label' => 'Attachment File',
-                        'type' => 'File',
-                        'value' => [
-                            ''
-                        ]
-                    ];
+                 
 
                     $link_img = [];
                     $link_file = [];
@@ -959,14 +959,28 @@ class ApiEmployeeInboxController extends Controller
                     }
         
                     if(!empty($link_img)){
+                        $att_image = [
+                        'label' => 'Attachment Image',
+                        'type' => 'Image',
+                        'value' => [
+                            ''
+                            ]
+                        ];
                         $att_image['value'] = $link_img;
+                    $data['data'][] = $att_image;
                     }
-                    if(!empty($link_file)){
+                    if(!empty($link_file)){   
+                    $att_file = [
+                        'label' => 'Attachment File',
+                        'type' => 'File',
+                        'value' => [
+                            ''
+                        ]
+                    ];
                         $att_file['value'] = $link_file;
+                    $data['data'][] = $att_file;
                     }
 
-                    $data['data'][] = $att_image;
-                    $data['data'][] = $att_file;
                     $update_read = AssetInventoryLog::where('id_asset_inventory_log',$val['id_asset_inventory_log'])->update(['read'=>1]);
                 }
                 
@@ -1016,13 +1030,7 @@ class ApiEmployeeInboxController extends Controller
                 ];
 
                 if(isset($id_detail)){
-                    $att_image = [
-                        'label' => 'Attachment Image',
-                        'type' => 'Image',
-                        'value' => [
-                            ''
-                        ]
-                    ];
+                    
 
                     $attachment_req_pro = RequestProductImage::where('id_request_product', $val['id_request_product'])->get()->toArray();
                     $link_img = [];
@@ -1035,7 +1043,16 @@ class ApiEmployeeInboxController extends Controller
                         }
                     }
                     if(!empty($link_img)){
+                        $att_image = [
+                        'label' => 'Attachment Image',
+                        'type' => 'Image',
+                        'value' => [
+                            ''
+                        ]
+                    ];
                         $att_image['value'] = $link_img;
+                        
+                    $data['data'][] = $att_image;
                     }
                     
                     $product_detail = [
@@ -1052,7 +1069,6 @@ class ApiEmployeeInboxController extends Controller
                         ];
                     }
                     $data['data'][] = $product_detail;
-                    $data['data'][] = $att_image;
                     $update_read = RequestProduct::where('id_request_product',$val['id_request_product'])->update(['read'=>1]);
                 }
 
@@ -2067,13 +2083,16 @@ class ApiEmployeeInboxController extends Controller
                         ];
 
                         if(isset($id_detail)){
-                            $data['data'][] = [
+                            if(isset($val['photo_path'])){
+                                $data['data'][] = [
                                 'label' => 'Attachment Image',
                                 'type' => 'Image',
                                 'value' => [
                                     $val['photo_path'] ? env('STORAGE_URL_API').$val['photo_path'] : ''
                                 ]
                             ];
+                            }
+                            
                             $update_read = EmployeeAttendanceLog::where('id_employee_attendance_log',$val['id_employee_attendance_log'])->update(['read'=>1]);
                         }
 
@@ -2136,13 +2155,16 @@ class ApiEmployeeInboxController extends Controller
                         ];
 
                         if(isset($id_detail)){
-                            $data['data'][] = [
+                            if(isset($val['photo_path'])){
+                                $data['data'][] = [
                                 'label' => 'Attachment Image',
                                 'type' => 'Image',
                                 'value' => [
-                                    $val['photo_path'] ? env('STORAGE_URL_API').$val['photo_path'] : ''
-                                ]
-                            ];
+                                        $val['photo_path'] ? env('STORAGE_URL_API').$val['photo_path'] : ''
+                                    ]
+                                ];
+                            }
+                            
                             $update_read = EmployeeOutletAttendanceLog::where('id_employee_outlet_attendance_log',$val['id_employee_outlet_attendance_log'])->update(['read'=>1]);
                         }
                         
@@ -2231,13 +2253,13 @@ class ApiEmployeeInboxController extends Controller
                     }
                     if(!empty($link_img)){
                         $att_image['value'] = $link_img;
+                    $data['data'][] = $att_image;
                     }
                     if(!empty($link_file)){
                         $att_file['value'] = $link_file;
+                    $data['data'][] = $att_file;
                     }
 
-                    $data['data'][] = $att_image;
-                    $data['data'][] = $att_file;
 
                     $update_read = EmployeeTimeOff::where('id_employee_time_off',$val['id_employee_time_off'])->update(['read'=>1]);
                 }
@@ -2455,13 +2477,13 @@ class ApiEmployeeInboxController extends Controller
         
                     if(!empty($link_img)){
                         $att_image['value'] = $link_img;
+                    $data['data'][] = $att_image;
                     }
                     if(!empty($link_file)){
                         $att_file['value'] = $link_file;
+                    $data['data'][] = $att_file;
                     }
 
-                    $data['data'][] = $att_image;
-                    $data['data'][] = $att_file;
                     $update_read = EmployeeReimbursement::where('id_employee_reimbursement',$val['id_employee_reimbursement'])->update(['read'=>1]);
                 }
                 
@@ -2558,13 +2580,13 @@ class ApiEmployeeInboxController extends Controller
         
                     if(!empty($link_img)){
                         $att_image['value'] = $link_img;
+                    $data['data'][] = $att_image;
                     }
                     if(!empty($link_file)){
                         $att_file['value'] = $link_file;
+                    $data['data'][] = $att_file;
                     }
 
-                    $data['data'][] = $att_image;
-                    $data['data'][] = $att_file;
                     $update_read = AssetInventoryLog::where('id_asset_inventory_log',$val['id_asset_inventory_log'])->update(['read'=>1]);
                 }
                 
@@ -2652,13 +2674,13 @@ class ApiEmployeeInboxController extends Controller
         
                     if(!empty($link_img)){
                         $att_image['value'] = $link_img;
+                    $data['data'][] = $att_image;
                     }
                     if(!empty($link_file)){
                         $att_file['value'] = $link_file;
+                    $data['data'][] = $att_file;
                     }
 
-                    $data['data'][] = $att_image;
-                    $data['data'][] = $att_file;
                     $update_read = AssetInventoryLog::where('id_asset_inventory_log',$val['id_asset_inventory_log'])->update(['read'=>1]);
                 }
                 
@@ -2743,6 +2765,7 @@ class ApiEmployeeInboxController extends Controller
                     }
                     if(!empty($link_img)){
                         $att_image['value'] = $link_img;
+                        $data['data'][] = $att_image;
                     }
                     
                     $product_detail = [
@@ -2759,7 +2782,6 @@ class ApiEmployeeInboxController extends Controller
                         ];
                     }
                     $data['data'][] = $product_detail;
-                    $data['data'][] = $att_image;
                     $update_read = RequestProduct::where('id_request_product',$val['id_request_product'])->update(['read'=>1]);
                 }
 

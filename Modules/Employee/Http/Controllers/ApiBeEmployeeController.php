@@ -316,7 +316,7 @@ class ApiBeEmployeeController extends Controller
                             [
                                 'date_invitation'=>date('Y-m-d', strtotime($post['data_document']['process_date']??date('Y-m-d H:i:s'))),
                                 'time_invitation'=>date('H:i:s', strtotime($post['data_document']['process_date']??date('Y-m-d H:i:s'))),
-                            ],  null, null, null, null, null, true, null, null,null
+                            ],  null, null, null, 'employee', null, true, null, null,null
                         );
                         if (!$autocrm) {
                             return response()->json([

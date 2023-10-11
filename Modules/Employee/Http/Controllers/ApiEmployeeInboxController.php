@@ -2815,6 +2815,14 @@ class ApiEmployeeInboxController extends Controller
                 'name'=>'All'
             ),
             array(
+                'category'=>'attendance',
+                'name'=>'Presensi'
+            ),
+            array(
+                'category'=>'attendance_outlet',
+                'name'=>'Presensi Outlet'
+            ),
+            array(
                 'category'=>'time_off',
                 'name'=>'Cuti'
             ),

@@ -23,7 +23,8 @@ class update_pin extends FormRequest
     public function messages()
     {
         return [
-            'old_password' => ':attribute not match ',
+            'old_password' => 'Pin lama tidak sama',
+            'same' => 'Pin baru tidak sama',
         ];
     }
     public function authorize()
@@ -39,9 +40,9 @@ class update_pin extends FormRequest
 	public function rules()
 	{
 		return [
-			'old_password' => 'required|old_password',
-			'new_password' => 'required|integer',
-			'new_confirm_password' => 'same:new_password',
+                'old_password' => 'required|old_password',
+                'new_password' => 'required|integer',
+                'new_confirm_password' => 'same:new_password',
         ];
     }
 

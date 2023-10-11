@@ -316,7 +316,7 @@ class ApiBeEmployeeController extends Controller
                             [
                                 'date_invitation'=>date('Y-m-d', strtotime($post['data_document']['process_date']??date('Y-m-d H:i:s'))),
                                 'time_invitation'=>date('H:i:s', strtotime($post['data_document']['process_date']??date('Y-m-d H:i:s'))),
-                            ],  null, null, null, 'employee', null, true, null, null,null
+                            ],  null, false, false, 'employee', null, true, null, null,null
                         );
                         if (!$autocrm) {
                             return response()->json([
@@ -1015,7 +1015,7 @@ class ApiBeEmployeeController extends Controller
                     $autocrm = app($this->autocrm)->SendAutoCRM(
                         $crm_title,
                         $receipt->phone,
-                        [], null, null, null, null, null, null, null, null,
+                        [], null, false, false, 'employee', null, null, null, null,
                     );
                     if(!$autocrm){
                         DB::rollback();
@@ -1124,7 +1124,7 @@ class ApiBeEmployeeController extends Controller
                         $autocrm = app($this->autocrm)->SendAutoCRM(
                             'Make An Evaluation Form For Employees',
                             $manager->phone,
-                            [], null, null, null, null, null, null, null, null,
+                            [], null, false, false, 'employee', null, null, null, null,
                         );
                     }
                 }

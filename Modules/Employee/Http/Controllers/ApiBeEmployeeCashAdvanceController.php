@@ -215,7 +215,7 @@ class ApiBeEmployeeCashAdvanceController extends Controller
                                   $getData->phone,
                                   [
                                       'document_type'=> $post['update_type'],
-                                  ], null, null, null, null, null, null, null, null,
+                                  ], null, false, false, 'employee', null, null, null, null,
                               );
                               // return $autocrm;
                               if (!$autocrm) {
@@ -284,7 +284,7 @@ class ApiBeEmployeeCashAdvanceController extends Controller
                             $getData->phone,
                             [
                                 'document_type'=> $post['update_type'],
-                            ], null, null, null, null, null, null, null, null,
+                            ], null, false, false, 'employee', null, null, null, null,
                         );
                         // return $autocrm;
                         if (!$autocrm) {
@@ -379,7 +379,7 @@ class ApiBeEmployeeCashAdvanceController extends Controller
                     $autocrm = app($this->autocrm)->SendAutoCRM(
                         'Employee Cash Advance Rejected',
                         $getData->phone,
-                        [], null, null, null, null, null, null, null, null,
+                        [], null, false, false, 'employee', null, null, null, null,
                     );
                     // return $autocrm;
                     if (!$autocrm) {

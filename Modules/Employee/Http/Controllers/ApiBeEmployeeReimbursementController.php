@@ -214,7 +214,7 @@ class ApiBeEmployeeReimbursementController extends Controller
                                $getData->phone,
                                [
                                    'document_type'=> $post['update_type'],
-                               ], null, null, null, null, null, null, null, null,
+                               ], null, false, false, 'employee', null, null, null, null,
                            );
                            // return $autocrm;
                            if (!$autocrm) {
@@ -260,7 +260,7 @@ class ApiBeEmployeeReimbursementController extends Controller
                     $autocrm = app($this->autocrm)->SendAutoCRM(
                         'Employee Reimbursement Rejected',
                         $getData->phone,
-                        [], null, null, null, null, null, null, null, null,
+                        [], null, false, false, 'employee', null, null, null, null,
                     );
                     // return $autocrm;
                     if (!$autocrm) {
@@ -307,7 +307,7 @@ class ApiBeEmployeeReimbursementController extends Controller
                             $getData->phone,
                             [
                                 'document_type'=> $post['status'],
-                            ], null, null, null, null, null, null, null, null,
+                            ], null, false, false, 'employee', null, null, null, null,
                         );
                         // return $autocrm;
                         if (!$autocrm) {
@@ -452,7 +452,7 @@ class ApiBeEmployeeReimbursementController extends Controller
                             $getData->phone,
                             [
                                 'document_type'=> $post['status'],
-                            ], null, null, null, null, null, null, null, null,
+                            ], null, false, false, 'employee', null, null, null, null,
                         );
                         // return $autocrm;
                         if (!$autocrm) {

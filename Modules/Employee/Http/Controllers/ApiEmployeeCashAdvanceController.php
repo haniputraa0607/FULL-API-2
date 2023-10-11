@@ -63,7 +63,7 @@ class ApiEmployeeCashAdvanceController extends Controller
                            $autocrm = app($this->autocrm)->SendAutoCRM(
                                'Employee Cash Advance Create',
                                Auth::user()->phone,
-                               [], null, null, null, null, null, null, null, null,
+                               [], null, false, false, 'employee', null, null, null, null,
                            );
                            // return $autocrm;
                            if (!$autocrm) {

@@ -682,7 +682,7 @@ class ApiUserV2 extends Controller
             'phone'			=> 'required|string|max:18',
             'old_password'		=> 'required|string|digits:6',
             'new_password'		=> 'required|string|digits:6',
-            'confirm_new_password'		=> 'required|string|digits:6',
+            'confirm_new_password'	=> 'required|string|digits:6',
             'device_id'		=> 'max:200',
             'device_token'	=> 'max:225'
         ]);
@@ -710,19 +710,19 @@ class ApiUserV2 extends Controller
             if(!empty($data[0]['otp_forgot']) && !empty($data[0]['phone_verified']) && !password_verify($request->json('old_password'), $data[0]['otp_forgot'])){
                 return response()->json([
                     'status'    => 'fail',
-                    'messages'    => ['Password lama tidak sesuai']
+                    'messages'    => ['Pin lama tidak sesuai']
                 ]);
             }elseif(empty($data[0]['otp_forgot']) && !empty($data[0]['pin_changed']) && !empty($data[0]['phone_verified']) && !password_verify($request->json('old_password'), $this_employee['password'])){
                 return response()->json([
                     'status'    => 'fail',
-                    'messages'    => ['Password lama tidak sesuai']
+                    'messages'    => ['Pin lama tidak sesuai']
                 ]);
             }
             
             if($request->json('new_password') != $request->json('confirm_new_password')){
                 return response()->json([
                     'status'    => 'fail',
-                    'messages'    => ['Password baru tidak sama']
+                    'messages'    => ['Pin baru tidak sama']
                 ]);
             }
 

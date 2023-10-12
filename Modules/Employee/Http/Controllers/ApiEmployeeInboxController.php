@@ -2106,7 +2106,9 @@ class ApiEmployeeInboxController extends Controller
             if(in_array('503',$roles)){
                 
                 $roless = true;
-                    $a_pending = EmployeeOutletAttendanceLog::join('employee_outlet_attendances', 'employee_outlet_attendances.id_employee_outlet_attendance', 'employee_outlet_attendance_logs.id_employee_outlet_attendance')->join('users','users.id','employee_outlet_attendances.id')->where('users.id_outlet', $id_outlet)->where('employee_outlet_attendance_logs.status', 'Pending');
+                    $a_pending = EmployeeOutletAttendanceLog::join('employee_outlet_attendances', 'employee_outlet_attendances.id_employee_outlet_attendance', 'employee_outlet_attendance_logs.id_employee_outlet_attendance')
+                            ->join('users','users.id','employee_outlet_attendances.id')->where('users.id_outlet', $id_outlet)
+                            ->where('employee_outlet_attendance_logs.status','!=','Pending');
                      if($status == 1){
                         $a_pending = $a_pending->where('employee_outlet_attendance_logs.status','Approved');
                     }

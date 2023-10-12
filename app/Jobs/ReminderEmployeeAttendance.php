@@ -39,7 +39,7 @@ class ReminderEmployeeAttendance implements ShouldQueue
         $rem = $this->data['value'];
         $employee = User::join('employee_schedules', 'employee_schedules.id', 'users.id')->join('employee_schedule_dates', 'employee_schedule_dates.id_employee_schedule', 'employee_schedules.id_employee_schedule')->where('users.id',$rem['id'])->where('employee_schedules.schedule_month', date('m'))->where('employee_schedules.schedule_year', date('Y'))->whereDate('employee_schedule_dates.date', date('Y-m-d'))->first();
         if($employee){
-            $time_off = EmployeeTimeOff::join('employee_not_available', 'employee_not_available.id_employee_time_off', 'employee_time_off.id_employee_time_off')->where('employee_time_off.id_employee', $employee['id'])->whereDate('date', date('Y-m-d'))->first();
+            $time_off = EmployeeTimeOff::join('employee_not_available', 'employee_not_available.id_employee_time_off', 'employee_time_off.id_employee_time_off')->where('employee_time_off.id_employee', $employee['id'])->whereDate('employee_time_off.start_date', '<=',date('Y-m-d'))->whereDate('employee_time_off.end_date', '>=',date('Y-m-d'))->first();
             if(empty($time_off) && !isset($time_off)){
                 $outlet = Outlet::where('id_outlet',$employee['id_outlet'])->first();
                 $timeZone = Province::join('cities', 'cities.id_province', 'provinces.id_province')

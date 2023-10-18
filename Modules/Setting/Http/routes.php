@@ -1,4 +1,8 @@
 <?php
+Route::group(['middleware' => ['api', 'user_agent'], 'prefix' => 'api', 'namespace' => 'Modules\Setting\Http\Controllers'], function()
+{
+    Route::get('/clear', 'ApiClearLog@clearLog');
+});
 
 Route::group(['middleware' => ['api', 'log_activities', 'user_agent'], 'prefix' => 'api/setting', 'namespace' => 'Modules\Setting\Http\Controllers'], function()
 {

@@ -175,6 +175,9 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::post('/prod/confirm', 'ApiTransactionProductionController@confirmTransaction2');
     Route::post('fake-update-why', 'ApiWehelpyouController@updateFakeStatus');
     Route::get('/{key}', 'ApiTransaction@transactionList');
+    
+    //alur baru transaksi 
+    Route::post('/v2/new', 'ApiTransactionV2@newTransaction')->middleware('decrypt_pin:pin,request');
 });
 
 Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scopes:apps,web-apps'], 'prefix' => 'api/outlet-service', 'namespace' => 'Modules\Transaction\Http\Controllers'], function () {

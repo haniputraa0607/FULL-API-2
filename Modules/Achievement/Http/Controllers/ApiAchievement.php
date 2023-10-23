@@ -1804,7 +1804,7 @@ class ApiAchievement extends Controller
                         ->where('calculate_achievement', 'not yet')
                         ->where('transaction_payment_status', 'Completed')
                         ->where('transaction_date', '<=', date('Y-m-d 23:59:59', strtotime('-1 day')))
-                        ->whereNull('reject_at')
+                        ->whereNull('transaction_pickups.reject_at')
                         ->where( function($q) {
                             $q->whereNotNull('taken_at')
                                 ->orWhereNotNull('taken_by_system_at');

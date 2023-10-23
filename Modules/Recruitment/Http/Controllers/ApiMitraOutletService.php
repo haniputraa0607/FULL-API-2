@@ -2708,7 +2708,7 @@ class ApiMitraOutletService extends Controller
 				UserRatingLog::updateOrCreate([
 					'id_user' => $trx['id_user'],
 					'id_transaction' => $trx['id_transaction'],
-					'id_transaction_product_service' => $request['id_transaction_product_service'],
+					'id_transaction_product_service' => $trx['id_transaction_product_service'],
 					'id_user_hair_stylist' => $user['id_user_hair_stylist']
 				],[
 					'refuse_count' => 0,

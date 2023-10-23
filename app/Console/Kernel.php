@@ -231,7 +231,7 @@ class Kernel extends ConsoleKernel
          * Cancel pending hair stylist for home service
          * run every 15 minute
          */
-        $schedule->call('Modules\Transaction\Http\Controllers\ApiTransactionHomeService@cronCancelHairStylist')->cron('*/15 * * * *');
+        // $schedule->call('Modules\Transaction\Http\Controllers\ApiTransactionHomeService@cronCancelHairStylist')->cron('*/15 * * * *');
 
         /**
          * Academy reminder payment
@@ -294,7 +294,7 @@ class Kernel extends ConsoleKernel
          * Reminder Clock In Clock Out
          * run every minute
          */
-        $schedule->call('Modules\Employee\Http\Controllers\ApiEmployeeProfileController@cronReminder')->everyMinute();
+        $schedule->call('Modules\Employee\Http\Controllers\ApiEmployeeProfileController@cronReminder')->cron('*/5 * * * *');
 
         /**
          * Reset Department Balance

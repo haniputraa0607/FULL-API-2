@@ -52,11 +52,13 @@ class ReminderEmployeeAttendance implements ShouldQueue
                 
                 if($rem['key']=='reminder_clock_in'){
                     $time = (strtotime($employee['time_start'])) - ($time_reminder * 60);
+                    $time_clock = $employee['time_start'];
                     $content_time = MyHelper::adjustTimezone($employee['time_start'], $timeZone, 'H:i', true);
                     $key_crm = 'Reminder Employee to Clock In';
                     
                 }elseif($rem['key']=='reminder_clock_out'){
                     $time = (strtotime($employee['time_end'])) - ($time_reminder * 60);
+                    $time_clock = $employee['time_end'];
                     $content_time = MyHelper::adjustTimezone($employee['time_end'], $timeZone, 'H:i', true);
                     $key_crm = 'Reminder Employee to Clock Out';
 
@@ -64,7 +66,7 @@ class ReminderEmployeeAttendance implements ShouldQueue
 
                 $time = date('H:i', $time);
 
-                if(date('H:i') == $time){
+                if(date('H:i') >= $time && date('H:i') <= date('H:i', strtotime($time_clock))){
                     $autocrm = app($this->autocrm)->SendAutoCRM(
                         $key_crm,
                         $employee['phone'],

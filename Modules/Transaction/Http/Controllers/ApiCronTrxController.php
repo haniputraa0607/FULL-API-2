@@ -614,9 +614,9 @@ class ApiCronTrxController extends Controller
 
             $trxs = Transaction::join('transaction_pickups', 'transactions.id_transaction', 'transaction_pickups.id_transaction')
                 ->where('transactions.transaction_payment_status','Completed')
-                ->whereNull('receive_at')
-                ->whereNull('reject_at')
-                ->whereNull('taken_by_system_at')
+                ->whereNull('transaction_pickups.receive_at')
+                ->whereNull('transaction_pickups.reject_at')
+                ->whereNull('transaction_pickups.taken_by_system_at')
                 ->with('outlet')
                 ->whereDate('transactions.transaction_date', '>=', date('Y-m-d', strtotime('yesterday')))
                 ->where(function($query) use ($max_time) {

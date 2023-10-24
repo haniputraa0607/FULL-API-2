@@ -4424,7 +4424,7 @@ class ApiOutletController extends Controller
         try {
 
             $send = [
-                'date' => date('Y-m-d', strtotime($date ?: '-1 days')),
+                'date' => date('Y-m-d', strtotime('-1 days')),
             ];
             $refresh = RefreshCheckStock::dispatch($send)->onConnection('refreshcheckstockqueue');
             

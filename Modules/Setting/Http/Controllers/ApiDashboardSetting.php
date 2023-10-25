@@ -579,5 +579,563 @@ class ApiDashboardSetting extends Controller
 
 		return response()->json(MyHelper::checkGet($result));
 	}
+        function getDashboardUser(Request $request){
+		$user = $request->user();
+		$post = $request->json()->all();
 
+		//filter by button in home page
+		if(isset($post['date_start']) && isset($post['date_end'])){
+			$start = $post['date_start'];
+			$end = $post['date_end'];
+			if($post['year'] == 'alltime'){
+				$dateRange['default_date_range'] = 'All Time';
+			}elseif($post['year'] == 'last7days'){
+				$dateRange['default_date_range'] = '7 days';
+			}elseif($post['year'] == 'last30days'){
+				$dateRange['default_date_range'] = '30 days';
+			}elseif($post['year'] == 'last3months'){
+				$dateRange['default_date_range'] = '3 months';
+			}else{
+				$dateRange['default_date_range'] = date('F Y', strtotime('1-'.$post['month'].'-'.$post['year']));
+			}
+		}else{
+			$dateRange = DashboardDateRange::where('id_user', $user->id)->first();
+			if(!$dateRange){
+				$dateRange['default_date_range'] = '30 days';
+			}
+			
+			if(strpos($dateRange['default_date_range'], 'days') !== false){
+				$day = str_replace(' days', '', $dateRange['default_date_range']);
+				$start = date('Y-m-d', strtotime('-'.$day.' days'));
+			}else{
+				if($dateRange['default_date_range'] == 'this month'){
+					$start = date('Y-m-01');
+					$dateRange['default_date_range'] = date('F Y');
+				}else{
+					$month = str_replace(' months', '', $dateRange['default_date_range']);
+					$start = date('Y-m-d', strtotime('-'.$month.' months'));
+				}
+				
+			}
+	
+			$end = date('Y-m-d');
+		}
+
+		$dashboard = DashboardUser::with('dashboard_card')->where([['id_user', $user->id],['section_visible',1]])->orderBy('section_order', 'ASC')->get();
+
+		if(count($dashboard) == 0){
+			$dashboard = [];
+			$dashboard[0]['section_title'] = 'User Summary';
+			$dashboard[0]['dashboard_card'][0]['card_name'] = 'New Customer';
+			$dashboard[0]['dashboard_card'][1]['card_name'] = 'Total Customer Verified';
+			$dashboard[0]['dashboard_card'][2]['card_name'] = 'Total Customer Not Verified';
+			$dashboard[0]['dashboard_card'][3]['card_name'] = 'Total User';
+			$dashboard[0]['dashboard_card'][4]['card_name'] = 'Total Customer';
+			$dashboard[0]['dashboard_card'][5]['card_name'] = 'Total Admin';
+			$dashboard[0]['dashboard_card'][6]['card_name'] = 'Total Super Admin';
+			$dashboard[0]['dashboard_card'][7]['card_name'] = 'Total Male Customer';
+			$dashboard[0]['dashboard_card'][8]['card_name'] = 'Total Female Customer';
+			$dashboard[0]['dashboard_card'][9]['card_name'] = 'Total Android Customer';
+			$dashboard[0]['dashboard_card'][10]['card_name'] = 'Total IOS Customer';
+		}
+		foreach($dashboard as $key => $dash){
+			foreach($dash['dashboard_card'] as $index => $card){
+				$value = 0;
+				$url = null;
+
+				if(strpos($card['card_name'], 'Admin Outlet') !== false){
+					$value = UserOutlet::count();
+				}
+
+				elseif(strpos($card['card_name'], 'Top 10') !== false){
+
+					if(strpos($card['card_name'], 'Outlet') !== false){
+						$value = DailyReportTrx::join('outlets', 'daily_report_trx.id_outlet', 'outlets.id_outlet')
+								->whereDate('daily_report_trx.trx_date', '>=', $start)
+								->whereDate('daily_report_trx.trx_date', '<=', $end)
+								->groupBy('outlets.id_outlet');
+	
+						if(strpos($card['card_name'], 'Online Transaction')!==false){
+							$value->where('trx_type','Online');
+						}
+
+						if(strpos($card['card_name'], 'Offline Transaction Member')!==false){
+							$value->where('trx_type','Offline Member');
+						}
+
+						if(strpos($card['card_name'], 'Offline Transaction Non Member')!==false){
+							$value->where('trx_type','Offline Non Member');
+						}
+
+						if(strpos($card['card_name'], 'Count') !== false){
+							$value = $value->select(DB::raw('outlets.outlet_code, outlets.outlet_name, outlets.id_outlet as id, SUM(daily_report_trx.trx_count) as transaction_count'))
+										   ->orderBy('transaction_count', 'DESC');
+						}
+						elseif(strpos($card['card_name'], 'Value') !== false){
+							$value = $value->select(DB::raw('outlets.outlet_code, outlets.outlet_name, outlets.id_outlet as id, SUM(daily_report_trx.trx_grand) as transaction_value'))
+										   ->orderBy('transaction_value', 'DESC');
+						}
+						$value = $value->limit(10)->get();
+						$url = $start.'/'.$end;
+					}
+					elseif(strpos($card['card_name'], 'Product') !== false){
+						$value = DailyReportTrxMenu::leftJoin('products', 'daily_report_trx_menu.id_product', 'products.id_product')
+								->whereDate('daily_report_trx_menu.trx_date', '>=', $start)
+								->whereDate('daily_report_trx_menu.trx_date', '<=', $end)
+								->groupBy('products.id_product');
+	
+						if(strpos($card['card_name'], 'Recurring') !== false){
+						$value = $value->select(DB::raw('products.product_name, products.id_product as id, products.product_code, SUM(daily_report_trx_menu.total_rec) as total_recurring'))
+									   ->orderBy('total_recurring', 'DESC');
+						}
+						elseif(strpos($card['card_name'], 'Quantity') !== false){
+							$value = $value->select(DB::raw('products.product_name, products.id_product as id, products.product_code, SUM(daily_report_trx_menu.total_qty) as total_quantity'))
+									->orderBy('total_quantity', 'DESC');
+						}
+						$value = $value->limit(10)->get();
+						$url = $start.'/'.$end;
+					}
+
+					elseif(strpos($card['card_name'], 'User') !== false || strpos($card['card_name'], 'Customer') !== false){
+						$value = Transaction::leftJoin('users', 'transactions.id_user', 'users.id')
+								->where('transaction_payment_status', 'Completed')
+								->whereDate('transaction_date', '>=', $start)
+								->whereDate('transaction_date', '<=', $end)
+								->select(DB::raw('users.name, users.phone, SUM(transaction_grandtotal) as nominal'))
+								->orderBy('nominal', 'DESC')
+								->groupBy('users.id');
+						if(strpos($card['card_name'], 'Customer') !== false){
+							$value = $value->where('users.level', 'Customer');
+						}
+						$value = $value->limit(10)->get();
+					}
+				}
+
+				elseif(strpos($card['card_name'], 'Customer') !== false || strpos($card['card_name'], 'User') !== false || strpos($card['card_name'], 'Admin') !== false){
+					$value = User::whereDate('created_at', '<=', $end);
+					if(strpos($card['card_name'], 'Customer') !== false){
+						$value = $value->where('level', 'Customer');
+						if($url){
+							$url =  $url."&level=Customer";
+						}else{
+							$url =  "level=Customer";
+						}
+					}
+					if($card['card_name'] == 'Total Admin'){
+						$value = $value->where('level', 'Admin');
+						if($url){
+							$url =  $url."&level=Admin";
+						}else{
+							$url =  "level=Admin";
+						}
+					}
+					if(strpos($card['card_name'], 'Super Admin') !== false){
+						$value =$value->where('level', 'Super Admin');
+						if($url){
+							$url =  $url."&level=Super Admin";
+						}else{
+							$url =  "level=Super Admin";
+						}
+					}
+					if(strpos($card['card_name'], 'New') !== false){
+						$value = $value->whereDate('created_at', '>=', $start);
+						if($url){
+							$url =  $url.'&regis_date_start='.$start.'&regis_date_end='.$end;
+						}else{
+							$url =  'regis_date_start='.$start.'&regis_date_end='.$end;
+						}
+					}
+					if(strpos($card['card_name'], 'Male') !== false){
+						$value = $value->where('gender', '=', 'Male');
+						if($url){
+							$url =  $url.'&gender=male';
+						}else{
+							$url =  'gender=male';
+						}
+					}
+					if(strpos($card['card_name'], 'Female') !== false){
+						$value = $value->where('gender', '=', 'Female');
+						if($url){
+							$url =  $url.'&gender=female';
+						}else{
+							$url =  'gender=female';
+						}
+					}
+					if(strpos($card['card_name'], 'Verified') !== false){
+						$value = $value->where('phone_verified', '=', '1');
+					}
+					if(strpos($card['card_name'], 'Not Verified') !== false){
+						$value = $value->where('phone_verified', '=', '0');
+					}
+					if(strpos($card['card_name'], 'Android') !== false){
+						$value = $value->where('android_device', '!=', '');
+						if($url){
+							$url =  $url.'&device=android';
+						}else{
+							$url =  'device=android';
+						}
+					}
+					if(strpos($card['card_name'], 'IOS') !== false){
+						$value = $value->where('ios_device', '!=', '');
+						if($url){
+							$url =  $url.'&device=ios';
+						}else{
+							$url =  'device=ios';
+						}
+					}
+					if(strpos($card['card_name'], 'Subscribed') !== false){
+						$value = $value->where('email_unsubscribed', '=', '0');
+					}
+					if(strpos($card['card_name'], 'Unsubscribed') !== false){
+						$value = $value->where('email_unsubscribed', '=', '1');
+					}
+                                        $url = ENV('VIEW_URL').'report/customer/summary/?'.$url;
+					$value = $value->count();
+				}
+				
+				elseif(strpos($card['card_name'], 'Transaction') !== false){
+					$value = DailyReportTrx::whereDate('trx_date', '<=', $end)->whereDate('trx_date', '>=', $start);
+
+					if(strpos($card['card_name'], 'Online Transaction')!==false){
+						$value->where('trx_type','Online');
+					}
+
+					if(strpos($card['card_name'], 'Offline Transaction Member')!==false){
+						$value->where('trx_type','Offline Member');
+					}
+
+					if(strpos($card['card_name'], 'Offline Transaction Non Member')!==false){
+						$value->where('trx_type','Offline Non Member');
+					}
+
+					if(strpos($card['card_name'], 'Total')!==false&&strpos($card['card_name'], 'Count')!==false){
+						$value = $value->sum('trx_count');
+					}
+					if(strpos($card['card_name'], 'Total')!==false&&strpos($card['card_name'], 'Value')!==false){
+						$value = $value->sum('trx_grand');
+					}
+					if(strpos($card['card_name'], 'Average')!==false&&strpos($card['card_name'], 'per Day')===false){
+						$sum = $value->sum('trx_grand');
+						$count = $value->sum('trx_count');
+						if($sum > 0 && $count > 0){
+							$value = (int) $sum/$count;
+						}else{
+							$value = 0;
+						}
+					}
+					if(strpos($card['card_name'], 'Average per Day')!==false){
+						$sum = $value->sum('trx_grand');
+						$count = $value->get()->groupBy('trx_date')->count();
+						if($sum > 0 && $count > 0){
+							$value = (int) $sum/$count;
+						}else{
+							$value = 0;
+						}
+					}
+					$url = ENV('VIEW_URL').'report/global/?'.'date_start='.$start.'&date_end='.$end;
+				}
+
+				$dashboard[$key]['dashboard_card'][$index]['value'] = $value;
+				$dashboard[$key]['dashboard_card'][$index]['value_text'] = number_format($value, 0, '.', ',');
+				$dashboard[$key]['dashboard_card'][$index]['url'] = $url;
+                                if(strpos($card['card_name'], 'Customer') !== false || strpos($card['card_name'], 'Admin') !== false || strpos($card['card_name'], 'User') !== false)
+                                        if(strpos($card['card_name'], 'New') !== false ){
+                                                       $dashboard[$key]['dashboard_card'][$index]['text'] =  "Register Within ".$dateRange['default_date_range'];
+                                                }else{
+                                                    if(strpos($dateRange['default_date_range'], 'days') !== false || strpos($dateRange['default_date_range'], 'months') !== false || strpos($dateRange['default_date_range'], 'time') !== false){
+                                                            $dashboard[$key]['dashboard_card'][$index]['text'] = str_replace('Total', '', $card['card_name'])." All Time";
+                                                    }else{
+                                                           $dashboard[$key]['dashboard_card'][$index]['text'] = str_replace('Total', '', $card['card_name'])." (Until ".$dateRange['default_date_range'].')';
+                                                    }
+                                                
+                                }else{
+                                   if(strpos($card['card_name'], 'Transaction') !== false ){
+                                    if(strpos($dateRange['default_date_range'], 'months') !== false || strpos($dateRange['default_date_range'], 'days') !== false){
+                                     $dashboard[$key]['dashboard_card'][$index]['text'] = "Last ". $dateRange['default_date_range'];
+                                    }else{
+                                        $dashboard[$key]['dashboard_card'][$index]['text'] = $dateRange['default_date_range'];
+                                     }
+                                   }
+                                }     
+			}
+		}
+		
+
+		return response()->json(MyHelper::checkGet($dashboard[0]));
+	}
+        function getDashboardTransaction(Request $request){
+		$user = $request->user();
+		$post = $request->json()->all();
+
+		//filter by button in home page
+		if(isset($post['date_start']) && isset($post['date_end'])){
+			$start = $post['date_start'];
+			$end = $post['date_end'];
+			if($post['year'] == 'alltime'){
+				$dateRange['default_date_range'] = 'All Time';
+			}elseif($post['year'] == 'last7days'){
+				$dateRange['default_date_range'] = '7 days';
+			}elseif($post['year'] == 'last30days'){
+				$dateRange['default_date_range'] = '30 days';
+			}elseif($post['year'] == 'last3months'){
+				$dateRange['default_date_range'] = '3 months';
+			}else{
+				$dateRange['default_date_range'] = date('F Y', strtotime('1-'.$post['month'].'-'.$post['year']));
+			}
+		}else{
+			$dateRange = DashboardDateRange::where('id_user', $user->id)->first();
+			if(!$dateRange){
+				$dateRange['default_date_range'] = '30 days';
+			}
+			
+			if(strpos($dateRange['default_date_range'], 'days') !== false){
+				$day = str_replace(' days', '', $dateRange['default_date_range']);
+				$start = date('Y-m-d', strtotime('-'.$day.' days'));
+			}else{
+				if($dateRange['default_date_range'] == 'this month'){
+					$start = date('Y-m-01');
+					$dateRange['default_date_range'] = date('F Y');
+				}else{
+					$month = str_replace(' months', '', $dateRange['default_date_range']);
+					$start = date('Y-m-d', strtotime('-'.$month.' months'));
+				}
+				
+			}
+	
+			$end = date('Y-m-d');
+		}
+
+		$dashboard = DashboardUser::with('dashboard_card')->where([['id_user', $user->id],['section_visible',1]])->orderBy('section_order', 'ASC')->get();
+
+		if(count($dashboard) == 0){
+			$dashboard = [];
+			$dashboard[0]['section_title'] = 'Transaction Summary';
+			$dashboard[0]['dashboard_card'][0]['card_name'] = 'Total Transaction Value';
+			$dashboard[0]['dashboard_card'][1]['card_name'] = 'Total Transaction Count';
+			$dashboard[0]['dashboard_card'][2]['card_name'] = 'Transaction Average per Day';
+		}
+		foreach($dashboard as $key => $dash){
+			foreach($dash['dashboard_card'] as $index => $card){
+				$value = 0;
+				$url = null;
+
+				if(strpos($card['card_name'], 'Admin Outlet') !== false){
+					$value = UserOutlet::count();
+				}
+
+				elseif(strpos($card['card_name'], 'Top 10') !== false){
+
+					if(strpos($card['card_name'], 'Outlet') !== false){
+						$value = DailyReportTrx::join('outlets', 'daily_report_trx.id_outlet', 'outlets.id_outlet')
+								->whereDate('daily_report_trx.trx_date', '>=', $start)
+								->whereDate('daily_report_trx.trx_date', '<=', $end)
+								->groupBy('outlets.id_outlet');
+	
+						if(strpos($card['card_name'], 'Online Transaction')!==false){
+							$value->where('trx_type','Online');
+						}
+
+						if(strpos($card['card_name'], 'Offline Transaction Member')!==false){
+							$value->where('trx_type','Offline Member');
+						}
+
+						if(strpos($card['card_name'], 'Offline Transaction Non Member')!==false){
+							$value->where('trx_type','Offline Non Member');
+						}
+
+						if(strpos($card['card_name'], 'Count') !== false){
+							$value = $value->select(DB::raw('outlets.outlet_code, outlets.outlet_name, outlets.id_outlet as id, SUM(daily_report_trx.trx_count) as transaction_count'))
+										   ->orderBy('transaction_count', 'DESC');
+						}
+						elseif(strpos($card['card_name'], 'Value') !== false){
+							$value = $value->select(DB::raw('outlets.outlet_code, outlets.outlet_name, outlets.id_outlet as id, SUM(daily_report_trx.trx_grand) as transaction_value'))
+										   ->orderBy('transaction_value', 'DESC');
+						}
+						$value = $value->limit(10)->get();
+						$url = $start.'/'.$end;
+					}
+					elseif(strpos($card['card_name'], 'Product') !== false){
+						$value = DailyReportTrxMenu::leftJoin('products', 'daily_report_trx_menu.id_product', 'products.id_product')
+								->whereDate('daily_report_trx_menu.trx_date', '>=', $start)
+								->whereDate('daily_report_trx_menu.trx_date', '<=', $end)
+								->groupBy('products.id_product');
+	
+						if(strpos($card['card_name'], 'Recurring') !== false){
+						$value = $value->select(DB::raw('products.product_name, products.id_product as id, products.product_code, SUM(daily_report_trx_menu.total_rec) as total_recurring'))
+									   ->orderBy('total_recurring', 'DESC');
+						}
+						elseif(strpos($card['card_name'], 'Quantity') !== false){
+							$value = $value->select(DB::raw('products.product_name, products.id_product as id, products.product_code, SUM(daily_report_trx_menu.total_qty) as total_quantity'))
+									->orderBy('total_quantity', 'DESC');
+						}
+						$value = $value->limit(10)->get();
+						$url = $start.'/'.$end;
+					}
+
+					elseif(strpos($card['card_name'], 'User') !== false || strpos($card['card_name'], 'Customer') !== false){
+						$value = Transaction::leftJoin('users', 'transactions.id_user', 'users.id')
+								->where('transaction_payment_status', 'Completed')
+								->whereDate('transaction_date', '>=', $start)
+								->whereDate('transaction_date', '<=', $end)
+								->select(DB::raw('users.name, users.phone, SUM(transaction_grandtotal) as nominal'))
+								->orderBy('nominal', 'DESC')
+								->groupBy('users.id');
+						if(strpos($card['card_name'], 'Customer') !== false){
+							$value = $value->where('users.level', 'Customer');
+						}
+						$value = $value->limit(10)->get();
+					}
+				}
+
+				elseif(strpos($card['card_name'], 'Customer') !== false || strpos($card['card_name'], 'User') !== false || strpos($card['card_name'], 'Admin') !== false){
+					$value = User::whereDate('created_at', '<=', $end);
+					if(strpos($card['card_name'], 'Customer') !== false){
+						$value = $value->where('level', 'Customer');
+						if($url){
+							$url =  $url."&level=Customer";
+						}else{
+							$url =  "level=Customer";
+						}
+					}
+					if($card['card_name'] == 'Total Admin'){
+						$value = $value->where('level', 'Admin');
+						if($url){
+							$url =  $url."&level=Admin";
+						}else{
+							$url =  "level=Admin";
+						}
+					}
+					if(strpos($card['card_name'], 'Super Admin') !== false){
+						$value =$value->where('level', 'Super Admin');
+						if($url){
+							$url =  $url."&level=Super Admin";
+						}else{
+							$url =  "level=Super Admin";
+						}
+					}
+					if(strpos($card['card_name'], 'New') !== false){
+						$value = $value->whereDate('created_at', '>=', $start);
+						if($url){
+							$url =  $url.'&regis_date_start='.$start.'&regis_date_end='.$end;
+						}else{
+							$url =  'regis_date_start='.$start.'&regis_date_end='.$end;
+						}
+					}
+					if(strpos($card['card_name'], 'Male') !== false){
+						$value = $value->where('gender', '=', 'Male');
+						if($url){
+							$url =  $url.'&gender=male';
+						}else{
+							$url =  'gender=male';
+						}
+					}
+					if(strpos($card['card_name'], 'Female') !== false){
+						$value = $value->where('gender', '=', 'Female');
+						if($url){
+							$url =  $url.'&gender=female';
+						}else{
+							$url =  'gender=female';
+						}
+					}
+					if(strpos($card['card_name'], 'Verified') !== false){
+						$value = $value->where('phone_verified', '=', '1');
+					}
+					if(strpos($card['card_name'], 'Not Verified') !== false){
+						$value = $value->where('phone_verified', '=', '0');
+					}
+					if(strpos($card['card_name'], 'Android') !== false){
+						$value = $value->where('android_device', '!=', '');
+						if($url){
+							$url =  $url.'&device=android';
+						}else{
+							$url =  'device=android';
+						}
+					}
+					if(strpos($card['card_name'], 'IOS') !== false){
+						$value = $value->where('ios_device', '!=', '');
+						if($url){
+							$url =  $url.'&device=ios';
+						}else{
+							$url =  'device=ios';
+						}
+					}
+					if(strpos($card['card_name'], 'Subscribed') !== false){
+						$value = $value->where('email_unsubscribed', '=', '0');
+					}
+					if(strpos($card['card_name'], 'Unsubscribed') !== false){
+						$value = $value->where('email_unsubscribed', '=', '1');
+					}
+					$value = $value->count();
+				}
+				
+				elseif(strpos($card['card_name'], 'Transaction') !== false){
+					$value = DailyReportTrx::whereDate('trx_date', '<=', $end)->whereDate('trx_date', '>=', $start);
+
+					if(strpos($card['card_name'], 'Online Transaction')!==false){
+						$value->where('trx_type','Online');
+					}
+
+					if(strpos($card['card_name'], 'Offline Transaction Member')!==false){
+						$value->where('trx_type','Offline Member');
+					}
+
+					if(strpos($card['card_name'], 'Offline Transaction Non Member')!==false){
+						$value->where('trx_type','Offline Non Member');
+					}
+
+					if(strpos($card['card_name'], 'Total')!==false&&strpos($card['card_name'], 'Count')!==false){
+						$value = $value->sum('trx_count');
+					}
+					if(strpos($card['card_name'], 'Total')!==false&&strpos($card['card_name'], 'Value')!==false){
+						$value = $value->sum('trx_grand');
+					}
+					if(strpos($card['card_name'], 'Average')!==false&&strpos($card['card_name'], 'per Day')===false){
+						$sum = $value->sum('trx_grand');
+						$count = $value->sum('trx_count');
+						if($sum > 0 && $count > 0){
+							$value = (int) $sum/$count;
+						}else{
+							$value = 0;
+						}
+					}
+					if(strpos($card['card_name'], 'Average per Day')!==false){
+						$sum = $value->sum('trx_grand');
+						$count = $value->get()->groupBy('trx_date')->count();
+						if($sum > 0 && $count > 0){
+							$value = (int) $sum/$count;
+						}else{
+							$value = 0;
+						}
+					}
+					$url = ENV('VIEW_URL').'report/global/?'.'date_start='.$start.'&date_end='.$end;
+				}
+
+				$dashboard[$key]['dashboard_card'][$index]['value'] = $value;
+				$dashboard[$key]['dashboard_card'][$index]['value_text'] = number_format($value, 0, '.', ',');
+				$dashboard[$key]['dashboard_card'][$index]['url'] = $url;
+                                if(strpos($card['card_name'], 'Customer') !== false || strpos($card['card_name'], 'Admin') !== false || strpos($card['card_name'], 'User') !== false)
+                                        if(strpos($card['card_name'], 'New') !== false ){
+                                                       $dashboard[$key]['dashboard_card'][$index]['text'] =  "Register Within ".$dateRange['default_date_range'];
+                                                }else{
+                                                    if(strpos($dateRange['default_date_range'], 'days') !== false || strpos($dateRange['default_date_range'], 'months') !== false || strpos($dateRange['default_date_range'], 'time') !== false){
+                                                            $dashboard[$key]['dashboard_card'][$index]['text'] = str_replace('Total', '', $card['card_name'])." All Time";
+                                                    }else{
+                                                           $dashboard[$key]['dashboard_card'][$index]['text'] = str_replace('Total', '', $card['card_name'])." (Until ".$dateRange['default_date_range'].')';
+                                                    }
+                                                
+                                }else{
+                                   if(strpos($card['card_name'], 'Transaction') !== false ){
+                                    if(strpos($dateRange['default_date_range'], 'months') !== false || strpos($dateRange['default_date_range'], 'days') !== false){
+                                     $dashboard[$key]['dashboard_card'][$index]['text'] = "Last ". $dateRange['default_date_range'];
+                                    }else{
+                                        $dashboard[$key]['dashboard_card'][$index]['text'] = $dateRange['default_date_range'];
+                                     }
+                                   }
+                                }
+			}
+		}
+		
+
+		return response()->json(MyHelper::checkGet($dashboard[0]));
+	}
 }

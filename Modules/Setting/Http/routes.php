@@ -142,6 +142,8 @@ Route::group(['middleware' => ['auth:api', 'log_activities', 'user_agent', 'scop
     Route::group(['middleware' => ['auth:api', 'scopes:be'], 'prefix' => 'dashboard'], function()
     {
         Route::any('', 'ApiDashboardSetting@getDashboard');
+        Route::any('transaction', 'ApiDashboardSetting@getDashboardTransaction');
+        Route::any('user', 'ApiDashboardSetting@getDashboardUser');
         Route::get('list', 'ApiDashboardSetting@getListDashboard');
         Route::post('update', 'ApiDashboardSetting@updateDashboard');
         Route::post('delete', 'ApiDashboardSetting@deleteDashboard');

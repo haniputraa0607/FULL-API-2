@@ -835,8 +835,8 @@ class ApiDashboardSetting extends Controller
 					$url = ENV('VIEW_URL').'report/global/?'.'date_start='.$start.'&date_end='.$end;
 				}
 
-				$dashboard[$key]['dashboard_card'][$index]['value'] = $value;
-				$dashboard[$key]['dashboard_card'][$index]['value_text'] = number_format($value, 0, '.', ',');
+				$dashboard[$key]['dashboard_card'][$index]['value'] = round($value);
+				$dashboard[$key]['dashboard_card'][$index]['value_text'] = number_format(round($value), 0, '.', ',');
 				$dashboard[$key]['dashboard_card'][$index]['url'] = $url;
                                 if(strpos($card['card_name'], 'Customer') !== false || strpos($card['card_name'], 'Admin') !== false || strpos($card['card_name'], 'User') !== false)
                                         if(strpos($card['card_name'], 'New') !== false ){
@@ -1109,7 +1109,7 @@ class ApiDashboardSetting extends Controller
 					}
 					$url = ENV('VIEW_URL').'report/global/?'.'date_start='.$start.'&date_end='.$end;
 				}
-
+                                $value = round($value);
 				$dashboard[$key]['dashboard_card'][$index]['value'] = $value;
 				$dashboard[$key]['dashboard_card'][$index]['value_text'] = number_format($value, 0, '.', ',');
 				$dashboard[$key]['dashboard_card'][$index]['url'] = $url;

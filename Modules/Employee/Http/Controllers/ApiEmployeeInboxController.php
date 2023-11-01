@@ -2408,9 +2408,9 @@ class ApiEmployeeInboxController extends Controller
             $reim = EmployeeReimbursement::join('users','users.id','employee_reimbursements.id_user')
                     ->join('product_icounts','product_icounts.id_product_icount','employee_reimbursements.id_product_icount')
                     ->where('employee_reimbursements.id_user_approved', $user['id'])
-                    ->whereIn('employee_reimbursements.status',['Successed','Rejected']);
+                    ->whereIn('employee_reimbursements.status',['Successed','Rejected','Approved']);
             if($status == 1){
-                 $reim = $reim->where('employee_reimbursements.status','Successed');
+                 $reim = $reim->whereIn('employee_reimbursements.status',['Successed','Approved']);
             }
             if($status == 2){
                $reim = $reim->where('employee_reimbursements.status','Rejected');

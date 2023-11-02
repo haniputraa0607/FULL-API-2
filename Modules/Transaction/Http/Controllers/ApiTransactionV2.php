@@ -1114,11 +1114,12 @@ class ApiTransactionV2 extends Controller
         }else{
             DB::commit();
         }
-        return response()->json([
-            'status'   => 'success',
-            'redirect' => true,
-            'result'   => $insertTransaction
-        ]);
+         return $confirm;
+//        return response()->json([
+//            'status'   => 'success',
+//            'redirect' => true,
+//            'result'   => $insertTransaction
+//        ]);
 
     }
      public function confirmTransactionV2($post)

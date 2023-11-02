@@ -4268,7 +4268,7 @@ class ApiOnlineTransaction extends Controller
             case 'midtrans':
                 $midtransStatus = Midtrans::status($trx['id_transaction']);
                 if ((($midtransStatus['status'] ?? false) == 'fail' && ($midtransStatus['messages'][0] ?? false) == 'Midtrans payment not found') || in_array(($midtransStatus['response']['transaction_status'] ?? false), ['deny', 'cancel', 'expire', 'failure', 'pending']) || ($midtransStatus['status_code'] ?? false) == '404' ||
-                    (!empty($midtransStatus['payment_type']) && $midtransStatus['payment_type'] == 'gopay' && $midtransStatus['transaction_status'] == 'pending')) {
+                    (!empty($midtransStatus['payment_type']) && ($midtransStatus['payment_type'] == 'gopay' || $midtransStatus['payment_type'] == 'qris') && $midtransStatus['transaction_status'] == 'pending')) {
                     $connectMidtrans = Midtrans::expire($trx['transaction_receipt_number']);
 
                     if($connectMidtrans){

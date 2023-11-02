@@ -2422,6 +2422,8 @@ class ApiEmployeeInboxController extends Controller
             foreach($reim ?? [] as $val){
                if($val['status']=='Successed'){
                    $stats = true;
+               }elseif($val['status']=='Approved'){
+                   $stats = true;
                }else{
                    $stats = false;
                } 

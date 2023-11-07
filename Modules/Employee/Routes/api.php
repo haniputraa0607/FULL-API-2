@@ -500,5 +500,5 @@ Route::group(['prefix' => '/icount/cash-advance'], function() {
 
 
 Route::group(['prefix' => '/icount/budgeting'], function() {
-    Route::post('/store','ApiEmployeeRequestProductController@storeBudgeting')->middleware('auth_pos2:DepartmentID,balance');
+    Route::post('/store','ApiEmployeeRequestProductController@storeBudgeting')->middleware('auth_pos2:DepartmentID');
 });

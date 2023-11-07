@@ -55,7 +55,7 @@ class ApiEmployeeRequestProductController extends Controller
                 $balance_before = 0;
             }
 
-            $budget_balance = $old_budget['budget_balance'] + $post['balance'];
+            $budget_balance = $balance_before + $post['balance'];
 
             $store_department = DepartmentBudget::updateOrCreate(['id_department'=>$department['id_department']],['budget_balance'=>$budget_balance]);
             if(!$store_department){

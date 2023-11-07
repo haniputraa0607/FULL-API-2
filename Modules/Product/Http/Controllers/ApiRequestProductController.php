@@ -390,6 +390,8 @@ class ApiRequestProductController extends Controller
                             'balance_total' => $balance,
                             'notes' => $post['note_approve'] ?? null
                         ]);
+
+                        $update_budget = DepartmentBudget::where('id_department_budget', $department['id_department_budget'])->update(['budget_balance' => $balance]);
             
                         if(!$log){
                             DB::rollback();

@@ -301,3 +301,7 @@ Route::group(['prefix' => 'api/icount/disburse', 'namespace' => 'Modules\Transac
     Route::post('/signature/cash-advance','ApiTransaction@signature_cash_advance');
     Route::post('/signature/loan','ApiTransaction@signature_loan');
 });
+
+Route::group(['prefix' => 'api/revenue-sharing', 'namespace' => 'Modules\Transaction\Http\Controllers'], function() {
+    Route::post('/','ApiTransaction@revenue_sharing');
+});

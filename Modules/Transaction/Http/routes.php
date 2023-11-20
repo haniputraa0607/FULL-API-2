@@ -303,5 +303,5 @@ Route::group(['prefix' => 'api/icount/disburse', 'namespace' => 'Modules\Transac
 });
 
 Route::group(['prefix' => 'api/revenue-sharing', 'namespace' => 'Modules\Transaction\Http\Controllers'], function() {
-    Route::post('/','ApiTransaction@revenue_sharing');
+    Route::get('/','ApiTransaction@revenue_sharing');
 });

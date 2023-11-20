@@ -15,7 +15,7 @@ class Kernel extends ConsoleKernel
      * @var array
      */
     protected $commands = [
-        //
+        'App\Console\Commands\BackupToStorage'
     ];
     /**
      * Define the application's command schedule.
@@ -27,6 +27,7 @@ class Kernel extends ConsoleKernel
     {
          $schedule->command('backup:clean')->dailyAt(config('app.env') == 'staging' ? '08:00' : '02:00');
          $schedule->command('backup:run')->dailyAt(config('app.env') == 'staging' ? '08:15' : '02:10');
+         $schedule->command('database:backup')->monthlyOn('1', config('app.env') == 'staging' ? '05:42' : '00:10');
         /**
          * sending the campaign schedule
          * run every 5 minute
